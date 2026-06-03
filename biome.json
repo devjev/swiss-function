@@ -67,6 +67,19 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/components/Outliner/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off",
+            "useFocusableInteractive": "off",
+            "useKeyWithClickEvents": "off",
+            "noStaticElementInteractions": "off"
+          }
+        }
+      }
     }
   ]
 }

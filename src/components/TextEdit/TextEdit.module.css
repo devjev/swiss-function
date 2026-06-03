@@ -1,0 +1,36 @@
+.root {
+  display: block;
+  inline-size: 100%;
+  /* Padding-block keeps breathing room; rows × line-height drives the rest of the height. */
+  padding: calc(var(--sf-unit) / 3) calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-md);
+  /* line-height = --sf-leading-base so multi-line text lands on the unit baseline grid. */
+  line-height: var(--sf-leading-base);
+  caret-shape: block;
+  caret-color: var(--sf-color-primary);
+  resize: vertical;
+  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.root::placeholder {
+  color: var(--sf-color-muted);
+}
+
+.root:hover:not(:disabled) {
+  border-color: var(--sf-color-primary-hover);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.root:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -56,6 +56,14 @@
       "types": "./dist/components/Popover/index.d.ts",
       "import": "./dist/components/Popover/index.js"
     },
+    "./markdown": {
+      "types": "./dist/components/Markdown/index.d.ts",
+      "import": "./dist/components/Markdown/index.js"
+    },
+    "./outliner": {
+      "types": "./dist/components/Outliner/index.d.ts",
+      "import": "./dist/components/Outliner/index.js"
+    },
     "./menu": {
       "types": "./dist/components/Menu/index.d.ts",
       "import": "./dist/components/Menu/index.js"
@@ -75,6 +83,10 @@
     "./tabs": {
       "types": "./dist/components/Tabs/index.d.ts",
       "import": "./dist/components/Tabs/index.js"
+    },
+    "./text-edit": {
+      "types": "./dist/components/TextEdit/index.d.ts",
+      "import": "./dist/components/TextEdit/index.js"
     },
     "./accordion": {
       "types": "./dist/components/Accordion/index.d.ts",
@@ -102,7 +114,9 @@
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.14.2"
+    "@tanstack/react-virtual": "^3.14.2",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@ladle/react": "^4.1.2",

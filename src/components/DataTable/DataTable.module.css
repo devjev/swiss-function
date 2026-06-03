@@ -126,37 +126,7 @@
   flex: 1;
 }
 
-/* Chevron — minimal, monospace-aligned. Lives in tree cells and group headers. */
-.chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--sf-unit) * 0.75);
-  block-size: calc(var(--sf-unit) * 0.75);
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: var(--sf-color-fg-subtle);
-  cursor: pointer;
-  font-size: var(--sf-font-size-xs);
-  line-height: 1;
-  border-radius: var(--sf-radius-default);
-}
-
-.chevron:hover {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
-  color: var(--sf-color-fg);
-}
-
-.chevron:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
-}
-
-.chevronSlot {
-  display: inline-block;
-  width: calc(var(--sf-unit) * 0.75);
-}
+/* (Chevron styles moved to src/lib/TreeChevron.module.css — shared with Outliner.) */
 
 /* Range cells: a soft tint of primary so the selection block reads as a unit. */
 .cell[data-in-range] {

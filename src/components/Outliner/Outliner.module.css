@@ -1,0 +1,170 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+  /* Tint the (visible) chevrons primary blue — visually flags collapsible
+     rows. Invisible chevron slots (leaf rows) are unaffected. */
+  --sf-chevron-color: var(--sf-color-primary);
+  /* Container chrome — same surface treatment as Menu / Combobox / DataTable
+     so the outliner reads as a contained component, not free-flowing
+     indented text. */
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  /* No horizontal padding on the box itself — the chevron column on each row
+     supplies exactly 1 unit of left clearance (chevron 0.75u + gap 0.25u), so
+     box + item combined = 1 unit before content. Vertical padding stays. */
+  padding: var(--sf-unit) 0;
+  /* Container is keyboard-focusable so it owns the keydown for all bullets. */
+  outline: none;
+}
+
+.row {
+  display: grid;
+  /* Three columns: chevron / content / copy-ref button. The button slot
+     is reserved (auto width) but invisible until row hover, so the layout
+     doesn't shift when the button reveals. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  /* 1/8 unit (3px) gap + 1/8 unit base padding-inline-start balances the
+     chevron between the box border and the text — equal space on both sides
+     of the 0.75u glyph, summing to exactly 1 unit before text. */
+  gap: calc(var(--sf-unit) / 8);
+  /* Height = 1 unit (one leading line). No padding-block so rows snap to
+     the baseline grid. */
+  /* Depth indent is added inline as padding-inline-start. */
+}
+
+/* Copy-block-reference button — hidden until row hover or focus.
+   Click writes `((bullet-id))` to the clipboard. */
+.copyRefButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 calc(var(--sf-unit) / 3);
+  block-size: var(--sf-leading-base);
+  background: transparent;
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  color: var(--sf-color-fg-subtle);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-xs);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.row:hover .copyRefButton,
+.copyRefButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.copyRefButton:hover {
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-fg);
+}
+
+.copyRefButton[data-copied] {
+  color: var(--sf-color-primary);
+  border-color: var(--sf-color-primary);
+  opacity: 1;
+}
+
+.row:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.content {
+  min-width: 0;
+  outline: none;
+  cursor: text;
+  /* Align the rendered first line with the chevron + bullet dot. */
+  padding-block: 0;
+}
+
+.contentActive {
+  outline: 2px solid var(--sf-color-primary);
+  outline-offset: 2px;
+  border-radius: var(--sf-radius-default);
+}
+
+/* Wiki link — clickable inline button styled as a link. */
+.wikiLink {
+  display: inline;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--sf-color-primary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wikiLink:hover {
+  color: var(--sf-color-primary-hover);
+}
+
+/* Block reference — inline-block, quoted card with a left rule. */
+.blockRef {
+  display: inline-block;
+  padding: 0 calc(var(--sf-unit) / 3);
+  background-color: var(--sf-color-bg-subtle);
+  border-inline-start: 2px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  vertical-align: baseline;
+}
+
+.blockRefMissing {
+  display: inline-block;
+  padding: 0 calc(var(--sf-unit) / 3);
+  color: var(--sf-color-muted);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-sm);
+  font-style: italic;
+}
+
+/* Pull our nested Markdown's own padding out of block refs so they don't
+   stack vertical spacing when transcluded inline. */
+.blockRef :global(p) {
+  margin: 0;
+}
+
+/* Tighten Markdown's vertical rhythm inside outliner bullets so a `- list`
+   of three items takes the same vertical room as three separate outliner
+   bullets. Markers (•) and indent stay — they distinguish "list inside one
+   bullet" from "siblings". */
+.content :global(p),
+.content :global(ul),
+.content :global(ol) {
+  margin: 0;
+}
+.content :global(li) {
+  margin: 0;
+}
+
+/* Editor inside a bullet: use sans (not TextEdit's default mono) so the
+   text doesn't visibly resize / re-flow when toggling between rendered
+   markdown and edit mode. Tag selector gives us enough specificity to
+   beat TextEdit's `.root` font-family. */
+textarea.bulletEditor {
+  font-family: var(--sf-font-sans);
+  /* Match the rendered markdown's paragraph metrics exactly. */
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  /* Trim TextEdit's padding so the caret sits where the rendered text was. */
+  padding: 0;
+  border-color: transparent;
+  /* Hide the native resize handle — outliner bullets size themselves
+     from content; the user shouldn't drag-resize one. */
+  resize: none;
+}
+
+textarea.bulletEditor:hover:not(:disabled),
+textarea.bulletEditor:focus-visible {
+  border-color: transparent;
+  outline: none;
+}

@@ -1,0 +1,34 @@
+/* Chevron — minimal, monospace-aligned. Used by DataTable + Outliner. */
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--sf-unit) * 0.75);
+  block-size: calc(var(--sf-unit) * 0.75);
+  padding: 0;
+  background: transparent;
+  border: none;
+  /* Color driven by an opt-in custom property so consumers (Outliner) can
+     scope the chevron tint without forking the component. */
+  color: var(--sf-chevron-color, var(--sf-color-fg-subtle));
+  cursor: pointer;
+  font-size: var(--sf-font-size-xs);
+  line-height: 1;
+  border-radius: var(--sf-radius-default);
+}
+
+.chevron:hover {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  color: var(--sf-color-fg);
+}
+
+.chevron:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Spacer used when `visible={false}` so adjacent rows stay aligned. */
+.chevronSlot {
+  display: inline-block;
+  width: calc(var(--sf-unit) * 0.75);
+}

@@ -7,6 +7,8 @@ const componentNames = [
   "Button",
   "Grid",
   "Input",
+  "Markdown",
+  "Outliner",
   "Checkbox",
   "Switch",
   "Radio",
@@ -17,6 +19,7 @@ const componentNames = [
   "Combobox",
   "DataTable",
   "Tabs",
+  "TextEdit",
   "Accordion",
 ];
 
@@ -68,6 +71,8 @@ export default defineConfig({
         /^react-dom\//,
         /^@base-ui\/react/,
         /^@tanstack\//,
+        /^react-markdown/,
+        /^remark-/,
       ],
       input: {
         index: resolve(__dirname, "src/index.ts"),

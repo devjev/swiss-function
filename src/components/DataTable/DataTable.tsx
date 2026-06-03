@@ -11,10 +11,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { TreeChevron } from "../../lib/TreeChevron";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
-import { TreeChevron } from "./TreeChevron";
 import type {
   AdvanceHint,
   Cell,
