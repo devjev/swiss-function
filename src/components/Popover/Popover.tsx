@@ -2,6 +2,7 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { Box } from "../Box";
 import styles from "./Popover.module.css";
 
 const Root = BasePopover.Root;
@@ -14,7 +15,15 @@ const Close = BasePopover.Close;
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BasePopover.Popup>>(
   function PopoverPopup({ className, ...rest }, ref) {
     return (
-      <BasePopover.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+      <BasePopover.Popup
+        {...rest}
+        ref={ref}
+        className={mergeClassName(styles.popup, className)}
+        // Surface chrome (bg, border, radius, padding, shadow) comes from Box
+        // via Base UI's render-as pattern. Elevation 3 is a typical "lifted
+        // floating panel" depth; padding 0.75 ≈ 18px keeps the popup tight.
+        render={<Box elevation={3} padding={0.75} />}
+      />
     );
   },
 );

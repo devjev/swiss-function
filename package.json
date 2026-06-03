@@ -28,6 +28,14 @@
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
     },
+    "./box": {
+      "types": "./dist/components/Box/index.d.ts",
+      "import": "./dist/components/Box/index.js"
+    },
+    "./command-bar": {
+      "types": "./dist/components/CommandBar/index.d.ts",
+      "import": "./dist/components/CommandBar/index.js"
+    },
     "./grid": {
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"

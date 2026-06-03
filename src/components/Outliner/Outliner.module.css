@@ -16,7 +16,7 @@
   /* No horizontal padding on the box itself — the chevron column on each row
      supplies exactly 1 unit of left clearance (chevron 0.75u + gap 0.25u), so
      box + item combined = 1 unit before content. Vertical padding stays. */
-  padding: var(--sf-unit) 0;
+  padding: calc(var(--sf-unit) / 2) 0;
   /* Container is keyboard-focusable so it owns the keydown for all bullets. */
   outline: none;
 }
@@ -84,12 +84,6 @@
   cursor: text;
   /* Align the rendered first line with the chevron + bullet dot. */
   padding-block: 0;
-}
-
-.contentActive {
-  outline: 2px solid var(--sf-color-primary);
-  outline-offset: 2px;
-  border-radius: var(--sf-radius-default);
 }
 
 /* Wiki link — clickable inline button styled as a link. */

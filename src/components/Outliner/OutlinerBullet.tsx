@@ -171,7 +171,7 @@ export const OutlinerBullet = forwardRef<HTMLDivElement, OutlinerBulletProps>(
           onToggle={onToggleCollapsed}
         />
         <div
-          className={cx(styles.content, isActive && !isEditing && styles.contentActive)}
+          className={styles.content}
           onDoubleClick={(e) => {
             if (readOnly) return;
             e.stopPropagation();
