@@ -16,8 +16,8 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            # Runtime
-            nodejs_25
+            # Runtime — Node 26 (latest "Current" as of June 2026; Node 25 was EOL'd 2026-06-01 and dropped from nixpkgs)
+            nodejs_26
 
             # TypeScript + JS LSPs
             typescript
