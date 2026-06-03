@@ -1,0 +1,99 @@
+@layer sf.tokens {
+  :root,
+  [data-theme="light"] {
+    /* Color — semantic */
+    --sf-color-bg: #ffffff;
+    --sf-color-bg-subtle: #f9fafb;
+    --sf-color-fg: #0a0a0a;
+    --sf-color-fg-subtle: #4b5563;
+    --sf-color-muted: #6b7280;
+    --sf-color-border: #e5e7eb;
+    --sf-color-border-strong: #d1d5db;
+    --sf-color-primary: #2563eb;
+    --sf-color-primary-fg: #ffffff;
+    --sf-color-primary-hover: #1d4ed8;
+    --sf-color-primary-active: #1e40af;
+    --sf-color-danger: #dc2626;
+    --sf-color-danger-fg: #ffffff;
+    --sf-color-danger-hover: #b91c1c;
+    --sf-color-success: #16a34a;
+    --sf-color-warning: #d97706;
+    --sf-color-focus-ring: #2563eb;
+    --sf-color-overlay: rgb(0 0 0 / 0.4);
+
+    /* Spacing */
+    --sf-space-0: 0;
+    --sf-space-1: 0.25rem;
+    --sf-space-2: 0.5rem;
+    --sf-space-3: 0.75rem;
+    --sf-space-4: 1rem;
+    --sf-space-5: 1.25rem;
+    --sf-space-6: 1.5rem;
+    --sf-space-8: 2rem;
+    --sf-space-10: 2.5rem;
+    --sf-space-12: 3rem;
+
+    /* Radii */
+    --sf-radius-sm: 0.25rem;
+    --sf-radius-md: 0.5rem;
+    --sf-radius-lg: 0.75rem;
+    --sf-radius-xl: 1rem;
+    --sf-radius-full: 9999px;
+
+    /* Typography */
+    --sf-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --sf-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    --sf-font-size-xs: 0.75rem;
+    --sf-font-size-sm: 0.875rem;
+    --sf-font-size-md: 1rem;
+    --sf-font-size-lg: 1.125rem;
+    --sf-font-size-xl: 1.25rem;
+    --sf-font-weight-regular: 400;
+    --sf-font-weight-medium: 500;
+    --sf-font-weight-semibold: 600;
+    --sf-font-weight-bold: 700;
+    --sf-line-height-tight: 1.25;
+    --sf-line-height-normal: 1.5;
+
+    /* Elevation */
+    --sf-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+    --sf-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --sf-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --sf-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    /* Motion */
+    --sf-duration-fast: 120ms;
+    --sf-duration-base: 180ms;
+    --sf-duration-slow: 240ms;
+    --sf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --sf-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Z-indices */
+    --sf-z-dropdown: 1000;
+    --sf-z-overlay: 1100;
+    --sf-z-modal: 1200;
+    --sf-z-popover: 1300;
+    --sf-z-tooltip: 1400;
+  }
+
+  [data-theme="dark"] {
+    --sf-color-bg: #0a0a0a;
+    --sf-color-bg-subtle: #171717;
+    --sf-color-fg: #fafafa;
+    --sf-color-fg-subtle: #d4d4d4;
+    --sf-color-muted: #9ca3af;
+    --sf-color-border: #262626;
+    --sf-color-border-strong: #404040;
+    --sf-color-primary: #3b82f6;
+    --sf-color-primary-fg: #ffffff;
+    --sf-color-primary-hover: #60a5fa;
+    --sf-color-primary-active: #93c5fd;
+    --sf-color-danger: #ef4444;
+    --sf-color-danger-fg: #ffffff;
+    --sf-color-danger-hover: #f87171;
+    --sf-color-success: #22c55e;
+    --sf-color-warning: #f59e0b;
+    --sf-color-focus-ring: #60a5fa;
+    --sf-color-overlay: rgb(0 0 0 / 0.6);
+  }
+}

@@ -1,0 +1,38 @@
+.popup {
+  padding: var(--sf-space-3) var(--sf-space-4);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-md);
+  box-shadow: var(--sf-shadow-lg);
+  z-index: var(--sf-z-popover);
+  font-size: var(--sf-font-size-sm);
+  max-width: 20rem;
+  outline: none;
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-out),
+    transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+.popup[data-open] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.arrow {
+  fill: var(--sf-color-bg);
+  stroke: var(--sf-color-border);
+  stroke-width: 1;
+}
+
+.title {
+  margin: 0 0 var(--sf-space-1) 0;
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+.description {
+  margin: 0;
+  color: var(--sf-color-muted);
+}

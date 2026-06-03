@@ -1,0 +1,122 @@
+{
+  "name": "@tarassov-ch/swiss-function",
+  "version": "0.0.0",
+  "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
+  "license": "MIT",
+  "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
+  "type": "module",
+  "private": true,
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tokens.css": "./dist/tokens/tokens.css",
+    "./reset.css": "./dist/tokens/reset.css",
+    "./button": {
+      "types": "./dist/components/Button/index.d.ts",
+      "import": "./dist/components/Button/index.js"
+    },
+    "./input": {
+      "types": "./dist/components/Input/index.d.ts",
+      "import": "./dist/components/Input/index.js"
+    },
+    "./checkbox": {
+      "types": "./dist/components/Checkbox/index.d.ts",
+      "import": "./dist/components/Checkbox/index.js"
+    },
+    "./switch": {
+      "types": "./dist/components/Switch/index.d.ts",
+      "import": "./dist/components/Switch/index.js"
+    },
+    "./radio": {
+      "types": "./dist/components/Radio/index.d.ts",
+      "import": "./dist/components/Radio/index.js"
+    },
+    "./dialog": {
+      "types": "./dist/components/Dialog/index.d.ts",
+      "import": "./dist/components/Dialog/index.js"
+    },
+    "./popover": {
+      "types": "./dist/components/Popover/index.d.ts",
+      "import": "./dist/components/Popover/index.js"
+    },
+    "./tooltip": {
+      "types": "./dist/components/Tooltip/index.d.ts",
+      "import": "./dist/components/Tooltip/index.js"
+    },
+    "./menu": {
+      "types": "./dist/components/Menu/index.d.ts",
+      "import": "./dist/components/Menu/index.js"
+    },
+    "./select": {
+      "types": "./dist/components/Select/index.d.ts",
+      "import": "./dist/components/Select/index.js"
+    },
+    "./combobox": {
+      "types": "./dist/components/Combobox/index.d.ts",
+      "import": "./dist/components/Combobox/index.js"
+    },
+    "./tabs": {
+      "types": "./dist/components/Tabs/index.d.ts",
+      "import": "./dist/components/Tabs/index.js"
+    },
+    "./accordion": {
+      "types": "./dist/components/Accordion/index.d.ts",
+      "import": "./dist/components/Accordion/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "dev": "ladle serve",
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build",
+    "build:stories": "ladle build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ct": "playwright test -c playwright-ct.config.ts",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run check && npm run typecheck && npm run build"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.5.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@ladle/react": "^4.1.2",
+    "@playwright/experimental-ct-react": "^1.48.0",
+    "@playwright/test": "^1.48.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.8"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.18"
+  }
+}

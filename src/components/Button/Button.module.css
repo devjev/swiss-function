@@ -1,0 +1,88 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sf-space-2);
+  padding: var(--sf-space-2) var(--sf-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--sf-radius-md);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    color var(--sf-duration-fast) var(--sf-ease-out),
+    transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.root:active:not([data-disabled]) {
+  transform: translateY(1px);
+}
+
+/* Variants */
+.variantPrimary {
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+}
+.variantPrimary:hover:not([data-disabled]) {
+  background-color: var(--sf-color-primary-hover);
+}
+.variantPrimary:active:not([data-disabled]) {
+  background-color: var(--sf-color-primary-active);
+}
+
+.variantSecondary {
+  background-color: transparent;
+  color: var(--sf-color-fg);
+  border-color: var(--sf-color-border-strong);
+}
+.variantSecondary:hover:not([data-disabled]) {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.variantGhost {
+  background-color: transparent;
+  color: var(--sf-color-fg);
+}
+.variantGhost:hover:not([data-disabled]) {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.variantDanger {
+  background-color: var(--sf-color-danger);
+  color: var(--sf-color-danger-fg);
+}
+.variantDanger:hover:not([data-disabled]) {
+  background-color: var(--sf-color-danger-hover);
+}
+
+/* Sizes */
+.sizeSm {
+  padding: var(--sf-space-1) var(--sf-space-3);
+  font-size: var(--sf-font-size-sm);
+  border-radius: var(--sf-radius-sm);
+}
+
+.sizeMd {
+  /* default */
+}
+
+.sizeLg {
+  padding: var(--sf-space-3) var(--sf-space-6);
+  font-size: var(--sf-font-size-lg);
+  border-radius: var(--sf-radius-lg);
+}

@@ -1,0 +1,47 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid var(--sf-color-border-strong);
+  border-radius: var(--sf-radius-sm);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-primary-fg);
+  cursor: pointer;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.root[data-checked],
+.root[data-indeterminate] {
+  background-color: var(--sf-color-primary);
+  border-color: var(--sf-color-primary);
+}
+
+.root[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  stroke: currentColor;
+  stroke-width: 3;
+  fill: none;
+}
