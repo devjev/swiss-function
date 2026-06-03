@@ -1,7 +1,7 @@
 import { Popover as BasePopover } from "@base-ui/react/popover";
-import { forwardRef } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import { cx } from "../../lib/cx";
+import { forwardRef } from "react";
+import { mergeClassName } from "../../lib/cx";
 import styles from "./Popover.module.css";
 
 const Root = BasePopover.Root;
@@ -13,13 +13,17 @@ const Close = BasePopover.Close;
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BasePopover.Popup>>(
   function PopoverPopup({ className, ...rest }, ref) {
-    return <BasePopover.Popup {...rest} ref={ref} className={cx(styles.popup, className)} />;
+    return (
+      <BasePopover.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+    );
   },
 );
 
 const Title = forwardRef<HTMLHeadingElement, ComponentPropsWithoutRef<typeof BasePopover.Title>>(
   function PopoverTitle({ className, ...rest }, ref) {
-    return <BasePopover.Title {...rest} ref={ref} className={cx(styles.title, className)} />;
+    return (
+      <BasePopover.Title {...rest} ref={ref} className={mergeClassName(styles.title, className)} />
+    );
   },
 );
 
@@ -28,7 +32,11 @@ const Description = forwardRef<
   ComponentPropsWithoutRef<typeof BasePopover.Description>
 >(function PopoverDescription({ className, ...rest }, ref) {
   return (
-    <BasePopover.Description {...rest} ref={ref} className={cx(styles.description, className)} />
+    <BasePopover.Description
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.description, className)}
+    />
   );
 });
 

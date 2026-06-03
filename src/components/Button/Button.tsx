@@ -1,5 +1,5 @@
-import { forwardRef } from "react";
 import type { ButtonHTMLAttributes } from "react";
+import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
 import styles from "./Button.module.css";
 

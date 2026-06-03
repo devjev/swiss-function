@@ -1,14 +1,33 @@
 @layer sf.tokens {
   :root,
   [data-theme="light"] {
+    /* Foundation: typography base
+       --sf-font-size-base is the default copy text size.
+       --sf-leading-base is the copy text leading and the basic size unit
+       on which the rest of the system is built (spacing, density, etc.). */
+    --sf-font-size-base: 1rem;
+    --sf-leading-base: 1.5rem;
+
+    /* The basic size unit — equal to the copy text leading.
+       All spacing, density, and dimensional tokens should derive from this. */
+    --sf-unit: var(--sf-leading-base);
+
     /* Color — semantic */
     --sf-color-bg: #ffffff;
     --sf-color-bg-subtle: #f9fafb;
     --sf-color-fg: #0a0a0a;
     --sf-color-fg-subtle: #4b5563;
     --sf-color-muted: #6b7280;
-    --sf-color-border: #e5e7eb;
-    --sf-color-border-strong: #d1d5db;
+    --sf-color-border: #303030;
+    /* Alias: kept for now so Button/Input compile unchanged.
+       With the new strong --sf-color-border, this distinction is no longer
+       meaningful — consolidate when those components are revisited. */
+    --sf-color-border-strong: var(--sf-color-border);
+    /* Subtle hairline used by shapes (Skeleton, etc.). Derived from
+       --sf-color-bg-subtle so it auto-adapts to theme — and is just a touch
+       more contrasted than the shimmer's most-mixed moment (5%), so a
+       Skeleton's edges always read as well-defined as the shimmer peak. */
+    --sf-color-border-subtle: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 12%);
     --sf-color-primary: #2563eb;
     --sf-color-primary-fg: #ffffff;
     --sf-color-primary-hover: #1d4ed8;
@@ -34,6 +53,7 @@
     --sf-space-12: 3rem;
 
     /* Radii */
+    --sf-radius-xs: 0.125rem;
     --sf-radius-sm: 0.25rem;
     --sf-radius-md: 0.5rem;
     --sf-radius-lg: 0.75rem;
@@ -45,7 +65,7 @@
     --sf-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
     --sf-font-size-xs: 0.75rem;
     --sf-font-size-sm: 0.875rem;
-    --sf-font-size-md: 1rem;
+    --sf-font-size-md: var(--sf-font-size-base);
     --sf-font-size-lg: 1.125rem;
     --sf-font-size-xl: 1.25rem;
     --sf-font-weight-regular: 400;
@@ -82,8 +102,8 @@
     --sf-color-fg: #fafafa;
     --sf-color-fg-subtle: #d4d4d4;
     --sf-color-muted: #9ca3af;
-    --sf-color-border: #262626;
-    --sf-color-border-strong: #404040;
+    --sf-color-border: #e0e0e0;
+    --sf-color-border-strong: var(--sf-color-border);
     --sf-color-primary: #3b82f6;
     --sf-color-primary-fg: #ffffff;
     --sf-color-primary-hover: #60a5fa;

@@ -1,7 +1,7 @@
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { forwardRef } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import { cx } from "../../lib/cx";
+import { forwardRef } from "react";
+import { mergeClassName } from "../../lib/cx";
 import styles from "./Dialog.module.css";
 
 const Root = BaseDialog.Root;
@@ -11,19 +11,29 @@ const Close = BaseDialog.Close;
 
 const Backdrop = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDialog.Backdrop>>(
   function DialogBackdrop({ className, ...rest }, ref) {
-    return <BaseDialog.Backdrop {...rest} ref={ref} className={cx(styles.backdrop, className)} />;
+    return (
+      <BaseDialog.Backdrop
+        {...rest}
+        ref={ref}
+        className={mergeClassName(styles.backdrop, className)}
+      />
+    );
   },
 );
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDialog.Popup>>(
   function DialogPopup({ className, ...rest }, ref) {
-    return <BaseDialog.Popup {...rest} ref={ref} className={cx(styles.popup, className)} />;
+    return (
+      <BaseDialog.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+    );
   },
 );
 
 const Title = forwardRef<HTMLHeadingElement, ComponentPropsWithoutRef<typeof BaseDialog.Title>>(
   function DialogTitle({ className, ...rest }, ref) {
-    return <BaseDialog.Title {...rest} ref={ref} className={cx(styles.title, className)} />;
+    return (
+      <BaseDialog.Title {...rest} ref={ref} className={mergeClassName(styles.title, className)} />
+    );
   },
 );
 
@@ -32,7 +42,11 @@ const Description = forwardRef<
   ComponentPropsWithoutRef<typeof BaseDialog.Description>
 >(function DialogDescription({ className, ...rest }, ref) {
   return (
-    <BaseDialog.Description {...rest} ref={ref} className={cx(styles.description, className)} />
+    <BaseDialog.Description
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.description, className)}
+    />
   );
 });
 

@@ -5,6 +5,7 @@ import dts from "vite-plugin-dts";
 
 const componentNames = [
   "Button",
+  "Grid",
   "Input",
   "Checkbox",
   "Switch",
@@ -14,6 +15,7 @@ const componentNames = [
   "Tooltip",
   "Menu",
   "Select",
+  "Skeleton",
   "Combobox",
   "Tabs",
   "Accordion",

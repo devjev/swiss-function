@@ -1,0 +1,13 @@
+/* Prevent grid items from forcing the grid wider than its container.
+   Combined with minmax(0, 1fr) in track definitions (the default for
+   numeric `columns`/`rows` props), this eliminates the most common
+   CSS Grid overflow surprise: long words or large children stretching
+   tracks beyond the available space. */
+.grid,
+.gridInline {
+  min-width: 0;
+}
+
+.item {
+  min-width: 0;
+}

@@ -28,6 +28,10 @@
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
     },
+    "./grid": {
+      "types": "./dist/components/Grid/index.d.ts",
+      "import": "./dist/components/Grid/index.js"
+    },
     "./input": {
       "types": "./dist/components/Input/index.d.ts",
       "import": "./dist/components/Input/index.js"
@@ -64,6 +68,10 @@
       "types": "./dist/components/Select/index.d.ts",
       "import": "./dist/components/Select/index.js"
     },
+    "./skeleton": {
+      "types": "./dist/components/Skeleton/index.d.ts",
+      "import": "./dist/components/Skeleton/index.js"
+    },
     "./combobox": {
       "types": "./dist/components/Combobox/index.d.ts",
       "import": "./dist/components/Combobox/index.js"
@@ -99,10 +107,9 @@
     "@base-ui/react": "^1.5.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
     "@ladle/react": "^4.1.2",
-    "@playwright/experimental-ct-react": "^1.48.0",
-    "@playwright/test": "^1.48.0",
+    "@playwright/experimental-ct-react": "1.59.1",
+    "@playwright/test": "1.59.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",

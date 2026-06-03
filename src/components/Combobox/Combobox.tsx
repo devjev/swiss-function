@@ -1,7 +1,7 @@
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
-import { forwardRef } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import { cx } from "../../lib/cx";
+import { forwardRef } from "react";
+import { mergeClassName } from "../../lib/cx";
 import styles from "./Combobox.module.css";
 
 const Root = BaseCombobox.Root;
@@ -12,19 +12,25 @@ const List = BaseCombobox.List;
 
 const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseCombobox.Input>>(
   function ComboboxInput({ className, ...rest }, ref) {
-    return <BaseCombobox.Input {...rest} ref={ref} className={cx(styles.input, className)} />;
+    return (
+      <BaseCombobox.Input {...rest} ref={ref} className={mergeClassName(styles.input, className)} />
+    );
   },
 );
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseCombobox.Popup>>(
   function ComboboxPopup({ className, ...rest }, ref) {
-    return <BaseCombobox.Popup {...rest} ref={ref} className={cx(styles.popup, className)} />;
+    return (
+      <BaseCombobox.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+    );
   },
 );
 
 const Item = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseCombobox.Item>>(
   function ComboboxItem({ className, ...rest }, ref) {
-    return <BaseCombobox.Item {...rest} ref={ref} className={cx(styles.item, className)} />;
+    return (
+      <BaseCombobox.Item {...rest} ref={ref} className={mergeClassName(styles.item, className)} />
+    );
   },
 );
 

@@ -4,14 +4,21 @@
   justify-content: center;
   width: 1.125rem;
   height: 1.125rem;
-  border: 1px solid var(--sf-color-border-strong);
-  border-radius: var(--sf-radius-sm);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-xs);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-primary-fg);
   cursor: pointer;
+  /* Same "light from above" stack as Button. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 0 rgb(0 0 0 / 0.08),
+    0 2px 3px rgb(0 0 0 / 0.10);
   transition:
     background-color var(--sf-duration-fast) var(--sf-ease-out),
-    border-color var(--sf-duration-fast) var(--sf-ease-out);
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out),
+    transform var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .root:focus-visible {
@@ -22,12 +29,18 @@
 .root[data-checked],
 .root[data-indeterminate] {
   background-color: var(--sf-color-primary);
-  border-color: var(--sf-color-primary);
+  border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
 
 .root[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.root:active:not([data-disabled]) {
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.16);
+  transform: translateY(1px);
 }
 
 .indicator {
@@ -44,4 +57,13 @@
   stroke: currentColor;
   stroke-width: 3;
   fill: none;
+  display: none;
+}
+
+.indicator[data-checked]:not([data-indeterminate]) .iconCheck {
+  display: block;
+}
+
+.indicator[data-indeterminate] .iconIndeterminate {
+  display: block;
 }

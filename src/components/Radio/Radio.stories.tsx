@@ -3,14 +3,14 @@ import { Radio, RadioGroup } from "./Radio";
 
 export const Group: Story = () => (
   <RadioGroup defaultValue="medium">
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Radio value="small" /> Small
+    <label htmlFor="radio-small" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <Radio id="radio-small" value="small" /> Small
     </label>
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Radio value="medium" /> Medium
+    <label htmlFor="radio-medium" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <Radio id="radio-medium" value="medium" /> Medium
     </label>
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Radio value="large" /> Large
+    <label htmlFor="radio-large" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <Radio id="radio-large" value="large" /> Large
     </label>
   </RadioGroup>
 );

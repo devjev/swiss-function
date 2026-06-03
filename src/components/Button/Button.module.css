@@ -5,17 +5,25 @@
   gap: var(--sf-space-2);
   padding: var(--sf-space-2) var(--sf-space-4);
   border: 1px solid transparent;
-  border-radius: var(--sf-radius-md);
+  border-radius: var(--sf-radius-xs);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-md);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
   cursor: pointer;
   user-select: none;
+  /* "Light from above": 1px top-edge inset highlight + 2px bottom drop.
+     Both low-alpha — the button reads as a slightly raised tab, not as an
+     elevated card. Sits at the top of the 1–2px aesthetic envelope. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 0 rgb(0 0 0 / 0.08),
+    0 2px 3px rgb(0 0 0 / 0.10);
   transition:
     background-color var(--sf-duration-fast) var(--sf-ease-out),
     border-color var(--sf-duration-fast) var(--sf-ease-out),
     color var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out),
     transform var(--sf-duration-fast) var(--sf-ease-out);
 }
 
@@ -27,28 +35,32 @@
 .root[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .root:active:not([data-disabled]) {
-  transform: translateY(1px);
+  /* Pressed: shadow inverts to inset, button settles into where the drop
+     shadow was (2px down) so the total visual mass stays put. */
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.16);
+  transform: translateY(2px);
 }
 
-/* Variants */
+/* Variants — each gets its own border tint matched to the fill so the
+   1px rim defines the edge without competing with the body color. */
+
 .variantPrimary {
   background-color: var(--sf-color-primary);
   color: var(--sf-color-primary-fg);
+  border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
 .variantPrimary:hover:not([data-disabled]) {
   background-color: var(--sf-color-primary-hover);
 }
-.variantPrimary:active:not([data-disabled]) {
-  background-color: var(--sf-color-primary-active);
-}
 
 .variantSecondary {
-  background-color: transparent;
+  background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border-color: var(--sf-color-border-strong);
+  border-color: var(--sf-color-border-subtle);
 }
 .variantSecondary:hover:not([data-disabled]) {
   background-color: var(--sf-color-bg-subtle);
@@ -57,14 +69,23 @@
 .variantGhost {
   background-color: transparent;
   color: var(--sf-color-fg);
+  border-color: transparent;
+  /* Ghost is intentionally flat — no shadow, no border. The hover bg alone
+     communicates interactivity. */
+  box-shadow: none;
 }
 .variantGhost:hover:not([data-disabled]) {
   background-color: var(--sf-color-bg-subtle);
+}
+.variantGhost:active:not([data-disabled]) {
+  box-shadow: none;
+  transform: none;
 }
 
 .variantDanger {
   background-color: var(--sf-color-danger);
   color: var(--sf-color-danger-fg);
+  border-color: color-mix(in srgb, var(--sf-color-danger), black 12%);
 }
 .variantDanger:hover:not([data-disabled]) {
   background-color: var(--sf-color-danger-hover);
@@ -74,7 +95,6 @@
 .sizeSm {
   padding: var(--sf-space-1) var(--sf-space-3);
   font-size: var(--sf-font-size-sm);
-  border-radius: var(--sf-radius-sm);
 }
 
 .sizeMd {
@@ -84,5 +104,4 @@
 .sizeLg {
   padding: var(--sf-space-3) var(--sf-space-6);
   font-size: var(--sf-font-size-lg);
-  border-radius: var(--sf-radius-lg);
 }

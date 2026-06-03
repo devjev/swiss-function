@@ -1,0 +1,53 @@
+.root {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: var(--sf-unit);
+  background-color: var(--sf-color-bg-subtle);
+  border: 1px solid var(--sf-color-border-subtle);
+  overflow: hidden;
+  /* Sharp corners by default — see system aesthetic. */
+}
+
+/* Shimmer sweep — diagonal highlight glides left → right.
+   Pseudo-element approach (vs. background-position) so the gradient
+   is GPU-accelerated via transform and never repaints. */
+.root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 30%,
+    color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 5%) 50%,
+    transparent 70%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: sf-skeleton-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes sf-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.shapeCircle {
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  width: calc(var(--sf-unit) * 2);
+  height: auto;
+}
+
+.shapePill {
+  border-radius: var(--sf-radius-full);
+}

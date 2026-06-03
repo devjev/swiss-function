@@ -1,7 +1,7 @@
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
-import { forwardRef } from "react";
 import type { ComponentPropsWithoutRef } from "react";
-import { cx } from "../../lib/cx";
+import { forwardRef } from "react";
+import { mergeClassName } from "../../lib/cx";
 import styles from "./Tooltip.module.css";
 
 const Provider = BaseTooltip.Provider;
@@ -13,7 +13,9 @@ const Arrow = BaseTooltip.Arrow;
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseTooltip.Popup>>(
   function TooltipPopup({ className, ...rest }, ref) {
-    return <BaseTooltip.Popup {...rest} ref={ref} className={cx(styles.popup, className)} />;
+    return (
+      <BaseTooltip.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+    );
   },
 );
 
