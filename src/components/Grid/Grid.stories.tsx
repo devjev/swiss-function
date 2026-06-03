@@ -7,7 +7,7 @@ const Card = ({ children, style }: { children: ReactNode; style?: CSSProperties 
     style={{
       padding: "var(--sf-unit)",
       border: "1px solid var(--sf-color-border)",
-      borderRadius: "var(--sf-radius-md)",
+      borderRadius: "var(--sf-radius-default)",
       background: "var(--sf-color-bg-subtle)",
       minHeight: "calc(var(--sf-unit) * 2)",
       display: "grid",

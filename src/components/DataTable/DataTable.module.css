@@ -1,0 +1,220 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font-family: var(--sf-font-sans);
+}
+
+.viewport {
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  outline: none;
+}
+
+/* Header row sits at the top of the scroll container and stays put. */
+.headerRow {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--sf-color-bg-subtle);
+  border-bottom: 1px solid var(--sf-color-border-subtle);
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) * 1.5);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
+  user-select: none;
+}
+
+.headerCell:last-child {
+  border-inline-end: none;
+}
+
+.headerCell[data-align="end"] {
+  justify-content: flex-end;
+}
+.headerCell[data-align="center"] {
+  justify-content: center;
+}
+
+.headerCell[data-sortable] {
+  cursor: pointer;
+}
+
+.headerCell[data-sortable]:hover {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+}
+
+/* Group parent header — slightly heavier background; chevron sits at the end. */
+.headerCellGroup {
+  justify-content: space-between;
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+}
+
+/* Body wrapper — either plain flow (paginated) or relative + spacer (virtualized) */
+.body {
+  width: 100%;
+}
+
+/* Use inset box-shadow instead of border-bottom so row height equals exactly
+   rowHeight (border-box would subtract 1px from content, making absolutely
+   positioned editors overflow downward and cover this separator). */
+.row {
+  display: grid;
+  box-shadow: inset 0 -1px 0 var(--sf-color-border-subtle);
+}
+
+.row:last-child {
+  box-shadow: none;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  /* Same trick as row separator — inset shadow so cell content area stays exactly
+     the grid track width. */
+  box-shadow: inset -1px 0 0 var(--sf-color-border-subtle);
+  outline: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: cell;
+  position: relative;
+  /* Range-selection should highlight cells, not select text. Native <input>
+     / <textarea> inside the editor are unaffected — they keep their own
+     selection model. */
+  user-select: none;
+}
+
+.cell:last-child {
+  box-shadow: none;
+}
+
+.cell[data-align="end"] {
+  justify-content: flex-end;
+}
+.cell[data-align="center"] {
+  justify-content: center;
+}
+
+/* Tree gutter — leading slot for the chevron + per-depth indent. */
+.cellTreeGutter {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cellBody {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Chevron — minimal, monospace-aligned. Lives in tree cells and group headers. */
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--sf-unit) * 0.75);
+  block-size: calc(var(--sf-unit) * 0.75);
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--sf-color-fg-subtle);
+  cursor: pointer;
+  font-size: var(--sf-font-size-xs);
+  line-height: 1;
+  border-radius: var(--sf-radius-default);
+}
+
+.chevron:hover {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  color: var(--sf-color-fg);
+}
+
+.chevron:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.chevronSlot {
+  display: inline-block;
+  width: calc(var(--sf-unit) * 0.75);
+}
+
+/* Range cells: a soft tint of primary so the selection block reads as a unit. */
+.cell[data-in-range] {
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 92%);
+}
+
+/* Active cell: 2px primary outline inset (doesn't shift layout). */
+.cell[data-active] {
+  outline: 2px solid var(--sf-color-primary);
+  outline-offset: -2px;
+  z-index: 1;
+  background-color: var(--sf-color-bg);
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  padding: var(--sf-unit);
+  color: var(--sf-color-muted);
+  font-size: var(--sf-font-size-sm);
+}
+
+/* In-cell editor sits absolutely on top of the cell so it lines up with the
+   2px active outline. */
+.editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  block-size: 100%;
+  border-radius: 0;
+}
+
+.selectEditor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  block-size: 100%;
+  padding: 0 calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: 0;
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+}
+
+/* Pagination strip lives below the viewport. */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 4) 0;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg-subtle);
+}
+
+.pageInfo {
+  padding: 0 calc(var(--sf-unit) / 2);
+  font-variant-numeric: tabular-nums;
+}

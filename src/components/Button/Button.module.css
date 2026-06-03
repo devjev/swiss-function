@@ -2,10 +2,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--sf-space-2);
-  padding: var(--sf-space-2) var(--sf-space-4);
+  /* All sizing is harmonic with --sf-unit. Outer block-size lands on the
+     baseline grid; padding-block is implicit (align-items: center handles
+     vertical centering). */
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
+  gap: calc(var(--sf-unit) / 3);
   border: 1px solid transparent;
-  border-radius: var(--sf-radius-xs);
+  border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-md);
   font-weight: var(--sf-font-weight-medium);
@@ -18,7 +22,7 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     0 1px 0 rgb(0 0 0 / 0.08),
-    0 2px 3px rgb(0 0 0 / 0.10);
+    0 2px 3px rgb(0 0 0 / 0.1);
   transition:
     background-color var(--sf-duration-fast) var(--sf-ease-out),
     border-color var(--sf-duration-fast) var(--sf-ease-out),
@@ -91,9 +95,10 @@
   background-color: var(--sf-color-danger-hover);
 }
 
-/* Sizes */
+/* Sizes — block-size always lands on a clean unit multiple (1, 1.5, 2). */
 .sizeSm {
-  padding: var(--sf-space-1) var(--sf-space-3);
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
 }
 
@@ -102,6 +107,7 @@
 }
 
 .sizeLg {
-  padding: var(--sf-space-3) var(--sf-space-6);
+  block-size: calc(var(--sf-unit) * 2);
+  padding-inline: var(--sf-unit);
   font-size: var(--sf-font-size-lg);
 }

@@ -3,7 +3,7 @@
   flex-direction: column;
   width: 100%;
   border: 1px solid var(--sf-color-border);
-  border-radius: var(--sf-radius-md);
+  border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   overflow: hidden;
 }

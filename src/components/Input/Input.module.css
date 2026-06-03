@@ -1,14 +1,23 @@
 .root {
   display: inline-flex;
-  width: 100%;
-  padding: var(--sf-space-2) var(--sf-space-3);
+  inline-size: 100%;
+  /* Heights align to the same baseline grid as Button (1, 1.5, 2 units).
+     Input gets one notch less horizontal padding than Button at every size
+     because text fills the width — clearance over weight. */
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-strong);
-  border-radius: var(--sf-radius-md);
-  font-family: var(--sf-font-sans);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-mono);
   font-size: var(--sf-font-size-md);
   line-height: var(--sf-line-height-tight);
+  /* DOS-style chunky caret. `caret-shape: block` is CSS UI L4 — supported
+     in Chromium 130+, Safari 17.4+. In older browsers it falls back to a
+     thin bar in caret-color, which is still a visible improvement. */
+  caret-shape: block;
+  caret-color: var(--sf-color-primary);
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
@@ -17,13 +26,12 @@
 }
 
 .root:hover:not(:disabled) {
-  border-color: var(--sf-color-fg-subtle);
+  border-color: var(--sf-color-primary-hover);
 }
 
 .root:focus-visible {
   outline: 2px solid var(--sf-color-focus-ring);
   outline-offset: 1px;
-  border-color: var(--sf-color-focus-ring);
 }
 
 .root:disabled {
@@ -32,11 +40,13 @@
 }
 
 .sizeSm {
-  padding: var(--sf-space-1) var(--sf-space-2);
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 3);
   font-size: var(--sf-font-size-sm);
 }
 
 .sizeLg {
-  padding: var(--sf-space-3) var(--sf-space-4);
+  block-size: calc(var(--sf-unit) * 2);
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
   font-size: var(--sf-font-size-lg);
 }

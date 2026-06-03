@@ -3,8 +3,8 @@
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border);
-  border-radius: var(--sf-radius-md);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-shadow-lg);
   z-index: var(--sf-z-dropdown);
   outline: none;
@@ -23,7 +23,7 @@
   display: flex;
   align-items: center;
   padding: var(--sf-space-2) var(--sf-space-3);
-  border-radius: var(--sf-radius-sm);
+  border-radius: var(--sf-radius-default);
   font-size: var(--sf-font-size-sm);
   cursor: pointer;
   user-select: none;

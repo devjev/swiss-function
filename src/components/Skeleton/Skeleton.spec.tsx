@@ -42,10 +42,10 @@ test("shape='pill' uses --sf-radius-full (9999px)", async ({ mount }) => {
   expect(radius).toBe("9999px");
 });
 
-test("default rect has zero border-radius", async ({ mount }) => {
+test("default rect uses --sf-radius-default (2px)", async ({ mount }) => {
   const component = await mount(<Skeleton width={5} />);
   const radius = await component.evaluate((el) => getComputedStyle(el).borderRadius);
-  expect(radius).toBe("0px");
+  expect(radius).toBe("2px");
 });
 
 test("render prop renders the requested element", async ({ mount }) => {

@@ -5,8 +5,8 @@
   height: var(--sf-unit);
   background-color: var(--sf-color-bg-subtle);
   border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
   overflow: hidden;
-  /* Sharp corners by default — see system aesthetic. */
 }
 
 /* Shimmer sweep — diagonal highlight glides left → right.

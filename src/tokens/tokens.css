@@ -60,9 +60,19 @@
     --sf-radius-xl: 1rem;
     --sf-radius-full: 9999px;
 
+    /* System default: a hair of rounding (2px). Components reach for this
+       instead of a specific size token unless they have a strong reason
+       to differ (Switch/Radio = radius-full; circle/pill primitives
+       override directly). Aliased to --sf-radius-xs today; can diverge
+       later if the scale changes. */
+    --sf-radius-default: var(--sf-radius-xs);
+
     /* Typography */
     --sf-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --sf-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    /* "JetBrains Mono" is preferred — consumers should load it themselves
+       (e.g. via Google Fonts or @fontsource). Falls back to system mono. */
+    --sf-font-mono:
+      "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
     --sf-font-size-xs: 0.75rem;
     --sf-font-size-sm: 0.875rem;
     --sf-font-size-md: var(--sf-font-size-base);

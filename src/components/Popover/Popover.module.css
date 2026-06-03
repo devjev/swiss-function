@@ -3,7 +3,7 @@
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
-  border-radius: var(--sf-radius-md);
+  border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-shadow-lg);
   z-index: var(--sf-z-popover);
   font-size: var(--sf-font-size-sm);

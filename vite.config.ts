@@ -12,11 +12,10 @@ const componentNames = [
   "Radio",
   "Dialog",
   "Popover",
-  "Tooltip",
   "Menu",
-  "Select",
   "Skeleton",
   "Combobox",
+  "DataTable",
   "Tabs",
   "Accordion",
 ];
@@ -68,6 +67,7 @@ export default defineConfig({
         /^react\//,
         /^react-dom\//,
         /^@base-ui\/react/,
+        /^@tanstack\//,
       ],
       input: {
         index: resolve(__dirname, "src/index.ts"),
