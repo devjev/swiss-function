@@ -1,0 +1,178 @@
+/* Grid layout — the plot cell takes all remaining height; axes and labels
+   sit in their own tracks.
+
+   Columns: [yLabel? | yAxis | plot]
+   Rows:    [plot
+             xAxis
+             xLabel?
+             legend?]
+
+   Empty optional cells (yLabel/xLabel) collapse to 0 via `auto` sizing.
+*/
+
+.root {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  /* Half a label's height of top padding so the topmost y-axis tick label,
+     which is centered on the plot's top edge, stays inside the chart bound. */
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+/* --- Axis labels (optional) ------------------------------------------- */
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 4);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+/* --- Axes ------------------------------------------------------------- */
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+/* --- Plot cell + SVG -------------------------------------------------- */
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  /* Min sizing so a fresh chart with no data still has shape. */
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  /* SVG hover events bubble; we let the chart handle leave to clear hover. */
+}
+
+/* --- Gridlines (subtle horizontal y-tick rules) ----------------------- */
+
+.gridline {
+  stroke: var(--sf-color-border-subtle);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.gridlineMajor {
+  /* y=0 baseline is emphasized when visible. */
+}
+
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* Hover-mode: gridlines (at nice-tick positions) fade in alongside the
+   crosshair so the reader can compare the hovered point's value to the
+   adjacent gridline tier without the chart turning into a busy grid. */
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline {
+    transition: none;
+  }
+}
+
+/* --- Series strokes (lines) ------------------------------------------- */
+
+.line {
+  fill: none;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* --- Points ----------------------------------------------------------- */
+
+.point {
+  cursor: default;
+  /* Match Button/Input's "tactile" depth — points read as physical markers
+     sitting on the plot, not flat decals. SVG can't use box-shadow on
+     elements, so we use the filter equivalent of --sf-elevation-1. */
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.18));
+  transition: r var(--sf-duration-fast) var(--sf-ease-out);
+  outline: none;
+}
+
+.point:hover,
+.point:focus-visible {
+  /* Hover/focus: grow the circle slightly so the hovered datum reads as
+     the topmost interactive element. r is an SVG attribute, but Safari/Chrome
+     both animate it via CSS transitions on modern engines. */
+  r: 6;
+}
+
+.point:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .point {
+    transition: none;
+  }
+}
+
+/* --- Legend ----------------------------------------------------------- */
+
+.legend {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  justify-content: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendSwatch {
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+}

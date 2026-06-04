@@ -1,0 +1,172 @@
+/* Same grid skeleton as Scatterplot — see Scatterplot.module.css for the
+   column/row map. Re-stated here so each component owns its style sheet. */
+
+.root {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  /* Half a label's height — so the topmost y-axis tick label can sit centered
+     on the plot's top edge without clipping the chart's outer bound. */
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 4);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.gridline {
+  stroke: var(--sf-color-border-subtle);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.gridlineMajor {
+  /* y=0 baseline is always slightly more emphatic when visible. */
+}
+
+/* Always-on scaffolding: gridlines stay at half opacity. */
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* Hover-mode scaffolding: fade in on bar hover/focus. */
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* The y-axis (rendered HTML-side) follows the same fade rules. In full mode
+   it's always visible; in hover mode it fades in when the chart is hovered. */
+.yAxis {
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="hover"] .yAxis {
+  opacity: 0;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .yAxis {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline,
+  .yAxis {
+    transition: none;
+  }
+}
+
+/* --- Bars ------------------------------------------------------------- */
+
+.bar {
+  cursor: default;
+  outline: none;
+  transition: filter var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* --- Tufte value labels above each bar -------------------------------- */
+
+.valueLabel {
+  fill: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-xs);
+  font-weight: var(--sf-font-weight-medium);
+  pointer-events: none;
+}
+
+/* Tall bars whose label would overflow the plot top flip it inside the bar.
+   Use white against the colored fill — Plan/Actual/etc. bars are all dark
+   enough that white reads cleanly. */
+.valueLabelInside {
+  fill: #ffffff;
+}
+
+.bar:hover,
+.bar:focus-visible {
+  filter: brightness(1.1);
+}
+
+.bar:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}
+
+/* --- Legend (shared with Scatterplot's pattern) ----------------------- */
+
+.legend {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  justify-content: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendSwatch {
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+}

@@ -1,0 +1,23 @@
+.root {
+  /* Crosshair never intercepts hover — its job is to inform, not to be hit. */
+  pointer-events: none;
+}
+
+.line {
+  stroke: var(--sf-color-fg);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.55;
+}
+
+.xLabel,
+.yLabel {
+  fill: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-xs);
+  font-weight: var(--sf-font-weight-semibold);
+  /* Small opaque background hint so labels stay readable against the data. */
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+}

@@ -1,0 +1,105 @@
+/* Shared axis primitive used by Scatterplot, BarChart, BridgeChart.
+   The axis itself takes its size from its grid cell; tick positions are
+   percentages along the axis (so the chart's scale logic stays in JS). */
+
+.axis {
+  position: relative;
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-xs);
+  color: var(--sf-color-fg);
+  pointer-events: none;
+}
+
+/* --- Orientations ------------------------------------------------------ */
+
+.xAxis {
+  /* Sits BELOW the plot. Total height = tick mark + gap + label line. */
+  block-size: calc(var(--sf-unit) * 1.25);
+}
+
+.yAxis {
+  /* Sits LEFT of the plot. Width sized to the widest label (ch-based, since
+     labels are monospace). */
+  inline-size: calc(var(--sf-unit) * 2);
+}
+
+/* --- Baseline hairline ------------------------------------------------- */
+
+.line {
+  position: absolute;
+  background-color: var(--sf-color-border-subtle);
+}
+
+.xAxis .line {
+  /* Hairline at the top of the x-axis row — visually attaches to the plot. */
+  top: 0;
+  inset-inline: 0;
+  block-size: 1px;
+}
+
+.yAxis .line {
+  /* Hairline at the right edge of the y-axis column. */
+  top: 0;
+  bottom: 0;
+  right: 0;
+  inline-size: 1px;
+}
+
+/* --- Ticks ------------------------------------------------------------- */
+
+.tick {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+}
+
+.xAxis .tick {
+  /* Anchored at axis top (where the hairline sits). Mark + label flow down. */
+  top: 0;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+
+.yAxis .tick {
+  /* Anchored at axis right (where the hairline sits). Mark + label flow left. */
+  right: 0;
+  flex-direction: row-reverse;
+  align-items: center;
+  transform: translateY(50%);
+}
+
+.tickMark {
+  display: block;
+  background-color: var(--sf-color-border-subtle);
+}
+
+.xAxis .tickMark {
+  inline-size: 1px;
+  block-size: calc(var(--sf-unit) / 4);
+}
+
+.yAxis .tickMark {
+  inline-size: calc(var(--sf-unit) / 4);
+  block-size: 1px;
+}
+
+.tickMajor .tickMark {
+  background-color: var(--sf-color-fg);
+}
+
+.tickLabel {
+  white-space: nowrap;
+}
+
+.xAxis .tickLabel {
+  margin-block-start: calc(var(--sf-unit) / 6);
+}
+
+.yAxis .tickLabel {
+  margin-inline-end: calc(var(--sf-unit) / 4);
+}
+
+.tickMajor .tickLabel {
+  font-weight: var(--sf-font-weight-semibold);
+}

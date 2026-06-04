@@ -25,6 +25,13 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Biome ships as a prebuilt linux binary that won't run on the maintainer's
+      # NixOS dev box, so it's intentionally NOT in package.json's devDependencies
+      # (the flake.nix provides it locally). CI installs it globally here so the
+      # `prepublishOnly` hook below can invoke `biome check .`.
+      - name: Install biome
+        run: npm install -g @biomejs/biome@2.4.15
+
       - name: Build
         run: npm run build
 

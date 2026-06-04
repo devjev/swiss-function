@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -28,9 +28,17 @@
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
     },
+    "./bar-chart": {
+      "types": "./dist/components/BarChart/index.d.ts",
+      "import": "./dist/components/BarChart/index.js"
+    },
     "./box": {
       "types": "./dist/components/Box/index.d.ts",
       "import": "./dist/components/Box/index.js"
+    },
+    "./bridge-chart": {
+      "types": "./dist/components/BridgeChart/index.d.ts",
+      "import": "./dist/components/BridgeChart/index.js"
     },
     "./button-group": {
       "types": "./dist/components/ButtonGroup/index.d.ts",
@@ -71,6 +79,10 @@
     "./radio": {
       "types": "./dist/components/Radio/index.d.ts",
       "import": "./dist/components/Radio/index.js"
+    },
+    "./scatterplot": {
+      "types": "./dist/components/Scatterplot/index.d.ts",
+      "import": "./dist/components/Scatterplot/index.js"
     },
     "./dialog": {
       "types": "./dist/components/Dialog/index.d.ts",
