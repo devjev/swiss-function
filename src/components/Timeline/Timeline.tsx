@@ -33,6 +33,8 @@ function useTimelineContext(): TimelineContextValue {
 
 // --- Root --------------------------------------------------------------
 
+export type TimelineSnap = "none" | "events" | "ticks";
+
 export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   start: Date;
   end: Date;
@@ -42,6 +44,11 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   /** Fired on click + drag of the track with the date at the pointer's x.
    *  When omitted, the timeline is read-only (no scrub). */
   onChange?: (date: Date) => void;
+  /** Scrub snapping behavior:
+   *   - `"none"` (default): free, continuous position
+   *   - `"events"`: snap to the nearest `<Timeline.Event>` date
+   *   - `"ticks"`: snap to the nearest tick boundary (year/month/day/hour) */
+  snap?: TimelineSnap;
   /** Container height. If omitted, sized to fit the lane count automatically. */
   height?: number | string;
   /** Render a faint vertical line at the current time. Default true. */
@@ -57,6 +64,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     end,
     value,
     onChange,
+    snap = "none",
     height,
     showNow = true,
     maxLanes = 3,
@@ -123,7 +131,8 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     const rect = el.getBoundingClientRect();
     if (rect.width <= 0) return null;
     const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    return new Date(start.getTime() + fraction * (end.getTime() - start.getTime()));
+    const raw = new Date(start.getTime() + fraction * (end.getTime() - start.getTime()));
+    return snapDate(raw, snap, snapCandidates);
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -157,6 +166,13 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     });
     return list;
   }, [children]);
+
+  // Pre-compute snap candidates so the pointer handler doesn't allocate per move.
+  const snapCandidates = useMemo<Date[]>(() => {
+    if (snap === "events") return eventInputs.map((e) => e.date);
+    if (snap === "ticks") return ticks.map((t) => t.date);
+    return [];
+  }, [snap, eventInputs, ticks]);
 
   const laneResult = useMemo(
     () => assignLanes(eventInputs, start, layoutPxPerDay, { maxLanes }),
@@ -307,5 +323,23 @@ const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEv
     </div>
   );
 });
+
+// --- Snap helper -------------------------------------------------------
+
+function snapDate(raw: Date, mode: TimelineSnap, candidates: Date[]): Date {
+  if (mode === "none" || candidates.length === 0) return raw;
+  const target = raw.getTime();
+  let nearest = candidates[0]!;
+  let nearestDiff = Math.abs(target - nearest.getTime());
+  for (let i = 1; i < candidates.length; i++) {
+    const c = candidates[i]!;
+    const diff = Math.abs(target - c.getTime());
+    if (diff < nearestDiff) {
+      nearest = c;
+      nearestDiff = diff;
+    }
+  }
+  return nearest;
+}
 
 export const Timeline = Object.assign(Root, { Event });

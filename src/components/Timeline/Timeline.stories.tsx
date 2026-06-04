@@ -106,3 +106,59 @@ export const Scrubbable: Story = () => {
     </div>
   );
 };
+
+/**
+ * Snap to events — the playhead jumps to the nearest event date as you scrub.
+ */
+export const SnapToEvents: Story = () => {
+  const start = new Date("2026-06-01");
+  const end = new Date("2026-06-14");
+  const [value, setValue] = useState<Date>(new Date("2026-06-03"));
+  return (
+    <div style={{ width: "min(50rem, 100%)" }}>
+      <Timeline start={start} end={end} value={value} onChange={setValue} snap="events">
+        <Timeline.Event date={new Date("2026-06-03")}>Merged #147</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-06")}>Hotfix</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-10")}>Post-mortem</Timeline.Event>
+      </Timeline>
+      <div
+        style={{
+          marginTop: "calc(var(--sf-unit) / 2)",
+          fontFamily: "var(--sf-font-mono)",
+          fontSize: "var(--sf-font-size-sm)",
+          color: "var(--sf-color-fg)",
+        }}
+      >
+        playhead snaps to events: {value.toISOString()}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Snap to ticks — the playhead jumps to the nearest tick boundary (here daily).
+ */
+export const SnapToTicks: Story = () => {
+  const start = new Date("2026-06-01");
+  const end = new Date("2026-06-14");
+  const [value, setValue] = useState<Date>(new Date("2026-06-04"));
+  return (
+    <div style={{ width: "min(50rem, 100%)" }}>
+      <Timeline start={start} end={end} value={value} onChange={setValue} snap="ticks">
+        <Timeline.Event date={new Date("2026-06-03")}>Merged #147</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-06")}>Hotfix</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-10")}>Post-mortem</Timeline.Event>
+      </Timeline>
+      <div
+        style={{
+          marginTop: "calc(var(--sf-unit) / 2)",
+          fontFamily: "var(--sf-font-mono)",
+          fontSize: "var(--sf-font-size-sm)",
+          color: "var(--sf-color-fg)",
+        }}
+      >
+        playhead snaps to day boundaries: {value.toISOString()}
+      </div>
+    </div>
+  );
+};

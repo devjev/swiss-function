@@ -213,3 +213,68 @@ test("without onChange, the track has no ew-resize cursor", async ({ mount }) =>
     .evaluate((el) => ((el.parentElement as HTMLElement) ?? el).hasAttribute("data-scrubbable"));
   expect(isScrubbable).toBe(false);
 });
+
+test('snap="events" snaps the playhead to the nearest event date', async ({ mount, page }) => {
+  let received: Date | null = null;
+  const start = new Date(2026, 5, 1);
+  const end = new Date(2026, 5, 14);
+  const eventDate = new Date(2026, 5, 3);
+  const c = await mount(
+    <Timeline start={start} end={end} snap="events" onChange={(d) => (received = d)}>
+      <Timeline.Event date={eventDate}>One</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 5, 11)}>Two</Timeline.Event>
+    </Timeline>,
+  );
+  const box = await c.boundingBox();
+  if (!box) throw new Error("no bounding box");
+  // Click near (but not on) the first event — ~2/14 of the way across.
+  await page.mouse.click(box.x + box.width * (2 / 14), box.y + box.height / 2);
+  await page.waitForTimeout(50);
+  expect(received).not.toBeNull();
+  if (received) {
+    // Should snap to Jun 3 (the nearest event).
+    expect((received as Date).getTime()).toBe(eventDate.getTime());
+  }
+});
+
+test('snap="ticks" snaps the playhead to a tick boundary', async ({ mount, page }) => {
+  let received: Date | null = null;
+  const start = new Date(2026, 5, 1);
+  const end = new Date(2026, 5, 8); // daily ticks at this density
+  const c = await mount(
+    <Timeline start={start} end={end} snap="ticks" onChange={(d) => (received = d)} />,
+  );
+  const box = await c.boundingBox();
+  if (!box) throw new Error("no bounding box");
+  // Click somewhere in the middle — should snap to the nearest day boundary.
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height / 2);
+  await page.waitForTimeout(50);
+  expect(received).not.toBeNull();
+  if (received) {
+    // The received date should be midnight on some day in the range.
+    const d = received as Date;
+    expect(d.getHours()).toBe(0);
+    expect(d.getMinutes()).toBe(0);
+  }
+});
+
+test('snap="none" (default) does NOT snap — free continuous position', async ({ mount, page }) => {
+  let received: Date | null = null;
+  const start = new Date(2026, 5, 1);
+  const end = new Date(2026, 5, 8);
+  const eventDate = new Date(2026, 5, 3);
+  const c = await mount(
+    <Timeline start={start} end={end} onChange={(d) => (received = d)}>
+      <Timeline.Event date={eventDate}>One</Timeline.Event>
+    </Timeline>,
+  );
+  const box = await c.boundingBox();
+  if (!box) throw new Error("no bounding box");
+  // Click far from the event — should give an exact date, NOT the event date.
+  await page.mouse.click(box.x + box.width * 0.8, box.y + box.height / 2);
+  await page.waitForTimeout(50);
+  expect(received).not.toBeNull();
+  if (received) {
+    expect((received as Date).getTime()).not.toBe(eventDate.getTime());
+  }
+});
