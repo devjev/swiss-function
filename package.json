@@ -36,6 +36,10 @@
       "types": "./dist/components/ButtonGroup/index.d.ts",
       "import": "./dist/components/ButtonGroup/index.js"
     },
+    "./chat": {
+      "types": "./dist/components/Chat/index.d.ts",
+      "import": "./dist/components/Chat/index.js"
+    },
     "./command-bar": {
       "types": "./dist/components/CommandBar/index.d.ts",
       "import": "./dist/components/CommandBar/index.js"
@@ -91,6 +95,10 @@
     "./skeleton": {
       "types": "./dist/components/Skeleton/index.d.ts",
       "import": "./dist/components/Skeleton/index.js"
+    },
+    "./streaming-terminal-text": {
+      "types": "./dist/components/StreamingTerminalText/index.d.ts",
+      "import": "./dist/components/StreamingTerminalText/index.js"
     },
     "./combobox": {
       "types": "./dist/components/Combobox/index.d.ts",

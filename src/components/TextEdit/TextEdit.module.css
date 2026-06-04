@@ -1,8 +1,10 @@
 .root {
   display: block;
   inline-size: 100%;
-  /* Padding-block keeps breathing room; rows × line-height drives the rest of the height. */
-  padding: calc(var(--sf-unit) / 3) calc(var(--sf-unit) / 2);
+  /* padding-block × 2 + line-height (= 1u) + border (2px) = 1.5u, so a
+     single-line TextEdit matches Button md and Input md heights exactly.
+     The `-1px` compensates for the 1px border on each side. */
+  padding: calc(var(--sf-unit) / 4 - 1px) calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-primary);

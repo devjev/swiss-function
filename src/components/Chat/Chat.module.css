@@ -1,0 +1,74 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  overflow: hidden;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+/* Messages list — scrolls vertically; takes all remaining height above the
+   input row. */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sf-unit);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sf-unit);
+}
+
+.message {
+  min-inline-size: 0;
+}
+
+/* User messages — right-aligned bubble with a tinted bg (~12% primary mixed
+   with the page bg) + matching hairline border, max 75% width so they don't
+   span the full column. Elevation-2 lifts the bubble off the page. */
+.userMessage {
+  align-self: flex-end;
+  max-inline-size: 75%;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
+  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 88%);
+  color: var(--sf-color-fg);
+  border: 1px solid color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 70%);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-2);
+}
+
+.userContent {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Input row — pinned at the bottom with a hairline above. align-items: start
+   so the send button stays anchored to the TOP of the row even when the
+   textarea grows downward into multi-line. */
+.inputRow {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 2);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
+  background-color: var(--sf-color-bg);
+}
+
+/* Chat-specific overrides on TextEdit: only auto-grow + elevation. Everything
+   else (monospace, primary border, block caret, padding-inline) comes from
+   TextEdit's defaults. Single-line height matches Button md (= 1.5u). */
+.input {
+  flex: 1;
+  /* Auto-grow on modern browsers (Chrome 123+, Safari 17.4+, Firefox 128+).
+     Older browsers fall back to single line at min-block-size. */
+  field-sizing: content;
+  resize: none;
+  min-block-size: calc(var(--sf-unit) * 1.5);
+  max-block-size: calc(var(--sf-unit) * 8);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-1);
+}

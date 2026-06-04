@@ -1,0 +1,12 @@
+/* Thin wrapper — Markdown owns the typography. We just exist to be a stable
+   root that the parent can target via className. */
+.root {
+  display: block;
+}
+
+/* The developing tail. Tinted primary so the shade-block runs read as the
+   "still resolving" visual cue, distinct from already-resolved text in any
+   surrounding block (h1, p, li, code, …). */
+.shade {
+  color: var(--sf-color-primary);
+}

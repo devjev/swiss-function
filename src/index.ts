@@ -1,5 +1,6 @@
 export * from "./components/Accordion";
 export * from "./components/Box";
+export * from "./components/Chat";
 export * from "./components/Button";
 export * from "./components/ButtonGroup";
 export * from "./components/Checkbox";
@@ -17,6 +18,7 @@ export * from "./components/Outliner";
 export * from "./components/Popover";
 export * from "./components/Radio";
 export * from "./components/Skeleton";
+export * from "./components/StreamingTerminalText";
 export * from "./components/Switch";
 export * from "./components/Tabs";
 export * from "./components/TextEdit";
