@@ -1,0 +1,86 @@
+/* Root mirrors ButtonGroup's seam treatment but the items are flatter than
+   a regular Button — no shadow stack, no active-press translate, because the
+   pressed STATE already does the visual lifting. */
+.root {
+  display: inline-flex;
+  gap: 0;
+}
+
+.root > .item:not(:first-child) {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.root > .item:not(:last-child) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  border-inline-end-color: transparent;
+}
+
+/* --- Item --- */
+.item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
+  gap: calc(var(--sf-unit) / 3);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.item:hover:not([data-disabled]):not([data-pressed]) {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.item[data-pressed] {
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+  border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
+}
+
+.item[data-pressed]:hover:not([data-disabled]) {
+  background-color: var(--sf-color-primary-hover);
+}
+
+.item[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sizes — match Button's heights for visual rhythm consistency. */
+.sizeSm {
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+}
+
+.sizeLg {
+  block-size: calc(var(--sf-unit) * 2);
+  padding-inline: var(--sf-unit);
+  font-size: var(--sf-font-size-lg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
+}

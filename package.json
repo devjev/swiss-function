@@ -32,6 +32,10 @@
       "types": "./dist/components/Box/index.d.ts",
       "import": "./dist/components/Box/index.js"
     },
+    "./button-group": {
+      "types": "./dist/components/ButtonGroup/index.d.ts",
+      "import": "./dist/components/ButtonGroup/index.js"
+    },
     "./command-bar": {
       "types": "./dist/components/CommandBar/index.d.ts",
       "import": "./dist/components/CommandBar/index.js"
@@ -103,6 +107,10 @@
     "./accordion": {
       "types": "./dist/components/Accordion/index.d.ts",
       "import": "./dist/components/Accordion/index.js"
+    },
+    "./toggle-group": {
+      "types": "./dist/components/ToggleGroup/index.d.ts",
+      "import": "./dist/components/ToggleGroup/index.js"
     },
     "./package.json": "./package.json"
   },

@@ -6,6 +6,7 @@ import dts from "vite-plugin-dts";
 const componentNames = [
   "Box",
   "Button",
+  "ButtonGroup",
   "CommandBar",
   "Explorer",
   "Grid",
@@ -23,6 +24,7 @@ const componentNames = [
   "DataTable",
   "Tabs",
   "TextEdit",
+  "ToggleGroup",
   "Accordion",
 ];
 

@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
-import { forwardRef } from "react";
+import { forwardRef, useContext } from "react";
 import { cx } from "../../lib/cx";
+import { ButtonGroupSizeContext } from "../ButtonGroup/context";
 import styles from "./Button.module.css";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -25,9 +26,13 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", className, disabled, type = "button", ...rest },
+  { variant = "primary", size, className, disabled, type = "button", ...rest },
   ref,
 ) {
+  // Inside a <ButtonGroup size="..."> the group's size cascades — but an
+  // explicit `size` prop on this Button always wins.
+  const groupSize = useContext(ButtonGroupSizeContext);
+  const resolvedSize: ButtonSize = size ?? groupSize ?? "md";
   return (
     <button
       {...rest}
@@ -35,7 +40,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled}
       data-disabled={disabled || undefined}
-      className={cx(styles.root, variantClass[variant], sizeClass[size], className)}
+      className={cx(styles.root, variantClass[variant], sizeClass[resolvedSize], className)}
     />
   );
 });

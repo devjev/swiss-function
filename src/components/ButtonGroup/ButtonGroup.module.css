@@ -1,0 +1,22 @@
+/* Wrapper has no own chrome — child borders form the outline. inline-flex
+   so buttons sit on a single line with no inter-button gap. */
+.root {
+  display: inline-flex;
+  gap: 0;
+}
+
+/* Middle and last children share their inline-start edge with the previous
+   button — strip the rounding so seams stay flush. */
+.root > *:not(:first-child) {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+/* First and middle children abut the next sibling — strip the end rounding
+   AND hide the right border so the next sibling's left border becomes the
+   single 1px seam (instead of 2px doubled lines). */
+.root > *:not(:last-child) {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  border-inline-end-color: transparent;
+}

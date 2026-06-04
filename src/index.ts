@@ -1,6 +1,7 @@
 export * from "./components/Accordion";
 export * from "./components/Box";
 export * from "./components/Button";
+export * from "./components/ButtonGroup";
 export * from "./components/Checkbox";
 export * from "./components/Combobox";
 export * from "./components/CommandBar";
@@ -18,3 +19,4 @@ export * from "./components/Skeleton";
 export * from "./components/Switch";
 export * from "./components/Tabs";
 export * from "./components/TextEdit";
+export * from "./components/ToggleGroup";
