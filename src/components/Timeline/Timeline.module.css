@@ -1,0 +1,226 @@
+/* Scroll viewport — horizontal scroll, vertical clipped (single-row strip).
+   Height grows linearly with --sf-timeline-lanes (set per-instance by JS):
+   1.5u below the axis for ticks + 0.25u gap + N × 1.25u above for labels. */
+.viewport {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: var(--sf-font-sans);
+  block-size: calc(
+    var(--sf-unit) *
+    1.5 +
+    var(--sf-unit) /
+    4 +
+    var(--sf-timeline-lanes, 1) *
+    var(--sf-unit) *
+    1.25
+  );
+}
+
+/* The track holds the axis + ticks + events. Width is set inline based on
+   (end − start) × pxPerDay so horizontal scroll has a defined extent. */
+.track {
+  position: relative;
+  block-size: 100%;
+  /* Clip events / ticks that fall outside [start, end] so the scroll width
+     stays exactly the configured total. */
+  overflow: hidden;
+}
+
+/* Axis hairline anchored 1.5u from the bottom (fixed tick area below it),
+   so the empty space below the timeline doesn't grow as lanes are added. */
+.axis {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(var(--sf-unit) * 1.5);
+  block-size: 1px;
+  background-color: var(--sf-color-border-subtle);
+  pointer-events: none;
+}
+
+/* --- Ticks -------------------------------------------------------------- */
+
+.tick {
+  position: absolute;
+  /* Top edge at the axis (which sits 1.5u from container bottom). Tick
+     content (mark + label below) flows downward from there into the tick
+     area, so labels render below the axis where they belong. */
+  top: calc(100% - var(--sf-unit) * 1.5);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.tickMark {
+  display: block;
+  inline-size: 1px;
+  block-size: calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-border-subtle);
+}
+
+.tickMajor .tickMark {
+  block-size: calc(var(--sf-unit) * 0.375);
+}
+
+.tickLabel {
+  margin-block-start: calc(var(--sf-unit) / 6);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-xs);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+}
+
+.tickMajor .tickLabel {
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+/* The track also receives the scrub pointer events. */
+.track[data-scrubbable] {
+  cursor: ew-resize;
+}
+
+/* --- Now line ----------------------------------------------------------- */
+
+/* Lower opacity than the playhead — the "now" cue is informational, while
+   the playhead is the interactive surface. */
+.now {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 1px;
+  background-color: var(--sf-color-primary);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* --- Playhead (scrubber position) -------------------------------------- */
+
+.playhead {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 1px;
+  background-color: var(--sf-color-primary);
+  /* Higher than events (z-index 1) so the playhead reads as the topmost
+     interactive cursor. Pointer events pass through so the underlying track
+     keeps receiving scrub events. */
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Down-pointing triangle at the TOP of the playhead — a clear "drag me" cue. */
+.playheadGrabber {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 5px solid transparent;
+  border-block-start: 6px solid var(--sf-color-primary);
+  transform: translateX(-50%);
+}
+
+/* --- Events ------------------------------------------------------------- */
+
+.event {
+  position: absolute;
+  inset-block: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Above the Now line so the label's bg blots out the line where it crosses. */
+  z-index: 1;
+  /* Children are positioned absolutely within so we can split above/below
+     the axis without depending on a specific event-row height. */
+  pointer-events: none;
+}
+
+/* Anchored to the LEFT of the marker (extending right) — so the first event
+   doesn't clip on the left edge, and the label provides a small opaque "tag"
+   that punches through the Now line and any ticks behind it. The vertical
+   offset stacks higher lanes upward via --sf-timeline-lane (set per event by
+   the lane-assignment pass in Timeline.tsx). */
+.eventLabel {
+  position: absolute;
+  /* Stacked above the axis (which sits 1.5u from bottom). Lane 0 sits just
+     above the axis (0.25u gap); each higher lane adds another 1.25u. */
+  bottom: calc(
+    var(--sf-unit) *
+    1.5 +
+    var(--sf-unit) /
+    4 +
+    var(--sf-timeline-lane, 0) *
+    var(--sf-unit) *
+    1.25
+  );
+  /* Start from the marker's center; label extends right. */
+  inset-inline-start: 50%;
+  /* Asymmetric horizontal padding: tight on the left (so the text reads as
+     attached to the tracer line / marker) and 0.25u on the right (so the
+     label's bg has clear breathing room before the next label or tick). */
+  padding-block: calc(var(--sf-unit) / 8);
+  padding-inline-start: 2px;
+  padding-inline-end: calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-bg);
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+/* Vertical hairline from the marker up to the label's bottom edge — visible
+   only when lane > 0 (its height is driven by the same variable). Helps the
+   eye trace which marker each stacked label belongs to. */
+.eventConnector {
+  position: absolute;
+  /* Anchored at the axis (1.5u from bottom); height = lane × 1.25u, drawn
+     upward from there to meet the bottom of the label. */
+  bottom: calc(var(--sf-unit) * 1.5);
+  left: 50%;
+  inline-size: 1px;
+  block-size: calc(var(--sf-timeline-lane, 0) * var(--sf-unit) * 1.25);
+  background-color: var(--sf-color-border-subtle);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Diamond marker centered on the axis line (1.5u from bottom of container). */
+.eventMarker {
+  position: absolute;
+  bottom: calc(var(--sf-unit) * 1.5);
+  left: 50%;
+  inline-size: 8px;
+  block-size: 8px;
+  margin: 0;
+  padding: 0;
+  background-color: var(--sf-color-primary);
+  border: none;
+  transform: translate(-50%, 50%) rotate(45deg);
+  pointer-events: auto;
+  transition: transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.eventMarkerInteractive {
+  cursor: pointer;
+}
+
+.eventMarkerInteractive:hover {
+  transform: translate(-50%, 50%) rotate(45deg) scale(1.25);
+}
+
+.eventMarkerInteractive:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eventMarker {
+    transition: none;
+  }
+  .eventMarkerInteractive:hover {
+    transform: translate(-50%, 50%) rotate(45deg);
+    background-color: var(--sf-color-primary-hover);
+  }
+}

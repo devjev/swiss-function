@@ -1,6 +1,5 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import { Skeleton } from "../Skeleton";
 import { CommandBar } from "./CommandBar";
 
 const log = (msg: string) => () => console.log(msg);
@@ -119,16 +118,32 @@ export const PositionBottom: Story = () => (
 );
 
 /**
- * Logo + Search slots accept arbitrary children — here Skeletons stand in for
- * the logo (avatar circle + wordmark) while the app boots. Once data arrives,
- * the consumer swaps the Skeletons for the real icon + text.
+ * Apple-menubar layout: icon + bold app name as the lead menu (About/Prefs/
+ * Quit), then the document menus (File / Edit / View), then a low-elevation
+ * Search that reads as inlaid in the bar.
  */
-export const LoadingLogo: Story = () => (
+export const Logo: Story = () => (
   <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
     <CommandBar.Root>
-      <CommandBar.Logo>
-        <Skeleton shape="circle" size={1} />
-      </CommandBar.Logo>
+      <CommandBar.Menu>
+        <CommandBar.Trigger style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>
+          ◇ Swiss Function
+        </CommandBar.Trigger>
+        <CommandBar.Content>
+          <CommandBar.Item onClick={log("about")}>About Swiss Function</CommandBar.Item>
+          <CommandBar.Separator />
+          <CommandBar.Item shortcut="⌘," onClick={log("preferences")}>
+            Preferences…
+          </CommandBar.Item>
+          <CommandBar.Separator />
+          <CommandBar.Item shortcut="⌘H" onClick={log("hide")}>
+            Hide Swiss Function
+          </CommandBar.Item>
+          <CommandBar.Item shortcut="⌘Q" onClick={log("quit")}>
+            Quit Swiss Function
+          </CommandBar.Item>
+        </CommandBar.Content>
+      </CommandBar.Menu>
       <CommandBar.Menu>
         <CommandBar.Trigger>File</CommandBar.Trigger>
         <CommandBar.Content>
@@ -138,6 +153,10 @@ export const LoadingLogo: Story = () => (
           <CommandBar.Item shortcut="⌘O" onClick={log("open")}>
             Open
           </CommandBar.Item>
+          <CommandBar.Separator />
+          <CommandBar.Item shortcut="⌘S" onClick={log("save")}>
+            Save
+          </CommandBar.Item>
         </CommandBar.Content>
       </CommandBar.Menu>
       <CommandBar.Menu>
@@ -146,14 +165,34 @@ export const LoadingLogo: Story = () => (
           <CommandBar.Item shortcut="⌘Z" onClick={log("undo")}>
             Undo
           </CommandBar.Item>
+          <CommandBar.Item shortcut="⇧⌘Z" onClick={log("redo")}>
+            Redo
+          </CommandBar.Item>
+          <CommandBar.Separator />
+          <CommandBar.Item shortcut="⌘X" onClick={log("cut")}>
+            Cut
+          </CommandBar.Item>
+          <CommandBar.Item shortcut="⌘C" onClick={log("copy")}>
+            Copy
+          </CommandBar.Item>
+          <CommandBar.Item shortcut="⌘V" onClick={log("paste")}>
+            Paste
+          </CommandBar.Item>
         </CommandBar.Content>
       </CommandBar.Menu>
-      <CommandBar.Search placeholder="Search…" />
+      <CommandBar.Menu>
+        <CommandBar.Trigger>View</CommandBar.Trigger>
+        <CommandBar.Content>
+          <CommandBar.Item shortcut="⌘+" onClick={log("zoom-in")}>
+            Zoom In
+          </CommandBar.Item>
+          <CommandBar.Item shortcut="⌘−" onClick={log("zoom-out")}>
+            Zoom Out
+          </CommandBar.Item>
+        </CommandBar.Content>
+      </CommandBar.Menu>
+      <CommandBar.Search elevation={1} placeholder="Search…" />
     </CommandBar.Root>
-    <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>
-      The logo slot is showing Skeletons while the app loads its identity. Swap them out for the
-      real icon + name once your auth/profile resolves.
-    </div>
   </div>
 );
 

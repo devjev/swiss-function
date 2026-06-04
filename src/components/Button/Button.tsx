@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import { forwardRef, useContext } from "react";
 import { cx } from "../../lib/cx";
+import type { BoxElevation } from "../Box";
 import { ButtonGroupSizeContext } from "../ButtonGroup/context";
 import styles from "./Button.module.css";
 
@@ -10,6 +11,8 @@ export type ButtonSize = "sm" | "md" | "lg";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
+  elevation?: BoxElevation;
 }
 
 const variantClass: Record<ButtonVariant, string> = {
@@ -26,7 +29,7 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size, className, disabled, type = "button", ...rest },
+  { variant = "primary", size, elevation, className, disabled, type = "button", ...rest },
   ref,
 ) {
   // Inside a <ButtonGroup size="..."> the group's size cascades — but an
@@ -40,6 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled}
       data-disabled={disabled || undefined}
+      data-elevation={elevation}
       className={cx(styles.root, variantClass[variant], sizeClass[resolvedSize], className)}
     />
   );

@@ -9,6 +9,7 @@ const componentNames = [
   "ButtonGroup",
   "CommandBar",
   "Explorer",
+  "Field",
   "Grid",
   "Input",
   "Markdown",
@@ -24,6 +25,7 @@ const componentNames = [
   "DataTable",
   "Tabs",
   "TextEdit",
+  "Timeline",
   "ToggleGroup",
   "Accordion",
 ];

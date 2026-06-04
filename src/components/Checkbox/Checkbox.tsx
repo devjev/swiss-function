@@ -2,16 +2,25 @@ import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import type { BoxElevation } from "../Box";
 import styles from "./Checkbox.module.css";
 
-export interface CheckboxProps extends ComponentPropsWithoutRef<typeof BaseCheckbox.Root> {}
+export interface CheckboxProps extends ComponentPropsWithoutRef<typeof BaseCheckbox.Root> {
+  /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
+  elevation?: BoxElevation;
+}
 
 export const Checkbox = forwardRef<HTMLButtonElement, CheckboxProps>(function Checkbox(
-  { className, ...rest },
+  { className, elevation, ...rest },
   ref,
 ) {
   return (
-    <BaseCheckbox.Root {...rest} ref={ref} className={mergeClassName(styles.root, className)}>
+    <BaseCheckbox.Root
+      {...rest}
+      ref={ref}
+      data-elevation={elevation}
+      className={mergeClassName(styles.root, className)}
+    >
       <BaseCheckbox.Indicator className={styles.indicator} keepMounted>
         <svg className={cx(styles.icon, styles.iconCheck)} viewBox="0 0 12 12" aria-hidden="true">
           <polyline points="2,6.5 5,9.5 10,3.5" />

@@ -44,6 +44,10 @@
       "types": "./dist/components/Explorer/index.d.ts",
       "import": "./dist/components/Explorer/index.js"
     },
+    "./field": {
+      "types": "./dist/components/Field/index.d.ts",
+      "import": "./dist/components/Field/index.js"
+    },
     "./grid": {
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"
@@ -103,6 +107,10 @@
     "./text-edit": {
       "types": "./dist/components/TextEdit/index.d.ts",
       "import": "./dist/components/TextEdit/index.js"
+    },
+    "./timeline": {
+      "types": "./dist/components/Timeline/index.d.ts",
+      "import": "./dist/components/Timeline/index.js"
     },
     "./accordion": {
       "types": "./dist/components/Accordion/index.d.ts",

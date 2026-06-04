@@ -1,0 +1,54 @@
+/* Default = vertical (stacked) layout: label, control, description, error
+   each on its own row with a quarter-unit gap. Switch to row layout via
+   data-orientation="horizontal" for toggle-style fields where the control
+   sits beside its label. */
+.root {
+  display: grid;
+  row-gap: calc(var(--sf-unit) / 4);
+  font-family: var(--sf-font-sans);
+}
+
+.root[data-orientation="horizontal"] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  column-gap: calc(var(--sf-unit) / 2);
+  row-gap: 0;
+}
+
+.label {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+  user-select: none;
+  cursor: pointer;
+}
+
+.root[data-required] .label::after {
+  content: "*";
+  margin-inline-start: calc(var(--sf-unit) / 4);
+  color: var(--sf-color-danger);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-normal);
+  color: var(--sf-color-fg);
+}
+
+/* Error text in the danger color. Base UI's Field.Error renders nothing
+   when valid, so we don't need to hide it ourselves. */
+.error {
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-normal);
+  color: var(--sf-color-danger);
+}
+
+/* Disabled cascades from FieldRoot (Base UI sets data-disabled on root). */
+.root[data-disabled] .label,
+.root[data-disabled] .description {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
