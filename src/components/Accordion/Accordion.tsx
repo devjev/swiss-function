@@ -43,10 +43,14 @@ const Trigger = forwardRef<
       ref={ref}
       className={mergeClassName(styles.trigger, className)}
     >
-      {children}
-      <span className={styles.icon} aria-hidden="true">
-        ▾
-      </span>
+      <span className={styles.label}>{children}</span>
+      {/* SVG triangle — same geometry as src/lib/TreeChevron, inlined because
+          TreeChevron renders a <button> and we can't nest it inside the
+          Trigger button. Default orientation is "down" (= open); CSS rotates
+          it -90deg (= right-pointing ▸) when the panel is closed. */}
+      <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" className={styles.icon}>
+        <path d="M1.5 3.5 L5 7 L8.5 3.5 Z" fill="currentColor" />
+      </svg>
     </BaseAccordion.Trigger>
   );
 });

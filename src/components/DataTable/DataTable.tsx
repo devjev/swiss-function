@@ -214,6 +214,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     isActive,
     isInRange,
     handleCellPointerDown,
+    handleCellPointerEnter,
     handleKeyDown: handleSelectionKey,
     setActive,
   } = useTableSelection({
@@ -428,6 +429,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-tree-cell={isTreeCell || undefined}
         className={styles.cell}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
+        onPointerEnter={() => handleCellPointerEnter(cell)}
         onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
       >
         {isEditing && colDef.edit ? (

@@ -6,6 +6,7 @@ export * from "./components/Combobox";
 export * from "./components/CommandBar";
 export * from "./components/DataTable";
 export * from "./components/Dialog";
+export * from "./components/Explorer";
 export * from "./components/Grid";
 export * from "./components/Input";
 export * from "./components/Markdown";

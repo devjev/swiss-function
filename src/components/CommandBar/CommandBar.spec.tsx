@@ -46,6 +46,19 @@ test("shortcut text renders right-aligned", async ({ mount, page }) => {
   await expect(page.getByText("⌘N")).toBeVisible();
 });
 
+test("Logo + Search slots render; Search sits right of all menu triggers", async ({ mount }) => {
+  const component = await mount(<CommandBarHarness withSlots />);
+  await expect(component.getByText("Brand")).toBeVisible();
+  const search = component.getByPlaceholder("Find…");
+  await expect(search).toBeVisible();
+  // Search's left edge should be past the right edge of the last menu trigger.
+  const searchX = await search.evaluate((el) => el.getBoundingClientRect().left);
+  const lastTriggerRight = await component
+    .getByRole("menuitem", { name: "View" })
+    .evaluate((el) => el.getBoundingClientRect().right);
+  expect(searchX).toBeGreaterThan(lastTriggerRight);
+});
+
 test("position='bottom' puts the border on the top edge", async ({ mount }) => {
   // The mounted component itself is the bar div; assert via computed style.
   const component = await mount(<CommandBarHarness position="bottom" />);

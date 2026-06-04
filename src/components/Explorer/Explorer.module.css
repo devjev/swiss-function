@@ -1,0 +1,216 @@
+/* --- Wrapper / viewport --- */
+.wrapper {
+  /* Shrink chevron + icon glyphs together with the indent step so all three
+     rhythm-sized elements match the tighter Explorer cadence. */
+  --sf-chevron-size: calc(var(--sf-unit) * 0.5);
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+}
+
+.viewport {
+  position: relative;
+  overflow: auto;
+  outline: none;
+}
+
+/* --- Header --- */
+.headerRow {
+  display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--sf-color-bg-subtle);
+  border-bottom: 1px solid var(--sf-color-border-subtle);
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) * 1.25);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
+  user-select: none;
+}
+
+.headerCell:last-child {
+  border-inline-end: none;
+}
+
+.headerCell[data-align="end"] {
+  justify-content: flex-end;
+}
+
+/* --- Body / row --- */
+.body {
+  position: relative;
+  inline-size: 100%;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  cursor: default;
+  user-select: none;
+  position: absolute;
+  inset-inline: 0;
+  outline: none;
+}
+
+.row:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.row[data-selected="true"] {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+}
+
+.row[data-focused="true"] {
+  box-shadow: inset 0 0 0 2px var(--sf-color-focus-ring);
+}
+
+/* Folder being hovered as a "nest into" drop target. */
+.row[data-drop-into="true"] {
+  box-shadow: inset 0 0 0 1px var(--sf-color-primary);
+}
+
+/* 1px insertion line shown at the top of a row when dropping "before" it. */
+.row[data-drop-before="true"]::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  block-size: 1px;
+  background-color: var(--sf-color-primary);
+  z-index: 2;
+}
+
+/* Same, but at the bottom when dropping after the last visible row. */
+.row[data-drop-after-last="true"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  block-size: 1px;
+  background-color: var(--sf-color-primary);
+  z-index: 2;
+}
+
+.row[data-dragging="true"] {
+  opacity: 0.4;
+}
+
+/* --- Cell --- */
+.cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cell[data-align="end"] {
+  justify-content: flex-end;
+}
+
+.cellContent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+/* --- Tree cell pieces --- */
+
+/* Per-ancestor vertical hairline. A row at depth N renders N guides; each
+   guide's border-inline-start aligns with the corresponding ancestor's
+   chevron column, so adjacent rows stack their guides into one continuous
+   vertical line spanning the parent's expanded subtree. Each guide also
+   provides one step of horizontal indent — no separate padding-inline-start
+   needed.
+
+   Width is (0.75u − cell-gap) so that with the cell's gap:4px the
+   border-to-border distance is exactly 0.75u, matching the chevron's
+   per-depth horizontal step. */
+/* Per-depth indent step. The line is positioned at the chevron's horizontal
+   center (half the chevron-size into each column) so it visually passes
+   through the parent's open chevron. */
+.indentGuide {
+  position: relative;
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) * 0.5 - 4px);
+  block-size: 100%;
+  flex: none;
+}
+
+.indentGuide::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(var(--sf-chevron-size, calc(var(--sf-unit) * 0.75)) / 2);
+  inline-size: 1px;
+  background-color: var(--sf-color-border-subtle);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Tracks the chevron's size so chevron+icon read as one rhythmic unit. */
+  inline-size: var(--sf-chevron-size, calc(var(--sf-unit) * 0.75));
+  block-size: var(--sf-chevron-size, calc(var(--sf-unit) * 0.75));
+  color: var(--sf-color-fg-subtle);
+  flex: none;
+}
+
+.icon svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* --- Rename input — fills the name slot, no extra chrome --- */
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  block-size: calc(var(--sf-unit) * 4 / 3 - 4px);
+}
+
+/* --- Context menu anchor (invisible, positioned at cursor) --- */
+.contextAnchor {
+  position: fixed;
+  inline-size: 0;
+  block-size: 0;
+  pointer-events: none;
+}
+
+/* --- Drag overlay row --- */
+.dragOverlay {
+  display: grid;
+  align-items: center;
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  pointer-events: none;
+}
+
+/* Respect prefers-reduced-motion: drag overlay never animates beyond opacity. */
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
+}

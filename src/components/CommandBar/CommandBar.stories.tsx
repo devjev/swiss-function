@@ -1,5 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
+import { Skeleton } from "../Skeleton";
 import { CommandBar } from "./CommandBar";
 
 const log = (msg: string) => () => console.log(msg);
@@ -114,6 +115,45 @@ export const PositionBottom: Story = () => (
       popup will open upward.
     </div>
     <Bar position="bottom" />
+  </div>
+);
+
+/**
+ * Logo + Search slots accept arbitrary children — here Skeletons stand in for
+ * the logo (avatar circle + wordmark) while the app boots. Once data arrives,
+ * the consumer swaps the Skeletons for the real icon + text.
+ */
+export const LoadingLogo: Story = () => (
+  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+    <CommandBar.Root>
+      <CommandBar.Logo>
+        <Skeleton shape="circle" size={1} />
+      </CommandBar.Logo>
+      <CommandBar.Menu>
+        <CommandBar.Trigger>File</CommandBar.Trigger>
+        <CommandBar.Content>
+          <CommandBar.Item shortcut="⌘N" onClick={log("new")}>
+            New
+          </CommandBar.Item>
+          <CommandBar.Item shortcut="⌘O" onClick={log("open")}>
+            Open
+          </CommandBar.Item>
+        </CommandBar.Content>
+      </CommandBar.Menu>
+      <CommandBar.Menu>
+        <CommandBar.Trigger>Edit</CommandBar.Trigger>
+        <CommandBar.Content>
+          <CommandBar.Item shortcut="⌘Z" onClick={log("undo")}>
+            Undo
+          </CommandBar.Item>
+        </CommandBar.Content>
+      </CommandBar.Menu>
+      <CommandBar.Search placeholder="Search…" />
+    </CommandBar.Root>
+    <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>
+      The logo slot is showing Skeletons while the app loads its identity. Swap them out for the
+      real icon + name once your auth/profile resolves.
+    </div>
   </div>
 );
 

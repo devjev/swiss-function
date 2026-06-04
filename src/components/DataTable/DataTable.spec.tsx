@@ -49,6 +49,24 @@ test("Tab moves right and wraps to next row at the end", async ({ mount, page })
   await expect(cells.nth(2)).toHaveAttribute("data-active", "true");
 });
 
+test("click-drag extends the selection range", async ({ mount, page }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  const cells = component.getByRole("gridcell");
+  // Drag from (row 0, col 0) = nth(0) → (row 1, col 2) = nth(5). Expect the
+  // rectangle of 6 cells covering rows 0-1 × cols 0-2 to be in-range.
+  const start = await cells.nth(0).boundingBox();
+  const end = await cells.nth(5).boundingBox();
+  if (!start || !end) throw new Error("missing cell bounding boxes");
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const inRange = await component.locator('[data-in-range="true"]').count();
+  // 2 rows × 3 cols = 6 (the corner active cell is data-active, not data-in-range).
+  // Range cells include the active corner via data-in-range too in our impl.
+  expect(inRange).toBe(6);
+});
+
 test("shift+arrow extends the range", async ({ mount, page }) => {
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
   await component.getByRole("gridcell").filter({ hasText: "Alice" }).click();

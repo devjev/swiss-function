@@ -43,6 +43,25 @@ export function useTableSelection({
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Tracks whether a pointer drag started inside the table and hasn't ended.
+  // A ref (not state) so cell-to-cell pointerenter doesn't trigger a re-render
+  // beyond the actual selection change.
+  const isDraggingRef = useRef(false);
+
+  // Global pointerup clears the drag flag — works even if the user releases
+  // outside the table (or outside the document, via pointercancel).
+  useEffect(() => {
+    const end = () => {
+      isDraggingRef.current = false;
+    };
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+  }, []);
+
   // Notify on change — compare to last notified selection to avoid loops.
   const lastNotified = useRef<Selection>({ active: null, range: null });
   useEffect(() => {
@@ -80,8 +99,20 @@ export function useTableSelection({
       } else {
         setActive(cell);
       }
+      isDraggingRef.current = true;
     },
     [setActive, extendTo],
+  );
+
+  // Called as the cursor crosses into a cell while a drag is in progress.
+  // Extends the range from the anchor (set by the initial pointerdown) to
+  // the cell currently under the cursor — spreadsheet-style rubber-banding.
+  const handleCellPointerEnter = useCallback(
+    (cell: Cell) => {
+      if (!isDraggingRef.current) return;
+      extendTo(cell);
+    },
+    [extendTo],
   );
 
   const handleKeyDown = useCallback(
@@ -179,6 +210,7 @@ export function useTableSelection({
     isActive: (cell: Cell) => state.active?.row === cell.row && state.active?.col === cell.col,
     isInRange: (cell: Cell) => inRange(cell, state.range),
     handleCellPointerDown,
+    handleCellPointerEnter,
     handleKeyDown,
     setActive,
     clear,

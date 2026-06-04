@@ -2,8 +2,9 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 import { Menubar as BaseMenubar } from "@base-ui/react/menubar";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { createContext, forwardRef, useContext } from "react";
-import { mergeClassName } from "../../lib/cx";
+import { cx, mergeClassName } from "../../lib/cx";
 import { Box } from "../Box";
+import { Input, type InputProps } from "../Input";
 import styles from "./CommandBar.module.css";
 
 export type CommandBarPosition = "top" | "bottom";
@@ -133,6 +134,32 @@ const SubmenuTrigger = forwardRef<
 // typically anchored differently — the user composes via Base UI defaults.
 const SubmenuContent = Content;
 
+// --- Logo (left slot) -------------------------------------------------
+
+const Logo = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(function CommandBarLogo(
+  { className, ...rest },
+  ref,
+) {
+  return <div {...rest} ref={ref} className={cx(styles.logo, className)} />;
+});
+
+// --- Search (right slot — wraps Input; auto-margins itself to the right) --
+
+const Search = forwardRef<HTMLInputElement, InputProps>(function CommandBarSearch(
+  { className, inputSize = "sm", type = "search", ...rest },
+  ref,
+) {
+  return (
+    <Input
+      {...rest}
+      ref={ref}
+      type={type}
+      inputSize={inputSize}
+      className={mergeClassName(styles.search, className)}
+    />
+  );
+});
+
 export const CommandBar = {
   Root,
   Menu,
@@ -143,4 +170,6 @@ export const CommandBar = {
   Submenu,
   SubmenuTrigger,
   SubmenuContent,
+  Logo,
+  Search,
 };

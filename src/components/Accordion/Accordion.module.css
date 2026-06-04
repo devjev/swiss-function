@@ -1,19 +1,19 @@
 .root {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  border: 1px solid var(--sf-color-border);
+  inline-size: 100%;
+  border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   overflow: hidden;
 }
 
 .item {
-  border-bottom: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
 }
 
 .item:last-child {
-  border-bottom: none;
+  border-block-end: none;
 }
 
 .header {
@@ -24,8 +24,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: var(--sf-space-3) var(--sf-space-4);
+  gap: calc(var(--sf-unit) / 2);
+  inline-size: 100%;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
   background: none;
   border: none;
   color: var(--sf-color-fg);
@@ -33,7 +34,7 @@
   font-size: var(--sf-font-size-md);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
@@ -42,34 +43,63 @@
   background-color: var(--sf-color-bg-subtle);
 }
 
+.trigger[data-panel-open] {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+}
+
+.trigger[data-panel-open]:hover {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+}
+
 .trigger:focus-visible {
   outline: 2px solid var(--sf-color-focus-ring);
   outline-offset: -2px;
 }
 
+.label {
+  min-inline-size: 0;
+  flex: 1;
+}
+
+/* SVG chevron — points down by default (= open). Rotates -90deg to point
+   right (▸) when the panel is closed. Matches the right-then-down pattern
+   used by TreeChevron throughout the rest of the system. */
 .icon {
-  display: inline-flex;
-  color: var(--sf-color-muted);
+  flex: none;
+  color: var(--sf-color-fg-subtle);
+  transform: rotate(-90deg);
   transition: transform var(--sf-duration-base) var(--sf-ease-out);
 }
 
 .trigger[data-panel-open] .icon {
-  transform: rotate(180deg);
+  transform: rotate(0deg);
 }
 
 .panel {
   overflow: hidden;
-  height: var(--accordion-panel-height);
-  transition: height var(--sf-duration-base) var(--sf-ease-out);
+  block-size: var(--accordion-panel-height);
+  transition: block-size var(--sf-duration-base) var(--sf-ease-out);
 }
 
 .panel[data-starting-style],
 .panel[data-ending-style] {
-  height: 0;
+  block-size: 0;
 }
 
+/* Symmetric padding mirrors the trigger so the open accordion reads as one
+   continuous panel with a steady internal rhythm. Font matches the trigger;
+   only weight (regular vs medium) differentiates body from header. */
 .panelInner {
-  padding: 0 var(--sf-space-4) var(--sf-space-4);
-  color: var(--sf-color-fg-subtle);
-  font-size: var(--sf-font-size-sm);
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
+  color: var(--sf-color-fg);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-line-height-normal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .icon,
+  .panel {
+    transition: none;
+  }
 }

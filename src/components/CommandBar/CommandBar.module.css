@@ -88,3 +88,22 @@
   color: var(--sf-color-fg-subtle);
   font-size: var(--sf-font-size-xs);
 }
+
+/* --- Logo (left slot) --- */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) * 1.5);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  user-select: none;
+}
+
+/* --- Search (right slot — chrome from Input; only positioning lives here) --- */
+.search {
+  /* Auto-margin pushes Search past any siblings to the right edge. */
+  margin-inline-start: auto;
+  align-self: center;
+  inline-size: clamp(8rem, 20vw, 14rem);
+}
