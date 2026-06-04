@@ -5,7 +5,7 @@
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
   "type": "module",
-  "private": true,
+  "private": false,
   "sideEffects": [
     "**/*.css"
   ],
@@ -171,7 +171,8 @@
     "vitest": "^2.1.8"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://code.tarassov.ch/api/packages/ux/npm/"
   },
   "engines": {
     "node": ">=18.18"
