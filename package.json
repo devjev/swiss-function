@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -148,7 +148,7 @@
   },
   "scripts": {
     "dev": "ladle serve",
-    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build",
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs",
     "build:stories": "ladle build",
     "test": "vitest run",
     "test:watch": "vitest",
