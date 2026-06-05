@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { libInjectCss } from "vite-plugin-lib-inject-css";
 
 const componentNames = [
   "Box",
@@ -42,6 +43,12 @@ const componentEntries = Object.fromEntries(
 export default defineConfig({
   plugins: [
     react(),
+    // Injects a side-effect `import "./<chunk>.css"` into every emitted JS
+    // chunk that produced CSS. Without this, Vite's library mode emits the
+    // CSS files but no JS imports them, so consumer bundlers (Vite/Rollup/
+    // esbuild) prune them from the import graph and components render
+    // unstyled. See bug report at v0.2.0.
+    libInjectCss(),
     dts({
       tsconfigPath: "./tsconfig.build.json",
       entryRoot: "src",

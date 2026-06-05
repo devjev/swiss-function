@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -24,6 +24,10 @@
     },
     "./tokens.css": "./dist/tokens/tokens.css",
     "./reset.css": "./dist/tokens/reset.css",
+    "./lib/cx": {
+      "types": "./dist/lib/cx.d.ts",
+      "import": "./dist/lib/cx.js"
+    },
     "./button": {
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
@@ -180,6 +184,7 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vite-plugin-dts": "^4.3.0",
+    "vite-plugin-lib-inject-css": "^2.2.2",
     "vitest": "^2.1.8"
   },
   "publishConfig": {
