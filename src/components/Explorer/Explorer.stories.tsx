@@ -146,7 +146,7 @@ export const ReadOnly: Story = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src", "src/components"]));
   return (
-    <div style={{ width: "min(40rem, 100%)" }}>
+    <div style={{ width: "min(40rem, 100%)", height: 400 }}>
       <Explorer
         nodes={seed}
         columns={[
@@ -181,7 +181,7 @@ export const Editable: Story = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <div style={{ width: "min(40rem, 100%)" }}>
+    <div style={{ width: "min(40rem, 100%)", height: 400 }}>
       <Explorer
         nodes={nodes}
         editable
@@ -290,7 +290,7 @@ export const FileTree: Story = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <div style={{ width: "min(18rem, 100%)" }}>
+    <div style={{ width: "min(18rem, 100%)", height: 400 }}>
       <Explorer
         nodes={nodes}
         columns={[{ id: "name", header: "" }]}
@@ -348,7 +348,7 @@ export const LoadingPlaceholder: Story = () => {
     { id: "p3", name: "" },
   ];
   return (
-    <div style={{ width: "min(40rem, 100%)" }}>
+    <div style={{ width: "min(40rem, 100%)", height: 400 }}>
       <Explorer
         nodes={placeholder}
         columns={[

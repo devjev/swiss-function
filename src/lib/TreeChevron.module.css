@@ -14,7 +14,7 @@
      scope the chevron tint without forking the component. */
   color: var(--sf-chevron-color, var(--sf-color-fg-subtle));
   cursor: pointer;
-  font-size: var(--sf-font-size-xs);
+  font-size: var(--sf-font-size-sm);
   line-height: 1;
   border-radius: var(--sf-radius-default);
 }

@@ -85,7 +85,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     icon,
     showHeader = true,
     rowHeight = 32,
-    height = 400,
+    height = "100%",
     className,
     style,
     ...rest

@@ -72,7 +72,7 @@
 
 .shortcut {
   font-family: var(--sf-font-mono);
-  font-size: var(--sf-font-size-xs);
+  font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
 }
 
@@ -86,7 +86,7 @@
 .submenuTrigger::after {
   content: "▸";
   color: var(--sf-color-fg-subtle);
-  font-size: var(--sf-font-size-xs);
+  font-size: var(--sf-font-size-sm);
 }
 
 /* --- Logo (left slot) --- */

@@ -104,7 +104,7 @@ export const Selection: Story = () => {
         Click cells; shift+click extends a range; arrow keys move; Cmd/Ctrl+A selects all;
         Cmd/Ctrl+C copies.
       </p>
-      <p style={{ fontSize: "var(--sf-font-size-xs)", fontFamily: "var(--sf-font-mono)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
         Selection: {sel}
       </p>
       <DataTable

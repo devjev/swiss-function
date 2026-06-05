@@ -82,6 +82,7 @@ Ladle (`npm run dev`).
 | --------------- | -------------------------------------------------------- |
 | `Box`           | A surface with `elevation={0..5}`. The atom of grouping. |
 | `Grid`          | The layout primitive. CSS Grid wrapper with token-sized gaps. |
+| `Pane`          | Full-height region split into Header (auto) + Body (scrollable). Compound: `Pane`, `Pane.Header`, `Pane.Body`. Nests cleanly. Use whenever a region needs to fill its parent and scroll its overflow internally. |
 
 ### Overlays
 
@@ -221,6 +222,7 @@ Common requests and the right component:
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
 | "a Cmd-K palette" / "quick switcher"               | `CommandBar`                                     |
+| "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |
 | "tabs"                                             | `Tabs`                                           |
 | "collapsible sections"                             | `Accordion`                                      |

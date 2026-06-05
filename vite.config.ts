@@ -16,6 +16,7 @@ const componentNames = [
   "Input",
   "Markdown",
   "Outliner",
+  "Pane",
   "Checkbox",
   "Switch",
   "Radio",

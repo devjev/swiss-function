@@ -14,7 +14,7 @@
     margin: 0;
     font-family: var(--sf-font-sans);
     font-size: var(--sf-font-size-md);
-    line-height: var(--sf-line-height-normal);
+    line-height: var(--sf-line-height-grid);
     color: var(--sf-color-fg);
     background-color: var(--sf-color-bg);
     -webkit-font-smoothing: antialiased;

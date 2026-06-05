@@ -67,7 +67,7 @@
 .tickLabel {
   margin-block-start: calc(var(--sf-unit) / 6);
   font-family: var(--sf-font-mono);
-  font-size: var(--sf-font-size-xs);
+  font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   white-space: nowrap;
 }

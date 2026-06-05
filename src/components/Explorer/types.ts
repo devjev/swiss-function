@@ -52,7 +52,9 @@ export interface ExplorerProps<M = unknown>
 
   /** Row height in px. Default 32 (≈ unit * 4/3). */
   rowHeight?: number;
-  /** Viewport cap. Default 400. */
+  /** Viewport height. Default `"100%"` — fills the parent (the common case
+   *  in a real app layout). Pass a number for pixels (`height={500}`) or a
+   *  CSS string for a cap (`height="60vh"`). */
   height?: number | string;
 }
 

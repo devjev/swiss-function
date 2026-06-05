@@ -27,7 +27,7 @@
   margin-top: 0;
 }
 .rendered h1 {
-  font-size: var(--sf-font-size-xl);
+  font-size: var(--sf-font-size-lg);
 }
 .rendered h2 {
   font-size: var(--sf-font-size-lg);

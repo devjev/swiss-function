@@ -73,17 +73,24 @@
        (e.g. via Google Fonts or @fontsource). Falls back to system mono. */
     --sf-font-mono:
       "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
-    --sf-font-size-xs: 0.75rem;
+    /* Three sizes total. Body text sits at md (the foundation); sm and lg
+       sit ~2px on either side for secondary content and emphasis. There is
+       no xs / xl / 2xl — restraint is the point. Hierarchy beyond these
+       three lives in weight, not size. */
     --sf-font-size-sm: 0.875rem;
     --sf-font-size-md: var(--sf-font-size-base);
     --sf-font-size-lg: 1.125rem;
-    --sf-font-size-xl: 1.25rem;
     --sf-font-weight-regular: 400;
     --sf-font-weight-medium: 500;
     --sf-font-weight-semibold: 600;
     --sf-font-weight-bold: 700;
+    /* `--sf-line-height-tight` is a unitless ratio for dense single-line
+       controls (buttons, inputs, tabs). Block text uses the absolute
+       `--sf-line-height-grid` instead, which inherits as a fixed 24px line box
+       regardless of the descendant's font-size — that's what gives the
+       baseline grid its harmonic rhythm across mixed type sizes. */
     --sf-line-height-tight: 1.25;
-    --sf-line-height-normal: 1.5;
+    --sf-line-height-grid: var(--sf-unit);
 
     /* Elevation */
     --sf-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);

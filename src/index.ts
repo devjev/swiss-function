@@ -17,6 +17,7 @@ export * from "./components/Input";
 export * from "./components/Markdown";
 export * from "./components/Menu";
 export * from "./components/Outliner";
+export * from "./components/Pane";
 export * from "./components/Popover";
 export * from "./components/Radio";
 export * from "./components/Scatterplot";

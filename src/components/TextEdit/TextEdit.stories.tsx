@@ -24,7 +24,7 @@ export const Controlled: Story = () => {
   return (
     <div style={{ maxWidth: "calc(var(--sf-unit) * 22)" }}>
       <TextEdit value={value} onChange={(e) => setValue(e.target.value)} rows={6} />
-      <p style={{ fontSize: "var(--sf-font-size-xs)", color: "var(--sf-color-muted)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
         {value.length} chars
       </p>
     </div>

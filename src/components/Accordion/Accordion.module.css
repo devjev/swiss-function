@@ -93,7 +93,7 @@
   padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
   color: var(--sf-color-fg);
   font-size: var(--sf-font-size-md);
-  line-height: var(--sf-line-height-normal);
+  line-height: var(--sf-line-height-grid);
 }
 
 @media (prefers-reduced-motion: reduce) {

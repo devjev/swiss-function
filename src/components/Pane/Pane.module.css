@@ -1,0 +1,28 @@
+/* The 4-line layout primitive. The whole point is to bake this idiom in
+   one place so no consumer has to rewrite the same `auto / 1fr / min-0`
+   chain on every page. */
+
+.root {
+  display: grid;
+  /* `auto` row is for Header (if present); when there's no Header child
+     the `auto` track collapses to 0 and the Body row takes the whole pane. */
+  grid-template-rows: auto 1fr;
+  block-size: 100%;
+  /* The critical bit: without this, the grid's intrinsic min size on the
+     1fr row prevents it from shrinking, which silently inflates the
+     parent's scrollbar instead of constraining the Body. */
+  min-block-size: 0;
+}
+
+.header {
+  /* Auto-sized by the grid track. Nothing else to set — consumers fill in
+     whatever Toolbar / Tabs / breadcrumb chrome they need inside. */
+}
+
+.body {
+  /* Same min-0 rule as the root, so nested Panes don't push their scroll
+     onto an outer container. Combined with `overflow-y: auto` the Body
+     becomes the natural scroll surface when its content exceeds height. */
+  min-block-size: 0;
+  overflow-y: auto;
+}

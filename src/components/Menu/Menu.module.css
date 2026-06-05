@@ -47,7 +47,7 @@
 
 .groupLabel {
   padding: var(--sf-space-1) var(--sf-space-3);
-  font-size: var(--sf-font-size-xs);
+  font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-muted);
   text-transform: uppercase;

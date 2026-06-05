@@ -72,7 +72,7 @@ export const WikiLinks: Story = () => {
         onChange={setValue}
         onWikiLinkClick={(name) => setLog((l) => [...l, name])}
       />
-      <pre style={{ fontSize: "var(--sf-font-size-xs)", color: "var(--sf-color-muted)" }}>
+      <pre style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
         clicks: {log.join(", ")}
       </pre>
     </div>
