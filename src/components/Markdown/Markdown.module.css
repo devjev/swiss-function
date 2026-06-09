@@ -19,48 +19,73 @@
    .rendered container so we don't bleed into anything else.
    Targets standard tag names (no class hooks from react-markdown). */
 .rendered :where(h1, h2, h3, h4, h5, h6) {
-  margin: var(--sf-unit) 0 calc(var(--sf-unit) / 2);
+  margin: var(--sf-prose-heading-spacing) 0 var(--sf-prose-heading-trail);
   font-weight: var(--sf-font-weight-semibold);
   line-height: var(--sf-line-height-tight);
+  /* Wrap-pretty avoids orphans on the last line of a heading. */
+  text-wrap: pretty;
 }
 .rendered :where(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
+/* h1: document title. Bold weight carries the differentiation from h2
+   (same size). h1 is usually the very first block of a document, so its
+   top lead-in stays tight. */
 .rendered h1 {
   font-size: var(--sf-font-size-lg);
+  font-weight: var(--sf-font-weight-bold);
+  margin-block-start: calc(var(--sf-unit) / 2);
 }
+/* h2: section break. Same size as h1 but lighter weight; uses the
+   default heading-spacing lead-in. */
 .rendered h2 {
   font-size: var(--sf-font-size-lg);
 }
 .rendered h3 {
   font-size: var(--sf-font-size-md);
 }
+/* h4: subsection. Lighter than h3 but still full-strength color — a
+   muted h4 reads as body text, not a heading. */
 .rendered h4 {
   font-size: var(--sf-font-size-md);
-  color: var(--sf-color-fg-subtle);
+  font-weight: var(--sf-font-weight-medium);
 }
-.rendered h5,
+.rendered h5 {
+  font-size: var(--sf-font-size-sm);
+}
+/* h6 is the only deliberately de-emphasized heading. */
 .rendered h6 {
   font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
   color: var(--sf-color-fg-subtle);
 }
 
 .rendered p {
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
+  text-wrap: pretty;
 }
 .rendered p:last-child {
   margin-bottom: 0;
 }
 
 .rendered :where(ul, ol) {
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
   padding-inline-start: var(--sf-unit);
 }
 .rendered li {
   margin: calc(var(--sf-unit) / 6) 0;
+  text-wrap: pretty;
 }
 .rendered li > :where(ul, ol) {
   margin: calc(var(--sf-unit) / 6) 0;
+}
+/* When two lists sit back-to-back, collapse the gap between them so they
+   read as one continuous list rather than two separate blocks. */
+.rendered :where(ul, ol):has(+ :where(ul, ol)) {
+  margin-block-end: 0;
+}
+.rendered :where(ul, ol) + :where(ul, ol) {
+  margin-block-start: calc(var(--sf-unit) / 6);
 }
 
 .rendered a {
@@ -94,7 +119,7 @@
 
 /* Fenced code block */
 .rendered pre {
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
   padding: calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg-subtle);
   border: 1px solid var(--sf-color-border-subtle);
@@ -111,10 +136,11 @@
 }
 
 .rendered blockquote {
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
   padding: 0 var(--sf-unit);
   border-inline-start: 2px solid var(--sf-color-border-subtle);
   color: var(--sf-color-fg-subtle);
+  text-wrap: pretty;
 }
 
 .rendered hr {
@@ -127,7 +153,7 @@
 .rendered table {
   width: auto;
   border-collapse: collapse;
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
   font-size: var(--sf-font-size-sm);
 }
 .rendered :where(th, td) {
@@ -149,4 +175,15 @@
 .empty {
   color: var(--sf-color-muted);
   font-style: italic;
+}
+
+/* Opt-in line-length cap for comfortable reading of long prose. Body
+   stays at --sf-measure (~65ch); code, tables, and horizontal rules can
+   spill to --sf-measure-wide. Used by <Prose>; Markdown consumers can
+   opt in via the `measured` prop. */
+.measured .rendered {
+  max-inline-size: var(--sf-measure);
+}
+.measured .rendered :where(pre, table, figure, hr) {
+  max-inline-size: var(--sf-measure-wide);
 }

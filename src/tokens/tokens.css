@@ -92,6 +92,24 @@
     --sf-line-height-tight: 1.25;
     --sf-line-height-grid: var(--sf-unit);
 
+    /* Prose — reading comfort. Used by Markdown (opt-in via `measured`)
+       and by Prose. `measure` caps line length to ~65 characters; wider
+       block elements (code, tables, figures) live at `measure-wide`. */
+    --sf-measure: 65ch;
+    --sf-measure-wide: 80ch;
+    /* Block-to-block rhythm (paragraph→paragraph, list→paragraph, etc.).
+       A quarter unit (6px against a 24px line-height) — dense by design,
+       just enough rule to keep paragraphs from running together. */
+    --sf-prose-paragraph-spacing: calc(var(--sf-unit) / 4);
+    /* Top margin for mid-stream headings. One unit equals body
+       line-height — enough that the heading punctuates the previous
+       block without floating away from it. */
+    --sf-prose-heading-spacing: var(--sf-unit);
+    /* Bottom margin BELOW a heading. Deliberately tighter than
+       paragraph-spacing so the heading visually owns the content that
+       follows it, instead of floating equidistant from both neighbors. */
+    --sf-prose-heading-trail: calc(var(--sf-unit) / 2);
+
     /* Elevation */
     --sf-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
     --sf-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);

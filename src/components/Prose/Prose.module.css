@@ -1,0 +1,151 @@
+/* `display: contents` by default — Prose imposes no layout. The consumer
+   wraps Outline + Body in a Pane or any grid of their choice. */
+.root {
+  display: contents;
+}
+
+/* Opt-in 2-column grid (outline + body). Subgrid-ready via `min: 0` so
+   both columns can shrink inside a constrained parent. */
+.root.split {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+  gap: var(--sf-unit);
+  min-block-size: 0;
+}
+
+/* --- Outline --- */
+.outline {
+  overflow-y: auto;
+  min-block-size: 0;
+  padding: calc(var(--sf-unit) / 4) 0;
+}
+
+.outlineList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: calc(var(--sf-unit) / 12);
+}
+
+.outlineItem {
+  /* Level set per-item as a CSS custom property in the inline style.
+     Indent grows half a unit per level past 1. */
+  padding-inline-start: calc((var(--sf-prose-outline-level, 1) - 1) * (var(--sf-unit) / 2));
+}
+
+.outlineLink {
+  display: block;
+  inline-size: 100%;
+  text-align: start;
+  background: none;
+  border: 0;
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 4);
+  font: inherit;
+  /* Navigation metadata reads at fg-subtle until it's the active section
+     — this is one of the legitimate uses called out in AESTHETICS.md. */
+  color: var(--sf-color-fg-subtle);
+  cursor: pointer;
+  border-inline-start: 2px solid transparent;
+  border-radius: var(--sf-radius-default);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.outlineLink:hover {
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg-subtle);
+}
+.outlineLink:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.outlineItemActive .outlineLink {
+  color: var(--sf-color-fg);
+  border-inline-start-color: var(--sf-color-primary);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+/* --- Body (virtualized scroll container) --- */
+.body {
+  position: relative;
+  /* Fill the parent so this element IS the scroll viewport. Without a
+     constrained height the virtualizer's scrollElement never scrolls
+     (its parent does instead), which makes getVirtualItems return every
+     block and defeats virtualization entirely. */
+  block-size: 100%;
+  overflow-y: auto;
+  /* Lets us shrink inside Pane.Body / any grid 1fr cell. */
+  min-block-size: 0;
+}
+
+.blockList {
+  position: relative;
+  inline-size: 100%;
+}
+
+.block {
+  position: absolute;
+  inset-inline: 0;
+  /* `contain: layout style` keeps a re-measure of one block from kicking
+     a reflow of its siblings. Essential for smooth scroll on huge docs. */
+  contain: layout style;
+  /* Inter-block rhythm is driven by wrapper padding (not descendant
+     margins) because the virtualizer's measureElement reports the
+     border box — margins on inner elements never affect the gap between
+     adjacent virtualized blocks. The default block gets one full unit
+     of trailing rhythm; headings override below. */
+  padding-block-end: var(--sf-prose-paragraph-spacing);
+}
+
+/* Headings: generous lead-in (so the heading reads as a new section),
+   tight trail (so the heading visually owns the content below it). */
+.block[data-block-kind="heading"] {
+  padding-block-start: var(--sf-prose-heading-spacing);
+  padding-block-end: var(--sf-prose-heading-trail);
+}
+/* h1 — document title. Tight at the top regardless of position; the
+   rule line under the heading is the structural divider, so no
+   additional bottom padding is needed. */
+.block[data-block-kind="heading"][data-heading-level="1"] {
+  padding-block-start: calc(var(--sf-unit) / 2);
+  padding-block-end: 0;
+}
+
+/* Heading directly after h1 (typical: doc title → first section heading):
+   leads in at the same heading-trail distance the section heading
+   maintains to its own body, so title→section and section→body match.
+   Only applies when both blocks are in the virtualizer's visible window;
+   as h1 scrolls out, the next heading reverts to its default lead-in,
+   which is the right behavior. */
+.block[data-heading-level="1"] + .block[data-block-kind="heading"] {
+  padding-block-start: var(--sf-prose-heading-trail);
+}
+/* The first block in the document never gets a top lead — applies to any
+   block kind. The compound selector matches the per-level heading rules
+   on specificity so source order wins. */
+.block[data-index="0"],
+.block[data-index="0"][data-block-kind="heading"] {
+  padding-block-start: 0;
+}
+
+/* Back-to-back list blocks (the parser splits on blank lines, so a user
+   who writes two lists with a blank line between them gets two blocks).
+   Tighten the gap so they read as one continuous list: the leading block
+   loses its trail, the trailing block gets a top pad equal to one li-gap. */
+.block[data-block-kind="list"]:has(+ .block[data-block-kind="list"]) {
+  padding-block-end: 0;
+}
+.block[data-block-kind="list"] + .block[data-block-kind="list"] {
+  padding-block-start: calc(var(--sf-unit) / 6);
+}
+
+/* Reduced motion: ensure no implicit scroll smoothing slips in. The
+   virtualizer's scrollToIndex respects `scroll-behavior` on the element,
+   so we keep `auto` here under reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .body {
+    scroll-behavior: auto;
+  }
+}

@@ -34,7 +34,7 @@ Per-component CSS is bundled with each component's JS — you don't import it se
 
 ## Theming
 
-All visual properties are CSS custom properties under the `--sf-*` namespace, defined in a CSS `@layer sf.tokens`. Override at any scope:
+All visual properties are CSS custom properties under the `--sf-*` namespace, defined in a CSS `@layer sf.tokens`. We call them *tokens* — design-systems shorthand for named, atomic design decisions (a color, a spacing step, a radius) that components reference instead of hard-coded values. The term is inherited from the broader ecosystem (Salesforce Lightning popularized it; the W3C now has a Design Tokens spec); in this library it's just CSS custom properties playing that role. Override at any scope:
 
 ```css
 /* Override globally */

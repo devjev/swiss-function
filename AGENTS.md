@@ -151,8 +151,10 @@ These are not suggestions.
   baseline grid is the source of truth.
 - **Radius**: `var(--sf-radius-default)` for almost everything. Reach
   for `--sf-radius-full` only for genuinely circular things.
-- **Typography**: `var(--sf-font-size-md)` etc. Five sizes total. Don't
-  invent a sixth.
+- **Typography**: `var(--sf-font-size-md)` etc. Three sizes total
+  (`sm`, `md`, `lg`). Don't invent a fourth — reach for weight, spacing,
+  or a rule line. For long-form prose, cap line length with
+  `var(--sf-measure)`.
 - **Motion**: `var(--sf-duration-fast)` / `-base` / `-slow` with
   `--sf-ease-out` or `--sf-ease-in-out`.
 - **Elevation**: `var(--sf-elevation-N)` for surface depth, including

@@ -53,12 +53,18 @@ ornament do elsewhere.
   Inputs, code, axis labels, tabular numbers, anything the eye needs to
   scan column-aligned. Monospace reads as machine-readable on purpose —
   it tells the reader "this is information, not narrative".
-- **Five sizes** (`xs`, `sm`, `md`, `lg`, `xl`), four weights (regular,
-  medium, semibold, bold). That is the entire scale. If you find
-  yourself reaching for a sixth, the problem is structural, not
-  typographic.
-- **Two line heights** (1.25 tight, 1.5 normal). Tight for headings and
-  dense controls, normal for prose.
+- **Three sizes** (`sm`, `md`, `lg`), four weights (regular, medium,
+  semibold, bold). Body sits at `md`; `sm` carries secondary content;
+  `lg` carries emphasis. There is no `xs` / `xl` — restraint is the
+  point. Hierarchy beyond these three lives in **weight, spacing, and
+  rule lines**, not in a fourth size.
+- **Two line heights**: `1.25` tight (unitless, for dense single-line
+  controls — buttons, inputs, tabs) and `--sf-line-height-grid` (an
+  absolute `1.5rem`, for block text — what locks prose to the baseline
+  grid regardless of font-size).
+- **For long-form documents**, reach for `--sf-measure` (65ch) to cap
+  line length, and `text-wrap: pretty` for paragraph flow. Code,
+  tables, and figures live at `--sf-measure-wide` (80ch).
 
 ### Color
 

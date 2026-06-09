@@ -1,11 +1,10 @@
 .root {
   display: flex;
   flex-direction: column;
-  /* 1/4 unit (6px) breathing room between bullets. New row pitch for a
-     single-line bullet = 24 + 6 = 30px (1.25u) — harmonic with the rest of
-     the page's rhythm, enough air to read multi-line paragraphs as distinct
-     blocks without losing the dense outliner feel. */
-  gap: calc(var(--sf-unit) / 4);
+  /* Bullet-to-bullet rhythm tracks the prose paragraph-spacing token so
+     outline and prose surfaces stay visually consistent. Row pitch for a
+     single-line bullet = 24px line + token. */
+  gap: var(--sf-prose-paragraph-spacing);
   width: 100%;
   font-family: var(--sf-font-sans);
   color: var(--sf-color-fg);
@@ -89,6 +88,8 @@
   cursor: text;
   /* Align the rendered first line with the chevron + bullet dot. */
   padding-block: 0;
+  /* Comfortable wrap for multi-line bullets. */
+  text-wrap: pretty;
 }
 
 /* Wiki link — clickable inline button styled as a link. */

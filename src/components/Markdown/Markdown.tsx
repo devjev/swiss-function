@@ -32,6 +32,10 @@ export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    *  elements (headings, lists, code blocks) still produce their natural
    *  HTML, but in inline mode they're rare anyway. Editing is unsupported. */
   inline?: boolean;
+  /** Cap prose to a comfortable reading width (`--sf-measure`, ~65ch);
+   *  code, tables, and figures spill to `--sf-measure-wide`. Off by
+   *  default so existing call sites are unchanged. `<Prose>` sets it on. */
+  measured?: boolean;
 }
 
 export function Markdown(props: MarkdownProps) {
@@ -45,9 +49,12 @@ export function Markdown(props: MarkdownProps) {
     components,
     urlTransform,
     inline = false,
+    measured = false,
     className,
     ...rest
   } = props;
+
+  const rootClass = cx(styles.root, measured && styles.measured, className);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -90,7 +97,7 @@ export function Markdown(props: MarkdownProps) {
   if (editing) {
     const rows = Math.max(editRows, draft.split("\n").length + 1);
     return (
-      <div {...rest} className={cx(styles.root, className)}>
+      <div {...rest} className={rootClass}>
         <TextEdit
           ref={textareaRef}
           value={draft}
@@ -125,14 +132,14 @@ export function Markdown(props: MarkdownProps) {
 
   if (inline) {
     return (
-      <span className={cx(styles.root, className)}>
+      <span className={rootClass}>
         <span className={cx(styles.rendered, editable && styles.editable)}>{body}</span>
       </span>
     );
   }
 
   return (
-    <div {...rest} className={cx(styles.root, className)}>
+    <div {...rest} className={rootClass}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: editing mode is mouse-driven by
           design (double-click). Keyboard users can wire an Edit button via a custom trigger. */}
       <div

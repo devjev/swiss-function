@@ -19,6 +19,7 @@ export * from "./components/Menu";
 export * from "./components/Outliner";
 export * from "./components/Pane";
 export * from "./components/Popover";
+export * from "./components/Prose";
 export * from "./components/Radio";
 export * from "./components/Scatterplot";
 export * from "./components/Skeleton";

@@ -17,4 +17,6 @@ playwright/.cache
 .idea
 *.tsbuildinfo
 
+.direnv
+
 *.tgz
