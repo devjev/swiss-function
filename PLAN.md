@@ -523,8 +523,11 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
 
 ### Phase 6 — Finish
 
-- [ ] **6.1** Full gate: `just check && just typecheck && just test &&
-      just test-ct && just build` all green. Record in §10.
+- [x] **6.1** Full gate: `just check && just typecheck && just test &&
+      just test-ct && just build` all green. Record in §10. — all five green:
+      `check` 0 errors (16 pre-existing unrelated warnings), `typecheck` clean,
+      `test` vitest 54 passed, `test-ct` **151 passed** (incl. the 10 Graph CT),
+      `build` ✓ with `dist/components/Graph/index.{js,d.ts}` present.
 - [ ] **6.2** Delete the leftover `lab/` reference prototype and
       `scripts/probe-graph.mjs` if no longer needed (keep the harness if
       useful for regression — note the choice in §10).
@@ -1666,6 +1669,15 @@ then richer node content. Record the full table and the arithmetic in §9.
   are disambiguated. House tone, no marketing. Gate green (docs-only; typecheck/check/
   test unaffected). **Phase 5 complete** — next: **6.1** the full finishing gate
   (`check && typecheck && test && test-ct && build`).
+
+- 2026-06-13 (6.1): **Full finishing gate — all five green.** `just check` 0 errors
+  (16 pre-existing unrelated warnings in Timeline/BarChart/Outliner/etc. — Graph adds
+  none); `just typecheck` clean; `just test` vitest 54 passed; `just test-ct` **151
+  passed** across the whole component suite (the 10 Graph CT included, no regressions
+  in other components); `just build` ✓ (4.3s, d.ts in 3.3s) emitting
+  `dist/components/Graph/index.{js,d.ts}`. Nothing to fix. Next: **6.2** — delete the
+  leftover `lab/` prototypes; decide whether to keep `scripts/probe-graph.mjs` for
+  regression.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
