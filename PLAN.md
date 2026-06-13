@@ -323,9 +323,19 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       zoom out, `0` fit, arrows pan; all camera animations snap (duration 0) under
       `prefers-reduced-motion`; focus-visible ring via `--sf-color-focus-ring`. Gate
       green (typecheck/check/test).
-- [ ] **4.4** Node rendering with **arbitrary content**: a `renderNode`
+- [x] **4.4** Node rendering with **arbitrary content**: a `renderNode`
       escape hatch (or label + badge + color-by-`kind` defaults). Edges:
-      optional labels, weight→thickness, directed arrowheads.
+      optional labels, weight→thickness, directed arrowheads. — added `renderNode`
+      / `renderEdge` escape-hatch props returning `NodeVisual` / `EdgeVisual`
+      (label / color / size overrides on top of the color-by-`kind` defaults; WebGL =
+      no per-node DOM, so "arbitrary content" is themed visual attributes per the §9
+      trade-off + the tooltip/inspector in 4.5). Defaults: color-by-`kind` + a
+      `kind`-derived `nodeSize` (primary=4, others=3, so kind reads as a size badge);
+      edges now draw `type:"arrow"` (directed arrowheads via Sigma's built-in
+      `defaultEdgeType:"arrow"`), `weight`→thickness via `edgeSize` (clamped ≥0.5),
+      and carry their `label` with `renderEdgeLabels` enabled only when some edge has
+      a label AND `order≤300` (label layout cost). Build effect now keys on
+      `[data, renderNode, renderEdge]`. Gate green.
 - [ ] **4.5** Tooltip/inspector on hover/select showing node/edge `data`
       (reuse `Popover` or the chart `Tooltip` from `src/lib/chart`).
 - [ ] **4.6** Right-click **context menu** via the `Menu` component
@@ -1180,6 +1190,30 @@ then richer node content. Record the full table and the arithmetic in §9.
   (same 16 pre-existing unrelated warnings — Graph files add none), test 54 passed.
   Next: 4.4 — node rendering with arbitrary content (`renderNode` escape hatch or
   label+badge+color-by-`kind`; edges: labels, weight→thickness, directed arrowheads).
+- 2026-06-13 (4.4): Node/edge rendering in `Graph.tsx`. Added `renderNode` /
+  `renderEdge` escape-hatch props returning `NodeVisual` / `EdgeVisual` (label /
+  color / size); `buildGraph` now takes a `RenderHooks` arg and applies the custom
+  visuals over the color-by-`kind` defaults (omitted field → default). DESIGN NOTE:
+  Sigma is WebGL with no per-node DOM (the §9/3.2 trade-off), so "arbitrary content"
+  is expressed as themed visual *attributes*, not nested elements — the rich-data
+  surface is the tooltip/inspector (4.5) + context menu (4.6); a returned NodeVisual
+  is the honest escape hatch for label/color/size. Defaults: `nodeSize` makes
+  `primary` nodes radius 4 / others 3 (kind reads as a size badge alongside color);
+  `edgeSize` maps `weight`→thickness (clamped ≥0.5). Edges are now DIRECTED — set
+  `type:"arrow"` per edge + `defaultEdgeType:"arrow"` (Sigma ships built-in `arrow`/
+  `line` edge programs, so no program registration needed — verified in
+  `sigma/settings`). Edge labels: pass each edge's `label` through and enable
+  `renderEdgeLabels` only when `g.someEdge(attr.label != null)` AND `order≤300` (same
+  label-cost guard as node `renderLabels`), with `edgeLabelColor`/`edgeLabelFont`
+  token-driven. Build effect now keys on `[data, renderNode, renderEdge]` so swapping
+  a render callback rebuilds (layout switching still owned by the separate effect, no
+  retear). WATCH: no `Graph.stories.tsx` yet (Task 5.1), so the §3 screenshot step
+  has no story id — render path is the unchanged Sigma pipeline from 2.1/4.1; the
+  arrowheads + edge labels + kind-sized nodes get visual verification with the
+  Playground story in 5.1 and CT in 5.2. Gate green: typecheck clean, `just check`
+  exit 0 (same 16 pre-existing unrelated warnings — Graph files add none), test 54
+  passed. Next: 4.5 — tooltip/inspector on hover/select showing node/edge `data`
+  (reuse `Popover` or the chart `Tooltip`).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "r
 import Sigma from "sigma";
 import { animateNodes } from "sigma/utils";
 import { cx } from "../../lib/cx";
-import type { GraphData, LayoutKind } from "../../lib/graph/types";
+import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { GraphControlsBar } from "./Controls";
 import { GraphContext, type GraphControls } from "./context";
 import styles from "./Graph.module.css";
@@ -14,6 +14,29 @@ import styles from "./Graph.module.css";
 /** Per-node target coordinates, as produced by the layout functions and
  *  consumed by Sigma's `animateNodes`. */
 type LayoutMapping = Record<string, { x: number; y: number }>;
+
+/** Visual overrides a `renderNode` callback may return. Sigma paints to WebGL
+ *  (no per-node DOM, see §9), so "arbitrary content" is expressed as themed
+ *  visual attributes — label, color, size — rather than nested elements. Any
+ *  omitted field keeps its color-by-`kind` default. */
+export interface NodeVisual {
+  /** Text drawn beside the node; defaults to the node `label` or `id`. */
+  label?: string;
+  /** Fill color; should be a `--sf-*`-derived value. Defaults to color-by-`kind`. */
+  color?: string;
+  /** Node radius in graph units; defaults to a `kind`-derived size. */
+  size?: number;
+}
+
+/** Visual overrides a `renderEdge` callback may return. */
+export interface EdgeVisual {
+  /** Text drawn along the edge; defaults to the edge `label` (if any). */
+  label?: string;
+  /** Stroke color; should be a `--sf-*`-derived value. */
+  color?: string;
+  /** Stroke thickness in graph units; defaults to a `weight`-derived size. */
+  size?: number;
+}
 
 export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Nodes + edges to render. Each carries arbitrary structured `data`. */
@@ -32,6 +55,13 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   onEdgeClick?: (id: string) => void;
   /** Fired with the currently selected node `id` (or `null` when cleared). */
   onSelectionChange?: (id: string | null) => void;
+  /** Escape hatch to override a node's visual attributes (label / color / size)
+   *  from its data. Returned fields override the color-by-`kind` defaults; an
+   *  omitted field (or a `falsy` return) keeps the default. */
+  renderNode?: (node: GraphNode) => NodeVisual | undefined;
+  /** Escape hatch to override an edge's visual attributes (label / color /
+   *  size). Returned fields override the weight-derived defaults. */
+  renderEdge?: (edge: GraphEdge) => EdgeVisual | undefined;
   /** Overlay content — typically a `<Graph.Controls />` toolbar. */
   children?: ReactNode;
 }
@@ -60,27 +90,53 @@ function nodeColor(kind: string | undefined): string {
   return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#2563eb");
 }
 
+/** Default node radius (graph units). `primary` nodes read as the emphasized
+ *  hubs; the rest are slightly smaller, so `kind` is legible as a size badge. */
+function nodeSize(kind: string | undefined): number {
+  return kind === undefined || kind === "primary" ? 4 : 3;
+}
+
+/** Map an edge `weight` (0–1) to a stroke thickness in graph units, clamped so
+ *  even weightless edges stay visible. */
+function edgeSize(weight: number | undefined): number {
+  return Math.max(0.5, (weight ?? 0.5) * 2);
+}
+
+/** The visual hooks `buildGraph` applies on top of the color-by-`kind`
+ *  defaults. Both are optional; a missing field keeps the default. */
+interface RenderHooks {
+  renderNode?: (node: GraphNode) => NodeVisual | undefined;
+  renderEdge?: (edge: GraphEdge) => EdgeVisual | undefined;
+}
+
 /** Build a graphology graph from the shared data model, seeding positions and
  *  themed colors. Pre-computed `x`/`y` on a node are honored; otherwise a
- *  layout pass assigns coordinates. */
-function buildGraph(data: GraphData): Graphology {
+ *  layout pass assigns coordinates. Edges are drawn directed (arrowheads) with
+ *  a weight-derived thickness; `renderNode`/`renderEdge` override the visuals. */
+function buildGraph(data: GraphData, hooks: RenderHooks): Graphology {
   const g = new Graphology();
+  const edgeColor = token("--sf-color-border-subtle", "#e5e7eb");
   for (const n of data.nodes) {
+    const custom = hooks.renderNode?.(n);
     g.addNode(n.id, {
-      label: n.label ?? n.id,
+      label: custom?.label ?? n.label ?? n.id,
       kind: n.kind,
-      size: 3,
+      size: custom?.size ?? nodeSize(n.kind),
       x: n.x ?? Math.random(),
       y: n.y ?? Math.random(),
-      color: nodeColor(n.kind),
+      color: custom?.color ?? nodeColor(n.kind),
       payload: n.data,
     });
   }
   for (const e of data.edges) {
     if (g.hasNode(e.source) && g.hasNode(e.target) && !g.hasEdge(e.id)) {
+      const custom = hooks.renderEdge?.(e);
       g.addEdgeWithKey(e.id, e.source, e.target, {
-        size: Math.max(0.4, (e.weight ?? 0.5) * 1.5),
-        color: token("--sf-color-border-subtle", "#e5e7eb"),
+        // Directed: render an arrowhead toward the target.
+        type: "arrow",
+        label: custom?.label ?? e.label,
+        size: custom?.size ?? edgeSize(e.weight),
+        color: custom?.color ?? edgeColor,
         payload: e.data,
       });
     }
@@ -224,6 +280,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     onNodeClick,
     onEdgeClick,
     onSelectionChange,
+    renderNode,
+    renderEdge,
     className,
     children,
     ...rest
@@ -260,16 +318,24 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const container = surfaceRef.current;
     if (!container) return;
 
-    const g = buildGraph(data);
+    const g = buildGraph(data, { renderNode, renderEdge });
     assignPositions(g, computeLayout(g, layout));
     graphRef.current = g;
     appliedLayoutRef.current = layout;
 
+    // Show edge labels only when at least one edge carries one — otherwise the
+    // renderer pays for label layout it would never draw.
+    const hasEdgeLabels = g.someEdge((_e, attr) => attr.label != null);
     const renderer = new Sigma(g, container, {
       defaultNodeColor: nodeColor("primary"),
+      // Directed arrowheads for every edge unless an edge sets its own `type`.
+      defaultEdgeType: "arrow",
       labelColor: { color: token("--sf-color-fg", "#0a0a0a") },
       labelFont: token("--sf-font-sans", "system-ui"),
+      edgeLabelColor: { color: token("--sf-color-fg-subtle", "#737373") },
+      edgeLabelFont: token("--sf-font-sans", "system-ui"),
       renderLabels: g.order <= 300,
+      renderEdgeLabels: hasEdgeLabels && g.order <= 300,
       allowInvalidContainer: true,
     });
     sigmaRef.current = renderer;
@@ -294,7 +360,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       appliedLayoutRef.current = null;
     };
     // `layout` intentionally omitted — see the layout effect below.
-  }, [data]);
+  }, [data, renderNode, renderEdge]);
 
   // Re-position on layout switch. Compute the target coordinates, then either
   // snap (prefers-reduced-motion) or animate smoothly to them.
