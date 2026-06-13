@@ -144,11 +144,12 @@ Keep messages scoped to the single task. Do not push.
 ### Phase 0 — Scaffold & shared infrastructure
 
 - [x] **0.1** Create branch `feat/graph` off `main` (if not already on it). — created `feat/graph` from `main`; baseline gate (typecheck/check/test) green.
-- [ ] **0.2** Add a shared graph data model in `src/lib/graph/types.ts`:
+- [x] **0.2** Add a shared graph data model in `src/lib/graph/types.ts`:
       `GraphNode` (`id`, optional `label`, `kind`, `data: Record<string, unknown>`,
       optional `x`/`y`), `GraphEdge` (`id`, `source`, `target`, optional
       `label`, `weight`, `data`), `GraphData` = `{ nodes, edges }`. Export
-      `LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid"`.
+      `LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid"`. — added
+      pure TS interfaces + `LayoutKind` union with JSDoc; gate green.
 - [ ] **0.3** Add a deterministic synthetic-graph generator in
       `src/lib/graph/fixtures.ts`: `makeGraph({ nodes, avgDegree, shape })`
       where `shape ∈ "scaleFree" | "tree" | "clustered"`. Seeded RNG (no
@@ -364,6 +365,12 @@ _(empty — first benchmark/decision entries go here)_
   gate green: `just typecheck` clean, `just check` exits 0 (16 pre-existing
   Biome warnings in unrelated files e.g. Timeline.tsx — non-blocking),
   `just test` 42 passed. Next: 0.2 — add `src/lib/graph/types.ts` data model.
+- 2026-06-13 (0.2): Added `src/lib/graph/types.ts` with `GraphNode`, `GraphEdge`,
+  `GraphData`, and the `LayoutKind` union (`force|tree|radial|concentric|grid`).
+  Pure TS, no deps, JSDoc per house style. `data` is optional (`Record<string,
+  unknown>`) so fixtures/tests can omit it. Gate green (typecheck clean, check
+  exit 0 with the same 16 pre-existing unrelated warnings, test 42 passed). Next:
+  0.3 — synthetic-graph generator `src/lib/graph/fixtures.ts` (seeded RNG).
 
 ---
 
