@@ -346,9 +346,10 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       (edge = endpoint midpoint). Body is a token-themed grid: title (`--sf-color-fg`)
       + subtitle/keys (`--sf-color-fg-subtle`, metadata) + a `data` key/value `<dl>`
       (`white-space:normal` overrides the Tooltip shell's nowrap). Gate green.
-- [ ] **4.6** Right-click **context menu** via the `Menu` component
+- [x] **4.6** Right-click **context menu** via the `Menu` component
       (focus/expand/hide/pin actions, exposed through an
-      `onNodeContextMenu` / `contextMenuItems` prop).
+      `onNodeContextMenu` / `contextMenuItems` prop). — done via 4.6a (wire) +
+      4.6b (verify); both ticked below.
   - [x] **4.6a** Wire Sigma `rightClickNode`/`rightClickStage` → a controlled
         `Menu` anchored to the cursor (fixed invisible `Menu.Trigger`, house
         Explorer pattern). Add `onNodeContextMenu` + `contextMenuItems` props
@@ -368,9 +369,17 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
         suppresses opening. `menuRef` keeps the latest builders out of the Sigma
         subscribe deps. Gate green: typecheck clean, `just check` exit 0 (same 16
         pre-existing warnings), test 54 passed. Visual verify deferred to 4.6b.
-  - [ ] **4.6b** Verify in the Playground story / lab screenshot: right-click a
+  - [x] **4.6b** Verify in the Playground story / lab screenshot: right-click a
         node opens the themed menu at the cursor, items fire, Escape/outside
-        click closes. (Defer formal CT to 5.2.)
+        click closes. (Defer formal CT to 5.2.) — verified with a throwaway
+        `lab/GraphContextMenu` harness (real `Graph`, SMALL fixture, `grid`
+        layout, oversized nodes so a Playwright point-probe lands a right-click)
+        + a throwaway driver: menu opens at the cursor with the themed
+        `Focus / Expand / Pin label / Hide` items (separator above Hide), and
+        Escape closes it (`{ok:true, items:[…], closedByEscape:true}`). Eyeballed
+        `/tmp/graph-context-menu.png` — sharp-cornered themed popup anchored at
+        the cursor over the kind-colored grid. Harness story kept under `lab/`
+        (deleted with the rest in 6.2); driver was throwaway.
 - [ ] **4.7** Minimap + viewport indicator for large-graph navigation
       (winner's plugin if available, else a lightweight overview canvas).
 - [ ] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
@@ -1297,6 +1306,25 @@ then richer node content. Record the full table and the arithmetic in §9.
   Next: **4.6b** — screenshot-verify the menu opens at the cursor, items fire,
   Escape/outside-click closes (needs `just dev` + a story; Playground arrives in 5.1,
   so 4.6b may lean on the `lab/Sigma` story or a throwaway harness).
+
+- 2026-06-13 (4.6b): **Context menu visually verified.** The Phase-2 `lab/Sigma`
+  prototype has no real menu, and the Playground story (5.1) doesn't exist yet, so
+  added a throwaway harness `src/components/Graph/lab/GraphContextMenu.stories.tsx`
+  that mounts the **real** `Graph` (SMALL fixture, deterministic `grid` layout,
+  `renderNode={()=>({size:14})}` so nodes are big hit targets — Sigma paints to
+  canvas with no per-node DOM, so a driver must probe screen points). A throwaway
+  Playwright driver sweeps right-click points until `[data-graph-context-menu]`
+  opens, asserts the items, screenshots, then presses Escape and asserts the menu
+  hides → `{ok:true, items:["Focus","Expand","Pin label","Hide"], closedByEscape:true}`.
+  Eyeballed `/tmp/graph-context-menu.png`: themed sharp-cornered popup anchored at
+  the cursor, separator above Hide, over the kind-colored grid + directed edges +
+  controls toolbar. **Env note:** `ladle serve` binds **61000** here, but
+  `screenshot-story.mjs`/`probe-graph.mjs` hard-code **61001** — the driver used
+  61000 (and the probe's `?? page.mainFrame()` fallback, since Ladle v4 renders the
+  story in the main frame, not a `ladle-frame` iframe). Worth reconciling the port
+  before Phase 5/6 screenshot steps. Ticked 4.6 (parent) + 4.6a + 4.6b. Gate green:
+  typecheck clean, `just check` 0 errors (16 pre-existing warnings; +1 story file,
+  adds none), test 54 passed. Next: **4.7** — minimap + viewport indicator.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
