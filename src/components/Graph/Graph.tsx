@@ -2,7 +2,16 @@ import Graphology from "graphology";
 import { circlepack, circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { Fragment, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Sigma from "sigma";
 import { animateNodes } from "sigma/utils";
 import { Tooltip } from "../../lib/chart";
@@ -404,6 +413,13 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const [epoch, setEpoch] = useState(0);
   const bumpEpoch = useCallback(() => setEpoch((e) => e + 1), []);
 
+  // Accessibility: a screen reader can't traverse a WebGL canvas, so the surface
+  // carries a text summary (counts + active layout + key hints) via
+  // `aria-describedby`, and a polite live region announces layout changes.
+  const summaryId = useId();
+  const nodeCount = data.nodes.length;
+  const edgeCount = data.edges.length;
+
   // Inspector tooltip: the node/edge under the cursor (hover) or the last
   // clicked node (select). Hover wins while it is set; on hover-out the
   // selected node's inspection is shown until the selection is cleared.
@@ -749,18 +765,30 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       <GraphInternalContext.Provider value={internals}>
         <div {...rest} ref={ref} className={cx(styles.root, className)}>
           {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
-            make the surface a keyboard target for pan/zoom; a fuller a11y pass
-            (node-to-node navigation, screen-reader summary) lands in Task 5.3. */}
+            make the surface a keyboard target for pan/zoom; `aria-describedby`
+            points at the screen-reader summary below. Per-node traversal isn't
+            offered — a WebGL canvas has no per-node DOM at 10k scale (see §9). */}
           <div
             ref={surfaceRef}
             className={styles.surface}
             role="application"
             aria-label="Graph view"
+            aria-describedby={summaryId}
             data-graph-surface
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
             tabIndex={0}
             onKeyDown={onKeyDown}
           />
+          {/* Screen-reader summary (visually hidden). `aria-describedby` reads it
+            on focus; the polite live region announces layout switches. */}
+          <p id={summaryId} className={styles.srOnly} data-graph-summary>
+            Network graph with {nodeCount} node{nodeCount === 1 ? "" : "s"} and {edgeCount} edge
+            {edgeCount === 1 ? "" : "s"}, {layout} layout. Use the arrow keys to pan, plus and minus
+            to zoom, and 0 to fit the view.
+          </p>
+          <div className={styles.srOnly} aria-live="polite" data-graph-status>
+            {layout} layout
+          </div>
           {children}
           {/* Inspector: node/edge `data` on hover (and the last clicked node on
             select). Reuses the chart Tooltip — a fixed, viewport-clamped box

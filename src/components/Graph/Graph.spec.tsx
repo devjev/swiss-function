@@ -43,6 +43,58 @@ test("hovering a node opens the inspector with its label + data", async ({ mount
   await expect(tip).toContainText("center");
 });
 
+test("exposes role, label, and a node/edge-count summary via aria-describedby", async ({
+  mount,
+}) => {
+  const data = {
+    nodes: [
+      { id: "a", label: "A", kind: "primary", data: {} },
+      { id: "b", label: "B", kind: "secondary", data: {} },
+      { id: "c", label: "C", kind: "tertiary", data: {} },
+    ],
+    edges: [
+      { id: "e1", source: "a", target: "b", data: {} },
+      { id: "e2", source: "b", target: "c", data: {} },
+    ],
+  };
+  const c = await mount(<GraphHarness data={data} />);
+  const surface = c.locator("[data-graph-surface]");
+  await expect(surface).toHaveAttribute("role", "application");
+  await expect(surface).toHaveAttribute("aria-label", "Graph view");
+  // The describedby summary names the counts, and the surface points at it.
+  const summary = c.locator("[data-graph-summary]");
+  await expect(summary).toContainText("3 nodes");
+  await expect(summary).toContainText("2 edges");
+  const id = await summary.getAttribute("id");
+  await expect(surface).toHaveAttribute("aria-describedby", id ?? "");
+});
+
+test("the surface is keyboard-focusable", async ({ mount }) => {
+  const c = await mount(<GraphHarness />);
+  const surface = c.locator("[data-graph-surface]");
+  await surface.focus();
+  await expect(surface).toBeFocused();
+});
+
+test("the polite live region announces the active layout on switch", async ({ mount }) => {
+  const c = await mount(<GraphHarness />);
+  const status = c.locator("[data-graph-status]");
+  await expect(status).toHaveText("force layout");
+  await c.getByRole("button", { name: "Grid" }).click();
+  await expect(status).toHaveText("grid layout");
+});
+
+test("under prefers-reduced-motion, a layout switch still applies (snapped)", async ({
+  mount,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const c = await mount(<GraphHarness />);
+  await c.getByRole("button", { name: "Grid" }).click();
+  await expect(c.locator("[data-graph-status]")).toHaveText("grid layout");
+  await expect(c.getByRole("button", { name: "Grid" })).toHaveAttribute("data-pressed", "");
+});
+
 test("right-clicking a node opens the context menu; Escape closes it", async ({ mount, page }) => {
   const c = await mount(<GraphHarness />);
   await expect(c.locator("[data-graph-ready]")).toHaveCount(1);

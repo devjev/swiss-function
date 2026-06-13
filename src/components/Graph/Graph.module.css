@@ -91,6 +91,21 @@
   overflow-wrap: anywhere;
 }
 
+/* Visually-hidden but screen-reader-available text (the graph summary + the
+   layout live region). Standard clip pattern. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Invisible cursor anchor for the right-click context menu. A zero-size,
    viewport-fixed point the controlled `Menu.Positioner` attaches to; its
    `left`/`top` are set inline from the right-click `clientX`/`clientY`. Not

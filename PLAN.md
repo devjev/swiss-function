@@ -477,9 +477,21 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       ("layout switch updates positions" is asserted via the observable
       `onLayoutChange`/pressed proxy — canvas node coords aren't DOM-assertable.)
       Gate green (typecheck/check/vitest 54 + the 6 CT).
-- [ ] **5.3** Accessibility: container role/label, keyboard navigation
+- [x] **5.3** Accessibility: container role/label, keyboard navigation
       between nodes, focus order, screen-reader summary of node/edge counts;
-      `prefers-reduced-motion` honored. Verify with `just test-ct`.
+      `prefers-reduced-motion` honored. Verify with `just test-ct`. — surface keeps
+      `role="application"` + `aria-label="Graph view"` and gains
+      `aria-describedby` → a visually-hidden (`.srOnly`) summary
+      (`N nodes, M edges, <layout> layout` + the pan/zoom/fit key hints); a polite
+      `aria-live` region (`data-graph-status`) announces layout switches. Surface is
+      keyboard-focusable (existing `tabIndex=0` + `+/-/0/arrows`); focus order is
+      surface → controls (real DOM Buttons/ToggleGroup) → minimap. Reduced-motion was
+      already honored (layout snaps, camera duration 0) — now exercised under
+      emulated `reduce`. **Per-node keyboard traversal is intentionally NOT offered:**
+      a WebGL canvas has no per-node DOM at 10k scale (the §9 trade-off); the text
+      summary + pan/zoom is the canvas-dataviz a11y story. 4 new CT tests (10 total,
+      all green): role/label/describedby + counts, surface focusable, live region
+      announces the layout, reduced-motion switch still applies.
 - [ ] **5.4** `src/components/Graph/index.ts` barrel re-export (component +
       public types).
 - [ ] **5.5** Register exports: add `export * from "./components/Graph";` to
@@ -1584,6 +1596,20 @@ then richer node content. Record the full table and the arithmetic in §9.
   the `onLayoutChange` + pressed-state proxy, not a coordinate check. Gate green:
   typecheck/check clean (16 baseline warnings), vitest 54 (skips the CT spec), 6 CT
   green. Next: **5.3** — accessibility (roles/label, keyboard nav, SR summary).
+
+- 2026-06-13 (5.3): **Accessibility pass.** Added a visually-hidden (`.srOnly`)
+  screen-reader summary referenced by `aria-describedby` on the surface — counts
+  (`N nodes`, `M edges`), the active layout, and the keyboard hints — plus a polite
+  `aria-live` region (`data-graph-status`) announcing layout switches. Kept the
+  existing `role="application"` + `aria-label`, keyboard pan/zoom, and reduced-motion
+  snapping (now CT-exercised via `page.emulateMedia({reducedMotion:"reduce"})`).
+  **Decision:** no per-node keyboard/SR traversal — a WebGL canvas has no per-node DOM
+  and 10k focus stops would be unusable; the summary + pan/zoom is the honest a11y
+  story for canvas dataviz (matches the §9 label-only trade-off). **Gotcha:** CT's
+  `test.use({reducedMotion})` isn't in the fixtures type (TS error though it runs) —
+  used `page.emulateMedia` instead. 4 new CT tests → 10 total green. Gate green:
+  typecheck/check clean (16 baseline warnings), vitest 54, 10 CT. Next: **5.4** —
+  `index.ts` barrel re-export (component + public types).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
