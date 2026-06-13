@@ -166,8 +166,11 @@ Keep messages scoped to the single task. Do not push.
       ids/label/kind/data, tree n−1 edges, no dangling/self-loop/duplicate edges,
       weight∈(0,1], avgDegree scaling, byte-identical determinism per seed,
       seed-sensitivity, SMALL/MEDIUM/LARGE validity. Gate green.
-- [ ] **0.5** Add the benchmark harness `scripts/probe-graph.mjs` (model it
-      on `probe-virtualization.mjs`): given a Ladle story id, measure
+- [x] **0.5** Add the benchmark harness `scripts/probe-graph.mjs` (model it
+      on `probe-virtualization.mjs`): given a Ladle story id, measure — added a
+      headless Playwright harness measuring layoutMs / p95FrameMs / heapMB /
+      p95InteractionMs, cooperating via best-effort `[data-graph-*]` story hooks;
+      prints one JSON line; gate green.
       **(a)** time from navigation to first stable layout paint,
       **(b)** p95 frame time during a scripted pan+zoom over ~3s,
       **(c)** JS heap size (`performance.memory` when available),
@@ -361,7 +364,28 @@ then richer node content. Record the full table and the arithmetic in §9.
 > Iterations append benchmark numbers and the binding library decision here.
 > Format each entry with a date and the task id that produced it.
 
-_(empty — first benchmark/decision entries go here)_
+- 2026-06-13 (0.5): **Benchmark-harness DOM-hook contract.** `scripts/probe-graph.mjs`
+  measures interactions/paint via cooperating attributes that every Phase 2
+  prototype story (and the Phase 4 component) MUST expose for fair, comparable
+  numbers. Hooks are best-effort (a missing one is skipped, not fatal — so a
+  partial prototype still reports the metrics it can), but a candidate that omits
+  hooks gets `p95InteractionMs: null` and cannot pass the §7 interaction-latency
+  gate. The contract:
+  - `[data-graph-surface]` — pan/zoom interaction surface (drag + wheel target).
+  - `[data-graph-ready]` — set on the surface once the first layout is stable;
+    drives `layoutMs` (navigation → first stable paint). Absent ⇒ falls back to
+    networkidle + 600ms settle, which over-reports layoutMs.
+  - `[data-graph-node]` — a node element used for click / hover / right-click.
+  - `[data-graph-control]` — a control to toggle (e.g. zoom-in button).
+  - `[data-graph-layout-next]` — a control that triggers a layout switch.
+  - `[data-graph-selected]` / `[data-graph-tooltip]` / `[data-graph-context-menu]`
+    — appear/update on selection / tooltip / context-menu (reserved; current
+    measurement uses a two-rAF input-to-paint timer rather than awaiting these,
+    so they document intent for later refinement).
+  Paint is measured with a double-`requestAnimationFrame` timer armed before each
+  dispatched input; `p95InteractionMs` is the p95 across all measured interactions.
+  Output is a single stdout JSON line `{story, layoutMs, p95FrameMs, heapMB,
+  p95InteractionMs}`. `heapMB` is `null` outside Chromium's `performance.memory`.
 
 ---
 
@@ -405,6 +429,25 @@ _(empty — first benchmark/decision entries go here)_
   unrelated warnings (note: `biome format` does NOT auto-organize imports — had to
   reorder the named import manually to satisfy `just check`). Next: 0.5 — add the
   benchmark harness `scripts/probe-graph.mjs`.
+- 2026-06-13 (0.5): Added `scripts/probe-graph.mjs`, modeled on
+  `probe-virtualization.mjs`. Headless Chromium via `playwright` (resolvable in
+  the dev shell; browsers at `$PLAYWRIGHT_BROWSERS_PATH`). Measures (a) layoutMs
+  nav→first-stable-paint, (b) p95FrameMs over a ~3s scripted drag+wheel pan/zoom
+  (rAF frame-delta sampler injected into the frame; first sample dropped as
+  warm-up), (c) heapMB from `performance.memory` (null elsewhere), (d)
+  p95InteractionMs across node-click/hover/right-click/control-toggle/
+  layout-switch via a double-rAF input-to-paint timer. Prints one JSON line.
+  IMPORTANT: Ladle renders stories in an iframe, so the harness resolves the
+  `ladle-frame`/`/iframe` frame (like `screenshot-story.mjs`) and runs all
+  evaluate/wait calls against that frame — operating on the top `page` (as
+  `probe-virtualization.mjs` does) would miss the story DOM. Recorded the
+  `[data-graph-*]` hook contract in §9 — Phase 2 prototypes MUST expose these or
+  they'll report `null` interaction latency and fail the §7 gate. Could not run
+  the harness end-to-end yet (no Graph story exists until Phase 2); verified
+  `node --check` syntax + usage path. Gate green: typecheck clean, test 54
+  passed, check exit 0 with the same 16 pre-existing warnings (script adds zero
+  new warnings — used `process.stdout/stderr.write` instead of `console`). Next:
+  1.0 — record the shortlist + §7 rubric into §9 as the baseline.
 
 ---
 
