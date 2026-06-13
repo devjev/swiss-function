@@ -64,6 +64,10 @@
       "types": "./dist/components/Field/index.d.ts",
       "import": "./dist/components/Field/index.js"
     },
+    "./graph": {
+      "types": "./dist/components/Graph/index.d.ts",
+      "import": "./dist/components/Graph/index.js"
+    },
     "./grid": {
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"

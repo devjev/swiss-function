@@ -501,10 +501,17 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       is self-contained. Gate green. (Note: biome's export sort is an `assist`, not
       a `format` fix — `just format` won't apply it; `npm run check -- --write`
       does.)
-- [ ] **5.5** Register exports: add `export * from "./components/Graph";` to
+- [x] **5.5** Register exports: add `export * from "./components/Graph";` to
       `src/index.ts` (alphabetical) **and** the `./graph` entry to
       `package.json` `exports`. Confirm `just build` succeeds and
-      `dist/components/Graph/index.{js,d.ts}` exist.
+      `dist/components/Graph/index.{js,d.ts}` exist. — added the `export *`
+      (Field→**Graph**→Grid) + the `./graph` exports entry. **Plus a third file the
+      task didn't list:** `vite.config.ts` has an explicit `componentNames[]` (NOT
+      a glob); without adding `"Graph"` there the per-component `index.js` entry is
+      never emitted (only the d.ts was), so the `./graph` `import` would 404. After
+      adding it, `just build` emits both `dist/components/Graph/index.js` (re-exports
+      `Graph`) and `index.d.ts` (full public type surface) — verified present. Gate
+      green incl. `just build`.
 - [ ] **5.6** Docs: add a `Graph` row to the `AGENTS.md` component catalogue
       and the "reach for Y" table ("a network / dependency graph / mind map"
       → `Graph`). Keep the house tone (no marketing fluff).
@@ -1629,6 +1636,21 @@ then richer node content. Record the full table and the arithmetic in §9.
   does; run `npm run check -- --write <file>` to fix sort errors. Gate green:
   typecheck/check clean (16 baseline warnings), vitest 54. Next: **5.5** — register
   the `/graph` export in `src/index.ts` + `package.json`, confirm `just build`.
+
+- 2026-06-13 (5.5): **Public export registered + first green `just build`.** Added
+  `export * from "./components/Graph"` to `src/index.ts` (Field→Graph→Grid) and a
+  `./graph` entry to `package.json` `exports`. **Trap the task text didn't mention:**
+  the vite lib build keys off an explicit `componentNames[]` in `vite.config.ts`, not
+  a glob — Graph wasn't in it, so the first build emitted only `index.d.ts`, no
+  `index.js` (the `./graph` `import` target). Added `"Graph"` to the array → rebuild
+  emits both. **Future component additions must edit all THREE: `src/index.ts`,
+  `package.json` exports, and `vite.config.ts` componentNames.** `dist/` is gitignored
+  so only the 3 source files are committed. Sigma/graphology now ship in the build
+  (graphology ~17kB gz, sigma ~21kB gz + FA2/layout helpers) — expected per the §9
+  winner. Harness `.d.ts` leak into dist as for every other component (pre-existing,
+  harmless). Gate green: typecheck/check clean, vitest 54, **`just build` ✓**
+  (`dist/components/Graph/index.{js,d.ts}` present). Next: **5.6** — docs (AGENTS.md
+  catalogue + "reach for Y" row).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

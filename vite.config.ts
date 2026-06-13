@@ -12,6 +12,7 @@ const componentNames = [
   "CommandBar",
   "Explorer",
   "Field",
+  "Graph",
   "Grid",
   "Input",
   "Markdown",
