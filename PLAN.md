@@ -492,8 +492,15 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       summary + pan/zoom is the canvas-dataviz a11y story. 4 new CT tests (10 total,
       all green): role/label/describedby + counts, surface focusable, live region
       announces the layout, reduced-motion switch still applies.
-- [ ] **5.4** `src/components/Graph/index.ts` barrel re-export (component +
-      public types).
+- [x] **5.4** `src/components/Graph/index.ts` barrel re-export (component +
+      public types). — barrel now re-exports `Graph` + every public type:
+      `GraphProps`, `NodeVisual`, `EdgeVisual`, `GraphMenuTarget`, `GraphMenuItem`
+      (from `./Graph`), `GraphControlsProps`, `GraphMinimapProps`, `GraphControls`,
+      and the shared data model (`GraphData`, `GraphNode`, `GraphEdge`,
+      `LayoutKind`) re-exported from `../../lib/graph/types` so the `/graph` entry
+      is self-contained. Gate green. (Note: biome's export sort is an `assist`, not
+      a `format` fix — `just format` won't apply it; `npm run check -- --write`
+      does.)
 - [ ] **5.5** Register exports: add `export * from "./components/Graph";` to
       `src/index.ts` (alphabetical) **and** the `./graph` entry to
       `package.json` `exports`. Confirm `just build` succeeds and
@@ -1610,6 +1617,18 @@ then richer node content. Record the full table and the arithmetic in §9.
   used `page.emulateMedia` instead. 4 new CT tests → 10 total green. Gate green:
   typecheck/check clean (16 baseline warnings), vitest 54, 10 CT. Next: **5.4** —
   `index.ts` barrel re-export (component + public types).
+
+- 2026-06-13 (5.4): **Barrel re-export completed.** `index.ts` was missing the
+  newer public types (`NodeVisual`/`EdgeVisual`/`GraphMenuTarget`/`GraphMenuItem`)
+  consumers need for the `renderNode`/`renderEdge`/`contextMenuItems` props; added
+  them plus the shared data model (`GraphData`/`GraphNode`/`GraphEdge`/`LayoutKind`,
+  re-exported from `lib/graph/types`) so importing from the `/graph` entry needs no
+  second import for the `data` prop. **Tooling gotcha (will recur in 5.5/6.1):**
+  biome's export/import sort is an `assist/source/organizeImports` action — `just
+  format` (`biome format --write`) does NOT apply it, only `biome check --write`
+  does; run `npm run check -- --write <file>` to fix sort errors. Gate green:
+  typecheck/check clean (16 baseline warnings), vitest 54. Next: **5.5** — register
+  the `/graph` export in `src/index.ts` + `package.json`, confirm `just build`.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
