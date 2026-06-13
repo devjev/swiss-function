@@ -221,7 +221,13 @@ they will be deleted after selection (Task 3.3).
       `lab/Sigma.stories.tsx` (WebGL, forceAtlas2 + circular, full `[data-graph-*]`
       hooks, token-themed); LARGE probe `{layoutMs:8990, p95FrameMs:783.4,
       heapMB:31.57, p95InteractionMs:26.5}` recorded in §9 (headless-GPU caveat noted).
-- [ ] **2.2** Prototype **Cytoscape.js** (+ dagre/fcose) → story + benchmark + §9.
+- [x] **2.2** Prototype **Cytoscape.js** (+ dagre/fcose) → story + benchmark + §9. — added
+      `lab/Cytoscape.stories.tsx` (canvas renderer; force = `fcose`, hierarchical =
+      `dagre` for MEDIUM / native `breadthfirst` for LARGE since dagre blocks for
+      minutes at 10k); full `[data-graph-*]` hooks, token-themed. MEDIUM probe
+      `{layoutMs:5265, p95FrameMs:33.3, heapMB:61.04, p95InteractionMs:63.3}`; LARGE
+      `{layoutMs:4939, p95FrameMs:383.4, heapMB:527.38, p95InteractionMs:563}` recorded
+      in §9 (headless-GPU + dagre-unusable caveats noted).
 - [ ] **2.3** Prototype **React Flow + elkjs** → story + benchmark + §9.
 - [ ] **2.4** Prototype **G6** → story + benchmark + §9.
 - [ ] **2.5** Prototype **react-force-graph** → story + benchmark + §9.
@@ -463,6 +469,50 @@ then richer node content. Record the full table and the arithmetic in §9.
     a worker-driven layout, since the 783ms is dominated by software rasterization,
     not Sigma's per-frame cost. Next: 2.2 — Cytoscape.js (+ dagre/fcose) prototype.
 
+- 2026-06-13 (2.2): **Candidate 2 — Cytoscape.js (+ fcose / dagre) — benchmark.**
+  Prototype `src/components/Graph/lab/Cytoscape.stories.tsx` (Cytoscape canvas
+  renderer; force = `fcose` extension, hierarchical = `dagre` extension on MEDIUM).
+  Exposes the full §9 `[data-graph-*]` hook contract: Cytoscape also paints to a
+  single canvas (no per-node DOM), so — as with Sigma — one reference node's rendered
+  position (`node.renderedPosition()`, updated on `render pan zoom`) is mirrored as
+  an invisible `[data-graph-node]` overlay for the harness's click / hover /
+  right-click target; selection / tooltip / context-menu / zoom-in control /
+  layout-switch all wired. Colors driven by `--sf-*` tokens read off
+  `getComputedStyle` (themable gate: PASS — see `/tmp/cytoscape-medium.png`,
+  multi-kind colored nodes + subtle edges, legible, no clipping).
+  - **Deps added (versions):** `cytoscape@3.34.0`, `cytoscape-dagre@4.0.0`,
+    `cytoscape-fcose@2.2.0`, `dagre@0.8.5` (transitive dep of `cytoscape-dagre`).
+    `cytoscape-fcose` ships no types → added a one-line `declare module` in
+    `src/global.d.ts` (removed in 3.3 if Cytoscape loses).
+  - **`probe-graph.mjs graph--lab--cytoscape--medium` (MEDIUM 1k/2k, 1280×900):**
+    `{"layoutMs":5265,"p95FrameMs":33.3,"heapMB":61.04,"p95InteractionMs":63.3}`.
+  - **`probe-graph.mjs graph--lab--cytoscape--large` (LARGE 10k/19997, 1280×900):**
+    `{"layoutMs":4939,"p95FrameMs":383.4,"heapMB":527.38,"p95InteractionMs":563}`.
+  - **Layout caveats (important, two of them):**
+    (1) **fcose at 10k blocks for minutes.** fcose's default `numIter:2500` runs the
+    incremental cose phase synchronously on the main thread; on 10k nodes the harness
+    hung past 60s (`[data-graph-ready]`) and never settled `networkidle` (node process
+    idle at 0% CPU, browser pegged). Bounded the LARGE fcose to `quality:"draft"` +
+    `numIter:250` (mirrors Sigma's bounded-iteration force) → initial layout then
+    completes (`layoutMs` 4939). (2) **dagre at 10k is unusable** — its run time is
+    super-linear; the layout-switch click blocked the browser for minutes and only the
+    harness's 200s wall-clock killed it. The LARGE prototype therefore falls back to
+    Cytoscape's native, tractable `breadthfirst` tree layout for the layout-switch
+    (MEDIUM keeps the prettier `dagre`). This is itself a Phase-3 input: Cytoscape's
+    headline "broadest layout catalogue" advantage is real for small/medium graphs but
+    its best hierarchical engine (dagre) does not scale to LARGE on the main thread.
+  - **Headless-GPU caveat (same as 2.1):** `p95FrameMs` 383ms and `heapMB` 527 are
+    measured in headless Chromium with software rasterization and no GPU; both are
+    pessimistic. `p95InteractionMs` 563ms is dominated by the layout-switch
+    (breadthfirst on 10k) folded into the p95 — the click/hover/context-menu/control
+    interactions on MEDIUM measured 63ms, so the per-interaction cost away from a full
+    re-layout is fine. Do NOT eliminate Cytoscape on these raw headless numbers alone;
+    the §7 gates must be re-judged in Phase 3 across all candidates measured the same
+    way (and the interaction-latency gate should arguably exclude the multi-second
+    full-graph re-layout, or measure first-transition-frame, when finalized). Bundle
+    gzip cost deferred to the Phase 3 comparison table (Task 3.1). Next: 2.3 —
+    React Flow + elkjs prototype, same hooks, same harness runs.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -556,6 +606,30 @@ then richer node content. Record the full table and the arithmetic in §9.
   typecheck clean, test 54 passed, check exit 0 with the same 16 pre-existing
   warnings (my file is clean after removing an unused biome suppression). Next: 2.2 —
   Cytoscape.js (+ dagre/fcose) prototype, same hooks, same harness run.
+- 2026-06-13 (2.2): Built the second Phase-2 prototype — Cytoscape.js (+ fcose / dagre)
+  — in `src/components/Graph/lab/Cytoscape.stories.tsx` (Medium + Large exports).
+  Installed `cytoscape@3.34.0`, `cytoscape-dagre@4.0.0`, `cytoscape-fcose@2.2.0`,
+  `dagre@0.8.5`. `cytoscape-fcose` has no types → added a `declare module
+  "cytoscape-fcose"` stub to `src/global.d.ts` (Biome's organize-imports wanted a
+  blank line after the in-module `import type`). Same canvas/overlay technique as
+  Sigma (`node.renderedPosition()` mirrored as the `[data-graph-node]` hit target).
+  Harness MEDIUM `{layoutMs:5265, p95FrameMs:33.3, heapMB:61.04,
+  p95InteractionMs:63.3}`. BIG SURPRISE / WATCH: the LARGE run HUNG twice. (1) fcose's
+  default 2500 cose iterations on 10k nodes block the main thread for minutes — the
+  node harness sat at 0% CPU while the browser was pegged, never reaching
+  `networkidle`; fixed by bounding LARGE fcose to `quality:"draft"`+`numIter:250`.
+  (2) dagre on 10k/20k is super-linear and froze the layout-switch for minutes
+  (`timeout 200` killed it mid-dagre at probe line 211); fixed by falling back to
+  native `breadthfirst` for the LARGE layout-switch (MEDIUM keeps dagre). After both
+  bounds, LARGE completes: `{layoutMs:4939, p95FrameMs:383.4, heapMB:527.38,
+  p95InteractionMs:563}` (heavy — headless software-WebGL; p95Interaction dominated by
+  the breadthfirst re-layout, MEDIUM interactions were 63ms). Recorded a §9 caveat:
+  don't eliminate Cytoscape on raw headless numbers, AND note dagre doesn't scale to
+  LARGE on the main thread (Phase 3 input). Screenshot helpers still hardcode 61001;
+  used an inline preview shot from the repo dir (`/tmp` can't resolve `playwright`) →
+  `/tmp/cytoscape-medium.png`, themed multi-kind colors, no clipping. Gate green:
+  typecheck clean, test 54 passed, check exit 0 with the same 16 pre-existing
+  warnings. Next: 2.3 — React Flow + elkjs prototype, same hooks, same harness runs.
 
 ---
 
