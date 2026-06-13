@@ -216,8 +216,11 @@ offer **at least** force + one hierarchical/tree layout; color nodes/edges via
 `--sf-*` tokens; show a node label + a tooltip with `data`. Keep them minimal —
 they will be deleted after selection (Task 3.3).
 
-- [ ] **2.1** Prototype **Sigma.js + graphology** → story + run
-      `probe-graph.mjs`; record metrics + bundle cost in §9.
+- [x] **2.1** Prototype **Sigma.js + graphology** → story + run
+      `probe-graph.mjs`; record metrics + bundle cost in §9. — added
+      `lab/Sigma.stories.tsx` (WebGL, forceAtlas2 + circular, full `[data-graph-*]`
+      hooks, token-themed); LARGE probe `{layoutMs:8990, p95FrameMs:783.4,
+      heapMB:31.57, p95InteractionMs:26.5}` recorded in §9 (headless-GPU caveat noted).
 - [ ] **2.2** Prototype **Cytoscape.js** (+ dagre/fcose) → story + benchmark + §9.
 - [ ] **2.3** Prototype **React Flow + elkjs** → story + benchmark + §9.
 - [ ] **2.4** Prototype **G6** → story + benchmark + §9.
@@ -434,6 +437,32 @@ then richer node content. Record the full table and the arithmetic in §9.
   smaller bundle, then fewer transitive deps, then richer node content. Phase 3
   records the full per-candidate table + the arithmetic and declares the winner.
 
+- 2026-06-13 (2.1): **Candidate 1 — Sigma.js + graphology — benchmark.** Prototype
+  `src/components/Graph/lab/Sigma.stories.tsx` (WebGL renderer; graphology graph
+  model; force = `graphology-layout-forceatlas2`, second layout = `circular` from
+  `graphology-layout`). Exposes the full §9 `[data-graph-*]` hook contract: the
+  pan/zoom surface is the Sigma container; one reference node's screen position is
+  mirrored as an invisible `[data-graph-node]` overlay (Sigma renders to canvas, so
+  there is no per-node DOM — the overlay is the harness's hit target); selection /
+  tooltip / context-menu / zoom-in control / layout-switch all wired. Colors driven
+  by `--sf-*` tokens read off `getComputedStyle` (themable gate: PASS — see
+  `/tmp/sigma-medium.png`, multi-kind colored nodes + edges, legible, no clipping).
+  - **Deps added (versions):** `sigma@3.0.3`, `graphology@0.26.0`,
+    `graphology-layout@0.6.1`, `graphology-layout-forceatlas2@0.10.1`.
+  - **`probe-graph.mjs graph--lab--sigma--large` (LARGE 10k/19997, 1280×900):**
+    `{"layoutMs":8990,"p95FrameMs":783.4,"heapMB":31.57,"p95InteractionMs":26.5}`.
+  - **Interaction latency 26.5ms — well under the 120ms gate (PASS).** Heap 31.6MB
+    (lean). **CAVEAT — headless GPU:** `p95FrameMs` 783ms and `layoutMs` ~9s are
+    measured in headless Chromium with no GPU (SwiftShader software WebGL) and a
+    synchronous 80-iteration forceAtlas2 on 10k nodes on the main thread; both are
+    pessimistic vs. a real GPU + a web-worker / supervised layout. Bundle gzip cost
+    not yet weighed precisely (deferred to the Phase 3 comparison table, Task 3.1);
+    rough order: graphology core + sigma are the bulk. Do NOT eliminate Sigma on the
+    raw headless `p95FrameMs` here — the §7 frame gate must be re-judged in Phase 3
+    against the other candidates measured the *same* way (all headless), and/or with
+    a worker-driven layout, since the 783ms is dominated by software rasterization,
+    not Sigma's per-frame cost. Next: 2.2 — Cytoscape.js (+ dagre/fcose) prototype.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -506,6 +535,27 @@ then richer node content. Record the full table and the arithmetic in §9.
   the same 16 pre-existing unrelated warnings (no new files). Next: 2.1 — prototype
   Sigma.js + graphology (install dep, add `lab/Sigma.stories.tsx` exposing the
   `[data-graph-*]` hooks, run `probe-graph.mjs`, record metrics + gzip bundle in §9).
+- 2026-06-13 (2.1): Built the first Phase-2 prototype — Sigma.js + graphology — in
+  `src/components/Graph/lab/Sigma.stories.tsx` (Medium + Large exports). Installed
+  `sigma@3.0.3`, `graphology@0.26.0`, `graphology-layout@0.6.1`,
+  `graphology-layout-forceatlas2@0.10.1`. Key technique: Sigma paints to canvas/WebGL
+  so there is no per-node DOM — I mirror one node's screen coords (via
+  `getNodeDisplayData` on `afterRender`) as an invisible `[data-graph-node]` overlay
+  so the harness has a stable click/hover/right-click target. `[data-graph-ready]` is
+  set after the first rAF post-mount → harness `layoutMs` ~9s (dominated by a
+  synchronous 80-iteration forceAtlas2 on 10k nodes, not a Sigma cost). Ran the
+  harness end-to-end (first real `probe-graph.mjs` run; story id
+  `graph--lab--sigma--large`, server on **61000** not 61001 — config.mjs sets 61000,
+  so pass the base-url explicitly): `p95InteractionMs 26.5` (great), `heapMB 31.57`,
+  `p95FrameMs 783.4`. SURPRISE/WATCH: headless Chromium has no GPU (software WebGL),
+  so `p95FrameMs` is wildly pessimistic — recorded a §9 caveat that the §7 frame gate
+  must be applied in Phase 3 to all candidates measured the SAME (headless) way, not
+  by eliminating Sigma on this absolute number. Two screenshot helpers hardcode port
+  61001; used an inline preview-mode playwright shot (`/tmp/sigma-medium.png`) to
+  eyeball — themed multi-kind colors, edges, legible, no clipping. Gate green:
+  typecheck clean, test 54 passed, check exit 0 with the same 16 pre-existing
+  warnings (my file is clean after removing an unused biome suppression). Next: 2.2 —
+  Cytoscape.js (+ dagre/fcose) prototype, same hooks, same harness run.
 
 ---
 
