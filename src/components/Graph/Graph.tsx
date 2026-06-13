@@ -160,38 +160,58 @@ interface RenderHooks {
   renderEdge?: (edge: GraphEdge) => EdgeVisual | undefined;
 }
 
-/** Build a graphology graph from the shared data model, seeding positions and
- *  themed colors. Pre-computed `x`/`y` on a node are honored; otherwise a
- *  layout pass assigns coordinates. Edges are drawn directed (arrowheads) with
- *  a weight-derived thickness; `renderNode`/`renderEdge` override the visuals. */
-function buildGraph(data: GraphData, hooks: RenderHooks, el?: Element | null): Graphology {
-  const g = new Graphology();
+/** (Re)apply node/edge VISUAL attributes (label / size / color) from the render
+ *  hooks onto an already-built graph, layering over the color-by-`kind` defaults.
+ *  Kept separate from structure so changing `renderNode`/`renderEdge` re-themes in
+ *  place without tearing down + rebuilding the renderer (see the visuals effect). */
+function applyVisuals(
+  g: Graphology,
+  data: GraphData,
+  hooks: RenderHooks,
+  el?: Element | null,
+): void {
   const edgeColor = token("--sf-color-border-subtle", "#e5e7eb", el);
   for (const n of data.nodes) {
+    if (!g.hasNode(n.id)) continue;
     const custom = hooks.renderNode?.(n);
-    g.addNode(n.id, {
+    g.mergeNodeAttributes(n.id, {
       label: custom?.label ?? n.label ?? n.id,
-      kind: n.kind,
       size: custom?.size ?? nodeSize(n.kind),
+      color: custom?.color ?? nodeColor(n.kind, el),
+    });
+  }
+  for (const e of data.edges) {
+    if (!g.hasEdge(e.id)) continue;
+    const custom = hooks.renderEdge?.(e);
+    g.mergeEdgeAttributes(e.id, {
+      label: custom?.label ?? e.label,
+      size: custom?.size ?? edgeSize(e.weight),
+      color: custom?.color ?? edgeColor,
+    });
+  }
+}
+
+/** Build a graphology graph from the shared data model: structure (nodes, edges,
+ *  directed arrowheads), seed positions (pre-computed `x`/`y` honored, else
+ *  random — a layout pass assigns final coordinates), and `payload`. Visual
+ *  attributes are layered on by `applyVisuals`. */
+function buildGraph(data: GraphData, hooks: RenderHooks, el?: Element | null): Graphology {
+  const g = new Graphology();
+  for (const n of data.nodes) {
+    g.addNode(n.id, {
+      kind: n.kind,
       x: n.x ?? Math.random(),
       y: n.y ?? Math.random(),
-      color: custom?.color ?? nodeColor(n.kind, el),
       payload: n.data,
     });
   }
   for (const e of data.edges) {
     if (g.hasNode(e.source) && g.hasNode(e.target) && !g.hasEdge(e.id)) {
-      const custom = hooks.renderEdge?.(e);
-      g.addEdgeWithKey(e.id, e.source, e.target, {
-        // Directed: render an arrowhead toward the target.
-        type: "arrow",
-        label: custom?.label ?? e.label,
-        size: custom?.size ?? edgeSize(e.weight),
-        color: custom?.color ?? edgeColor,
-        payload: e.data,
-      });
+      // Directed: render an arrowhead toward the target.
+      g.addEdgeWithKey(e.id, e.source, e.target, { type: "arrow", payload: e.data });
     }
   }
+  applyVisuals(g, data, hooks, el);
   return g;
 }
 
@@ -483,9 +503,17 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const inspectRef = useRef({ inspectNode, inspectEdge });
   inspectRef.current = { inspectNode, inspectEdge };
 
+  // Latest render hooks, read by the build effect WITHOUT keying on their
+  // identity — an inline `renderNode={n => …}` changes identity every parent
+  // render, and rebuilding the whole Sigma renderer on each would wipe
+  // selection/camera and trash LARGE perf. The visuals effect below re-themes in
+  // place when they actually change.
+  const renderHooksRef = useRef<RenderHooks>({ renderNode, renderEdge });
+  renderHooksRef.current = { renderNode, renderEdge };
+
   // Build + render once per data identity. Layout changes are handled by the
   // layout effect below so swapping the layout never retears the renderer.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: layout seeds the initial positions on (re)build; the separate layout effect owns subsequent changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on `data` only — `layout` seeds initial positions (the layout effect owns switches) and `renderNode`/`renderEdge` come via `renderHooksRef` (the visuals effect owns re-theming); keying on any of them would needlessly rebuild the renderer.
   useEffect(() => {
     const container = surfaceRef.current;
     if (!container) return;
@@ -493,7 +521,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // Seed positions come from buildGraph (pre-set node x/y, else random). The
     // potentially expensive initial layout is deferred below so it runs AFTER the
     // first paint rather than blocking it.
-    const g = buildGraph(data, { renderNode, renderEdge }, container);
+    const g = buildGraph(data, renderHooksRef.current, container);
     graphRef.current = g;
     appliedLayoutRef.current = layout;
 
@@ -590,7 +618,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       setSelected(null);
       setContextMenu(null);
     };
-    // `layout` intentionally omitted — see the layout effect below.
+    // `layout` + `renderNode`/`renderEdge` intentionally omitted — see the layout
+    // effect and the visuals effect below.
+  }, [data]);
+
+  // Re-theme in place when `renderNode`/`renderEdge` change (without rebuilding
+  // the renderer). On a `data` change the build effect above already re-applies
+  // visuals, so this is a cheap no-op re-set then; on a hooks-only change it's the
+  // only thing that runs.
+  useEffect(() => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer) return;
+    applyVisuals(g, data, { renderNode, renderEdge }, surfaceRef.current);
+    renderer.refresh();
   }, [data, renderNode, renderEdge]);
 
   // Re-position on layout switch. Compute the target coordinates, then either

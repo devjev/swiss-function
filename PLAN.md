@@ -538,6 +538,18 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       (`node scripts/probe-graph.mjs graph--lab--large--default http://localhost:61000`)
       against the real component's `[data-graph-*]` hooks. Nothing outside `lab/`
       imported the deleted stories; gate green after removal (214 files).
+- [x] **6.2a** (opened during the 6.3 review) Fix the `renderNode`/`renderEdge`
+      build-effect identity churn. The build effect keyed on
+      `[data, renderNode, renderEdge]`, so an inline `renderNode={n => …}` (new
+      identity every parent render — the idiomatic case) tore down + rebuilt the
+      whole Sigma renderer on each render: wiping the inspector selection (broke
+      click-to-pin) and, on LARGE, re-running the multi-second build every render.
+      Fix: split `buildGraph` into structure + a separate `applyVisuals`; read the
+      hooks via `renderHooksRef`; key the build effect on `[data]` only; add a
+      visuals effect (`[data, renderNode, renderEdge]`) that re-themes in place
+      without recreating the renderer. Added a click-to-pin CT regression test
+      (11 Graph CT green); DenseContent (inline `renderNode`) unchanged; LARGE
+      re-probe `{…,p95InteractionMs:27.4}` (no regression). Gate green.
 - [ ] **6.3** Final review against §6 Definition of Done; tick remaining
       items or open finer tasks for any gap. Append "PROJECT COMPLETE" to
       §10 when all boxes above are `[x]`.
@@ -1698,6 +1710,24 @@ then richer node content. Record the full table and the arithmetic in §9.
   `lab/` imported the deleted files. Gate green: typecheck clean, check 0 errors (16
   baseline warnings), vitest 54 (214 files, −3). Next: **6.3** — final review vs §6
   Definition of Done, including the click-to-pin-inspector question flagged in 5.2.
+
+- 2026-06-13 (6.3 review → 6.2a fix): **Final review found a real, serious bug;
+  fixed it.** Chasing the 5.2 click-to-pin question: the Sigma bundle confirms a node
+  click emits ONLY `clickNode` (dispatch `return`s before `clickStage` — sigma.esm.js
+  ~L1648), so `clickStage` was NOT the culprit. Real cause (instrumented + confirmed):
+  the build effect keyed on `[data, renderNode, renderEdge]`, and the harness (like any
+  idiomatic consumer) passes an **inline** `renderNode` — new identity every render. So
+  `onNodeClick`→`setLast`→re-render→new `renderNode`→**full Sigma teardown+rebuild**,
+  which ran the build effect's cleanup (`setSelected(null)` + `renderer.kill()`). That
+  wiped click-to-pin AND meant every parent render rebuilt the 10k-node graph — a
+  severe perf/correctness defect. Filed + fixed as **6.2a**: `buildGraph` now does
+  structure only; `applyVisuals` (new) layers label/size/color and is called by both
+  the build effect and a dedicated visuals effect; hooks read via `renderHooksRef`; the
+  build effect keys on `[data]` only. Click-to-pin works (new CT regression test → 11
+  Graph CT green); DenseContent's inline-`renderNode` rps sizing unchanged; LARGE
+  re-probe interaction 27.4ms (no regression). **The rest of §6 DoD holds** — verified
+  in the 6.3 sign-off note next. Gate green: typecheck/check clean, vitest 54, 11 Graph
+  CT. Next: **6.3** — record the DoD sign-off + PROJECT COMPLETE.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

@@ -30,6 +30,25 @@ test("clicking a node fires onNodeClick with its id", async ({ mount }) => {
   await expect(c.getByTestId("last-event")).toHaveText("click:hub");
 });
 
+test("click-to-pin: the inspector persists after the cursor leaves the node", async ({
+  mount,
+  page,
+}) => {
+  // Regression: an inline `renderNode` must not rebuild the renderer on the
+  // re-render that `onNodeClick` triggers (which would wipe the selection).
+  const c = await mount(<GraphHarness />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(c.getByTestId("last-event")).toHaveText("click:hub");
+  // Leave the node — hover inspection clears, but the click-pinned one stays.
+  await page.mouse.move(box.x + 4, box.y + 4);
+  const tip = page.locator("[data-graph-tooltip]");
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText("Hub");
+});
+
 test("hovering a node opens the inspector with its label + data", async ({ mount, page }) => {
   const c = await mount(<GraphHarness />);
   await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
