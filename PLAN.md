@@ -452,9 +452,18 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
 
 ### Phase 5 — Stories, tests, docs, exports
 
-- [ ] **5.1** `Graph.stories.tsx`: `Playground` (Ladle args for size/layout),
+- [x] **5.1** `Graph.stories.tsx`: `Playground` (Ladle args for size/layout),
       plus stories for each layout, dense-node content, context menu, and a
-      `LargeStress` story bound to the `LARGE` fixture.
+      `LargeStress` story bound to the `LARGE` fixture. — added `Graph.stories.tsx`
+      (title "Graph", non-`lab/`): `Playground` with `size` (small/medium/large
+      radio) + `layout` (select) argTypes mapping size→fixture, one story per
+      layout (`Force`/`Tree`/`Radial`/`Concentric`/`Grid` on SMALL so labels
+      render), `DenseContent` (an 8-node service graph with rich per-node/edge
+      `data` + a `renderNode` that sizes nodes by `rps` — the inspector surfaces
+      the full record), `ContextMenu` (default right-click menu), and `LargeStress`
+      (LARGE + Controls + Minimap). All wrapped in a sized `Frame`; Controls +
+      Minimap composed in. Verified renders (`/tmp/g-dense.png` shows kind-colored,
+      rps-sized nodes + directed labeled edges; `/tmp/g-tree.png`). Gate green.
 - [ ] **5.2** `Graph.spec.tsx` unit/interaction tests: renders given data,
       layout switch updates positions, node click fires handler, context
       menu opens. (Use existing component spec patterns.)
@@ -1529,6 +1538,23 @@ then richer node content. Record the full table and the arithmetic in §9.
   errors (16 baseline warnings), test 54 passed. **Phase 4 complete** — next: **5.1**
   `Graph.stories.tsx` (Playground + per-layout + dense-node + context-menu +
   LargeStress).
+
+- 2026-06-13 (5.1): **`Graph.stories.tsx` (the real component's stories).** Title
+  "Graph" (the `lab/` ones stay under "Graph/lab"). Stories: `Playground`
+  (`size` radio small/medium/large → fixture, `layout` select; Controls + Minimap),
+  one per layout on SMALL (labels render under the 300-node cull), `DenseContent`
+  (hand-authored 8-service graph with rich `data` per node/edge + a `renderNode`
+  sizing nodes by `rps` — demonstrates arbitrary content via the escape hatch and
+  the inspector), `ContextMenu` (default menu), `LargeStress` (LARGE). **Gotcha:**
+  Ladle kebab-cases camelCase exports, so the story id is `graph--dense-content`,
+  not `graph--densecontent` — relevant for 5.2 CT selectors and any probe. Verified
+  `DenseContent` renders kind-colored, rps-sized nodes with directed labeled edges
+  and `Tree` renders the layered rows. **Watch:** `tree` layout on the scaleFree
+  SMALL fixture looks sparse/criss-crossed (it's a layered BFS, not a real tree) —
+  fine, but the `DenseContent` graph (which IS tree-ish) shows the layout at its
+  best. Gate green: typecheck clean, `just check` 0 errors (16 baseline warnings),
+  test 54 passed (`test-ct`/`build` deferred to the Phase 5/6 finishers). Next:
+  **5.2** — `Graph.spec.tsx` interaction tests.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
