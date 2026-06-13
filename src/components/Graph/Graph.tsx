@@ -474,8 +474,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const container = surfaceRef.current;
     if (!container) return;
 
+    // Seed positions come from buildGraph (pre-set node x/y, else random). The
+    // potentially expensive initial layout is deferred below so it runs AFTER the
+    // first paint rather than blocking it.
     const g = buildGraph(data, { renderNode, renderEdge }, container);
-    assignPositions(g, computeLayout(g, layout));
     graphRef.current = g;
     appliedLayoutRef.current = layout;
 
@@ -537,24 +539,29 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       openMenu({ kind: "stage", id: null }, event);
     });
 
-    // Signal overlays (minimap) that a fresh graph + display data exist.
+    // Signal overlays (minimap) that a fresh graph + display data exist (seed
+    // positions; refreshed again once the stable layout lands below).
     bumpEpoch();
 
-    // Automation/test signal: mark the surface ready after the first paint, so a
-    // harness (probe-graph.mjs) can time navigation → first stable layout.
-    // Sigma emits its first `afterRender` synchronously during construction —
-    // before this listener attaches — so force one more render with `refresh()`
-    // to guarantee `markReady` fires once.
+    // Defer the initial layout behind the first paint. Sigma has already painted
+    // the seed positions, so the layout (a multi-second forceAtlas2 on LARGE)
+    // runs across the next frames instead of freezing first paint. Snap to it (no
+    // animation from the random seed — subsequent layout *switches* animate via
+    // the layout effect). `data-graph-ready` is set only once the stable layout
+    // has painted: the harness's "first stable layout paint" signal.
     container.removeAttribute("data-graph-ready");
-    const markReady = () => {
-      container.setAttribute("data-graph-ready", "");
-      renderer.off("afterRender", markReady);
-    };
-    renderer.on("afterRender", markReady);
-    renderer.refresh();
+    let initialRaf = requestAnimationFrame(() => {
+      initialRaf = requestAnimationFrame(() => {
+        if (sigmaRef.current !== renderer) return;
+        assignPositions(g, computeLayout(g, layout));
+        renderer.refresh();
+        container.setAttribute("data-graph-ready", "");
+        bumpEpoch();
+      });
+    });
 
     return () => {
-      renderer.off("afterRender", markReady);
+      cancelAnimationFrame(initialRaf);
       container.removeAttribute("data-graph-ready");
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;

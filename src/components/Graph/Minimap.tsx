@@ -143,11 +143,18 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     rebuild();
     const camera = renderer.getCamera();
     camera.on("updated", drawViewport);
-    const ro = new ResizeObserver(() => rebuild());
+    // Debounce resize: a rebuild iterates every node, so coalesce the burst of
+    // ResizeObserver callbacks during a drag-resize into one trailing rebuild.
+    let resizeTimer = 0;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(rebuild, 100);
+    });
     ro.observe(canvas);
     return () => {
       camera.off("updated", drawViewport);
       ro.disconnect();
+      clearTimeout(resizeTimer);
     };
   }, [getRenderer, epoch, rebuild, drawViewport]);
 
