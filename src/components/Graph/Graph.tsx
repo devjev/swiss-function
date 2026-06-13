@@ -5,6 +5,7 @@ import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sigma from "sigma";
 import { animateNodes } from "sigma/utils";
+import { Tooltip } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { GraphControlsBar } from "./Controls";
@@ -264,6 +265,39 @@ function assignPositions(g: Graphology, mapping: LayoutMapping): void {
   }
 }
 
+/** The element an inspector tooltip describes: a node, or an edge. */
+type InspectTarget = "node" | "edge";
+
+/** Resolved inspector content + the viewport rect it anchors to. Sigma paints
+ *  to a single canvas (no per-node DOM), so the anchor rect is synthesized from
+ *  the surface's bounding rect plus the element's viewport coordinates. */
+interface Inspection {
+  target: InspectTarget;
+  /** Heading line — the element's label (falling back to its id). */
+  title: string;
+  /** Secondary line — node `kind`, or "edge". */
+  subtitle: string | undefined;
+  /** `data` entries, stringified for display. */
+  rows: Array<[string, string]>;
+  /** Viewport-relative anchor box for the floating tooltip. */
+  rect: DOMRect;
+}
+
+/** Flatten a `data` record into displayable key/value rows. Values are
+ *  stringified shallowly; nested objects show as compact JSON. */
+function dataRows(data: Record<string, unknown> | undefined): Array<[string, string]> {
+  if (!data) return [];
+  return Object.entries(data).map(([key, value]) => {
+    const text =
+      value === null || value === undefined
+        ? "—"
+        : typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+    return [key, text];
+  });
+}
+
 /** True when the user asked for reduced motion (layout switches snap instead
  *  of animating). Defaults to `false` outside the browser. */
 function prefersReducedMotion(): boolean {
@@ -311,6 +345,69 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const handlersRef = useRef({ onNodeClick, onEdgeClick, onSelectionChange });
   handlersRef.current = { onNodeClick, onEdgeClick, onSelectionChange };
 
+  // Inspector tooltip: the node/edge under the cursor (hover) or the last
+  // clicked node (select). Hover wins while it is set; on hover-out the
+  // selected node's inspection is shown until the selection is cleared.
+  const [hovered, setHovered] = useState<Inspection | null>(null);
+  const [selected, setSelected] = useState<Inspection | null>(null);
+  const inspection = hovered ?? selected;
+
+  // A small viewport box centered on (x,y) — the anchor the floating Tooltip
+  // positions itself above. `getNodeDisplayData` is surface-relative, so add
+  // the surface's viewport offset.
+  const anchorAt = useCallback((x: number, y: number): DOMRect => {
+    const box = surfaceRef.current?.getBoundingClientRect();
+    const ox = box?.left ?? 0;
+    const oy = box?.top ?? 0;
+    return new DOMRect(ox + x - 4, oy + y - 4, 8, 8);
+  }, []);
+
+  // Build the inspection for a node: its label/kind + flattened `data`.
+  const inspectNode = useCallback(
+    (id: string): Inspection | null => {
+      const g = graphRef.current;
+      const renderer = sigmaRef.current;
+      if (!g || !renderer || !g.hasNode(id)) return null;
+      const pos = renderer.getNodeDisplayData(id);
+      if (!pos) return null;
+      const kind = g.getNodeAttribute(id, "kind") as string | undefined;
+      const payload = g.getNodeAttribute(id, "payload") as Record<string, unknown> | undefined;
+      return {
+        target: "node",
+        title: (g.getNodeAttribute(id, "label") as string | undefined) ?? id,
+        subtitle: kind,
+        rows: dataRows(payload),
+        rect: anchorAt(pos.x, pos.y),
+      };
+    },
+    [anchorAt],
+  );
+
+  // Build the inspection for an edge: its label + flattened `data`, anchored at
+  // the midpoint of its endpoints' display positions.
+  const inspectEdge = useCallback(
+    (id: string): Inspection | null => {
+      const g = graphRef.current;
+      const renderer = sigmaRef.current;
+      if (!g || !renderer || !g.hasEdge(id)) return null;
+      const a = renderer.getNodeDisplayData(g.source(id));
+      const b = renderer.getNodeDisplayData(g.target(id));
+      if (!a || !b) return null;
+      const payload = g.getEdgeAttribute(id, "payload") as Record<string, unknown> | undefined;
+      return {
+        target: "edge",
+        title: (g.getEdgeAttribute(id, "label") as string | undefined) ?? "Edge",
+        subtitle: `${g.source(id)} → ${g.target(id)}`,
+        rows: dataRows(payload),
+        rect: anchorAt((a.x + b.x) / 2, (a.y + b.y) / 2),
+      };
+    },
+    [anchorAt],
+  );
+  // Latest inspection builders, read inside Sigma listeners without re-subscribe.
+  const inspectRef = useRef({ inspectNode, inspectEdge });
+  inspectRef.current = { inspectNode, inspectEdge };
+
   // Build + render once per data identity. Layout changes are handled by the
   // layout effect below so swapping the layout never retears the renderer.
   // biome-ignore lint/correctness/useExhaustiveDependencies: layout seeds the initial positions on (re)build; the separate layout effect owns subsequent changes.
@@ -343,13 +440,21 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.on("clickNode", ({ node }) => {
       handlersRef.current.onNodeClick?.(node);
       handlersRef.current.onSelectionChange?.(node);
+      setSelected(inspectRef.current.inspectNode(node));
     });
     renderer.on("clickEdge", ({ edge }) => {
       handlersRef.current.onEdgeClick?.(edge);
     });
     renderer.on("clickStage", () => {
       handlersRef.current.onSelectionChange?.(null);
+      setSelected(null);
     });
+
+    // Hover inspector: show node/edge `data` while the cursor is over it.
+    renderer.on("enterNode", ({ node }) => setHovered(inspectRef.current.inspectNode(node)));
+    renderer.on("leaveNode", () => setHovered(null));
+    renderer.on("enterEdge", ({ edge }) => setHovered(inspectRef.current.inspectEdge(edge)));
+    renderer.on("leaveEdge", () => setHovered(null));
 
     return () => {
       cancelAnimationRef.current?.();
@@ -358,6 +463,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       sigmaRef.current = null;
       graphRef.current = null;
       appliedLayoutRef.current = null;
+      // Drop any inspector pinned to the now-destroyed graph.
+      setHovered(null);
+      setSelected(null);
     };
     // `layout` intentionally omitted — see the layout effect below.
   }, [data, renderNode, renderEdge]);
@@ -480,6 +588,29 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           onKeyDown={onKeyDown}
         />
         {children}
+        {/* Inspector: node/edge `data` on hover (and the last clicked node on
+            select). Reuses the chart Tooltip — a fixed, viewport-clamped box
+            that flips above/below its anchor. */}
+        <Tooltip open={inspection !== null} anchorRect={inspection?.rect ?? null}>
+          {inspection && (
+            <div className={styles.inspector} data-graph-tooltip>
+              <span className={styles.inspectorTitle}>{inspection.title}</span>
+              {inspection.subtitle && (
+                <span className={styles.inspectorSubtitle}>{inspection.subtitle}</span>
+              )}
+              {inspection.rows.length > 0 && (
+                <dl className={styles.inspectorData}>
+                  {inspection.rows.map(([key, value]) => (
+                    <div className={styles.inspectorRow} key={key}>
+                      <dt className={styles.inspectorKey}>{key}</dt>
+                      <dd className={styles.inspectorValue}>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
+          )}
+        </Tooltip>
       </div>
     </GraphContext.Provider>
   );

@@ -336,8 +336,16 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       and carry their `label` with `renderEdgeLabels` enabled only when some edge has
       a label AND `order≤300` (label layout cost). Build effect now keys on
       `[data, renderNode, renderEdge]`. Gate green.
-- [ ] **4.5** Tooltip/inspector on hover/select showing node/edge `data`
-      (reuse `Popover` or the chart `Tooltip` from `src/lib/chart`).
+- [x] **4.5** Tooltip/inspector on hover/select showing node/edge `data`
+      (reuse `Popover` or the chart `Tooltip` from `src/lib/chart`). — added an
+      inspector overlay reusing the chart `Tooltip` (fixed/viewport-clamped, flips
+      above/below): `enterNode`/`enterEdge` set a `hovered` Inspection, click sets a
+      persistent `selected` one, `hovered ?? selected` is shown; `clickStage` /
+      `leaveNode|Edge` / data-rebuild clear it. Sigma has no per-node DOM so the
+      anchor `DOMRect` is synthesized from the surface rect + `getNodeDisplayData`
+      (edge = endpoint midpoint). Body is a token-themed grid: title (`--sf-color-fg`)
+      + subtitle/keys (`--sf-color-fg-subtle`, metadata) + a `data` key/value `<dl>`
+      (`white-space:normal` overrides the Tooltip shell's nowrap). Gate green.
 - [ ] **4.6** Right-click **context menu** via the `Menu` component
       (focus/expand/hide/pin actions, exposed through an
       `onNodeContextMenu` / `contextMenuItems` prop).
@@ -1214,6 +1222,34 @@ then richer node content. Record the full table and the arithmetic in §9.
   exit 0 (same 16 pre-existing unrelated warnings — Graph files add none), test 54
   passed. Next: 4.5 — tooltip/inspector on hover/select showing node/edge `data`
   (reuse `Popover` or the chart `Tooltip`).
+- 2026-06-13 (4.5): Added the hover/select inspector to `Graph.tsx`, reusing the
+  chart `Tooltip` (`src/lib/chart` — exported from its index; NOT Base UI Popover,
+  which is click-driven and adds friction for cursor-tracking hover). Two pieces of
+  state — `hovered` (set on `enterNode`/`enterEdge`, cleared on `leaveNode`/
+  `leaveEdge`) and `selected` (set on `clickNode`, cleared on `clickStage`) — and
+  `hovered ?? selected` is the shown `Inspection` (hover wins; the clicked node
+  persists once the cursor leaves). KEY TECHNIQUE (same canvas constraint as the lab
+  prototypes): Sigma is WebGL with no per-node DOM, and the chart Tooltip wants a
+  viewport `DOMRect`, so the anchor is synthesized — `getNodeDisplayData(id)` is
+  surface-relative, add the surface's `getBoundingClientRect()` offset, build an 8px
+  box; an edge anchors at the midpoint of its two endpoints' display coords. The
+  builders live behind an `inspectRef` (like `handlersRef`) so the build effect's
+  listeners read the latest without re-subscribing. Inspector body is a token grid:
+  title (`--sf-color-fg`, semibold), subtitle = node `kind` / edge `src → tgt`
+  (`--sf-color-fg-subtle` — metadata, the house "subtle only for non-primary
+  metadata" carve-out), and a `<dl>` of `data` rows (keys subtle, values fg,
+  `white-space:normal` to override the Tooltip shell's nowrap). DECISIONS: (1) did
+  NOT re-anchor the open tooltip on `afterRender` — that fires every frame during
+  pan/zoom and would rebuild the Inspection per frame on LARGE (perf risk for 4.9);
+  `leaveNode` clears hover on cursor-out anyway, so the captured position is fine for
+  a hover/select inspector. (2) build-effect cleanup now also clears both states so a
+  `data` swap can't pin the tooltip to a destroyed node. No `Graph.stories.tsx` yet
+  (Task 5.1), so the §3 screenshot step has no story id — render path is the unchanged
+  Sigma pipeline; the inspector gets visual verification with the Playground story in
+  5.1 and CT (hover→tooltip, click→persist) in 5.2. Gate green: typecheck clean,
+  `just check` exit 0 (same 16 pre-existing unrelated warnings — Graph files add
+  none), test 54 passed. Next: 4.6 — right-click context menu via the `Menu` component
+  (focus/expand/hide/pin via `onNodeContextMenu` / `contextMenuItems`).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
