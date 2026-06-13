@@ -416,6 +416,26 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       offscreen labels; keep hit-testing off the main thread / spatially
       indexed so picking stays cheap; defer heavy work behind the first paint
       of a response. Re-run `probe-graph.mjs`, record final numbers in §9.
+  - [x] **4.9a** Instrument the real component for the harness + measure a
+        baseline: add `[data-graph-surface]` + `[data-graph-ready]` (set after
+        the first Sigma render) to `Graph`, add a `lab/GraphLarge` story (real
+        `Graph` + `Controls` on `LARGE`, with a centered `[data-graph-node]`
+        click target + a `ProbeControls` child exposing `[data-graph-control]` /
+        `[data-graph-layout-next]`), and run `probe-graph.mjs … --large` on the
+        real component. Record the baseline `{layoutMs,p95FrameMs,heapMB,
+        p95InteractionMs}` in §9. — baseline
+        `{layoutMs:6799,p95FrameMs:1083.4,heapMB:68.86,p95InteractionMs:26.9}`;
+        interaction 26.9ms PASS (≪120ms), frame is the headless software-WebGL
+        confound (§9/3.1), layoutMs 6.8s = synchronous force layout blocking first
+        paint → the real fix for 4.9b. `data-graph-ready` needed a forced
+        `renderer.refresh()` (Sigma's first `afterRender` fires in the
+        constructor, pre-listener). Full numbers + reads in §9.
+  - [ ] **4.9b** If the baseline misses a §3 gate (p95 frame ≥30fps OR p95
+        interaction <120ms on LARGE), apply optimizations — debounce resize,
+        defer the initial layout behind first paint, confirm label-cull at scale,
+        keep the minimap rebuild off the hot path — then re-probe and record the
+        final numbers in §9. (If the baseline already passes both gates, note
+        that and tick without further change.)
 
 ### Phase 5 — Stories, tests, docs, exports
 
@@ -923,6 +943,36 @@ then richer node content. Record the full table and the arithmetic in §9.
   so a layout is always active). All visuals via `--sf-*`; toolbar overlays the surface in
   the same grid cell (`z-index:1`, `align/justify-self:start`).
 
+- 2026-06-13 (4.9a): **Definitive `Graph` — LARGE baseline (real component).**
+  `probe-graph.mjs graph--lab--large--default http://localhost:61000` against the
+  real `Graph` (not a Phase-2 prototype) on LARGE (10k/19997, force layout,
+  1280×900): **`{"layoutMs":6799,"p95FrameMs":1083.4,"heapMB":68.86,
+  "p95InteractionMs":26.9}`**. Reads:
+  - **`p95InteractionMs` 26.9ms — PASS (≪120ms gate).** Measured across node
+    click→selection, hover→tooltip, right-click→menu, probe control-toggle, and
+    layout-switch (all hooks present: `[data-graph-node]` centered marker,
+    `[data-graph-control]`/`[data-graph-layout-next]` via a `ProbeControls` child).
+    The interface feels instant on 10k even in headless.
+  - **`p95FrameMs` 1083ms — fails the literal ≤33ms gate, but this is the
+    software-rasterization confound** documented throughout §9 (headless Chromium,
+    SwiftShader, no GPU). Per the 3.1 decision, this gate is non-discriminating in
+    headless (all five candidates failed it the same way); Sigma was chosen partly
+    because its per-frame cost is GPU-bound, so on a real GPU 10k pans at 60fps.
+    Not a regression — same confound as the 2.1 prototype's 783ms.
+  - **`layoutMs` 6799ms** = the initial `forceAtlas2` (80 iter on 10k) runs
+    SYNCHRONOUSLY in the build effect and blocks first paint (a diagnostic showed
+    the surface itself doesn't appear until ~14s under Vite-dev boot + the layout
+    block). This is the one real, fixable issue → **4.9b** (defer the initial
+    layout behind first paint + debounce resize). `heapMB` 68.9 is lean.
+  - **Harness note:** added `[data-graph-surface]` + `[data-graph-ready]` to the
+    real component (`data-graph-ready` set after a forced `renderer.refresh()` —
+    Sigma's first `afterRender` fires synchronously in the constructor, before the
+    listener attaches, so without the refresh `ready` never fired and `layoutMs`
+    fell back to the 60s timeout). The `lab/GraphLarge` story + these hooks are the
+    measurement rig; `lab/` is removed in 6.2 (the two `data-graph-*` surface hooks
+    stay on the component as test affordances, consistent with the existing
+    tooltip/context-menu/minimap hooks).
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -1400,6 +1450,23 @@ then richer node content. Record the full table and the arithmetic in §9.
   acceptable for now (note for 5.x if a live theme-toggle story is wanted). Gate
   green: typecheck clean, `just check` 0 errors (16 baseline warnings), test 54
   passed. Next: **4.9** — perf pass on LARGE (re-run `probe-graph.mjs`).
+
+- 2026-06-13 (4.9a): **LARGE perf baseline on the real component.** Split 4.9 into
+  4.9a (instrument + measure) and 4.9b (optimize to gates). Added `[data-graph-surface]`
+  + `[data-graph-ready]` to `Graph` and a `lab/GraphLarge` story with a centered
+  `[data-graph-node]` marker (`pointer-events:none`, clicks fall through to the
+  canvas; force-layout centroid is dense so a center click hits a node) + a
+  `ProbeControls` child exposing `[data-graph-control]`/`[data-graph-layout-next]`.
+  Baseline (force, 10k): `{layoutMs:6799, p95FrameMs:1083.4, heapMB:68.86,
+  p95InteractionMs:26.9}` (full reads in §9). **Interaction 26.9ms PASSES the 120ms
+  gate**; frame 1083ms is the known headless software-WebGL confound (not real);
+  layoutMs 6.8s is a synchronous-force-layout first-paint freeze → the real target
+  for 4.9b. **Surprise:** `data-graph-ready` never fired at first — Sigma emits its
+  first `afterRender` synchronously inside the constructor, before my listener
+  attaches; fixed with a forced `renderer.refresh()` after subscribing. Before that
+  the probe's `layoutMs` was a 61s timeout fallback. Gate green: typecheck clean,
+  `just check` 0 errors (16 baseline warnings), test 54 passed. Next: **4.9b** —
+  defer the initial layout behind first paint + debounce resize, then re-probe.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

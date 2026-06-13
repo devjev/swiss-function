@@ -540,7 +540,22 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // Signal overlays (minimap) that a fresh graph + display data exist.
     bumpEpoch();
 
+    // Automation/test signal: mark the surface ready after the first paint, so a
+    // harness (probe-graph.mjs) can time navigation → first stable layout.
+    // Sigma emits its first `afterRender` synchronously during construction —
+    // before this listener attaches — so force one more render with `refresh()`
+    // to guarantee `markReady` fires once.
+    container.removeAttribute("data-graph-ready");
+    const markReady = () => {
+      container.setAttribute("data-graph-ready", "");
+      renderer.off("afterRender", markReady);
+    };
+    renderer.on("afterRender", markReady);
+    renderer.refresh();
+
     return () => {
+      renderer.off("afterRender", markReady);
+      container.removeAttribute("data-graph-ready");
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;
       renderer.kill();
@@ -734,6 +749,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
             className={styles.surface}
             role="application"
             aria-label="Graph view"
+            data-graph-surface
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
             tabIndex={0}
             onKeyDown={onKeyDown}
