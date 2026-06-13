@@ -90,3 +90,18 @@
   color: var(--sf-color-fg);
   overflow-wrap: anywhere;
 }
+
+/* Invisible cursor anchor for the right-click context menu. A zero-size,
+   viewport-fixed point the controlled `Menu.Positioner` attaches to; its
+   `left`/`top` are set inline from the right-click `clientX`/`clientY`. Not
+   interactive itself (the real surface is the canvas), so it takes no space
+   and ignores pointer events. */
+.contextAnchor {
+  position: fixed;
+  inline-size: 0;
+  block-size: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  pointer-events: none;
+}

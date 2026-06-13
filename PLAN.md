@@ -349,6 +349,28 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
 - [ ] **4.6** Right-click **context menu** via the `Menu` component
       (focus/expand/hide/pin actions, exposed through an
       `onNodeContextMenu` / `contextMenuItems` prop).
+  - [x] **4.6a** Wire Sigma `rightClickNode`/`rightClickStage` → a controlled
+        `Menu` anchored to the cursor (fixed invisible `Menu.Trigger`, house
+        Explorer pattern). Add `onNodeContextMenu` + `contextMenuItems` props
+        and a default item set (focus/expand/hide/pin); selecting an item
+        invokes its `onSelect(targetId)`. Built-in focus action drives the
+        camera to the node; hide toggles node visibility; pin/expand fire the
+        consumer callbacks. Reduced-motion respected on the focus animation. —
+        added `GraphMenuTarget` (node|stage + id) / `GraphMenuItem` (label,
+        onSelect, disabled, separatorBefore) types + `onNodeContextMenu` /
+        `contextMenuItems` props; Sigma `rightClickNode`/`rightClickStage` (each
+        `preventSigmaDefault()` + `original.preventDefault()`) open a controlled
+        `Menu` whose invisible `position:fixed` `.contextAnchor` Trigger sits at
+        the cursor `clientX/Y`. Built-in node menu: Focus (camera `animate` to
+        node, ratio 0.5), Expand (ratio 0.2), Pin label (`forceLabel` toggle),
+        Hide (`hidden` toggle, separator above) — all via `camOpts()` so they
+        snap under reduced-motion. Stage has no default menu; empty item list
+        suppresses opening. `menuRef` keeps the latest builders out of the Sigma
+        subscribe deps. Gate green: typecheck clean, `just check` exit 0 (same 16
+        pre-existing warnings), test 54 passed. Visual verify deferred to 4.6b.
+  - [ ] **4.6b** Verify in the Playground story / lab screenshot: right-click a
+        node opens the themed menu at the cursor, items fire, Escape/outside
+        click closes. (Defer formal CT to 5.2.)
 - [ ] **4.7** Minimap + viewport indicator for large-graph navigation
       (winner's plugin if available, else a lightweight overview canvas).
 - [ ] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
@@ -1250,6 +1272,31 @@ then richer node content. Record the full table and the arithmetic in §9.
   `just check` exit 0 (same 16 pre-existing unrelated warnings — Graph files add
   none), test 54 passed. Next: 4.6 — right-click context menu via the `Menu` component
   (focus/expand/hide/pin via `onNodeContextMenu` / `contextMenuItems`).
+
+- 2026-06-13 (4.6a): **Right-click context menu wired.** Split 4.6 into 4.6a (wire)
+  + 4.6b (visual verify) since the menu is wiring + a screenshot check, two
+  shippable units. `Graph.tsx` now exports `GraphMenuTarget` / `GraphMenuItem` and
+  takes `onNodeContextMenu(id, event)` + `contextMenuItems(target) → GraphMenuItem[]`.
+  Sigma's `rightClickNode` / `rightClickStage` (both `preventSigmaDefault()` +
+  native `preventDefault()` to kill the browser menu) open a **controlled** house
+  `Menu` anchored to an invisible `position:fixed` `.contextAnchor` Trigger placed
+  at the cursor `clientX/Y` — the same Explorer pattern used elsewhere, since Sigma
+  paints to canvas and has no per-node DOM to anchor to. Built-in node menu: Focus
+  (camera `animate` to the node, ratio 0.5) / Expand (ratio 0.2) / Pin label
+  (`forceLabel` attr toggle) / Hide (`hidden` attr toggle, separator above);
+  `contextMenuItems` fully replaces them and `[]` suppresses the menu for that
+  target. Stage has no default menu. All camera moves reuse `camOpts()` so they
+  snap under `prefers-reduced-motion`. A `menuRef` mirrors the latest
+  `itemsFor`/`onNodeContextMenu` so the Sigma listeners (subscribed once in the
+  build effect) never re-subscribe. Added a `.contextAnchor` class
+  (zero-size/fixed/`pointer-events:none`). **Surprise/watch:** the menu uses
+  viewport-`fixed` cursor coords, so a future scroll-while-open could drift it; the
+  house pattern accepts that (menu closes on outside-click/Escape/select anyway).
+  Gate green: typecheck clean, `just check` exit 0 (16 pre-existing warnings, Graph
+  adds none), test 54 passed; `just format` reflowed the long `Menu.Root` open line.
+  Next: **4.6b** — screenshot-verify the menu opens at the cursor, items fire,
+  Escape/outside-click closes (needs `just dev` + a story; Playground arrives in 5.1,
+  so 4.6b may lean on the `lab/Sigma` story or a throwaway harness).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

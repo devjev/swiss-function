@@ -2,12 +2,13 @@ import Graphology from "graphology";
 import { circlepack, circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sigma from "sigma";
 import { animateNodes } from "sigma/utils";
 import { Tooltip } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
+import { Menu } from "../Menu";
 import { GraphControlsBar } from "./Controls";
 import { GraphContext, type GraphControls } from "./context";
 import styles from "./Graph.module.css";
@@ -39,6 +40,27 @@ export interface EdgeVisual {
   size?: number;
 }
 
+/** What a right-click landed on: a specific node, or the empty stage. */
+export interface GraphMenuTarget {
+  /** `"node"` when a node was right-clicked; `"stage"` for empty canvas. */
+  kind: "node" | "stage";
+  /** The node `id` for a `"node"` target; `null` for the stage. */
+  id: string | null;
+}
+
+/** One entry in the right-click context menu. */
+export interface GraphMenuItem {
+  /** Visible label. */
+  label: string;
+  /** Invoked when the item is chosen; receives the right-clicked node `id`
+   *  (`null` for a stage click). */
+  onSelect: (id: string | null) => void;
+  /** Greys the item out and ignores clicks. */
+  disabled?: boolean;
+  /** Draw a separator above this item (e.g. to group destructive actions). */
+  separatorBefore?: boolean;
+}
+
 export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Nodes + edges to render. Each carries arbitrary structured `data`. */
   data: GraphData;
@@ -63,6 +85,16 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   /** Escape hatch to override an edge's visual attributes (label / color /
    *  size). Returned fields override the weight-derived defaults. */
   renderEdge?: (edge: GraphEdge) => EdgeVisual | undefined;
+  /** Notified when a node is right-clicked, before the menu opens. Receives the
+   *  node `id` and the originating mouse event (use it to inspect modifier keys
+   *  or `preventDefault` further). The menu still opens unless `contextMenuItems`
+   *  returns an empty list. */
+  onNodeContextMenu?: (id: string, event: MouseEvent) => void;
+  /** Replace the right-click menu's items. Receives the right-click target
+   *  (node or stage); return `[]` to suppress the menu for that target. When
+   *  omitted, a default node menu (focus / expand / pin / hide) is shown and
+   *  the stage has no menu. */
+  contextMenuItems?: (target: GraphMenuTarget) => GraphMenuItem[];
   /** Overlay content — typically a `<Graph.Controls />` toolbar. */
   children?: ReactNode;
 }
@@ -265,6 +297,14 @@ function assignPositions(g: Graphology, mapping: LayoutMapping): void {
   }
 }
 
+/** An open right-click menu: where it sits (viewport-fixed cursor coords) and
+ *  what it acted on. */
+interface ContextMenuState {
+  x: number;
+  y: number;
+  target: GraphMenuTarget;
+}
+
 /** The element an inspector tooltip describes: a node, or an edge. */
 type InspectTarget = "node" | "edge";
 
@@ -316,6 +356,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     onSelectionChange,
     renderNode,
     renderEdge,
+    onNodeContextMenu,
+    contextMenuItems,
     className,
     children,
     ...rest
@@ -344,6 +386,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // Latest callbacks, read inside Sigma listeners without re-subscribing.
   const handlersRef = useRef({ onNodeClick, onEdgeClick, onSelectionChange });
   handlersRef.current = { onNodeClick, onEdgeClick, onSelectionChange };
+
+  // Right-click context menu: where it opened + what it acted on. `null` closed.
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   // Inspector tooltip: the node/edge under the cursor (hover) or the last
   // clicked node (select). Hover wins while it is set; on hover-out the
@@ -456,6 +501,28 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.on("enterEdge", ({ edge }) => setHovered(inspectRef.current.inspectEdge(edge)));
     renderer.on("leaveEdge", () => setHovered(null));
 
+    // Right-click context menu. Suppress Sigma's own handling + the browser
+    // menu, anchor at the cursor (viewport-fixed clientX/Y), and only open when
+    // the resolved item list is non-empty.
+    const openMenu = (target: GraphMenuTarget, event: { original: MouseEvent | TouchEvent }) => {
+      const original = event.original;
+      const mouse = "clientX" in original ? original : original.touches[0];
+      original.preventDefault();
+      if (target.kind === "node" && target.id !== null) {
+        menuRef.current.onNodeContextMenu?.(target.id, original as MouseEvent);
+      }
+      if (menuRef.current.itemsFor(target).length === 0) return;
+      setContextMenu({ x: mouse?.clientX ?? 0, y: mouse?.clientY ?? 0, target });
+    };
+    renderer.on("rightClickNode", ({ node, event }) => {
+      event.preventSigmaDefault();
+      openMenu({ kind: "node", id: node }, event);
+    });
+    renderer.on("rightClickStage", ({ event }) => {
+      event.preventSigmaDefault();
+      openMenu({ kind: "stage", id: null }, event);
+    });
+
     return () => {
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;
@@ -463,9 +530,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       sigmaRef.current = null;
       graphRef.current = null;
       appliedLayoutRef.current = null;
-      // Drop any inspector pinned to the now-destroyed graph.
+      // Drop any inspector / menu pinned to the now-destroyed graph.
       setHovered(null);
       setSelected(null);
+      setContextMenu(null);
     };
     // `layout` intentionally omitted — see the layout effect below.
   }, [data, renderNode, renderEdge]);
@@ -536,6 +604,59 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     () => ({ zoomIn, zoomOut, fitView, reset, pan, layout, setLayout }),
     [zoomIn, zoomOut, fitView, reset, pan, layout, setLayout],
   );
+
+  // --- Context-menu built-in actions ---------------------------------------
+  // Center the camera on a node, optionally zooming to `ratio` (smaller = more
+  // zoomed in). `getNodeDisplayData` is in the camera's framed coordinate space,
+  // which is the same space as `CameraState.x/y`, so it animates there directly.
+  const focusNode = useCallback(
+    (id: string | null, ratio: number) => {
+      const renderer = sigmaRef.current;
+      if (!renderer || id === null) return;
+      const pos = renderer.getNodeDisplayData(id);
+      if (!pos) return;
+      renderer.getCamera().animate({ x: pos.x, y: pos.y, ratio }, camOpts());
+    },
+    [camOpts],
+  );
+  // Hide a node from the canvas (its incident edges follow). Toggles, so the
+  // same menu entry un-hides a hidden node.
+  const toggleHidden = useCallback((id: string | null) => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer || id === null || !g.hasNode(id)) return;
+    g.setNodeAttribute(id, "hidden", !g.getNodeAttribute(id, "hidden"));
+    renderer.refresh();
+  }, []);
+  // Pin a node's label so it stays drawn regardless of label-density culling.
+  const togglePin = useCallback((id: string | null) => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer || id === null || !g.hasNode(id)) return;
+    g.setNodeAttribute(id, "forceLabel", !g.getNodeAttribute(id, "forceLabel"));
+    renderer.refresh();
+  }, []);
+
+  // The menu items for a given target: the consumer's `contextMenuItems` when
+  // provided, else the built-in node menu (focus / expand / pin / hide). The
+  // stage has no default menu.
+  const itemsFor = useCallback(
+    (target: GraphMenuTarget): GraphMenuItem[] => {
+      if (contextMenuItems) return contextMenuItems(target);
+      if (target.kind !== "node") return [];
+      return [
+        { label: "Focus", onSelect: (id) => focusNode(id, 0.5) },
+        { label: "Expand", onSelect: (id) => focusNode(id, 0.2) },
+        { label: "Pin label", onSelect: togglePin },
+        { label: "Hide", separatorBefore: true, onSelect: toggleHidden },
+      ];
+    },
+    [contextMenuItems, focusNode, togglePin, toggleHidden],
+  );
+  // Read the latest menu builders inside Sigma's right-click listeners without
+  // re-subscribing them on every render.
+  const menuRef = useRef({ itemsFor, onNodeContextMenu });
+  menuRef.current = { itemsFor, onNodeContextMenu };
 
   // Keyboard navigation on the focused surface: +/- zoom, 0 fit, arrows pan.
   const onKeyDown = useCallback(
@@ -611,6 +732,41 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
             </div>
           )}
         </Tooltip>
+        {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
+            to a fixed, invisible Trigger placed at the cursor (house Explorer
+            pattern). Choosing an item runs its action against the target id. */}
+        <Menu.Root
+          open={contextMenu !== null}
+          onOpenChange={(open) => !open && setContextMenu(null)}
+        >
+          <Menu.Trigger
+            aria-hidden="true"
+            tabIndex={-1}
+            className={styles.contextAnchor}
+            style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
+          />
+          <Menu.Portal>
+            <Menu.Positioner side="bottom" align="start">
+              <Menu.Popup data-graph-context-menu>
+                {contextMenu &&
+                  itemsFor(contextMenu.target).map((item) => (
+                    <Fragment key={item.label}>
+                      {item.separatorBefore && <Menu.Separator />}
+                      <Menu.Item
+                        disabled={item.disabled}
+                        onClick={() => {
+                          item.onSelect(contextMenu.target.id);
+                          setContextMenu(null);
+                        }}
+                      >
+                        {item.label}
+                      </Menu.Item>
+                    </Fragment>
+                  ))}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       </div>
     </GraphContext.Provider>
   );
