@@ -528,9 +528,16 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       `check` 0 errors (16 pre-existing unrelated warnings), `typecheck` clean,
       `test` vitest 54 passed, `test-ct` **151 passed** (incl. the 10 Graph CT),
       `build` ✓ with `dist/components/Graph/index.{js,d.ts}` present.
-- [ ] **6.2** Delete the leftover `lab/` reference prototype and
+- [x] **6.2** Delete the leftover `lab/` reference prototype and
       `scripts/probe-graph.mjs` if no longer needed (keep the harness if
-      useful for regression — note the choice in §10).
+      useful for regression — note the choice in §10). — deleted the three one-off
+      artifacts (`lab/Sigma.stories.tsx` winner prototype, `lab/GraphContextMenu`,
+      `lab/GraphMinimap` — all superseded by `Graph.stories.tsx` + `Graph.spec.tsx`).
+      **KEPT** `lab/GraphLarge.stories.tsx` + `scripts/probe-graph.mjs` as the perf-
+      regression rig: together they let anyone re-measure all four LARGE metrics
+      (`node scripts/probe-graph.mjs graph--lab--large--default http://localhost:61000`)
+      against the real component's `[data-graph-*]` hooks. Nothing outside `lab/`
+      imported the deleted stories; gate green after removal (214 files).
 - [ ] **6.3** Final review against §6 Definition of Done; tick remaining
       items or open finer tasks for any gap. Append "PROJECT COMPLETE" to
       §10 when all boxes above are `[x]`.
@@ -1678,6 +1685,19 @@ then richer node content. Record the full table and the arithmetic in §9.
   `dist/components/Graph/index.{js,d.ts}`. Nothing to fix. Next: **6.2** — delete the
   leftover `lab/` prototypes; decide whether to keep `scripts/probe-graph.mjs` for
   regression.
+
+- 2026-06-13 (6.2): **Lab cleanup — kept a minimal perf-regression rig.** Deleted
+  `lab/Sigma.stories.tsx` (the Phase-3 winner prototype) + `lab/GraphContextMenu` +
+  `lab/GraphMinimap` (one-off 4.6b/4.7 verification harnesses, fully superseded by the
+  shipped `Graph.stories.tsx` and `Graph.spec.tsx`). **Deviation from the earlier
+  "delete all lab/" notes, taken under 6.2's explicit "keep the harness if useful"
+  clause:** kept `lab/GraphLarge.stories.tsx` + `scripts/probe-graph.mjs` so LARGE
+  perf stays re-measurable (the story carries the full `[data-graph-node/control/
+  layout-next]` hooks the shipped `LargeStress` story intentionally omits). Both are
+  dev-only (Ladle story + a script) — neither ships in the build. Nothing outside
+  `lab/` imported the deleted files. Gate green: typecheck clean, check 0 errors (16
+  baseline warnings), vitest 54 (214 files, −3). Next: **6.3** — final review vs §6
+  Definition of Done, including the click-to-pin-inspector question flagged in 5.2.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
