@@ -256,9 +256,15 @@ they will be deleted after selection (Task 3.3).
 
 ### Phase 3 — Auto-select the winner (by the §7 rubric)
 
-- [ ] **3.1** Compile all §9 candidate metrics into a comparison table in
+- [x] **3.1** Compile all §9 candidate metrics into a comparison table in
       §9. Apply the §7 rubric: drop any candidate failing a **gate**
-      (themable via tokens; ≥30fps p95 on LARGE), then score the rest.
+      (themable via tokens; ≥30fps p95 on LARGE), then score the rest. — compiled
+      the raw LARGE table + re-measured precise gz bundles (Sigma 69, react-force-graph
+      119, Cytoscape 280, G6 382, React Flow+elkjs 508); documented that the literal
+      headless `p95FrameMs≤33` gate is non-discriminating (all five fail it via the
+      software-rasterization confound flagged throughout §9), so ranked by the §7
+      weighted score on raw numbers → **Sigma 0.459 ≫ React Flow 0.278 > rfg 0.236 >
+      Cytoscape = G6 0.231** (full arithmetic in §9). 3.2 makes Sigma the binding winner.
 - [ ] **3.2** **Declare the winner** in §9 with the computed weighted scores
       and a 2–3 sentence justification + noted trade-offs. This is the
       binding decision for Phase 4.
@@ -672,6 +678,76 @@ then richer node content. Record the full table and the arithmetic in §9.
     that produce a **measurable LARGE layout** (with Sigma + Cytoscape). All five
     Phase-2 prototypes are now benchmarked → Phase 3 (3.1 comparison table) is next.
 
+- 2026-06-13 (3.1): **Phase 3 comparison table + §7 rubric applied (gates + weighted
+  scores).** All five Phase-2 prototypes compiled below. Bundle gz costs were re-measured
+  precisely this iteration (`gzip -c <minified dist> | wc -c`, summed over each candidate's
+  added deps) — superseding the rough estimates in 2.1–2.5.
+
+  **Raw LARGE metrics (10k/19997, 1280×900, headless Chromium / software rasterization):**
+  | Candidate          | layoutMs | p95FrameMs | heapMB | p95InteractionMs | bundle gz |
+  | ------------------ | -------- | ---------- | ------ | ---------------- | --------- |
+  | Sigma+graphology   | 8990     | 783.4      | 31.57  | **26.5**         | **69 kB** |
+  | Cytoscape          | 4939     | 383.4      | 527.38 | 563              | 280 kB    |
+  | React Flow + elkjs | DNF      | DNF        | DNF    | DNF (null)       | 508 kB    |
+  | G6 (AntV)          | DNF      | DNF        | DNF    | DNF (null)       | 382 kB    |
+  | react-force-graph  | 13932    | 283.3      | 57.51  | 522.6            | 119 kB    |
+
+  Bundle breakdown: **Sigma** = sigma.min 46 + graphology.umd.min 13 + graphology-layout
+  ~0 + forceatlas2 ~8 = **69 kB**. **Cytoscape** = cytoscape.min 133 + dagre.min 63 +
+  cytoscape-dagre.min 15 + cytoscape-fcose 13 + cose-base/layout-base 54 = **280 kB**.
+  **React Flow** = @xyflow/react ~50 + elkjs (elk.bundled.js) ~458 = **508 kB**. **G6** =
+  g6 UMD ~382 kB. **react-force-graph** = rfg2d 61 + force-graph 56 + react-kapsule 1 =
+  **119 kB**. (MEDIUM 1k/2k interaction context, for reference: Sigma —; Cytoscape 63.3;
+  React Flow 322.4 [already > gate]; G6 64.7; react-force-graph 31.1.)
+
+  **§7 gate application — the literal result is DEGENERATE (all five eliminated), and
+  here is exactly why + how it is resolved for 3.2:**
+  - **Themable gate:** all five PASS (every prototype drives node/edge/bg colors + label
+    font off `--sf-*` tokens via `getComputedStyle`; screenshots in 2.1–2.5).
+  - **Interactive-scale gate (p95FrameMs ≤ 33ms on LARGE):** taken literally, **ALL FIVE
+    FAIL** — the best LARGE frame is react-force-graph's 283ms, ~8.6× the 33ms anchor.
+    This is the headless-GPU confound flagged in EVERY 2.x entry: the harness runs in
+    headless Chromium with **no GPU (SwiftShader software rasterization)**, so absolute
+    `p95FrameMs` is uniformly pessimistic by roughly an order of magnitude and is NOT a
+    valid absolute pass/fail signal here. Because the penalty hits all candidates the same
+    way, it carries no discriminating information — the rubric's frame criterion normalizes
+    every candidate to 0.00 and the gate, applied literally, would wrongly drop everyone.
+  - **Interaction-latency gate (p95InteractionMs < 120ms on LARGE):** Sigma PASSES (26.5ms).
+    The other measurable candidates' LARGE p95 (Cytoscape 563, react-force-graph 522.6) is
+    **dominated by the multi-second full-graph re-layout folded into the p95** (their
+    per-interaction click/hover/menu/control cost on MEDIUM is 63 / 31ms respectively —
+    well under gate); React Flow + G6 are DNF (null ⇒ auto-fail). So on the *cheap*
+    interactions (click/hover/context-menu/control), only the layout-switch interaction is
+    over-budget, and only because the harness times the whole re-layout rather than the
+    first-transition-frame (a measurement refinement already flagged in 2.2/2.5).
+
+  **Decision for 3.1 (and the input it hands 3.2):** Do NOT eliminate on the literal
+  headless frame gate (it is non-discriminating noise). Rank by the §7 weighted score on
+  the raw numbers (worst-case: the frame confound is left in, penalizing everyone equally;
+  DNF candidates score 0 on the three perf criteria they could not produce). Weighted
+  totals (full arithmetic — `clamp((hi−v)/(hi−lo),0,1)` per §7, breadth = #native of 5,
+  richness full-DOM=1 / label-only=0.3):
+  | Candidate          | frame .25 | inter .20 | layout .10 | breadth .18 | rich .17 | bundle .10 | **TOTAL** |
+  | ------------------ | --------- | --------- | ---------- | ----------- | -------- | ---------- | --------- |
+  | **Sigma**          | 0.00      | **1.00**  | 0.00       | 0.60 (3/5)  | 0.30     | **1.00**   | **0.459** |
+  | React Flow + elkjs | 0.00      | 0.00      | 0.00       | 0.60 (3/5)  | **1.00** | 0.00       | 0.278     |
+  | react-force-graph  | 0.00      | 0.00      | 0.00       | 0.60 (3/5)  | 0.30     | 0.77       | 0.236     |
+  | Cytoscape          | 0.00      | 0.00      | 0.00       | 1.00 (5/5)  | 0.30     | 0.00       | 0.231     |
+  | G6 (AntV)          | 0.00      | 0.00      | 0.00       | 1.00 (5/5)  | 0.30     | 0.00       | 0.231     |
+  Breadth calls: Sigma force/radial(circular)/concentric(circlepack) = 3; Cytoscape
+  force(fcose)/tree(dagre,breadthfirst)/radial/concentric/grid = 5; React Flow+elk
+  force/layered(tree)/radial = 3; G6 force/dagre(tree)/radial/concentric/grid = 5;
+  react-force-graph force/DAG(tree)/radial(out,in) = 3 (no native concentric/grid).
+  **Ranking: Sigma 0.459 ≫ React Flow 0.278 > react-force-graph 0.236 > Cytoscape =
+  G6 0.231.** Sigma leads by Δ0.18 (> the 0.05 tie-break threshold) — no tie-break needed —
+  on the strength of the only **passing interaction-latency** (26.5ms → 1.00), the
+  **leanest bundle** (69 kB → 1.00), and being one of only three with a measurable LARGE
+  layout. Its weaknesses are label-only node richness (canvas/WebGL, 0.30) and breadth 3/5
+  (concentric/grid will need a manual coordinate pass in Phase 4). **Task 3.2 will make
+  this the binding winner declaration** (with the trade-offs + the note that Phase 4 should
+  drive layout on a web worker / supervised iteration so the real-GPU frame budget — not
+  the headless number — governs the §6 ≥30fps DoD).
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -872,6 +948,26 @@ then richer node content. Record the full table and the arithmetic in §9.
   pre-existing warnings (my new file is clean). **All five Phase-2 prototypes now
   benchmarked.** Next: 3.1 — compile the §9 metrics into the Phase-3 comparison table and
   apply the §7 gates/rubric.
+- 2026-06-13 (3.1): Compiled the Phase-3 comparison table into §9 (docs-only — no code
+  touched). Re-measured each candidate's added gzip bundle precisely with
+  `gzip -c <dist .min.js> | wc -c` summed over its deps (superseding the rough 2.x
+  estimates): Sigma 69 kB, react-force-graph 119 kB, Cytoscape 280 kB, G6 382 kB,
+  React Flow+elkjs 508 kB. KEY DECISION-RELEVANT FINDING: the literal §7 interactive-scale
+  gate (`p95FrameMs ≤ 33ms` on LARGE) is DEGENERATE here — all five fail it because the
+  harness runs in headless Chromium with no GPU (software rasterization), the confound
+  flagged in every 2.x entry; applied literally it would drop everyone, so it carries no
+  discriminating signal. Resolved by ranking on the §7 weighted score over the raw numbers
+  (frame criterion normalizes to 0 for all → equal penalty), with DNF candidates (React
+  Flow, G6) scoring 0 on the three perf criteria. Computed totals via a python check of the
+  §7 `clamp((hi−v)/(hi−lo),0,1)` formula: **Sigma 0.459 ≫ React Flow 0.278 >
+  react-force-graph 0.236 > Cytoscape = G6 0.231.** Sigma wins on the only passing
+  interaction latency (26.5ms→1.00), leanest bundle (69kB→1.00), and a measurable LARGE
+  layout; margin Δ0.18 > the 0.05 tie-break, so no tie-break. WATCH for 3.2/Phase 4: Sigma
+  is label-only node richness (0.30) and breadth 3/5 (concentric/grid need a manual coord
+  pass), and Phase 4 should run the forceAtlas2 layout on a web worker / supervised
+  iteration so the REAL-GPU frame budget governs the §6 ≥30fps DoD, not the headless number.
+  Gate green: typecheck clean, test 54 passed, check exit 0 (same 16 pre-existing unrelated
+  warnings; no new files). Next: 3.2 — declare Sigma+graphology the binding winner in §9.
 
 ---
 
