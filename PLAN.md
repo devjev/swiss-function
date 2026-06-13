@@ -397,8 +397,19 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       Gate green. (Env quirk: the minimap's right half sat under Ladle's sidebar
       in the story, intercepting center clicks — a story-layout artifact, not a
       component bug; clicks on the canvas proper recenter correctly.)
-- [ ] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
-      verify in both `data-theme="light"` and `"dark"`. No hard-coded hex.
+- [x] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
+      verify in both `data-theme="light"` and `"dark"`. No hard-coded hex. —
+      audited all Graph files: every `#hex` is only a `token()` pre-paint
+      fallback (colors are token-driven), no `rgb/hsl` literals, every CSS size is
+      `calc(var(--sf-unit)…)`, fonts via `--sf-font-sans`. Hardened `token()` to
+      read the `--sf-*` off the graph's OWN element (Sigma container / minimap
+      canvas) instead of `document.documentElement`, so the canvas themes from
+      whatever ancestor sets `data-theme` — not only one on `<html>` (Ladle
+      happens to theme `<html>`, masking the gap). Verified light + dark in Ladle
+      preview: bg/border/toolbar/node-kind colors + labels all flip correctly,
+      and the minimap's dots/border/viewport-rect track the theme
+      (`/tmp/g-cm-light.png`, `/tmp/g-cm-dark.png`, `/tmp/g-mm-dark.png`). Gate
+      green.
 - [ ] **4.9** Performance pass on `LARGE`: keep p95 frame ≥30fps **and p95
       interaction latency <120ms** (click/hover/context-menu/control/layout-
       switch). Lazy/throttle layout; debounce resize; virtualize/cull
@@ -1368,6 +1379,27 @@ then richer node content. Record the full table and the arithmetic in §9.
   `GraphMinimapProps` from the barrel. Gate green: typecheck clean, `just check` 0
   errors (16 baseline warnings, none new), test 54 passed. Next: **4.8** — theming
   pass (verify light + dark, no hard-coded hex).
+
+- 2026-06-13 (4.8): **Theming pass — token reads made theme-context-correct.**
+  Audit was clean (all `#hex` are `token()` fallbacks, no rgb/hsl, CSS sizes all
+  `calc(var(--sf-unit)…)`, fonts `--sf-font-sans`). **Real fix:** `token()` (in both
+  `Graph.tsx` and `Minimap.tsx`) read `getComputedStyle(document.documentElement)`,
+  which only resolves the right theme when `data-theme` is on `<html>`. Ladle's
+  Provider puts `data-theme` on a wrapper div (and, it turns out, on `<html>` too —
+  which is why dark *looked* fine, `document.documentElement` resolved `--sf-color-bg`
+  to the dark `#0a0a0a`). But a consumer who themes only a wrapper would get a
+  light-colored canvas in dark mode. Fixed by threading the graph's own element
+  (Sigma `container` / minimap `canvas`) into `token(name, fallback, el)` so it reads
+  the cascade from inside the themed subtree; `document.documentElement` stays the
+  fallback. `buildGraph` + `nodeColor` now take the element; the Sigma constructor's
+  label/edge-label/default-node colors pass `container`. CSS-module colors were
+  already correct (plain `var(--sf-*)`, inherit down). Verified light + dark + the
+  minimap in dark via Ladle `&mode=preview` screenshots — all flip correctly.
+  **Watch:** colors are still read once at build time (+ minimap on epoch/camera),
+  so a *runtime* theme swap won't recolor the existing WebGL canvas until rebuild;
+  acceptable for now (note for 5.x if a live theme-toggle story is wanted). Gate
+  green: typecheck clean, `just check` 0 errors (16 baseline warnings), test 54
+  passed. Next: **4.9** — perf pass on LARGE (re-run `probe-graph.mjs`).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

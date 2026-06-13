@@ -117,16 +117,19 @@ const KIND_TOKEN: Record<string, string> = {
   quaternary: "--sf-color-warning",
 };
 
-/** Read a `--sf-*` token off the live document so colors are themed, never
- *  hard-coded. Falls back to a sane value before first paint. */
-function token(name: string, fallback: string): string {
+/** Read a `--sf-*` token off a themed element so colors track the active theme,
+ *  never hard-coded. Reads from `el` (the graph's own subtree) so it resolves
+ *  whatever `data-theme` an ancestor sets — not just one on `<html>`; falls back
+ *  to `document.documentElement`, then to a sane literal before first paint. */
+function token(name: string, fallback: string, el?: Element | null): string {
   if (typeof document === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const source = el ?? document.documentElement;
+  const value = getComputedStyle(source).getPropertyValue(name).trim();
   return value || fallback;
 }
 
-function nodeColor(kind: string | undefined): string {
-  return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#2563eb");
+function nodeColor(kind: string | undefined, el?: Element | null): string {
+  return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#2563eb", el);
 }
 
 /** Default node radius (graph units). `primary` nodes read as the emphasized
@@ -152,9 +155,9 @@ interface RenderHooks {
  *  themed colors. Pre-computed `x`/`y` on a node are honored; otherwise a
  *  layout pass assigns coordinates. Edges are drawn directed (arrowheads) with
  *  a weight-derived thickness; `renderNode`/`renderEdge` override the visuals. */
-function buildGraph(data: GraphData, hooks: RenderHooks): Graphology {
+function buildGraph(data: GraphData, hooks: RenderHooks, el?: Element | null): Graphology {
   const g = new Graphology();
-  const edgeColor = token("--sf-color-border-subtle", "#e5e7eb");
+  const edgeColor = token("--sf-color-border-subtle", "#e5e7eb", el);
   for (const n of data.nodes) {
     const custom = hooks.renderNode?.(n);
     g.addNode(n.id, {
@@ -163,7 +166,7 @@ function buildGraph(data: GraphData, hooks: RenderHooks): Graphology {
       size: custom?.size ?? nodeSize(n.kind),
       x: n.x ?? Math.random(),
       y: n.y ?? Math.random(),
-      color: custom?.color ?? nodeColor(n.kind),
+      color: custom?.color ?? nodeColor(n.kind, el),
       payload: n.data,
     });
   }
@@ -471,7 +474,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const container = surfaceRef.current;
     if (!container) return;
 
-    const g = buildGraph(data, { renderNode, renderEdge });
+    const g = buildGraph(data, { renderNode, renderEdge }, container);
     assignPositions(g, computeLayout(g, layout));
     graphRef.current = g;
     appliedLayoutRef.current = layout;
@@ -480,13 +483,13 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // renderer pays for label layout it would never draw.
     const hasEdgeLabels = g.someEdge((_e, attr) => attr.label != null);
     const renderer = new Sigma(g, container, {
-      defaultNodeColor: nodeColor("primary"),
+      defaultNodeColor: nodeColor("primary", container),
       // Directed arrowheads for every edge unless an edge sets its own `type`.
       defaultEdgeType: "arrow",
-      labelColor: { color: token("--sf-color-fg", "#0a0a0a") },
-      labelFont: token("--sf-font-sans", "system-ui"),
-      edgeLabelColor: { color: token("--sf-color-fg-subtle", "#737373") },
-      edgeLabelFont: token("--sf-font-sans", "system-ui"),
+      labelColor: { color: token("--sf-color-fg", "#0a0a0a", container) },
+      labelFont: token("--sf-font-sans", "system-ui", container),
+      edgeLabelColor: { color: token("--sf-color-fg-subtle", "#737373", container) },
+      edgeLabelFont: token("--sf-font-sans", "system-ui", container),
       renderLabels: g.order <= 300,
       renderEdgeLabels: hasEdgeLabels && g.order <= 300,
       allowInvalidContainer: true,

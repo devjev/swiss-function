@@ -4,12 +4,14 @@ import { cx } from "../../lib/cx";
 import { useGraphInternals } from "./context";
 import styles from "./Minimap.module.css";
 
-/** Read a `--sf-*` token off the live document so minimap colors are themed,
- *  never hard-coded. (Mirrors `Graph.tsx`'s helper — kept local to avoid a
- *  cross-module import of a private.) */
-function token(name: string, fallback: string): string {
+/** Read a `--sf-*` token off a themed element so minimap colors track the active
+ *  theme, never hard-coded. Reads from `el` (the minimap's own canvas, inside the
+ *  graph's themed subtree) so it resolves whatever `data-theme` an ancestor sets.
+ *  (Mirrors `Graph.tsx`'s helper — kept local to avoid importing a private.) */
+function token(name: string, fallback: string, el?: Element | null): string {
   if (typeof document === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const source = el ?? document.documentElement;
+  const value = getComputedStyle(source).getPropertyValue(name).trim();
   return value || fallback;
 }
 
@@ -68,7 +70,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     const y1 = tf.offY + (tl.y - tf.minY) * tf.scale;
     const x2 = tf.offX + (br.x - tf.minX) * tf.scale;
     const y2 = tf.offY + (br.y - tf.minY) * tf.scale;
-    ctx.strokeStyle = token("--sf-color-primary", "#2563eb");
+    ctx.strokeStyle = token("--sf-color-primary", "#2563eb", canvas);
     ctx.lineWidth = 1.5;
     ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
   }, [getRenderer]);
@@ -122,7 +124,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     const lc = layer.getContext("2d");
     if (!lc) return;
     lc.scale(dpr, dpr);
-    lc.fillStyle = token("--sf-color-fg-subtle", "#737373");
+    lc.fillStyle = token("--sf-color-fg-subtle", "#737373", canvas);
     for (const p of pts) {
       lc.fillRect(offX + (p.x - minX) * scale, offY + (p.y - minY) * scale, 1.2, 1.2);
     }
