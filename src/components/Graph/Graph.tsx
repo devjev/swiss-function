@@ -10,8 +10,14 @@ import { cx } from "../../lib/cx";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { Menu } from "../Menu";
 import { GraphControlsBar } from "./Controls";
-import { GraphContext, type GraphControls } from "./context";
+import {
+  GraphContext,
+  type GraphControls,
+  GraphInternalContext,
+  type GraphInternals,
+} from "./context";
 import styles from "./Graph.module.css";
+import { GraphMinimap } from "./Minimap";
 
 /** Per-node target coordinates, as produced by the layout functions and
  *  consumed by Sigma's `animateNodes`. */
@@ -390,6 +396,11 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // Right-click context menu: where it opened + what it acted on. `null` closed.
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
+  // Bumped whenever the graph is (re)built or a layout finishes applying, so the
+  // minimap overlay knows to recompute its cached node geometry.
+  const [epoch, setEpoch] = useState(0);
+  const bumpEpoch = useCallback(() => setEpoch((e) => e + 1), []);
+
   // Inspector tooltip: the node/edge under the cursor (hover) or the last
   // clicked node (select). Hover wins while it is set; on hover-out the
   // selected node's inspection is shown until the selection is cleared.
@@ -523,6 +534,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       openMenu({ kind: "stage", id: null }, event);
     });
 
+    // Signal overlays (minimap) that a fresh graph + display data exist.
+    bumpEpoch();
+
     return () => {
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;
@@ -554,6 +568,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     if (prefersReducedMotion()) {
       assignPositions(g, targets);
       renderer.refresh();
+      bumpEpoch();
       return;
     }
 
@@ -563,9 +578,11 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       { duration: 600, easing: "quadraticInOut" },
       () => {
         cancelAnimationRef.current = null;
+        // Layout settled — refresh the minimap's cached node geometry.
+        bumpEpoch();
       },
     );
-  }, [layout]);
+  }, [layout, bumpEpoch]);
 
   // Camera controls. All animate, but collapse to an instant snap (duration 0)
   // under prefers-reduced-motion. Each is a no-op until Sigma has mounted.
@@ -603,6 +620,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const controls = useMemo<GraphControls>(
     () => ({ zoomIn, zoomOut, fitView, reset, pan, layout, setLayout }),
     [zoomIn, zoomOut, fitView, reset, pan, layout, setLayout],
+  );
+
+  // Internal renderer handle for the minimap overlay. `getRenderer`/`getGraph`
+  // read refs (stable); `epoch` changes drive the minimap to rebuild geometry.
+  const getRenderer = useCallback(() => sigmaRef.current, []);
+  const getGraph = useCallback(() => graphRef.current, []);
+  const internals = useMemo<GraphInternals>(
+    () => ({ getRenderer, getGraph, epoch }),
+    [getRenderer, getGraph, epoch],
   );
 
   // --- Context-menu built-in actions ---------------------------------------
@@ -695,83 +721,88 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
 
   return (
     <GraphContext.Provider value={controls}>
-      <div {...rest} ref={ref} className={cx(styles.root, className)}>
-        {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
+      <GraphInternalContext.Provider value={internals}>
+        <div {...rest} ref={ref} className={cx(styles.root, className)}>
+          {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
             make the surface a keyboard target for pan/zoom; a fuller a11y pass
             (node-to-node navigation, screen-reader summary) lands in Task 5.3. */}
-        <div
-          ref={surfaceRef}
-          className={styles.surface}
-          role="application"
-          aria-label="Graph view"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
-          tabIndex={0}
-          onKeyDown={onKeyDown}
-        />
-        {children}
-        {/* Inspector: node/edge `data` on hover (and the last clicked node on
+          <div
+            ref={surfaceRef}
+            className={styles.surface}
+            role="application"
+            aria-label="Graph view"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+          />
+          {children}
+          {/* Inspector: node/edge `data` on hover (and the last clicked node on
             select). Reuses the chart Tooltip — a fixed, viewport-clamped box
             that flips above/below its anchor. */}
-        <Tooltip open={inspection !== null} anchorRect={inspection?.rect ?? null}>
-          {inspection && (
-            <div className={styles.inspector} data-graph-tooltip>
-              <span className={styles.inspectorTitle}>{inspection.title}</span>
-              {inspection.subtitle && (
-                <span className={styles.inspectorSubtitle}>{inspection.subtitle}</span>
-              )}
-              {inspection.rows.length > 0 && (
-                <dl className={styles.inspectorData}>
-                  {inspection.rows.map(([key, value]) => (
-                    <div className={styles.inspectorRow} key={key}>
-                      <dt className={styles.inspectorKey}>{key}</dt>
-                      <dd className={styles.inspectorValue}>{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-            </div>
-          )}
-        </Tooltip>
-        {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
+          <Tooltip open={inspection !== null} anchorRect={inspection?.rect ?? null}>
+            {inspection && (
+              <div className={styles.inspector} data-graph-tooltip>
+                <span className={styles.inspectorTitle}>{inspection.title}</span>
+                {inspection.subtitle && (
+                  <span className={styles.inspectorSubtitle}>{inspection.subtitle}</span>
+                )}
+                {inspection.rows.length > 0 && (
+                  <dl className={styles.inspectorData}>
+                    {inspection.rows.map(([key, value]) => (
+                      <div className={styles.inspectorRow} key={key}>
+                        <dt className={styles.inspectorKey}>{key}</dt>
+                        <dd className={styles.inspectorValue}>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </div>
+            )}
+          </Tooltip>
+          {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
             to a fixed, invisible Trigger placed at the cursor (house Explorer
             pattern). Choosing an item runs its action against the target id. */}
-        <Menu.Root
-          open={contextMenu !== null}
-          onOpenChange={(open) => !open && setContextMenu(null)}
-        >
-          <Menu.Trigger
-            aria-hidden="true"
-            tabIndex={-1}
-            className={styles.contextAnchor}
-            style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
-          />
-          <Menu.Portal>
-            <Menu.Positioner side="bottom" align="start">
-              <Menu.Popup data-graph-context-menu>
-                {contextMenu &&
-                  itemsFor(contextMenu.target).map((item) => (
-                    <Fragment key={item.label}>
-                      {item.separatorBefore && <Menu.Separator />}
-                      <Menu.Item
-                        disabled={item.disabled}
-                        onClick={() => {
-                          item.onSelect(contextMenu.target.id);
-                          setContextMenu(null);
-                        }}
-                      >
-                        {item.label}
-                      </Menu.Item>
-                    </Fragment>
-                  ))}
-              </Menu.Popup>
-            </Menu.Positioner>
-          </Menu.Portal>
-        </Menu.Root>
-      </div>
+          <Menu.Root
+            open={contextMenu !== null}
+            onOpenChange={(open) => !open && setContextMenu(null)}
+          >
+            <Menu.Trigger
+              aria-hidden="true"
+              tabIndex={-1}
+              className={styles.contextAnchor}
+              style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
+            />
+            <Menu.Portal>
+              <Menu.Positioner side="bottom" align="start">
+                <Menu.Popup data-graph-context-menu>
+                  {contextMenu &&
+                    itemsFor(contextMenu.target).map((item) => (
+                      <Fragment key={item.label}>
+                        {item.separatorBefore && <Menu.Separator />}
+                        <Menu.Item
+                          disabled={item.disabled}
+                          onClick={() => {
+                            item.onSelect(contextMenu.target.id);
+                            setContextMenu(null);
+                          }}
+                        >
+                          {item.label}
+                        </Menu.Item>
+                      </Fragment>
+                    ))}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+        </div>
+      </GraphInternalContext.Provider>
     </GraphContext.Provider>
   );
 });
 
 /** `Graph` with the `Controls` toolbar attached as a compound member, matching
  *  the house `Object.assign(Root, { ... })` convention (Pane, Field, …). */
-export const Graph = Object.assign(GraphRoot, { Controls: GraphControlsBar });
+export const Graph = Object.assign(GraphRoot, {
+  Controls: GraphControlsBar,
+  Minimap: GraphMinimap,
+});

@@ -1,0 +1,32 @@
+/* Overview minimap, overlaid on the bottom-end corner of the graph surface.
+
+   Like Graph.Controls, it lives in the Graph root's single grid cell (1/1) and
+   is pinned to a corner via align/justify-self. The canvas inside paints a
+   miniature of the whole graph plus a rectangle for the current viewport;
+   clicking/dragging it recenters the camera. */
+.root {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  justify-self: end;
+  z-index: 1;
+  margin: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 4);
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+}
+
+.canvas {
+  display: block;
+  inline-size: calc(var(--sf-unit) * 11);
+  block-size: calc(var(--sf-unit) * 7);
+  /* The whole minimap is a navigation target. */
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.canvas:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}

@@ -380,8 +380,23 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
         `/tmp/graph-context-menu.png` — sharp-cornered themed popup anchored at
         the cursor over the kind-colored grid. Harness story kept under `lab/`
         (deleted with the rest in 6.2); driver was throwaway.
-- [ ] **4.7** Minimap + viewport indicator for large-graph navigation
-      (winner's plugin if available, else a lightweight overview canvas).
+- [x] **4.7** Minimap + viewport indicator for large-graph navigation
+      (winner's plugin if available, else a lightweight overview canvas). — Sigma
+      ships no minimap plugin, so built a lightweight overview canvas as a new
+      compound member `Graph.Minimap` (mirrors `Graph.Controls`). Reads a new
+      internal `GraphInternalContext` (renderer/graph + an `epoch` bumped on
+      build + layout-settle) — kept off the public `GraphControls`. Draws node
+      dots from framed `getNodeDisplayData` coords (camera-independent → cached to
+      an offscreen layer, rebuilt only on `epoch`); each `camera.updated` just
+      re-strokes the viewport rectangle from `viewportToFramedGraph` corners
+      (cheap). Click/drag recenters via `camera.setState` (framed coords; instant,
+      so nothing to gate on reduced-motion). All colors `--sf-*`. Verified on a
+      `lab/GraphMinimap` harness (MEDIUM/radial): close-up shows the node ring +
+      themed viewport rect; the rect shrinks on zoom and moves to the clicked
+      corner (`/tmp/graph-minimap-close.png`, `/tmp/graph-minimap-moved.png`).
+      Gate green. (Env quirk: the minimap's right half sat under Ladle's sidebar
+      in the story, intercepting center clicks — a story-layout artifact, not a
+      component bug; clicks on the canvas proper recenter correctly.)
 - [ ] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
       verify in both `data-theme="light"` and `"dark"`. No hard-coded hex.
 - [ ] **4.9** Performance pass on `LARGE`: keep p95 frame ≥30fps **and p95
@@ -1325,6 +1340,34 @@ then richer node content. Record the full table and the arithmetic in §9.
   before Phase 5/6 screenshot steps. Ticked 4.6 (parent) + 4.6a + 4.6b. Gate green:
   typecheck clean, `just check` 0 errors (16 pre-existing warnings; +1 story file,
   adds none), test 54 passed. Next: **4.7** — minimap + viewport indicator.
+
+- 2026-06-13 (4.7): **Minimap overview canvas + viewport indicator.** Sigma has no
+  minimap plugin, so built one as `Graph.Minimap` (compound member alongside
+  `Graph.Controls`). New files: `Minimap.tsx` + `Minimap.module.css`; new internal
+  `GraphInternalContext` in `context.ts` exposing `{getRenderer, getGraph, epoch}`
+  (kept OFF the public `GraphControls` — overlays read the renderer directly). The
+  Graph build effect + layout-settle now `bumpEpoch()` so the minimap recomputes
+  geometry. **Coordinate model (verified against the Sigma bundle):**
+  `getNodeDisplayData` returns FRAMED (normalized) coords — `nodeDataCache` has
+  `normalizationFunction.applyTo` applied (sigma.esm.js ~L1946/2543) and is fed
+  straight to `framedGraphToViewport` — the SAME space as `viewportToFramedGraph`
+  and `camera.x/y`. So the minimap: caches node dots (framed, camera-independent)
+  to an offscreen canvas rebuilt on `epoch`; re-strokes the viewport rect from
+  `viewportToFramedGraph({0,0})`/`({w,h})` on every `camera.updated`; and recenters
+  via `camera.setState({x,y})` from the inverted click (instant — no animation to
+  gate on reduced-motion). **Surprise:** the recenter handler *looked* dead in the
+  first test — cause was Ladle's right sidebar overlaying the minimap's right half
+  in the 1200px-wide story (`elementFromPoint` at center returned an `<A>`), so
+  `mouse.click` at center never reached the canvas. Clicking the canvas's left
+  region fires correctly and `setState` takes (confirmed via temporary console
+  logs + a screenshot showing the rect jump to the clicked corner). Not a component
+  bug. **Lint:** the subscription effect keeps `epoch` as an intentional retrigger
+  dep (getRenderer reads a ref, so the effect must re-run when the renderer first
+  appears) — suppressed `useExhaustiveDependencies` with a rationale. Added
+  `lab/GraphMinimap.stories.tsx` (throwaway, removed in 6.2) + exported
+  `GraphMinimapProps` from the barrel. Gate green: typecheck clean, `just check` 0
+  errors (16 baseline warnings, none new), test 54 passed. Next: **4.8** — theming
+  pass (verify light + dark, no hard-coded hex).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
