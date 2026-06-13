@@ -228,7 +228,12 @@ they will be deleted after selection (Task 3.3).
       `{layoutMs:5265, p95FrameMs:33.3, heapMB:61.04, p95InteractionMs:63.3}`; LARGE
       `{layoutMs:4939, p95FrameMs:383.4, heapMB:527.38, p95InteractionMs:563}` recorded
       in §9 (headless-GPU + dagre-unusable caveats noted).
-- [ ] **2.3** Prototype **React Flow + elkjs** → story + benchmark + §9.
+- [x] **2.3** Prototype **React Flow + elkjs** → story + benchmark + §9. — added
+      `lab/ReactFlow.stories.tsx` (DOM-node renderer; elk `force` + `layered`, full
+      `[data-graph-*]` hooks, token-themed). MEDIUM probe
+      `{layoutMs:61545,p95FrameMs:99.9,heapMB:159.26,p95InteractionMs:322.4}` (322ms
+      already > 120ms gate); LARGE **DNF — 10k DOM nodes never reach a stable layout
+      (timed out at 150s, EXIT_CODE 124)**; elkjs bundle ≈458kB gz (huge). All in §9.
 - [ ] **2.4** Prototype **G6** → story + benchmark + §9.
 - [ ] **2.5** Prototype **react-force-graph** → story + benchmark + §9.
 
@@ -513,6 +518,46 @@ then richer node content. Record the full table and the arithmetic in §9.
     gzip cost deferred to the Phase 3 comparison table (Task 3.1). Next: 2.3 —
     React Flow + elkjs prototype, same hooks, same harness runs.
 
+- 2026-06-13 (2.3): **Candidate 3 — React Flow (@xyflow/react) + elkjs — benchmark.**
+  Prototype `src/components/Graph/lab/ReactFlow.stories.tsx` (React Flow DOM renderer
+  — each node is a real DOM element, the node-richness champion; `onlyRenderVisibleElements`
+  culls offscreen nodes; force = elkjs `org.eclipse.elk.force`, hierarchical/tree =
+  elkjs `org.eclipse.elk.layered`). Unlike Sigma/Cytoscape (single canvas + a mirrored
+  overlay), React Flow *does* have per-node DOM, but the harness's hit target is still
+  computed analytically: one reference node's screen position is derived from its layout
+  position × the live viewport transform (`getViewport()`) and mirrored as the
+  `[data-graph-node]` overlay, updated on `onMove`. Full §9 `[data-graph-*]` hook
+  contract wired (selection / tooltip / context-menu / zoom-in control / layout-switch).
+  Colors driven by `--sf-*` tokens read off `getComputedStyle` (themable gate: PASS).
+  - **Deps added (versions):** `@xyflow/react@12.11.0`, `elkjs@0.11.1`.
+  - **`probe-graph.mjs graph--lab--reactflow--medium` (MEDIUM 1k/2k, 1280×900):**
+    `{"layoutMs":61545,"p95FrameMs":99.9,"heapMB":159.26,"p95InteractionMs":322.4}`.
+    (`layoutMs` 61.5s = the harness never saw a *stable* `[data-graph-ready]` quickly and
+    fell back to networkidle + settle — mounting/reconciling 1k React DOM nodes after the
+    async elk layout is itself slow; the number conflates layout + DOM mount, not pure
+    layout math. `p95InteractionMs` 322ms already exceeds the 120ms gate **on MEDIUM**.)
+  - **LARGE (10k/19997): UNMEASURABLE — does not reach a stable layout.** The harness
+    hung; two separate runs (one un-capped ~9.5 min, one `timeout 150`) never settled
+    `[data-graph-ready]`/`networkidle`. The `timeout 150` run killed the browser at 150s
+    (`EXIT_CODE=124`, error surfacing at probe line 83 only because the page was closed
+    mid-wait). Root cause is the **DOM-node wall**: 10k real DOM nodes + the elk layout +
+    React reconciliation block the main thread indefinitely. This is fundamentally
+    different from Sigma's/Cytoscape's *layout-iteration* blocks (which bounding fixed) —
+    bounding elk's iterations does NOT help here because the cost is mounting 10k DOM
+    elements, not the layout math. So LARGE `layoutMs/p95FrameMs/heapMB/p95InteractionMs`
+    are all recorded as **null / DNF (>150s)** for the Phase 3 table.
+  - **Bundle cost (rough, deferred precision to Task 3.1):** `@xyflow/react` main ESM
+    ≈ 50kB gzip (+ its CSS + transitive d3-zoom/drag/selection), but **`elkjs` is the
+    elephant — the GWT-compiled `elk.bundled.js` is ≈ 458kB gzipped on its own**, far past
+    the §7 `≥250kB→0` anchor. elkjs *can* run as a web worker (off the critical render
+    path), but the §7 metric is added gzip kB, so React Flow + elkjs scores ~0 on bundle.
+  - **Phase 3 read (do not pre-eliminate here — that's Task 3.1/3.2's job):** React Flow's
+    expected profile holds — clear winner on node richness (arbitrary DOM content per
+    node), but it appears to **fail the interactive-scale and interaction-latency gates on
+    LARGE** (cannot even reach a measurable LARGE layout) and scores ~0 on bundle. If a
+    finer hierarchical layout / a node-virtualizing renderer is wanted later it'd be for a
+    much smaller graph. Next: 2.4 — G6 (AntV) prototype, same hooks, same harness runs.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -630,6 +675,32 @@ then richer node content. Record the full table and the arithmetic in §9.
   `/tmp/cytoscape-medium.png`, themed multi-kind colors, no clipping. Gate green:
   typecheck clean, test 54 passed, check exit 0 with the same 16 pre-existing
   warnings. Next: 2.3 — React Flow + elkjs prototype, same hooks, same harness runs.
+- 2026-06-13 (2.3): Built the third Phase-2 prototype — React Flow (@xyflow/react) +
+  elkjs — in `src/components/Graph/lab/ReactFlow.stories.tsx` (Medium + Large exports).
+  Installed `@xyflow/react@12.11.0`, `elkjs@0.11.1`. Key techniques: elk layout is async
+  (`elk.layout(...).then(...)`), so nodes/edges land via state after the promise; force
+  bounded for LARGE (`elk.force.iterations:70`) like the other candidates. React Flow has
+  per-node DOM but the harness still wants ONE stable hit target, so I compute the
+  reference node's screen coords from its layout position × `getViewport()` and mirror it
+  as the `[data-graph-node]` overlay (updated on `onMove`). Wrapped in `ReactFlowProvider`
+  + `useReactFlow()` so `fitView/zoomIn/getNode/getViewport` work. BIG FINDING / WATCH:
+  MEDIUM is already heavy (`p95InteractionMs` 322ms > the 120ms gate; `layoutMs` 61.5s
+  because the harness fell back to networkidle+settle — 1k React DOM nodes mount slowly
+  after the async layout). **LARGE is a DNF**: 10k DOM nodes never reach a stable,
+  measurable layout — two runs hung (one ~9.5 min un-capped, one `timeout 150` killed at
+  150s, `EXIT_CODE=124`, error at probe line 83 only because the page was force-closed).
+  Crucially this is the DOM-node wall, NOT a layout-iteration block — bounding elk does
+  not help (unlike Sigma/Cytoscape), so I recorded LARGE metrics as null/DNF rather than
+  hacking the fixture down. Also weighed bundle: `@xyflow/react` ≈50kB gz but `elkjs`'s
+  GWT-compiled `elk.bundled.js` is ≈458kB gz — far past the §7 250kB→0 anchor → ~0 on the
+  bundle criterion. Recorded all of this (incl. the gate-relevant null) in §9 for the
+  Phase 3 table; did NOT pre-eliminate (Task 3.1/3.2's job). A headless screenshot kept
+  timing out (page pegged) so I confirmed render via the probe's successful MEDIUM
+  interaction measurement instead. WATCH for next iterations: the probe's `page.goto`
+  uses `networkidle`, which a constantly-rendering DOM graph can starve — for very heavy
+  candidates the harness effectively becomes a liveness test. Gate green: typecheck clean,
+  test 54 passed, check exit 0 with the same 16 pre-existing warnings (my new file is
+  clean). Next: 2.4 — G6 (AntV) prototype, same hooks, same harness runs.
 
 ---
 
