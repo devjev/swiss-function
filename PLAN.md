@@ -234,7 +234,13 @@ they will be deleted after selection (Task 3.3).
       `{layoutMs:61545,p95FrameMs:99.9,heapMB:159.26,p95InteractionMs:322.4}` (322ms
       already > 120ms gate); LARGE **DNF — 10k DOM nodes never reach a stable layout
       (timed out at 150s, EXIT_CODE 124)**; elkjs bundle ≈458kB gz (huge). All in §9.
-- [ ] **2.4** Prototype **G6** → story + benchmark + §9.
+- [x] **2.4** Prototype **G6** → story + benchmark + §9. — added
+      `lab/G6.stories.tsx` (G6 v5 canvas renderer; force = `d3-force`, hierarchical =
+      `antv-dagre` on MEDIUM / native `grid` on LARGE since dagre is super-linear);
+      full `[data-graph-*]` hooks, token-themed (themable gate PASS, `/tmp/g6-medium.png`).
+      MEDIUM probe `{layoutMs:62679,p95FrameMs:233.3,heapMB:202.18,p95InteractionMs:64.7}`;
+      LARGE **DNF — d3-force on 10k never reaches a stable `[data-graph-ready]` (timed out
+      at 200s, EXIT 124)**; G6 bundle ≈382kB gz (huge). All in §9.
 - [ ] **2.5** Prototype **react-force-graph** → story + benchmark + §9.
 
 ### Phase 3 — Auto-select the winner (by the §7 rubric)
@@ -558,6 +564,51 @@ then richer node content. Record the full table and the arithmetic in §9.
     finer hierarchical layout / a node-virtualizing renderer is wanted later it'd be for a
     much smaller graph. Next: 2.4 — G6 (AntV) prototype, same hooks, same harness runs.
 
+- 2026-06-13 (2.4): **Candidate 4 — G6 (AntV) v5.1.1 — benchmark.** Prototype
+  `src/components/Graph/lab/G6.stories.tsx` (G6 v5 single-canvas renderer; force =
+  built-in `d3-force` layout, hierarchical = built-in `antv-dagre` on MEDIUM; on LARGE
+  the layout-switch falls back to the tractable built-in `grid`, mirroring how the
+  Sigma/Cytoscape prototypes bounded their expensive engines — `antv-dagre` is
+  super-linear at 10k, same wall Cytoscape's dagre hit). Like Sigma/Cytoscape, G6 paints
+  to one canvas (no per-node DOM), so one reference node's screen position
+  (`getElementPosition` → `getClientByCanvas`, refreshed on `afterrender`/`afterdraw`)
+  is mirrored as the invisible `[data-graph-node]` overlay for the harness's click /
+  hover / right-click target; selection / tooltip / context-menu / zoom-in control /
+  layout-switch all wired via G6's `node:click` / `node:pointerenter` / `node:contextmenu`
+  events. Node fill is a per-datum `(d)=>nodeColor(d.data.kind)` callback reading `--sf-*`
+  tokens off `getComputedStyle`; labels/edges also token-driven (themable gate: PASS —
+  see `/tmp/g6-medium.png`, multi-kind colored nodes + subtle edges, legible, no clipping).
+  - **Deps added (versions):** `@antv/g6@5.1.1` (pulls `@antv/g`, `@antv/layout`,
+    `@antv/g-canvas`, `@antv/util`, … — 80 packages total).
+  - **`probe-graph.mjs graph--lab--g6--medium` (MEDIUM 1k/2k, 1280×900):**
+    `{"layoutMs":62679,"p95FrameMs":233.3,"heapMB":202.18,"p95InteractionMs":64.7}`.
+    (`layoutMs` 62.7s = the harness hit the 60s `[data-graph-ready]` timeout and fell
+    back to networkidle+settle — G6's `render()` promise on 1k nodes with d3-force did
+    not resolve within 60s in headless software rendering, so this conflates layout +
+    settle, not pure layout math. `p95InteractionMs` 64.7ms is fine — the page IS
+    interactive once painted; the 60s is the *initial* settle, not per-interaction.)
+  - **LARGE (10k/19997): DNF — does not reach a stable layout.** `timeout 200` run
+    killed the browser at 200s (`EXIT_CODE=124`; the `frame.$` error at probe line 83
+    only surfaced because the page was force-closed mid-wait). Even with the force
+    iterations capped, d3-force on 10k nodes never settled `[data-graph-ready]` within
+    200s in headless Chromium (software rasterization, no GPU). So LARGE
+    `layoutMs/p95FrameMs/heapMB/p95InteractionMs` are recorded **null / DNF (>200s)** for
+    the Phase 3 table — same outcome class as React Flow's LARGE DNF, though G6's wall is
+    the layout simulation (a canvas renderer), not React Flow's 10k-DOM-node wall.
+  - **Bundle cost (rough, deferred precision to Task 3.1):** G6's UMD `g6.min.js` is
+    ≈1.38MB minified → **≈382kB gzipped**, far past the §7 `≥250kB→0` anchor → scores ~0
+    on bundle (tree-shaking the ESM build would trim it, but the core + `@antv/g` +
+    `@antv/layout` are large). Layout breadth is G6's headline strength (force-atlas2 /
+    d3-force / dagre / radial / concentric / grid / compact-box / mindmap / dendrogram
+    all built-in), and it ships minimap / tooltip / context-menu plugins — but on LARGE
+    its best layouts don't converge on the main thread under this harness.
+  - **Phase 3 read (do not pre-eliminate here — Task 3.1/3.2's job):** G6 has the
+    broadest *native* layout catalogue of the canvas candidates and rich plugins, but it
+    appears to **fail the interactive-scale / interaction-latency gates on LARGE** (no
+    measurable LARGE layout, like React Flow) and scores ~0 on bundle. The §7 gates must
+    still be re-judged in Phase 3 across all candidates measured the same (headless) way.
+    Next: 2.5 — react-force-graph prototype, same hooks, same harness runs.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -701,6 +752,33 @@ then richer node content. Record the full table and the arithmetic in §9.
   candidates the harness effectively becomes a liveness test. Gate green: typecheck clean,
   test 54 passed, check exit 0 with the same 16 pre-existing warnings (my new file is
   clean). Next: 2.4 — G6 (AntV) prototype, same hooks, same harness runs.
+- 2026-06-13 (2.4): Built the fourth Phase-2 prototype — G6 (AntV) v5.1.1 — in
+  `src/components/Graph/lab/G6.stories.tsx` (Medium + Large exports). Installed
+  `@antv/g6@5.1.1` (80 packages incl. `@antv/g`, `@antv/layout`). G6 v5 API: construct
+  `new Graph({ container, data, node, edge, layout, behaviors })`, `await graph.render()`,
+  events via `graph.on("node:click"/"node:pointerenter"/"node:contextmenu", ...)` typed as
+  `IElementEvent`. Same canvas/overlay technique as Sigma/Cytoscape — one node's screen
+  coords (`getElementPosition` returns a `[x,y]` tuple, fed to `getClientByCanvas` which
+  also returns a tuple, minus the container rect) mirrored as the `[data-graph-node]` hit
+  target, refreshed on `afterrender`/`afterdraw`. Node fill is a per-datum callback reading
+  `--sf-*` tokens. TS gotchas fixed: `getClientByCanvas` takes/returns `Point` *tuples* not
+  `{x,y}`; layout helper must be typed `LayoutOptions`; handlers typed `IElementEvent`.
+  Biome organize-imports wanted the `import type {…} from "@antv/g6"` BEFORE the value
+  `import { Graph }` from the same module. Harness MEDIUM
+  `{layoutMs:62679,p95FrameMs:233.3,heapMB:202.18,p95InteractionMs:64.7}` —
+  p95Interaction 64.7ms is fine but `layoutMs` 62.7s = the harness hit the 60s
+  `[data-graph-ready]` timeout (G6's d3-force `render()` promise on 1k nodes didn't resolve
+  in 60s under headless software rendering). BIG FINDING / WATCH: **LARGE is a DNF** — a
+  `timeout 200` run was killed at 200s (`EXIT_CODE=124`); d3-force on 10k never settled
+  `[data-graph-ready]` even with iterations capped. Same DNF *class* as React Flow's LARGE,
+  but G6's wall is the layout simulation (canvas renderer), not a DOM-node wall — capping
+  iterations didn't rescue it here. Recorded LARGE as null/DNF in §9 (did NOT pre-eliminate
+  — Task 3.1/3.2's job). Weighed bundle: G6 UMD ≈382kB gz, far past the 250kB→0 anchor →
+  ~0 on bundle. Screenshot helpers hardcode 61001 (server is 61000) so used an inline
+  preview-mode playwright shot → `/tmp/g6-medium.png` (themed multi-kind colors, subtle
+  edges, no clipping — themable PASS). Gate green: typecheck clean, test 54 passed, check
+  exit 0 with the same 16 pre-existing warnings (my new file is clean). Next: 2.5 —
+  react-force-graph prototype, same hooks, same harness runs.
 
 ---
 
