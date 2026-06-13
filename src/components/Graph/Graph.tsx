@@ -1,12 +1,14 @@
 import Graphology from "graphology";
 import { circlepack, circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
-import type { HTMLAttributes } from "react";
-import { forwardRef, useEffect, useRef } from "react";
+import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sigma from "sigma";
 import { animateNodes } from "sigma/utils";
 import { cx } from "../../lib/cx";
 import type { GraphData, LayoutKind } from "../../lib/graph/types";
+import { GraphControlsBar } from "./Controls";
+import { GraphContext, type GraphControls } from "./context";
 import styles from "./Graph.module.css";
 
 /** Per-node target coordinates, as produced by the layout functions and
@@ -16,17 +18,28 @@ type LayoutMapping = Record<string, { x: number; y: number }>;
 export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Nodes + edges to render. Each carries arbitrary structured `data`. */
   data: GraphData;
-  /** Active layout. Switching it re-positions nodes with a smooth animated
-   *  transition (or an instant snap under `prefers-reduced-motion`).
-   *  Defaults to `"force"`. */
+  /** Active layout (controlled). Switching it re-positions nodes with a smooth
+   *  animated transition (or an instant snap under `prefers-reduced-motion`). */
   layout?: LayoutKind;
+  /** Initial layout when `layout` is left uncontrolled. Defaults to `"force"`. */
+  defaultLayout?: LayoutKind;
+  /** Fired whenever the layout changes — from the prop, `Graph.Controls`, or a
+   *  keyboard switch. Required to observe switches when `layout` is controlled. */
+  onLayoutChange?: (next: LayoutKind) => void;
   /** Fired with the node `id` when a node is clicked. */
   onNodeClick?: (id: string) => void;
   /** Fired with the edge `id` when an edge is clicked. */
   onEdgeClick?: (id: string) => void;
   /** Fired with the currently selected node `id` (or `null` when cleared). */
   onSelectionChange?: (id: string | null) => void;
+  /** Overlay content — typically a `<Graph.Controls />` toolbar. */
+  children?: ReactNode;
 }
+
+/** How far an arrow-key press nudges the camera, in screen pixels. */
+const PAN_STEP_PX = 60;
+/** Camera zoom factor per zoom-in / zoom-out step. */
+const ZOOM_FACTOR = 1.5;
 
 const KIND_TOKEN: Record<string, string> = {
   primary: "--sf-color-primary",
@@ -202,13 +215,35 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export const Graph = forwardRef<HTMLDivElement, GraphProps>(function Graph(
-  { data, layout = "force", onNodeClick, onEdgeClick, onSelectionChange, className, ...rest },
+const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
+  {
+    data,
+    layout: controlledLayout,
+    defaultLayout = "force",
+    onLayoutChange,
+    onNodeClick,
+    onEdgeClick,
+    onSelectionChange,
+    className,
+    children,
+    ...rest
+  },
   ref,
 ) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graphology | null>(null);
+  // Uncontrolled layout state. When `layout` is provided the prop wins; the
+  // setter still fires `onLayoutChange` so a controlled parent can react.
+  const [uncontrolledLayout, setUncontrolledLayout] = useState<LayoutKind>(defaultLayout);
+  const layout = controlledLayout ?? uncontrolledLayout;
+  const setLayout = useCallback(
+    (next: LayoutKind) => {
+      if (controlledLayout === undefined) setUncontrolledLayout(next);
+      onLayoutChange?.(next);
+    },
+    [controlledLayout, onLayoutChange],
+  );
   // The layout currently applied to the graph, so the layout effect only
   // re-positions when it actually changes (not on every render).
   const appliedLayoutRef = useRef<LayoutKind | null>(null);
@@ -290,11 +325,100 @@ export const Graph = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     );
   }, [layout]);
 
+  // Camera controls. All animate, but collapse to an instant snap (duration 0)
+  // under prefers-reduced-motion. Each is a no-op until Sigma has mounted.
+  const camOpts = useCallback(() => ({ duration: prefersReducedMotion() ? 0 : 200 }), []);
+  const zoomIn = useCallback(() => {
+    sigmaRef.current?.getCamera().animatedZoom({ factor: ZOOM_FACTOR, ...camOpts() });
+  }, [camOpts]);
+  const zoomOut = useCallback(() => {
+    sigmaRef.current?.getCamera().animatedUnzoom({ factor: ZOOM_FACTOR, ...camOpts() });
+  }, [camOpts]);
+  const reset = useCallback(() => {
+    sigmaRef.current?.getCamera().animatedReset(camOpts());
+  }, [camOpts]);
+  // Fit-to-view: the graph is normalized into the camera's unit space, so
+  // resetting the camera frames the whole graph. (Distinct from `reset` only
+  // semantically — kept separate so 4.7's minimap/viewport work can refine
+  // fit independently of reset.)
+  const fitView = useCallback(() => {
+    reset();
+  }, [reset]);
+  const pan = useCallback((dx: number, dy: number) => {
+    const renderer = sigmaRef.current;
+    if (!renderer) return;
+    const camera = renderer.getCamera();
+    const state = camera.getState();
+    // Convert a screen-pixel nudge into camera (graph) units: a full viewport
+    // height spans `ratio` graph units, so px / dimension × ratio.
+    const { width, height } = renderer.getDimensions();
+    camera.setState({
+      x: state.x + (dx / width) * state.ratio,
+      y: state.y - (dy / height) * state.ratio,
+    });
+  }, []);
+
+  const controls = useMemo<GraphControls>(
+    () => ({ zoomIn, zoomOut, fitView, reset, pan, layout, setLayout }),
+    [zoomIn, zoomOut, fitView, reset, pan, layout, setLayout],
+  );
+
+  // Keyboard navigation on the focused surface: +/- zoom, 0 fit, arrows pan.
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      switch (event.key) {
+        case "+":
+        case "=":
+          zoomIn();
+          break;
+        case "-":
+        case "_":
+          zoomOut();
+          break;
+        case "0":
+          fitView();
+          break;
+        case "ArrowUp":
+          pan(0, -PAN_STEP_PX);
+          break;
+        case "ArrowDown":
+          pan(0, PAN_STEP_PX);
+          break;
+        case "ArrowLeft":
+          pan(-PAN_STEP_PX, 0);
+          break;
+        case "ArrowRight":
+          pan(PAN_STEP_PX, 0);
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    },
+    [zoomIn, zoomOut, fitView, pan],
+  );
+
   return (
-    <div {...rest} ref={ref} className={cx(styles.root, className)}>
-      {/* Sigma renders its WebGL canvas into this surface. Container role,
-          focus order and keyboard navigation are added in the a11y task. */}
-      <div ref={surfaceRef} className={styles.surface} />
-    </div>
+    <GraphContext.Provider value={controls}>
+      <div {...rest} ref={ref} className={cx(styles.root, className)}>
+        {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
+            make the surface a keyboard target for pan/zoom; a fuller a11y pass
+            (node-to-node navigation, screen-reader summary) lands in Task 5.3. */}
+        <div
+          ref={surfaceRef}
+          className={styles.surface}
+          role="application"
+          aria-label="Graph view"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+        />
+        {children}
+      </div>
+    </GraphContext.Provider>
   );
 });
+
+/** `Graph` with the `Controls` toolbar attached as a compound member, matching
+ *  the house `Object.assign(Root, { ... })` convention (Pane, Field, …). */
+export const Graph = Object.assign(GraphRoot, { Controls: GraphControlsBar });

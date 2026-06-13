@@ -32,4 +32,12 @@
   block-size: 100%;
   /* Sigma manages the canvas; keep the touch-action sane for pan/zoom. */
   touch-action: none;
+  outline: none;
+}
+
+/* Keyboard focus ring on the pan/zoom surface (inset so it stays inside the
+   clipped root). Only on keyboard focus, never on pointer. */
+.surface:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
 }

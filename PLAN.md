@@ -311,9 +311,18 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       `prefers-reduced-motion` (JS `matchMedia`). Layout switch no longer retears
       the renderer (separate effect, `appliedLayoutRef` guard, in-flight animation
       cancelled on re-switch). Gate green.
-- [ ] **4.3** Navigation controls: a `Graph.Controls` toolbar (zoom in/out,
+- [x] **4.3** Navigation controls: a `Graph.Controls` toolbar (zoom in/out,
       fit-to-view, reset, layout `ToggleGroup`). Reuse library `Button` /
-      `ToggleGroup`. Keyboard: `+`/`-`/`0`/arrow-pan, focus-visible ring.
+      `ToggleGroup`. Keyboard: `+`/`-`/`0`/arrow-pan, focus-visible ring. — added
+      `Graph.Controls` (compound member via `Object.assign(Root,{Controls})`) reusing
+      library `Button` (zoom-in/out/fit icons + Reset) + `ToggleGroup` (single-select
+      layout switch); `Graph` now publishes a `GraphControls` handle through a new
+      `GraphContext` (zoomIn/zoomOut/fitView/reset/pan + layout/setLayout) and gained
+      controlled+uncontrolled layout (`defaultLayout`/`onLayoutChange`). Surface is
+      now a focusable `role="application"` keyboard target: `+`/`=` zoom in, `-`/`_`
+      zoom out, `0` fit, arrows pan; all camera animations snap (duration 0) under
+      `prefers-reduced-motion`; focus-visible ring via `--sf-color-focus-ring`. Gate
+      green (typecheck/check/test).
 - [ ] **4.4** Node rendering with **arbitrary content**: a `renderNode`
       escape hatch (or label + badge + color-by-`kind` defaults). Edges:
       optional labels, weight→thickness, directed arrowheads.
@@ -814,6 +823,31 @@ then richer node content. Record the full table and the arithmetic in §9.
   the headless number. Next: 3.3 — remove the four losers' deps + delete their `lab/`
   stories, keep only `lab/Sigma.stories.tsx`.
 
+- 2026-06-13 (4.3): **Controls API + keyboard contract (binding for Phase 4/5).**
+  `Graph` publishes a `GraphControls` handle through a new `GraphContext`
+  (`src/components/Graph/context.ts`): `{zoomIn, zoomOut, fitView, reset, pan(dx,dy),
+  layout, setLayout}`. `Graph.Controls` (the toolbar) and any future in-tree consumer
+  read it via `useGraphControls()` (throws outside a `<Graph>`). Decisions: (1) the
+  camera method is named **`fitView` not `fit`** — Biome's `lint/suspicious/noFocusedTests`
+  flags a bare `fit()` call as a Jasmine focused-test (`fit`/`fdescribe`), so the domain
+  name collides; renamed to dodge it. (2) **`fitView` currently delegates to `reset`** —
+  Sigma normalizes the graph into the camera's unit space, so `animatedReset` (→ x:0.5,
+  y:0.5, ratio:1) frames the whole graph; kept as a separate method so Task 4.7's
+  minimap/viewport work can refine fit independently of reset without an API change.
+  (3) **Layout is now controlled+uncontrolled** — `layout` prop wins when present;
+  otherwise internal state seeded by `defaultLayout` (default `"force"`); `onLayoutChange`
+  always fires so a controlled parent observes Controls/keyboard switches. (4) **Keyboard
+  on the surface**: `role="application"` + `tabIndex=0` make it a focus target (needs a
+  scoped `biome-ignore lint/a11y/noNoninteractiveTabindex` — the surface IS interactive);
+  `+`/`=` zoom in, `-`/`_` zoom out, `0` fitView, arrows pan by `PAN_STEP_PX` (60px,
+  converted screen-px→graph-units via `dx/width*ratio`). (5) **Reduced motion**: every
+  camera animation passes `duration: prefersReducedMotion() ? 0 : 200` so it snaps. The
+  toolbar reuses library `Button` (icon buttons w/ `aria-label`+`title`, inline sharp SVG
+  glyphs stroked in `currentColor`; each `<svg>` needs a `<title>` for Biome's
+  `noSvgWithoutTitle`) + `ToggleGroup size="sm"` (single-select; empty toggle-off ignored
+  so a layout is always active). All visuals via `--sf-*`; toolbar overlays the surface in
+  the same grid cell (`z-index:1`, `align/justify-self:start`).
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -1118,6 +1152,34 @@ then richer node content. Record the full table and the arithmetic in §9.
   `just check` exit 0 (same 16 pre-existing unrelated warnings — Graph.tsx clean,
   none added), test 54 passed. Next: 4.3 — `Graph.Controls` toolbar (zoom/fit/reset
   + layout `ToggleGroup`), keyboard +/-/0/arrow-pan, focus-visible ring.
+- 2026-06-13 (4.3): Built the `Graph.Controls` navigation toolbar + keyboard
+  navigation. New `src/components/Graph/context.ts` (`GraphContext` +
+  `useGraphControls`) lets `Graph` publish an imperative camera/layout handle so
+  the toolbar drives navigation without a ref. New `Controls.tsx` +
+  `Controls.module.css`: a `role="toolbar"` overlay reusing library `Button`
+  (zoom-in/out/fit icon buttons w/ `aria-label`+`title` + a "Reset" ghost button)
+  and `ToggleGroup size="sm"` (single-select layout switch over all five kinds).
+  `Graph.tsx` gained: controlled+uncontrolled layout (`defaultLayout` /
+  `onLayoutChange`, `layout` prop still wins when set); camera callbacks
+  (`zoomIn`/`zoomOut`/`fitView`/`reset`/`pan`) on Sigma's `getCamera()`
+  (`animatedZoom`/`animatedUnzoom`/`animatedReset` + `setState` for pan); a
+  `role="application"` focusable surface with `onKeyDown` (`+`/`=`, `-`/`_`, `0`,
+  arrows); and exposes `Graph.Controls` via `Object.assign(GraphRoot,{Controls})`
+  (house compound pattern). All camera animations pass `duration:0` under
+  prefers-reduced-motion (snap); focus-visible ring on the surface via
+  `--sf-color-focus-ring`. GOTCHAS (recorded in §9): (1) a control method named
+  `fit` trips Biome's `noFocusedTests` (reads `fit()` as a Jasmine focused test) →
+  renamed `fitView`; (2) the focusable surface needs a scoped
+  `biome-ignore lint/a11y/noNoninteractiveTabindex` placed ON the `tabIndex` line
+  (above the element it was reported `suppressions/unused`); (3) each inline icon
+  `<svg>` needs a `<title>` for `noSvgWithoutTitle`. No `Graph.stories.tsx` exists
+  yet (Task 5.1) so the §3 screenshot step has no story id — the camera/render
+  path is unchanged from 4.1/4.2 (lab Sigma screenshot is the visual precedent);
+  the toolbar's visual + interaction verification lands with the Playground story
+  in 5.1 and CT/a11y in 5.2/5.3. Gate green: typecheck clean, `just check` exit 0
+  (same 16 pre-existing unrelated warnings — Graph files add none), test 54 passed.
+  Next: 4.4 — node rendering with arbitrary content (`renderNode` escape hatch or
+  label+badge+color-by-`kind`; edges: labels, weight→thickness, directed arrowheads).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
