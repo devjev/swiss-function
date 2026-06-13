@@ -265,9 +265,13 @@ they will be deleted after selection (Task 3.3).
       software-rasterization confound flagged throughout §9), so ranked by the §7
       weighted score on raw numbers → **Sigma 0.459 ≫ React Flow 0.278 > rfg 0.236 >
       Cytoscape = G6 0.231** (full arithmetic in §9). 3.2 makes Sigma the binding winner.
-- [ ] **3.2** **Declare the winner** in §9 with the computed weighted scores
+- [x] **3.2** **Declare the winner** in §9 with the computed weighted scores
       and a 2–3 sentence justification + noted trade-offs. This is the
-      binding decision for Phase 4.
+      binding decision for Phase 4. — declared **Sigma.js + graphology** (score
+      0.459, Δ0.18 over React Flow) as the binding Phase-4 winner in §9; rank table
+      + justification (only passing interaction latency, leanest bundle, measurable
+      LARGE) + 3 trade-offs (label-only richness, breadth 3/5 → manual tree/grid
+      coords, frame must be re-judged on real GPU via the FA2 worker).
 - [ ] **3.3** Remove all losing candidates' dependencies from
       `package.json` (+ lockfile via install), delete their `lab/` stories.
       Keep only the winner's prototype as a reference. `just check` +
@@ -748,6 +752,47 @@ then richer node content. Record the full table and the arithmetic in §9.
   drive layout on a web worker / supervised iteration so the real-GPU frame budget — not
   the headless number — governs the §6 ≥30fps DoD).
 
+- 2026-06-13 (3.2): **WINNER DECLARED (binding for Phase 4): Sigma.js + graphology.**
+  Deps: `sigma@3.0.3`, `graphology@0.26.0`, `graphology-layout@0.6.1`,
+  `graphology-layout-forceatlas2@0.10.1`. This is the binding decision; Phase 4 builds
+  the definitive `Graph` component on this stack and Task 3.3 removes the four losers'
+  deps + `lab/` stories.
+
+  **Final §7 weighted scores (from the 3.1 table, computed via `clamp((hi−v)/(hi−lo),0,1)`
+  per criterion on the raw LARGE numbers):**
+  | Rank | Candidate          | TOTAL | Decisive factors                                        |
+  | ---- | ------------------ | ----- | ------------------------------------------------------- |
+  | 1    | **Sigma+graphology** | **0.459** | only passing interaction latency (26.5ms→1.00); leanest bundle (69 kB→1.00); measurable LARGE layout |
+  | 2    | React Flow + elkjs | 0.278 | node-richness champion (1.00) but LARGE DNF + 508 kB (0.00 bundle) |
+  | 3    | react-force-graph  | 0.236 | lean (119 kB→0.77), measurable LARGE, but narrow breadth (3/5) |
+  | 4    | Cytoscape          | 0.231 | broadest breadth (5/5) but 280 kB (0.00) + 527 MB heap  |
+  | 4    | G6 (AntV)          | 0.231 | broadest breadth (5/5) but 382 kB (0.00) + LARGE DNF    |
+
+  **Justification (binding):** Sigma+graphology wins by Δ0.18 — far past the 0.05 tie-break
+  threshold, so no tie-break is invoked. It is the only candidate to **pass the
+  interaction-latency gate on LARGE** (26.5ms p95, vs the next measurable candidate's 522ms
+  which is dominated by a full re-layout), it ships the **leanest bundle** of the five
+  (69 kB gz — under the §7 80 kB→1.00 anchor), keeps the **lowest LARGE heap** (31.6 MB), and
+  is one of only three candidates that reach a measurable LARGE layout at all. WebGL scale is
+  exactly the §0 mission's primary constraint (10k nodes interactive).
+
+  **Trade-offs accepted (carried into Phase 4):** (1) **Node richness is label-only** —
+  Sigma paints to WebGL with no per-node DOM (scored 0.30, the only criterion React Flow
+  beats it on). The §0/§6 "arbitrary structured information" requirement is satisfied by
+  attaching `data` to graphology nodes/edges and surfacing it through the tooltip/inspector
+  + context menu (Tasks 4.4–4.6), not by rendering arbitrary DOM *inside* each node; a
+  `renderNode` escape hatch can overlay HTML on selected/hovered nodes if dense content is
+  needed. (2) **Native layout breadth is 3/5** — graphology gives force (forceAtlas2),
+  radial (circular) and concentric (circlepack); **tree/hierarchical and grid need a manual
+  coordinate pass** in Task 4.2 (a layered/BFS pass writing `x`/`y`, optionally via
+  `graphology-dag` or a small in-house layered layouter — no elkjs/dagre, which both blew
+  the bundle/scale budgets). (3) **Frame budget must be re-judged on real GPU** — the
+  headless `p95FrameMs` 783ms is software-rasterization noise (flagged in every 2.x entry);
+  Phase 4 must run forceAtlas2 via `graphology-layout-forceatlas2/worker` (web worker /
+  supervised iteration) so the §6 ≥30fps DoD is gated against a real-GPU measurement, not
+  the headless number. Next: 3.3 — remove the four losers' deps + delete their `lab/`
+  stories, keep only `lab/Sigma.stories.tsx`.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -968,6 +1013,22 @@ then richer node content. Record the full table and the arithmetic in §9.
   iteration so the REAL-GPU frame budget governs the §6 ≥30fps DoD, not the headless number.
   Gate green: typecheck clean, test 54 passed, check exit 0 (same 16 pre-existing unrelated
   warnings; no new files). Next: 3.2 — declare Sigma+graphology the binding winner in §9.
+- 2026-06-13 (3.2): Declared the binding Phase-4 winner in §9 — **Sigma.js + graphology**
+  (`sigma@3.0.3`, `graphology@0.26.0`, `graphology-layout@0.6.1`,
+  `graphology-layout-forceatlas2@0.10.1`). Docs-only; no code touched. Added a rank table
+  (Sigma 0.459 ≫ React Flow 0.278 > rfg 0.236 > Cytoscape = G6 0.231), a binding
+  justification (only candidate passing the LARGE interaction-latency gate at 26.5ms,
+  leanest 69 kB bundle, lowest 31.6 MB heap, measurable LARGE layout; Δ0.18 > 0.05 so no
+  tie-break), and the three accepted trade-offs carried into Phase 4: (1) label-only node
+  richness — satisfy "arbitrary data" via tooltip/inspector/context-menu + an optional
+  `renderNode` HTML overlay, not DOM-per-node; (2) breadth 3/5 — force/radial/concentric
+  native, but **tree/grid need a manual coordinate pass in 4.2** (no elkjs/dagre, both
+  failed bundle+scale); (3) the headless `p95FrameMs` is software-raster noise → Phase 4
+  must drive forceAtlas2 on the `/worker` build so §6's ≥30fps DoD is judged on real GPU.
+  Gate green: typecheck clean, test 54 passed, check exit 0 (same 16 pre-existing unrelated
+  warnings; no new files). Next: 3.3 — remove the four losers' deps (`cytoscape*`, `dagre`,
+  `@xyflow/react`, `elkjs`, `@antv/g6`, `react-force-graph-2d`) + lockfile, delete their
+  `lab/` stories, keep only `lab/Sigma.stories.tsx`; `just check` + `just typecheck` green.
 
 ---
 
