@@ -158,8 +158,14 @@ Keep messages scoped to the single task. Do not push.
       seeded PRNG + 3 shapes (BA preferential attachment / rooted tree /
       sqrt(n) communities); SMALL 100/197, MEDIUM 1000/2000, LARGE 10000/19997,
       no dangling edges, byte-identical per seed; gate green.
-- [ ] **0.4** Unit-test the generator in `src/lib/graph/fixtures.spec.ts`
-      (node/edge counts, determinism for a fixed seed, no dangling edges).
+- [x] **0.4** Unit-test the generator in `src/lib/graph/fixtures.spec.ts`
+      (node/edge counts, determinism for a fixed seed, no dangling edges). — added
+      `fixtures.test.ts` (vitest naming: `.spec.ts` is matched by neither vitest
+      nor the Playwright CT runner, so used `.test.ts` to actually run under
+      `just test`). 12 tests: per-shape node counts + floor/clamp, unique
+      ids/label/kind/data, tree n−1 edges, no dangling/self-loop/duplicate edges,
+      weight∈(0,1], avgDegree scaling, byte-identical determinism per seed,
+      seed-sensitivity, SMALL/MEDIUM/LARGE validity. Gate green.
 - [ ] **0.5** Add the benchmark harness `scripts/probe-graph.mjs` (model it
       on `probe-virtualization.mjs`): given a Ladle story id, measure
       **(a)** time from navigation to first stable layout paint,
@@ -386,6 +392,19 @@ _(empty — first benchmark/decision entries go here)_
   reformatted the const literals then check exit 0 with the same 16 pre-existing
   warnings; test 42 passed). Next: 0.4 — unit-test the generator in
   `fixtures.spec.ts` (counts, determinism, no dangling edges).
+- 2026-06-13 (0.4): Added `src/lib/graph/fixtures.test.ts` (12 vitest cases).
+  IMPORTANT naming note: the plan said `fixtures.spec.ts`, but `vitest.config.ts`
+  only includes `**/*.test.{ts,tsx}` and `.spec.tsx` is the Playwright CT runner —
+  a `.spec.ts` file would run under neither, so I used `.test.ts` so `just test`
+  actually exercises it. Tests cover node counts per shape, floor/clamp of
+  fractional/<=0 nodes, unique node ids + label/kind/data presence, tree = n−1
+  edges, no dangling/self-loop/duplicate-undirected edges, edge weight ∈ (0,1],
+  avgDegree→edge-count scaling, byte-identical determinism for a fixed seed,
+  seed-sensitivity, and SMALL/MEDIUM/LARGE validity. Gate green: typecheck clean,
+  test 54 passed (was 42; +12), check exit 0 with the same 16 pre-existing
+  unrelated warnings (note: `biome format` does NOT auto-organize imports — had to
+  reorder the named import manually to satisfy `just check`). Next: 0.5 — add the
+  benchmark harness `scripts/probe-graph.mjs`.
 
 ---
 
