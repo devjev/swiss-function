@@ -512,9 +512,14 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       adding it, `just build` emits both `dist/components/Graph/index.js` (re-exports
       `Graph`) and `index.d.ts` (full public type surface) — verified present. Gate
       green incl. `just build`.
-- [ ] **5.6** Docs: add a `Graph` row to the `AGENTS.md` component catalogue
+- [x] **5.6** Docs: add a `Graph` row to the `AGENTS.md` component catalogue
       and the "reach for Y" table ("a network / dependency graph / mind map"
-      → `Graph`). Keep the house tone (no marketing fluff).
+      → `Graph`). Keep the house tone (no marketing fluff). — added a new
+      "Graphs & networks" catalogue subsection (after Charts) with the `Graph` row
+      (layouts, controls, minimap, menu, inspector, compound members) explicitly
+      contrasting it with the axis charts, and the "a network / dependency graph /
+      mind map" → `Graph` row in the reach-for-Y table next to the chart row. House
+      tone, no fluff. Gate green.
 
 ### Phase 6 — Finish
 
@@ -1651,6 +1656,16 @@ then richer node content. Record the full table and the arithmetic in §9.
   harmless). Gate green: typecheck/check clean, vitest 54, **`just build` ✓**
   (`dist/components/Graph/index.{js,d.ts}` present). Next: **5.6** — docs (AGENTS.md
   catalogue + "reach for Y" row).
+
+- 2026-06-13 (5.6): **Docs — AGENTS.md.** New "Graphs & networks" catalogue
+  subsection after Charts with the `Graph` row (≤10k nodes; force/tree/radial/
+  concentric/grid; controls/keyboard/minimap/menu/inspector; compound members),
+  worded to contrast it with the axis charts ("those plot values on axes; this draws
+  relationships"). Added the "a network / dependency graph / mind map" → `Graph` row
+  to the reach-for-Y table beside "a chart"/"graph this" so the two senses of "graph"
+  are disambiguated. House tone, no marketing. Gate green (docs-only; typecheck/check/
+  test unaffected). **Phase 5 complete** — next: **6.1** the full finishing gate
+  (`check && typecheck && test && test-ct && build`).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.

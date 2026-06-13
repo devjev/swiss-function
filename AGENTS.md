@@ -129,6 +129,12 @@ All four charts default to `scaffolding="hover"` (Tufte-minimal idle, full
 scale fades in on hover). Use `scaffolding="full"` for dense data,
 `"minimal"` when you don't want any reveal.
 
+### Graphs & networks
+
+| Component | Use for                                                        |
+| --------- | -------------------------------------------------------------- |
+| `Graph`   | Node-link networks — dependency graphs, mind maps, concept trees — up to ~10k nodes interactively. Force / tree / radial / concentric / grid layouts (switchable at runtime), pan/zoom/fit + keyboard nav, minimap, right-click menu, and a hover inspector for each node/edge's `data`. Compound: `Graph`, `Graph.Controls`, `Graph.Minimap`. Distinct from the charts above — those plot values on axes; this draws relationships. |
+
 ### Communication
 
 | Component       | Use for                                                  |
@@ -232,6 +238,7 @@ Common requests and the right component:
 | "an outline / nested list editor"                  | `Outliner`                                       |
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
+| "a network / dependency graph / mind map"          | `Graph`                                          |
 | "loading state"                                    | `Skeleton`                                       |
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown`                                       |
