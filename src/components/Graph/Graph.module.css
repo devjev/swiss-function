@@ -1,0 +1,35 @@
+/* Grid shell for the Graph component.
+
+   A single-cell grid: the renderer surface fills the whole shell. Future
+   tasks (controls toolbar, minimap, inspector) add their own tracks/overlays,
+   so the root is a grid from the start rather than a plain block.
+
+   Rows:    [surface]
+   Columns: [surface]
+*/
+
+.root {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) * 24);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+}
+
+/* The WebGL/canvas surface Sigma renders into. Position relative so future
+   overlays (tooltip, context menu, minimap) can be absolutely placed. */
+.surface {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  inline-size: 100%;
+  block-size: 100%;
+  /* Sigma manages the canvas; keep the touch-action sane for pan/zoom. */
+  touch-action: none;
+}

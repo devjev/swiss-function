@@ -286,10 +286,19 @@ they will be deleted after selection (Task 3.3).
 Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
 `...rest` to root, `cx()` for classNames, all visuals via tokens.
 
-- [ ] **4.1** `Graph.tsx` skeleton: props `{ data: GraphData, layout?:
+- [x] **4.1** `Graph.tsx` skeleton: props `{ data: GraphData, layout?:
       LayoutKind, onNodeClick?, onEdgeClick?, onSelectionChange? }`, renders
       the winner's canvas/surface inside a CSS-Grid shell
-      (`Graph.module.css`). Controlled + uncontrolled `layout`.
+      (`Graph.module.css`). Controlled + uncontrolled `layout`. — added
+      `Graph.tsx` (forwardRef, spreads `...rest` to a CSS-Grid root, `cx()`
+      classNames), `Graph.module.css` (single-cell grid shell, sharp corners
+      via `--sf-radius-default`, all colors `--sf-*`), and the `index.ts`
+      barrel. Mounts Sigma+graphology with a forceAtlas2 layout (same build as
+      the 2.1 lab prototype); wires `clickNode`→onNodeClick+onSelectionChange,
+      `clickEdge`→onEdgeClick, `clickStage`→onSelectionChange(null) via a
+      handlers ref (no listener re-subscribe). `layout` prop accepted +
+      defaulted to `"force"` (the only wired layout this skeleton — the other
+      four land in 4.2). Gate green (typecheck/check/test).
 - [ ] **4.2** Layout switching: implement `force`, `tree`/hierarchical,
       `radial`, `concentric`, `grid` (map to winner's layout engine; use
       `elkjs`/`dagre`/graphology as needed). Smooth transition with a
@@ -1050,6 +1059,32 @@ then richer node content. Record the full table and the arithmetic in §9.
   lib). Next: 4.1 — `Graph.tsx` skeleton on the Sigma+graphology stack (props
   `{data, layout?, onNodeClick?, onEdgeClick?, onSelectionChange?}`, CSS-Grid shell,
   controlled + uncontrolled `layout`).
+- 2026-06-13 (4.1): Built the definitive component skeleton — `src/components/Graph/`
+  `{Graph.tsx, Graph.module.css, index.ts}` — on the binding Sigma+graphology winner.
+  `Graph.tsx` is a `forwardRef<HTMLDivElement>` that spreads `...rest` to a CSS-Grid
+  root (`cx(styles.root, className)`) and mounts Sigma into a child `.surface` cell
+  via a single `useEffect` keyed by `data` identity. Reused the lab prototype's
+  themed `token()`/`nodeColor()`/`buildGraph()` helpers (every color via `--sf-*`,
+  honoring pre-computed `node.x/y` when present), and forceAtlas2 for the default
+  `"force"` layout. Handlers (`onNodeClick`/`onEdgeClick`/`onSelectionChange`) are
+  read through a `handlersRef` so changing a callback doesn't retear the renderer:
+  `clickNode`→onNodeClick+onSelectionChange, `clickEdge`→onEdgeClick,
+  `clickStage`→onSelectionChange(null). `layout` prop is accepted + defaulted to
+  `"force"` (controlled when the consumer passes it, uncontrolled otherwise); only
+  force is wired here — `applyLayout` takes a `LayoutKind` but the other four fall
+  back to force until 4.2. NOTES/WATCH: (1) deferred the surface `role`/`tabIndex`/
+  keyboard focus to Task 5.3 — Biome's `noNoninteractiveTabindex` flagged a bare
+  `<div role="application" tabIndex={0}>`, and a11y is its own task, so the skeleton
+  surface is a plain render target for now (added a code comment pointing at 5.3).
+  (2) No `Graph.stories.tsx` yet (that's 5.1), so the §3 screenshot step has no story
+  id to shoot — visual evidence is the 2.1 lab screenshot (`/tmp/sigma-medium.png`),
+  same render pipeline. (3) Biome wanted external imports alphabetized BY SOURCE
+  (`graphology*` before `react`) and the barrel's `export type` before `export`;
+  fixed both manually (the script-wrapped `biome check --write` didn't surface fixes).
+  Gate green: typecheck clean, `just check` exit 0 (same 16 pre-existing unrelated
+  warnings — none added), test 54 passed. Next: 4.2 — layout switching (force/tree/
+  radial/concentric/grid) with a reduced-motion snap fallback; tree+grid need the
+  manual coordinate pass flagged in 3.2.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
