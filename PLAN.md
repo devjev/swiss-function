@@ -272,10 +272,14 @@ they will be deleted after selection (Task 3.3).
       + justification (only passing interaction latency, leanest bundle, measurable
       LARGE) + 3 trade-offs (label-only richness, breadth 3/5 → manual tree/grid
       coords, frame must be re-judged on real GPU via the FA2 worker).
-- [ ] **3.3** Remove all losing candidates' dependencies from
+- [x] **3.3** Remove all losing candidates' dependencies from
       `package.json` (+ lockfile via install), delete their `lab/` stories.
       Keep only the winner's prototype as a reference. `just check` +
-      `just typecheck` green.
+      `just typecheck` green. — removed `@antv/g6`, `@xyflow/react`, `cytoscape`,
+      `cytoscape-dagre`, `cytoscape-fcose`, `dagre`, `elkjs`, `react-force-graph-2d`
+      from package.json + lockfile (`npm install` pruned 122 packages); deleted the
+      four losers' `lab/` stories (kept `lab/Sigma.stories.tsx`); dropped the
+      now-orphan `cytoscape-fcose` `declare module` from `src/global.d.ts`. Gate green.
 
 ### Phase 4 — Definitive `Graph` component
 
@@ -1029,10 +1033,23 @@ then richer node content. Record the full table and the arithmetic in §9.
   warnings; no new files). Next: 3.3 — remove the four losers' deps (`cytoscape*`, `dagre`,
   `@xyflow/react`, `elkjs`, `@antv/g6`, `react-force-graph-2d`) + lockfile, delete their
   `lab/` stories, keep only `lab/Sigma.stories.tsx`; `just check` + `just typecheck` green.
-
----
-
-### Appendix — original brief (source of this plan)
+- 2026-06-13 (3.3): Removed the four losing candidates' deps from `package.json`
+  (`@antv/g6`, `@xyflow/react`, `cytoscape`, `cytoscape-dagre`, `cytoscape-fcose`,
+  `dagre`, `elkjs`, `react-force-graph-2d`) and ran `direnv exec . npm install` to
+  prune the lockfile — npm removed 122 packages (571 audited after). Deleted the four
+  losers' `lab/` stories (`Cytoscape`/`G6`/`ReactFlow`/`ReactForceGraph`.stories.tsx),
+  keeping only `lab/Sigma.stories.tsx` as the winner's reference prototype. Removed the
+  orphaned `declare module "cytoscape-fcose"` stub from `src/global.d.ts` (added in 2.2,
+  the only reason it existed). SURPRISE/WATCH: npm pruned the package contents but left
+  two empty scoped parent dirs `node_modules/@antv` and `node_modules/@xyflow` — removed
+  them with `rmdir` so node_modules matches the lockfile (they were not lockfile entries,
+  just stale dirs). Winner deps confirmed intact (`sigma@3.0.3`, `graphology` + its two
+  layout packages). Gate green: typecheck clean, `just check` exit 0 (same 16 pre-existing
+  unrelated warnings — Timeline.tsx etc. — now the ONLY warnings, my removals added none),
+  test 54 passed (unchanged — the `fixtures.test.ts` graph tests don't import any candidate
+  lib). Next: 4.1 — `Graph.tsx` skeleton on the Sigma+graphology stack (props
+  `{data, layout?, onNodeClick?, onEdgeClick?, onSelectionChange?}`, CSS-Grid shell,
+  controlled + uncontrolled `layout`).
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
