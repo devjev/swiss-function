@@ -188,8 +188,10 @@ The loop evaluates exactly these. Each gets a prototype story + a benchmark
 run. (Rationale: bounded set so the loop converges. Trade-offs differ:
 WebGL/canvas libs win on scale; DOM/React-node libs win on rich node content.)
 
-- [ ] **1.0** Record the shortlist + evaluation rubric (§7) into §9 Decision
-      log as the baseline, so later iterations don't relitigate it.
+- [x] **1.0** Record the shortlist + evaluation rubric (§7) into §9 Decision
+      log as the baseline, so later iterations don't relitigate it. — appended a
+      frozen §9 entry: the 5 fixed candidates, the 3 elimination gates, and the
+      weighted-score table with explicit linear-clamp normalization + tie-break.
 
 Candidates:
 1. **Sigma.js + graphology** — WebGL renderer; graphology layouts
@@ -387,6 +389,51 @@ then richer node content. Record the full table and the arithmetic in §9.
   Output is a single stdout JSON line `{story, layoutMs, p95FrameMs, heapMB,
   p95InteractionMs}`. `heapMB` is `null` outside Chromium's `performance.memory`.
 
+- 2026-06-13 (1.0): **Candidate shortlist + selection rubric — BASELINE (frozen).**
+  This is the binding evaluation set for Phase 2/3. Do NOT re-research or add/remove
+  candidates; the loop evaluates exactly these five, one prototype + one
+  `probe-graph.mjs` run each, all on the **LARGE** fixture (10k nodes / ~20k edges)
+  at 1280×900. Each candidate's added **gzipped bundle cost** is recorded here when
+  its prototype is built; losing deps are removed in Task 3.3.
+
+  **The five candidates (fixed):**
+  1. **Sigma.js + graphology** — WebGL renderer; graphology layouts (forceAtlas2,
+     circular, …). Scale champion; node content is label-only (canvas/WebGL).
+  2. **Cytoscape.js** (+ `dagre`, `fcose`, `cose-bilkent`, `klay`/`elk`) — broadest
+     layout catalogue (hierarchical / tree / concentric). Canvas renderer.
+  3. **@xyflow/react (React Flow)** + **elkjs** (or `dagre`) — rich custom React
+     DOM nodes (best for arbitrary dense node content); layered/tree auto-layout.
+     Expected to win node-richness, lose raw scale.
+  4. **G6 (AntV)** — canvas/WebGL; built-in mindmap / dendrogram / compactBox /
+     dagre / radial layouts + minimap / tooltip / context-menu plugins.
+  5. **react-force-graph** — force-directed baseline / reference point.
+
+  **Gates (fail any one ⇒ candidate eliminated before scoring):**
+  - **Themable** — node/edge/background colors + label font drivable by `--sf-*`
+    tokens.
+  - **Interactive scale** — p95 frame time ≤ 33ms (≥30fps) during pan/zoom on LARGE
+    (`p95FrameMs` from the harness).
+  - **Interaction latency** — p95 input-to-paint <120ms across click / hover /
+    context-menu / control / layout-switch on LARGE (`p95InteractionMs` from the
+    harness; `null` ⇒ automatic fail).
+
+  **Weighted score (higher = better), among gate-passers** (weights sum to 100%):
+  | Criterion             | Weight | Measure → normalized score                              |
+  | --------------------- | ------ | ------------------------------------------------------- |
+  | Frame perf (pan/zoom) | 25%    | `p95FrameMs`: 16ms→1, 33ms→0 (linear, clamp [0,1])      |
+  | Interaction latency   | 20%    | `p95InteractionMs`: 40ms→1, 120ms→0 (linear, clamp)     |
+  | Initial layout time   | 10%    | `layoutMs` on LARGE: ≤1000ms→1, ≥4000ms→0 (linear)      |
+  | Layout breadth        | 18%    | # of the 5 required layouts natively supported ÷ 5      |
+  | Node richness         | 17%    | arbitrary/custom node content: full=1, label-only=0.3   |
+  | Bundle cost           | 10%    | added gzip kB: ≤80kB→1, ≥250kB→0 (linear, clamp)        |
+
+  Normalization is linear between the two anchor points and clamped to [0,1]:
+  `score = clamp((hi − value) / (hi − lo), 0, 1)` for lower-is-better criteria
+  (frame/interaction/layout/bundle), and the direct ratio for breadth/richness.
+  Weighted total = Σ(weight × criterion score). **Tie-break** (Δtotal < 0.05):
+  smaller bundle, then fewer transitive deps, then richer node content. Phase 3
+  records the full per-candidate table + the arithmetic and declares the winner.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -448,6 +495,17 @@ then richer node content. Record the full table and the arithmetic in §9.
   passed, check exit 0 with the same 16 pre-existing warnings (script adds zero
   new warnings — used `process.stdout/stderr.write` instead of `console`). Next:
   1.0 — record the shortlist + §7 rubric into §9 as the baseline.
+- 2026-06-13 (1.0): Froze the candidate shortlist + selection rubric into §9 as the
+  binding baseline for Phase 2/3 (docs-only; no code touched). Restated the 5 fixed
+  candidates (Sigma+graphology, Cytoscape, React Flow+elkjs, G6, react-force-graph),
+  the 3 elimination gates (themable / p95 frame ≤33ms / p95 interaction <120ms — a
+  `null` interaction latency = auto-fail, tying back to the 0.5 hook contract), and
+  the 6-criterion weighted table with an explicit `clamp((hi−value)/(hi−lo),0,1)`
+  normalization rule and the bundle→deps→richness tie-break, so Phase 3 arithmetic
+  is deterministic. Gate green: typecheck clean, test 54 passed, check exit 0 with
+  the same 16 pre-existing unrelated warnings (no new files). Next: 2.1 — prototype
+  Sigma.js + graphology (install dep, add `lab/Sigma.stories.tsx` exposing the
+  `[data-graph-*]` hooks, run `probe-graph.mjs`, record metrics + gzip bundle in §9).
 
 ---
 
