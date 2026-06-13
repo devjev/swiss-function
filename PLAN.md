@@ -241,7 +241,18 @@ they will be deleted after selection (Task 3.3).
       MEDIUM probe `{layoutMs:62679,p95FrameMs:233.3,heapMB:202.18,p95InteractionMs:64.7}`;
       LARGE **DNF — d3-force on 10k never reaches a stable `[data-graph-ready]` (timed out
       at 200s, EXIT 124)**; G6 bundle ≈382kB gz (huge). All in §9.
-- [ ] **2.5** Prototype **react-force-graph** → story + benchmark + §9.
+- [x] **2.5** Prototype **react-force-graph** → story + benchmark + §9. — added
+      `lab/ReactForceGraph.stories.tsx` (force-graph 2D canvas variant
+      `react-force-graph-2d`; force = d3-force, hierarchical = `dagMode:"td"`;
+      `cooldownTicks:60` bounds LARGE so it actually settles — unlike React
+      Flow/G6's LARGE DNF). Full `[data-graph-*]` hooks, token-themed (themable
+      PASS, `/tmp/rfg-medium.png`). MEDIUM probe
+      `{layoutMs:16110,p95FrameMs:16.7,heapMB:110.63,p95InteractionMs:31.1}`
+      (60fps, 31ms interactions); LARGE
+      `{layoutMs:13932,p95FrameMs:283.3,heapMB:57.51,p95InteractionMs:522.6}`
+      (522ms dominated by the tree-DAG re-layout folded into p95, as with the
+      other canvas candidates). Bundle ≈119kB gz (rfg2d 61 + force-graph 56 +
+      react-kapsule 1) — leanest of the five. All in §9.
 
 ### Phase 3 — Auto-select the winner (by the §7 rubric)
 
@@ -609,6 +620,58 @@ then richer node content. Record the full table and the arithmetic in §9.
     still be re-judged in Phase 3 across all candidates measured the same (headless) way.
     Next: 2.5 — react-force-graph prototype, same hooks, same harness runs.
 
+- 2026-06-13 (2.5): **Candidate 5 — react-force-graph (2D canvas) — benchmark.**
+  Prototype `src/components/Graph/lab/ReactForceGraph.stories.tsx` (the 2D canvas
+  variant `react-force-graph-2d` — the relevant entry for a flat dense graph view;
+  the umbrella `react-force-graph` also ships 3D/three.js/VR/AR builds that are out
+  of scope. Single canvas renderer over `force-graph` + d3-force. force =
+  unconstrained d3-force; hierarchical = `dagMode:"td"` top-down DAG). Like the
+  other canvas candidates (Sigma/Cytoscape/G6) there is no per-node DOM, so one
+  reference node's screen position (`graph2ScreenCoords(node.x,node.y)`, refreshed
+  on `onZoom`/`onEngineStop`) is mirrored as the invisible `[data-graph-node]`
+  overlay for the harness's click / hover / right-click target; selection / tooltip
+  / context-menu / zoom-in control (`zoom(zoom()*1.4)`) / layout-switch all wired
+  via `onNodeClick`/`onNodeHover`/`onNodeRightClick`. Node fill is a per-datum
+  `nodeColor=(n)=>nodeColor(n.kind)` reading `--sf-*` tokens off `getComputedStyle`;
+  edges/labels/background also token-driven (themable gate: PASS — see
+  `/tmp/rfg-medium.png`, multi-kind colored nodes + subtle edges, force layout,
+  legible, no clipping). `[data-graph-ready]` is set in `onEngineStop` (the engine
+  fires it once the simulation cools) → real first-stable-layout `layoutMs`.
+  - **Deps added (versions):** `react-force-graph-2d@1.29.1` (pulls `force-graph`,
+    `react-kapsule`, `prop-types`; `force-graph` inlines d3-force).
+  - **`probe-graph.mjs graph--lab--reactforcegraph--medium` (MEDIUM 1k/2k, 1280×900):**
+    `{"layoutMs":16110,"p95FrameMs":16.7,"heapMB":110.63,"p95InteractionMs":31.1}`.
+    p95FrameMs 16.7ms = ~60fps and p95InteractionMs 31.1ms — both comfortably inside
+    the §7 gates on MEDIUM (the canvas renderer is far cheaper than React Flow's
+    1k-DOM-node MEDIUM, which was 322ms).
+  - **`probe-graph.mjs graph--lab--reactforcegraph--large` (LARGE 10k/19997, 1280×900):**
+    `{"layoutMs":13932,"p95FrameMs":283.3,"heapMB":57.51,"p95InteractionMs":522.6}`.
+    NOTABLE: react-force-graph **reaches a stable LARGE layout** (`cooldownTicks:60`
+    bounds the simulation, so `onEngineStop` fires and `layoutMs`=13.9s is a real
+    settle time) — unlike React Flow's DOM-node wall DNF and G6's d3-force-never-
+    settles DNF. Heap 57.5MB is the leanest LARGE of the canvas candidates (vs
+    Cytoscape 527MB).
+  - **Headless-GPU caveat (same as 2.1/2.2/2.4):** `p95FrameMs` 283ms is headless
+    software canvas rasterization with no GPU → pessimistic vs a real GPU. And
+    `p95InteractionMs` 522.6ms is dominated by the layout-switch (tree-DAG re-layout
+    on 10k folded into the p95) — the click/hover/context-menu/control interactions
+    on MEDIUM were 31ms, so the per-interaction cost away from a full re-layout is
+    fine; the §7 interaction-latency gate should arguably exclude the multi-second
+    full-graph re-layout (or measure first-transition-frame) when finalized, as
+    already flagged for Cytoscape in 2.2.
+  - **Bundle cost (measured):** combined ≈119kB gzip (`react-force-graph-2d.min.js`
+    61kB + `force-graph.min.js` 56kB + `react-kapsule` 1kB). Between the §7 anchors
+    (≤80kB→1, ≥250kB→0) → bundle score ≈ (250−119)/(250−80) ≈ 0.77 — by far the
+    leanest of the five (Sigma's graphology+sigma bulk, elkjs 458kB, G6 382kB).
+  - **Phase 3 read (do not pre-eliminate — Task 3.1/3.2's job):** react-force-graph
+    is the d3-force reference baseline; it has the **narrowest native layout breadth**
+    (essentially force + DAG modes td/bu/lr/rl/radialout/radialin — covers
+    force/tree/radial but not concentric/grid natively) and **label-only node
+    richness** (canvas, no DOM nodes), but it is the **leanest bundle**, has the
+    **best MEDIUM interaction/frame numbers**, and is one of only three candidates
+    that produce a **measurable LARGE layout** (with Sigma + Cytoscape). All five
+    Phase-2 prototypes are now benchmarked → Phase 3 (3.1 comparison table) is next.
+
 ---
 
 ## 10. Progress notes (append-only — newest at bottom)
@@ -779,6 +842,36 @@ then richer node content. Record the full table and the arithmetic in §9.
   edges, no clipping — themable PASS). Gate green: typecheck clean, test 54 passed, check
   exit 0 with the same 16 pre-existing warnings (my new file is clean). Next: 2.5 —
   react-force-graph prototype, same hooks, same harness runs.
+- 2026-06-13 (2.5): Built the fifth and final Phase-2 prototype — react-force-graph
+  (2D canvas) — in `src/components/Graph/lab/ReactForceGraph.stories.tsx` (Medium +
+  Large exports). Installed `react-force-graph-2d@1.29.1` (the 2D canvas variant;
+  the umbrella `react-force-graph` also ships 3D/three.js/VR/AR which are out of
+  scope for a flat Swiss graph view). API: `<ForceGraph2D ref={...} graphData=
+  {nodes,links} .../>`; force = d3-force, hierarchical = `dagMode:"td"`; ref methods
+  `zoom()`/`graph2ScreenCoords()` for the zoom control + the `[data-graph-node]`
+  overlay; events `onNodeClick`/`onNodeHover`/`onNodeRightClick`; `onEngineStop`
+  fires when the simulation cools → I set `[data-graph-ready]` there (a *real*
+  first-stable-layout signal, unlike the timeout fallbacks the React Flow/G6 runs hit).
+  Types ship with the package (no `declare module` needed). Same canvas-overlay
+  technique as Sigma/Cytoscape/G6. BIG FINDING: this candidate **actually settles a
+  LARGE layout** — `cooldownTicks:60` bounds the sim so `onEngineStop` fires (LARGE
+  `layoutMs` 13.9s), where React Flow (DOM-node wall) and G6 (d3-force never settles)
+  both DNF'd. MEDIUM is the best of the lot: `p95FrameMs 16.7` (~60fps), `p95Interaction
+  31.1ms`. LARGE `{layoutMs:13932,p95FrameMs:283.3,heapMB:57.51,p95InteractionMs:522.6}`
+  — 522ms is the tree-DAG re-layout folded into p95 (per-interaction is 31ms on MEDIUM),
+  283ms frame is the same headless-software-canvas pessimism as the other canvas candidates.
+  Measured bundle: ≈119kB gz total (rfg2d 61 + force-graph 56 + react-kapsule 1) — leanest
+  of the five. Ran both probes against the dev server on **61000** (not 61001 — config sets
+  61000, pass the base-url explicitly). Screenshot helpers hardcode 61001 so used an inline
+  preview shot from the repo dir → `/tmp/rfg-medium.png` (themed multi-kind colors, subtle
+  edges, no clipping — themable PASS). WATCH: react-force-graph's native layout breadth is
+  narrow (force + DAG modes only — covers force/tree/radial but NOT concentric/grid; those
+  would need a manual coordinate pass in Phase 4 if it wins) and node content is label-only
+  (canvas). Recorded all metrics + the Phase-3 read in §9; did NOT pre-eliminate (3.1/3.2's
+  job). Gate green: typecheck clean, test 54 passed, check exit 0 with the same 16
+  pre-existing warnings (my new file is clean). **All five Phase-2 prototypes now
+  benchmarked.** Next: 3.1 — compile the §9 metrics into the Phase-3 comparison table and
+  apply the §7 gates/rubric.
 
 ---
 
