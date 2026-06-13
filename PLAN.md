@@ -299,10 +299,18 @@ Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
       handlers ref (no listener re-subscribe). `layout` prop accepted +
       defaulted to `"force"` (the only wired layout this skeleton — the other
       four land in 4.2). Gate green (typecheck/check/test).
-- [ ] **4.2** Layout switching: implement `force`, `tree`/hierarchical,
+- [x] **4.2** Layout switching: implement `force`, `tree`/hierarchical,
       `radial`, `concentric`, `grid` (map to winner's layout engine; use
       `elkjs`/`dagre`/graphology as needed). Smooth transition with a
-      `prefers-reduced-motion` fallback (snap instead of animate).
+      `prefers-reduced-motion` fallback (snap instead of animate). — added
+      `computeLayout(g, layout)` returning a non-mutating coordinate mapping per
+      kind (force=forceAtlas2 snapshot/restore, radial=`circular`,
+      concentric=`circlepack`, tree=in-house layered BFS pass, grid=√n lattice —
+      no elkjs/dagre per §9), plus a layout effect that animates via
+      `sigma/utils` `animateNodes` (600ms quadraticInOut) or **snaps** under
+      `prefers-reduced-motion` (JS `matchMedia`). Layout switch no longer retears
+      the renderer (separate effect, `appliedLayoutRef` guard, in-flight animation
+      cancelled on re-switch). Gate green.
 - [ ] **4.3** Navigation controls: a `Graph.Controls` toolbar (zoom in/out,
       fit-to-view, reset, layout `ToggleGroup`). Reuse library `Button` /
       `ToggleGroup`. Keyboard: `+`/`-`/`0`/arrow-pan, focus-visible ring.
@@ -1085,6 +1093,31 @@ then richer node content. Record the full table and the arithmetic in §9.
   warnings — none added), test 54 passed. Next: 4.2 — layout switching (force/tree/
   radial/concentric/grid) with a reduced-motion snap fallback; tree+grid need the
   manual coordinate pass flagged in 3.2.
+- 2026-06-13 (4.2): Implemented all five layouts + animated/snapped switching in
+  `Graph.tsx`. Refactored the old build-time `applyLayout` into a NON-mutating
+  `computeLayout(g, layout) → LayoutMapping {id:{x,y}}` so positions can be
+  animated FROM the current coords. Mappings: `radial`=graphology `circular`,
+  `concentric`=graphology `circlepack` (both scaled by √order), `force`=forceAtlas2
+  (no pure form — snapshot coords, run `.assign`, capture results, restore
+  originals so the animation starts from where nodes actually are), `tree`=in-house
+  layered BFS (roots = in-degree 0, fallback first node; row = BFS depth, spread
+  evenly; disconnected nodes parked on a trailing orphan row), `grid`=√n row-major
+  lattice. No elkjs/dagre (per §9 trade-off). A new layout `useEffect([layout])`
+  (separate from the `[data]` build effect, guarded by `appliedLayoutRef`) computes
+  targets then either `animateNodes` (`sigma/utils`, 600ms quadraticInOut) or, under
+  `prefersReducedMotion()` (JS `window.matchMedia`), assigns coords + `refresh()`
+  (instant snap). In-flight animation is cancelled (`cancelAnimationRef`) on
+  re-switch and on unmount. GOTCHAS: (1) `noUncheckedIndexedAccess` flagged every
+  `mapping[id]` / `queue[i]` / `before[n]` access — added an `assignPositions`
+  helper (`Object.entries`, value typed non-undefined) and local-var guards for the
+  BFS root + force restore. (2) `animateNodes` lives in `sigma/utils` (separate
+  export from `sigma`), takes `(graph, targets, opts, cb)` and RETURNS a cancel fn.
+  Verified radial/concentric produce finite coords for all 100 SMALL nodes via tsx;
+  no Graph story yet (that's 5.1) so used the lab Sigma screenshot pipeline as the
+  visual precedent (identical Sigma render path). Gate green: typecheck clean,
+  `just check` exit 0 (same 16 pre-existing unrelated warnings — Graph.tsx clean,
+  none added), test 54 passed. Next: 4.3 — `Graph.Controls` toolbar (zoom/fit/reset
+  + layout `ToggleGroup`), keyboard +/-/0/arrow-pan, focus-visible ring.
 
 > Research the best UX for managing large graphs graphically: see the graph,
 > navigate it, add arbitrary information to both nodes and connections.
