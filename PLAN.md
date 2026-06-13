@@ -150,11 +150,14 @@ Keep messages scoped to the single task. Do not push.
       `label`, `weight`, `data`), `GraphData` = `{ nodes, edges }`. Export
       `LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid"`. — added
       pure TS interfaces + `LayoutKind` union with JSDoc; gate green.
-- [ ] **0.3** Add a deterministic synthetic-graph generator in
+- [x] **0.3** Add a deterministic synthetic-graph generator in
       `src/lib/graph/fixtures.ts`: `makeGraph({ nodes, avgDegree, shape })`
       where `shape ∈ "scaleFree" | "tree" | "clustered"`. Seeded RNG (no
       `Math.random` reliance for reproducibility — accept a `seed`). Export
-      ready-made `SMALL` (100 nodes), `MEDIUM` (1k), `LARGE` (10k).
+      ready-made `SMALL` (100 nodes), `MEDIUM` (1k), `LARGE` (10k). — mulberry32
+      seeded PRNG + 3 shapes (BA preferential attachment / rooted tree /
+      sqrt(n) communities); SMALL 100/197, MEDIUM 1000/2000, LARGE 10000/19997,
+      no dangling edges, byte-identical per seed; gate green.
 - [ ] **0.4** Unit-test the generator in `src/lib/graph/fixtures.spec.ts`
       (node/edge counts, determinism for a fixed seed, no dangling edges).
 - [ ] **0.5** Add the benchmark harness `scripts/probe-graph.mjs` (model it
@@ -371,6 +374,18 @@ _(empty — first benchmark/decision entries go here)_
   unknown>`) so fixtures/tests can omit it. Gate green (typecheck clean, check
   exit 0 with the same 16 pre-existing unrelated warnings, test 42 passed). Next:
   0.3 — synthetic-graph generator `src/lib/graph/fixtures.ts` (seeded RNG).
+- 2026-06-13 (0.3): Added `src/lib/graph/fixtures.ts`. `mulberry32(seed)` PRNG
+  (no `Math.random`) drives three shapes: `scaleFree` (Barabási–Albert
+  preferential attachment → hub structure, mean degree ≈ avgDegree),
+  `tree` (one uniform earlier parent per node → exactly n−1 edges, connected,
+  acyclic, ignores avgDegree), `clustered` (~sqrt(n) communities, 85% intra /
+  15% inter-cluster edges). De-duplicates undirected edge keys, no self-loops.
+  Exports `SMALL` (100/197), `MEDIUM` (1000/2000, clustered), `LARGE`
+  (10000/19997, scale-free) — verified via tsx: counts, no dangling edges,
+  determinism for a fixed seed. Gate green (typecheck clean; `just format`
+  reformatted the const literals then check exit 0 with the same 16 pre-existing
+  warnings; test 42 passed). Next: 0.4 — unit-test the generator in
+  `fixtures.spec.ts` (counts, determinism, no dangling edges).
 
 ---
 
