@@ -1,0 +1,380 @@
+# PLAN — Graph visualization component (`Graph`)
+
+> **This file is the single source of truth for an autonomous ralph loop.**
+> Each iteration starts with **fresh context and no memory**. Everything you
+> need is in this file. Read it top-to-bottom every time before doing anything.
+
+---
+
+## 0. Mission
+
+Add a first-class **`Graph`** component to `@tarassov-ch/swiss-function` for
+viewing and navigating **large** graphs (target: 10k nodes / ~20k edges,
+interactive) with **dense, legible** layouts — not just disorderly force
+blobs, but also **hierarchical / concept-tree / mind-map / file-tree** layouts.
+Nodes and edges must be able to carry **arbitrary structured information**, and
+the view must offer navigation (pan/zoom/fit/focus), layout switching, control
+elements, and context (right-click) menus.
+
+**Performant means two things, not one:** (a) the graph *renders* at scale, and
+(b) *interacting with the interface feels instant* — every discrete user
+interaction (node click/select, hover→tooltip, opening the context menu,
+toggling a control, starting a layout switch) produces a visible response in
+**under 120ms** (input-to-paint). A graph that paints fast but lags on click is
+a failure. Both are gated.
+
+The path is: **scaffold → prototype a fixed shortlist of libraries →
+benchmark with Playwright → auto-select the winner by metrics → build the
+definitive component → test, document, ship.**
+
+---
+
+## 1. Ralph loop protocol — READ FIRST, EVERY ITERATION
+
+Do this, in order, every single iteration:
+
+1. **Read this entire file**, including the **Decision log** (§9) and
+   **Progress notes** (§10). They are how past-you talks to present-you.
+2. **Confirm the working branch.** All work happens on `feat/graph`.
+   ```bash
+   git rev-parse --abbrev-ref HEAD   # if not feat/graph:
+   git checkout feat/graph 2>/dev/null || git checkout -b feat/graph main
+   ```
+3. **Pick exactly ONE task** — the *first* unchecked `[ ]` checkbox in §5,
+   reading top-to-bottom. Tasks are ordered; do not skip ahead. If a task
+   has unchecked sub-tasks, the first unchecked sub-task is your task.
+4. **Do only that one task.** Smallest correct, shippable change. Resist
+   scope creep. If you discover the task is too big, split it: replace it
+   with 2–4 finer `[ ]` sub-tasks, then do the first one.
+5. **Verify** with the gate in §3. The gate must be green.
+6. **If green:**
+   - Tick the box: `[ ]` → `[x]`, and append `— <one-line what/why>` to it.
+   - Add a dated bullet to **§10 Progress notes** (what changed, any
+     surprise, what the next iteration should watch for).
+   - If the task recorded a decision (e.g. benchmark result, library
+     pick), append it to **§9 Decision log**.
+   - **Commit** (see §4). One task → one commit.
+7. **If blocked / not green:** do **not** tick the box. Append a
+   `> BLOCKED: <reason + what you tried>` note under the task and a bullet
+   in §10, commit any safe partial progress as `wip:` *only if it builds*,
+   otherwise revert your edits. Then stop.
+8. **Stop after one task.** The loop re-invokes you for the next one.
+
+**Hard rules**
+
+- One task, one commit, per iteration. Never batch unrelated tasks.
+- Never work off `main`. Never `git push` (a human reviews/merges).
+- Never delete or rewrite §0–§4, §6, §8 of this file. You may only
+  tick boxes in §5, split a task into sub-tasks, and append to §9/§10.
+- If every box in §5 is `[x]`, the project is done: append a final note
+  to §10 saying so and stop without making changes.
+
+---
+
+## 2. Environment & how to run things
+
+- **NixOS**: `node`/`npm` are not on the bare PATH. This repo has `direnv`
+  + a flake (`.envrc`, `flake.nix`). Commands assume the dev shell is
+  active. If `npm` is missing, run inside `nix develop` / let direnv load.
+- Prefer the **`just`** recipes (see `justfile`):
+  - `just dev` — Ladle story server on **http://localhost:61001**.
+  - `just check` — Biome lint + format check.
+  - `just typecheck` — `tsc --noEmit`.
+  - `just test` — vitest once.
+  - `just test-ct` — Playwright component tests.
+  - `just build` — library build (tsc d.ts + vite + postbuild).
+- **Screenshots** for visual checks: `node scripts/screenshot-story.mjs
+  <story-id> [outfile]` (Ladle id is `<file>--<export>`, lowercased).
+  Requires `just dev` running.
+- **Perf probing** pattern: see `scripts/probe-virtualization.mjs` — a
+  headless Playwright script that drives a Ladle story and measures.
+  The Graph benchmark harness (Task 2.x) follows this exact pattern.
+
+---
+
+## 3. Verification gate (the change is only "green" if ALL pass)
+
+Run, in this order, scoped to what you touched but at minimum:
+
+```bash
+just typecheck      # no TS errors
+just check          # Biome lint + format clean (run `just format` to fix)
+just test           # vitest green
+```
+
+When the task touches rendering/layout/interaction, **also**:
+
+- Start `just dev` (if not running) and screenshot the relevant story with
+  `scripts/screenshot-story.mjs`; eyeball it — no overlap/clipping, themed
+  colors, legible labels.
+- For perf tasks, run the benchmark harness (§5 Phase 2/3) and record
+  numbers in §9. A perf task is only green if **p95 interaction latency
+  <120ms** on `LARGE`, in addition to the frame-rate target.
+
+`just test-ct` and `just build` are required green for the **Phase 5/6**
+finishing tasks, not for every iteration (they are slower).
+
+---
+
+## 4. Commit convention
+
+```bash
+git add -A
+git commit -m "graph: <imperative summary of the one task>
+
+<optional 1–3 line body: what & why>
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
+```
+
+Keep messages scoped to the single task. Do not push.
+
+---
+
+## 5. The plan (task checkboxes — tick as you complete)
+
+> Convention reminders that apply to **every** code task (full rules in
+> `AGENTS.md` + `AESTHETICS.md`): tokens not literals (`--sf-*`), **CSS
+> Grid** for layout, `cx()` for classNames, sharp corners
+> (`--sf-radius-default`), **never grey body text**, always a
+> `prefers-reduced-motion` fallback, no new color tokens, no utility-class
+> libs, no emoji/personality. Component dir layout:
+> `src/components/<Name>/{<Name>.tsx, <Name>.module.css, <Name>.stories.tsx, index.ts}`.
+
+### Phase 0 — Scaffold & shared infrastructure
+
+- [x] **0.1** Create branch `feat/graph` off `main` (if not already on it). — created `feat/graph` from `main`; baseline gate (typecheck/check/test) green.
+- [ ] **0.2** Add a shared graph data model in `src/lib/graph/types.ts`:
+      `GraphNode` (`id`, optional `label`, `kind`, `data: Record<string, unknown>`,
+      optional `x`/`y`), `GraphEdge` (`id`, `source`, `target`, optional
+      `label`, `weight`, `data`), `GraphData` = `{ nodes, edges }`. Export
+      `LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid"`.
+- [ ] **0.3** Add a deterministic synthetic-graph generator in
+      `src/lib/graph/fixtures.ts`: `makeGraph({ nodes, avgDegree, shape })`
+      where `shape ∈ "scaleFree" | "tree" | "clustered"`. Seeded RNG (no
+      `Math.random` reliance for reproducibility — accept a `seed`). Export
+      ready-made `SMALL` (100 nodes), `MEDIUM` (1k), `LARGE` (10k).
+- [ ] **0.4** Unit-test the generator in `src/lib/graph/fixtures.spec.ts`
+      (node/edge counts, determinism for a fixed seed, no dangling edges).
+- [ ] **0.5** Add the benchmark harness `scripts/probe-graph.mjs` (model it
+      on `probe-virtualization.mjs`): given a Ladle story id, measure
+      **(a)** time from navigation to first stable layout paint,
+      **(b)** p95 frame time during a scripted pan+zoom over ~3s,
+      **(c)** JS heap size (`performance.memory` when available),
+      **(d)** **interaction latency** — input-to-next-paint for each of:
+      node click→selection, hover→tooltip visible, right-click→context menu
+      visible, control toggle→effect, layout-switch trigger→first transition
+      frame. Measure each via `performance.now()` around dispatched events +
+      a `requestAnimationFrame`/paint observer; report the **p95 across all
+      interactions**. Print a single JSON line
+      `{story, layoutMs, p95FrameMs, heapMB, p95InteractionMs}`.
+
+### Phase 1 — Candidate shortlist (fixed — do NOT re-research from scratch)
+
+The loop evaluates exactly these. Each gets a prototype story + a benchmark
+run. (Rationale: bounded set so the loop converges. Trade-offs differ:
+WebGL/canvas libs win on scale; DOM/React-node libs win on rich node content.)
+
+- [ ] **1.0** Record the shortlist + evaluation rubric (§7) into §9 Decision
+      log as the baseline, so later iterations don't relitigate it.
+
+Candidates:
+1. **Sigma.js + graphology** — WebGL renderer; graphology layouts
+   (forceAtlas2, circular, etc.). Scale champion.
+2. **Cytoscape.js** (+ layout extensions `dagre`, `fcose`, `cose-bilkent`,
+   `klay`/`elk`) — broadest layout catalogue (hierarchical/tree/concentric).
+3. **@xyflow/react (React Flow)** + **elkjs** (or `dagre`) — rich custom
+   React nodes (best for arbitrary dense node content); layered/tree auto-layout.
+4. **G6 (AntV)** — canvas/WebGL; built-in mindmap/dendrogram/compactBox/
+   dagre/radial layouts + minimap/tooltip/context-menu plugins.
+5. **react-force-graph** — force-directed baseline (reference point).
+
+> Install each candidate only when starting its prototype task, and record
+> the **added gzipped bundle cost** in §9. Do not leave unused deps in
+> `package.json` — losing candidates' deps are removed in Task 3.3.
+
+### Phase 2 — Prototypes (one Ladle story per candidate, in a throwaway `lab/`)
+
+Prototypes live in `src/components/Graph/lab/` as `<Candidate>.stories.tsx`.
+Each prototype must: render `MEDIUM` and `LARGE` fixtures; support pan/zoom/fit;
+offer **at least** force + one hierarchical/tree layout; color nodes/edges via
+`--sf-*` tokens; show a node label + a tooltip with `data`. Keep them minimal —
+they will be deleted after selection (Task 3.3).
+
+- [ ] **2.1** Prototype **Sigma.js + graphology** → story + run
+      `probe-graph.mjs`; record metrics + bundle cost in §9.
+- [ ] **2.2** Prototype **Cytoscape.js** (+ dagre/fcose) → story + benchmark + §9.
+- [ ] **2.3** Prototype **React Flow + elkjs** → story + benchmark + §9.
+- [ ] **2.4** Prototype **G6** → story + benchmark + §9.
+- [ ] **2.5** Prototype **react-force-graph** → story + benchmark + §9.
+
+### Phase 3 — Auto-select the winner (by the §7 rubric)
+
+- [ ] **3.1** Compile all §9 candidate metrics into a comparison table in
+      §9. Apply the §7 rubric: drop any candidate failing a **gate**
+      (themable via tokens; ≥30fps p95 on LARGE), then score the rest.
+- [ ] **3.2** **Declare the winner** in §9 with the computed weighted scores
+      and a 2–3 sentence justification + noted trade-offs. This is the
+      binding decision for Phase 4.
+- [ ] **3.3** Remove all losing candidates' dependencies from
+      `package.json` (+ lockfile via install), delete their `lab/` stories.
+      Keep only the winner's prototype as a reference. `just check` +
+      `just typecheck` green.
+
+### Phase 4 — Definitive `Graph` component
+
+Build under `src/components/Graph/` using the winner. `forwardRef`, spreads
+`...rest` to root, `cx()` for classNames, all visuals via tokens.
+
+- [ ] **4.1** `Graph.tsx` skeleton: props `{ data: GraphData, layout?:
+      LayoutKind, onNodeClick?, onEdgeClick?, onSelectionChange? }`, renders
+      the winner's canvas/surface inside a CSS-Grid shell
+      (`Graph.module.css`). Controlled + uncontrolled `layout`.
+- [ ] **4.2** Layout switching: implement `force`, `tree`/hierarchical,
+      `radial`, `concentric`, `grid` (map to winner's layout engine; use
+      `elkjs`/`dagre`/graphology as needed). Smooth transition with a
+      `prefers-reduced-motion` fallback (snap instead of animate).
+- [ ] **4.3** Navigation controls: a `Graph.Controls` toolbar (zoom in/out,
+      fit-to-view, reset, layout `ToggleGroup`). Reuse library `Button` /
+      `ToggleGroup`. Keyboard: `+`/`-`/`0`/arrow-pan, focus-visible ring.
+- [ ] **4.4** Node rendering with **arbitrary content**: a `renderNode`
+      escape hatch (or label + badge + color-by-`kind` defaults). Edges:
+      optional labels, weight→thickness, directed arrowheads.
+- [ ] **4.5** Tooltip/inspector on hover/select showing node/edge `data`
+      (reuse `Popover` or the chart `Tooltip` from `src/lib/chart`).
+- [ ] **4.6** Right-click **context menu** via the `Menu` component
+      (focus/expand/hide/pin actions, exposed through an
+      `onNodeContextMenu` / `contextMenuItems` prop).
+- [ ] **4.7** Minimap + viewport indicator for large-graph navigation
+      (winner's plugin if available, else a lightweight overview canvas).
+- [ ] **4.8** Theming pass: every color/font/size driven by `--sf-*`;
+      verify in both `data-theme="light"` and `"dark"`. No hard-coded hex.
+- [ ] **4.9** Performance pass on `LARGE`: keep p95 frame ≥30fps **and p95
+      interaction latency <120ms** (click/hover/context-menu/control/layout-
+      switch). Lazy/throttle layout; debounce resize; virtualize/cull
+      offscreen labels; keep hit-testing off the main thread / spatially
+      indexed so picking stays cheap; defer heavy work behind the first paint
+      of a response. Re-run `probe-graph.mjs`, record final numbers in §9.
+
+### Phase 5 — Stories, tests, docs, exports
+
+- [ ] **5.1** `Graph.stories.tsx`: `Playground` (Ladle args for size/layout),
+      plus stories for each layout, dense-node content, context menu, and a
+      `LargeStress` story bound to the `LARGE` fixture.
+- [ ] **5.2** `Graph.spec.tsx` unit/interaction tests: renders given data,
+      layout switch updates positions, node click fires handler, context
+      menu opens. (Use existing component spec patterns.)
+- [ ] **5.3** Accessibility: container role/label, keyboard navigation
+      between nodes, focus order, screen-reader summary of node/edge counts;
+      `prefers-reduced-motion` honored. Verify with `just test-ct`.
+- [ ] **5.4** `src/components/Graph/index.ts` barrel re-export (component +
+      public types).
+- [ ] **5.5** Register exports: add `export * from "./components/Graph";` to
+      `src/index.ts` (alphabetical) **and** the `./graph` entry to
+      `package.json` `exports`. Confirm `just build` succeeds and
+      `dist/components/Graph/index.{js,d.ts}` exist.
+- [ ] **5.6** Docs: add a `Graph` row to the `AGENTS.md` component catalogue
+      and the "reach for Y" table ("a network / dependency graph / mind map"
+      → `Graph`). Keep the house tone (no marketing fluff).
+
+### Phase 6 — Finish
+
+- [ ] **6.1** Full gate: `just check && just typecheck && just test &&
+      just test-ct && just build` all green. Record in §10.
+- [ ] **6.2** Delete the leftover `lab/` reference prototype and
+      `scripts/probe-graph.mjs` if no longer needed (keep the harness if
+      useful for regression — note the choice in §10).
+- [ ] **6.3** Final review against §6 Definition of Done; tick remaining
+      items or open finer tasks for any gap. Append "PROJECT COMPLETE" to
+      §10 when all boxes above are `[x]`.
+
+---
+
+## 6. Definition of Done
+
+- `Graph` ships from `@tarassov-ch/swiss-function/graph` and the barrel.
+- Renders 10k nodes interactively at ≥30fps p95 pan/zoom on a 1280×900 view,
+  **and** every discrete interaction (click/hover/context-menu/control/
+  layout-switch) responds in <120ms p95 (input-to-paint).
+- Offers force + hierarchical/tree + radial + concentric + grid layouts,
+  switchable at runtime with reduced-motion respected.
+- Nodes/edges carry arbitrary `data`; nodes support custom content; tooltip
+  + right-click `Menu` + zoom/fit/reset controls + minimap all work.
+- Fully token-themed, correct in light **and** dark.
+- Stories (incl. a large-stress story), unit + CT tests, and a11y in place.
+- `just check && typecheck && test && test-ct && build` all green.
+- Winner library + rationale recorded in §9; losing deps removed.
+
+---
+
+## 7. Selection rubric (used by Phase 3 to auto-pick — deterministic)
+
+Benchmark each candidate on the **LARGE** fixture (10k nodes) at 1280×900.
+
+**Gates (fail any ⇒ candidate eliminated):**
+- **Themable**: node/edge/background colors + label font drivable by
+  `--sf-*` tokens.
+- **Interactive scale**: p95 frame time ≤ 33ms (≥30fps) during pan/zoom on LARGE.
+- **Interaction latency**: p95 input-to-paint <120ms across click/hover/
+  context-menu/control/layout-switch on LARGE (`p95InteractionMs` from the
+  harness).
+
+**Weighted score (higher = better), among gate-passers:**
+| Criterion           | Weight | How measured                                              |
+| ------------------- | ------ | --------------------------------------------------------- |
+| Frame perf (pan/zoom) | 25%  | p95 frame time (lower better); normalize 16ms→1, 33ms→0   |
+| Interaction latency | 20%    | p95InteractionMs; normalize 40ms→1, 120ms→0               |
+| Initial layout time | 10%    | layoutMs on LARGE; ≤1000ms→1, ≥4000ms→0                   |
+| Layout breadth      | 18%    | # of required layouts natively supported (of 5)           |
+| Node richness       | 17%    | arbitrary/custom node content: full=1, label-only=0.3     |
+| Bundle cost         | 10%    | added gzip kB; ≤80kB→1, ≥250kB→0                           |
+
+**Tie-break** (Δscore < 0.05): smaller bundle, then fewer transitive deps,
+then richer node content. Record the full table and the arithmetic in §9.
+
+---
+
+## 8. Reference — house rules pointers (do not duplicate, just obey)
+
+- `AGENTS.md` — component conventions, "reach for Y" table, file layout,
+  export-registration steps.
+- `AESTHETICS.md` — why it looks the way it does (Swiss/Bauhaus posture).
+- `src/tokens/tokens.css` — every available `--sf-*` token.
+- `src/lib/chart/` — existing scales/axis/tooltip/crosshair helpers to reuse.
+- Existing chart components (`Scatterplot`, `BridgeChart`, `BarChart`) — the
+  closest precedent for SVG/canvas + tokens + stories + tests.
+
+---
+
+## 9. Decision log (append-only — newest at bottom)
+
+> Iterations append benchmark numbers and the binding library decision here.
+> Format each entry with a date and the task id that produced it.
+
+_(empty — first benchmark/decision entries go here)_
+
+---
+
+## 10. Progress notes (append-only — newest at bottom)
+
+> One dated bullet per completed (or blocked) task: what changed, any
+> surprise, what the next iteration should watch for.
+
+- 2026-06-13 (0.1): Created branch `feat/graph` off `main`. Verified baseline
+  gate green: `just typecheck` clean, `just check` exits 0 (16 pre-existing
+  Biome warnings in unrelated files e.g. Timeline.tsx — non-blocking),
+  `just test` 42 passed. Next: 0.2 — add `src/lib/graph/types.ts` data model.
+
+---
+
+### Appendix — original brief (source of this plan)
+
+> Research the best UX for managing large graphs graphically: see the graph,
+> navigate it, add arbitrary information to both nodes and connections.
+> Represent information densely on screen — force graphs are an OK default but
+> often disorderly; look for mind-map / concept-tree / file-tree style layouts.
+> Deep-research enabling libraries, prototype multiple combinations/approaches,
+> use Playwright to assess quality and measure latency on large graphs (with
+> generated test data), then implement the definitive version: a basic graph
+> view with multiple layout options, control elements, and sub-menus
+> (e.g. right-click).
