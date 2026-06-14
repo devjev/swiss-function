@@ -36,6 +36,12 @@ export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>,
   effect?: EffectName;
   /** Effect parameters (ripple speed/wavelength/amplitude, noise rate/density/seed). */
   effectOptions?: RippleParams & NoiseParams;
+  /** Base fill color — any CSS color (e.g. a token `var(--sf-color-primary)`).
+   *  Defaults to a subtle muted token; `error` uses the danger token. */
+  color?: string;
+  /** Overall fill opacity 0..1. Default 0.7 — the blocks read as a faint
+   *  texture; lower it for subtler, raise toward 1 for denser. */
+  opacity?: number;
   /** Block width. `number` → multiples of `--sf-unit`; `string` → raw CSS. */
   width?: number | string;
   /** Block height. `number` → multiples of `--sf-unit`; `string` → raw CSS. */
@@ -89,6 +95,8 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     action,
     effect,
     effectOptions,
+    color,
+    opacity = 0.7,
     width,
     height,
     className,
@@ -148,14 +156,16 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     const fill = fillRef.current;
     if (!fill) return;
     fill.resize(dims.w, dims.h);
-    const color = readColor(canvas);
+    // A `color` prop wins over the CSS token; readColor resolves either to RGB.
+    canvas.style.color = color ?? "";
     const base = {
       cols: dims.cols,
       rows: dims.rows,
       cellW: dims.cellW,
       cellH: dims.cellH,
       effect: activeEffect,
-      color,
+      color: readColor(canvas),
+      alpha: opacity,
       ...effectOptions,
     };
     const animated = activeEffect !== "vignette";
@@ -174,7 +184,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [dims, activeEffect, effectOptions]);
+  }, [dims, activeEffect, effectOptions, color, opacity]);
 
   useEffect(() => () => fillRef.current?.destroy(), []);
 

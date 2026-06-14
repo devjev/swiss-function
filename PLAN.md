@@ -236,7 +236,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
       (e.g. `effectOptions`). Story shows live param control.
 - [x] **4.4** Add the **noise** effect: random per-cell density at a `rate`
       (flicker fps), seedable for determinism. Reduced-motion → static seed.
-- [ ] **4.5** **Subtle, token-based color**: a `color` prop accepting a base
+- [x] **4.5** **Subtle, token-based color**: a `color` prop accepting a base
       (default a subtle token; `error`→`--sf-color-danger`) and render the
       ramp as **alpha steps** of that base (grey/transparent), so the fill
       reads as a faint texture, not a loud block. Theme-aware (light + dark).
