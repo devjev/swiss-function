@@ -33,6 +33,17 @@ export const Loading: Story = () => (
   <NonIdealState variant="loading" title="Loading…" description="Fetching the latest data." />
 );
 
+// A small, sized block — the dither fills whatever dimensions you give it.
+export const Sized: Story = () => (
+  <NonIdealState
+    variant="empty"
+    width={28}
+    height={10}
+    title="No items"
+    description="This block is sized to 28 × 10 units."
+  />
+);
+
 // All four side by side to check they read as a family.
 export const Gallery: Story = () => {
   const items: { variant: NonIdealStateVariant; title: string }[] = [
@@ -44,9 +55,13 @@ export const Gallery: Story = () => {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "var(--sf-unit)" }}>
       {items.map((it) => (
-        <div key={it.variant} style={{ border: "1px solid var(--sf-color-border-subtle)" }}>
-          <NonIdealState variant={it.variant} title={it.title} description="Lorem ipsum dolor." />
-        </div>
+        <NonIdealState
+          key={it.variant}
+          variant={it.variant}
+          height={10}
+          title={it.title}
+          description="Lorem ipsum dolor."
+        />
       ))}
     </div>
   );
