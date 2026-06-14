@@ -212,7 +212,7 @@ Keep messages scoped to the single task. Do not push.
       rendered content in that column among currently-mounted (virtualized)
       cells + the header, set the override to that width (clamped to min).
       CT spec asserts the override updates on double-click.
-- [ ] **1.5** Keyboard + a11y: handle is focusable (`tabIndex=0`); ArrowLeft/
+- [x] **1.5** Keyboard + a11y: handle is focusable (`tabIndex=0`); ArrowLeft/
       ArrowRight resize by a step (e.g. `--sf-unit`), Shift = larger step;
       set `aria-valuenow`/`aria-label`. Document keys in the story. Don't let
       separator focus interfere with the cell-grid roving tabindex.

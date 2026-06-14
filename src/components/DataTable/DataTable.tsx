@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import { buildColumnTemplate } from "./columnWidths";
+import { buildColumnTemplate, COLUMN_MIN_UNITS } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
@@ -356,6 +356,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [visibleLeaves],
   );
 
+  // Keyboard resize on a focused handle. Arrow keys nudge by a step; Shift = larger.
+  const resizeColumnByKey = useCallback(
+    (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
+      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+      ev.preventDefault();
+      const dir = ev.key === "ArrowRight" ? 1 : -1;
+      const step = ev.shiftKey ? 24 : 8;
+      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      setColumnWidths((prev) => {
+        const current = prev[columnId] ?? headerCell.getBoundingClientRect().width;
+        const next = Math.max(minPx, Math.round(current + dir * step));
+        return { ...prev, [columnId]: next };
+      });
+    },
+    [],
+  );
+
   // --- Top-level keyboard router ---
   const handleKeyDown = useCallback(
     (ev: KeyboardEvent<HTMLDivElement>) => {
@@ -568,7 +585,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   )}
                   {isLeafHeader && (
                     <div
-                      aria-hidden="true"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
+                      aria-valuenow={Math.round(columnWidths[header.column.id] ?? 0)}
+                      aria-valuemin={COLUMN_MIN_UNITS * 24}
+                      tabIndex={0}
                       data-column-id={header.column.id}
                       className={styles.resizeHandle}
                       onPointerDown={onColumnResizeDown}
@@ -581,6 +603,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
                           e.currentTarget.parentElement as HTMLElement,
                         );
                       }}
+                      onKeyDown={(e) =>
+                        resizeColumnByKey(
+                          header.column.id,
+                          e.currentTarget.parentElement as HTMLElement,
+                          e,
+                        )
+                      }
                     />
                   )}
                 </div>

@@ -241,3 +241,16 @@ test("double-click the handle auto-fits the column to its content", async ({ mou
   if (!squeezed || !fitted) throw new Error("missing header bounding box");
   expect(fitted.width).toBeGreaterThan(squeezed.width);
 });
+
+test("arrow keys on a focused handle resize the column", async ({ mount, page }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  const header = component.getByRole("columnheader", { name: "name" });
+  const before = await header.boundingBox();
+  if (!before) throw new Error("missing header bounding box");
+  const handle = component.locator('[data-column-id="name"]');
+  await handle.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowRight");
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThan(before.width + 80);
+});
