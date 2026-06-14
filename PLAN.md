@@ -284,7 +284,7 @@ Keep messages scoped to the single task. Do not push.
       centering transform, so the window moves. Clamp so the header stays
       within the viewport (never drag fully off-screen). Don't break Base UI's
       open/close transition — only override transform while/after a user drag.
-- [ ] **3.3** **Resizable.** Add `resizable?: boolean` to the `Popup`. Render
+- [x] **3.3** **Resizable.** Add `resizable?: boolean` to the `Popup`. Render
       edge handles (E/S/W/N) + corner handles (SE at minimum) with correct
       `*-resize` cursors. Drag updates width/height state (overriding the
       `max-width`/`width` defaults), clamped to a min size

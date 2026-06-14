@@ -34,3 +34,41 @@ test("a non-draggable popup does not move when its header is dragged", async ({ 
   expect(Math.abs(after.x - before.x)).toBeLessThan(2);
   expect(Math.abs(after.y - before.y)).toBeLessThan(2);
 });
+
+test("dragging the SE corner resizes the popup", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness resizable />);
+  const popup = page.getByTestId("popup");
+  const before = await popup.boundingBox();
+  if (!before) throw new Error("missing bounding box");
+  // The SE handle sits at the popup's bottom-right corner.
+  const sx = before.x + before.width - 3;
+  const sy = before.y + before.height - 3;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx + 80, sy + 60, { steps: 8 });
+  await page.mouse.up();
+  const after = await popup.boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  expect(after.width).toBeGreaterThan(before.width + 50);
+  expect(after.height).toBeGreaterThan(before.height + 30);
+});
+
+test("a resizable popup clamps to its minimum size", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness resizable />);
+  const popup = page.getByTestId("popup");
+  const before = await popup.boundingBox();
+  if (!before) throw new Error("missing bounding box");
+  const sx = before.x + before.width - 3;
+  const sy = before.y + before.height - 3;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx - 2000, sy - 2000, { steps: 10 });
+  await page.mouse.up();
+  const after = await popup.boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  // Clamped at MIN_W=240 / MIN_H=120.
+  expect(after.width).toBeGreaterThanOrEqual(238);
+  expect(after.width).toBeLessThan(260);
+  expect(after.height).toBeGreaterThanOrEqual(118);
+  expect(after.height).toBeLessThan(140);
+});

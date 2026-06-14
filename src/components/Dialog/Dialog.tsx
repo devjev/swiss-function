@@ -35,15 +35,23 @@ const DragContext = createContext<DragContextValue | null>(null);
 interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
   /** Allow the popup to be dragged around by a `Dialog.Handle` (or the title). */
   draggable?: boolean;
+  /** Allow the popup to be resized from its right / bottom / corner edges. */
+  resizable?: boolean;
 }
 
+/** Smallest a resizable popup may be dragged to, in px. */
+const MIN_W = 240;
+const MIN_H = 120;
+
 const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
-  { className, draggable, style, children, ...rest },
+  { className, draggable, resizable, style, children, ...rest },
   ref,
 ) {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const dragStart = useRef<{ ox: number; oy: number; rect: DOMRect } | null>(null);
+  const resizeStart = useRef<{ w: number; h: number; edge: string } | null>(null);
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -80,8 +88,35 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     },
   });
 
+  const { onPointerDown: onResizeDown } = usePointerDrag({
+    onStart: (_origin, event) => {
+      const el = popupRef.current;
+      const edge = (event.currentTarget as HTMLElement).dataset.edge;
+      if (!el || !edge) return;
+      const r = el.getBoundingClientRect();
+      resizeStart.current = { w: r.width, h: r.height, edge };
+    },
+    onMove: (delta) => {
+      const s = resizeStart.current;
+      if (!s) return;
+      let w = s.w;
+      let h = s.h;
+      if (s.edge.includes("e")) w = s.w + delta.dx;
+      if (s.edge.includes("s")) h = s.h + delta.dy;
+      w = Math.max(MIN_W, Math.min(window.innerWidth - 16, w));
+      h = Math.max(MIN_H, Math.min(window.innerHeight - 16, h));
+      setSize({ w, h });
+    },
+    onEnd: () => {
+      resizeStart.current = null;
+    },
+  });
+
   const dragStyle = draggable
     ? ({ "--sf-dialog-x": `${offset.x}px`, "--sf-dialog-y": `${offset.y}px` } as CSSProperties)
+    : undefined;
+  const sizeStyle: CSSProperties | undefined = size
+    ? { width: `${size.w}px`, height: `${size.h}px`, maxWidth: "none", maxHeight: "none" }
     : undefined;
 
   return (
@@ -89,12 +124,34 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
       {...rest}
       ref={setRefs}
       className={mergeClassName(cx(styles.popup, draggable && styles.draggable), className)}
-      style={{ ...dragStyle, ...style }}
+      style={{ ...dragStyle, ...sizeStyle, ...style }}
     >
       {draggable ? (
         <DragContext.Provider value={{ onHandlePointerDown }}>{children}</DragContext.Provider>
       ) : (
         children
+      )}
+      {resizable && (
+        <>
+          <div
+            aria-hidden="true"
+            data-edge="e"
+            className={styles.resizeE}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="s"
+            className={styles.resizeS}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="se"
+            className={styles.resizeSE}
+            onPointerDown={onResizeDown}
+          />
+        </>
       )}
     </BaseDialog.Popup>
   );

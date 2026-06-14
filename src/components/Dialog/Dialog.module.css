@@ -62,6 +62,35 @@
   cursor: move;
 }
 
+/* Resize handles — thin hit targets on the right / bottom edges + corner. */
+.resizeE,
+.resizeS,
+.resizeSE {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.resizeE {
+  top: 0;
+  inset-inline-end: 0;
+  inline-size: calc(var(--sf-unit) / 3);
+  block-size: 100%;
+  cursor: ew-resize;
+}
+.resizeS {
+  inset-inline: 0;
+  bottom: 0;
+  block-size: calc(var(--sf-unit) / 3);
+  cursor: ns-resize;
+}
+.resizeSE {
+  inset-inline-end: 0;
+  bottom: 0;
+  inline-size: calc(var(--sf-unit) / 1.5);
+  block-size: calc(var(--sf-unit) / 1.5);
+  cursor: nwse-resize;
+}
+
 .title {
   margin: 0 0 var(--sf-space-2) 0;
   font-size: var(--sf-font-size-lg);
