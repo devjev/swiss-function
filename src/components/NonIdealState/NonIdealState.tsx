@@ -6,10 +6,18 @@ import styles from "./NonIdealState.module.css";
 
 export type { NonIdealStateVariant };
 
-/** Approx monospace cell metrics at the glyph font-size (see CSS). Used to
- *  compute how many cells fill the measured block; we overfill by one and clip. */
-const CELL_W = 7;
-const CELL_H = 11;
+/** Measure the real monospace cell (width + line height) in the fill's own
+ *  font by probing a known run of full blocks. Hardcoded estimates mismatch
+ *  the actual glyph metrics and leave the block partly uncovered. */
+function measureCell(pre: HTMLElement): { cellW: number; cellH: number } {
+  const probe = document.createElement("span");
+  probe.textContent = "█".repeat(40);
+  probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;";
+  pre.appendChild(probe);
+  const rect = probe.getBoundingClientRect();
+  probe.remove();
+  return { cellW: rect.width / 40 || 6, cellH: rect.height || 11 };
+}
 
 export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** Which state this represents — picks the fill weight, tint, and a11y
@@ -62,15 +70,18 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     [ref],
   );
 
-  // Measure the block → cell grid (overfill by one cell; the field is clipped).
+  // Measure the block → cell grid. Overfill by one cell per axis; the <pre>
+  // clips the overflow, so the field always reaches every edge.
   useLayoutEffect(() => {
     const el = rootRef.current;
-    if (!el) return;
+    const pre = preRef.current;
+    if (!el || !pre) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
+      const { cellW, cellH } = measureCell(pre);
       setDims({
-        cols: Math.max(1, Math.ceil(r.width / CELL_W) + 1),
-        rows: Math.max(1, Math.ceil(r.height / CELL_H) + 1),
+        cols: Math.max(1, Math.ceil(r.width / cellW) + 1),
+        rows: Math.max(1, Math.ceil(r.height / cellH) + 1),
       });
     };
     measure();

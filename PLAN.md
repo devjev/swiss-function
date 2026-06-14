@@ -172,7 +172,7 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 1 — Fix the coverage bug (correctness, renderer-agnostic)
 
-- [ ] **1.1** Replace the hardcoded `CELL_W/CELL_H` with a **measured** cell:
+- [x] **1.1** Replace the hardcoded `CELL_W/CELL_H` with a **measured** cell:
       render a probe row, read its rect, compute `cols/rows` so the field
       always **overfills by one cell and clips** — no gap on any edge. Verify
       by screenshotting at deliberately awkward sizes (e.g. width 333px,
