@@ -5,7 +5,7 @@
 // Removed once the winner is chosen (Task 3.3).
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { quantize, RAMP, ripple } from "../fields";
+import { MAX_LEVEL, quantize, RAMP, ripple } from "../fields";
 import styles from "./BenchFill.module.css";
 
 export type BenchRenderer = "dom" | "canvas-rects" | "canvas-text" | "webgl";
@@ -66,6 +66,18 @@ export function BenchFill({ renderer }: { renderer: BenchRenderer }) {
     return () => ro.disconnect();
   }, []);
 
+  // Size the canvas backing store to block × dpr (crisp + exact coverage).
+  useLayoutEffect(() => {
+    if (renderer === "dom") return;
+    const canvas = canvasRef.current;
+    if (!canvas || dims.w === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.ceil(dims.w * dpr);
+    canvas.height = Math.ceil(dims.h * dpr);
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }, [renderer, dims]);
+
   useEffect(() => {
     let raf = 0;
     let start = 0;
@@ -76,6 +88,7 @@ export function BenchFill({ renderer }: { renderer: BenchRenderer }) {
       // rAF ceiling, so per-frame CPU cost (not fps) is the discriminator.
       const t0 = performance.now();
       if (renderer === "dom") drawDom(preRef.current, dims, t);
+      else if (renderer === "canvas-rects") drawCanvasRects(canvasRef.current, dims, t);
       const w = window as unknown as { __nisDraw?: number[] };
       if (!w.__nisDraw) w.__nisDraw = [];
       w.__nisDraw.push(performance.now() - t0);
@@ -108,4 +121,31 @@ function drawDom(pre: HTMLPreElement | null, dims: Dims, t: number) {
     lines.push(line);
   }
   pre.textContent = lines.join("\n");
+}
+
+// Reused per-cell level buffer (typed array → no per-frame GC, number-typed
+// indexing). Grown as the grid grows.
+let levelBuf = new Int8Array(0);
+
+function drawCanvasRects(canvas: HTMLCanvasElement | null, dims: Dims, t: number) {
+  const ctx = canvas?.getContext("2d");
+  if (!ctx) return;
+  const { cols, rows, cellW, cellH, w, h } = dims;
+  ctx.clearRect(0, 0, w, h);
+  const n = cols * rows;
+  if (levelBuf.length < n) levelBuf = new Int8Array(n);
+  for (let y = 0, i = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++, i++) {
+      levelBuf[i] = quantize(ripple(x, y, cols, rows, t), x, y);
+    }
+  }
+  // One fillStyle per level (batched), then a fillRect per cell of that level.
+  for (let l = 1; l <= MAX_LEVEL; l++) {
+    ctx.fillStyle = `rgba(107,114,128,${l / MAX_LEVEL})`;
+    for (let y = 0, i = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++, i++) {
+        if (levelBuf[i] === l) ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+      }
+    }
+  }
 }

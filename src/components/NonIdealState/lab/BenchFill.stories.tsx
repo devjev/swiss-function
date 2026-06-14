@@ -5,3 +5,4 @@ import { BenchFill } from "./BenchFill";
 // and sizes [data-nis-root]. Removed with the rig in Task 3.3.
 
 export const DomPre: Story = () => <BenchFill renderer="dom" />;
+export const CanvasRects: Story = () => <BenchFill renderer="canvas-rects" />;
