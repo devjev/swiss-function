@@ -232,7 +232,7 @@ Keep messages scoped to the single task. Do not push.
 > style (`buildTrackList`). Resizable mode owns the **resolved** track sizes in
 > state and renders gutter separators between adjacent tracks.
 
-- [ ] **2.1** Add `resizable?: boolean | "columns" | "rows" | "both"` to
+- [x] **2.1** Add `resizable?: boolean | "columns" | "rows" | "both"` to
       `GridProps` (default `false`/today's behavior). When enabled, on first
       interaction **freeze the affected axis**: measure current track sizes via
       the grid container's `getComputedStyle(...).gridTemplateColumns/Rows`

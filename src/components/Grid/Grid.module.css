@@ -8,6 +8,11 @@
   min-width: 0;
 }
 
+/* Resizable grids anchor an absolutely-positioned gutter overlay. */
+.resizable {
+  position: relative;
+}
+
 .item {
   min-width: 0;
 }

@@ -1,11 +1,20 @@
 import { useRender } from "@base-ui/react/use-render";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef } from "react";
+import { forwardRef, useCallback, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import styles from "./Grid.module.css";
 
 type SizeUnit = number | string;
 type TrackList = SizeUnit | SizeUnit[];
+
+/** Which axes get draggable track gutters. `true` / `"both"` enable both. */
+export type GridResizable = boolean | "columns" | "rows" | "both";
+
+function parseResizable(r: GridResizable | undefined): { cols: boolean; rows: boolean } {
+  if (!r) return { cols: false, rows: false };
+  if (r === true || r === "both") return { cols: true, rows: true };
+  return { cols: r === "columns", rows: r === "rows" };
+}
 
 export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
   /** `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw value; `array` → joined (numbers become `Nfr`). */
@@ -27,6 +36,10 @@ export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children">
   justifyContent?: CSSProperties["justifyContent"];
   /** Render as `display: inline-grid` instead of `display: grid`. */
   inline?: boolean;
+  /** Make track boundaries draggable. The first drag freezes the axis's
+   *  `fr`/`auto` tracks to their resolved px sizes, then a gutter redistributes
+   *  the two tracks it sits between. Default `false`. */
+  resizable?: GridResizable;
   /** Base UI render prop. Defaults to `<div />`. */
   render?: useRender.RenderProp<HTMLAttributes<HTMLElement>>;
   children?: ReactNode;
@@ -119,11 +132,30 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     alignContent,
     justifyContent,
     inline,
+    resizable,
     render,
     className,
     style,
     ...rest
   } = props;
+
+  const { cols: resizeCols, rows: resizeRows } = parseResizable(resizable);
+  const isResizable = resizeCols || resizeRows;
+
+  // Frozen px track sizes per axis (null until the first resize freezes them).
+  const [colSizes, setColSizes] = useState<number[] | null>(null);
+  const [rowSizes, setRowSizes] = useState<number[] | null>(null);
+
+  // Keep a DOM handle for measuring/freezing while still honoring the forwarded ref.
+  const gridRef = useRef<HTMLElement | null>(null);
+  const setRefs = useCallback(
+    (node: HTMLElement | null) => {
+      gridRef.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) (ref as { current: HTMLElement | null }).current = node;
+    },
+    [ref],
+  );
 
   const computedStyle = buildGridStyle({
     columns,
@@ -142,12 +174,20 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     inline,
   });
 
+  // Once an axis is frozen, drive it from explicit px tracks.
+  if (colSizes) computedStyle.gridTemplateColumns = colSizes.map((s) => `${s}px`).join(" ");
+  if (rowSizes) computedStyle.gridTemplateRows = rowSizes.map((s) => `${s}px`).join(" ");
+
   return useRender({
     render: render ?? <div />,
     props: {
       ...rest,
-      ref,
-      className: cx(inline ? styles.gridInline : styles.grid, className),
+      ref: setRefs,
+      className: cx(
+        inline ? styles.gridInline : styles.grid,
+        isResizable && styles.resizable,
+        className,
+      ),
       style: { ...computedStyle, ...style },
     },
   });
