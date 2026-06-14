@@ -3,15 +3,15 @@
  *  one draw call per frame (benchmarked ~0.05ms/frame, flat with grid size).
  *  Shared by the shipped component and the perf-regression rig. */
 
-import type { EffectName, NoiseParams, RippleParams } from "./effects";
+import type { EffectName, EffectOptions } from "./effects";
 
 const VERT = "attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
 // highp: u_t grows unbounded; mediump loses sub-frame precision after a minute
 // or two and the animation stutters. Also wrap the ripple phase mod 2π.
 const FRAG = `precision highp float;
 uniform vec2 u_res;uniform vec2 u_cell;uniform vec2 u_grid;uniform float u_t;
-uniform int u_effect;uniform float u_speed;uniform float u_wavelength;uniform float u_amplitude;
-uniform float u_rate;uniform float u_density;uniform float u_seed;uniform vec3 u_color;uniform float u_alpha;
+uniform int u_effect;uniform float u_speed;uniform float u_wavelength;uniform float u_gain;
+uniform float u_seed;uniform vec3 u_color;uniform float u_alpha;
 float hash(vec3 p){p=fract(p*vec3(0.1031,0.1030,0.0973));p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
 void main(){
   float colf=gl_FragCoord.x/u_cell.x;
@@ -22,27 +22,29 @@ void main(){
   if(u_effect==0){ // ripple — concentric waves from center (square cells → no aspect skew)
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
     float dx=cx-ox;float dy=cy-oy;float dist=sqrt(dx*dx+dy*dy);
-    inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed*3.0,6.2831853)))*u_amplitude;
+    inten=0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed*3.0,6.2831853));
   }else if(u_effect==1){ // noise — random per-cell flicker
-    float frame=floor(u_t*u_rate*u_speed);
-    inten=u_density+(hash(vec3(cx,cy,frame+u_seed))-0.5);
+    float frame=floor(u_t*12.0*u_speed);
+    inten=0.55+(hash(vec3(cx,cy,frame+u_seed))-0.5);
   }else if(u_effect==2){ // scan — a band sweeps down, wrapping
     float r=cy/max(u_grid.y-1.0,1.0);
     float pos=fract(u_t*u_speed*0.24);
     float d=abs(r-pos);d=min(d,1.0-d);
-    inten=u_amplitude*smoothstep(0.18,0.0,d);
+    inten=smoothstep(0.18,0.0,d);
   }else if(u_effect==3){ // plasma — interfering sine fields drift
     float s=u_t*u_speed*1.8;
     float v=sin(cx*0.3+s)+sin(cy*0.25-s*0.8)+sin((cx+cy)*0.2+s*0.6)+sin(sqrt(cx*cx+cy*cy)*0.25+s);
-    inten=(v*0.25*0.5+0.5)*u_amplitude;
+    inten=v*0.25*0.5+0.5;
   }else if(u_effect==4){ // rain — per-column density falls downward
     float cseed=hash(vec3(cx,0.0,u_seed));
     float r=cy/max(u_grid.y-1.0,1.0);
     float head=fract(u_t*u_speed*0.18*(0.6+cseed)+cseed);
-    inten=u_amplitude*pow(1.0-fract(head-r),6.0);
+    inten=pow(1.0-fract(head-r),6.0);
   }else{ // pulse — whole field breathes up/down
-    inten=(0.55+0.45*sin(mod(u_t*u_speed*3.0,6.2831853)))*u_amplitude;
+    inten=0.55+0.45*sin(mod(u_t*u_speed*3.0,6.2831853));
   }
+  // u_gain scales overall density (average + max coverage).
+  inten*=u_gain;
   // Discrete density level 0..4 = the shade-block step (' ░▒▓█').
   float level=min(4.0,floor(clamp(inten,0.0,1.0)*5.0));
   float fillRatio=level*0.25;
@@ -63,7 +65,7 @@ const EFFECT_CODE: Record<EffectName, number> = {
   pulse: 5,
 };
 
-export interface FillFrame extends RippleParams, NoiseParams {
+export interface FillFrame extends EffectOptions {
   cols: number;
   rows: number;
   cellW: number;
@@ -72,6 +74,8 @@ export interface FillFrame extends RippleParams, NoiseParams {
   t: number;
   /** Animation speed multiplier (1 = normal). Default 1. */
   speed?: number;
+  /** Overall density gain — scales coverage. Default 1. */
+  density?: number;
   effect?: EffectName;
   /** Base color as 0..1 RGB. Default a muted grey. */
   color?: [number, number, number];
@@ -128,9 +132,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     effect: u("u_effect"),
     speed: u("u_speed"),
     wavelength: u("u_wavelength"),
-    amplitude: u("u_amplitude"),
-    rate: u("u_rate"),
-    density: u("u_density"),
+    gain: u("u_gain"),
     seed: u("u_seed"),
     color: u("u_color"),
     alpha: u("u_alpha"),
@@ -156,9 +158,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       gl.uniform1i(U.effect, EFFECT_CODE[effect]);
       gl.uniform1f(U.speed, f.speed ?? 1);
       gl.uniform1f(U.wavelength, f.wavelength ?? 11);
-      gl.uniform1f(U.amplitude, f.amplitude ?? 0.95);
-      gl.uniform1f(U.rate, f.rate ?? 12);
-      gl.uniform1f(U.density, f.density ?? 0.55);
+      gl.uniform1f(U.gain, f.density ?? 1);
       gl.uniform1f(U.seed, f.seed ?? 1);
       gl.uniform3f(U.color, r, g, b);
       gl.uniform1f(U.alpha, alpha);

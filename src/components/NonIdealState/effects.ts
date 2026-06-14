@@ -4,21 +4,11 @@
 
 export type EffectName = "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
 
-export interface RippleParams {
+/** Advanced, effect-specific tuning. Overall density is the top-level `density`
+ *  prop; animation pace is `speed`. */
+export interface EffectOptions {
   /** Ripple wave length in cells. Default 11. */
   wavelength?: number;
-  /** Peak intensity 0..1. Default 0.95. */
-  amplitude?: number;
-}
-
-export interface NoiseParams {
-  /** Per-cell re-roll rate in changes/second (noise). Default 12. */
-  rate?: number;
-  /** Mean density 0..1 (noise). Default 0.55. */
-  density?: number;
   /** Deterministic seed (noise / rain column offsets). Default 1. */
   seed?: number;
 }
-
-/** All effect parameters; every effect reads the subset it needs. */
-export type EffectOptions = RippleParams & NoiseParams;

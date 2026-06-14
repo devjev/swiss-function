@@ -128,15 +128,17 @@ export const Playground: Story<{
   variant: NonIdealStateVariant;
   effect: "default" | "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
   speed: number;
+  density: number;
   cellSize: number;
   opacity: number;
   title: string;
   description: string;
-}> = ({ variant, effect, speed, cellSize, opacity, title, description }) => (
+}> = ({ variant, effect, speed, density, cellSize, opacity, title, description }) => (
   <NonIdealState
     variant={variant}
     effect={effect === "default" ? undefined : effect}
     speed={speed}
+    density={density}
     cellSize={cellSize}
     opacity={opacity}
     title={title}
@@ -148,8 +150,9 @@ Playground.args = {
   variant: "empty",
   effect: "default",
   speed: STORY_SPEED,
-  cellSize: 7,
-  opacity: 0.85,
+  density: 0.6,
+  cellSize: 5,
+  opacity: 1,
   title: "No items yet",
   description: "Create your first item to get started.",
 };
@@ -160,6 +163,7 @@ Playground.argTypes = {
     control: { type: "radio" },
   },
   speed: { control: { type: "range", min: 0, max: 5, step: 0.25 } },
+  density: { control: { type: "range", min: 0.1, max: 1.5, step: 0.05 } },
   cellSize: { control: { type: "range", min: 3, max: 16, step: 1 } },
   opacity: { control: { type: "range", min: 0.1, max: 1, step: 0.05 } },
 };

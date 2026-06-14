@@ -10,7 +10,7 @@ export type { EffectName };
 
 /** Default shade-block size in px (square). Smaller = finer dither; the
  *  consumer can override with `cellSize`. */
-const DEFAULT_CELL = 7;
+const DEFAULT_CELL = 5;
 
 export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** Which state this represents — picks the default effect, tint, and a11y
@@ -26,7 +26,10 @@ export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>,
   effect?: EffectName;
   /** Animation speed multiplier. 1 = normal, 2 = twice as fast, 0.5 = half. */
   speed?: number;
-  /** Effect parameters (wavelength / amplitude / rate / density / seed). */
+  /** Overall fill density — scales coverage (average + max). 1 = full range
+   *  (can reach solid █); lower = sparser. Default 0.6. */
+  density?: number;
+  /** Advanced effect tuning (ripple `wavelength`, `seed`). */
   effectOptions?: EffectOptions;
   /** Shade-block size in px (square). Default 7. Smaller = finer dither, so
    *  density (coverage) carries more of the look than opacity. */
@@ -92,10 +95,11 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     action,
     effect,
     speed = 1,
+    density = 0.6,
     effectOptions,
     cellSize = DEFAULT_CELL,
     color,
-    opacity = 0.85,
+    opacity = 1,
     width,
     height,
     className,
@@ -166,6 +170,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       cellH: dims.cellH,
       effect: activeEffect,
       speed,
+      density,
       color: readColor(canvas),
       alpha: opacity,
       ...effectOptions,
@@ -209,7 +214,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       io.disconnect();
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [dims, activeEffect, speed, effectOptions, color, opacity]);
+  }, [dims, activeEffect, speed, density, effectOptions, color, opacity]);
 
   useEffect(() => () => fillRef.current?.destroy(), []);
 
