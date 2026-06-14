@@ -305,7 +305,7 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 4 — Stories, docs, exports
 
-- [ ] **4.1** Grid stories: a `Resizable` story (columns), one for rows, one
+- [x] **4.1** Grid stories: a `Resizable` story (columns), one for rows, one
       for `"both"`, each with a few `Grid.Item`s so the redistribution is
       visible. Include a Playground with the `resizable` arg.
 - [ ] **4.2** DataTable story: a `ResizableColumns` story demonstrating drag,
