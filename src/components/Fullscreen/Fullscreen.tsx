@@ -1,21 +1,10 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useState } from "react";
+import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { useFullscreen } from "../../lib/useFullscreen";
 import styles from "./Fullscreen.module.css";
 
 export type FullscreenButtonPosition = "top-right" | "top-left" | "bottom-right" | "bottom-left";
-
-export interface FullscreenProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
-  /** Controlled expanded state. Omit for uncontrolled. */
-  expanded?: boolean;
-  /** Initial expanded state when uncontrolled. Default `false`. */
-  defaultExpanded?: boolean;
-  /** Called when the user toggles (button or Escape). */
-  onExpandedChange?: (expanded: boolean) => void;
-  /** Corner the toggle button sits in. Default `"top-right"`. */
-  buttonPosition?: FullscreenButtonPosition;
-  children?: ReactNode;
-}
 
 const ExpandIcon = () => (
   // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label
@@ -45,13 +34,54 @@ const CollapseIcon = () => (
   </svg>
 );
 
+export interface FullscreenToggleProps {
+  expanded: boolean;
+  onToggle: () => void;
+  /** Corner the button sits in. Default `"top-right"`. */
+  position?: FullscreenButtonPosition;
+  className?: string;
+}
+
+/** The fullscreen toggle button (icon + a11y), reusable by any component that
+ *  drives its own maximize via `useFullscreen` (e.g. `Graph`). */
+export function FullscreenToggle({
+  expanded,
+  onToggle,
+  position = "top-right",
+  className,
+}: FullscreenToggleProps) {
+  return (
+    <button
+      type="button"
+      className={cx(styles.toggle, styles[position], className)}
+      onClick={onToggle}
+      aria-label={expanded ? "Exit fullscreen" : "Enter fullscreen"}
+      aria-pressed={expanded}
+    >
+      {expanded ? <CollapseIcon /> : <ExpandIcon />}
+    </button>
+  );
+}
+
+export interface FullscreenProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  /** Controlled expanded state. Omit for uncontrolled. */
+  expanded?: boolean;
+  /** Initial expanded state when uncontrolled. Default `false`. */
+  defaultExpanded?: boolean;
+  /** Called when the user toggles (button or Escape). */
+  onExpandedChange?: (expanded: boolean) => void;
+  /** Corner the toggle button sits in. Default `"top-right"`. */
+  buttonPosition?: FullscreenButtonPosition;
+  children?: ReactNode;
+}
+
 /** A container with a fullscreen toggle. When expanded it fills the browser
  *  viewport (a fixed overlay) and stretches its content to 100%; Escape exits.
  *  Not OS-level fullscreen — a CSS viewport overlay, so it works everywhere. */
 export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function Fullscreen(
   {
     expanded: controlled,
-    defaultExpanded = false,
+    defaultExpanded,
     onExpandedChange,
     buttonPosition = "top-right",
     className,
@@ -60,31 +90,11 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
   },
   ref,
 ) {
-  const [internal, setInternal] = useState(defaultExpanded);
-  const expanded = controlled ?? internal;
-
-  const setExpanded = useCallback(
-    (next: boolean) => {
-      if (controlled === undefined) setInternal(next);
-      onExpandedChange?.(next);
-    },
-    [controlled, onExpandedChange],
-  );
-
-  // While expanded: Escape exits, and the page behind doesn't scroll.
-  useEffect(() => {
-    if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [expanded, setExpanded]);
+  const { expanded, toggle } = useFullscreen({
+    expanded: controlled,
+    defaultExpanded,
+    onExpandedChange,
+  });
 
   return (
     <div
@@ -94,15 +104,7 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
       {...rest}
     >
       <div className={styles.content}>{children}</div>
-      <button
-        type="button"
-        className={cx(styles.toggle, styles[buttonPosition])}
-        onClick={() => setExpanded(!expanded)}
-        aria-label={expanded ? "Exit fullscreen" : "Enter fullscreen"}
-        aria-pressed={expanded}
-      >
-        {expanded ? <CollapseIcon /> : <ExpandIcon />}
-      </button>
+      <FullscreenToggle expanded={expanded} onToggle={toggle} position={buttonPosition} />
     </div>
   );
 });

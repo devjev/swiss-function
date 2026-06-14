@@ -1,2 +1,6 @@
-export type { FullscreenButtonPosition, FullscreenProps } from "./Fullscreen";
-export { Fullscreen } from "./Fullscreen";
+export type {
+  FullscreenButtonPosition,
+  FullscreenProps,
+  FullscreenToggleProps,
+} from "./Fullscreen";
+export { Fullscreen, FullscreenToggle } from "./Fullscreen";

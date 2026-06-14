@@ -136,7 +136,7 @@ scale fades in on hover). Use `scaffolding="full"` for dense data,
 
 | Component | Use for                                                        |
 | --------- | -------------------------------------------------------------- |
-| `Graph`   | Node-link networks — dependency graphs, mind maps, concept trees — up to ~10k nodes interactively. Force / tree / radial / concentric / grid layouts (switchable at runtime), pan/zoom/fit + keyboard nav, minimap, right-click menu, and a hover inspector for each node/edge's `data`. Compound: `Graph`, `Graph.Controls`, `Graph.Minimap`. Distinct from the charts above — those plot values on axes; this draws relationships. |
+| `Graph`   | Node-link networks — dependency graphs, mind maps, concept trees — up to ~10k nodes interactively. Force / tree / radial / concentric / grid layouts (switchable at runtime), pan/zoom/fit + keyboard nav, minimap, right-click menu, and a hover inspector for each node/edge's `data`, plus a built-in fullscreen toggle (`fullscreen` prop, default on). Compound: `Graph`, `Graph.Controls`, `Graph.Minimap`. Distinct from the charts above — those plot values on axes; this draws relationships. |
 
 ### Communication
 

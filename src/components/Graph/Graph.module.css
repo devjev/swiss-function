@@ -9,6 +9,7 @@
 */
 
 .root {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
@@ -20,6 +21,18 @@
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
+}
+
+/* Maximized to the viewport. block-size:auto so inset:0 sets the height (the
+   fixed default block-size would otherwise win). Sigma's surface is 100% of
+   the root, so the WebGL canvas resizes with it. */
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sf-z-modal);
+  block-size: auto;
+  border: none;
+  border-radius: 0;
 }
 
 /* The WebGL/canvas surface Sigma renders into. Position relative so future

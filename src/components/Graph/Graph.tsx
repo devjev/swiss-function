@@ -17,6 +17,8 @@ import { animateNodes } from "sigma/utils";
 import { Tooltip } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
+import { useFullscreen } from "../../lib/useFullscreen";
+import { FullscreenToggle } from "../Fullscreen";
 import { Menu } from "../Menu";
 import { GraphControlsBar } from "./Controls";
 import {
@@ -112,6 +114,13 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   contextMenuItems?: (target: GraphMenuTarget) => GraphMenuItem[];
   /** Overlay content — typically a `<Graph.Controls />` toolbar. */
   children?: ReactNode;
+  /** Show a corner button that maximizes the graph to the full viewport.
+   *  Default `true`. Escape exits. */
+  fullscreen?: boolean;
+  /** Initial maximized state (uncontrolled). Default `false`. */
+  defaultFullscreen?: boolean;
+  /** Notified when the graph is maximized / restored. */
+  onFullscreenChange?: (expanded: boolean) => void;
 }
 
 /** How far an arrow-key press nudges the camera, in screen pixels. */
@@ -398,11 +407,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     contextMenuItems,
     className,
     children,
+    fullscreen = true,
+    defaultFullscreen,
+    onFullscreenChange,
     ...rest
   },
   ref,
 ) {
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const { expanded: isFullscreen, toggle: toggleFullscreen } = useFullscreen({
+    defaultExpanded: defaultFullscreen,
+    onExpandedChange: onFullscreenChange,
+  });
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graphology | null>(null);
   // Uncontrolled layout state. When `layout` is provided the prop wins; the
@@ -447,14 +463,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const [selected, setSelected] = useState<Inspection | null>(null);
   const inspection = hovered ?? selected;
 
-  // A small viewport box centered on (x,y) — the anchor the floating Tooltip
-  // positions itself above. `getNodeDisplayData` is surface-relative, so add
-  // the surface's viewport offset.
-  const anchorAt = useCallback((x: number, y: number): DOMRect => {
+  // A small viewport box centered on a node/edge — the anchor the floating
+  // Tooltip positions above. Inputs are GRAPH coordinates (from
+  // `getNodeDisplayData`); project them to canvas pixels via `graphToViewport`,
+  // then add the surface's viewport offset. (Using the graph coords directly
+  // put the tooltip near the surface origin — wrong, and glaring in fullscreen.)
+  const anchorAt = useCallback((graphX: number, graphY: number): DOMRect => {
+    const renderer = sigmaRef.current;
     const box = surfaceRef.current?.getBoundingClientRect();
     const ox = box?.left ?? 0;
     const oy = box?.top ?? 0;
-    return new DOMRect(ox + x - 4, oy + y - 4, 8, 8);
+    const v = renderer
+      ? renderer.graphToViewport({ x: graphX, y: graphY })
+      : { x: graphX, y: graphY };
+    return new DOMRect(ox + v.x - 4, oy + v.y - 4, 8, 8);
   }, []);
 
   // Build the inspection for a node: its label/kind + flattened `data`.
@@ -463,8 +485,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       const g = graphRef.current;
       const renderer = sigmaRef.current;
       if (!g || !renderer || !g.hasNode(id)) return null;
-      const pos = renderer.getNodeDisplayData(id);
-      if (!pos) return null;
+      // Raw graph coords (anchorAt projects them via graphToViewport). Using
+      // getNodeDisplayData here double-normalizes and misplaces the anchor.
+      const x = g.getNodeAttribute(id, "x") as number;
+      const y = g.getNodeAttribute(id, "y") as number;
       const kind = g.getNodeAttribute(id, "kind") as string | undefined;
       const payload = g.getNodeAttribute(id, "payload") as Record<string, unknown> | undefined;
       return {
@@ -472,7 +496,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
         title: (g.getNodeAttribute(id, "label") as string | undefined) ?? id,
         subtitle: kind,
         rows: dataRows(payload),
-        rect: anchorAt(pos.x, pos.y),
+        rect: anchorAt(x, y),
       };
     },
     [anchorAt],
@@ -485,16 +509,19 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       const g = graphRef.current;
       const renderer = sigmaRef.current;
       if (!g || !renderer || !g.hasEdge(id)) return null;
-      const a = renderer.getNodeDisplayData(g.source(id));
-      const b = renderer.getNodeDisplayData(g.target(id));
-      if (!a || !b) return null;
+      const sId = g.source(id);
+      const tId = g.target(id);
+      const ax = g.getNodeAttribute(sId, "x") as number;
+      const ay = g.getNodeAttribute(sId, "y") as number;
+      const bx = g.getNodeAttribute(tId, "x") as number;
+      const by = g.getNodeAttribute(tId, "y") as number;
       const payload = g.getEdgeAttribute(id, "payload") as Record<string, unknown> | undefined;
       return {
         target: "edge",
         title: (g.getEdgeAttribute(id, "label") as string | undefined) ?? "Edge",
-        subtitle: `${g.source(id)} → ${g.target(id)}`,
+        subtitle: `${sId} → ${tId}`,
         rows: dataRows(payload),
-        rect: anchorAt((a.x + b.x) / 2, (a.y + b.y) / 2),
+        rect: anchorAt((ax + bx) / 2, (ay + by) / 2),
       };
     },
     [anchorAt],
@@ -804,7 +831,12 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   return (
     <GraphContext.Provider value={controls}>
       <GraphInternalContext.Provider value={internals}>
-        <div {...rest} ref={ref} className={cx(styles.root, className)}>
+        <div
+          {...rest}
+          ref={ref}
+          data-fullscreen={isFullscreen || undefined}
+          className={cx(styles.root, isFullscreen && styles.fullscreen, className)}
+        >
           {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
             make the surface a keyboard target for pan/zoom; `aria-describedby`
             points at the screen-reader summary below. Per-node traversal isn't
@@ -831,6 +863,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
             {layout} layout
           </div>
           {children}
+          {fullscreen && <FullscreenToggle expanded={isFullscreen} onToggle={toggleFullscreen} />}
           {/* Inspector: node/edge `data` on hover (and the last clicked node on
             select). Reuses the chart Tooltip — a fixed, viewport-clamped box
             that flips above/below its anchor. */}
