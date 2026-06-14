@@ -106,6 +106,7 @@ Ladle (`npm run dev`).
 | ------------------------ | -------------------------------------------------- |
 | `DataTable`              | Tabular data — sorting, selection, virtualization. The serious one. |
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
+| `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
 | `StreamingTerminalText`  | Terminal/log output that arrives incrementally.    |
 
@@ -241,7 +242,7 @@ Common requests and the right component:
 | "a network / dependency graph / mind map"          | `Graph`                                          |
 | "loading state"                                    | `Skeleton`                                       |
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
-| "markdown rendering"                               | `Markdown`                                       |
+| "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "chat UI"                                          | `Chat`                                           |
 
 Don't try to compose any of these from scratch. They exist for a reason.

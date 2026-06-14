@@ -5,7 +5,9 @@ import dts from "vite-plugin-dts";
 import { libInjectCss } from "vite-plugin-lib-inject-css";
 
 const componentNames = [
+  "BarChart",
   "Box",
+  "BridgeChart",
   "Button",
   "ButtonGroup",
   "Chat",
@@ -24,6 +26,8 @@ const componentNames = [
   "Dialog",
   "Popover",
   "Menu",
+  "Prose",
+  "Scatterplot",
   "Skeleton",
   "StreamingTerminalText",
   "Combobox",
