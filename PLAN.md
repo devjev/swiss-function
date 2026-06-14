@@ -313,7 +313,7 @@ Keep messages scoped to the single task. Do not push.
       column. Note the keys in the story description.
 - [x] **4.3** Dialog story: a `Window` story with `draggable resizable` and the
       subtle backdrop, plus a plain `Default` left intact for contrast.
-- [ ] **4.4** Update `AGENTS.md`: document `Grid` `resizable`, `DataTable`
+- [x] **4.4** Update `AGENTS.md`: document `Grid` `resizable`, `DataTable`
       `resizableColumns` + per-column `resizable`, and `Dialog.Popup`
       `draggable`/`resizable` + the subtle-dim default. Add a row to the
       relevant tables. Keep it terse; AGENTS.md is the usage contract.

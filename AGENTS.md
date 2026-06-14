@@ -81,14 +81,14 @@ Ladle (`npm run dev`).
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Box`           | A surface with `elevation={0..5}`. The atom of grouping. |
-| `Grid`          | The layout primitive. CSS Grid wrapper with token-sized gaps. |
+| `Grid`          | The layout primitive. CSS Grid wrapper with token-sized gaps. Pass `resizable` (`"columns"` / `"rows"` / `"both"`) to make track boundaries drag/keyboard-resizable (double-click a gutter to split evenly). |
 | `Pane`          | Full-height region split into Header (auto) + Body (scrollable). Compound: `Pane`, `Pane.Header`, `Pane.Body`. Nests cleanly. Use whenever a region needs to fill its parent and scroll its overflow internally. |
 
 ### Overlays
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. |
+| `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. Backdrop dim is deliberately very subtle. For a window-like dialog, add `draggable` + `resizable` to `Dialog.Popup` and wrap the header in `Dialog.Handle`. |
 | `Popover`       | Anchored, click-triggered floating content.              |
 | `Menu`          | Right-click or dropdown menus.                           |
 | `CommandBar`    | Cmd-K command palette.                                   |
@@ -104,7 +104,7 @@ Ladle (`npm run dev`).
 
 | Component                | Use for                                            |
 | ------------------------ | -------------------------------------------------- |
-| `DataTable`              | Tabular data — sorting, selection, virtualization. The serious one. |
+| `DataTable`              | Tabular data — sorting, selection, virtualization, Excel-style column resize (on by default; `resizableColumns={false}` or per-column `resizable: false` to lock; double-click a header edge to auto-fit). The serious one. |
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
