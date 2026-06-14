@@ -67,13 +67,27 @@ export const Gallery: Story = () => {
   );
 };
 
+// Effects gallery — the same block under each fill effect.
+export const Effects: Story = () => (
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
+    <NonIdealState effect="vignette" height={10} title="vignette" />
+    <NonIdealState effect="ripple" height={10} title="ripple" />
+    <NonIdealState effect="noise" height={10} title="noise" />
+  </div>
+);
+
 export const Playground: Story<{
   variant: NonIdealStateVariant;
+  effect: "default" | "vignette" | "ripple" | "noise";
+  speed: number;
+  wavelength: number;
   title: string;
   description: string;
-}> = ({ variant, title, description }) => (
+}> = ({ variant, effect, speed, wavelength, title, description }) => (
   <NonIdealState
     variant={variant}
+    effect={effect === "default" ? undefined : effect}
+    effectOptions={{ speed, wavelength }}
     title={title}
     description={description}
     action={<Button>Action</Button>}
@@ -81,12 +95,15 @@ export const Playground: Story<{
 );
 Playground.args = {
   variant: "empty",
+  effect: "default",
+  speed: 3,
+  wavelength: 11,
   title: "No items yet",
   description: "Create your first item to get started.",
 };
 Playground.argTypes = {
-  variant: {
-    options: ["empty", "no-results", "error", "loading"],
-    control: { type: "radio" },
-  },
+  variant: { options: ["empty", "no-results", "error", "loading"], control: { type: "radio" } },
+  effect: { options: ["default", "vignette", "ripple", "noise"], control: { type: "radio" } },
+  speed: { control: { type: "range", min: 0, max: 12, step: 0.5 } },
+  wavelength: { control: { type: "range", min: 3, max: 30, step: 1 } },
 };

@@ -228,13 +228,13 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 - [x] **4.1** Implement the winning renderer as the real `NonIdealState` fill,
       replacing the per-frame `<pre>` rewrite. Keep it `aria-hidden`, keep the
       message panel + variants, keep the vignette center-clear behavior.
-- [ ] **4.2** Effects API: `effect?: "ripple" | "noise" | "vignette" | ...`
+- [x] **4.2** Effects API: `effect?: "ripple" | "noise" | "vignette" | ...`
       (variant picks a sensible default — loading→ripple, others→vignette).
       Wire all effects through the shared `fields.ts`.
-- [ ] **4.3** Parameterize the ripple: `{ speed, wavelength, amplitude,
+- [x] **4.3** Parameterize the ripple: `{ speed, wavelength, amplitude,
       origin }` (typed). Sensible defaults; expose via a prop
       (e.g. `effectOptions`). Story shows live param control.
-- [ ] **4.4** Add the **noise** effect: random per-cell density at a `rate`
+- [x] **4.4** Add the **noise** effect: random per-cell density at a `rate`
       (flicker fps), seedable for determinism. Reduced-motion → static seed.
 - [ ] **4.5** **Subtle, token-based color**: a `color` prop accepting a base
       (default a subtle token; `error`→`--sf-color-danger`) and render the
