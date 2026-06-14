@@ -155,8 +155,8 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 0 — Setup, screenshot fix, perf harness, baseline
 
-- [ ] **0.1** Confirm branch `feat/non-ideal-state` (create off `main` if
-      missing — the component already lives there). Baseline gate green.
+- [x] **0.1** Confirm branch `feat/non-ideal-state` (create off `main` if
+      missing — the component already lives there). Baseline gate green. — on branch; baseline typecheck/check/test (63) green.
 - [ ] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
       configured port) instead of the stale :61001, so visual checks work.
       Verify by screenshotting `non-ideal-state--empty`.
