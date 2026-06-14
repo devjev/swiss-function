@@ -1,0 +1,28 @@
+.root {
+  position: relative;
+  width: 100%;
+  min-block-size: calc(var(--sf-unit) * 14);
+  overflow: hidden;
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+}
+
+.pre {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  font: 10px var(--sf-font-mono);
+  line-height: 11px;
+  color: var(--sf-color-muted);
+  white-space: pre;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}

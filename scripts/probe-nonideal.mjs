@@ -68,6 +68,7 @@ await page.waitForTimeout(SETTLE_MS);
 await frame.evaluate(() => {
   window.__f = [];
   window.__long = 0;
+  window.__nisDraw = []; // per-frame draw CPU time (ms), filled by BenchFill
   try {
     const po = new PerformanceObserver((list) => {
       window.__long += list.getEntries().length;
@@ -92,16 +93,20 @@ const res = await frame.evaluate(() => {
   cancelAnimationFrame(window.__raf);
   window.__po?.disconnect();
   const ds = (window.__f ?? []).slice(1); // drop warm-up frame
+  const draw = (window.__nisDraw ?? []).slice(1);
   const long = window.__long ?? 0;
   delete window.__f;
   delete window.__raf;
   delete window.__po;
   delete window.__long;
-  return { ds, long };
+  delete window.__nisDraw;
+  return { ds, draw, long };
 });
 
 const elapsed = res.ds.reduce((a, b) => a + b, 0);
 const fps = elapsed > 0 ? Math.round((res.ds.length / elapsed) * 1000 * 10) / 10 : null;
+const avg = (xs) =>
+  xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 1000) / 1000 : null;
 
 await browser.close();
 
@@ -112,6 +117,8 @@ process.stdout.write(
     h,
     fps,
     p95FrameMs: p95(res.ds),
+    avgDrawMs: avg(res.draw),
+    p95DrawMs: p95(res.draw),
     longTasks: res.long,
     frames: res.ds.length,
   })}\n`,

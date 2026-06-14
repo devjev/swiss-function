@@ -205,7 +205,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 - [x] **2.1** Extract the field math into a shared, renderer-agnostic module
       (`fields.ts`): `ripple`, `noise`, `vignette` as pure
       `(x,y,t,params)→intensity`, plus the Bayer ramp mapping. Unit-test it.
-- [ ] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
+- [x] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
       shared interface as a lab story param. (May reuse current code.)
 - [ ] **2.3** Prototype renderer #2 (Canvas 2D rects, batched) as a lab story.
 - [ ] **2.4** Prototype renderer #3 (Canvas 2D `fillText`) as a lab story.
