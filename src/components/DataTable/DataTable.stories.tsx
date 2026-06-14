@@ -74,6 +74,25 @@ export const ReadOnly: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={360} />
 );
 
+// Excel-style column resizing (on by default). Drag a header's trailing edge,
+// double-click it to auto-fit content, or focus it and use Arrow keys
+// (Shift = larger step). The "Active" column is locked with resizable: false.
+export const ResizableColumns: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", sortable: true },
+    { id: "age", header: "Age", accessor: "age", align: "end", sortable: true, width: 6 },
+    {
+      id: "active",
+      header: "Active (locked)",
+      accessor: "active",
+      align: "center",
+      resizable: false,
+    },
+    { id: "role", header: "Role", accessor: "role", width: 10 },
+  ];
+  return <DataTable data={seed(50)} columns={columns} height={360} />;
+};
+
 export const Editable: Story = () => {
   const [data, setData] = useState<Person[]>(() => seed(20));
   const onCellChange = useCallback(

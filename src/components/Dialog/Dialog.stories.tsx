@@ -18,3 +18,26 @@ export const Default: Story = () => (
     </Dialog.Portal>
   </Dialog.Root>
 );
+
+// A window-style dialog: drag it by the header (Dialog.Handle), resize it from
+// the right / bottom / SE-corner grips, and note the very subtle backdrop dim.
+export const Window: Story = () => (
+  <Dialog.Root>
+    <Dialog.Trigger render={<Button>Open window</Button>} />
+    <Dialog.Portal>
+      <Dialog.Backdrop />
+      <Dialog.Popup draggable resizable>
+        <Dialog.Handle>
+          <Dialog.Title>Movable, resizable window</Dialog.Title>
+        </Dialog.Handle>
+        <Dialog.Description>
+          Drag the header to move me; drag the right, bottom, or corner edge to resize. The page
+          behind stays clearly visible — the scrim is deliberately faint.
+        </Dialog.Description>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Dialog.Close render={<Button variant="secondary">Close</Button>} />
+        </div>
+      </Dialog.Popup>
+    </Dialog.Portal>
+  </Dialog.Root>
+);

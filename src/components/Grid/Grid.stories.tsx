@@ -113,3 +113,66 @@ export const StyleEscape: Story = () => (
     <Card>auto row 2</Card>
   </Grid>
 );
+
+// Drag the gutter between columns to redistribute their widths; double-click
+// it to split evenly. Focus a gutter and use Arrow keys (Shift = larger step).
+export const ResizableColumns: Story = () => (
+  <Grid columns={3} gap={1} resizable="columns" style={{ width: "calc(var(--sf-unit) * 24)" }}>
+    <Card>Left</Card>
+    <Card>Center</Card>
+    <Card>Right</Card>
+  </Grid>
+);
+
+// Drag the gutter between rows.
+export const ResizableRows: Story = () => (
+  <Grid
+    rows={3}
+    gap={1}
+    resizable="rows"
+    style={{ height: "calc(var(--sf-unit) * 16)", width: "calc(var(--sf-unit) * 12)" }}
+  >
+    <Card>Top</Card>
+    <Card>Middle</Card>
+    <Card>Bottom</Card>
+  </Grid>
+);
+
+// Both axes resizable at once.
+export const ResizableBoth: Story = () => (
+  <Grid
+    columns={2}
+    rows={2}
+    gap={1}
+    resizable="both"
+    style={{ width: "calc(var(--sf-unit) * 20)", height: "calc(var(--sf-unit) * 14)" }}
+  >
+    <Card>A</Card>
+    <Card>B</Card>
+    <Card>C</Card>
+    <Card>D</Card>
+  </Grid>
+);
+
+export const ResizablePlayground: Story<{ resizable: "columns" | "rows" | "both" }> = ({
+  resizable,
+}) => (
+  <Grid
+    columns={3}
+    rows={2}
+    gap={1}
+    resizable={resizable}
+    style={{ width: "calc(var(--sf-unit) * 22)", height: "calc(var(--sf-unit) * 12)" }}
+  >
+    <Card>1</Card>
+    <Card>2</Card>
+    <Card>3</Card>
+    <Card>4</Card>
+    <Card>5</Card>
+    <Card>6</Card>
+  </Grid>
+);
+ResizablePlayground.args = { resizable: "both" };
+ResizablePlayground.argTypes = {
+  resizable: { options: ["columns", "rows", "both"], control: { type: "radio" } },
+};

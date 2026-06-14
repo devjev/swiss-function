@@ -1,10 +1,19 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background-color: var(--sf-color-overlay);
+  /* Deliberately very subtle — the popup's border + shadow carry the
+     separation, so the page stays legible behind the dialog. Component-local
+     (not a global token) and overridable at any scope. */
+  --sf-dialog-backdrop: rgb(0 0 0 / 0.08);
+  background-color: var(--sf-dialog-backdrop);
   z-index: var(--sf-z-overlay);
   opacity: 0;
   transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* Dark surfaces swallow a black scrim, so lift it slightly — still faint. */
+[data-theme="dark"] .backdrop {
+  --sf-dialog-backdrop: rgb(0 0 0 / 0.24);
 }
 .backdrop[data-open] {
   opacity: 1;
@@ -17,7 +26,8 @@
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  /* The user drag offset (vars default to 0) composes with the centering. */
+  transform: translate(calc(-50% + var(--sf-dialog-x, 0px)), calc(-50% + var(--sf-dialog-y, 0px)));
   max-width: 32rem;
   width: calc(100% - 2rem);
   max-height: calc(100vh - 2rem);
@@ -36,6 +46,49 @@
 }
 .popup[data-open] {
   opacity: 1;
+}
+
+/* While draggable, don't transition transform — it would lag behind the
+   pointer. Open/close only animates opacity anyway. */
+.draggable {
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* Drag grab region (wraps the title). Inert until inside a draggable popup. */
+.handle {
+  touch-action: none;
+}
+.handleActive {
+  cursor: move;
+}
+
+/* Resize handles — thin hit targets on the right / bottom edges + corner. */
+.resizeE,
+.resizeS,
+.resizeSE {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+.resizeE {
+  top: 0;
+  inset-inline-end: 0;
+  inline-size: calc(var(--sf-unit) / 3);
+  block-size: 100%;
+  cursor: ew-resize;
+}
+.resizeS {
+  inset-inline: 0;
+  bottom: 0;
+  block-size: calc(var(--sf-unit) / 3);
+  cursor: ns-resize;
+}
+.resizeSE {
+  inset-inline-end: 0;
+  bottom: 0;
+  inline-size: calc(var(--sf-unit) / 1.5);
+  block-size: calc(var(--sf-unit) / 1.5);
+  cursor: nwse-resize;
 }
 
 .title {

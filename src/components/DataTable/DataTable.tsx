@@ -12,6 +12,8 @@ import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "re
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { usePointerDrag } from "../../lib/usePointerDrag";
+import { buildColumnTemplate, COLUMN_MIN_UNITS } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
@@ -51,6 +53,9 @@ export interface DataTableProps<T>
   height?: number | string;
   /** Empty-state slot when data is empty. */
   empty?: ReactNode;
+  /** Allow leaf columns to be drag/keyboard-resized (Excel-style). Default true.
+   *  Lock individual columns with `resizable: false` on their column def. */
+  resizableColumns?: boolean;
 
   /** Return child rows for a parent. Omit for flat tables. */
   getSubRows?: (row: T) => T[] | undefined;
@@ -69,6 +74,17 @@ export interface DataTableProps<T>
 
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_HEIGHT = 400;
+
+/** Resolve a CSS length (e.g. `var(--sf-datatable-col-min)`) to px in the
+ *  context of `parent`, so JS clamping matches the token the CSS uses. */
+function measureCssWidth(parent: HTMLElement, value: string): number {
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:absolute;visibility:hidden;width:${value};`;
+  parent.appendChild(probe);
+  const w = probe.getBoundingClientRect().width;
+  probe.remove();
+  return w;
+}
 
 function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknown {
   if (typeof accessor === "function") return accessor(row);
@@ -120,6 +136,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     rowHeight = DEFAULT_ROW_HEIGHT,
     height = DEFAULT_HEIGHT,
     empty,
+    resizableColumns = true,
     getSubRows,
     treeColumn,
     defaultExpanded,
@@ -320,6 +337,46 @@ export function DataTable<T>(props: DataTableProps<T>) {
     el?.focus({ preventScroll: false });
   }, [selection.active, editing]);
 
+  // Auto-fit: size a column to its widest currently-mounted content. `scrollWidth`
+  // reports the full natural width even though cells clip with ellipsis.
+  const autoFitColumn = useCallback(
+    (columnId: string, headerCell: HTMLElement) => {
+      const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
+      if (colIndex < 0) return;
+      // Header label is the first <span> in the header cell.
+      const headerLabel = headerCell.querySelector("span");
+      let widest = headerLabel ? headerLabel.scrollWidth : 0;
+      for (const [key, el] of cellRefs.current) {
+        if (Number(key.split(":")[1]) !== colIndex) continue;
+        const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
+        widest = Math.max(widest, body ? body.scrollWidth : el.scrollWidth);
+      }
+      // Header + cell horizontal padding (calc(--sf-unit / 2) each side) plus slack.
+      const PADDING = 24 + 8;
+      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      const next = Math.max(minPx, Math.ceil(widest + PADDING));
+      setColumnWidths((prev) => (prev[columnId] === next ? prev : { ...prev, [columnId]: next }));
+    },
+    [visibleLeaves],
+  );
+
+  // Keyboard resize on a focused handle. Arrow keys nudge by a step; Shift = larger.
+  const resizeColumnByKey = useCallback(
+    (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
+      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+      ev.preventDefault();
+      const dir = ev.key === "ArrowRight" ? 1 : -1;
+      const step = ev.shiftKey ? 24 : 8;
+      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      setColumnWidths((prev) => {
+        const current = prev[columnId] ?? headerCell.getBoundingClientRect().width;
+        const next = Math.max(minPx, Math.round(current + dir * step));
+        return { ...prev, [columnId]: next };
+      });
+    },
+    [],
+  );
+
   // --- Top-level keyboard router ---
   const handleKeyDown = useCallback(
     (ev: KeyboardEvent<HTMLDivElement>) => {
@@ -358,17 +415,57 @@ export function DataTable<T>(props: DataTableProps<T>) {
     ],
   );
 
-  // --- Grid template (from visible leaves) ---
+  // --- Column-width overrides (px), set by dragging the resize handle ---
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+
+  /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
+  const resizableColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (resizableColumns) {
+      for (const c of visibleLeaves) if (c.resizable !== false) ids.add(c.id);
+    }
+    return ids;
+  }, [resizableColumns, visibleLeaves]);
+
+  // A single drag instance serves every handle; onStart reads which column is
+  // being resized (and its start geometry) off the handle element.
+  const resizeRef = useRef<{
+    id: string;
+    startWidth: number;
+    minPx: number;
+    handle: HTMLElement;
+  } | null>(null);
+  const { onPointerDown: onColumnResizeDown } = usePointerDrag({
+    onStart: (_origin, event) => {
+      const handle = event.currentTarget as HTMLElement;
+      const id = handle.dataset.columnId;
+      const headerCell = handle.parentElement as HTMLElement | null;
+      if (!id || !headerCell) return;
+      handle.dataset.dragging = "true";
+      resizeRef.current = {
+        id,
+        startWidth: headerCell.getBoundingClientRect().width,
+        minPx: measureCssWidth(headerCell, "var(--sf-datatable-col-min)"),
+        handle,
+      };
+    },
+    onMove: (delta) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const next = Math.max(r.minPx, Math.round(r.startWidth + delta.dx));
+      setColumnWidths((prev) => (prev[r.id] === next ? prev : { ...prev, [r.id]: next }));
+    },
+    onEnd: () => {
+      const r = resizeRef.current;
+      if (r) delete r.handle.dataset.dragging;
+      resizeRef.current = null;
+    },
+  });
+
+  // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
-    () =>
-      visibleLeaves
-        .map((col) =>
-          col.width != null
-            ? `calc(var(--sf-unit) * ${col.width})`
-            : "minmax(calc(var(--sf-unit) * 5), 1fr)",
-        )
-        .join(" "),
-    [visibleLeaves],
+    () => buildColumnTemplate(visibleLeaves, columnWidths),
+    [visibleLeaves, columnWidths],
   );
 
   // --- Tree column index (where the chevron + indent live) ---
@@ -474,6 +571,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
               const collapsedGroupId = colMeta?.collapsedGroupId;
               const canSort = header.column.getCanSort();
               const sortDir = header.column.getIsSorted();
+              const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
+              const showResizeHandle = isLeafHeader && resizableColumnIds.has(header.column.id);
               return (
                 <div
                   key={header.id}
@@ -497,6 +596,35 @@ export function DataTable<T>(props: DataTableProps<T>) {
                         />
                       )}
                     </>
+                  )}
+                  {showResizeHandle && (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
+                      aria-valuenow={Math.round(columnWidths[header.column.id] ?? 0)}
+                      aria-valuemin={COLUMN_MIN_UNITS * 24}
+                      tabIndex={0}
+                      data-column-id={header.column.id}
+                      className={styles.resizeHandle}
+                      onPointerDown={onColumnResizeDown}
+                      // Don't let a click on the handle toggle column sorting.
+                      onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        autoFitColumn(
+                          header.column.id,
+                          e.currentTarget.parentElement as HTMLElement,
+                        );
+                      }}
+                      onKeyDown={(e) =>
+                        resizeColumnByKey(
+                          header.column.id,
+                          e.currentTarget.parentElement as HTMLElement,
+                          e,
+                        )
+                      }
+                    />
                   )}
                 </div>
               );

@@ -8,12 +8,20 @@ interface HarnessProps {
   cols: string[];
   editable?: boolean;
   paginate?: PaginateConfig;
+  resizableColumns?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
 }
 
 // Playwright CT mounts must be top-level component invocations (no inline closures),
 // so the spec passes plain serializable props and this harness assembles the columns.
-export function DataTableHarness({ data, cols, editable, paginate, onCellChange }: HarnessProps) {
+export function DataTableHarness({
+  data,
+  cols,
+  editable,
+  paginate,
+  resizableColumns,
+  onCellChange,
+}: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
     if (id === "age") return { id, header: id, accessor: "age", edit: { type: "number" } };
     if (id === "active") return { id, header: id, accessor: "active", edit: { type: "boolean" } };
@@ -25,6 +33,7 @@ export function DataTableHarness({ data, cols, editable, paginate, onCellChange 
       columns={columns}
       editable={editable}
       paginate={paginate}
+      resizableColumns={resizableColumns}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />

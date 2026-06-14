@@ -34,6 +34,9 @@ export interface LeafColumnDef<T> {
   cell?: (props: CellRenderProps<T>) => ReactNode;
   /** Column width in --sf-unit multiples. Omit for auto-sized fluid column. */
   width?: number;
+  /** Allow this column to be drag/keyboard-resized. Default true (when the
+   *  table's `resizableColumns` is on). Set false to lock this column's width. */
+  resizable?: boolean;
   align?: "start" | "center" | "end";
   /** Per-column edit config. Omit to make column read-only even when table.editable. */
   edit?: EditConfig;
