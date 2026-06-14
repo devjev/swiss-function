@@ -222,7 +222,7 @@ Keep messages scoped to the single task. Do not push.
       widths behave exactly as today. Optional `onColumnResize?(id, px)` +
       `columnWidths?` for controlled mode — add only if it stays small;
       otherwise note as out-of-scope in §10.
-- [ ] **1.7** Consolidate/finish the DataTable CT spec(s): drag-resize,
+- [x] **1.7** Consolidate/finish the DataTable CT spec(s): drag-resize,
       double-click auto-fit, keyboard resize, and the opt-out path (no handle
       when `resizableColumns={false}`). `just test-ct` green for the spec.
 
@@ -425,6 +425,15 @@ A feature is done only when **all** hold:
 
 ## 10. Progress notes (append-only — newest at bottom)
 
+- 2026-06-14 — Phase 1 (DataTable Excel columns) complete. Width-override map
+  (px) layered over static defs via `buildColumnTemplate`; single
+  `usePointerDrag` handle reads the active column off the DOM; double-click
+  auto-fits (scrollWidth under ellipsis); focusable `separator` with arrow-key
+  resize; `resizableColumns` (default true) + per-column `resizable` opt-out.
+  `--sf-unit` measured at 24px so the min floor is 72px. **Deferred** (out of
+  scope unless asked): controlled width mode (`onColumnResize` / `columnWidths`
+  props) — internal state only for now. 21 DataTable CT specs green. Next: Grid
+  gutter resize (Phase 2), which reuses the same hook.
 - 2026-06-14 — Plan authored. Scope: Grid gutter-resize, DataTable Excel
   columns, Dialog window drag+resize + subtle scrim, all on a shared internal
   `usePointerDrag` hook, no new deps. Build order is DataTable → Grid → Dialog
