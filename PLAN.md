@@ -166,7 +166,7 @@ Keep messages scoped to the single task. Do not push.
       `{renderer, w, h, fps, p95FrameMs, longTasks}`. Drive it via story hooks
       (a `data-nis-*` attribute or a query param the lab stories read) so it
       can target a specific renderer + size.
-- [ ] **0.4** Record the **current** DOM-`<pre>` renderer's numbers at three
+- [x] **0.4** Record the **current** DOM-`<pre>` renderer's numbers at three
       block sizes — S `≈240×140`, M `≈520×300`, L `≈960×540` — into §9 as the
       baseline to beat.
 
@@ -353,6 +353,18 @@ table, the normalized scores, and the winner in §9 so it isn't relitigated.
   body text).
 - **D5 — Tooling.** `scripts/screenshot-story.mjs` targets the stale port
   :61001; Ladle serves :61000 (`.ladle/config.mjs`). Fixed in Task 0.2.
+- **D6 — Baseline (DOM `<pre>`, current renderer), via `probe-nonideal`.**
+  | size | w×h | fps | p95FrameMs | longTasks |
+  |------|-----|-----|-----------|-----------|
+  | S | 240×140 | 60 | 16.7 | 0 |
+  | M | 520×300 | 60 | 16.8 | 0 |
+  | L | 960×540 | 60 | 16.8 | 0 |
+  **Caveat:** the shipped component throttles its ripple to ~20fps (50ms), so
+  rAF stays at 60 and the per-update string-rebuild cost is hidden even at L —
+  the benchmark **understates** the DOM cost. Phase 2/3 prototypes must animate
+  at the **full 60fps update rate** (no throttle) so the harness exposes each
+  renderer's true cost; re-baseline the DOM renderer un-throttled in Phase 3
+  for an apples-to-apples comparison.
 
 ## 10. Progress notes (append-only — newest at bottom)
 
