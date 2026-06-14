@@ -202,7 +202,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 4. **WebGL fragment shader.** Compute intensity + Bayer threshold per cell on
    the GPU (raw WebGL, no lib if feasible). The performance ceiling.
 
-- [ ] **2.1** Extract the field math into a shared, renderer-agnostic module
+- [x] **2.1** Extract the field math into a shared, renderer-agnostic module
       (`fields.ts`): `ripple`, `noise`, `vignette` as pure
       `(x,y,t,params)→intensity`, plus the Bayer ramp mapping. Unit-test it.
 - [ ] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
