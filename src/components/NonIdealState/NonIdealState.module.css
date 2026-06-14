@@ -11,25 +11,16 @@
   color: var(--sf-color-fg);
 }
 
-/* Continuous dithered fill — covers the whole block; the message panel knocks
-   a clear hole in the middle. */
+/* Continuous dithered fill (WebGL canvas) — covers the whole block; the
+   message panel knocks a clear hole in the middle. The `color` token below is
+   read by the renderer as the fill's base color (so it themes + tints). */
 .fill {
   position: absolute;
   inset: 0;
-  margin: 0;
-  font-family: var(--sf-font-mono);
-  font-size: 10px;
-  line-height: 11px;
-  letter-spacing: 0;
+  width: 100%;
+  height: 100%;
   color: var(--sf-color-muted);
-  user-select: none;
-  white-space: pre;
-  overflow: hidden;
   pointer-events: none;
-  /* The dither cells are tiny; subpixel AA fringes them with rainbow noise.
-     Force flat smoothing so the ramp reads as clean shade. */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Message sits above the fill, on a knockout so text stays legible. */
@@ -66,10 +57,5 @@
 
 /* Error fill carries the danger hue. */
 .error .fill {
-  color: color-mix(in srgb, var(--sf-color-danger), transparent 15%);
-}
-
-/* Loading fill leans a touch brighter so the ripple reads as live. */
-.loading .fill {
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-danger);
 }

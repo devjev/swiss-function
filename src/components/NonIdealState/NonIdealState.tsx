@@ -1,26 +1,29 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { buildRipple, buildVignette, GAIN, type NonIdealStateVariant } from "./dither";
+import type { EffectName, NoiseParams, RippleParams } from "./fields";
 import styles from "./NonIdealState.module.css";
+import { createWebglFill, type WebglFill } from "./webglFill";
 
-export type { NonIdealStateVariant };
+export type NonIdealStateVariant = "empty" | "no-results" | "error" | "loading";
+export type { EffectName };
 
-/** Measure the real monospace cell (width + line height) in the fill's own
- *  font by probing a known run of full blocks. Hardcoded estimates mismatch
- *  the actual glyph metrics and leave the block partly uncovered. */
-function measureCell(pre: HTMLElement): { cellW: number; cellH: number } {
+/** Monospace cell metrics for the dither grid resolution (matches the fill font). */
+const FONT_PX = 10;
+const LINE_PX = 11;
+
+function measureCell(host: HTMLElement): { cellW: number; cellH: number } {
   const probe = document.createElement("span");
   probe.textContent = "█".repeat(40);
-  probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;left:-9999px;top:0;";
-  pre.appendChild(probe);
+  probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;left:-9999px;font:${FONT_PX}px var(--sf-font-mono);line-height:${LINE_PX}px;`;
+  host.appendChild(probe);
   const rect = probe.getBoundingClientRect();
   probe.remove();
-  return { cellW: rect.width / 40 || 6, cellH: rect.height || 11 };
+  return { cellW: rect.width / 40 || 6, cellH: rect.height || LINE_PX };
 }
 
 export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
-  /** Which state this represents — picks the fill weight, tint, and a11y
+  /** Which state this represents — picks the default effect, tint, and a11y
    *  semantics. Default `"empty"`. */
   variant?: NonIdealStateVariant;
   /** Headline — what's missing / what happened. */
@@ -29,11 +32,13 @@ export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>,
   description?: ReactNode;
   /** Action slot — typically a `Button`. */
   action?: ReactNode;
-  /** Block width. `number` → multiples of `--sf-unit`; `string` → raw CSS.
-   *  Default fills the container. */
+  /** Override the fill effect. Defaults to `ripple` for loading, else `vignette`. */
+  effect?: EffectName;
+  /** Effect parameters (ripple speed/wavelength/amplitude, noise rate/density/seed). */
+  effectOptions?: RippleParams & NoiseParams;
+  /** Block width. `number` → multiples of `--sf-unit`; `string` → raw CSS. */
   width?: number | string;
-  /** Block height. `number` → multiples of `--sf-unit`; `string` → raw CSS.
-   *  Default `calc(--sf-unit * 14)`. */
+  /** Block height. `number` → multiples of `--sf-unit`; `string` → raw CSS. */
   height?: number | string;
 }
 
@@ -46,20 +51,63 @@ const variantClass: Record<NonIdealStateVariant, string | undefined> = {
   empty: undefined,
   "no-results": undefined,
   error: styles.error,
-  loading: styles.loading,
+  loading: undefined,
 };
 
+const defaultEffect: Record<NonIdealStateVariant, EffectName> = {
+  empty: "vignette",
+  "no-results": "vignette",
+  error: "vignette",
+  loading: "ripple",
+};
+
+/** Read a CSS color (set on the canvas via a token) as 0..1 premultipliable RGB. */
+function readColor(el: HTMLElement): [number, number, number] {
+  const c = getComputedStyle(el).color;
+  const m = c.match(/-?\d+\.?\d*/g);
+  if (!m || m.length < 3) return [0.42, 0.447, 0.502];
+  return [Number(m[0]) / 255, Number(m[1]) / 255, Number(m[2]) / 255];
+}
+
+interface Dims {
+  cols: number;
+  rows: number;
+  cellW: number;
+  cellH: number;
+  w: number;
+  h: number;
+}
+
 /** A non-ideal state — empty, no-results, error, or loading — rendered as a
- *  sizable block continuously filled with console-style dithered shade blocks,
- *  with an informative message in the cleared center. Loading ripples the
- *  fill characters outward. */
+ *  sizable block whose whole area is a console-style dithered shade-block fill
+ *  (WebGL), with an informative message in the cleared center. */
 export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(function NonIdealState(
-  { variant = "empty", title, description, action, width, height, className, style, ...rest },
+  {
+    variant = "empty",
+    title,
+    description,
+    action,
+    effect,
+    effectOptions,
+    width,
+    height,
+    className,
+    style,
+    ...rest
+  },
   ref,
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const preRef = useRef<HTMLPreElement | null>(null);
-  const [dims, setDims] = useState<{ cols: number; rows: number }>({ cols: 0, rows: 0 });
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fillRef = useRef<WebglFill | null>(null);
+  const [dims, setDims] = useState<Dims>({
+    cols: 0,
+    rows: 0,
+    cellW: 6,
+    cellH: LINE_PX,
+    w: 0,
+    h: 0,
+  });
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -70,18 +118,19 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     [ref],
   );
 
-  // Measure the block → cell grid. Overfill by one cell per axis; the <pre>
-  // clips the overflow, so the field always reaches every edge.
   useLayoutEffect(() => {
     const el = rootRef.current;
-    const pre = preRef.current;
-    if (!el || !pre) return;
+    if (!el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      const { cellW, cellH } = measureCell(pre);
+      const { cellW, cellH } = measureCell(el);
       setDims({
         cols: Math.max(1, Math.ceil(r.width / cellW) + 1),
         rows: Math.max(1, Math.ceil(r.height / cellH) + 1),
+        cellW,
+        cellH,
+        w: r.width,
+        h: r.height,
       });
     };
     measure();
@@ -90,41 +139,44 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     return () => ro.disconnect();
   }, []);
 
-  const animate = variant === "loading";
+  const activeEffect = effect ?? defaultEffect[variant];
 
-  // Static fill (every non-loading variant; loading falls back to a single
-  // ripple frame under reduced motion — handled in the animation effect).
   useEffect(() => {
-    if (animate) return;
-    const pre = preRef.current;
-    if (pre) pre.textContent = buildVignette(dims.cols, dims.rows, GAIN[variant]);
-  }, [animate, variant, dims]);
-
-  // Loading ripple — rewrite the fill characters ~20fps. No React re-render;
-  // we write straight to the <pre>. Reduced motion → one static frame.
-  useEffect(() => {
-    if (!animate) return;
-    const pre = preRef.current;
-    if (!pre) return;
+    const canvas = canvasRef.current;
+    if (!canvas || dims.w === 0) return;
+    if (!fillRef.current) fillRef.current = createWebglFill(canvas);
+    const fill = fillRef.current;
+    if (!fill) return;
+    fill.resize(dims.w, dims.h);
+    const color = readColor(canvas);
+    const base = {
+      cols: dims.cols,
+      rows: dims.rows,
+      cellW: dims.cellW,
+      cellH: dims.cellH,
+      effect: activeEffect,
+      color,
+      ...effectOptions,
+    };
+    const animated = activeEffect !== "vignette";
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      pre.textContent = buildRipple(dims.cols, dims.rows, 0);
+
+    if (!animated || reduced) {
+      fill.draw({ ...base, t: 0 });
       return;
     }
     let raf = 0;
-    let t = 0;
-    let last = 0;
+    let start = 0;
     const loop = (now: number) => {
-      if (now - last >= 50) {
-        pre.textContent = buildRipple(dims.cols, dims.rows, t);
-        t += 0.4;
-        last = now;
-      }
+      if (!start) start = now;
+      fill.draw({ ...base, t: (now - start) / 1000 });
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [animate, dims]);
+  }, [dims, activeEffect, effectOptions]);
+
+  useEffect(() => () => fillRef.current?.destroy(), []);
 
   const role = variant === "loading" ? "status" : variant === "error" ? "alert" : undefined;
   const blockStyle: CSSProperties = { ...style };
@@ -143,7 +195,8 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       style={blockStyle}
       {...rest}
     >
-      <pre ref={preRef} aria-hidden="true" data-nis-fill="" className={styles.fill} />
+      {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: decorative empty canvas, no focusable content */}
+      <canvas ref={canvasRef} aria-hidden="true" data-nis-fill="" className={styles.fill} />
       {(title != null || description != null || action != null) && (
         <div className={styles.panel}>
           {title != null && <p className={styles.title}>{title}</p>}

@@ -225,7 +225,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 
 ### Phase 4 — Definitive renderer + parameterized effects + subtle color
 
-- [ ] **4.1** Implement the winning renderer as the real `NonIdealState` fill,
+- [x] **4.1** Implement the winning renderer as the real `NonIdealState` fill,
       replacing the per-frame `<pre>` rewrite. Keep it `aria-hidden`, keep the
       message panel + variants, keep the vignette center-clear behavior.
 - [ ] **4.2** Effects API: `effect?: "ripple" | "noise" | "vignette" | ...`
