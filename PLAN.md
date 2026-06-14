@@ -311,7 +311,7 @@ Keep messages scoped to the single task. Do not push.
 - [x] **4.2** DataTable story: a `ResizableColumns` story demonstrating drag,
       double-click auto-fit, keyboard resize, and a locked (`resizable:false`)
       column. Note the keys in the story description.
-- [ ] **4.3** Dialog story: a `Window` story with `draggable resizable` and the
+- [x] **4.3** Dialog story: a `Window` story with `draggable resizable` and the
       subtle backdrop, plus a plain `Default` left intact for contrast.
 - [ ] **4.4** Update `AGENTS.md`: document `Grid` `resizable`, `DataTable`
       `resizableColumns` + per-column `resizable`, and `Dialog.Popup`
