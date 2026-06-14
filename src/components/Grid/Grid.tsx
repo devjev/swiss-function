@@ -1,5 +1,5 @@
 import { useRender } from "@base-ui/react/use-render";
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
@@ -268,6 +268,23 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     },
   });
 
+  // Keyboard resize on a focused gutter. Arrow keys nudge by a step; Shift larger.
+  const resizeGutterByKey = useCallback(
+    (axis: "col" | "row", index: number, ev: KeyboardEvent<HTMLDivElement>) => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      const [dec, inc] = axis === "col" ? ["ArrowLeft", "ArrowRight"] : ["ArrowUp", "ArrowDown"];
+      if (ev.key !== dec && ev.key !== inc) return;
+      ev.preventDefault();
+      const step = (ev.shiftKey ? 24 : 8) * (ev.key === inc ? 1 : -1);
+      const base = (axis === "col" ? colSizes : rowSizes) ?? measureAxis(grid, axis).sizes;
+      const next = redistribute(base, index, step);
+      if (axis === "col") setColSizes(next);
+      else setRowSizes(next);
+    },
+    [colSizes, rowSizes],
+  );
+
   const computedStyle = buildGridStyle({
     columns,
     rows,
@@ -294,30 +311,46 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
   const rowPos = rowSizes ?? measured?.rowSizes;
   const overlay =
     isResizable && measured ? (
-      <div className={styles.gutterLayer} aria-hidden="true" key="sf-gutter-layer">
+      <div className={styles.gutterLayer} key="sf-gutter-layer">
         {resizeCols && colPos
           ? boundaries(colPos, measured.colGap).map((offset, i) => (
+              // biome-ignore lint/a11y/useSemanticElements: a focusable, draggable splitter is not an <hr>
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: gutter index is the stable identity
                 key={`col-${i}`}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize column"
+                aria-valuenow={Math.round(colPos[i] ?? 0)}
+                aria-valuemin={TRACK_MIN_PX}
+                tabIndex={0}
                 data-axis="col"
                 data-index={i}
                 className={styles.gutterCol}
                 style={{ left: `${offset}px` }}
                 onPointerDown={onGutterDown}
+                onKeyDown={(e) => resizeGutterByKey("col", i, e)}
               />
             ))
           : null}
         {resizeRows && rowPos
           ? boundaries(rowPos, measured.rowGap).map((offset, i) => (
+              // biome-ignore lint/a11y/useSemanticElements: a focusable, draggable splitter is not an <hr>
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: gutter index is the stable identity
                 key={`row-${i}`}
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize row"
+                aria-valuenow={Math.round(rowPos[i] ?? 0)}
+                aria-valuemin={TRACK_MIN_PX}
+                tabIndex={0}
                 data-axis="row"
                 data-index={i}
                 className={styles.gutterRow}
                 style={{ top: `${offset}px` }}
                 onPointerDown={onGutterDown}
+                onKeyDown={(e) => resizeGutterByKey("row", i, e)}
               />
             ))
           : null}

@@ -251,7 +251,7 @@ Keep messages scoped to the single task. Do not push.
       hits min, stop. Apply live each move. CT spec: drag a column gutter and
       assert the two adjacent track widths changed by ±delta and the total is
       unchanged.
-- [ ] **2.4** Keyboard + a11y on gutters: focusable; Arrow keys nudge the
+- [x] **2.4** Keyboard + a11y on gutters: focusable; Arrow keys nudge the
       boundary by a step (Shift = larger); `aria-valuenow` reflects the
       leading track's size. Roving/tab order sane with the grid's own content.
 - [ ] **2.5** Polish: `minTrackSize?` prop (overrides the token default);

@@ -131,3 +131,18 @@ test("dragging a column gutter redistributes the two adjacent tracks", async ({ 
   expect(a1).toBeLessThan(b1 - 40);
   expect(a0 + a1).toBeCloseTo(b0 + b1, 0);
 });
+
+test("arrow keys on a focused gutter resize the adjacent tracks", async ({ mount, page }) => {
+  const component = await mount(
+    <Grid columns={2} resizable="columns" style={{ width: 400 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const track0 = () =>
+    component.evaluate((el) => Number.parseFloat(getComputedStyle(el).gridTemplateColumns));
+  const before = await track0();
+  await component.locator('[data-axis="col"]').focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowRight");
+  expect(await track0()).toBeGreaterThan(before + 80);
+});
