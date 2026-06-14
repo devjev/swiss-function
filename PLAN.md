@@ -259,9 +259,9 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
       visibly changes output.
 - [x] **5.3** Keep `probe-nonideal` + a perf-regression lab story; record the
       shipped numbers in §9.
-- [ ] **5.4** Update `AGENTS.md`: document `effect`, `effectOptions`, `color`,
+- [x] **5.4** Update `AGENTS.md`: document `effect`, `effectOptions`, `color`,
       and the perf characteristics. Keep it terse.
-- [ ] **5.5** Public surface: props-only, so no new `package.json` export /
+- [x] **5.5** Public surface: props-only, so no new `package.json` export /
       `src/index.ts` change. Export any new effect/param **types** from the
       component's `index.ts`. Keep the renderer + `fields.ts` internal.
 

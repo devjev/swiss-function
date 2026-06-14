@@ -108,7 +108,7 @@ Ladle (`npm run dev`).
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
-| `NonIdealState`          | Empty / no-results / error / loading state for a region. A sizable block continuously filled with console-style dithered shade blocks, message + action in the cleared center. `variant`, `title`, `description`, `action`, `width`/`height`. Loading ripples the fill. |
+| `NonIdealState`          | Empty / no-results / error / loading state for a region. A sizable block continuously filled (WebGL, ~0.06ms/frame, pauses offscreen) with console-style dithered shade blocks; message + action in the cleared center. Props: `variant`, `title`, `description`, `action`, `width`/`height`, `effect` (`ripple`/`noise`/`vignette`; loading defaults to ripple), `effectOptions` (speed/wavelength/amplitude/rate/density/seed), `color` + `opacity` (subtle, token-based). Reduced-motion → static frame. |
 | `StreamingTerminalText`  | Terminal/log output that arrives incrementally.    |
 
 ### Navigation

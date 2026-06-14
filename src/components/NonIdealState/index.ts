@@ -1,2 +1,2 @@
-export type { NonIdealStateProps, NonIdealStateVariant } from "./NonIdealState";
+export type { EffectName, NonIdealStateProps, NonIdealStateVariant } from "./NonIdealState";
 export { NonIdealState } from "./NonIdealState";
