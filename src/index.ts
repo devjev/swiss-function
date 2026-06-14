@@ -12,6 +12,7 @@ export * from "./components/DataTable";
 export * from "./components/Dialog";
 export * from "./components/Explorer";
 export * from "./components/Field";
+export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";
 export * from "./components/Input";

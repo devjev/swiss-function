@@ -14,6 +14,7 @@ const componentNames = [
   "CommandBar",
   "Explorer",
   "Field",
+  "Fullscreen",
   "Graph",
   "Grid",
   "Input",

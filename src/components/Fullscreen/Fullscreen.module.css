@@ -1,0 +1,63 @@
+.root {
+  position: relative;
+}
+
+/* Expanded: a fixed overlay filling the viewport. The content cell stretches
+   so a single child (chart, table, NonIdealState…) fills the whole screen. */
+.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sf-z-modal);
+  display: grid;
+  background-color: var(--sf-color-bg);
+}
+
+.expanded .content {
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+
+/* Toggle button — floats in a corner of the container (or the viewport when
+   expanded, since the root is then fixed). */
+.toggle {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.5);
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding: 0;
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.top-right {
+  top: calc(var(--sf-unit) / 2);
+  right: calc(var(--sf-unit) / 2);
+}
+.top-left {
+  top: calc(var(--sf-unit) / 2);
+  left: calc(var(--sf-unit) / 2);
+}
+.bottom-right {
+  bottom: calc(var(--sf-unit) / 2);
+  right: calc(var(--sf-unit) / 2);
+}
+.bottom-left {
+  bottom: calc(var(--sf-unit) / 2);
+  left: calc(var(--sf-unit) / 2);
+}
