@@ -267,7 +267,7 @@ Keep messages scoped to the single task. Do not push.
 > `transform: translate(-50%,-50%)`, with open/close opacity+transform
 > transitions. The backdrop uses the shared `--sf-color-overlay` token.
 
-- [ ] **3.1** **Subtle backdrop.** Stop using the heavy shared
+- [x] **3.1** **Subtle backdrop.** Stop using the heavy shared
       `--sf-color-overlay` for the dialog scrim. Introduce a **component-local**
       variable `--sf-dialog-backdrop` defined in `Dialog.module.css` (NOT a
       global token — see §9 D3) set to a very faint scrim

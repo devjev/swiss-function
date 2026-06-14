@@ -1,10 +1,19 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background-color: var(--sf-color-overlay);
+  /* Deliberately very subtle — the popup's border + shadow carry the
+     separation, so the page stays legible behind the dialog. Component-local
+     (not a global token) and overridable at any scope. */
+  --sf-dialog-backdrop: rgb(0 0 0 / 0.08);
+  background-color: var(--sf-dialog-backdrop);
   z-index: var(--sf-z-overlay);
   opacity: 0;
   transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* Dark surfaces swallow a black scrim, so lift it slightly — still faint. */
+[data-theme="dark"] .backdrop {
+  --sf-dialog-backdrop: rgb(0 0 0 / 0.24);
 }
 .backdrop[data-open] {
   opacity: 1;
