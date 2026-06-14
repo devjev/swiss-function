@@ -108,6 +108,7 @@ Ladle (`npm run dev`).
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
+| `NonIdealState`          | Empty / no-results / error / loading state for a region. A sizable block continuously filled with console-style dithered shade blocks, message + action in the cleared center. `variant`, `title`, `description`, `action`, `width`/`height`. Loading ripples the fill. |
 | `StreamingTerminalText`  | Terminal/log output that arrives incrementally.    |
 
 ### Navigation
@@ -240,7 +241,8 @@ Common requests and the right component:
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
 | "a network / dependency graph / mind map"          | `Graph`                                          |
-| "loading state"                                    | `Skeleton`                                       |
+| "loading state"                                    | `Skeleton` (inline placeholder) / `NonIdealState variant="loading"` (whole region) |
+| "empty state" / "no results" / "error state"       | `NonIdealState` (variant per case)               |
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "chat UI"                                          | `Chat`                                           |

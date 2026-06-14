@@ -17,6 +17,7 @@ export * from "./components/Grid";
 export * from "./components/Input";
 export * from "./components/Markdown";
 export * from "./components/Menu";
+export * from "./components/NonIdealState";
 export * from "./components/Outliner";
 export * from "./components/Pane";
 export * from "./components/Popover";
