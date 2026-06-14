@@ -317,7 +317,7 @@ Keep messages scoped to the single task. Do not push.
       `resizableColumns` + per-column `resizable`, and `Dialog.Popup`
       `draggable`/`resizable` + the subtle-dim default. Add a row to the
       relevant tables. Keep it terse; AGENTS.md is the usage contract.
-- [ ] **4.5** Confirm the public surface: these are **props on existing
+- [x] **4.5** Confirm the public surface: these are **props on existing
       components**, so no new `package.json` `exports` entries and no
       `src/index.ts` change are needed. Verify `usePointerDrag` is internal
       (not re-exported). If any new type needs exporting (e.g. a resize
