@@ -290,7 +290,7 @@ Keep messages scoped to the single task. Do not push.
       `max-width`/`width` defaults), clamped to a min size
       (`--sf-dialog-min-w` / `--sf-dialog-min-h`) and the viewport. SE corner
       is the priority; add the others if they stay clean.
-- [ ] **3.4** Lifecycle correctness: reset drag offset + size when the dialog
+- [x] **3.4** Lifecycle correctness: reset drag offset + size when the dialog
       **closes and reopens** (next open is centered at default size), so a
       moved/resized window doesn't "remember" stale geometry unexpectedly.
       Use `setPointerCapture`; ensure dragging a handle doesn't trigger Base

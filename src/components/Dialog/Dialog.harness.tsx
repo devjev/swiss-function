@@ -12,6 +12,7 @@ export function DialogWindowHarness({
 }) {
   return (
     <Dialog.Root defaultOpen>
+      <Dialog.Trigger data-testid="trigger">Open</Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Backdrop />
         <Dialog.Popup draggable={draggable} resizable={resizable} data-testid="popup">
@@ -19,6 +20,7 @@ export function DialogWindowHarness({
             <Dialog.Title>Movable</Dialog.Title>
           </Dialog.Handle>
           <Dialog.Description>Drag me around by the header.</Dialog.Description>
+          <Dialog.Close data-testid="close">Close</Dialog.Close>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

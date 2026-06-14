@@ -72,3 +72,28 @@ test("a resizable popup clamps to its minimum size", async ({ mount, page }) => 
   expect(after.height).toBeGreaterThanOrEqual(118);
   expect(after.height).toBeLessThan(140);
 });
+
+test("a moved popup re-centers when closed and reopened", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness draggable />);
+  const popup = page.getByTestId("popup");
+  const handle = page.getByTestId("handle");
+  const before = await popup.boundingBox();
+  const hb = await handle.boundingBox();
+  if (!before || !hb) throw new Error("missing bounding boxes");
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2 + 120, hb.y + hb.height / 2 + 60, { steps: 8 });
+  await page.mouse.up();
+  const moved = await popup.boundingBox();
+  if (!moved) throw new Error("missing bounding box");
+  expect(moved.x - before.x).toBeGreaterThan(90);
+
+  await page.getByTestId("close").click();
+  await expect(popup).toHaveCount(0);
+  await page.getByTestId("trigger").click();
+  const reopened = await popup.boundingBox();
+  if (!reopened) throw new Error("missing bounding box");
+  // Geometry resets — back to the original centered position.
+  expect(Math.abs(reopened.x - before.x)).toBeLessThan(2);
+  expect(Math.abs(reopened.y - before.y)).toBeLessThan(2);
+});
