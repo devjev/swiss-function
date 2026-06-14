@@ -1,0 +1,61 @@
+.root {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-block-size: calc(var(--sf-unit) * 14);
+  overflow: hidden;
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  color: var(--sf-color-fg);
+}
+
+/* Continuous dithered fill (WebGL canvas) — covers the whole block; the
+   message panel knocks a clear hole in the middle. The `color` token below is
+   read by the renderer as the fill's base color (so it themes + tints). */
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--sf-color-fg);
+  pointer-events: none;
+}
+
+/* Message sits above the fill, on a knockout so text stays legible. */
+.panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  max-width: min(100%, var(--sf-measure));
+  padding: var(--sf-unit) calc(var(--sf-unit) * 1.5);
+  text-align: center;
+  background-color: var(--sf-color-bg);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-semibold);
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-base);
+  color: var(--sf-color-fg);
+}
+
+.action {
+  margin-block-start: calc(var(--sf-unit) / 2);
+}
+
+/* Error fill carries the danger hue. */
+.error .fill {
+  color: var(--sf-color-danger);
+}

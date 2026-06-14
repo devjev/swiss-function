@@ -108,6 +108,10 @@
       "types": "./dist/components/Markdown/index.d.ts",
       "import": "./dist/components/Markdown/index.js"
     },
+    "./non-ideal-state": {
+      "types": "./dist/components/NonIdealState/index.d.ts",
+      "import": "./dist/components/NonIdealState/index.js"
+    },
     "./outliner": {
       "types": "./dist/components/Outliner/index.d.ts",
       "import": "./dist/components/Outliner/index.js"

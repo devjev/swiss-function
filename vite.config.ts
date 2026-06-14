@@ -18,6 +18,7 @@ const componentNames = [
   "Grid",
   "Input",
   "Markdown",
+  "NonIdealState",
   "Outliner",
   "Pane",
   "Checkbox",
