@@ -220,7 +220,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 - [x] **3.2** Apply the §7 rubric to pick the **winner**; record the winner +
       scores + rationale in §9. Must clear the hard gates (≥55fps@M, full
       coverage, supports subtle color + ≥2 effects).
-- [ ] **3.3** Delete the losing prototypes' code (and any unused dep). Keep a
+- [x] **3.3** Delete the losing prototypes' code (and any unused dep). Keep a
       minimal perf-regression lab story for the winner only.
 
 ### Phase 4 — Definitive renderer + parameterized effects + subtle color

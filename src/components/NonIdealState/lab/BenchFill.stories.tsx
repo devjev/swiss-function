@@ -1,10 +1,6 @@
 import type { Story } from "@ladle/react";
 import { BenchFill } from "./BenchFill";
 
-// Throwaway benchmark stories (Phase 2/3). probe-nonideal targets each by id
-// and sizes [data-nis-root]. Removed with the rig in Task 3.3.
-
-export const DomPre: Story = () => <BenchFill renderer="dom" />;
-export const CanvasRects: Story = () => <BenchFill renderer="canvas-rects" />;
-export const CanvasText: Story = () => <BenchFill renderer="canvas-text" />;
-export const Webgl: Story = () => <BenchFill renderer="webgl" />;
+// Perf-regression rig for the chosen WebGL renderer. probe-nonideal targets
+// `bench-fill--webgl` and sizes [data-nis-root].
+export const Webgl: Story = () => <BenchFill />;
