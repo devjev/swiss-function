@@ -170,3 +170,60 @@ test("double-clicking a gutter splits its two tracks evenly", async ({ mount, pa
   const [r0 = 0, r1 = 0] = await tracks();
   expect(Math.abs(r0 - r1)).toBeLessThan(2);
 });
+
+test("dragging a row gutter redistributes the two rows", async ({ mount, page }) => {
+  const component = await mount(
+    <Grid rows={2} resizable="rows" style={{ height: 400, width: 200 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const rowsOf = () =>
+    component.evaluate((el) =>
+      getComputedStyle(el)
+        .gridTemplateRows.split(/\s+/)
+        .map((s) => Number.parseFloat(s)),
+    );
+  const [b0 = 0] = await rowsOf();
+  const box = await component.locator('[data-axis="row"]').boundingBox();
+  if (!box) throw new Error("missing gutter bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy + 60, { steps: 8 });
+  await page.mouse.up();
+  const [a0 = 0] = await rowsOf();
+  expect(a0).toBeGreaterThan(b0 + 40);
+});
+
+test("dragging a gutter past its neighbor's minimum clamps both tracks", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <Grid columns={2} resizable="columns" style={{ width: 400 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const tracks = () =>
+    component.evaluate((el) =>
+      getComputedStyle(el)
+        .gridTemplateColumns.split(/\s+/)
+        .map((s) => Number.parseFloat(s)),
+    );
+  const box = await component.locator('[data-axis="col"]').boundingBox();
+  if (!box) throw new Error("missing gutter bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx - 400, cy, { steps: 10 });
+  await page.mouse.up();
+  const [a0 = 0, a1 = 0] = await tracks();
+  // track 0 hits the 48px floor; the pair still sums to ~400.
+  expect(a0).toBeGreaterThanOrEqual(46);
+  expect(a0).toBeLessThan(60);
+  expect(a0 + a1).toBeCloseTo(400, 0);
+});

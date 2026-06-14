@@ -258,7 +258,7 @@ Keep messages scoped to the single task. Do not push.
       `onTrackSizesChange?(axis, sizes)` callback; a `reset()`-style escape
       (e.g. double-click a gutter restores the two tracks to equal share).
       `prefers-reduced-motion` fallback for any settle transition.
-- [ ] **2.6** Grid CT spec: gutter drag for columns and rows, min-clamp at a
+- [x] **2.6** Grid CT spec: gutter drag for columns and rows, min-clamp at a
       neighbor, keyboard nudge, and double-click reset. `just test-ct` green.
 
 ### Phase 3 — Dialog: window drag + resize + subtle scrim
@@ -425,6 +425,14 @@ A feature is done only when **all** hold:
 
 ## 10. Progress notes (append-only — newest at bottom)
 
+- 2026-06-14 — Phase 2 (Grid gutter resize) complete. Absolutely-positioned
+  overlay (never a grid track) carries focusable `separator` gutters measured
+  off the live grid via ResizeObserver; first drag freezes the axis (`fr`/`auto`
+  → px) and `redistribute()` moves the boundary (sum preserved, both tracks
+  clamped to `minTrackSize`, default 48px). Keyboard nudge (8/24px), double-click
+  even-split reset, `onTrackSizesChange` callback. **Behavior note**: a resizable
+  axis stays fluid until first interaction, then becomes fixed px (manual control
+  — intended). 15 Grid CT specs green. Next: Dialog window (Phase 3).
 - 2026-06-14 — Phase 1 (DataTable Excel columns) complete. Width-override map
   (px) layered over static defs via `buildColumnTemplate`; single
   `usePointerDrag` handle reads the active column off the DOM; double-click
