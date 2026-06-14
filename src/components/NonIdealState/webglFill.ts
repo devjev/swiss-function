@@ -108,12 +108,13 @@ void main(){
     float ang=atan(dy,dx);float dist=sqrt(dx*dx+dy*dy);
     ang=abs(mod(ang,1.0472)-0.5236);
     inten=0.5+0.5*sin(dist*0.35-u_t*u_speed*2.0+cos(ang*4.0)*3.0);
-  }else if(u_effect==19){ // starfield — warp stars from center
-    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
-    float dist=sqrt(dx*dx+dy*dy)+1.0;float ang=atan(dy,dx);
-    float prog=dist*0.18-u_t*u_speed*1.5;
-    float s=hash(vec3(floor((ang+3.1416)*3.0),floor(prog),u_seed));
-    inten=s>0.8?(1.0-fract(prog)):0.0;
+  }else if(u_effect==19){ // bobs — solid blobs bouncing off the walls (Amiga)
+    float gx=u_grid.x;float gy=u_grid.y;vec2 p=vec2(cx,cy);float tt=u_t*u_speed;
+    vec2 b1=vec2(abs(fract(tt*0.13)*2.0-1.0)*gx,abs(fract(tt*0.17+0.3)*2.0-1.0)*gy);
+    vec2 b2=vec2(abs(fract(tt*0.19+0.5)*2.0-1.0)*gx,abs(fract(tt*0.11+0.7)*2.0-1.0)*gy);
+    vec2 b3=vec2(abs(fract(tt*0.15+0.2)*2.0-1.0)*gx,abs(fract(tt*0.21+0.1)*2.0-1.0)*gy);
+    float R=gy*0.32;
+    inten=max(max(1.0-distance(p,b1)/R,1.0-distance(p,b2)/R),1.0-distance(p,b3)/R);
   }else if(u_effect==20){ // swirl — domain-warped plasma
     float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
     float dist=sqrt(dx*dx+dy*dy);float ang=atan(dy,dx)+dist*0.06-u_t*u_speed*0.8;
@@ -136,13 +137,15 @@ void main(){
       inten+=sin(d*0.5-age*18.0)*smoothstep(1.0,0.0,age)*step(d,age*45.0);
     }
     inten=inten*0.5+0.15;
-  }else{ // lissajous — glowing tracer with trail
-    float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;vec2 p=vec2(cx,cy);float tt=u_t*u_speed;
-    vec2 a=vec2(ox+cos(tt)*ox*0.8,oy+sin(tt*1.5)*oy*0.8);
-    vec2 b=vec2(ox+cos(tt-0.25)*ox*0.8,oy+sin((tt-0.25)*1.5)*oy*0.8);
-    vec2 c=vec2(ox+cos(tt-0.5)*ox*0.8,oy+sin((tt-0.5)*1.5)*oy*0.8);
-    float R=oy*0.5;
-    inten=0.4*(R/(distance(p,a)+1.0)+0.6*R/(distance(p,b)+1.0)+0.3*R/(distance(p,c)+1.0));
+  }else{ // glitch — datamosh / broken signal: row-blocks tear and jump
+    float blockRow=floor(cy/3.0);
+    float epoch=floor(u_t*u_speed*5.0);
+    float shift=(hash(vec3(blockRow,epoch+5.0,u_seed))-0.5)*u_grid.x*step(0.5,hash(vec3(blockRow,epoch,u_seed)));
+    float gx=cx+shift;
+    float stripes=0.5+0.5*sin(gx*0.6);
+    float speckle=hash(vec3(floor(gx),blockRow,epoch));
+    inten=mix(stripes,speckle,0.4);
+    inten=max(inten,step(0.9,hash(vec3(blockRow,epoch+11.0,u_seed))));
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -177,12 +180,12 @@ const EFFECT_CODE: Record<EffectName, number> = {
   voronoi: 16,
   grid: 17,
   kaleidoscope: 18,
-  starfield: 19,
+  bobs: 19,
   swirl: 20,
   helix: 21,
   checker: 22,
   droplets: 23,
-  lissajous: 24,
+  glitch: 24,
 };
 
 export interface FillFrame extends EffectOptions {

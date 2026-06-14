@@ -21,12 +21,12 @@ export type EffectName =
   | "voronoi"
   | "grid"
   | "kaleidoscope"
-  | "starfield"
+  | "bobs"
   | "swirl"
   | "helix"
   | "checker"
   | "droplets"
-  | "lissajous";
+  | "glitch";
 
 /** Advanced, effect-specific tuning. Overall density is the top-level `density`
  *  prop; animation pace is `speed`. */

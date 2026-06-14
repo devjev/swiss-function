@@ -134,12 +134,12 @@ const ALL_EFFECTS = [
   "voronoi",
   "grid",
   "kaleidoscope",
-  "starfield",
+  "bobs",
   "swirl",
   "helix",
   "checker",
   "droplets",
-  "lissajous",
+  "glitch",
 ] as const;
 
 function EffectGrid({ effects }: { effects: readonly (typeof ALL_EFFECTS)[number][] }) {
