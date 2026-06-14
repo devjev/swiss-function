@@ -13,6 +13,84 @@
   position: relative;
 }
 
+/* The overlay spans the grid but never occupies a track; only the handles
+   inside it are interactive. */
+.gutterLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.gutterCol,
+.gutterRow {
+  position: absolute;
+  pointer-events: auto;
+  background: transparent;
+  touch-action: none;
+}
+
+/* Column gutters: a thin vertical strip centered on the boundary. */
+.gutterCol {
+  top: 0;
+  block-size: 100%;
+  inline-size: calc(var(--sf-unit) / 2);
+  transform: translateX(-50%);
+  cursor: col-resize;
+}
+
+/* Row gutters: a thin horizontal strip centered on the boundary. */
+.gutterRow {
+  left: 0;
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) / 2);
+  transform: translateY(-50%);
+  cursor: row-resize;
+}
+
+.gutterCol::after,
+.gutterRow::after {
+  content: "";
+  position: absolute;
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.gutterCol::after {
+  inset-block: 0;
+  inset-inline-start: 50%;
+  inline-size: 2px;
+  transform: translateX(-50%);
+}
+
+.gutterRow::after {
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 2px;
+  transform: translateY(-50%);
+}
+
+.gutterCol:hover::after,
+.gutterRow:hover::after,
+.gutterCol[data-dragging]::after,
+.gutterRow[data-dragging]::after,
+.gutterCol:focus-visible::after,
+.gutterRow:focus-visible::after {
+  background-color: var(--sf-color-primary);
+}
+
+.gutterCol:focus-visible,
+.gutterRow:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gutterCol::after,
+  .gutterRow::after {
+    transition: none;
+  }
+}
+
 .item {
   min-width: 0;
 }

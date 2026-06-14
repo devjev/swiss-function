@@ -1,7 +1,8 @@
 import { useRender } from "@base-ui/react/use-render";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useCallback, useRef, useState } from "react";
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { usePointerDrag } from "../../lib/usePointerDrag";
 import styles from "./Grid.module.css";
 
 type SizeUnit = number | string;
@@ -14,6 +15,54 @@ function parseResizable(r: GridResizable | undefined): { cols: boolean; rows: bo
   if (!r) return { cols: false, rows: false };
   if (r === true || r === "both") return { cols: true, rows: true };
   return { cols: r === "columns", rows: r === "rows" };
+}
+
+/** Smallest a track may be dragged to, in px. Mirrors `--sf-grid-track-min`
+ *  (calc(--sf-unit * 2) = 48px) so JS clamping and the CSS affordance agree. */
+const TRACK_MIN_PX = 48;
+
+interface AxisMetrics {
+  sizes: number[];
+  gap: number;
+}
+
+/** Read resolved px track sizes + gap for one axis off the live grid. */
+function measureAxis(grid: HTMLElement, axis: "col" | "row"): AxisMetrics {
+  const cs = getComputedStyle(grid);
+  const template = axis === "col" ? cs.gridTemplateColumns : cs.gridTemplateRows;
+  const gap = Number.parseFloat(axis === "col" ? cs.columnGap : cs.rowGap) || 0;
+  const sizes =
+    template && template !== "none"
+      ? template.split(" ").map(Number.parseFloat).filter(Number.isFinite)
+      : [];
+  return { sizes, gap };
+}
+
+/** Pixel offset of each interior boundary (centered in its gap). */
+function boundaries(sizes: number[], gap: number): number[] {
+  const out: number[] = [];
+  let acc = 0;
+  for (let i = 0; i < sizes.length - 1; i++) {
+    acc += sizes[i] ?? 0;
+    out.push(acc + i * gap + gap / 2);
+  }
+  return out;
+}
+
+/** Move the boundary after track `index` by `delta` px: track[index] grows and
+ *  track[index+1] shrinks by the same amount (sum preserved), clamped so
+ *  neither track drops below `TRACK_MIN_PX`. Pure — unit-tested. */
+export function redistribute(sizes: number[], index: number, delta: number): number[] {
+  const a = sizes[index];
+  const b = sizes[index + 1];
+  if (a == null || b == null) return sizes;
+  const maxGrow = b - TRACK_MIN_PX; // grow track[index] until its neighbor hits min
+  const maxShrink = a - TRACK_MIN_PX; // shrink track[index] until it hits min
+  const clamped = Math.max(-maxShrink, Math.min(maxGrow, delta));
+  const out = sizes.slice();
+  out[index] = a + clamped;
+  out[index + 1] = b - clamped;
+  return out;
 }
 
 export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
@@ -136,6 +185,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     render,
     className,
     style,
+    children,
     ...rest
   } = props;
 
@@ -145,6 +195,13 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
   // Frozen px track sizes per axis (null until the first resize freezes them).
   const [colSizes, setColSizes] = useState<number[] | null>(null);
   const [rowSizes, setRowSizes] = useState<number[] | null>(null);
+  // Live measurement used to position handles before the axis is frozen.
+  const [measured, setMeasured] = useState<{
+    colSizes?: number[];
+    rowSizes?: number[];
+    colGap: number;
+    rowGap: number;
+  } | null>(null);
 
   // Keep a DOM handle for measuring/freezing while still honoring the forwarded ref.
   const gridRef = useRef<HTMLElement | null>(null);
@@ -156,6 +213,60 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     },
     [ref],
   );
+
+  // Measure track sizes + gaps on mount and on container resize, so gutter
+  // handles sit on the live boundaries until a drag freezes the axis.
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!isResizable || !grid) return;
+    const measure = () => {
+      const col = resizeCols ? measureAxis(grid, "col") : null;
+      const row = resizeRows ? measureAxis(grid, "row") : null;
+      setMeasured({
+        colSizes: col?.sizes,
+        rowSizes: row?.sizes,
+        colGap: col?.gap ?? 0,
+        rowGap: row?.gap ?? 0,
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(grid);
+    return () => ro.disconnect();
+  }, [isResizable, resizeCols, resizeRows]);
+
+  // One drag instance serves every gutter; onStart reads axis + index off the
+  // handle and freezes that axis to px, then onMove redistributes the pair.
+  const dragRef = useRef<{
+    axis: "col" | "row";
+    index: number;
+    start: number[];
+  } | null>(null);
+  const { onPointerDown: onGutterDown } = usePointerDrag({
+    onStart: (_origin, event) => {
+      const grid = gridRef.current;
+      const el = event.currentTarget as HTMLElement;
+      const axis = el.dataset.axis as "col" | "row" | undefined;
+      const index = Number(el.dataset.index);
+      if (!grid || !axis || Number.isNaN(index)) return;
+      const start = measureAxis(grid, axis).sizes;
+      dragRef.current = { axis, index, start };
+      // Freeze the axis to explicit px so redistribution is deterministic.
+      if (axis === "col") setColSizes(start);
+      else setRowSizes(start);
+    },
+    onMove: (delta) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const move = d.axis === "col" ? delta.dx : delta.dy;
+      const next = redistribute(d.start, d.index, move);
+      if (d.axis === "col") setColSizes(next);
+      else setRowSizes(next);
+    },
+    onEnd: () => {
+      dragRef.current = null;
+    },
+  });
 
   const computedStyle = buildGridStyle({
     columns,
@@ -178,6 +289,41 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
   if (colSizes) computedStyle.gridTemplateColumns = colSizes.map((s) => `${s}px`).join(" ");
   if (rowSizes) computedStyle.gridTemplateRows = rowSizes.map((s) => `${s}px`).join(" ");
 
+  // Gutter overlay — absolutely positioned so it never occupies a grid track.
+  const colPos = colSizes ?? measured?.colSizes;
+  const rowPos = rowSizes ?? measured?.rowSizes;
+  const overlay =
+    isResizable && measured ? (
+      <div className={styles.gutterLayer} aria-hidden="true" key="sf-gutter-layer">
+        {resizeCols && colPos
+          ? boundaries(colPos, measured.colGap).map((offset, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: gutter index is the stable identity
+                key={`col-${i}`}
+                data-axis="col"
+                data-index={i}
+                className={styles.gutterCol}
+                style={{ left: `${offset}px` }}
+                onPointerDown={onGutterDown}
+              />
+            ))
+          : null}
+        {resizeRows && rowPos
+          ? boundaries(rowPos, measured.rowGap).map((offset, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: gutter index is the stable identity
+                key={`row-${i}`}
+                data-axis="row"
+                data-index={i}
+                className={styles.gutterRow}
+                style={{ top: `${offset}px` }}
+                onPointerDown={onGutterDown}
+              />
+            ))
+          : null}
+      </div>
+    ) : null;
+
   return useRender({
     render: render ?? <div />,
     props: {
@@ -189,6 +335,14 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
         className,
       ),
       style: { ...computedStyle, ...style },
+      children: overlay ? (
+        <>
+          {children}
+          {overlay}
+        </>
+      ) : (
+        children
+      ),
     },
   });
 });

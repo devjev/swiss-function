@@ -239,13 +239,13 @@ Keep messages scoped to the single task. Do not push.
       (resolved px) and move them into internal state, so `fr`/`auto`/`repeat`
       become concrete, draggable px tracks. Pure setup task — no handles yet;
       confirm a non-resizable Grid is byte-identical to today.
-- [ ] **2.2** Render gutter separators positioned over each interior track
+- [x] **2.2** Render gutter separators positioned over each interior track
       boundary for the enabled axis (a thin overlay sized to the gap, or
       absolutely-positioned strips). `role="separator"`,
       `aria-orientation` per axis, `cursor: col-resize` / `row-resize`,
       visible affordance on hover, themed via tokens. Sharp corners; no
       handle on the outer edges.
-- [ ] **2.3** Drag a gutter → **redistribute the two adjacent tracks**: track[i]
+- [x] **2.3** Drag a gutter → **redistribute the two adjacent tracks**: track[i]
       grows by `dx`, track[i+1] shrinks by `dx` (sum preserved), each clamped
       to `--sf-grid-track-min` (e.g. `calc(--sf-unit * 2)`); when a neighbor
       hits min, stop. Apply live each move. CT spec: drag a column gutter and

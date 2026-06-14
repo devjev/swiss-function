@@ -90,3 +90,44 @@ test("inline prop yields display: inline-grid", async ({ mount }) => {
   const display = await component.evaluate((el) => getComputedStyle(el).display);
   expect(display).toBe("inline-grid");
 });
+
+test("resizable=columns renders one gutter between two tracks", async ({ mount }) => {
+  const component = await mount(
+    <Grid columns={2} resizable="columns" style={{ width: 400 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  await expect(component.locator('[data-axis="col"]')).toHaveCount(1);
+});
+
+test("dragging a column gutter redistributes the two adjacent tracks", async ({ mount, page }) => {
+  const component = await mount(
+    <Grid columns={2} resizable="columns" style={{ width: 400 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const tracks = () =>
+    component.evaluate((el) =>
+      getComputedStyle(el)
+        .gridTemplateColumns.split(/\s+/)
+        .map((s) => Number.parseFloat(s)),
+    );
+  const before = await tracks();
+  const box = await component.locator('[data-axis="col"]').boundingBox();
+  if (!box) throw new Error("missing gutter bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + 60, cy, { steps: 8 });
+  await page.mouse.up();
+  const after = await tracks();
+  const [b0 = 0, b1 = 0] = before;
+  const [a0 = 0, a1 = 0] = after;
+  // Track 0 grows ~60px, track 1 shrinks ~60px, total preserved.
+  expect(a0).toBeGreaterThan(b0 + 40);
+  expect(a1).toBeLessThan(b1 - 40);
+  expect(a0 + a1).toBeCloseTo(b0 + b1, 0);
+});
