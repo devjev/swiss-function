@@ -9,12 +9,14 @@
 // Ladle URL convention: ?story=<file-name>--<export-name>, both lowercased
 // (e.g. Prose.stories.tsx + export Long → "prose--long").
 //
-// Assumes `just dev` is running on http://localhost:61001.
+// Assumes `just dev` is running on http://localhost:61000 (see .ladle/config.mjs).
+// Override with LADLE_PORT if you serve on a different port.
 
 import { chromium } from "playwright";
 
 const storyId = process.argv[2];
 const outfile = process.argv[3] ?? `/tmp/ladle-${storyId}.png`;
+const port = process.env.LADLE_PORT ?? "61000";
 if (!storyId) {
   console.error("usage: node scripts/screenshot-story.mjs <story-id> [outfile]");
   process.exit(1);
@@ -23,7 +25,7 @@ if (!storyId) {
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await ctx.newPage();
-await page.goto(`http://localhost:61001/?story=${encodeURIComponent(storyId)}`, {
+await page.goto(`http://localhost:${port}/?story=${encodeURIComponent(storyId)}`, {
   waitUntil: "networkidle",
 });
 // Ladle wraps the story in an iframe — wait for it then screenshot the frame's body.

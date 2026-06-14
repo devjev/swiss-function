@@ -157,7 +157,7 @@ Keep messages scoped to the single task. Do not push.
 
 - [x] **0.1** Confirm branch `feat/non-ideal-state` (create off `main` if
       missing — the component already lives there). Baseline gate green. — on branch; baseline typecheck/check/test (63) green.
-- [ ] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
+- [x] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
       configured port) instead of the stale :61001, so visual checks work.
       Verify by screenshotting `non-ideal-state--empty`.
 - [ ] **0.3** Add `scripts/probe-nonideal.mjs` (model on `probe-graph.mjs`): a
