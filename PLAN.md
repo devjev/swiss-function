@@ -245,7 +245,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
       sized to block × dpr, or measured-grid overfill) and pause work when
       offscreen (IntersectionObserver) or the tab is hidden
       (`visibilitychange`) to save CPU. Reduced-motion → one static frame.
-- [ ] **4.7** Re-run the perf harness on the final component at S/M/L; confirm
+- [x] **4.7** Re-run the perf harness on the final component at S/M/L; confirm
       the §7 target and record final numbers in §9.
 
 ### Phase 5 — Stories, tests, docs, exports
@@ -392,6 +392,10 @@ table, the normalized scores, and the winner in §9 so it isn't relitigated.
   shipped fill is a WebGL fragment shader; effects (ripple/noise/vignette) and
   ripple params live as shader uniforms; `fields.ts` stays the reference for
   the DOM-side static/reduced-motion path and tests.
+- **D10 — Shipped renderer perf (4.7).** WebGL fill via `webglFill`: draw CPU
+  0.067 / 0.065 / 0.059 ms at S/M/L — flat with size, 60fps, 0 long-tasks.
+  ~3–15× cheaper than the old DOM baseline (0.193 / 0.345 / 0.899), well under
+  the §7 target. Animation also pauses entirely when offscreen/tab-hidden.
 
 ## 10. Progress notes (append-only — newest at bottom)
 
