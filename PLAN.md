@@ -254,7 +254,7 @@ Keep messages scoped to the single task. Do not push.
 - [x] **2.4** Keyboard + a11y on gutters: focusable; Arrow keys nudge the
       boundary by a step (Shift = larger); `aria-valuenow` reflects the
       leading track's size. Roving/tab order sane with the grid's own content.
-- [ ] **2.5** Polish: `minTrackSize?` prop (overrides the token default);
+- [x] **2.5** Polish: `minTrackSize?` prop (overrides the token default);
       `onTrackSizesChange?(axis, sizes)` callback; a `reset()`-style escape
       (e.g. double-click a gutter restores the two tracks to equal share).
       `prefers-reduced-motion` fallback for any settle transition.

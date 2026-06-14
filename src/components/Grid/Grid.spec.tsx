@@ -146,3 +146,27 @@ test("arrow keys on a focused gutter resize the adjacent tracks", async ({ mount
   for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowRight");
   expect(await track0()).toBeGreaterThan(before + 80);
 });
+
+test("double-clicking a gutter splits its two tracks evenly", async ({ mount, page }) => {
+  const component = await mount(
+    <Grid columns={2} resizable="columns" style={{ width: 400 }}>
+      <div>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const tracks = () =>
+    component.evaluate((el) =>
+      getComputedStyle(el)
+        .gridTemplateColumns.split(/\s+/)
+        .map((s) => Number.parseFloat(s)),
+    );
+  // Skew the split with the keyboard, then reset it with a double-click.
+  const gutter = component.locator('[data-axis="col"]');
+  await gutter.focus();
+  for (let i = 0; i < 6; i++) await page.keyboard.press("Shift+ArrowRight");
+  const [s0 = 0, s1 = 0] = await tracks();
+  expect(Math.abs(s0 - s1)).toBeGreaterThan(40);
+  await gutter.dblclick();
+  const [r0 = 0, r1 = 0] = await tracks();
+  expect(Math.abs(r0 - r1)).toBeLessThan(2);
+});

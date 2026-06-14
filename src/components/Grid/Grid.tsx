@@ -52,12 +52,17 @@ function boundaries(sizes: number[], gap: number): number[] {
 /** Move the boundary after track `index` by `delta` px: track[index] grows and
  *  track[index+1] shrinks by the same amount (sum preserved), clamped so
  *  neither track drops below `TRACK_MIN_PX`. Pure — unit-tested. */
-export function redistribute(sizes: number[], index: number, delta: number): number[] {
+export function redistribute(
+  sizes: number[],
+  index: number,
+  delta: number,
+  min: number = TRACK_MIN_PX,
+): number[] {
   const a = sizes[index];
   const b = sizes[index + 1];
   if (a == null || b == null) return sizes;
-  const maxGrow = b - TRACK_MIN_PX; // grow track[index] until its neighbor hits min
-  const maxShrink = a - TRACK_MIN_PX; // shrink track[index] until it hits min
+  const maxGrow = b - min; // grow track[index] until its neighbor hits min
+  const maxShrink = a - min; // shrink track[index] until it hits min
   const clamped = Math.max(-maxShrink, Math.min(maxGrow, delta));
   const out = sizes.slice();
   out[index] = a + clamped;
@@ -89,6 +94,10 @@ export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children">
    *  `fr`/`auto` tracks to their resolved px sizes, then a gutter redistributes
    *  the two tracks it sits between. Default `false`. */
   resizable?: GridResizable;
+  /** Smallest a track may be dragged to, in px. Default 48 (`--sf-unit * 2`). */
+  minTrackSize?: number;
+  /** Notified when a resize settles (drag end, key press, or gutter reset). */
+  onTrackSizesChange?: (axis: "columns" | "rows", sizes: number[]) => void;
   /** Base UI render prop. Defaults to `<div />`. */
   render?: useRender.RenderProp<HTMLAttributes<HTMLElement>>;
   children?: ReactNode;
@@ -182,6 +191,8 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     justifyContent,
     inline,
     resizable,
+    minTrackSize,
+    onTrackSizesChange,
     render,
     className,
     style,
@@ -191,6 +202,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
 
   const { cols: resizeCols, rows: resizeRows } = parseResizable(resizable);
   const isResizable = resizeCols || resizeRows;
+  const minTrack = minTrackSize ?? TRACK_MIN_PX;
 
   // Frozen px track sizes per axis (null until the first resize freezes them).
   const [colSizes, setColSizes] = useState<number[] | null>(null);
@@ -241,6 +253,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     axis: "col" | "row";
     index: number;
     start: number[];
+    latest?: number[];
   } | null>(null);
   const { onPointerDown: onGutterDown } = usePointerDrag({
     onStart: (_origin, event) => {
@@ -259,14 +272,37 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
       const d = dragRef.current;
       if (!d) return;
       const move = d.axis === "col" ? delta.dx : delta.dy;
-      const next = redistribute(d.start, d.index, move);
+      const next = redistribute(d.start, d.index, move, minTrack);
+      d.latest = next;
       if (d.axis === "col") setColSizes(next);
       else setRowSizes(next);
     },
     onEnd: () => {
+      const d = dragRef.current;
+      if (d?.latest) onTrackSizesChange?.(d.axis === "col" ? "columns" : "rows", d.latest);
       dragRef.current = null;
     },
   });
+
+  // Double-click a gutter to split its two tracks evenly.
+  const resetGutter = useCallback(
+    (axis: "col" | "row", index: number) => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      const base = (axis === "col" ? colSizes : rowSizes) ?? measureAxis(grid, axis).sizes;
+      const a = base[index];
+      const b = base[index + 1];
+      if (a == null || b == null) return;
+      const half = (a + b) / 2;
+      const next = base.slice();
+      next[index] = half;
+      next[index + 1] = half;
+      if (axis === "col") setColSizes(next);
+      else setRowSizes(next);
+      onTrackSizesChange?.(axis === "col" ? "columns" : "rows", next);
+    },
+    [colSizes, rowSizes, onTrackSizesChange],
+  );
 
   // Keyboard resize on a focused gutter. Arrow keys nudge by a step; Shift larger.
   const resizeGutterByKey = useCallback(
@@ -278,11 +314,12 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
       ev.preventDefault();
       const step = (ev.shiftKey ? 24 : 8) * (ev.key === inc ? 1 : -1);
       const base = (axis === "col" ? colSizes : rowSizes) ?? measureAxis(grid, axis).sizes;
-      const next = redistribute(base, index, step);
+      const next = redistribute(base, index, step, minTrack);
       if (axis === "col") setColSizes(next);
       else setRowSizes(next);
+      onTrackSizesChange?.(axis === "col" ? "columns" : "rows", next);
     },
-    [colSizes, rowSizes],
+    [colSizes, rowSizes, minTrack, onTrackSizesChange],
   );
 
   const computedStyle = buildGridStyle({
@@ -329,6 +366,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
                 className={styles.gutterCol}
                 style={{ left: `${offset}px` }}
                 onPointerDown={onGutterDown}
+                onDoubleClick={() => resetGutter("col", i)}
                 onKeyDown={(e) => resizeGutterByKey("col", i, e)}
               />
             ))
@@ -350,6 +388,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
                 className={styles.gutterRow}
                 style={{ top: `${offset}px` }}
                 onPointerDown={onGutterDown}
+                onDoubleClick={() => resetGutter("row", i)}
                 onKeyDown={(e) => resizeGutterByKey("row", i, e)}
               />
             ))
