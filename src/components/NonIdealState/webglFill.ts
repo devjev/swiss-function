@@ -40,8 +40,37 @@ void main(){
     float r=cy/max(u_grid.y-1.0,1.0);
     float head=fract(u_t*u_speed*0.18*(0.6+cseed)+cseed);
     inten=pow(1.0-fract(head-r),6.0);
-  }else{ // pulse — whole field breathes up/down
+  }else if(u_effect==5){ // pulse — whole field breathes up/down
     inten=0.55+0.45*sin(mod(u_t*u_speed*3.0,6.2831853));
+  }else if(u_effect==6){ // wave — undulating horizontal band (sine scroller)
+    float r=cy/max(u_grid.y-1.0,1.0);
+    float bandY=0.5+0.28*sin(cx*0.3-u_t*u_speed*1.5);
+    inten=smoothstep(0.22,0.0,abs(r-bandY));
+  }else if(u_effect==7){ // spiral — rotating arms
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    inten=0.5+0.5*sin(atan(dy,dx)*3.0+sqrt(dx*dx+dy*dy)*0.5-u_t*u_speed*2.0);
+  }else if(u_effect==8){ // radar — rotating sweep with trailing fade
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    float a=mod(atan(dy,dx)-u_t*u_speed*1.2,6.2831853);
+    inten=pow(1.0-a/6.2831853,3.0);
+  }else if(u_effect==9){ // tunnel — checkerboard rushing inward
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    float dist=sqrt(dx*dx+dy*dy)+0.5;
+    inten=0.5+0.5*sin(6.0/dist+u_t*u_speed*2.0)*cos(atan(dy,dx)*6.0);
+  }else if(u_effect==10){ // fire — hot flicker rising from the bottom
+    float h=cy/max(u_grid.y-1.0,1.0);
+    float scroll=u_t*u_speed*4.0;
+    float f=hash(vec3(cx,floor(cy*0.5-scroll),u_seed));
+    inten=pow(h,0.8)*(0.45+0.85*f);
+  }else if(u_effect==11){ // bars — equalizer columns rising from the bottom
+    float fromBottom=(u_grid.y-1.0-cy)/max(u_grid.y-1.0,1.0);
+    float barH=0.5+0.5*sin(cx*0.7+u_t*u_speed*2.0+hash(vec3(cx,0.0,u_seed))*6.2831853);
+    inten=fromBottom<barH?1.0:0.0;
+  }else{ // interference — two ripple sources → moiré
+    float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
+    float d1=sqrt((cx-ox*0.5)*(cx-ox*0.5)+(cy-oy)*(cy-oy));
+    float d2=sqrt((cx-ox*1.5)*(cx-ox*1.5)+(cy-oy)*(cy-oy));
+    inten=0.5+0.25*(sin(d1*0.6-u_t*u_speed*2.0)+sin(d2*0.6-u_t*u_speed*2.0));
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -63,6 +92,13 @@ const EFFECT_CODE: Record<EffectName, number> = {
   plasma: 3,
   rain: 4,
   pulse: 5,
+  wave: 6,
+  spiral: 7,
+  radar: 8,
+  tunnel: 9,
+  fire: 10,
+  bars: 11,
+  interference: 12,
 };
 
 export interface FillFrame extends EffectOptions {

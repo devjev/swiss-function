@@ -112,21 +112,34 @@ export const OddSize: Story = () => (
   />
 );
 
-// Effects gallery — all five+ animated effects.
-export const Effects: Story = () => {
-  const effects = ["ripple", "noise", "scan", "plasma", "rain", "pulse"] as const;
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
-      {effects.map((e) => (
-        <NonIdealState key={e} effect={e} speed={STORY_SPEED} height={10} title={e} />
-      ))}
-    </div>
-  );
-};
+// Effects gallery — all 13 animated effects.
+const ALL_EFFECTS = [
+  "ripple",
+  "noise",
+  "scan",
+  "plasma",
+  "rain",
+  "pulse",
+  "wave",
+  "spiral",
+  "radar",
+  "tunnel",
+  "fire",
+  "bars",
+  "interference",
+] as const;
+
+export const Effects: Story = () => (
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
+    {ALL_EFFECTS.map((e) => (
+      <NonIdealState key={e} effect={e} speed={STORY_SPEED} height={9} title={e} />
+    ))}
+  </div>
+);
 
 export const Playground: Story<{
   variant: NonIdealStateVariant;
-  effect: "default" | "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
+  effect: "default" | (typeof ALL_EFFECTS)[number];
   speed: number;
   density: number;
   cellSize: number;
@@ -158,10 +171,7 @@ Playground.args = {
 };
 Playground.argTypes = {
   variant: { options: ["empty", "no-results", "error", "loading"], control: { type: "radio" } },
-  effect: {
-    options: ["default", "ripple", "noise", "scan", "plasma", "rain", "pulse"],
-    control: { type: "radio" },
-  },
+  effect: { options: ["default", ...ALL_EFFECTS], control: { type: "select" } },
   speed: { control: { type: "range", min: 0, max: 5, step: 0.25 } },
   density: { control: { type: "range", min: 0.1, max: 1.5, step: 0.05 } },
   cellSize: { control: { type: "range", min: 3, max: 16, step: 1 } },

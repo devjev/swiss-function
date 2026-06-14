@@ -2,7 +2,20 @@
  *  (`webglFill.ts`); this module just names the effects and their parameters.
  *  All five+ effects are animated (the static vignette was dropped). */
 
-export type EffectName = "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
+export type EffectName =
+  | "ripple"
+  | "noise"
+  | "scan"
+  | "plasma"
+  | "rain"
+  | "pulse"
+  | "wave"
+  | "spiral"
+  | "radar"
+  | "tunnel"
+  | "fire"
+  | "bars"
+  | "interference";
 
 /** Advanced, effect-specific tuning. Overall density is the top-level `density`
  *  prop; animation pace is `speed`. */
