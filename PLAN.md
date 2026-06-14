@@ -208,7 +208,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 - [x] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
       shared interface as a lab story param. (May reuse current code.)
 - [x] **2.3** Prototype renderer #2 (Canvas 2D rects, batched) as a lab story.
-- [ ] **2.4** Prototype renderer #3 (Canvas 2D `fillText`) as a lab story.
+- [x] **2.4** Prototype renderer #3 (Canvas 2D `fillText`) as a lab story.
 - [ ] **2.5** Prototype renderer #4 (WebGL shader) as a lab story. If WebGL
       proves disproportionately complex for the win, split into a spike and
       record the call in §9 rather than forcing it.

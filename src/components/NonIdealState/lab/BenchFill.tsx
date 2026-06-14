@@ -89,6 +89,7 @@ export function BenchFill({ renderer }: { renderer: BenchRenderer }) {
       const t0 = performance.now();
       if (renderer === "dom") drawDom(preRef.current, dims, t);
       else if (renderer === "canvas-rects") drawCanvasRects(canvasRef.current, dims, t);
+      else if (renderer === "canvas-text") drawCanvasText(canvasRef.current, dims, t);
       const w = window as unknown as { __nisDraw?: number[] };
       if (!w.__nisDraw) w.__nisDraw = [];
       w.__nisDraw.push(performance.now() - t0);
@@ -146,6 +147,22 @@ function drawCanvasRects(canvas: HTMLCanvasElement | null, dims: Dims, t: number
       for (let x = 0; x < cols; x++, i++) {
         if (levelBuf[i] === l) ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
       }
+    }
+  }
+}
+
+function drawCanvasText(canvas: HTMLCanvasElement | null, dims: Dims, t: number) {
+  const ctx = canvas?.getContext("2d");
+  if (!ctx) return;
+  const { cols, rows, cellW, cellH, w, h } = dims;
+  ctx.clearRect(0, 0, w, h);
+  ctx.font = `${FONT_PX}px ui-monospace, monospace`;
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "rgba(107,114,128,1)";
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const lvl = quantize(ripple(x, y, cols, rows, t), x, y);
+      if (lvl > 0) ctx.fillText(RAMP[lvl] ?? "", x * cellW, y * cellH);
     }
   }
 }
