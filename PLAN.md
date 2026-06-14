@@ -167,10 +167,10 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 0 — Shared drag primitive
 
-- [ ] **0.1** Create branch `feat/resize` off `main` (if not already on it).
+- [x] **0.1** Create branch `feat/resize` off `main` (if not already on it).
       Run the baseline gate (`just typecheck && just check && just test`) and
-      confirm green before any change.
-- [ ] **0.2** Add `src/lib/usePointerDrag.ts` — a headless hook generalizing
+      confirm green before any change. — created `feat/resize` from `main`; baseline typecheck/check/test all green.
+- [x] **0.2** Add `src/lib/usePointerDrag.ts` — a headless hook generalizing
       the `Minimap.tsx` pattern. Signature roughly:
       `usePointerDrag({ onStart?, onMove, onEnd? }) → { onPointerDown }`
       where `onMove` receives `{ dx, dy, x, y, event }` deltas **relative to
