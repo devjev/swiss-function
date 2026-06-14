@@ -160,7 +160,7 @@ Keep messages scoped to the single task. Do not push.
 - [x] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
       configured port) instead of the stale :61001, so visual checks work.
       Verify by screenshotting `non-ideal-state--empty`.
-- [ ] **0.3** Add `scripts/probe-nonideal.mjs` (model on `probe-graph.mjs`): a
+- [x] **0.3** Add `scripts/probe-nonideal.mjs` (model on `probe-graph.mjs`): a
       headless Playwright harness that opens a NonIdealState story at a given
       block size, runs the animation ~4s, and prints one JSON line
       `{renderer, w, h, fps, p95FrameMs, longTasks}`. Drive it via story hooks

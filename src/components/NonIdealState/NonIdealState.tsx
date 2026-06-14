@@ -127,11 +127,12 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       ref={setRefs}
       role={role}
       aria-busy={variant === "loading" || undefined}
+      data-nis-root=""
       className={cx(styles.root, variantClass[variant], className)}
       style={blockStyle}
       {...rest}
     >
-      <pre ref={preRef} aria-hidden="true" className={styles.fill} />
+      <pre ref={preRef} aria-hidden="true" data-nis-fill="" className={styles.fill} />
       {(title != null || description != null || action != null) && (
         <div className={styles.panel}>
           {title != null && <p className={styles.title}>{title}</p>}
