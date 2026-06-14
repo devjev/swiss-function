@@ -250,7 +250,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 
 ### Phase 5 — Stories, tests, docs, exports
 
-- [ ] **5.1** Stories: an effects gallery (ripple / noise / vignette), a
+- [x] **5.1** Stories: an effects gallery (ripple / noise / vignette), a
       params Playground (ripple speed/wavelength/amplitude), subtle-color
       examples, and odd-size blocks proving full coverage.
 - [ ] **5.2** CT specs (`*.spec.tsx`): message/action render; fill is

@@ -67,6 +67,30 @@ export const Gallery: Story = () => {
   );
 };
 
+// Subtlety + custom base color (any token). Lower opacity = fainter texture.
+export const SubtleColor: Story = () => (
+  <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
+    <NonIdealState height={9} opacity={0.4} title="opacity 0.4" description="Very faint." />
+    <NonIdealState
+      height={9}
+      color="var(--sf-color-primary)"
+      opacity={0.5}
+      title="primary token"
+      description="Base color from a token."
+    />
+  </div>
+);
+
+// Awkward dimensions — the fill must still reach every edge (coverage).
+export const OddSize: Story = () => (
+  <NonIdealState
+    width="333px"
+    height="199px"
+    title="333 × 199"
+    description="Fill covers all four edges."
+  />
+);
+
 // Effects gallery — the same block under each fill effect.
 export const Effects: Story = () => (
   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
