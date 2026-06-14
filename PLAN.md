@@ -253,11 +253,11 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 - [x] **5.1** Stories: an effects gallery (ripple / noise / vignette), a
       params Playground (ripple speed/wavelength/amplitude), subtle-color
       examples, and odd-size blocks proving full coverage.
-- [ ] **5.2** CT specs (`*.spec.tsx`): message/action render; fill is
+- [x] **5.2** CT specs (`*.spec.tsx`): message/action render; fill is
       `aria-hidden`; role per variant; **fill covers the block** (canvas/grid
       spans to each edge); reduced-motion renders static; an effect param
       visibly changes output.
-- [ ] **5.3** Keep `probe-nonideal` + a perf-regression lab story; record the
+- [x] **5.3** Keep `probe-nonideal` + a perf-regression lab story; record the
       shipped numbers in §9.
 - [ ] **5.4** Update `AGENTS.md`: document `effect`, `effectOptions`, `color`,
       and the perf characteristics. Keep it terse.

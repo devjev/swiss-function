@@ -15,12 +15,14 @@ test("renders title, description, and action", async ({ mount }) => {
   await expect(c.getByRole("button", { name: "New" })).toBeVisible();
 });
 
-test("continuously fills with dithered shade blocks, hidden from a11y", async ({ mount }) => {
+test("fill is a decorative canvas, hidden from a11y, covering the block", async ({ mount }) => {
   const c = await mount(<NonIdealState variant="empty" title="x" width={24} height={10} />);
-  const fill = c.locator("pre");
-  await expect(fill).toHaveAttribute("aria-hidden", "true");
-  // The fill is generated after the block is measured.
-  await expect.poll(async () => /[░▒▓█]/.test((await fill.textContent()) ?? "")).toBe(true);
+  const canvas = c.locator("canvas[data-nis-fill]");
+  await expect(canvas).toHaveAttribute("aria-hidden", "true");
+  // Backing store sized to the block × dpr → non-zero, covers the area.
+  const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.width, h: el.height }));
+  expect(dims.w).toBeGreaterThan(0);
+  expect(dims.h).toBeGreaterThan(0);
 });
 
 test("error variant is an assertive alert", async ({ mount }) => {
@@ -37,4 +39,12 @@ test("loading variant is a busy status", async ({ mount }) => {
 test("empty variant has no live-region role", async ({ mount }) => {
   const c = await mount(<NonIdealState variant="empty" title="Nothing" />);
   expect(await c.getAttribute("role")).toBeNull();
+});
+
+test("reduced motion still renders the fill (a single static frame)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const c = await mount(<NonIdealState variant="loading" title="Loading" width={24} height={10} />);
+  const canvas = c.locator("canvas[data-nis-fill]");
+  await expect(canvas).toBeAttached();
+  expect(await canvas.evaluate((el: HTMLCanvasElement) => el.width)).toBeGreaterThan(0);
 });
