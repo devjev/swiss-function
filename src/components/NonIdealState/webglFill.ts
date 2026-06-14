@@ -5,22 +5,23 @@
 
 import type { EffectName, NoiseParams, RippleParams } from "./fields";
 
-const BAYER16 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
-
 const VERT = "attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
-const FRAG = `precision mediump float;
-uniform vec2 u_res;uniform vec2 u_cell;uniform vec2 u_grid;uniform float u_t;uniform float u_bayer[16];
+// highp: u_t grows unbounded; mediump loses sub-frame precision after a minute
+// or two and the animation stutters. Also wrap the ripple phase mod 2π.
+const FRAG = `precision highp float;
+uniform vec2 u_res;uniform vec2 u_cell;uniform vec2 u_grid;uniform float u_t;
 uniform int u_effect;uniform float u_speed;uniform float u_wavelength;uniform float u_amplitude;
 uniform float u_rate;uniform float u_density;uniform float u_seed;uniform vec3 u_color;uniform float u_alpha;
 float hash(vec3 p){p=fract(p*vec3(0.1031,0.1030,0.0973));p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
 void main(){
-  float cx=floor(gl_FragCoord.x/u_cell.x);
-  float cy=floor((u_res.y-gl_FragCoord.y)/u_cell.y);
+  float colf=gl_FragCoord.x/u_cell.x;
+  float rowf=(u_res.y-gl_FragCoord.y)/u_cell.y;
+  float cx=floor(colf);float cy=floor(rowf);
   float inten=0.0;
   if(u_effect==0){
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
     float dx=cx-ox;float dy=(cy-oy)*1.7;float dist=sqrt(dx*dx+dy*dy);
-    inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-u_t*u_speed))*u_amplitude;
+    inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed,6.2831853)))*u_amplitude;
   }else if(u_effect==1){
     float frame=floor(u_t*u_rate);
     inten=u_density+(hash(vec3(cx,cy,frame+u_seed))-0.5);
@@ -30,13 +31,15 @@ void main(){
     float d=min(1.0,sqrt(nx*nx+ny*ny)/1.41421356);
     inten=max(0.0,(d-0.28)/0.72);
   }
-  int idx=int(mod(cy,4.0))*4+int(mod(cx,4.0));
-  float th=0.0;
-  for(int k=0;k<16;k++){if(k==idx)th=u_bayer[k];}
-  float scaled=clamp(inten,0.0,1.0)*4.0;
-  float base=floor(scaled);
-  float level=min(base+(scaled-base>th?1.0:0.0),4.0);
-  gl_FragColor=vec4(u_color,(level/4.0)*u_alpha);
+  // Discrete density level 0..4 = the shade-block step (' ░▒▓█').
+  float level=min(4.0,floor(clamp(inten,0.0,1.0)*5.0));
+  float fillRatio=level*0.25;
+  // Sub-cell 2×2 ordered dither — exactly the ░ (1/4) ▒ (2/4) ▓ (3/4) █ (4/4)
+  // glyph patterns, so each block reads as a console shade character.
+  int sidx=int(fract(rowf)*2.0)*2+int(fract(colf)*2.0);
+  float sth=sidx==0?0.125:sidx==1?0.625:sidx==2?0.875:0.375;
+  float on=fillRatio>sth?1.0:0.0;
+  gl_FragColor=vec4(u_color,on*u_alpha);
 }`;
 
 const EFFECT_CODE: Record<EffectName, number> = { ripple: 0, noise: 1, vignette: 2 };
@@ -66,11 +69,7 @@ export interface WebglFill {
 
 /** Create a WebGL fill bound to `canvas`, or null if WebGL is unavailable. */
 export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
-  const gl = canvas.getContext("webgl", {
-    alpha: true,
-    antialias: false,
-    premultipliedAlpha: true,
-  });
+  const gl = canvas.getContext("webgl", { alpha: true, antialias: false });
   if (!gl) return null;
 
   const compile = (type: number, src: string): WebGLShader | null => {
@@ -97,7 +96,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // straight alpha
 
   const u = (name: string) => gl.getUniformLocation(prog, name);
   const U = {
@@ -115,7 +114,6 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     color: u("u_color"),
     alpha: u("u_alpha"),
   };
-  gl.uniform1fv(u("u_bayer[0]"), BAYER16);
 
   let dpr = 1;
 
@@ -141,8 +139,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       gl.uniform1f(U.rate, f.rate ?? 12);
       gl.uniform1f(U.density, f.density ?? 0.55);
       gl.uniform1f(U.seed, f.seed ?? 1);
-      // Premultiply color by alpha for the premultiplied blend.
-      gl.uniform3f(U.color, r * alpha, g * alpha, b * alpha);
+      gl.uniform3f(U.color, r, g, b);
       gl.uniform1f(U.alpha, alpha);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
