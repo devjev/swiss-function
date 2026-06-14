@@ -97,3 +97,17 @@ test("a moved popup re-centers when closed and reopened", async ({ mount, page }
   expect(Math.abs(reopened.x - before.x)).toBeLessThan(2);
   expect(Math.abs(reopened.y - before.y)).toBeLessThan(2);
 });
+
+test("arrow keys on the focused SE handle resize the popup", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness resizable />);
+  const popup = page.getByTestId("popup");
+  const before = await popup.boundingBox();
+  if (!before) throw new Error("missing bounding box");
+  await page.locator('[data-edge="se"]').focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowRight");
+  for (let i = 0; i < 5; i++) await page.keyboard.press("Shift+ArrowDown");
+  const after = await popup.boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  expect(after.width).toBeGreaterThan(before.width + 80);
+  expect(after.height).toBeGreaterThan(before.height + 80);
+});

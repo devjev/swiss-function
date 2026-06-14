@@ -2,6 +2,7 @@ import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type {
   ComponentPropsWithoutRef,
   CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { createContext, forwardRef, useCallback, useContext, useRef, useState } from "react";
@@ -112,6 +113,25 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     },
   });
 
+  // Keyboard resize from the focused SE handle.
+  const resizeByKey = useCallback((ev: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(ev.key)) return;
+    ev.preventDefault();
+    const el = popupRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const step = ev.shiftKey ? 24 : 8;
+    let w = r.width;
+    let h = r.height;
+    if (ev.key === "ArrowRight") w += step;
+    if (ev.key === "ArrowLeft") w -= step;
+    if (ev.key === "ArrowDown") h += step;
+    if (ev.key === "ArrowUp") h -= step;
+    w = Math.max(MIN_W, Math.min(window.innerWidth - 16, w));
+    h = Math.max(MIN_H, Math.min(window.innerHeight - 16, h));
+    setSize({ w, h });
+  }, []);
+
   const dragStyle = draggable
     ? ({ "--sf-dialog-x": `${offset.x}px`, "--sf-dialog-y": `${offset.y}px` } as CSSProperties)
     : undefined;
@@ -145,11 +165,18 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
             className={styles.resizeS}
             onPointerDown={onResizeDown}
           />
+          {/* biome-ignore lint/a11y/useSemanticElements: a focusable, draggable resize grip is not an <hr> */}
           <div
-            aria-hidden="true"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize dialog"
+            aria-valuenow={Math.round(size?.w ?? 0)}
+            aria-valuemin={MIN_W}
+            tabIndex={0}
             data-edge="se"
             className={styles.resizeSE}
             onPointerDown={onResizeDown}
+            onKeyDown={resizeByKey}
           />
         </>
       )}

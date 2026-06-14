@@ -295,7 +295,7 @@ Keep messages scoped to the single task. Do not push.
       moved/resized window doesn't "remember" stale geometry unexpectedly.
       Use `setPointerCapture`; ensure dragging a handle doesn't trigger Base
       UI's outside-press/close. Verify focus trap + Escape still work.
-- [ ] **3.5** a11y: drag/resize handles are labelled and keyboard-reachable
+- [x] **3.5** a11y: drag/resize handles are labelled and keyboard-reachable
       where it makes sense (at minimum the SE resize handle is a focusable
       `separator` with arrow-key resize; document that pointer is the primary
       affordance). Dialog role/labelledby/describedby from Base UI unchanged.
