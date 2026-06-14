@@ -28,6 +28,7 @@ export const NoResults: Story = () => (
 export const ErrorState: Story = () => (
   <NonIdealState
     variant="error"
+    effect="glitch"
     speed={STORY_SPEED}
     title="Couldn't load data"
     description="The request failed. Check your connection and try again."
