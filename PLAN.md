@@ -180,9 +180,9 @@ Keep messages scoped to the single task. Do not push.
       selection during drag. No React state churn per move (use refs;
       consumers decide what to re-render). Internal only — **not** exported
       from `src/index.ts`.
-- [ ] **0.3** Unit-test the pure parts in `src/lib/usePointerDrag.test.ts`
+- [x] **0.3** Unit-test the pure parts in `src/lib/usePointerDrag.test.ts`
       (delta math / origin tracking via a thin testable core if extracted).
-      Behavioral pointer-capture coverage comes later via component CT specs.
+      Behavioral pointer-capture coverage comes later via component CT specs. — 4 vitest cases on `dragDelta` (origin, +/- deltas, absolute coords); green.
 
 ### Phase 1 — DataTable: Excel-style column resize
 
