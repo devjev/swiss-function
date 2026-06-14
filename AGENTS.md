@@ -83,6 +83,7 @@ Ladle (`npm run dev`).
 | `Box`           | A surface with `elevation={0..5}`. The atom of grouping. |
 | `Grid`          | The layout primitive. CSS Grid wrapper with token-sized gaps. Pass `resizable` (`"columns"` / `"rows"` / `"both"`) to make track boundaries drag/keyboard-resizable (double-click a gutter to split evenly). |
 | `Pane`          | Full-height region split into Header (auto) + Body (scrollable). Compound: `Pane`, `Pane.Header`, `Pane.Body`. Nests cleanly. Use whenever a region needs to fill its parent and scroll its overflow internally. |
+| `Fullscreen`    | Wraps content with a corner toggle that expands it to fill the browser viewport (a fixed overlay — not OS fullscreen, works everywhere); a single child stretches to 100%. Escape exits; locks page scroll while open. Props: `expanded`/`defaultExpanded`/`onExpandedChange`, `buttonPosition`. |
 
 ### Overlays
 
