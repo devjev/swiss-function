@@ -241,7 +241,7 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
       ramp as **alpha steps** of that base (grey/transparent), so the fill
       reads as a faint texture, not a loud block. Theme-aware (light + dark).
       Re-screenshot — should be markedly subtler than the brief's screenshot.
-- [ ] **4.6** Guarantee **full coverage** in the winning renderer (canvas
+- [x] **4.6** Guarantee **full coverage** in the winning renderer (canvas
       sized to block × dpr, or measured-grid overfill) and pause work when
       offscreen (IntersectionObserver) or the tab is hidden
       (`visibilitychange`) to save CPU. Reduced-motion → one static frame.

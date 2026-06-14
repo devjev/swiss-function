@@ -171,19 +171,44 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     const animated = activeEffect !== "vignette";
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+    // Static effect (or reduced motion): draw one frame and stop.
     if (!animated || reduced) {
       fill.draw({ ...base, t: 0 });
       return;
     }
+
+    // Animated: run only while on-screen and the tab is visible, so the fill
+    // never burns CPU/GPU when it can't be seen.
     let raf = 0;
     let start = 0;
+    let onScreen = true;
     const loop = (now: number) => {
       if (!start) start = now;
       fill.draw({ ...base, t: (now - start) / 1000 });
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    const shouldRun = () => onScreen && !document.hidden;
+    const sync = () => {
+      if (shouldRun() && !raf) {
+        start = 0;
+        raf = requestAnimationFrame(loop);
+      } else if (!shouldRun() && raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    const io = new IntersectionObserver((entries) => {
+      onScreen = entries[0]?.isIntersecting ?? true;
+      sync();
+    });
+    io.observe(canvas);
+    document.addEventListener("visibilitychange", sync);
+    sync();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+    };
   }, [dims, activeEffect, effectOptions, color, opacity]);
 
   useEffect(() => () => fillRef.current?.destroy(), []);
