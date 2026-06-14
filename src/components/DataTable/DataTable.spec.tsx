@@ -190,3 +190,41 @@ test("pagination shows pageSize rows and 'Page 1 of N'", async ({ mount }) => {
   expect(cells).toBe(15);
   await expect(component.getByText(/Page 1 of 3/)).toBeVisible();
 });
+
+async function dragHandle(
+  page: import("@playwright/test").Page,
+  handle: import("@playwright/test").Locator,
+  dx: number,
+) {
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("missing handle bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + dx, cy, { steps: 8 });
+  await page.mouse.up();
+}
+
+test("drag a column resize handle grows the column", async ({ mount, page }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  const header = component.getByRole("columnheader", { name: "name" });
+  const before = await header.boundingBox();
+  if (!before) throw new Error("missing header bounding box");
+  await dragHandle(page, component.locator('[data-column-id="name"]'), 60);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThan(before.width + 40);
+});
+
+test("dragging far left clamps the column at its minimum width", async ({ mount, page }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  const header = component.getByRole("columnheader", { name: "name" });
+  // Drag well past zero; width must stop at the --sf-datatable-col-min floor.
+  await dragHandle(page, component.locator('[data-column-id="name"]'), -400);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  // --sf-unit is 24px, min is 3 units = 72px. Allow a little slack.
+  expect(after.width).toBeGreaterThanOrEqual(70);
+  expect(after.width).toBeLessThan(100);
+});

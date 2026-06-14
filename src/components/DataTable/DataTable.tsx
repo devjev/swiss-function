@@ -12,6 +12,7 @@ import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "re
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { usePointerDrag } from "../../lib/usePointerDrag";
 import { buildColumnTemplate } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
@@ -70,6 +71,17 @@ export interface DataTableProps<T>
 
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_HEIGHT = 400;
+
+/** Resolve a CSS length (e.g. `var(--sf-datatable-col-min)`) to px in the
+ *  context of `parent`, so JS clamping matches the token the CSS uses. */
+function measureCssWidth(parent: HTMLElement, value: string): number {
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:absolute;visibility:hidden;width:${value};`;
+  parent.appendChild(probe);
+  const w = probe.getBoundingClientRect().width;
+  probe.remove();
+  return w;
+}
 
 function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknown {
   if (typeof accessor === "function") return accessor(row);
@@ -362,6 +374,41 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // --- Column-width overrides (px), set by dragging the resize handle ---
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
+  // A single drag instance serves every handle; onStart reads which column is
+  // being resized (and its start geometry) off the handle element.
+  const resizeRef = useRef<{
+    id: string;
+    startWidth: number;
+    minPx: number;
+    handle: HTMLElement;
+  } | null>(null);
+  const { onPointerDown: onColumnResizeDown } = usePointerDrag({
+    onStart: (_origin, event) => {
+      const handle = event.currentTarget as HTMLElement;
+      const id = handle.dataset.columnId;
+      const headerCell = handle.parentElement as HTMLElement | null;
+      if (!id || !headerCell) return;
+      handle.dataset.dragging = "true";
+      resizeRef.current = {
+        id,
+        startWidth: headerCell.getBoundingClientRect().width,
+        minPx: measureCssWidth(headerCell, "var(--sf-datatable-col-min)"),
+        handle,
+      };
+    },
+    onMove: (delta) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const next = Math.max(r.minPx, Math.round(r.startWidth + delta.dx));
+      setColumnWidths((prev) => (prev[r.id] === next ? prev : { ...prev, [r.id]: next }));
+    },
+    onEnd: () => {
+      const r = resizeRef.current;
+      if (r) delete r.handle.dataset.dragging;
+      resizeRef.current = null;
+    },
+  });
+
   // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
     () => buildColumnTemplate(visibleLeaves, columnWidths),
@@ -499,7 +546,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   {isLeafHeader && (
                     <div
                       aria-hidden="true"
+                      data-column-id={header.column.id}
                       className={styles.resizeHandle}
+                      onPointerDown={onColumnResizeDown}
                       // Don't let a click on the handle toggle column sorting.
                       onClick={(e) => e.stopPropagation()}
                     />

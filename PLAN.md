@@ -202,7 +202,7 @@ Keep messages scoped to the single task. Do not push.
       thin hit-target (`role="separator"`, `aria-orientation="vertical"`),
       `cursor: col-resize`, visible on header hover / when focused, themed via
       tokens. Group (parent) headers get **no** handle. Does nothing yet.
-- [ ] **1.3** Wire the handle to `usePointerDrag`: on drag, set that column's
+- [x] **1.3** Wire the handle to `usePointerDrag`: on drag, set that column's
       override to `startWidth + dx`, clamped to a min (define
       `--sf-datatable-col-min`, e.g. `calc(--sf-unit * 3)`). Live update every
       move; the sticky header and body share the same template so they stay
