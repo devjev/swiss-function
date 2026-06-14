@@ -267,10 +267,10 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 
 ### Phase 6 — Finish
 
-- [ ] **6.1** Full finishing gate green:
+- [x] **6.1** Full finishing gate green:
       `just check && just typecheck && just test && just test-ct && just build`,
       plus the perf target met (§7).
-- [ ] **6.2** DoD sign-off (§6 below). Confirm every item; append a final
+- [x] **6.2** DoD sign-off (§6 below). Confirm every item; append a final
       "PROJECT COMPLETE" §10 note. Stop.
 
 ---
@@ -409,3 +409,13 @@ table, the normalized scores, and the winner in §9 so it isn't relitigated.
   task for the loop: **0.1**. Watch-outs: HiDPI canvas sizing, pausing
   animation offscreen/hidden, and keeping the fill `aria-hidden` while the
   message stays accessible.
+- 2026-06-14 — **PROJECT COMPLETE.** All §5 boxes ticked; DoD (§6) confirmed:
+  WebGL fragment-shader fill (chosen by benchmark + user) at ~0.06ms/frame flat,
+  60fps, 0 long-tasks, pausing offscreen/tab-hidden; **coverage bug fixed**
+  (canvas × dpr — verified at 333×199 and via CT); parameterized ripple +
+  **noise** + vignette behind one `effect`/`effectOptions` API (`fields.ts`
+  reference + unit tests); **subtle token-based color** (`color`/`opacity`,
+  per-level alpha, error=danger, theme-aware); no new global token, **no new
+  dependency**; fill `aria-hidden`, message accessible, role per variant,
+  reduced-motion static. Finishing gate green: check, typecheck, vitest (73),
+  build, Playwright CT (175). Nothing pushed — awaiting human review. Done.
