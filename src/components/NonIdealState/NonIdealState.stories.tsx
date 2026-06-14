@@ -126,7 +126,11 @@ const ALL_EFFECTS = [
   "tunnel",
   "fire",
   "bars",
-  "interference",
+  "metaballs",
+  "rotozoom",
+  "twister",
+  "copper",
+  "voronoi",
 ] as const;
 
 export const Effects: Story = () => (

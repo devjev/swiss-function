@@ -15,7 +15,11 @@ export type EffectName =
   | "tunnel"
   | "fire"
   | "bars"
-  | "interference";
+  | "metaballs"
+  | "rotozoom"
+  | "twister"
+  | "copper"
+  | "voronoi";
 
 /** Advanced, effect-specific tuning. Overall density is the top-level `density`
  *  prop; animation pace is `speed`. */

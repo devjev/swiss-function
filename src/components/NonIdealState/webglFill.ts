@@ -66,11 +66,37 @@ void main(){
     float fromBottom=(u_grid.y-1.0-cy)/max(u_grid.y-1.0,1.0);
     float barH=0.5+0.5*sin(cx*0.7+u_t*u_speed*2.0+hash(vec3(cx,0.0,u_seed))*6.2831853);
     inten=fromBottom<barH?1.0:0.0;
-  }else{ // interference — two ripple sources → moiré
+  }else if(u_effect==12){ // metaballs — merging blobs
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
-    float d1=sqrt((cx-ox*0.5)*(cx-ox*0.5)+(cy-oy)*(cy-oy));
-    float d2=sqrt((cx-ox*1.5)*(cx-ox*1.5)+(cy-oy)*(cy-oy));
-    inten=0.5+0.25*(sin(d1*0.6-u_t*u_speed*2.0)+sin(d2*0.6-u_t*u_speed*2.0));
+    float tt=u_t*u_speed*1.2;vec2 p=vec2(cx,cy);
+    vec2 c1=vec2(ox+cos(tt)*ox*0.6,oy+sin(tt*1.1)*oy*0.6);
+    vec2 c2=vec2(ox+cos(tt*0.8+2.0)*ox*0.6,oy+sin(tt*1.3+1.0)*oy*0.6);
+    vec2 c3=vec2(ox+cos(tt*1.2+4.0)*ox*0.6,oy+sin(tt*0.7+3.0)*oy*0.6);
+    float rr=oy*0.5;
+    inten=0.5*(rr/(distance(p,c1)+1.0)+rr/(distance(p,c2)+1.0)+rr/(distance(p,c3)+1.0));
+  }else if(u_effect==13){ // rotozoom — rotating + zooming checker
+    float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;float tt=u_t*u_speed;
+    float ca=cos(tt),sa=sin(tt);float zoom=0.3+0.2*sin(tt*0.5);
+    float qx=((cx-ox)*ca-(cy-oy)*sa)*zoom;float qy=((cx-ox)*sa+(cy-oy)*ca)*zoom;
+    inten=0.5+0.5*sin(qx)*sin(qy);
+  }else if(u_effect==14){ // twister — twisting vertical ribbon
+    float ox=(u_grid.x-1.0)*0.5;float nx=(cx-ox)/max(ox,1.0);
+    float angle=cy*0.25+u_t*u_speed*1.5;float e1=cos(angle)*0.8;float e2=cos(angle+2.2)*0.8;
+    inten=step(min(e1,e2),nx)*step(nx,max(e1,e2))*(0.45+0.55*sin(angle));
+  }else if(u_effect==15){ // copper — Amiga raster bars bobbing
+    float r=cy/max(u_grid.y-1.0,1.0);float tt=u_t*u_speed;
+    inten=smoothstep(0.13,0.0,abs(r-fract(0.5+0.32*sin(tt))))
+      +smoothstep(0.11,0.0,abs(r-fract(0.5+0.42*sin(tt*0.7+2.0))))
+      +smoothstep(0.09,0.0,abs(r-fract(0.5+0.5*sin(tt*1.3+4.0))));
+  }else{ // voronoi — shifting flat-shaded cells (nearest of 4 moving points)
+    float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;float tt=u_t*u_speed*0.8;vec2 p=vec2(cx,cy);
+    vec2 q0=vec2(ox+cos(tt)*ox,oy+sin(tt*1.2)*oy);
+    vec2 q1=vec2(ox+cos(tt*1.3+1.5)*ox*0.8,oy+sin(tt*0.9+2.0)*oy*0.8);
+    vec2 q2=vec2(ox+cos(tt*0.7+3.0)*ox*0.9,oy+sin(tt*1.1+4.0)*oy*0.6);
+    vec2 q3=vec2(ox+cos(tt*1.1+5.0)*ox*0.7,oy+sin(tt*1.4+0.5)*oy*0.9);
+    float d0=distance(p,q0),d1=distance(p,q1),d2=distance(p,q2),d3=distance(p,q3);
+    float md=min(min(d0,d1),min(d2,d3));
+    inten=md==d0?0.25:md==d1?0.5:md==d2?0.7:0.95;
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -98,7 +124,11 @@ const EFFECT_CODE: Record<EffectName, number> = {
   tunnel: 9,
   fire: 10,
   bars: 11,
-  interference: 12,
+  metaballs: 12,
+  rotozoom: 13,
+  twister: 14,
+  copper: 15,
+  voronoi: 16,
 };
 
 export interface FillFrame extends EffectOptions {
