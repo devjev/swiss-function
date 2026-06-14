@@ -1,4 +1,4 @@
-# PLAN — Resize & window interactions (Grid · DataTable · Dialog)
+# PLAN — NonIdealState: performant dithered fills (renderer + effects)
 
 > **This file is the single source of truth for an autonomous ralph loop.**
 > Each iteration starts with **fresh context and no memory**. Everything you
@@ -8,31 +8,31 @@
 
 ## 0. Mission
 
-Add **direct-manipulation resizing** to three existing components in
-`@tarassov-ch/swiss-function`, all opt-in and all built on one shared
-low-level pointer-drag primitive (no new dependency):
+`NonIdealState` already renders a sizable block continuously filled with
+console-style dithered shade blocks (empty / no-results / error / loading),
+with a message in the cleared center and a ripple on loading. It works, but:
 
-1. **`Grid`** — a resizable mode where the **boundaries between tracks**
-   (the gutters) become draggable. Dragging a gutter **redistributes the two
-   adjacent tracks**; every item spanning those tracks resizes together. This
-   is grid-native and predictable — *not* free-floating per-item resize.
-2. **`DataTable`** — **Excel-style column resizing**: a grab handle on each
-   leaf column header's trailing edge; drag to set width, **double-click to
-   auto-fit** to the widest visible content. On by default; opt-out per table
-   and per column.
-3. **`Dialog`** — make the popup behave like an OS **window**: **drag it
-   around** by its header and **resize** it from edge/corner handles. Plus:
-   the backdrop dimming must be **VERY subtle** (a faint scrim, not the
-   current heavy overlay).
+1. The animated fill rebuilds a whole `<pre>` string every frame — **wasteful**.
+   We want the **least computation / best performance** renderer, after
+   honestly researching the options (incl. **canvas** and any libraries).
+2. We want to **prototype multiple renderers and benchmark** them, then keep
+   the one where the ripple is fastest.
+3. The ripple (and other effects) must be **parameterizable**.
+4. Add **more effects** — random noise, etc. — behind one effect API.
+5. The blocks should be **more subtle** — gray / transparent is fine — and
+   derived from **pre-defined base colors** (tokens), not loud saturated fills.
+6. Fix the **coverage bug**: the fill doesn't reach the right/bottom edge of
+   the block (see the white strip in the brief's screenshot). It must
+   **auto-fill the entire block** at any size.
 
-**Feel is gated, not just function.** Every drag must track the pointer with
-no perceptible lag and no layout thrash — resizing updates the live template
-on each `pointermove`, clamped to sane minimums, without reflowing unrelated
-content. Keyboard and a11y are first-class, not afterthoughts: resize gutters
-and column handles are focusable `separator`s with arrow-key resize.
+Root cause of #6 is known (see §9 D2): the cell grid is computed from a
+hardcoded `CELL_W=7 / CELL_H=11` that mismatches the real monospace cell
+(~6px at the 10px font), so too few columns are generated. A measured cell
+fixes the DOM path; a canvas sized to the block fixes it by construction.
 
-The path is: **shared drag hook → DataTable columns → Grid gutters → Dialog
-window + subtle scrim → stories, tests, docs → finish.**
+The path is: **harness + fix coverage → research → prototype a fixed set of
+renderers → benchmark → auto-select the fastest → rebuild with parameterized
+effects + subtle token-based color → test, document.**
 
 ---
 
@@ -42,76 +42,72 @@ Do this, in order, every single iteration:
 
 1. **Read this entire file**, including the **Decision log** (§9) and
    **Progress notes** (§10). They are how past-you talks to present-you.
-2. **Confirm the working branch.** All work happens on `feat/resize`.
+2. **Confirm the working branch.** All work happens on `feat/non-ideal-state`.
    ```bash
-   git rev-parse --abbrev-ref HEAD   # if not feat/resize:
-   git checkout feat/resize 2>/dev/null || git checkout -b feat/resize main
+   git rev-parse --abbrev-ref HEAD   # if not feat/non-ideal-state:
+   git checkout feat/non-ideal-state 2>/dev/null || git checkout -b feat/non-ideal-state main
    ```
 3. **Pick exactly ONE task** — the *first* unchecked `[ ]` checkbox in §5,
    reading top-to-bottom. Tasks are ordered; do not skip ahead. If a task
    has unchecked sub-tasks, the first unchecked sub-task is your task.
 4. **Do only that one task.** Smallest correct, shippable change. Resist
-   scope creep. If you discover the task is too big, split it: replace it
-   with 2–4 finer `[ ]` sub-tasks, then do the first one.
+   scope creep. If a task is too big, split it into 2–4 finer `[ ]`
+   sub-tasks, then do the first.
 5. **Verify** with the gate in §3. The gate must be green.
 6. **If green:**
-   - Tick the box: `[ ]` → `[x]`, and append `— <one-line what/why>` to it.
-   - Add a dated bullet to **§10 Progress notes** (what changed, any
-     surprise, what the next iteration should watch for).
-   - If the task recorded a decision (an API shape, a token choice, a
-     measured number), append it to **§9 Decision log**.
+   - Tick the box `[ ]`→`[x]` and append `— <one-line what/why>`.
+   - Add a dated bullet to **§10 Progress notes**.
+   - Record any decision / benchmark number in **§9 Decision log**.
    - **Commit** (see §4). One task → one commit.
-7. **If blocked / not green:** do **not** tick the box. Append a
-   `> BLOCKED: <reason + what you tried>` note under the task and a bullet
-   in §10, commit any safe partial progress as `wip:` *only if it builds*,
-   otherwise revert your edits. Then stop.
-8. **Stop after one task.** The loop re-invokes you for the next one.
+7. **If blocked / not green:** do **not** tick the box. Append
+   `> BLOCKED: <reason + what you tried>` under the task and a §10 bullet;
+   commit safe partial progress as `wip:` *only if it builds*, else revert.
+   Then stop.
+8. **Stop after one task.** The loop re-invokes you for the next.
 
 **Hard rules**
 
-- One task, one commit, per iteration. Never batch unrelated tasks.
+- One task, one commit. Never batch unrelated tasks.
 - Never work off `main`. Never `git push` (a human reviews/merges).
-- Never delete or rewrite §0–§4, §6, §8 of this file. You may only
-  tick boxes in §5, split a task into sub-tasks, and append to §9/§10.
-- **No new runtime dependencies.** Build resize on the in-house pointer-drag
-  hook (Task 0.2). Do **not** add `react-rnd`, `re-resizable`, `interact.js`,
-  etc. (see §9 D1).
-- All three features are **opt-in / non-breaking**: a consumer who doesn't
-  ask for resize sees identical behavior to today.
-- If every box in §5 is `[x]`, the project is done: append a final note
-  to §10 saying so and stop without making changes.
+- Never delete or rewrite §0–§4, §6, §7, §8. You may tick boxes in §5,
+  split tasks into sub-tasks, and append to §9/§10.
+- **Prefer no new runtime dependency.** Raw Canvas 2D / WebGL over a library
+  unless §2 research finds a *small, clearly-better* one — and even then,
+  record the bundle cost in §9 and get the rubric (§7) to justify it.
+- Keep the fill **decorative** (`aria-hidden`) and the message accessible.
+  The component's public behavior must stay backward-compatible (props may be
+  added; existing ones keep working).
+- If every box in §5 is `[x]`, the project is done: append a final §10 note
+  and stop.
 
 ---
 
 ## 2. Environment & how to run things
 
-- **NixOS**: `node`/`npm` are not on the bare PATH. This repo has `direnv`
-  + a flake (`.envrc`, `flake.nix`). Commands assume the dev shell is
-  active. If `npm` is missing, run inside `nix develop` / let direnv load.
-- Prefer the **`just`** recipes (see `justfile`):
-  - `just dev` — Ladle story server (component stories).
-  - `just check` — Biome lint + format check (`just format` writes fixes).
-  - `just typecheck` — `tsc --noEmit`.
-  - `just test` — vitest once (matches `*.test.{ts,tsx}` only).
-  - `just test-ct` — Playwright **component** tests (matches `*.spec.tsx`).
-  - `just build` — library build (tsc d.ts + vite + postbuild).
-- **Test-file split is load-bearing**: pointer-drag behavior must be tested
-  with **Playwright CT** (`*.spec.tsx`) — real `pointerdown`/`move`/`up` with
-  `mouse`/`dragTo`. Pure logic (clamping, redistribution math) goes in a
-  vitest `*.test.ts`. Naming a file the wrong way means its runner silently
-  ignores it.
-- **Screenshots** for visual checks: `node scripts/screenshot-story.mjs
-  <story-id> [outfile]` (Ladle id is `<file>--<export>`, lowercased).
-  Requires `just dev` running.
-- **Reference for the drag pattern**: `src/components/Graph/Minimap.tsx`
-  already does `setPointerCapture` + `onPointerMove` correctly. The shared
-  hook (Task 0.2) generalizes exactly that pattern.
+- **NixOS**: `node`/`npm` aren't on the bare PATH; this repo uses `direnv` +
+  a flake. If `npm` is missing, the dev shell isn't active.
+- **`just`** recipes: `just dev` (Ladle), `just check`, `just typecheck`,
+  `just test` (vitest, `*.test.{ts,tsx}` only), `just test-ct` (Playwright CT,
+  `*.spec.tsx`), `just build`.
+- **Ladle serves on http://localhost:61000** (see `.ladle/config.mjs`). NOTE:
+  the bundled `scripts/screenshot-story.mjs` still points at **:61001** — it is
+  stale and must be fixed (Task 0.2) before screenshots work. Story id is the
+  kebab-case `<file>--<export>` (e.g. `non-ideal-state--loading`); the story
+  renders inside an iframe, and `?mode=preview` shows it bare.
+- **Perf harness pattern**: model the new probe on `scripts/probe-graph.mjs`
+  (headless Playwright that drives a story and measures via `performance` +
+  `requestAnimationFrame`). It must report **sustained FPS**, **p95 JS
+  frame time**, and **long-task / dropped-frame count** over a few seconds.
+- **Reduced motion**: read `matchMedia("(prefers-reduced-motion: reduce)")`;
+  animated effects must render a single static frame instead.
+- **Canvas**: size the backing store to `cssWidth * devicePixelRatio` (and
+  scale the context) or the fill will be blurry / mis-covered on HiDPI.
 
 ---
 
 ## 3. Verification gate (the change is only "green" if ALL pass)
 
-Run, in this order, scoped to what you touched but at minimum:
+Run, at minimum:
 
 ```bash
 just typecheck      # no TS errors
@@ -119,22 +115,18 @@ just check          # Biome lint + format clean (run `just format` to fix)
 just test           # vitest green
 ```
 
-When the task adds or changes **drag/resize interaction**, **also**:
+When the task changes **rendering / effects / animation**, **also**:
 
-- Add or update a Playwright CT spec (`*.spec.tsx`) that drives the pointer
-  (`page.mouse` / `locator.dragTo` / manual down→move→up) and asserts the
-  resulting size/position/template. Run `just test-ct` for the touched spec.
-- Start `just dev` (if not running) and screenshot the relevant story; eyeball
-  it — handles visible on hover, no overlap/clipping, themed colors, cursor
-  affordance (`col-resize` / `row-resize` / `nwse-resize`), drag tracks the
-  pointer with no lag.
+- Run the perf harness (Task 0.3) on the relevant story/size and record the
+  JSON numbers in §9. A perf-sensitive task is only green if it meets the
+  §7 target (sustained ≥ 55 fps at the M block, no long task > 50ms).
+- `just dev` + screenshot the relevant story (fixed script from 0.2); eyeball:
+  **the fill covers the entire block, every edge, at the tested size**; color
+  is subtle/token-based; no overlap/clipping of the message; reduced-motion
+  renders a clean static frame.
 
-When the task touches **motion/transition**, confirm a
-`@media (prefers-reduced-motion: reduce)` fallback exists (drag itself is not
-animated; any snap-back / settle transition must degrade).
-
-`just build` is required green for the **Phase 4/5** finishing tasks (slower),
-not for every iteration.
+`just test-ct` and `just build` are required green for the **Phase 5/6**
+finishing tasks, not every iteration.
 
 ---
 
@@ -142,7 +134,7 @@ not for every iteration.
 
 ```bash
 git add -A
-git commit -m "resize: <imperative summary of the one task>
+git commit -m "nis: <imperative summary of the one task>
 
 <optional 1–3 line body: what & why>
 
@@ -155,323 +147,222 @@ Keep messages scoped to the single task. Do not push.
 
 ## 5. The plan (task checkboxes — tick as you complete)
 
-> Convention reminders that apply to **every** code task (full rules in
-> `AGENTS.md` + `AESTHETICS.md`): tokens not literals (`--sf-*`), **CSS
-> Grid** for layout, `cx()` for classNames, sharp corners
-> (`--sf-radius-default`), **never grey body text**, always a
-> `prefers-reduced-motion` fallback, **no new global color tokens** (scope
-> any new variable to the component, e.g. `--sf-dialog-backdrop`), no
-> utility-class libs, no emoji/personality, no new deps. Component dir
-> layout: `src/components/<Name>/{<Name>.tsx, <Name>.module.css,
-> <Name>.stories.tsx, <Name>.spec.tsx, index.ts}`.
+> House rules (full: `AGENTS.md` + `AESTHETICS.md`): tokens not literals,
+> CSS Grid for layout, `cx()`, sharp corners, **never grey body text** (the
+> message; the *fill* may be grey/transparent — it's decorative), always a
+> `prefers-reduced-motion` fallback, no new global color tokens, no
+> utility-class libs, no emoji, prefer no new deps.
 
-### Phase 0 — Shared drag primitive
+### Phase 0 — Setup, screenshot fix, perf harness, baseline
 
-- [x] **0.1** Create branch `feat/resize` off `main` (if not already on it).
-      Run the baseline gate (`just typecheck && just check && just test`) and
-      confirm green before any change. — created `feat/resize` from `main`; baseline typecheck/check/test all green.
-- [x] **0.2** Add `src/lib/usePointerDrag.ts` — a headless hook generalizing
-      the `Minimap.tsx` pattern. Signature roughly:
-      `usePointerDrag({ onStart?, onMove, onEnd? }) → { onPointerDown }`
-      where `onMove` receives `{ dx, dy, x, y, event }` deltas **relative to
-      the drag origin**. It must: call `setPointerCapture` on pointerdown,
-      track via `pointermove`, release + fire `onEnd` on `pointerup`/cancel,
-      ignore non-primary buttons, and `preventDefault` to avoid text
-      selection during drag. No React state churn per move (use refs;
-      consumers decide what to re-render). Internal only — **not** exported
-      from `src/index.ts`.
-- [x] **0.3** Unit-test the pure parts in `src/lib/usePointerDrag.test.ts`
-      (delta math / origin tracking via a thin testable core if extracted).
-      Behavioral pointer-capture coverage comes later via component CT specs. — 4 vitest cases on `dragDelta` (origin, +/- deltas, absolute coords); green.
+- [ ] **0.1** Confirm branch `feat/non-ideal-state` (create off `main` if
+      missing — the component already lives there). Baseline gate green.
+- [ ] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
+      configured port) instead of the stale :61001, so visual checks work.
+      Verify by screenshotting `non-ideal-state--empty`.
+- [ ] **0.3** Add `scripts/probe-nonideal.mjs` (model on `probe-graph.mjs`): a
+      headless Playwright harness that opens a NonIdealState story at a given
+      block size, runs the animation ~4s, and prints one JSON line
+      `{renderer, w, h, fps, p95FrameMs, longTasks}`. Drive it via story hooks
+      (a `data-nis-*` attribute or a query param the lab stories read) so it
+      can target a specific renderer + size.
+- [ ] **0.4** Record the **current** DOM-`<pre>` renderer's numbers at three
+      block sizes — S `≈240×140`, M `≈520×300`, L `≈960×540` — into §9 as the
+      baseline to beat.
 
-### Phase 1 — DataTable: Excel-style column resize
+### Phase 1 — Fix the coverage bug (correctness, renderer-agnostic)
 
-> The existing column widths come from `gridTemplateColumns`, built in
-> `DataTable.tsx` from each leaf's `col.width` (in `--sf-unit` multiples) or
-> `minmax(calc(--sf-unit*5), 1fr)`. Resize introduces a **width-override map
-> keyed by column id** that wins over `col.width` when present.
+- [ ] **1.1** Replace the hardcoded `CELL_W/CELL_H` with a **measured** cell:
+      render a probe row, read its rect, compute `cols/rows` so the field
+      always **overfills by one cell and clips** — no gap on any edge. Verify
+      by screenshotting at deliberately awkward sizes (e.g. width 333px,
+      height 199px) in light **and** dark; the dither must reach all four
+      edges. (Canvas later makes this exact by construction; this fixes the
+      shipped DOM path now and gives a fair benchmark baseline.)
 
-- [x] **1.1** Add a column-width override model: internal state
-      `Record<columnId, number /* px */>` plus a helper that rebuilds
-      `gridTemplateColumns` so an override emits a fixed `px` track, a
-      `col.width` emits the existing `calc(--sf-unit * N)`, and otherwise the
-      existing fluid `minmax(...)`. No UI yet — pure plumbing, behavior
-      unchanged. Add a vitest `*.test.ts` for the template builder.
-- [x] **1.2** Render a resize handle on each **leaf** column header's trailing
-      edge (`DataTable.module.css` + header map in `DataTable.tsx`). It is a
-      thin hit-target (`role="separator"`, `aria-orientation="vertical"`),
-      `cursor: col-resize`, visible on header hover / when focused, themed via
-      tokens. Group (parent) headers get **no** handle. Does nothing yet.
-- [x] **1.3** Wire the handle to `usePointerDrag`: on drag, set that column's
-      override to `startWidth + dx`, clamped to a min (define
-      `--sf-datatable-col-min`, e.g. `calc(--sf-unit * 3)`). Live update every
-      move; the sticky header and body share the same template so they stay
-      aligned. Stop drag → keep the width. CT spec: drag a handle right/left
-      and assert the column track width changed.
-- [x] **1.4** Double-click a handle → **auto-fit**: measure the widest
-      rendered content in that column among currently-mounted (virtualized)
-      cells + the header, set the override to that width (clamped to min).
-      CT spec asserts the override updates on double-click.
-- [x] **1.5** Keyboard + a11y: handle is focusable (`tabIndex=0`); ArrowLeft/
-      ArrowRight resize by a step (e.g. `--sf-unit`), Shift = larger step;
-      set `aria-valuenow`/`aria-label`. Document keys in the story. Don't let
-      separator focus interfere with the cell-grid roving tabindex.
-- [x] **1.6** Opt-out controls: `resizableColumns?: boolean` on `DataTableProps`
-      (**default `true`** — Excel-like), and per-column `resizable?: boolean`
-      on `LeafColumnDef` (default true). When off, no handle renders and
-      widths behave exactly as today. Optional `onColumnResize?(id, px)` +
-      `columnWidths?` for controlled mode — add only if it stays small;
-      otherwise note as out-of-scope in §10.
-- [x] **1.7** Consolidate/finish the DataTable CT spec(s): drag-resize,
-      double-click auto-fit, keyboard resize, and the opt-out path (no handle
-      when `resizableColumns={false}`). `just test-ct` green for the spec.
+### Phase 2 — Research + renderer prototypes (fixed shortlist)
 
-### Phase 2 — Grid: draggable track gutters
+- [ ] **2.0** Research note → §9: search for libraries that render an animated
+      dithered/ASCII *field* cheaply (e.g. three.js `AsciiEffect`, canvas
+      image-dither libs, shader toys). Record what exists, bundle cost, and
+      whether any fits (expectation per D3: image-dither libs are the wrong
+      shape and `AsciiEffect`/three is too heavy — roll our own — but
+      **confirm or refute**, don't assume).
 
-> Grid currently serializes `grid-template-columns/rows` from props into inline
-> style (`buildTrackList`). Resizable mode owns the **resolved** track sizes in
-> state and renders gutter separators between adjacent tracks.
+The loop benchmarks exactly these renderers (bounded set → converges). Each
+implements one shared field interface `intensity(x,y,t,params) → [0,1]` and a
+shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 
-- [x] **2.1** Add `resizable?: boolean | "columns" | "rows" | "both"` to
-      `GridProps` (default `false`/today's behavior). When enabled, on first
-      interaction **freeze the affected axis**: measure current track sizes via
-      the grid container's `getComputedStyle(...).gridTemplateColumns/Rows`
-      (resolved px) and move them into internal state, so `fr`/`auto`/`repeat`
-      become concrete, draggable px tracks. Pure setup task — no handles yet;
-      confirm a non-resizable Grid is byte-identical to today.
-- [x] **2.2** Render gutter separators positioned over each interior track
-      boundary for the enabled axis (a thin overlay sized to the gap, or
-      absolutely-positioned strips). `role="separator"`,
-      `aria-orientation` per axis, `cursor: col-resize` / `row-resize`,
-      visible affordance on hover, themed via tokens. Sharp corners; no
-      handle on the outer edges.
-- [x] **2.3** Drag a gutter → **redistribute the two adjacent tracks**: track[i]
-      grows by `dx`, track[i+1] shrinks by `dx` (sum preserved), each clamped
-      to `--sf-grid-track-min` (e.g. `calc(--sf-unit * 2)`); when a neighbor
-      hits min, stop. Apply live each move. CT spec: drag a column gutter and
-      assert the two adjacent track widths changed by ±delta and the total is
-      unchanged.
-- [x] **2.4** Keyboard + a11y on gutters: focusable; Arrow keys nudge the
-      boundary by a step (Shift = larger); `aria-valuenow` reflects the
-      leading track's size. Roving/tab order sane with the grid's own content.
-- [x] **2.5** Polish: `minTrackSize?` prop (overrides the token default);
-      `onTrackSizesChange?(axis, sizes)` callback; a `reset()`-style escape
-      (e.g. double-click a gutter restores the two tracks to equal share).
-      `prefers-reduced-motion` fallback for any settle transition.
-- [x] **2.6** Grid CT spec: gutter drag for columns and rows, min-clamp at a
-      neighbor, keyboard nudge, and double-click reset. `just test-ct` green.
+1. **DOM `<pre>` string** (current, coverage-fixed) — baseline.
+2. **Canvas 2D — filled rects.** One alpha-stepped rect per cell, **batched by
+   ramp level** (group same-level cells, one fill per level) to cut draw calls.
+   Block-sized canvas ⇒ exact coverage.
+3. **Canvas 2D — `fillText`.** Draw the literal `░▒▓█` glyphs per cell (keeps
+   the true console character look); measure the text-draw cost.
+4. **WebGL fragment shader.** Compute intensity + Bayer threshold per cell on
+   the GPU (raw WebGL, no lib if feasible). The performance ceiling.
 
-### Phase 3 — Dialog: window drag + resize + subtle scrim
+- [ ] **2.1** Extract the field math into a shared, renderer-agnostic module
+      (`fields.ts`): `ripple`, `noise`, `vignette` as pure
+      `(x,y,t,params)→intensity`, plus the Bayer ramp mapping. Unit-test it.
+- [ ] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
+      shared interface as a lab story param. (May reuse current code.)
+- [ ] **2.3** Prototype renderer #2 (Canvas 2D rects, batched) as a lab story.
+- [ ] **2.4** Prototype renderer #3 (Canvas 2D `fillText`) as a lab story.
+- [ ] **2.5** Prototype renderer #4 (WebGL shader) as a lab story. If WebGL
+      proves disproportionately complex for the win, split into a spike and
+      record the call in §9 rather than forcing it.
 
-> `Dialog.Popup` is Base UI's popup, `position: fixed` centered via
-> `transform: translate(-50%,-50%)`, with open/close opacity+transform
-> transitions. The backdrop uses the shared `--sf-color-overlay` token.
+### Phase 3 — Benchmark + auto-select the renderer
 
-- [x] **3.1** **Subtle backdrop.** Stop using the heavy shared
-      `--sf-color-overlay` for the dialog scrim. Introduce a **component-local**
-      variable `--sf-dialog-backdrop` defined in `Dialog.module.css` (NOT a
-      global token — see §9 D3) set to a very faint scrim
-      (e.g. `rgb(0 0 0 / 0.08)` light, a touch higher in dark mode via the
-      existing `[data-theme]` mechanism), and have `.backdrop` use it.
-      Overridable by consumers at any scope. Screenshot light + dark to
-      confirm it reads as "barely there," and that the popup still has enough
-      separation (its border + `--sf-shadow-xl` carry the elevation).
-- [x] **3.2** **Draggable.** Add `draggable?: boolean` to the `Popup` wrapper.
-      When on, the popup exposes a drag region — default the **header area**
-      (wire `Dialog.Title`, or a new optional `Dialog.Handle`, as the grab
-      target with `cursor: move`). Dragging updates an `{x,y}` offset (state)
-      applied as a CSS var / inline transform that **composes with** the
-      centering transform, so the window moves. Clamp so the header stays
-      within the viewport (never drag fully off-screen). Don't break Base UI's
-      open/close transition — only override transform while/after a user drag.
-- [x] **3.3** **Resizable.** Add `resizable?: boolean` to the `Popup`. Render
-      edge handles (E/S/W/N) + corner handles (SE at minimum) with correct
-      `*-resize` cursors. Drag updates width/height state (overriding the
-      `max-width`/`width` defaults), clamped to a min size
-      (`--sf-dialog-min-w` / `--sf-dialog-min-h`) and the viewport. SE corner
-      is the priority; add the others if they stay clean.
-- [x] **3.4** Lifecycle correctness: reset drag offset + size when the dialog
-      **closes and reopens** (next open is centered at default size), so a
-      moved/resized window doesn't "remember" stale geometry unexpectedly.
-      Use `setPointerCapture`; ensure dragging a handle doesn't trigger Base
-      UI's outside-press/close. Verify focus trap + Escape still work.
-- [x] **3.5** a11y: drag/resize handles are labelled and keyboard-reachable
-      where it makes sense (at minimum the SE resize handle is a focusable
-      `separator` with arrow-key resize; document that pointer is the primary
-      affordance). Dialog role/labelledby/describedby from Base UI unchanged.
-- [x] **3.6** Dialog CT spec: drag by header moves the popup, resize from SE
-      corner changes its box, min-size clamp holds, and reopen resets geometry.
-      `just test-ct` green.
+- [ ] **3.1** Run `probe-nonideal` on every prototype at S/M/L; record all
+      JSON rows in §9 (one table).
+- [ ] **3.2** Apply the §7 rubric to pick the **winner**; record the winner +
+      scores + rationale in §9. Must clear the hard gates (≥55fps@M, full
+      coverage, supports subtle color + ≥2 effects).
+- [ ] **3.3** Delete the losing prototypes' code (and any unused dep). Keep a
+      minimal perf-regression lab story for the winner only.
 
-### Phase 4 — Stories, docs, exports
+### Phase 4 — Definitive renderer + parameterized effects + subtle color
 
-- [x] **4.1** Grid stories: a `Resizable` story (columns), one for rows, one
-      for `"both"`, each with a few `Grid.Item`s so the redistribution is
-      visible. Include a Playground with the `resizable` arg.
-- [x] **4.2** DataTable story: a `ResizableColumns` story demonstrating drag,
-      double-click auto-fit, keyboard resize, and a locked (`resizable:false`)
-      column. Note the keys in the story description.
-- [x] **4.3** Dialog story: a `Window` story with `draggable resizable` and the
-      subtle backdrop, plus a plain `Default` left intact for contrast.
-- [x] **4.4** Update `AGENTS.md`: document `Grid` `resizable`, `DataTable`
-      `resizableColumns` + per-column `resizable`, and `Dialog.Popup`
-      `draggable`/`resizable` + the subtle-dim default. Add a row to the
-      relevant tables. Keep it terse; AGENTS.md is the usage contract.
-- [x] **4.5** Confirm the public surface: these are **props on existing
-      components**, so no new `package.json` `exports` entries and no
-      `src/index.ts` change are needed. Verify `usePointerDrag` is internal
-      (not re-exported). If any new type needs exporting (e.g. a resize
-      callback signature), add it to the component's `index.ts` only.
+- [ ] **4.1** Implement the winning renderer as the real `NonIdealState` fill,
+      replacing the per-frame `<pre>` rewrite. Keep it `aria-hidden`, keep the
+      message panel + variants, keep the vignette center-clear behavior.
+- [ ] **4.2** Effects API: `effect?: "ripple" | "noise" | "vignette" | ...`
+      (variant picks a sensible default — loading→ripple, others→vignette).
+      Wire all effects through the shared `fields.ts`.
+- [ ] **4.3** Parameterize the ripple: `{ speed, wavelength, amplitude,
+      origin }` (typed). Sensible defaults; expose via a prop
+      (e.g. `effectOptions`). Story shows live param control.
+- [ ] **4.4** Add the **noise** effect: random per-cell density at a `rate`
+      (flicker fps), seedable for determinism. Reduced-motion → static seed.
+- [ ] **4.5** **Subtle, token-based color**: a `color` prop accepting a base
+      (default a subtle token; `error`→`--sf-color-danger`) and render the
+      ramp as **alpha steps** of that base (grey/transparent), so the fill
+      reads as a faint texture, not a loud block. Theme-aware (light + dark).
+      Re-screenshot — should be markedly subtler than the brief's screenshot.
+- [ ] **4.6** Guarantee **full coverage** in the winning renderer (canvas
+      sized to block × dpr, or measured-grid overfill) and pause work when
+      offscreen (IntersectionObserver) or the tab is hidden
+      (`visibilitychange`) to save CPU. Reduced-motion → one static frame.
+- [ ] **4.7** Re-run the perf harness on the final component at S/M/L; confirm
+      the §7 target and record final numbers in §9.
 
-### Phase 5 — Finish
+### Phase 5 — Stories, tests, docs, exports
 
-- [x] **5.1** Full finishing gate, all green:
-      `just check && just typecheck && just test && just test-ct && just build`.
-      Fix anything red; one fix = one commit if it's substantive. — all green: check/typecheck clean, vitest 63 passed, build OK, Playwright CT 169 passed.
-- [x] **5.2** DoD sign-off (§6). Walk every item, confirm true, append a final
-      "PROJECT COMPLETE" note to §10. Stop. — every DoD item confirmed; see §10.
+- [ ] **5.1** Stories: an effects gallery (ripple / noise / vignette), a
+      params Playground (ripple speed/wavelength/amplitude), subtle-color
+      examples, and odd-size blocks proving full coverage.
+- [ ] **5.2** CT specs (`*.spec.tsx`): message/action render; fill is
+      `aria-hidden`; role per variant; **fill covers the block** (canvas/grid
+      spans to each edge); reduced-motion renders static; an effect param
+      visibly changes output.
+- [ ] **5.3** Keep `probe-nonideal` + a perf-regression lab story; record the
+      shipped numbers in §9.
+- [ ] **5.4** Update `AGENTS.md`: document `effect`, `effectOptions`, `color`,
+      and the perf characteristics. Keep it terse.
+- [ ] **5.5** Public surface: props-only, so no new `package.json` export /
+      `src/index.ts` change. Export any new effect/param **types** from the
+      component's `index.ts`. Keep the renderer + `fields.ts` internal.
+
+### Phase 6 — Finish
+
+- [ ] **6.1** Full finishing gate green:
+      `just check && just typecheck && just test && just test-ct && just build`,
+      plus the perf target met (§7).
+- [ ] **6.2** DoD sign-off (§6 below). Confirm every item; append a final
+      "PROJECT COMPLETE" §10 note. Stop.
 
 ---
 
 ## 6. Definition of Done
 
-A feature is done only when **all** hold:
-
-- **Grid**: opt-in `resizable` mode renders gutter separators; dragging
-  redistributes the two adjacent tracks (sum preserved), clamped to a min;
-  works for columns, rows, and `"both"`; keyboard-resizable; double-click
-  resets a pair. A non-resizable Grid is identical to pre-change behavior.
-- **DataTable**: leaf columns are drag-resizable (default on), double-click
-  auto-fits, keyboard resizes; per-table and per-column opt-out work; header
-  and body stay aligned during/after resize; virtualization unaffected.
-- **Dialog**: popup is draggable by its header and resizable from at least the
-  SE corner, both clamped to the viewport/min size; geometry resets on
-  reopen; focus trap + Escape + outside-press semantics intact; **backdrop is
-  very subtle** and themed for light + dark.
-- **Shared**: one internal `usePointerDrag` hook backs all three; **no new
-  runtime dependency** was added; no new **global** color token (component-
-  scoped vars only).
-- **House rules**: tokens not literals, CSS Grid, `cx()`, sharp corners, no
-  grey body text, `prefers-reduced-motion` fallbacks present, no emoji.
-- **a11y**: every resize/gutter handle is a focusable `separator` with
-  orientation + `aria-valuenow` + keyboard resize; cursors are correct.
-- **Tests**: Playwright CT specs cover drag, keyboard, and double-click for
-  each of the three; vitest covers the pure math (template builder,
-  redistribution clamp). `just test` and `just test-ct` green.
-- **Docs/stories**: a resizable story per component; `AGENTS.md` documents the
-  new props. `just build` green. Nothing pushed (human merges).
+- The dithered fill **covers the entire block** at any size, every edge, light
+  + dark — verified by screenshot at awkward sizes and by a CT assertion.
+- The animated fill uses the **benchmarked-fastest** renderer; it sustains
+  **≥ 55 fps at the M block** with no long task > 50ms (harness-measured,
+  numbers in §9), and **pauses when offscreen / tab hidden**.
+- The ripple is **parameterizable** (speed, wavelength, amplitude, origin) and
+  there is **≥ 1 additional effect** (noise) plus the static vignette, all
+  behind one `effect` API.
+- The fill color is **subtle and token-based** (alpha steps of a base color;
+  grey/transparent; `error` uses the danger token) and theme-aware.
+- No new **global** color token; **no new runtime dependency** unless the
+  rubric + §9 explicitly justify a small one. Fill stays `aria-hidden`; message
+  stays accessible; `role` per variant intact; reduced-motion static.
+- House rules honored (tokens, CSS Grid, `cx`, sharp corners, no emoji).
+- Tests: vitest for `fields.ts` math; CT for render / coverage / a11y /
+  reduced-motion / effect-param. `just test` + `just test-ct` green.
+- A renderer benchmark table + the auto-select rationale live in §9. Stories
+  cover effects + params + odd sizes. `AGENTS.md` updated. `just build` green.
+  Nothing pushed.
 
 ---
 
-## 7. Design constraints & gotchas (read before each phase)
+## 7. Selection rubric (Phase 3 — deterministic)
 
-- **No resize library.** The whole point is one ~80-line hook. If you reach
-  for `react-rnd`/`re-resizable`, stop — that's a §1 hard-rule violation.
-- **Live template updates, not transforms-on-content.** Resizing changes the
-  grid track template / column widths directly; don't fake it by scaling
-  content. The DataTable header and body are two separate grids sharing one
-  computed `gridTemplateColumns` string — update them from one source.
-- **`fr`/`auto` must be frozen to px on first drag** (Grid) or you can't
-  redistribute deterministically. Read resolved sizes via `getComputedStyle`.
-- **Pointer capture or you'll drop fast drags.** Use `setPointerCapture`
-  (see `Minimap.tsx`) so move events keep firing outside the handle.
-- **Base UI Dialog uses transform for centering and transitions.** A drag
-  offset must **compose** with `translate(-50%,-50%)` and not fight the
-  open/close transition. Prefer a CSS custom property the popup's transform
-  reads, toggled only after user interaction.
-- **Don't break the DataTable roving-tabindex grid.** Separator focus must not
-  hijack the cell keyboard model — separators are siblings of the grid, not
-  cells.
-- **Subtle is the spec for the dialog scrim.** When in doubt, err fainter; the
-  popup's border + `--sf-shadow-xl` already separate it from the page.
+For each renderer, from the §9 benchmark table. **Hard gates (must pass all,
+else disqualified):** sustains **≥ 55 fps at M**; **fully covers** the block at
+all sizes; can render **subtle token-based color**; supports **≥ 2 effects**.
+
+Among survivors, **weighted score** (higher = better), each metric normalized
+linearly across candidates to [0,1]:
+
+- Sustained FPS at **M** block — weight **0.35**
+- p95 JS frame time at **L** block (lower better) — weight **0.30**
+- Long-task / dropped-frame count at L (lower better) — weight **0.15**
+- Dither fidelity / crispness (does it still read as console blocks?) — **0.10**
+- Implementation simplicity / no-new-dep (less code, zero dep better) — **0.10**
+
+Highest score wins. Tie-break: fewer dependencies, then less code. Record the
+table, the normalized scores, and the winner in §9 so it isn't relitigated.
 
 ---
 
 ## 8. Reference — house rules pointers (do not duplicate, just obey)
 
-- `AGENTS.md` — component catalogue, conventions, "reach for Y", anti-patterns.
-- `AESTHETICS.md` — why the library looks the way it does.
-- `src/tokens/tokens.css` — every `--sf-*` variable (overlay, shadow,
-  elevation, z-index, durations/eases all live here).
-- `src/components/Graph/Minimap.tsx` — the canonical in-house pointer-drag
-  (`setPointerCapture` + `onPointerMove`) to generalize in Task 0.2.
-- `CLAUDE.md` — build chain, the `*.test` vs `*.spec` runner split, the
-  three-place component registration (not needed here — props only).
+- `AGENTS.md` — catalogue, conventions, anti-patterns; the `NonIdealState` row.
+- `AESTHETICS.md` — empty/error/loading guidance (explain what's missing; no
+  whimsy; no skeuomorphic texture — but console dither is a native idiom).
+- `src/tokens/tokens.css` — every `--sf-*` (colors, durations, eases).
+- `src/components/NonIdealState/` — current implementation (DOM `<pre>` +
+  `dither.ts`) being improved.
+- `scripts/probe-graph.mjs` — the perf-harness pattern to copy for 0.3.
+- `CLAUDE.md` — build chain, `*.test` vs `*.spec` split, three-place export
+  registration (not needed here — props only).
 
 ---
 
 ## 9. Decision log (append-only — newest at bottom)
 
-- **D1 — No resize dependency.** Resize is built on a single in-house hook
-  (`src/lib/usePointerDrag.ts`), generalizing the existing `Minimap.tsx`
-  pattern. No `react-rnd` / `re-resizable` / `interact.js`. Rationale:
-  AGENTS.md forbids unnecessary deps; the surface is small; full control over
-  tokens/a11y/SSR. (Set at plan creation, 2026-06-14.)
-- **D2 — Grid resize model = track gutters.** Resizing the Grid means dragging
-  the **boundary between tracks** and redistributing the two adjacent tracks
-  (sum preserved, min-clamped). **Not** free-floating per-item resize (which
-  fights the grid model and overlaps neighbors). Chosen by the user over
-  "free per-item resize" and "both" on 2026-06-14. This mirrors the DataTable
-  column-resize mental model (a column = a track).
-- **D3 — Dialog scrim is component-local, not a new global token.** The "very
-  subtle" backdrop is achieved with a `--sf-dialog-backdrop` variable defined
-  inside `Dialog.module.css` (overridable by consumers), **not** by adding a
-  new top-level `--sf-color-*` token and **not** by changing the shared
-  `--sf-color-overlay` (other overlays may rely on it). Respects the
-  "no new top-level color tokens without consultation" rule. (2026-06-14.)
-- **D4 — DataTable column resize defaults ON.** "Behave like Excel columns"
-  ⇒ `resizableColumns` defaults `true`, with per-table and per-column opt-out,
-  and double-click = auto-fit. (2026-06-14.)
+- **D1 — Branch.** Improvement work continues on `feat/non-ideal-state` (the
+  component is there, unmerged/unreleased). No merge until a human reviews.
+- **D2 — Coverage bug root cause.** The grid is computed from a hardcoded
+  `CELL_W=7 / CELL_H=11`, but at the 10px monospace font the real cell is
+  ~6px wide, so `cols = ceil(width/7)` under-counts and the field stops short
+  of the right/bottom edge (the brief's white strip). Fix: measure the real
+  cell (Phase 1); ultimately a canvas sized to the block makes coverage exact.
+- **D3 — Dependency stance.** Default to **no new dependency** — raw Canvas 2D
+  / WebGL. Image-dither libraries operate on bitmaps (wrong shape) and
+  three.js `AsciiEffect` pulls in a 3D engine (too heavy). Phase 2.0 must
+  *verify* this before committing; any lib must clear the rubric + log bundle
+  cost.
+- **D4 — Color.** Fill color becomes **subtle**: alpha steps of a base token
+  (grey/transparent by default; `error` = `--sf-color-danger` at low alpha),
+  not the current prominent muted fill. Decorative, so grey is allowed (unlike
+  body text).
+- **D5 — Tooling.** `scripts/screenshot-story.mjs` targets the stale port
+  :61001; Ladle serves :61000 (`.ladle/config.mjs`). Fixed in Task 0.2.
 
 ## 10. Progress notes (append-only — newest at bottom)
 
-- 2026-06-14 — **PROJECT COMPLETE.** All §5 boxes ticked; DoD (§6) walked and
-  confirmed: Grid gutter-resize (cols/rows/both, keyboard, even-split reset,
-  non-resizable identical to before); DataTable Excel columns (drag, auto-fit,
-  keyboard, per-table/per-column opt-out, virtualization intact); Dialog window
-  (drag by header, E/S/SE resize, geometry resets on reopen, focus-trap/Escape
-  intact, very subtle backdrop verified by screenshot); one shared internal
-  `usePointerDrag`, **no new dependency**, **no new global color token**; house
-  rules honored (tokens, CSS Grid, `cx`, sharp corners, reduced-motion, no
-  emoji); every handle a focusable `separator` with arrow-key resize; vitest
-  covers pure math (`dragDelta`, `buildColumnTemplate`, `redistribute`); CT
-  covers drag/keyboard/double-click for all three. Finishing gate green: check,
-  typecheck, vitest (63), build, Playwright CT (169). Nothing pushed — awaiting
-  human review/merge. **Deferred / documented caveats**: DataTable controlled
-  width mode; Grid axis becomes fixed-px after first interaction; Dialog N/W
-  edge resize and in-scroll handle positioning. Done — stop.
-- 2026-06-14 — Phase 3 (Dialog window) complete. Backdrop now a very subtle
-  component-local scrim. `draggable` Popup + `Dialog.Handle` grab region (drag
-  offset composes with Base UI centering via CSS vars; transform transition off
-  while draggable). `resizable` Popup with E/S/SE handles (SE is a focusable
-  separator with arrow-key resize); width/height clamped to MIN_W 240 / MIN_H
-  120 + viewport. Geometry resets on reopen for free (Base UI unmounts the popup
-  on close). 6 Dialog CT specs green. **Caveats** (note for stories/docs): N/W
-  edge resize not implemented (only E/S/SE — they don't reposition the popup);
-  resize handles live inside the `overflow:auto` popup, so on a scrolled popup
-  the bottom/right grips scroll with content. Next: Phase 4 stories/docs.
-- 2026-06-14 — Phase 2 (Grid gutter resize) complete. Absolutely-positioned
-  overlay (never a grid track) carries focusable `separator` gutters measured
-  off the live grid via ResizeObserver; first drag freezes the axis (`fr`/`auto`
-  → px) and `redistribute()` moves the boundary (sum preserved, both tracks
-  clamped to `minTrackSize`, default 48px). Keyboard nudge (8/24px), double-click
-  even-split reset, `onTrackSizesChange` callback. **Behavior note**: a resizable
-  axis stays fluid until first interaction, then becomes fixed px (manual control
-  — intended). 15 Grid CT specs green. Next: Dialog window (Phase 3).
-- 2026-06-14 — Phase 1 (DataTable Excel columns) complete. Width-override map
-  (px) layered over static defs via `buildColumnTemplate`; single
-  `usePointerDrag` handle reads the active column off the DOM; double-click
-  auto-fits (scrollWidth under ellipsis); focusable `separator` with arrow-key
-  resize; `resizableColumns` (default true) + per-column `resizable` opt-out.
-  `--sf-unit` measured at 24px so the min floor is 72px. **Deferred** (out of
-  scope unless asked): controlled width mode (`onColumnResize` / `columnWidths`
-  props) — internal state only for now. 21 DataTable CT specs green. Next: Grid
-  gutter resize (Phase 2), which reuses the same hook.
-- 2026-06-14 — Plan authored. Scope: Grid gutter-resize, DataTable Excel
-  columns, Dialog window drag+resize + subtle scrim, all on a shared internal
-  `usePointerDrag` hook, no new deps. Build order is DataTable → Grid → Dialog
-  (most-contained first; each reuses the Phase-0 primitive). Branch
-  `feat/resize` to be created in Task 0.1. Key risks flagged in §7: freezing
-  `fr`→px before redistribution, composing the dialog drag offset with Base
-  UI's centering transform, and keeping the DataTable header/body templates in
-  sync. First task for the loop: **0.1**.
+- 2026-06-14 — Plan authored to improve the just-built `NonIdealState`.
+  Targets: research + benchmark renderers (DOM `<pre>` vs Canvas-rects vs
+  Canvas-`fillText` vs WebGL) and keep the fastest; parameterized ripple +
+  added effects (noise) via a shared `fields.ts`; subtle token-based color;
+  and fix the coverage bug (known cause: hardcoded cell metrics — D2). Build
+  order: harness + coverage fix first (correctness + fair baseline), then
+  research → prototypes → benchmark → auto-select → rebuild → test/doc. First
+  task for the loop: **0.1**. Watch-outs: HiDPI canvas sizing, pausing
+  animation offscreen/hidden, and keeping the fill `aria-hidden` while the
+  message stays accessible.
