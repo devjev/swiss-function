@@ -276,7 +276,7 @@ Keep messages scoped to the single task. Do not push.
       Overridable by consumers at any scope. Screenshot light + dark to
       confirm it reads as "barely there," and that the popup still has enough
       separation (its border + `--sf-shadow-xl` carry the elevation).
-- [ ] **3.2** **Draggable.** Add `draggable?: boolean` to the `Popup` wrapper.
+- [x] **3.2** **Draggable.** Add `draggable?: boolean` to the `Popup` wrapper.
       When on, the popup exposes a drag region — default the **header area**
       (wire `Dialog.Title`, or a new optional `Dialog.Handle`, as the grab
       target with `cursor: move`). Dragging updates an `{x,y}` offset (state)
