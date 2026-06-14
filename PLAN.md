@@ -197,7 +197,7 @@ Keep messages scoped to the single task. Do not push.
       `col.width` emits the existing `calc(--sf-unit * N)`, and otherwise the
       existing fluid `minmax(...)`. No UI yet — pure plumbing, behavior
       unchanged. Add a vitest `*.test.ts` for the template builder.
-- [ ] **1.2** Render a resize handle on each **leaf** column header's trailing
+- [x] **1.2** Render a resize handle on each **leaf** column header's trailing
       edge (`DataTable.module.css` + header map in `DataTable.tsx`). It is a
       thin hit-target (`role="separator"`, `aria-orientation="vertical"`),
       `cursor: col-resize`, visible on header hover / when focused, themed via

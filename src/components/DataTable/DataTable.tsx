@@ -471,6 +471,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               const collapsedGroupId = colMeta?.collapsedGroupId;
               const canSort = header.column.getCanSort();
               const sortDir = header.column.getIsSorted();
+              const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
               return (
                 <div
                   key={header.id}
@@ -494,6 +495,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
                         />
                       )}
                     </>
+                  )}
+                  {isLeafHeader && (
+                    <div
+                      aria-hidden="true"
+                      className={styles.resizeHandle}
+                      // Don't let a click on the handle toggle column sorting.
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   )}
                 </div>
               );

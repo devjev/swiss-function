@@ -3,6 +3,8 @@
   flex-direction: column;
   width: 100%;
   font-family: var(--sf-font-sans);
+  /* Smallest a column may be dragged to (kept in sync with COLUMN_MIN_UNITS). */
+  --sf-datatable-col-min: calc(var(--sf-unit) * 3);
 }
 
 .viewport {
@@ -35,6 +37,50 @@
   color: var(--sf-color-fg);
   border-inline-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
+  position: relative;
+}
+
+/* Column resize handle — a wide invisible hit target straddling the column's
+   trailing border, with a hairline that lights up on hover/focus. */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: calc(var(--sf-unit) / 4 - 1px);
+  inline-size: 2px;
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.headerCell:hover .resizeHandle::after,
+.resizeHandle:hover::after,
+.resizeHandle[data-dragging]::after,
+.resizeHandle:focus-visible::after {
+  background-color: var(--sf-color-primary);
+}
+
+.resizeHandle:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resizeHandle::after {
+    transition: none;
+  }
 }
 
 .headerCell:last-child {

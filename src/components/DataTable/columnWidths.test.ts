@@ -3,9 +3,7 @@ import { buildColumnTemplate } from "./columnWidths";
 
 describe("buildColumnTemplate", () => {
   it("emits a fluid minmax track for an auto-sized column", () => {
-    expect(buildColumnTemplate([{ id: "a" }], {})).toBe(
-      "minmax(calc(var(--sf-unit) * 5), 1fr)",
-    );
+    expect(buildColumnTemplate([{ id: "a" }], {})).toBe("minmax(calc(var(--sf-unit) * 5), 1fr)");
   });
 
   it("emits a unit-multiple track for a static width", () => {
