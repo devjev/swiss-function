@@ -7,3 +7,4 @@ import { BenchFill } from "./BenchFill";
 export const DomPre: Story = () => <BenchFill renderer="dom" />;
 export const CanvasRects: Story = () => <BenchFill renderer="canvas-rects" />;
 export const CanvasText: Story = () => <BenchFill renderer="canvas-text" />;
+export const Webgl: Story = () => <BenchFill renderer="webgl" />;

@@ -74,8 +74,10 @@ export function BenchFill({ renderer }: { renderer: BenchRenderer }) {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.ceil(dims.w * dpr);
     canvas.height = Math.ceil(dims.h * dpr);
-    const ctx = canvas.getContext("2d");
-    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (renderer === "canvas-rects" || renderer === "canvas-text") {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }, [renderer, dims]);
 
   useEffect(() => {
@@ -90,6 +92,7 @@ export function BenchFill({ renderer }: { renderer: BenchRenderer }) {
       if (renderer === "dom") drawDom(preRef.current, dims, t);
       else if (renderer === "canvas-rects") drawCanvasRects(canvasRef.current, dims, t);
       else if (renderer === "canvas-text") drawCanvasText(canvasRef.current, dims, t);
+      else if (renderer === "webgl") drawWebgl(canvasRef.current, dims, t);
       const w = window as unknown as { __nisDraw?: number[] };
       if (!w.__nisDraw) w.__nisDraw = [];
       w.__nisDraw.push(performance.now() - t0);
@@ -165,4 +168,90 @@ function drawCanvasText(canvas: HTMLCanvasElement | null, dims: Dims, t: number)
       if (lvl > 0) ctx.fillText(RAMP[lvl] ?? "", x * cellW, y * cellH);
     }
   }
+}
+
+// --- WebGL: the GPU computes ripple + Bayer dither per pixel; the CPU only
+// updates a time uniform and issues one draw call. ---
+const BAYER16 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+
+interface GlState {
+  gl: WebGLRenderingContext;
+  u: Record<string, WebGLUniformLocation | null>;
+}
+const glMap = new WeakMap<HTMLCanvasElement, GlState | null>();
+
+const VERT = "attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
+const FRAG = `precision mediump float;
+uniform vec2 u_res;uniform vec2 u_cell;uniform vec2 u_grid;uniform float u_t;uniform float u_bayer[16];
+void main(){
+  float cx=floor(gl_FragCoord.x/u_cell.x);
+  float cy=floor((u_res.y-gl_FragCoord.y)/u_cell.y);
+  float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
+  float dx=cx-ox;float dy=(cy-oy)*1.7;
+  float dist=sqrt(dx*dx+dy*dy);
+  float inten=(0.5+0.5*sin(dist*(6.2831853/11.0)-u_t*3.0))*0.95;
+  int idx=int(mod(cy,4.0))*4+int(mod(cx,4.0));
+  float th=0.0;
+  for(int k=0;k<16;k++){if(k==idx)th=u_bayer[k];}
+  float scaled=clamp(inten,0.0,1.0)*4.0;
+  float base=floor(scaled);
+  float level=min(base+(scaled-base>th?1.0:0.0),4.0);
+  gl_FragColor=vec4(0.42,0.447,0.502,level/4.0);
+}`;
+
+function initGl(canvas: HTMLCanvasElement): GlState | null {
+  const gl = canvas.getContext("webgl", { alpha: true, antialias: false });
+  if (!gl) return null;
+  const compile = (type: number, src: string) => {
+    const sh = gl.createShader(type);
+    if (!sh) return null;
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    return sh;
+  };
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  const prog = gl.createProgram();
+  if (!vs || !fs || !prog) return null;
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p");
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  const u = {
+    res: gl.getUniformLocation(prog, "u_res"),
+    cell: gl.getUniformLocation(prog, "u_cell"),
+    grid: gl.getUniformLocation(prog, "u_grid"),
+    t: gl.getUniformLocation(prog, "u_t"),
+  };
+  gl.uniform1fv(gl.getUniformLocation(prog, "u_bayer[0]"), BAYER16);
+  return { gl, u };
+}
+
+function drawWebgl(canvas: HTMLCanvasElement | null, dims: Dims, t: number) {
+  if (!canvas) return;
+  let state = glMap.get(canvas);
+  if (state === undefined) {
+    state = initGl(canvas);
+    glMap.set(canvas, state);
+  }
+  if (!state) return;
+  const { gl, u } = state;
+  const dpr = window.devicePixelRatio || 1;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.uniform2f(u.res ?? null, canvas.width, canvas.height);
+  gl.uniform2f(u.cell ?? null, dims.cellW * dpr, dims.cellH * dpr);
+  gl.uniform2f(u.grid ?? null, dims.cols, dims.rows);
+  gl.uniform1f(u.t ?? null, t);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
