@@ -8,19 +8,9 @@ import { createWebglFill, type WebglFill } from "./webglFill";
 export type NonIdealStateVariant = "empty" | "no-results" | "error" | "loading";
 export type { EffectName };
 
-/** Monospace cell metrics for the dither grid resolution (matches the fill font). */
-const FONT_PX = 10;
-const LINE_PX = 11;
-
-function measureCell(host: HTMLElement): { cellW: number; cellH: number } {
-  const probe = document.createElement("span");
-  probe.textContent = "█".repeat(40);
-  probe.style.cssText = `position:absolute;visibility:hidden;white-space:pre;left:-9999px;font:${FONT_PX}px var(--sf-font-mono);line-height:${LINE_PX}px;`;
-  host.appendChild(probe);
-  const rect = probe.getBoundingClientRect();
-  probe.remove();
-  return { cellW: rect.width / 40 || 6, cellH: rect.height || LINE_PX };
-}
+/** Default shade-block size in px (square). Smaller = finer dither; the
+ *  consumer can override with `cellSize`. */
+const DEFAULT_CELL = 7;
 
 export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** Which state this represents — picks the default effect, tint, and a11y
@@ -34,13 +24,18 @@ export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>,
   action?: ReactNode;
   /** Override the fill effect. Each variant has an animated default (see below). */
   effect?: EffectName;
-  /** Effect parameters (speed / wavelength / amplitude / rate / density / seed). */
+  /** Animation speed multiplier. 1 = normal, 2 = twice as fast, 0.5 = half. */
+  speed?: number;
+  /** Effect parameters (wavelength / amplitude / rate / density / seed). */
   effectOptions?: EffectOptions;
+  /** Shade-block size in px (square). Default 7. Smaller = finer dither, so
+   *  density (coverage) carries more of the look than opacity. */
+  cellSize?: number;
   /** Base fill color — any CSS color (e.g. a token `var(--sf-color-primary)`).
    *  Defaults to a subtle muted token; `error` uses the danger token. */
   color?: string;
-  /** Overall fill opacity 0..1. Default 0.7 — the blocks read as a faint
-   *  texture; lower it for subtler, raise toward 1 for denser. */
+  /** Overall fill opacity 0..1. Default 0.85 — blocks are fairly solid and the
+   *  effect's density (coverage) does the shading; lower it for a fainter wash. */
   opacity?: number;
   /** Block width. `number` → multiples of `--sf-unit`; `string` → raw CSS. */
   width?: number | string;
@@ -96,9 +91,11 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     description,
     action,
     effect,
+    speed = 1,
     effectOptions,
+    cellSize = DEFAULT_CELL,
     color,
-    opacity = 0.7,
+    opacity = 0.85,
     width,
     height,
     className,
@@ -113,8 +110,8 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
   const [dims, setDims] = useState<Dims>({
     cols: 0,
     rows: 0,
-    cellW: 6,
-    cellH: LINE_PX,
+    cellW: cellSize,
+    cellH: cellSize,
     w: 0,
     h: 0,
   });
@@ -128,17 +125,19 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     [ref],
   );
 
+  // Square cells of `cellSize` px; the grid overfills by one cell and the
+  // canvas clips, so the fill always covers every edge.
   useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el) return;
+    const cell = Math.max(2, cellSize);
     const measure = () => {
       const r = el.getBoundingClientRect();
-      const { cellW, cellH } = measureCell(el);
       setDims({
-        cols: Math.max(1, Math.ceil(r.width / cellW) + 1),
-        rows: Math.max(1, Math.ceil(r.height / cellH) + 1),
-        cellW,
-        cellH,
+        cols: Math.max(1, Math.ceil(r.width / cell) + 1),
+        rows: Math.max(1, Math.ceil(r.height / cell) + 1),
+        cellW: cell,
+        cellH: cell,
         w: r.width,
         h: r.height,
       });
@@ -147,7 +146,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [cellSize]);
 
   const activeEffect = effect ?? defaultEffect[variant];
 
@@ -166,6 +165,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       cellW: dims.cellW,
       cellH: dims.cellH,
       effect: activeEffect,
+      speed,
       color: readColor(canvas),
       alpha: opacity,
       ...effectOptions,
@@ -209,7 +209,7 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       io.disconnect();
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [dims, activeEffect, effectOptions, color, opacity]);
+  }, [dims, activeEffect, speed, effectOptions, color, opacity]);
 
   useEffect(() => () => fillRef.current?.destroy(), []);
 

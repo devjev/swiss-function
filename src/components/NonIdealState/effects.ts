@@ -5,8 +5,6 @@
 export type EffectName = "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
 
 export interface RippleParams {
-  /** Animation speed (radians/second of phase advance). Default 3. */
-  speed?: number;
   /** Ripple wave length in cells. Default 11. */
   wavelength?: number;
   /** Peak intensity 0..1. Default 0.95. */

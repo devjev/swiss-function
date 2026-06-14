@@ -17,30 +17,31 @@ void main(){
   float colf=gl_FragCoord.x/u_cell.x;
   float rowf=(u_res.y-gl_FragCoord.y)/u_cell.y;
   float cx=floor(colf);float cy=floor(rowf);
+  // u_speed is a multiplier (1 = normal pace); per-effect base rates baked in.
   float inten=0.0;
-  if(u_effect==0){ // ripple — concentric waves from center
+  if(u_effect==0){ // ripple — concentric waves from center (square cells → no aspect skew)
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
-    float dx=cx-ox;float dy=(cy-oy)*1.7;float dist=sqrt(dx*dx+dy*dy);
-    inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed,6.2831853)))*u_amplitude;
+    float dx=cx-ox;float dy=cy-oy;float dist=sqrt(dx*dx+dy*dy);
+    inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed*3.0,6.2831853)))*u_amplitude;
   }else if(u_effect==1){ // noise — random per-cell flicker
-    float frame=floor(u_t*u_rate);
+    float frame=floor(u_t*u_rate*u_speed);
     inten=u_density+(hash(vec3(cx,cy,frame+u_seed))-0.5);
   }else if(u_effect==2){ // scan — a band sweeps down, wrapping
     float r=cy/max(u_grid.y-1.0,1.0);
-    float pos=fract(u_t*u_speed*0.08);
+    float pos=fract(u_t*u_speed*0.24);
     float d=abs(r-pos);d=min(d,1.0-d);
     inten=u_amplitude*smoothstep(0.18,0.0,d);
   }else if(u_effect==3){ // plasma — interfering sine fields drift
-    float s=u_t*u_speed*0.6;
+    float s=u_t*u_speed*1.8;
     float v=sin(cx*0.3+s)+sin(cy*0.25-s*0.8)+sin((cx+cy)*0.2+s*0.6)+sin(sqrt(cx*cx+cy*cy)*0.25+s);
     inten=(v*0.25*0.5+0.5)*u_amplitude;
   }else if(u_effect==4){ // rain — per-column density falls downward
     float cseed=hash(vec3(cx,0.0,u_seed));
     float r=cy/max(u_grid.y-1.0,1.0);
-    float head=fract(u_t*u_speed*0.06*(0.6+cseed)+cseed);
+    float head=fract(u_t*u_speed*0.18*(0.6+cseed)+cseed);
     inten=u_amplitude*pow(1.0-fract(head-r),6.0);
   }else{ // pulse — whole field breathes up/down
-    inten=(0.55+0.45*sin(mod(u_t*u_speed,6.2831853)))*u_amplitude;
+    inten=(0.55+0.45*sin(mod(u_t*u_speed*3.0,6.2831853)))*u_amplitude;
   }
   // Discrete density level 0..4 = the shade-block step (' ░▒▓█').
   float level=min(4.0,floor(clamp(inten,0.0,1.0)*5.0));
@@ -69,6 +70,8 @@ export interface FillFrame extends RippleParams, NoiseParams {
   cellH: number;
   /** Seconds since start. */
   t: number;
+  /** Animation speed multiplier (1 = normal). Default 1. */
+  speed?: number;
   effect?: EffectName;
   /** Base color as 0..1 RGB. Default a muted grey. */
   color?: [number, number, number];
@@ -151,7 +154,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       gl.uniform2f(U.grid, f.cols, f.rows);
       gl.uniform1f(U.t, f.t);
       gl.uniform1i(U.effect, EFFECT_CODE[effect]);
-      gl.uniform1f(U.speed, f.speed ?? 3);
+      gl.uniform1f(U.speed, f.speed ?? 1);
       gl.uniform1f(U.wavelength, f.wavelength ?? 11);
       gl.uniform1f(U.amplitude, f.amplitude ?? 0.95);
       gl.uniform1f(U.rate, f.rate ?? 12);

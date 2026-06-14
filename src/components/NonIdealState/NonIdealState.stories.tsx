@@ -2,9 +2,13 @@ import type { Story } from "@ladle/react";
 import { Button } from "../Button";
 import { NonIdealState, type NonIdealStateVariant } from "./NonIdealState";
 
+// Demo at half pace — calmer than the component's default speed of 1.
+const STORY_SPEED = 0.5;
+
 export const Empty: Story = () => (
   <NonIdealState
     variant="empty"
+    speed={STORY_SPEED}
     title="No items yet"
     description="Nothing here so far. Create your first item to get started."
     action={<Button>New item</Button>}
@@ -14,6 +18,7 @@ export const Empty: Story = () => (
 export const NoResults: Story = () => (
   <NonIdealState
     variant="no-results"
+    speed={STORY_SPEED}
     title="No results"
     description="No rows match the current filters. Try widening or clearing them."
     action={<Button variant="secondary">Clear filters</Button>}
@@ -23,6 +28,7 @@ export const NoResults: Story = () => (
 export const ErrorState: Story = () => (
   <NonIdealState
     variant="error"
+    speed={STORY_SPEED}
     title="Couldn't load data"
     description="The request failed. Check your connection and try again."
     action={<Button variant="secondary">Retry</Button>}
@@ -30,13 +36,19 @@ export const ErrorState: Story = () => (
 );
 
 export const Loading: Story = () => (
-  <NonIdealState variant="loading" title="Loading…" description="Fetching the latest data." />
+  <NonIdealState
+    variant="loading"
+    speed={STORY_SPEED}
+    title="Loading…"
+    description="Fetching the latest data."
+  />
 );
 
 // A small, sized block — the dither fills whatever dimensions you give it.
 export const Sized: Story = () => (
   <NonIdealState
     variant="empty"
+    speed={STORY_SPEED}
     width={28}
     height={10}
     title="No items"
@@ -58,6 +70,7 @@ export const Gallery: Story = () => {
         <NonIdealState
           key={it.variant}
           variant={it.variant}
+          speed={STORY_SPEED}
           height={10}
           title={it.title}
           description="Lorem ipsum dolor."
@@ -70,9 +83,16 @@ export const Gallery: Story = () => {
 // Subtlety + custom base color (any token). Lower opacity = fainter texture.
 export const SubtleColor: Story = () => (
   <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
-    <NonIdealState height={9} opacity={0.4} title="opacity 0.4" description="Very faint." />
     <NonIdealState
       height={9}
+      speed={STORY_SPEED}
+      opacity={0.4}
+      title="opacity 0.4"
+      description="Very faint."
+    />
+    <NonIdealState
+      height={9}
+      speed={STORY_SPEED}
       color="var(--sf-color-primary)"
       opacity={0.5}
       title="primary token"
@@ -86,6 +106,7 @@ export const OddSize: Story = () => (
   <NonIdealState
     width="333px"
     height="199px"
+    speed={STORY_SPEED}
     title="333 × 199"
     description="Fill covers all four edges."
   />
@@ -97,7 +118,7 @@ export const Effects: Story = () => {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
       {effects.map((e) => (
-        <NonIdealState key={e} effect={e} height={10} title={e} />
+        <NonIdealState key={e} effect={e} speed={STORY_SPEED} height={10} title={e} />
       ))}
     </div>
   );
@@ -107,14 +128,17 @@ export const Playground: Story<{
   variant: NonIdealStateVariant;
   effect: "default" | "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
   speed: number;
-  wavelength: number;
+  cellSize: number;
+  opacity: number;
   title: string;
   description: string;
-}> = ({ variant, effect, speed, wavelength, title, description }) => (
+}> = ({ variant, effect, speed, cellSize, opacity, title, description }) => (
   <NonIdealState
     variant={variant}
     effect={effect === "default" ? undefined : effect}
-    effectOptions={{ speed, wavelength }}
+    speed={speed}
+    cellSize={cellSize}
+    opacity={opacity}
     title={title}
     description={description}
     action={<Button>Action</Button>}
@@ -123,8 +147,9 @@ export const Playground: Story<{
 Playground.args = {
   variant: "empty",
   effect: "default",
-  speed: 3,
-  wavelength: 11,
+  speed: STORY_SPEED,
+  cellSize: 7,
+  opacity: 0.85,
   title: "No items yet",
   description: "Create your first item to get started.",
 };
@@ -134,6 +159,7 @@ Playground.argTypes = {
     options: ["default", "ripple", "noise", "scan", "plasma", "rain", "pulse"],
     control: { type: "radio" },
   },
-  speed: { control: { type: "range", min: 0, max: 12, step: 0.5 } },
-  wavelength: { control: { type: "range", min: 3, max: 30, step: 1 } },
+  speed: { control: { type: "range", min: 0, max: 5, step: 0.25 } },
+  cellSize: { control: { type: "range", min: 3, max: 16, step: 1 } },
+  opacity: { control: { type: "range", min: 0.1, max: 1, step: 0.05 } },
 };
