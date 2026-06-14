@@ -325,11 +325,11 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 5 — Finish
 
-- [ ] **5.1** Full finishing gate, all green:
+- [x] **5.1** Full finishing gate, all green:
       `just check && just typecheck && just test && just test-ct && just build`.
-      Fix anything red; one fix = one commit if it's substantive.
-- [ ] **5.2** DoD sign-off (§6). Walk every item, confirm true, append a final
-      "PROJECT COMPLETE" note to §10. Stop.
+      Fix anything red; one fix = one commit if it's substantive. — all green: check/typecheck clean, vitest 63 passed, build OK, Playwright CT 169 passed.
+- [x] **5.2** DoD sign-off (§6). Walk every item, confirm true, append a final
+      "PROJECT COMPLETE" note to §10. Stop. — every DoD item confirmed; see §10.
 
 ---
 
@@ -425,6 +425,21 @@ A feature is done only when **all** hold:
 
 ## 10. Progress notes (append-only — newest at bottom)
 
+- 2026-06-14 — **PROJECT COMPLETE.** All §5 boxes ticked; DoD (§6) walked and
+  confirmed: Grid gutter-resize (cols/rows/both, keyboard, even-split reset,
+  non-resizable identical to before); DataTable Excel columns (drag, auto-fit,
+  keyboard, per-table/per-column opt-out, virtualization intact); Dialog window
+  (drag by header, E/S/SE resize, geometry resets on reopen, focus-trap/Escape
+  intact, very subtle backdrop verified by screenshot); one shared internal
+  `usePointerDrag`, **no new dependency**, **no new global color token**; house
+  rules honored (tokens, CSS Grid, `cx`, sharp corners, reduced-motion, no
+  emoji); every handle a focusable `separator` with arrow-key resize; vitest
+  covers pure math (`dragDelta`, `buildColumnTemplate`, `redistribute`); CT
+  covers drag/keyboard/double-click for all three. Finishing gate green: check,
+  typecheck, vitest (63), build, Playwright CT (169). Nothing pushed — awaiting
+  human review/merge. **Deferred / documented caveats**: DataTable controlled
+  width mode; Grid axis becomes fixed-px after first interaction; Dialog N/W
+  edge resize and in-scroll handle positioning. Done — stop.
 - 2026-06-14 — Phase 3 (Dialog window) complete. Backdrop now a very subtle
   component-local scrim. `draggable` Popup + `Dialog.Handle` grab region (drag
   offset composes with Base UI centering via CSS vars; transform transition off
