@@ -64,6 +64,10 @@
       "types": "./dist/components/Field/index.d.ts",
       "import": "./dist/components/Field/index.js"
     },
+    "./graph": {
+      "types": "./dist/components/Graph/index.d.ts",
+      "import": "./dist/components/Graph/index.js"
+    },
     "./grid": {
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"
@@ -177,8 +181,12 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.2",
+    "graphology": "^0.26.0",
+    "graphology-layout": "^0.6.1",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "sigma": "^3.0.3"
   },
   "devDependencies": {
     "@ladle/react": "^4.1.2",

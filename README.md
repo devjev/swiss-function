@@ -57,15 +57,17 @@ Dark mode is opt-in via `[data-theme="dark"]` on any ancestor (commonly `<html>`
 
 ## Components
 
-| Form           | Overlay      | Selection   |
-|----------------|--------------|-------------|
-| `Button`       | `Dialog`     | `Select`    |
-| `Input`        | `Popover`    | `Combobox`  |
-| `Checkbox`     | `Tooltip`    | `Tabs`      |
-| `Switch`       | `Menu`       | `Accordion` |
-| `Radio` + `RadioGroup` | | |
+| Form                   | Overlay      | Selection     |
+|------------------------|--------------|---------------|
+| `Button`               | `Dialog`     | `Combobox`    |
+| `Input`                | `Popover`    | `Tabs`        |
+| `Checkbox`             | `Menu`       | `Accordion`   |
+| `Switch`               | `CommandBar` | `ToggleGroup` |
+| `Radio` + `RadioGroup` |              |               |
 
-Compound components (Dialog, Popover, Tooltip, Menu, Select, Combobox, Tabs, Accordion) expose Base UI's compound API as object namespaces, e.g. `Dialog.Root`, `Dialog.Trigger`, `Dialog.Popup`. The structure mirrors Base UI's; see [base-ui.com](https://base-ui.com) for full API docs.
+This is a teaser; see [AGENTS.md](./AGENTS.md) for the full catalogue (charts, `DataTable`, `Graph`, `Prose`, and more).
+
+Compound components (Dialog, Popover, Menu, Combobox, Tabs, Accordion) expose Base UI's compound API as object namespaces, e.g. `Dialog.Root`, `Dialog.Trigger`, `Dialog.Popup`. The structure mirrors Base UI's; see [base-ui.com](https://base-ui.com) for full API docs.
 
 ## Development
 
