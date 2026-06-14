@@ -91,18 +91,21 @@ export const OddSize: Story = () => (
   />
 );
 
-// Effects gallery — the same block under each fill effect.
-export const Effects: Story = () => (
-  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
-    <NonIdealState effect="vignette" height={10} title="vignette" />
-    <NonIdealState effect="ripple" height={10} title="ripple" />
-    <NonIdealState effect="noise" height={10} title="noise" />
-  </div>
-);
+// Effects gallery — all five+ animated effects.
+export const Effects: Story = () => {
+  const effects = ["ripple", "noise", "scan", "plasma", "rain", "pulse"] as const;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
+      {effects.map((e) => (
+        <NonIdealState key={e} effect={e} height={10} title={e} />
+      ))}
+    </div>
+  );
+};
 
 export const Playground: Story<{
   variant: NonIdealStateVariant;
-  effect: "default" | "vignette" | "ripple" | "noise";
+  effect: "default" | "ripple" | "noise" | "scan" | "plasma" | "rain" | "pulse";
   speed: number;
   wavelength: number;
   title: string;
@@ -127,7 +130,10 @@ Playground.args = {
 };
 Playground.argTypes = {
   variant: { options: ["empty", "no-results", "error", "loading"], control: { type: "radio" } },
-  effect: { options: ["default", "vignette", "ripple", "noise"], control: { type: "radio" } },
+  effect: {
+    options: ["default", "ripple", "noise", "scan", "plasma", "rain", "pulse"],
+    control: { type: "radio" },
+  },
   speed: { control: { type: "range", min: 0, max: 12, step: 0.5 } },
   wavelength: { control: { type: "range", min: 3, max: 30, step: 1 } },
 };

@@ -1,7 +1,7 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import type { EffectName, NoiseParams, RippleParams } from "./fields";
+import type { EffectName, EffectOptions } from "./effects";
 import styles from "./NonIdealState.module.css";
 import { createWebglFill, type WebglFill } from "./webglFill";
 
@@ -32,10 +32,10 @@ export interface NonIdealStateProps extends Omit<HTMLAttributes<HTMLDivElement>,
   description?: ReactNode;
   /** Action slot — typically a `Button`. */
   action?: ReactNode;
-  /** Override the fill effect. Defaults to `ripple` for loading, else `vignette`. */
+  /** Override the fill effect. Each variant has an animated default (see below). */
   effect?: EffectName;
-  /** Effect parameters (ripple speed/wavelength/amplitude, noise rate/density/seed). */
-  effectOptions?: RippleParams & NoiseParams;
+  /** Effect parameters (speed / wavelength / amplitude / rate / density / seed). */
+  effectOptions?: EffectOptions;
   /** Base fill color — any CSS color (e.g. a token `var(--sf-color-primary)`).
    *  Defaults to a subtle muted token; `error` uses the danger token. */
   color?: string;
@@ -60,10 +60,12 @@ const variantClass: Record<NonIdealStateVariant, string | undefined> = {
   loading: undefined,
 };
 
+// Every variant gets an animated default (no static effects). Non-loading
+// states use calmer effects so they don't distract; consumers can override.
 const defaultEffect: Record<NonIdealStateVariant, EffectName> = {
-  empty: "vignette",
-  "no-results": "vignette",
-  error: "vignette",
+  empty: "plasma",
+  "no-results": "noise",
+  error: "pulse",
   loading: "ripple",
 };
 
@@ -168,11 +170,9 @@ export const NonIdealState = forwardRef<HTMLDivElement, NonIdealStateProps>(func
       alpha: opacity,
       ...effectOptions,
     };
-    const animated = activeEffect !== "vignette";
+    // All effects animate; reduced motion draws a single static frame.
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-    // Static effect (or reduced motion): draw one frame and stop.
-    if (!animated || reduced) {
+    if (reduced) {
       fill.draw({ ...base, t: 0 });
       return;
     }

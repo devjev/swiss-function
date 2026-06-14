@@ -3,7 +3,7 @@
  *  one draw call per frame (benchmarked ~0.05ms/frame, flat with grid size).
  *  Shared by the shipped component and the perf-regression rig. */
 
-import type { EffectName, NoiseParams, RippleParams } from "./fields";
+import type { EffectName, NoiseParams, RippleParams } from "./effects";
 
 const VERT = "attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}";
 // highp: u_t grows unbounded; mediump loses sub-frame precision after a minute
@@ -18,18 +18,29 @@ void main(){
   float rowf=(u_res.y-gl_FragCoord.y)/u_cell.y;
   float cx=floor(colf);float cy=floor(rowf);
   float inten=0.0;
-  if(u_effect==0){
+  if(u_effect==0){ // ripple — concentric waves from center
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;
     float dx=cx-ox;float dy=(cy-oy)*1.7;float dist=sqrt(dx*dx+dy*dy);
     inten=(0.5+0.5*sin(dist*(6.2831853/u_wavelength)-mod(u_t*u_speed,6.2831853)))*u_amplitude;
-  }else if(u_effect==1){
+  }else if(u_effect==1){ // noise — random per-cell flicker
     float frame=floor(u_t*u_rate);
     inten=u_density+(hash(vec3(cx,cy,frame+u_seed))-0.5);
-  }else{
-    float nx=(cx/max(u_grid.x-1.0,1.0))*2.0-1.0;
-    float ny=(cy/max(u_grid.y-1.0,1.0))*2.0-1.0;
-    float d=min(1.0,sqrt(nx*nx+ny*ny)/1.41421356);
-    inten=max(0.0,(d-0.28)/0.72);
+  }else if(u_effect==2){ // scan — a band sweeps down, wrapping
+    float r=cy/max(u_grid.y-1.0,1.0);
+    float pos=fract(u_t*u_speed*0.08);
+    float d=abs(r-pos);d=min(d,1.0-d);
+    inten=u_amplitude*smoothstep(0.18,0.0,d);
+  }else if(u_effect==3){ // plasma — interfering sine fields drift
+    float s=u_t*u_speed*0.6;
+    float v=sin(cx*0.3+s)+sin(cy*0.25-s*0.8)+sin((cx+cy)*0.2+s*0.6)+sin(sqrt(cx*cx+cy*cy)*0.25+s);
+    inten=(v*0.25*0.5+0.5)*u_amplitude;
+  }else if(u_effect==4){ // rain — per-column density falls downward
+    float cseed=hash(vec3(cx,0.0,u_seed));
+    float r=cy/max(u_grid.y-1.0,1.0);
+    float head=fract(u_t*u_speed*0.06*(0.6+cseed)+cseed);
+    inten=u_amplitude*pow(1.0-fract(head-r),6.0);
+  }else{ // pulse — whole field breathes up/down
+    inten=(0.55+0.45*sin(mod(u_t*u_speed,6.2831853)))*u_amplitude;
   }
   // Discrete density level 0..4 = the shade-block step (' ░▒▓█').
   float level=min(4.0,floor(clamp(inten,0.0,1.0)*5.0));
@@ -42,7 +53,14 @@ void main(){
   gl_FragColor=vec4(u_color,on*u_alpha);
 }`;
 
-const EFFECT_CODE: Record<EffectName, number> = { ripple: 0, noise: 1, vignette: 2 };
+const EFFECT_CODE: Record<EffectName, number> = {
+  ripple: 0,
+  noise: 1,
+  scan: 2,
+  plasma: 3,
+  rain: 4,
+  pulse: 5,
+};
 
 export interface FillFrame extends RippleParams, NoiseParams {
   cols: number;
