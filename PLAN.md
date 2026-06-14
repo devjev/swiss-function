@@ -182,7 +182,7 @@ Keep messages scoped to the single task. Do not push.
 
 ### Phase 2 — Research + renderer prototypes (fixed shortlist)
 
-- [ ] **2.0** Research note → §9: search for libraries that render an animated
+- [x] **2.0** Research note → §9: search for libraries that render an animated
       dithered/ASCII *field* cheaply (e.g. three.js `AsciiEffect`, canvas
       image-dither libs, shader toys). Record what exists, bundle cost, and
       whether any fits (expectation per D3: image-dither libs are the wrong
@@ -353,6 +353,14 @@ table, the normalized scores, and the winner in §9 so it isn't relitigated.
   body text).
 - **D5 — Tooling.** `scripts/screenshot-story.mjs` targets the stale port
   :61001; Ladle serves :61000 (`.ladle/config.mjs`). Fixed in Task 0.2.
+- **D7 — Library research (2.0).** Surveyed: `ditherwave` (~8kb WebGL2, zero
+  deps) dithers a *source* `<img>/<video>/<canvas>` — wrong shape for a
+  procedural animated field; `ascii-shader-tsx` is a codegen agent-skill, not a
+  runtime dep; Aceternity / React Bits "Dither" / shadcn shader14 pull in
+  React-Three-Fiber / three.js (heavy) or are Tailwind-coupled (violates our
+  CSS-Modules rule). **Conclusion: no drop-in fits** — confirms D3, roll our own
+  Canvas 2D / WebGL. The shader examples validate WebGL as the perf path, as
+  raw WebGL (no dependency).
 - **D6 — Baseline (DOM `<pre>`, current renderer), via `probe-nonideal`.**
   | size | w×h | fps | p95FrameMs | longTasks |
   |------|-----|-----|-----------|-----------|
