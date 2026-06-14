@@ -63,7 +63,7 @@ const variantClass: Record<NonIdealStateVariant, string | undefined> = {
 const defaultEffect: Record<NonIdealStateVariant, EffectName> = {
   empty: "plasma",
   "no-results": "noise",
-  error: "pulse",
+  error: "scan",
   loading: "ripple",
 };
 

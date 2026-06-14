@@ -112,14 +112,15 @@ export const OddSize: Story = () => (
   />
 );
 
-// Effects gallery — all 13 animated effects.
+// All 24 animated effects. The gallery is split into sub-stories of 6 so each
+// rendered story stays well under the browser's ~16 simultaneous-WebGL-context
+// limit (each block owns its own canvas/context).
 const ALL_EFFECTS = [
   "ripple",
   "noise",
   "scan",
   "plasma",
   "rain",
-  "pulse",
   "wave",
   "spiral",
   "radar",
@@ -131,15 +132,30 @@ const ALL_EFFECTS = [
   "twister",
   "copper",
   "voronoi",
+  "grid",
+  "kaleidoscope",
+  "starfield",
+  "swirl",
+  "helix",
+  "checker",
+  "droplets",
+  "lissajous",
 ] as const;
 
-export const Effects: Story = () => (
-  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
-    {ALL_EFFECTS.map((e) => (
-      <NonIdealState key={e} effect={e} speed={STORY_SPEED} height={9} title={e} />
-    ))}
-  </div>
-);
+function EffectGrid({ effects }: { effects: readonly (typeof ALL_EFFECTS)[number][] }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--sf-unit)" }}>
+      {effects.map((e) => (
+        <NonIdealState key={e} effect={e} speed={STORY_SPEED} height={9} title={e} />
+      ))}
+    </div>
+  );
+}
+
+export const Effects1: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(0, 6)} />;
+export const Effects2: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(6, 12)} />;
+export const Effects3: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(12, 18)} />;
+export const Effects4: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(18, 24)} />;
 
 export const Playground: Story<{
   variant: NonIdealStateVariant;

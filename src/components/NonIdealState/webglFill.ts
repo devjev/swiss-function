@@ -40,8 +40,6 @@ void main(){
     float r=cy/max(u_grid.y-1.0,1.0);
     float head=fract(u_t*u_speed*0.18*(0.6+cseed)+cseed);
     inten=pow(1.0-fract(head-r),6.0);
-  }else if(u_effect==5){ // pulse — whole field breathes up/down
-    inten=0.55+0.45*sin(mod(u_t*u_speed*3.0,6.2831853));
   }else if(u_effect==6){ // wave — undulating horizontal band (sine scroller)
     float r=cy/max(u_grid.y-1.0,1.0);
     float bandY=0.5+0.28*sin(cx*0.3-u_t*u_speed*1.5);
@@ -88,7 +86,7 @@ void main(){
     inten=smoothstep(0.13,0.0,abs(r-fract(0.5+0.32*sin(tt))))
       +smoothstep(0.11,0.0,abs(r-fract(0.5+0.42*sin(tt*0.7+2.0))))
       +smoothstep(0.09,0.0,abs(r-fract(0.5+0.5*sin(tt*1.3+4.0))));
-  }else{ // voronoi — shifting flat-shaded cells (nearest of 4 moving points)
+  }else if(u_effect==16){ // voronoi — shifting flat-shaded cells (nearest of 4 moving points)
     float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;float tt=u_t*u_speed*0.8;vec2 p=vec2(cx,cy);
     vec2 q0=vec2(ox+cos(tt)*ox,oy+sin(tt*1.2)*oy);
     vec2 q1=vec2(ox+cos(tt*1.3+1.5)*ox*0.8,oy+sin(tt*0.9+2.0)*oy*0.8);
@@ -97,6 +95,54 @@ void main(){
     float d0=distance(p,q0),d1=distance(p,q1),d2=distance(p,q2),d3=distance(p,q3);
     float md=min(min(d0,d1),min(d2,d3));
     inten=md==d0?0.25:md==d1?0.5:md==d2?0.7:0.95;
+  }else if(u_effect==17){ // grid — synthwave perspective floor
+    float ox=(u_grid.x-1.0)*0.5;float r=cy/max(u_grid.y-1.0,1.0);float fy=r-0.5;
+    if(fy<=0.0){inten=0.0;}else{
+      float depth=0.35/fy;
+      float horiz=pow(0.5+0.5*sin(depth+u_t*u_speed*2.0),8.0);
+      float vert=pow(0.5+0.5*sin((cx-ox)/fy*0.25),8.0);
+      inten=max(horiz,vert);
+    }
+  }else if(u_effect==18){ // kaleidoscope — folded radial symmetry
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    float ang=atan(dy,dx);float dist=sqrt(dx*dx+dy*dy);
+    ang=abs(mod(ang,1.0472)-0.5236);
+    inten=0.5+0.5*sin(dist*0.35-u_t*u_speed*2.0+cos(ang*4.0)*3.0);
+  }else if(u_effect==19){ // starfield — warp stars from center
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    float dist=sqrt(dx*dx+dy*dy)+1.0;float ang=atan(dy,dx);
+    float prog=dist*0.18-u_t*u_speed*1.5;
+    float s=hash(vec3(floor((ang+3.1416)*3.0),floor(prog),u_seed));
+    inten=s>0.8?(1.0-fract(prog)):0.0;
+  }else if(u_effect==20){ // swirl — domain-warped plasma
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    float dist=sqrt(dx*dx+dy*dy);float ang=atan(dy,dx)+dist*0.06-u_t*u_speed*0.8;
+    inten=0.5+0.25*(sin(cos(ang)*dist*0.3)+sin(sin(ang)*dist*0.3));
+  }else if(u_effect==21){ // helix — twin DNA strands
+    float ox=(u_grid.x-1.0)*0.5;float nx=(cx-ox)/max(ox,1.0);float ph=cy*0.3-u_t*u_speed*2.0;
+    inten=smoothstep(0.18,0.0,abs(nx-cos(ph)*0.7))+smoothstep(0.18,0.0,abs(nx-cos(ph+3.1416)*0.7));
+  }else if(u_effect==22){ // checker — Mode-7 scrolling floor
+    float ox=(u_grid.x-1.0)*0.5;float r=cy/max(u_grid.y-1.0,1.0);float fy=r-0.5;
+    if(fy<=0.0){inten=0.0;}else{
+      float v=sin((cx-ox)/fy*0.04*3.1416)*sin((0.4/fy+u_t*u_speed*2.0)*3.1416);
+      inten=step(0.0,v);
+    }
+  }else if(u_effect==23){ // droplets — random ripples popping (rain on water)
+    vec2 p=vec2(cx,cy);inten=0.0;
+    for(int i=0;i<3;i++){
+      float fi=float(i);float epoch=floor(u_t*u_speed*0.5+fi*0.33);
+      vec2 dp=vec2(hash(vec3(epoch,fi,u_seed))*u_grid.x,hash(vec3(epoch,fi+7.0,u_seed))*u_grid.y);
+      float age=fract(u_t*u_speed*0.5+fi*0.33);float d=distance(p,dp);
+      inten+=sin(d*0.5-age*18.0)*smoothstep(1.0,0.0,age)*step(d,age*45.0);
+    }
+    inten=inten*0.5+0.15;
+  }else{ // lissajous — glowing tracer with trail
+    float ox=(u_grid.x-1.0)*0.5;float oy=(u_grid.y-1.0)*0.5;vec2 p=vec2(cx,cy);float tt=u_t*u_speed;
+    vec2 a=vec2(ox+cos(tt)*ox*0.8,oy+sin(tt*1.5)*oy*0.8);
+    vec2 b=vec2(ox+cos(tt-0.25)*ox*0.8,oy+sin((tt-0.25)*1.5)*oy*0.8);
+    vec2 c=vec2(ox+cos(tt-0.5)*ox*0.8,oy+sin((tt-0.5)*1.5)*oy*0.8);
+    float R=oy*0.5;
+    inten=0.4*(R/(distance(p,a)+1.0)+0.6*R/(distance(p,b)+1.0)+0.3*R/(distance(p,c)+1.0));
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -111,13 +157,13 @@ void main(){
   gl_FragColor=vec4(u_color,on*u_alpha);
 }`;
 
+// Codes match the shader's u_effect branches (5 is unused — pulse was removed).
 const EFFECT_CODE: Record<EffectName, number> = {
   ripple: 0,
   noise: 1,
   scan: 2,
   plasma: 3,
   rain: 4,
-  pulse: 5,
   wave: 6,
   spiral: 7,
   radar: 8,
@@ -129,6 +175,14 @@ const EFFECT_CODE: Record<EffectName, number> = {
   twister: 14,
   copper: 15,
   voronoi: 16,
+  grid: 17,
+  kaleidoscope: 18,
+  starfield: 19,
+  swirl: 20,
+  helix: 21,
+  checker: 22,
+  droplets: 23,
+  lissajous: 24,
 };
 
 export interface FillFrame extends EffectOptions {

@@ -8,7 +8,6 @@ export type EffectName =
   | "scan"
   | "plasma"
   | "rain"
-  | "pulse"
   | "wave"
   | "spiral"
   | "radar"
@@ -19,7 +18,15 @@ export type EffectName =
   | "rotozoom"
   | "twister"
   | "copper"
-  | "voronoi";
+  | "voronoi"
+  | "grid"
+  | "kaleidoscope"
+  | "starfield"
+  | "swirl"
+  | "helix"
+  | "checker"
+  | "droplets"
+  | "lissajous";
 
 /** Advanced, effect-specific tuning. Overall density is the top-level `density`
  *  prop; animation pace is `speed`. */
