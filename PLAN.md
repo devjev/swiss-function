@@ -215,9 +215,9 @@ shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
 
 ### Phase 3 — Benchmark + auto-select the renderer
 
-- [ ] **3.1** Run `probe-nonideal` on every prototype at S/M/L; record all
+- [x] **3.1** Run `probe-nonideal` on every prototype at S/M/L; record all
       JSON rows in §9 (one table).
-- [ ] **3.2** Apply the §7 rubric to pick the **winner**; record the winner +
+- [x] **3.2** Apply the §7 rubric to pick the **winner**; record the winner +
       scores + rationale in §9. Must clear the hard gates (≥55fps@M, full
       coverage, supports subtle color + ≥2 effects).
 - [ ] **3.3** Delete the losing prototypes' code (and any unused dep). Keep a
@@ -373,6 +373,25 @@ table, the normalized scores, and the winner in §9 so it isn't relitigated.
   at the **full 60fps update rate** (no throttle) so the harness exposes each
   renderer's true cost; re-baseline the DOM renderer un-throttled in Phase 3
   for an apples-to-apples comparison.
+- **D8 — Benchmark (3.1), unthrottled draw CPU cost (avgDrawMs).** All four
+  hold 60fps / 0 long-tasks at every size (rAF saturates), so per-frame draw
+  CPU time is the discriminator:
+  | renderer | S 240×140 | M 520×300 | L 960×540 |
+  |----------|-----------|-----------|-----------|
+  | webgl | 0.073 | 0.071 | **0.05** |
+  | dom `<pre>` | 0.193 | 0.345 | 0.899 |
+  | canvas-rects | 0.377 | 0.798 | 1.805 |
+  | canvas-text | 0.9 | 1.52 | 2.872 |
+  WebGL is cheapest and **flat** with grid size (GPU-bound); canvas-2D
+  (rects/text) is *slower* than the DOM string rewrite (per-cell fillRect/
+  fillText dominates).
+- **D9 — Winner: WebGL (3.2).** Rubric (§7) weights perf 0.80 → WebGL wins
+  decisively on draw CPU. The tradeoff (each effect re-coded in GLSL, token
+  color parsed to floats, context-loss handling) was surfaced to the user, who
+  **chose WebGL for maximum performance** over the simpler DOM renderer. So the
+  shipped fill is a WebGL fragment shader; effects (ripple/noise/vignette) and
+  ripple params live as shader uniforms; `fields.ts` stays the reference for
+  the DOM-side static/reduced-motion path and tests.
 
 ## 10. Progress notes (append-only — newest at bottom)
 
