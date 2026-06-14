@@ -254,3 +254,11 @@ test("arrow keys on a focused handle resize the column", async ({ mount, page })
   if (!after) throw new Error("missing header bounding box");
   expect(after.width).toBeGreaterThan(before.width + 80);
 });
+
+test("resizableColumns={false} renders no resize handles", async ({ mount }) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} resizableColumns={false} />,
+  );
+  await expect(component.getByRole("columnheader", { name: "name" })).toBeVisible();
+  expect(await component.locator("[data-column-id]").count()).toBe(0);
+});

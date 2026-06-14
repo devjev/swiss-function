@@ -216,7 +216,7 @@ Keep messages scoped to the single task. Do not push.
       ArrowRight resize by a step (e.g. `--sf-unit`), Shift = larger step;
       set `aria-valuenow`/`aria-label`. Document keys in the story. Don't let
       separator focus interfere with the cell-grid roving tabindex.
-- [ ] **1.6** Opt-out controls: `resizableColumns?: boolean` on `DataTableProps`
+- [x] **1.6** Opt-out controls: `resizableColumns?: boolean` on `DataTableProps`
       (**default `true`** — Excel-like), and per-column `resizable?: boolean`
       on `LeafColumnDef` (default true). When off, no handle renders and
       widths behave exactly as today. Optional `onColumnResize?(id, px)` +

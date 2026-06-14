@@ -53,6 +53,9 @@ export interface DataTableProps<T>
   height?: number | string;
   /** Empty-state slot when data is empty. */
   empty?: ReactNode;
+  /** Allow leaf columns to be drag/keyboard-resized (Excel-style). Default true.
+   *  Lock individual columns with `resizable: false` on their column def. */
+  resizableColumns?: boolean;
 
   /** Return child rows for a parent. Omit for flat tables. */
   getSubRows?: (row: T) => T[] | undefined;
@@ -133,6 +136,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     rowHeight = DEFAULT_ROW_HEIGHT,
     height = DEFAULT_HEIGHT,
     empty,
+    resizableColumns = true,
     getSubRows,
     treeColumn,
     defaultExpanded,
@@ -414,6 +418,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // --- Column-width overrides (px), set by dragging the resize handle ---
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
+  /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
+  const resizableColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (resizableColumns) {
+      for (const c of visibleLeaves) if (c.resizable !== false) ids.add(c.id);
+    }
+    return ids;
+  }, [resizableColumns, visibleLeaves]);
+
   // A single drag instance serves every handle; onStart reads which column is
   // being resized (and its start geometry) off the handle element.
   const resizeRef = useRef<{
@@ -559,6 +572,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               const canSort = header.column.getCanSort();
               const sortDir = header.column.getIsSorted();
               const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
+              const showResizeHandle = isLeafHeader && resizableColumnIds.has(header.column.id);
               return (
                 <div
                   key={header.id}
@@ -583,7 +597,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       )}
                     </>
                   )}
-                  {isLeafHeader && (
+                  {showResizeHandle && (
                     <div
                       role="separator"
                       aria-orientation="vertical"
