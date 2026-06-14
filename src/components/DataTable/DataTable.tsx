@@ -12,6 +12,7 @@ import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "re
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { buildColumnTemplate } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
@@ -358,17 +359,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
     ],
   );
 
-  // --- Grid template (from visible leaves) ---
+  // --- Column-width overrides (px), set by dragging the resize handle ---
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+
+  // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
-    () =>
-      visibleLeaves
-        .map((col) =>
-          col.width != null
-            ? `calc(var(--sf-unit) * ${col.width})`
-            : "minmax(calc(var(--sf-unit) * 5), 1fr)",
-        )
-        .join(" "),
-    [visibleLeaves],
+    () => buildColumnTemplate(visibleLeaves, columnWidths),
+    [visibleLeaves, columnWidths],
   );
 
   // --- Tree column index (where the chevron + indent live) ---

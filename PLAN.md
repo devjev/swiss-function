@@ -191,7 +191,7 @@ Keep messages scoped to the single task. Do not push.
 > `minmax(calc(--sf-unit*5), 1fr)`. Resize introduces a **width-override map
 > keyed by column id** that wins over `col.width` when present.
 
-- [ ] **1.1** Add a column-width override model: internal state
+- [x] **1.1** Add a column-width override model: internal state
       `Record<columnId, number /* px */>` plus a helper that rebuilds
       `gridTemplateColumns` so an override emits a fixed `px` track, a
       `col.width` emits the existing `calc(--sf-unit * N)`, and otherwise the
