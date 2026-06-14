@@ -228,3 +228,16 @@ test("dragging far left clamps the column at its minimum width", async ({ mount,
   expect(after.width).toBeGreaterThanOrEqual(70);
   expect(after.width).toBeLessThan(100);
 });
+
+test("double-click the handle auto-fits the column to its content", async ({ mount, page }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  const header = component.getByRole("columnheader", { name: "name" });
+  // First squeeze the column down to its min, then auto-fit should grow it back
+  // to fit "Alice"/"Carol"/"name" without being stuck at the floor.
+  await dragHandle(page, component.locator('[data-column-id="name"]'), -400);
+  const squeezed = await header.boundingBox();
+  await component.locator('[data-column-id="name"]').dblclick();
+  const fitted = await header.boundingBox();
+  if (!squeezed || !fitted) throw new Error("missing header bounding box");
+  expect(fitted.width).toBeGreaterThan(squeezed.width);
+});

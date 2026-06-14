@@ -333,6 +333,29 @@ export function DataTable<T>(props: DataTableProps<T>) {
     el?.focus({ preventScroll: false });
   }, [selection.active, editing]);
 
+  // Auto-fit: size a column to its widest currently-mounted content. `scrollWidth`
+  // reports the full natural width even though cells clip with ellipsis.
+  const autoFitColumn = useCallback(
+    (columnId: string, headerCell: HTMLElement) => {
+      const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
+      if (colIndex < 0) return;
+      // Header label is the first <span> in the header cell.
+      const headerLabel = headerCell.querySelector("span");
+      let widest = headerLabel ? headerLabel.scrollWidth : 0;
+      for (const [key, el] of cellRefs.current) {
+        if (Number(key.split(":")[1]) !== colIndex) continue;
+        const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
+        widest = Math.max(widest, body ? body.scrollWidth : el.scrollWidth);
+      }
+      // Header + cell horizontal padding (calc(--sf-unit / 2) each side) plus slack.
+      const PADDING = 24 + 8;
+      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      const next = Math.max(minPx, Math.ceil(widest + PADDING));
+      setColumnWidths((prev) => (prev[columnId] === next ? prev : { ...prev, [columnId]: next }));
+    },
+    [visibleLeaves],
+  );
+
   // --- Top-level keyboard router ---
   const handleKeyDown = useCallback(
     (ev: KeyboardEvent<HTMLDivElement>) => {
@@ -551,6 +574,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       onPointerDown={onColumnResizeDown}
                       // Don't let a click on the handle toggle column sorting.
                       onClick={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        autoFitColumn(
+                          header.column.id,
+                          e.currentTarget.parentElement as HTMLElement,
+                        );
+                      }}
                     />
                   )}
                 </div>

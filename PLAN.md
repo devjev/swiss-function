@@ -208,7 +208,7 @@ Keep messages scoped to the single task. Do not push.
       move; the sticky header and body share the same template so they stay
       aligned. Stop drag → keep the width. CT spec: drag a handle right/left
       and assert the column track width changed.
-- [ ] **1.4** Double-click a handle → **auto-fit**: measure the widest
+- [x] **1.4** Double-click a handle → **auto-fit**: measure the widest
       rendered content in that column among currently-mounted (virtualized)
       cells + the header, set the override to that width (clamped to min).
       CT spec asserts the override updates on double-click.
