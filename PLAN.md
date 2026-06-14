@@ -299,7 +299,7 @@ Keep messages scoped to the single task. Do not push.
       where it makes sense (at minimum the SE resize handle is a focusable
       `separator` with arrow-key resize; document that pointer is the primary
       affordance). Dialog role/labelledby/describedby from Base UI unchanged.
-- [ ] **3.6** Dialog CT spec: drag by header moves the popup, resize from SE
+- [x] **3.6** Dialog CT spec: drag by header moves the popup, resize from SE
       corner changes its box, min-size clamp holds, and reopen resets geometry.
       `just test-ct` green.
 
@@ -425,6 +425,16 @@ A feature is done only when **all** hold:
 
 ## 10. Progress notes (append-only — newest at bottom)
 
+- 2026-06-14 — Phase 3 (Dialog window) complete. Backdrop now a very subtle
+  component-local scrim. `draggable` Popup + `Dialog.Handle` grab region (drag
+  offset composes with Base UI centering via CSS vars; transform transition off
+  while draggable). `resizable` Popup with E/S/SE handles (SE is a focusable
+  separator with arrow-key resize); width/height clamped to MIN_W 240 / MIN_H
+  120 + viewport. Geometry resets on reopen for free (Base UI unmounts the popup
+  on close). 6 Dialog CT specs green. **Caveats** (note for stories/docs): N/W
+  edge resize not implemented (only E/S/SE — they don't reposition the popup);
+  resize handles live inside the `overflow:auto` popup, so on a scrolled popup
+  the bottom/right grips scroll with content. Next: Phase 4 stories/docs.
 - 2026-06-14 — Phase 2 (Grid gutter resize) complete. Absolutely-positioned
   overlay (never a grid track) carries focusable `separator` gutters measured
   off the live grid via ResizeObserver; first drag freezes the axis (`fr`/`auto`
