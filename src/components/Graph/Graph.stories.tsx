@@ -1,5 +1,5 @@
 import type { Story } from "@ladle/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { LARGE, MEDIUM, SMALL } from "../../lib/graph/fixtures";
 import type { GraphData, LayoutKind } from "../../lib/graph/types";
 import { Graph } from "./Graph";
@@ -86,9 +86,8 @@ export const Grid: Story = () => (
 );
 
 // --- Dense node content -----------------------------------------------------
-// Arbitrary structured `data` per node/edge, surfaced two ways: visual
-// attributes via the `renderNode`/`renderEdge` escape hatches, and the full
-// record via the hover/click inspector.
+// Arbitrary structured `data` per node/edge, surfaced via the
+// `renderNode`/`renderEdge` escape hatches as visual attributes.
 
 const services: GraphData = {
   nodes: [
@@ -241,3 +240,55 @@ export const LargeStress: Story = () => (
     </Graph>
   </Frame>
 );
+
+// --- Editable relationships -------------------------------------------------
+// `editable` adds a Connect toggle to the toolbar: turn it on, then drag from one
+// node to another to draw an edge. Right-click an edge (or select it and press
+// Delete/Backspace) to remove it. The Graph updates its view instantly and fires
+// onEdgeCreate / onEdgeDelete; this story persists both into local state so the
+// changes survive (and the camera/layout stay put across updates).
+
+const EDITABLE_SEED: GraphData = {
+  nodes: [
+    { id: "ingest", label: "Ingest", kind: "primary" },
+    { id: "queue", label: "Queue", kind: "secondary" },
+    { id: "worker", label: "Worker", kind: "secondary" },
+    { id: "store", label: "Store", kind: "tertiary" },
+    { id: "api", label: "API", kind: "quaternary" },
+  ],
+  edges: [
+    { id: "s1", source: "ingest", target: "queue", label: "enqueue" },
+    { id: "s2", source: "queue", target: "worker", label: "consume" },
+    { id: "s3", source: "worker", target: "store", label: "write" },
+  ],
+};
+
+export const Editable: Story = () => {
+  const [data, setData] = useState<GraphData>(EDITABLE_SEED);
+  const [log, setLog] = useState<string[]>([]);
+  const note = (msg: string) => setLog((l) => [msg, ...l].slice(0, 6));
+
+  return (
+    <Frame>
+      <Graph
+        data={data}
+        layout="tree"
+        style={{ blockSize: 520 }}
+        editable
+        onEdgeCreate={(edge) => {
+          setData((d) => ({ ...d, edges: [...d.edges, edge] }));
+          note(`created ${edge.source} → ${edge.target}`);
+        }}
+        onEdgeDelete={(id) => {
+          setData((d) => ({ ...d, edges: d.edges.filter((e) => e.id !== id) }));
+          note(`deleted ${id}`);
+        }}
+      >
+        <Graph.Controls />
+      </Graph>
+      <p style={{ marginBlockStart: "0.75rem", fontFamily: "var(--sf-font-mono)" }}>
+        {log.length === 0 ? "Toggle Connect, then drag node → node." : log.join("  ·  ")}
+      </p>
+    </Frame>
+  );
+};

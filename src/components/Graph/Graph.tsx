@@ -1,4 +1,4 @@
-import Graphology from "graphology";
+import type Graphology from "graphology";
 import { circlepack, circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
@@ -13,9 +13,20 @@ import {
   useState,
 } from "react";
 import Sigma from "sigma";
+import { drawDiscNodeLabel, type NodeHoverDrawingFunction } from "sigma/rendering";
+import type { NodeDisplayData, PartialButFor } from "sigma/types";
 import { animateNodes } from "sigma/utils";
-import { Tooltip } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import {
+  applyVisuals,
+  buildGraph,
+  type EdgeVisual,
+  type NodeVisual,
+  nodeColor,
+  type RenderHooks,
+  reconcile,
+  token,
+} from "../../lib/graph/build";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
@@ -34,34 +45,16 @@ import { GraphMinimap } from "./Minimap";
  *  consumed by Sigma's `animateNodes`. */
 type LayoutMapping = Record<string, { x: number; y: number }>;
 
-/** Visual overrides a `renderNode` callback may return. Sigma paints to WebGL
- *  (no per-node DOM, see §9), so "arbitrary content" is expressed as themed
- *  visual attributes — label, color, size — rather than nested elements. Any
- *  omitted field keeps its color-by-`kind` default. */
-export interface NodeVisual {
-  /** Text drawn beside the node; defaults to the node `label` or `id`. */
-  label?: string;
-  /** Fill color; should be a `--sf-*`-derived value. Defaults to color-by-`kind`. */
-  color?: string;
-  /** Node radius in graph units; defaults to a `kind`-derived size. */
-  size?: number;
-}
+// `NodeVisual` / `EdgeVisual` (the `renderNode`/`renderEdge` return shapes) live
+// in `lib/graph/build` alongside the graph construction they feed; re-exported
+// here so they remain part of the component's public surface.
+export type { EdgeVisual, NodeVisual };
 
-/** Visual overrides a `renderEdge` callback may return. */
-export interface EdgeVisual {
-  /** Text drawn along the edge; defaults to the edge `label` (if any). */
-  label?: string;
-  /** Stroke color; should be a `--sf-*`-derived value. */
-  color?: string;
-  /** Stroke thickness in graph units; defaults to a `weight`-derived size. */
-  size?: number;
-}
-
-/** What a right-click landed on: a specific node, or the empty stage. */
+/** What a right-click landed on: a node, an edge, or the empty stage. */
 export interface GraphMenuTarget {
-  /** `"node"` when a node was right-clicked; `"stage"` for empty canvas. */
-  kind: "node" | "stage";
-  /** The node `id` for a `"node"` target; `null` for the stage. */
+  /** `"node"` / `"edge"` for an item right-click; `"stage"` for empty canvas. */
+  kind: "node" | "edge" | "stage";
+  /** The node/edge `id` for an item target; `null` for the stage. */
   id: string | null;
 }
 
@@ -69,7 +62,7 @@ export interface GraphMenuTarget {
 export interface GraphMenuItem {
   /** Visible label. */
   label: string;
-  /** Invoked when the item is chosen; receives the right-clicked node `id`
+  /** Invoked when the item is chosen; receives the right-clicked node/edge `id`
    *  (`null` for a stage click). */
   onSelect: (id: string | null) => void;
   /** Greys the item out and ignores clicks. */
@@ -108,10 +101,26 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
    *  returns an empty list. */
   onNodeContextMenu?: (id: string, event: MouseEvent) => void;
   /** Replace the right-click menu's items. Receives the right-click target
-   *  (node or stage); return `[]` to suppress the menu for that target. When
-   *  omitted, a default node menu (focus / expand / pin / hide) is shown and
-   *  the stage has no menu. */
+   *  (node, edge, or stage); return `[]` to suppress the menu for that target.
+   *  When omitted, a default node menu (focus / expand / pin / hide) is shown, an
+   *  edge shows "Delete" when `editable` + `onEdgeDelete`, and the stage has no
+   *  menu. Use the `edge` target as the entry point for your own edit UI. */
   contextMenuItems?: (target: GraphMenuTarget) => GraphMenuItem[];
+  /** Enable interactive relationship editing: a Connect toggle in
+   *  `Graph.Controls` (drag node→node to add an edge), edge selection, and the
+   *  delete affordances (right-click "Delete" + Delete/Backspace on a selected
+   *  edge). Off by default — purely declarative graphs are unaffected. */
+  editable?: boolean;
+  /** Fired when the user draws a new edge (Connect-mode drag) with a freshly
+   *  generated `id`. The edge is added to the live view immediately; persist it to
+   *  your `data` so it survives the next reconcile. */
+  onEdgeCreate?: (edge: { id: string; source: string; target: string }) => void;
+  /** Fired with the edge `id` when the user deletes an edge (menu or keyboard).
+   *  Removed from the live view immediately; mirror the change in your `data`. */
+  onEdgeDelete?: (id: string) => void;
+  /** Generate the `id` for an edge created via Connect-mode drag. Defaults to a
+   *  unique `edge-…` id. */
+  generateEdgeId?: () => string;
   /** Overlay content — typically a `<Graph.Controls />` toolbar. */
   children?: ReactNode;
   /** Show a corner button that maximizes the graph to the full viewport.
@@ -127,101 +136,73 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
 const PAN_STEP_PX = 60;
 /** Camera zoom factor per zoom-in / zoom-out step. */
 const ZOOM_FACTOR = 1.5;
+/** Minimum rendered edge thickness (px) for `editable` graphs. Sigma hit-tests
+ *  edges by their drawn pixels, so this doubles as the click/right-click target
+ *  size — the 1.7px default is too thin to grab comfortably. */
+const EDITABLE_MIN_EDGE_THICKNESS = 5;
+/** Added to the kind-derived default node size in `editable` graphs so nodes stay
+ *  visually weightier than the thicker editable edges. Consumer `renderNode`
+ *  sizes are unaffected. */
+const EDITABLE_NODE_SIZE_BOOST = 4;
 
-const KIND_TOKEN: Record<string, string> = {
-  primary: "--sf-color-primary",
-  secondary: "--sf-color-fg-subtle",
-  tertiary: "--sf-color-success",
-  quaternary: "--sf-color-warning",
-};
-
-/** Read a `--sf-*` token off a themed element so colors track the active theme,
- *  never hard-coded. Reads from `el` (the graph's own subtree) so it resolves
- *  whatever `data-theme` an ancestor sets — not just one on `<html>`; falls back
- *  to `document.documentElement`, then to a sane literal before first paint. */
-function token(name: string, fallback: string, el?: Element | null): string {
-  if (typeof document === "undefined") return fallback;
-  const source = el ?? document.documentElement;
-  const value = getComputedStyle(source).getPropertyValue(name).trim();
-  return value || fallback;
+/** Fallback unique id for an edge drawn via Connect mode, when the consumer
+ *  doesn't supply `generateEdgeId`. Prefers `crypto.randomUUID`, else a counter. */
+let edgeIdSeq = 0;
+function defaultEdgeId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return `edge-${uuid ?? `${(edgeIdSeq++).toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`}`;
 }
 
-function nodeColor(kind: string | undefined, el?: Element | null): string {
-  return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#2563eb", el);
+/** Viewport-pixel endpoints of the Connect-mode rubber-band line. */
+interface ConnectLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
-/** Default node radius (graph units). `primary` nodes read as the emphasized
- *  hubs; the rest are slightly smaller, so `kind` is legible as a size badge. */
-function nodeSize(kind: string | undefined): number {
-  return kind === undefined || kind === "primary" ? 4 : 3;
-}
+/** Theme-aware replacement for Sigma's default node-hover renderer. The built-in
+ *  one hard-codes a white (`#FFF`) label-background box, so in dark mode the white
+ *  label text (`labelColor` = `--sf-color-fg`) lands on a white box and vanishes.
+ *  This paints the box with `--sf-color-bg` plus a `--sf-color-border` hairline —
+ *  legible in both themes — then defers to Sigma to draw the label text itself.
+ *  Geometry mirrors Sigma's `drawDiscNodeHover`. */
+function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
+  return (
+    context,
+    data: PartialButFor<NodeDisplayData, "x" | "y" | "size" | "label" | "color">,
+    settings,
+  ) => {
+    context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
+    context.fillStyle = token("--sf-color-bg", "#ffffff", el);
+    context.strokeStyle = token("--sf-color-border", "#303030", el);
+    context.lineWidth = 1;
 
-/** Map an edge `weight` (0–1) to a stroke thickness in graph units, clamped so
- *  even weightless edges stay visible. */
-function edgeSize(weight: number | undefined): number {
-  return Math.max(0.5, (weight ?? 0.5) * 2);
-}
-
-/** The visual hooks `buildGraph` applies on top of the color-by-`kind`
- *  defaults. Both are optional; a missing field keeps the default. */
-interface RenderHooks {
-  renderNode?: (node: GraphNode) => NodeVisual | undefined;
-  renderEdge?: (edge: GraphEdge) => EdgeVisual | undefined;
-}
-
-/** (Re)apply node/edge VISUAL attributes (label / size / color) from the render
- *  hooks onto an already-built graph, layering over the color-by-`kind` defaults.
- *  Kept separate from structure so changing `renderNode`/`renderEdge` re-themes in
- *  place without tearing down + rebuilding the renderer (see the visuals effect). */
-function applyVisuals(
-  g: Graphology,
-  data: GraphData,
-  hooks: RenderHooks,
-  el?: Element | null,
-): void {
-  const edgeColor = token("--sf-color-border-subtle", "#e5e7eb", el);
-  for (const n of data.nodes) {
-    if (!g.hasNode(n.id)) continue;
-    const custom = hooks.renderNode?.(n);
-    g.mergeNodeAttributes(n.id, {
-      label: custom?.label ?? n.label ?? n.id,
-      size: custom?.size ?? nodeSize(n.kind),
-      color: custom?.color ?? nodeColor(n.kind, el),
-    });
-  }
-  for (const e of data.edges) {
-    if (!g.hasEdge(e.id)) continue;
-    const custom = hooks.renderEdge?.(e);
-    g.mergeEdgeAttributes(e.id, {
-      label: custom?.label ?? e.label,
-      size: custom?.size ?? edgeSize(e.weight),
-      color: custom?.color ?? edgeColor,
-    });
-  }
-}
-
-/** Build a graphology graph from the shared data model: structure (nodes, edges,
- *  directed arrowheads), seed positions (pre-computed `x`/`y` honored, else
- *  random — a layout pass assigns final coordinates), and `payload`. Visual
- *  attributes are layered on by `applyVisuals`. */
-function buildGraph(data: GraphData, hooks: RenderHooks, el?: Element | null): Graphology {
-  const g = new Graphology();
-  for (const n of data.nodes) {
-    g.addNode(n.id, {
-      kind: n.kind,
-      x: n.x ?? Math.random(),
-      y: n.y ?? Math.random(),
-      payload: n.data,
-    });
-  }
-  for (const e of data.edges) {
-    if (g.hasNode(e.source) && g.hasNode(e.target) && !g.hasEdge(e.id)) {
-      // Directed: render an arrowhead toward the target.
-      g.addEdgeWithKey(e.id, e.source, e.target, { type: "arrow", payload: e.data });
+    const PADDING = 2;
+    if (typeof data.label === "string") {
+      const textWidth = context.measureText(data.label).width;
+      const boxWidth = Math.round(textWidth + 5);
+      const boxHeight = Math.round(settings.labelSize + 2 * PADDING);
+      const radius = Math.max(data.size, settings.labelSize / 2) + PADDING;
+      const angleRadian = Math.asin(boxHeight / 2 / radius);
+      const xDeltaCoord = Math.sqrt(Math.abs(radius ** 2 - (boxHeight / 2) ** 2));
+      context.beginPath();
+      context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2);
+      context.lineTo(data.x + radius + boxWidth, data.y + boxHeight / 2);
+      context.lineTo(data.x + radius + boxWidth, data.y - boxHeight / 2);
+      context.lineTo(data.x + xDeltaCoord, data.y - boxHeight / 2);
+      context.arc(data.x, data.y, radius, angleRadian, -angleRadian);
+      context.closePath();
+    } else {
+      context.beginPath();
+      context.arc(data.x, data.y, data.size + PADDING, 0, Math.PI * 2);
+      context.closePath();
     }
-  }
-  applyVisuals(g, data, hooks, el);
-  return g;
+    context.fill();
+    context.stroke();
+
+    drawDiscNodeLabel(context, data, settings);
+  };
 }
 
 /** Hierarchical / tree layout: a layered top-down pass. Roots (smallest
@@ -352,39 +333,6 @@ interface ContextMenuState {
   target: GraphMenuTarget;
 }
 
-/** The element an inspector tooltip describes: a node, or an edge. */
-type InspectTarget = "node" | "edge";
-
-/** Resolved inspector content + the viewport rect it anchors to. Sigma paints
- *  to a single canvas (no per-node DOM), so the anchor rect is synthesized from
- *  the surface's bounding rect plus the element's viewport coordinates. */
-interface Inspection {
-  target: InspectTarget;
-  /** Heading line — the element's label (falling back to its id). */
-  title: string;
-  /** Secondary line — node `kind`, or "edge". */
-  subtitle: string | undefined;
-  /** `data` entries, stringified for display. */
-  rows: Array<[string, string]>;
-  /** Viewport-relative anchor box for the floating tooltip. */
-  rect: DOMRect;
-}
-
-/** Flatten a `data` record into displayable key/value rows. Values are
- *  stringified shallowly; nested objects show as compact JSON. */
-function dataRows(data: Record<string, unknown> | undefined): Array<[string, string]> {
-  if (!data) return [];
-  return Object.entries(data).map(([key, value]) => {
-    const text =
-      value === null || value === undefined
-        ? "—"
-        : typeof value === "object"
-          ? JSON.stringify(value)
-          : String(value);
-    return [key, text];
-  });
-}
-
 /** True when the user asked for reduced motion (layout switches snap instead
  *  of animating). Defaults to `false` outside the browser. */
 function prefersReducedMotion(): boolean {
@@ -405,6 +353,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderEdge,
     onNodeContextMenu,
     contextMenuItems,
+    editable = false,
+    onEdgeCreate,
+    onEdgeDelete,
+    generateEdgeId,
     className,
     children,
     fullscreen = true,
@@ -438,11 +390,38 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // Cancels an in-flight `animateNodes` transition when a new one starts.
   const cancelAnimationRef = useRef<(() => void) | null>(null);
   // Latest callbacks, read inside Sigma listeners without re-subscribing.
-  const handlersRef = useRef({ onNodeClick, onEdgeClick, onSelectionChange });
-  handlersRef.current = { onNodeClick, onEdgeClick, onSelectionChange };
+  const handlersRef = useRef({
+    onNodeClick,
+    onEdgeClick,
+    onSelectionChange,
+    onEdgeCreate,
+    onEdgeDelete,
+  });
+  handlersRef.current = { onNodeClick, onEdgeClick, onSelectionChange, onEdgeCreate, onEdgeDelete };
 
   // Right-click context menu: where it opened + what it acted on. `null` closed.
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  // --- Relationship editing state ------------------------------------------
+  // Connect mode: while on (and `editable`), a node→node drag draws an edge.
+  const [connectMode, setConnectMode] = useState(false);
+  // Live rubber-band line shown during a Connect-mode drag, in surface pixels.
+  const [connectLine, setConnectLine] = useState<ConnectLine | null>(null);
+  // Refs the Sigma listeners + reducers (wired once at mount) read for the
+  // latest values without re-subscribing.
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
+  const connectModeRef = useRef(connectMode);
+  connectModeRef.current = connectMode;
+  const selectedEdgeRef = useRef<string | null>(null);
+  const generateEdgeIdRef = useRef(generateEdgeId);
+  generateEdgeIdRef.current = generateEdgeId;
+  // Drag bookkeeping: whether a draw is in progress and its source/target nodes.
+  const connectDrawingRef = useRef(false);
+  const connectSourceRef = useRef<string | null>(null);
+  const connectTargetRef = useRef<string | null>(null);
+  // Emphasis color for the selected edge + connect endpoints (resolved at mount).
+  const selectColorRef = useRef("#2563eb");
 
   // Bumped whenever the graph is (re)built or a layout finishes applying, so the
   // minimap overlay knows to recompute its cached node geometry.
@@ -456,80 +435,6 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const nodeCount = data.nodes.length;
   const edgeCount = data.edges.length;
 
-  // Inspector tooltip: the node/edge under the cursor (hover) or the last
-  // clicked node (select). Hover wins while it is set; on hover-out the
-  // selected node's inspection is shown until the selection is cleared.
-  const [hovered, setHovered] = useState<Inspection | null>(null);
-  const [selected, setSelected] = useState<Inspection | null>(null);
-  const inspection = hovered ?? selected;
-
-  // A small viewport box centered on a node/edge — the anchor the floating
-  // Tooltip positions above. Inputs are GRAPH coordinates (from
-  // `getNodeDisplayData`); project them to canvas pixels via `graphToViewport`,
-  // then add the surface's viewport offset. (Using the graph coords directly
-  // put the tooltip near the surface origin — wrong, and glaring in fullscreen.)
-  const anchorAt = useCallback((graphX: number, graphY: number): DOMRect => {
-    const renderer = sigmaRef.current;
-    const box = surfaceRef.current?.getBoundingClientRect();
-    const ox = box?.left ?? 0;
-    const oy = box?.top ?? 0;
-    const v = renderer
-      ? renderer.graphToViewport({ x: graphX, y: graphY })
-      : { x: graphX, y: graphY };
-    return new DOMRect(ox + v.x - 4, oy + v.y - 4, 8, 8);
-  }, []);
-
-  // Build the inspection for a node: its label/kind + flattened `data`.
-  const inspectNode = useCallback(
-    (id: string): Inspection | null => {
-      const g = graphRef.current;
-      const renderer = sigmaRef.current;
-      if (!g || !renderer || !g.hasNode(id)) return null;
-      // Raw graph coords (anchorAt projects them via graphToViewport). Using
-      // getNodeDisplayData here double-normalizes and misplaces the anchor.
-      const x = g.getNodeAttribute(id, "x") as number;
-      const y = g.getNodeAttribute(id, "y") as number;
-      const kind = g.getNodeAttribute(id, "kind") as string | undefined;
-      const payload = g.getNodeAttribute(id, "payload") as Record<string, unknown> | undefined;
-      return {
-        target: "node",
-        title: (g.getNodeAttribute(id, "label") as string | undefined) ?? id,
-        subtitle: kind,
-        rows: dataRows(payload),
-        rect: anchorAt(x, y),
-      };
-    },
-    [anchorAt],
-  );
-
-  // Build the inspection for an edge: its label + flattened `data`, anchored at
-  // the midpoint of its endpoints' display positions.
-  const inspectEdge = useCallback(
-    (id: string): Inspection | null => {
-      const g = graphRef.current;
-      const renderer = sigmaRef.current;
-      if (!g || !renderer || !g.hasEdge(id)) return null;
-      const sId = g.source(id);
-      const tId = g.target(id);
-      const ax = g.getNodeAttribute(sId, "x") as number;
-      const ay = g.getNodeAttribute(sId, "y") as number;
-      const bx = g.getNodeAttribute(tId, "x") as number;
-      const by = g.getNodeAttribute(tId, "y") as number;
-      const payload = g.getEdgeAttribute(id, "payload") as Record<string, unknown> | undefined;
-      return {
-        target: "edge",
-        title: (g.getEdgeAttribute(id, "label") as string | undefined) ?? "Edge",
-        subtitle: `${sId} → ${tId}`,
-        rows: dataRows(payload),
-        rect: anchorAt((ax + bx) / 2, (ay + by) / 2),
-      };
-    },
-    [anchorAt],
-  );
-  // Latest inspection builders, read inside Sigma listeners without re-subscribe.
-  const inspectRef = useRef({ inspectNode, inspectEdge });
-  inspectRef.current = { inspectNode, inspectEdge };
-
   // Latest render hooks, read by the build effect WITHOUT keying on their
   // identity — an inline `renderNode={n => …}` changes identity every parent
   // render, and rebuilding the whole Sigma renderer on each would wipe
@@ -538,19 +443,35 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const renderHooksRef = useRef<RenderHooks>({ renderNode, renderEdge });
   renderHooksRef.current = { renderNode, renderEdge };
 
-  // Build + render once per data identity. Layout changes are handled by the
-  // layout effect below so swapping the layout never retears the renderer.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on `data` only — `layout` seeds initial positions (the layout effect owns switches) and `renderNode`/`renderEdge` come via `renderHooksRef` (the visuals effect owns re-theming); keying on any of them would needlessly rebuild the renderer.
+  // Latest `data`/`layout`, read by the mount effect (which runs once) to build
+  // the initial graph + seed the first layout without re-running on every change.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+
+  // Build the graph + Sigma renderer and wire every listener ONCE, on mount
+  // (`bumpEpoch` is stable; `data`/`layout` and all callbacks are read through
+  // refs). `data` changes flow through the reconcile effect below — applied in
+  // place so the camera + layout are preserved — rather than rebuilding.
   useEffect(() => {
     const container = surfaceRef.current;
     if (!container) return;
+    const initialData = dataRef.current;
+    const initialLayout = layoutRef.current;
 
     // Seed positions come from buildGraph (pre-set node x/y, else random). The
     // potentially expensive initial layout is deferred below so it runs AFTER the
     // first paint rather than blocking it.
-    const g = buildGraph(data, renderHooksRef.current, container);
+    const g = buildGraph(
+      initialData,
+      renderHooksRef.current,
+      container,
+      editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+    );
     graphRef.current = g;
-    appliedLayoutRef.current = layout;
+    appliedLayoutRef.current = initialLayout;
+    selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
 
     // Show edge labels only when at least one edge carries one — otherwise the
     // renderer pays for label layout it would never draw.
@@ -561,32 +482,60 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       defaultEdgeType: "arrow",
       labelColor: { color: token("--sf-color-fg", "#0a0a0a", container) },
       labelFont: token("--sf-font-sans", "system-ui", container),
+      // Theme-aware hover box; Sigma's default hard-codes a white background that
+      // hides white dark-mode label text.
+      defaultDrawNodeHover: makeNodeHoverRenderer(container),
       edgeLabelColor: { color: token("--sf-color-fg-subtle", "#737373", container) },
       edgeLabelFont: token("--sf-font-sans", "system-ui", container),
       renderLabels: g.order <= 300,
       renderEdgeLabels: hasEdgeLabels && g.order <= 300,
+      // Edge events (click/right-click/hover) only fire when enabled; needed for
+      // edge selection + the edge context menu. Off for big read-only graphs.
+      enableEdgeEvents: editableRef.current || handlersRef.current.onEdgeClick != null,
+      // Sigma hit-tests edges by color-picking their RENDERED pixels, so the
+      // clickable area equals the drawn thickness. The 1.7px default is fiddly to
+      // hit; give editable graphs a thicker floor so edges are easy to select /
+      // right-click (and a touch more visible). Read-only graphs keep the default.
+      minEdgeThickness: editableRef.current ? EDITABLE_MIN_EDGE_THICKNESS : 1.7,
+      // Emphasize the selected edge; brighten the connect-drag endpoints.
+      edgeReducer: (edge, attr) =>
+        selectedEdgeRef.current === edge
+          ? { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 }
+          : attr,
+      nodeReducer: (node, attr) =>
+        connectDrawingRef.current &&
+        (node === connectSourceRef.current || node === connectTargetRef.current)
+          ? { ...attr, color: selectColorRef.current, highlighted: true }
+          : attr,
       allowInvalidContainer: true,
     });
     sigmaRef.current = renderer;
 
+    // Clear any edge selection (on a node/stage click). The reducer repaints the
+    // de-emphasis on refresh.
+    const clearEdgeSelection = () => {
+      if (selectedEdgeRef.current === null) return;
+      selectedEdgeRef.current = null;
+      renderer.refresh();
+    };
+
     renderer.on("clickNode", ({ node }) => {
       handlersRef.current.onNodeClick?.(node);
       handlersRef.current.onSelectionChange?.(node);
-      setSelected(inspectRef.current.inspectNode(node));
+      clearEdgeSelection();
     });
     renderer.on("clickEdge", ({ edge }) => {
       handlersRef.current.onEdgeClick?.(edge);
+      // Select the edge (for delete) only when editing is enabled.
+      if (editableRef.current) {
+        selectedEdgeRef.current = edge;
+        renderer.refresh();
+      }
     });
     renderer.on("clickStage", () => {
       handlersRef.current.onSelectionChange?.(null);
-      setSelected(null);
+      clearEdgeSelection();
     });
-
-    // Hover inspector: show node/edge `data` while the cursor is over it.
-    renderer.on("enterNode", ({ node }) => setHovered(inspectRef.current.inspectNode(node)));
-    renderer.on("leaveNode", () => setHovered(null));
-    renderer.on("enterEdge", ({ edge }) => setHovered(inspectRef.current.inspectEdge(edge)));
-    renderer.on("leaveEdge", () => setHovered(null));
 
     // Right-click context menu. Suppress Sigma's own handling + the browser
     // menu, anchor at the cursor (viewport-fixed clientX/Y), and only open when
@@ -605,9 +554,91 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       event.preventSigmaDefault();
       openMenu({ kind: "node", id: node }, event);
     });
+    renderer.on("rightClickEdge", ({ edge, event }) => {
+      event.preventSigmaDefault();
+      openMenu({ kind: "edge", id: edge }, event);
+    });
     renderer.on("rightClickStage", ({ event }) => {
       event.preventSigmaDefault();
       openMenu({ kind: "stage", id: null }, event);
+    });
+
+    // --- Connect mode: drag from a source node to a target to draw an edge ---
+    // Source/target tracked in refs; a rubber-band line follows the cursor; the
+    // camera is pinned during the draw so the gesture doesn't pan. Endpoints are
+    // in surface-local pixels (Sigma node-event `x`/`y` and `graphToViewport`
+    // share that space; document pointer coords are offset by the surface rect).
+    const setLineTo = (vx: number, vy: number) => {
+      const source = connectSourceRef.current;
+      const live = graphRef.current;
+      if (source === null || live === null || !live.hasNode(source)) return;
+      const sp = renderer.graphToViewport({
+        x: live.getNodeAttribute(source, "x") as number,
+        y: live.getNodeAttribute(source, "y") as number,
+      });
+      setConnectLine({ x1: sp.x, y1: sp.y, x2: vx, y2: vy });
+    };
+    const onDocPointerMove = (ev: PointerEvent) => {
+      if (!connectDrawingRef.current) return;
+      const rect = container.getBoundingClientRect();
+      setLineTo(ev.clientX - rect.left, ev.clientY - rect.top);
+    };
+    const finishDraw = (commit: boolean) => {
+      if (!connectDrawingRef.current) return;
+      connectDrawingRef.current = false;
+      document.removeEventListener("pointermove", onDocPointerMove);
+      document.removeEventListener("pointerup", onDocPointerUp);
+      document.removeEventListener("keydown", onDocKeyDown);
+      renderer.setSetting("enableCameraPanning", true);
+      setConnectLine(null);
+      const source = connectSourceRef.current;
+      const target = connectTargetRef.current;
+      connectSourceRef.current = null;
+      connectTargetRef.current = null;
+      renderer.refresh(); // drop the endpoint highlight
+      if (!commit) return;
+      const live = graphRef.current;
+      if (live === null || source === null || target === null || source === target) return;
+      if (live.hasEdge(source, target)) return; // non-multi: no parallel edge
+      const id = (generateEdgeIdRef.current ?? defaultEdgeId)();
+      live.addEdgeWithKey(id, source, target, { type: "arrow" });
+      applyVisuals(
+        live,
+        { nodes: [], edges: [{ id, source, target }] },
+        renderHooksRef.current,
+        container,
+      );
+      renderer.refresh();
+      handlersRef.current.onEdgeCreate?.({ id, source, target });
+    };
+    const onDocPointerUp = () => finishDraw(true);
+    const onDocKeyDown = (ev: globalThis.KeyboardEvent) => {
+      if (ev.key === "Escape") finishDraw(false);
+    };
+
+    renderer.on("downNode", ({ node, event }) => {
+      if (!editableRef.current || !connectModeRef.current) return;
+      connectDrawingRef.current = true;
+      connectSourceRef.current = node;
+      connectTargetRef.current = null;
+      renderer.setSetting("enableCameraPanning", false);
+      setLineTo(event.x, event.y);
+      document.addEventListener("pointermove", onDocPointerMove);
+      document.addEventListener("pointerup", onDocPointerUp);
+      document.addEventListener("keydown", onDocKeyDown);
+      renderer.refresh(); // highlight the source endpoint
+    });
+    renderer.on("enterNode", ({ node }) => {
+      if (connectDrawingRef.current && node !== connectSourceRef.current) {
+        connectTargetRef.current = node;
+        renderer.refresh();
+      }
+    });
+    renderer.on("leaveNode", ({ node }) => {
+      if (connectDrawingRef.current && connectTargetRef.current === node) {
+        connectTargetRef.current = null;
+        renderer.refresh();
+      }
     });
 
     // Signal overlays (minimap) that a fresh graph + display data exist (seed
@@ -624,7 +655,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     let initialRaf = requestAnimationFrame(() => {
       initialRaf = requestAnimationFrame(() => {
         if (sigmaRef.current !== renderer) return;
-        assignPositions(g, computeLayout(g, layout));
+        assignPositions(g, computeLayout(g, initialLayout));
         renderer.refresh();
         container.setAttribute("data-graph-ready", "");
         bumpEpoch();
@@ -633,6 +664,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
 
     return () => {
       cancelAnimationFrame(initialRaf);
+      document.removeEventListener("pointermove", onDocPointerMove);
+      document.removeEventListener("pointerup", onDocPointerUp);
+      document.removeEventListener("keydown", onDocKeyDown);
       container.removeAttribute("data-graph-ready");
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;
@@ -640,26 +674,68 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       sigmaRef.current = null;
       graphRef.current = null;
       appliedLayoutRef.current = null;
-      // Drop any inspector / menu pinned to the now-destroyed graph.
-      setHovered(null);
-      setSelected(null);
+      connectDrawingRef.current = false;
+      // Drop any menu / rubber-band pinned to the now-destroyed graph.
       setContextMenu(null);
+      setConnectLine(null);
     };
-    // `layout` + `renderNode`/`renderEdge` intentionally omitted — see the layout
-    // effect and the visuals effect below.
-  }, [data]);
+  }, [bumpEpoch]);
 
-  // Re-theme in place when `renderNode`/`renderEdge` change (without rebuilding
-  // the renderer). On a `data` change the build effect above already re-applies
-  // visuals, so this is a cheap no-op re-set then; on a hooks-only change it's the
-  // only thing that runs.
+  // Reconcile the live graph IN PLACE when `data` changes: add/remove nodes &
+  // edges and refresh attributes without rebuilding the renderer, so the camera
+  // and existing node positions survive (see `reconcile` in lib/graph/build).
+  // No-op on first run — the mount effect already built this exact `data`.
   useEffect(() => {
     const g = graphRef.current;
     const renderer = sigmaRef.current;
     if (!g || !renderer) return;
-    applyVisuals(g, data, { renderNode, renderEdge }, surfaceRef.current);
+    const changed = reconcile(
+      g,
+      data,
+      renderHooksRef.current,
+      surfaceRef.current,
+      editable ? EDITABLE_NODE_SIZE_BOOST : 0,
+    );
+    // The selected edge may have been removed by the update.
+    if (selectedEdgeRef.current !== null && !g.hasEdge(selectedEdgeRef.current)) {
+      selectedEdgeRef.current = null;
+    }
+    // Label rendering tracks the (possibly changed) graph size / edge labels.
+    renderer.setSetting("renderLabels", g.order <= 300);
+    renderer.setSetting(
+      "renderEdgeLabels",
+      g.someEdge((_e, attr) => attr.label != null) && g.order <= 300,
+    );
     renderer.refresh();
-  }, [data, renderNode, renderEdge]);
+    if (changed) bumpEpoch();
+  }, [data, editable, bumpEpoch]);
+
+  // Re-theme in place when `renderNode`/`renderEdge` (or the editable node-size
+  // boost) change, without rebuilding the renderer. `data` changes go through the
+  // reconcile effect above, which also re-applies visuals.
+  useEffect(() => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer) return;
+    applyVisuals(
+      g,
+      dataRef.current,
+      { renderNode, renderEdge },
+      surfaceRef.current,
+      editable ? EDITABLE_NODE_SIZE_BOOST : 0,
+    );
+    renderer.refresh();
+  }, [renderNode, renderEdge, editable]);
+
+  // Keep edge-event hit-testing in sync when `editable`/`onEdgeClick` toggle at
+  // runtime (the renderer is built once), and force Connect mode off whenever
+  // editing is disabled so a stale toggle can't keep drawing edges.
+  useEffect(() => {
+    const renderer = sigmaRef.current;
+    renderer?.setSetting("enableEdgeEvents", editable || onEdgeClick != null);
+    renderer?.setSetting("minEdgeThickness", editable ? EDITABLE_MIN_EDGE_THICKNESS : 1.7);
+    if (!editable && connectMode) setConnectMode(false);
+  }, [editable, onEdgeClick, connectMode]);
 
   // Re-position on layout switch. Compute the target coordinates, then either
   // snap (prefers-reduced-motion) or animate smoothly to them.
@@ -726,9 +802,24 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     });
   }, []);
 
+  // Toggle Connect mode (only meaningful while `editable`). Exposed through
+  // `GraphControls` so `Graph.Controls` (or a custom toolbar) can drive it.
+  const toggleConnect = useCallback(() => setConnectMode((on) => !on), []);
+
   const controls = useMemo<GraphControls>(
-    () => ({ zoomIn, zoomOut, fitView, reset, pan, layout, setLayout }),
-    [zoomIn, zoomOut, fitView, reset, pan, layout, setLayout],
+    () => ({
+      zoomIn,
+      zoomOut,
+      fitView,
+      reset,
+      pan,
+      layout,
+      setLayout,
+      connectable: editable,
+      connectMode,
+      toggleConnect,
+    }),
+    [zoomIn, zoomOut, fitView, reset, pan, layout, setLayout, editable, connectMode, toggleConnect],
   );
 
   // Internal renderer handle for the minimap overlay. `getRenderer`/`getGraph`
@@ -772,12 +863,28 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.refresh();
   }, []);
 
+  // Delete an edge from the live view + notify the consumer (who mirrors it in
+  // `data`). Drives the right-click "Delete" item and the Delete/Backspace key.
+  const deleteEdge = useCallback((id: string | null) => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer || id === null || !g.hasEdge(id)) return;
+    g.dropEdge(id);
+    if (selectedEdgeRef.current === id) selectedEdgeRef.current = null;
+    renderer.refresh();
+    handlersRef.current.onEdgeDelete?.(id);
+  }, []);
+
   // The menu items for a given target: the consumer's `contextMenuItems` when
   // provided, else the built-in node menu (focus / expand / pin / hide). The
   // stage has no default menu.
   const itemsFor = useCallback(
     (target: GraphMenuTarget): GraphMenuItem[] => {
       if (contextMenuItems) return contextMenuItems(target);
+      if (target.kind === "edge") {
+        // Default edge menu: a single "Delete" when editing is enabled.
+        return editable && onEdgeDelete ? [{ label: "Delete", onSelect: deleteEdge }] : [];
+      }
       if (target.kind !== "node") return [];
       return [
         { label: "Focus", onSelect: (id) => focusNode(id, 0.5) },
@@ -786,7 +893,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
         { label: "Hide", separatorBefore: true, onSelect: toggleHidden },
       ];
     },
-    [contextMenuItems, focusNode, togglePin, toggleHidden],
+    [contextMenuItems, editable, onEdgeDelete, deleteEdge, focusNode, togglePin, toggleHidden],
   );
   // Read the latest menu builders inside Sigma's right-click listeners without
   // re-subscribing them on every render.
@@ -820,12 +927,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
         case "ArrowRight":
           pan(PAN_STEP_PX, 0);
           break;
+        case "Delete":
+        case "Backspace":
+          // Delete the selected edge (editing only). No selection → fall through.
+          if (editable && selectedEdgeRef.current !== null) {
+            deleteEdge(selectedEdgeRef.current);
+            break;
+          }
+          return;
         default:
           return;
       }
       event.preventDefault();
     },
-    [zoomIn, zoomOut, fitView, pan],
+    [zoomIn, zoomOut, fitView, pan, editable, deleteEdge],
   );
 
   return (
@@ -848,10 +963,23 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
             aria-label="Graph view"
             aria-describedby={summaryId}
             data-graph-surface
+            data-connect={connectMode || undefined}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
             tabIndex={0}
             onKeyDown={onKeyDown}
           />
+          {/* Connect-mode rubber-band: a line from the drag's source node to the
+            cursor, in surface pixels. Non-interactive overlay over the canvas. */}
+          {connectLine && (
+            <svg className={styles.connectOverlay} aria-hidden="true" data-graph-connect-line>
+              <line
+                x1={connectLine.x1}
+                y1={connectLine.y1}
+                x2={connectLine.x2}
+                y2={connectLine.y2}
+              />
+            </svg>
+          )}
           {/* Screen-reader summary (visually hidden). `aria-describedby` reads it
             on focus; the polite live region announces layout switches. */}
           <p id={summaryId} className={styles.srOnly} data-graph-summary>
@@ -864,29 +992,6 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           </div>
           {children}
           {fullscreen && <FullscreenToggle expanded={isFullscreen} onToggle={toggleFullscreen} />}
-          {/* Inspector: node/edge `data` on hover (and the last clicked node on
-            select). Reuses the chart Tooltip — a fixed, viewport-clamped box
-            that flips above/below its anchor. */}
-          <Tooltip open={inspection !== null} anchorRect={inspection?.rect ?? null}>
-            {inspection && (
-              <div className={styles.inspector} data-graph-tooltip>
-                <span className={styles.inspectorTitle}>{inspection.title}</span>
-                {inspection.subtitle && (
-                  <span className={styles.inspectorSubtitle}>{inspection.subtitle}</span>
-                )}
-                {inspection.rows.length > 0 && (
-                  <dl className={styles.inspectorData}>
-                    {inspection.rows.map(([key, value]) => (
-                      <div className={styles.inspectorRow} key={key}>
-                        <dt className={styles.inspectorKey}>{key}</dt>
-                        <dd className={styles.inspectorValue}>{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </div>
-            )}
-          </Tooltip>
           {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
             to a fixed, invisible Trigger placed at the cursor (house Explorer
             pattern). Choosing an item runs its action against the target id. */}

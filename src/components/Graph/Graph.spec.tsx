@@ -1,5 +1,22 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { GraphData } from "../../lib/graph/types";
 import { GraphHarness } from "./Graph.harness";
+
+// Two nodes, no edge. With `layout="grid"` they land left + right at the same
+// height (deterministic), so connect-drag / edge-click specs have stable hit
+// targets: `a` ≈ ¼ width, `b` ≈ ¾ width, both at mid-height.
+const pair: GraphData = {
+  nodes: [
+    { id: "a", label: "A", kind: "primary" },
+    { id: "b", label: "B", kind: "secondary" },
+  ],
+  edges: [],
+};
+// `pair` with the edge `a → b` already present (for delete specs).
+const pairLinked: GraphData = {
+  ...pair,
+  edges: [{ id: "e1", source: "a", target: "b", label: "link" }],
+};
 
 test("renders the interaction surface and the controls toolbar", async ({ mount }) => {
   const c = await mount(<GraphHarness />);
@@ -28,38 +45,6 @@ test("clicking a node fires onNodeClick with its id", async ({ mount }) => {
   await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
   await c.locator("[data-graph-surface]").click();
   await expect(c.getByTestId("last-event")).toHaveText("click:hub");
-});
-
-test("click-to-pin: the inspector persists after the cursor leaves the node", async ({
-  mount,
-  page,
-}) => {
-  // Regression: an inline `renderNode` must not rebuild the renderer on the
-  // re-render that `onNodeClick` triggers (which would wipe the selection).
-  const c = await mount(<GraphHarness />);
-  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
-  const box = await c.locator("[data-graph-surface]").boundingBox();
-  if (!box) throw new Error("no surface box");
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await expect(c.getByTestId("last-event")).toHaveText("click:hub");
-  // Leave the node — hover inspection clears, but the click-pinned one stays.
-  await page.mouse.move(box.x + 4, box.y + 4);
-  const tip = page.locator("[data-graph-tooltip]");
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText("Hub");
-});
-
-test("hovering a node opens the inspector with its label + data", async ({ mount, page }) => {
-  const c = await mount(<GraphHarness />);
-  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
-  const box = await c.locator("[data-graph-surface]").boundingBox();
-  if (!box) throw new Error("no surface box");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  // The inspector tooltip surfaces the node's label + its `data` record.
-  const tip = page.locator("[data-graph-tooltip]");
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText("Hub");
-  await expect(tip).toContainText("center");
 });
 
 test("exposes role, label, and a node/edge-count summary via aria-describedby", async ({
@@ -122,4 +107,80 @@ test("right-clicking a node opens the context menu; Escape closes it", async ({ 
   await expect(focus).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(focus).toHaveCount(0);
+});
+
+// --- Relationship editing -------------------------------------------------
+
+test("the Connect toggle is hidden unless editable", async ({ mount }) => {
+  const ro = await mount(<GraphHarness />);
+  await expect(ro.getByRole("button", { name: "Connect nodes" })).toHaveCount(0);
+});
+
+test("the Connect toggle reflects pressed state when editable", async ({ mount }) => {
+  const c = await mount(<GraphHarness editable />);
+  const connect = c.getByRole("button", { name: "Connect nodes" });
+  await expect(connect).toBeVisible();
+  await connect.click();
+  await expect(connect).toHaveAttribute("data-pressed", "");
+  await expect(connect).toHaveAttribute("aria-pressed", "true");
+});
+
+test("dragging node→node in Connect mode fires onEdgeCreate", async ({ mount, page }) => {
+  // The probe reports each node's real viewport position, so the drag targets the
+  // actual nodes (Sigma paints to WebGL — there's no per-node DOM to aim at).
+  const c = await mount(<GraphHarness data={pair} editable layout="grid" probe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await c.getByRole("button", { name: "Connect nodes" }).click();
+
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  const probe = c.getByTestId("node-pos");
+  const parse = (s: string | null): { x: number; y: number } => {
+    const parts = (s ?? "").split(",");
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    if (Number.isNaN(x) || Number.isNaN(y)) throw new Error("no node position");
+    return { x: box.x + x, y: box.y + y };
+  };
+  const a = parse(await probe.getAttribute("data-pos-a"));
+  const b = parse(await probe.getAttribute("data-pos-b"));
+
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  // Step the move so Sigma registers the hover-enter on B before the release.
+  await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 6 });
+  await page.mouse.move(b.x, b.y, { steps: 6 });
+  await page.mouse.up();
+
+  await expect(c.getByTestId("last-event")).toHaveText("create:a->b");
+});
+
+test("selecting an edge and pressing Backspace fires onEdgeDelete", async ({ mount, page }) => {
+  // `pairLinked` has edge e1 between A (¼) and B (¾); its midpoint is the centre.
+  const c = await mount(<GraphHarness data={pairLinked} editable layout="grid" />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  // Click the edge midpoint to select it.
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(c.getByTestId("last-event")).toHaveText("edgeclick:e1");
+
+  // Surface keeps focus; Backspace deletes the selected edge.
+  await c.locator("[data-graph-surface]").press("Backspace");
+  await expect(c.getByTestId("last-event")).toHaveText("delete:e1");
+});
+
+test("right-clicking an edge offers Delete which fires onEdgeDelete", async ({ mount, page }) => {
+  const c = await mount(<GraphHarness data={pairLinked} editable layout="grid" />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: "right" });
+
+  const del = page.getByRole("menuitem", { name: "Delete" });
+  await expect(del).toBeVisible();
+  await del.click();
+  await expect(c.getByTestId("last-event")).toHaveText("delete:e1");
 });

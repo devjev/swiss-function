@@ -24,7 +24,17 @@ export interface GraphControlsProps extends ComponentPropsWithoutRef<"div"> {}
  *  library `Button` and `ToggleGroup`; all visuals via `--sf-*` tokens. */
 export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
   function GraphControls({ className, ...rest }, ref) {
-    const { zoomIn, zoomOut, fitView, reset, layout, setLayout } = useGraphControls();
+    const {
+      zoomIn,
+      zoomOut,
+      fitView,
+      reset,
+      layout,
+      setLayout,
+      connectable,
+      connectMode,
+      toggleConnect,
+    } = useGraphControls();
     return (
       <div
         {...rest}
@@ -71,6 +81,21 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
           >
             Reset
           </Button>
+          {/* Connect toggle: only shown when the graph is `editable`. While
+            pressed, a node→node drag draws an edge. */}
+          {connectable && (
+            <Button
+              variant={connectMode ? "primary" : "secondary"}
+              size="sm"
+              aria-label="Connect nodes"
+              title="Connect nodes — drag from one node to another to add an edge"
+              aria-pressed={connectMode}
+              data-pressed={connectMode ? "" : undefined}
+              onClick={toggleConnect}
+            >
+              <ConnectIcon />
+            </Button>
+          )}
         </div>
         <ToggleGroup
           size="sm"
@@ -138,6 +163,18 @@ function FitIcon() {
       <path d="M14 5V2h-3" />
       <path d="M2 11v3h3" />
       <path d="M14 11v3h-3" />
+    </svg>
+  );
+}
+
+/* Two nodes joined by an edge — the connect-mode affordance. */
+function ConnectIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <title>Connect nodes</title>
+      <circle cx="4" cy="12" r="2.25" />
+      <circle cx="12" cy="4" r="2.25" />
+      <line x1="5.6" y1="10.4" x2="10.4" y2="5.6" />
     </svg>
   );
 }

@@ -22,6 +22,14 @@ export interface GraphControls {
   layout: LayoutKind;
   /** Switch the active layout (animated transition / reduced-motion snap). */
   setLayout(next: LayoutKind): void;
+  /** Whether the graph is `editable` — i.e. Connect mode is available. Lets
+   *  `Graph.Controls` show the Connect toggle only when relationship editing is
+   *  enabled. */
+  connectable: boolean;
+  /** Whether Connect mode is currently on (drag node→node draws an edge). */
+  connectMode: boolean;
+  /** Toggle Connect mode. No-op effect unless the graph is `editable`. */
+  toggleConnect(): void;
 }
 
 export const GraphContext = createContext<GraphControls | null>(null);

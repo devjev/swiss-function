@@ -1,7 +1,7 @@
 /* Grid shell for the Graph component.
 
    A single-cell grid: the renderer surface fills the whole shell. Future
-   tasks (controls toolbar, minimap, inspector) add their own tracks/overlays,
+   tasks (controls toolbar, minimap) add their own tracks/overlays,
    so the root is a grid from the start rather than a plain block.
 
    Rows:    [surface]
@@ -55,53 +55,30 @@
   outline-offset: -2px;
 }
 
-/* Inspector tooltip body. Renders inside the reused chart Tooltip shell (a
-   fixed, elevated, sharp-cornered box). A small grid stacks the title,
-   subtitle, and the node/edge `data` key/value rows. */
-.inspector {
-  display: grid;
-  gap: calc(var(--sf-unit) / 6);
-  max-inline-size: calc(var(--sf-unit) * 14);
+/* Connect mode: a crosshair cursor signals that a node→node drag draws an edge. */
+.surface[data-connect] {
+  cursor: crosshair;
 }
 
-.inspectorTitle {
-  font-weight: var(--sf-font-weight-semibold);
-  color: var(--sf-color-fg);
+/* Rubber-band overlay drawn during a Connect-mode drag. Shares the surface's
+   grid cell, sits above the canvas, and never intercepts pointer events (Sigma
+   owns the canvas). Coordinates are surface-local pixels (no viewBox). */
+.connectOverlay {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+  justify-self: stretch;
+  z-index: 1;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
-/* Secondary metadata line (node kind / edge endpoints) — explicitly subtle,
-   never the body color. */
-.inspectorSubtitle {
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-fg-subtle);
-}
-
-.inspectorData {
-  display: grid;
-  gap: calc(var(--sf-unit) / 8);
-  margin: 0;
-  margin-block-start: calc(var(--sf-unit) / 6);
-  padding-block-start: calc(var(--sf-unit) / 6);
-  border-block-start: 1px solid var(--sf-color-border-subtle);
-}
-
-.inspectorRow {
-  display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  column-gap: calc(var(--sf-unit) / 3);
-  /* Allow wrapping inside the inspector — the chart Tooltip shell defaults to
-     nowrap, which suits single-line chart values but not key/value rows. */
-  white-space: normal;
-}
-
-.inspectorKey {
-  color: var(--sf-color-fg-subtle);
-}
-
-.inspectorValue {
-  margin: 0;
-  color: var(--sf-color-fg);
-  overflow-wrap: anywhere;
+.connectOverlay line {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /* Visually-hidden but screen-reader-available text (the graph summary + the
