@@ -23,6 +23,20 @@
   overflow: hidden;
 }
 
+/* Fill the parent's height instead of the fixed default. The parent must
+   establish a height (a grid/flex track, an explicit block-size, etc.); the
+   surface is 100% of the root, so Sigma's canvas fills with it. */
+.fill {
+  block-size: 100%;
+}
+
+/* Frameless: drop the component's own border + corner so it doesn't double up
+   with a framed wrapper. Background is kept (the canvas needs a surface). */
+.frameless {
+  border: none;
+  border-radius: 0;
+}
+
 /* Maximized to the viewport. block-size:auto so inset:0 sets the height (the
    fixed default block-size would otherwise win). Sigma's surface is 100% of
    the root, so the WebGL canvas resizes with it. */

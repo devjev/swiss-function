@@ -292,3 +292,27 @@ export const Editable: Story = () => {
     </Frame>
   );
 };
+
+// --- Embedded (fill + frameless) --------------------------------------------
+// `fill` makes the graph take its parent's height instead of the fixed default,
+// and `frame={false}` drops the component's own border so it doesn't double up
+// with a surrounding container. Here the graph fills a fixed-height bordered box
+// and re-fits to it on resize (try dragging the box's corner).
+
+export const Embedded: Story = () => (
+  <Frame>
+    <div
+      style={{
+        blockSize: 420,
+        resize: "both",
+        overflow: "hidden",
+        border: "1px solid var(--sf-color-border)",
+        borderRadius: "var(--sf-radius-default)",
+      }}
+    >
+      <Graph data={services} layout="radial" fill frame={false}>
+        <Graph.Controls />
+      </Graph>
+    </div>
+  </Frame>
+);

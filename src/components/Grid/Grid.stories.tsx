@@ -176,3 +176,25 @@ ResizablePlayground.args = { resizable: "both" };
 ResizablePlayground.argTypes = {
   resizable: { options: ["columns", "rows", "both"], control: { type: "radio" } },
 };
+
+// Fixed sidebar + flexible main: drag the gutter to resize the sidebar; the main
+// pane stays flush to the right edge and reflows when the container width changes.
+// Drag the container's corner (it's `resize: both`) to confirm the main pane keeps
+// filling — the sidebar holds its dragged px width while `1fr` absorbs the rest.
+export const SidebarFlexibleMain: Story = () => (
+  <div
+    style={{
+      inlineSize: "calc(var(--sf-unit) * 28)",
+      blockSize: "calc(var(--sf-unit) * 12)",
+      resize: "both",
+      overflow: "hidden",
+      border: "1px solid var(--sf-color-border)",
+      borderRadius: "var(--sf-radius-default)",
+    }}
+  >
+    <Grid columns={["auto", 1]} gap={1} resizable="columns" style={{ blockSize: "100%" }}>
+      <Card style={{ inlineSize: "calc(var(--sf-unit) * 8)" }}>Sidebar</Card>
+      <Card>Main (flexible, flush to edge)</Card>
+    </Grid>
+  </div>
+);

@@ -70,6 +70,66 @@ export function redistribute(
   return out;
 }
 
+/** Split a CSS track template into per-track tokens, respecting parentheses so
+ *  `minmax(0, 1fr)` / `repeat(...)` aren't split mid-function. */
+export function splitTracks(template: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of template.trim()) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    if (/\s/.test(ch) && depth === 0) {
+      if (cur) out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** Per-track tokens for a `columns`/`rows` value, so individual tracks can be
+ *  overridden to px while the rest keep their flexible (`fr`/`auto`) sizing. */
+export function tokenizeTemplate(value: TrackList): string[] {
+  if (typeof value === "number") return Array.from({ length: value }, () => "minmax(0, 1fr)");
+  if (typeof value === "string") return splitTracks(value);
+  return value.map((v) => (typeof v === "number" ? `${v}fr` : v));
+}
+
+/** True when a track token sizes flexibly (grows/shrinks with the container):
+ *  `fr`, `auto`, `minmax`, intrinsic keywords, or `%`. Fixed lengths are not.
+ *  Used to decide whether a dragged boundary should pin its trailing track or
+ *  leave it flexible (and flush to the container edge). */
+function isFlexibleToken(token: string): boolean {
+  return /fr\b|auto|minmax|fit-content|min-content|max-content|%/.test(token);
+}
+
+/** Merge per-track tokens with sparse px overrides into a grid-template string;
+ *  `null` entries keep the token (and thus their flexibility). */
+function mergeTemplate(tokens: string[], overrides: (number | null)[]): string {
+  return tokens.map((tok, i) => (overrides[i] != null ? `${overrides[i]}px` : tok)).join(" ");
+}
+
+/** Resolve the rendered grid-template for a resizable axis from its prop value +
+ *  px overrides. Returns `null` when there's nothing to override (use the plain
+ *  template). Falls back to pinning every track to px for exotic templates whose
+ *  token count doesn't line up with the live track count (e.g. `repeat(...)`). */
+function axisTemplate(
+  value: TrackList | undefined,
+  overrides: (number | null)[] | null,
+  measuredSizes: number[] | undefined,
+): string | null {
+  if (value === undefined || !overrides || !overrides.some((v) => v != null)) return null;
+  const tokens = tokenizeTemplate(value);
+  if (tokens.length === overrides.length) return mergeTemplate(tokens, overrides);
+  if (measuredSizes && measuredSizes.length === overrides.length) {
+    return overrides.map((o, i) => `${o ?? measuredSizes[i]}px`).join(" ");
+  }
+  return null;
+}
+
 export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
   /** `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw value; `array` → joined (numbers become `Nfr`). */
   columns?: TrackList;
@@ -204,10 +264,13 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
   const isResizable = resizeCols || resizeRows;
   const minTrack = minTrackSize ?? TRACK_MIN_PX;
 
-  // Frozen px track sizes per axis (null until the first resize freezes them).
-  const [colSizes, setColSizes] = useState<number[] | null>(null);
-  const [rowSizes, setRowSizes] = useState<number[] | null>(null);
-  // Live measurement used to position handles before the axis is frozen.
+  // Sparse px overrides per axis: `overrides[i]` pins track `i` to px; `null`
+  // leaves it sized by its template token (so `fr`/`auto` tracks keep flexing).
+  // `null` (the whole array) means "no overrides yet". This replaces the old
+  // freeze-the-whole-axis-to-px model, which broke flexible fillers.
+  const [colOverrides, setColOverrides] = useState<(number | null)[] | null>(null);
+  const [rowOverrides, setRowOverrides] = useState<(number | null)[] | null>(null);
+  // Live measured track sizes + gaps, used to position the gutter handles.
   const [measured, setMeasured] = useState<{
     colSizes?: number[];
     rowSizes?: number[];
@@ -215,7 +278,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     rowGap: number;
   } | null>(null);
 
-  // Keep a DOM handle for measuring/freezing while still honoring the forwarded ref.
+  // Keep a DOM handle for measuring while still honoring the forwarded ref.
   const gridRef = useRef<HTMLElement | null>(null);
   const setRefs = useCallback(
     (node: HTMLElement | null) => {
@@ -226,29 +289,106 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     [ref],
   );
 
-  // Measure track sizes + gaps on mount and on container resize, so gutter
-  // handles sit on the live boundaries until a drag freezes the axis.
+  // Re-measure resolved track sizes + gaps off the live grid. Gutters are always
+  // positioned from these, so they stay aligned through content reflow, container
+  // resize, and applied overrides.
+  const measure = useCallback(() => {
+    const grid = gridRef.current;
+    if (!isResizable || !grid) return;
+    const col = resizeCols ? measureAxis(grid, "col") : null;
+    const row = resizeRows ? measureAxis(grid, "row") : null;
+    setMeasured({
+      colSizes: col?.sizes,
+      rowSizes: row?.sizes,
+      colGap: col?.gap ?? 0,
+      rowGap: row?.gap ?? 0,
+    });
+  }, [isResizable, resizeCols, resizeRows]);
+
+  // Measure on mount + on container resize (the box change Sigma/window miss).
   useLayoutEffect(() => {
     const grid = gridRef.current;
     if (!isResizable || !grid) return;
-    const measure = () => {
-      const col = resizeCols ? measureAxis(grid, "col") : null;
-      const row = resizeRows ? measureAxis(grid, "row") : null;
-      setMeasured({
-        colSizes: col?.sizes,
-        rowSizes: row?.sizes,
-        colGap: col?.gap ?? 0,
-        rowGap: row?.gap ?? 0,
-      });
-    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(grid);
     return () => ro.disconnect();
-  }, [isResizable, resizeCols, resizeRows]);
+  }, [isResizable, measure]);
+
+  // Re-measure whenever overrides change: applying an override changes the track
+  // layout but NOT the grid's own box, so the ResizeObserver won't fire — measure
+  // explicitly so the gutters track the new boundaries (during a drag and after).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: colOverrides/rowOverrides are intentional re-run triggers — the effect re-measures after each applied override, it doesn't read them.
+  useLayoutEffect(() => {
+    measure();
+  }, [colOverrides, rowOverrides, measure]);
+
+  // Re-supplying `columns`/`rows` (by content) clears that axis's overrides, so a
+  // new template takes effect without remounting.
+  const colsKey = columns !== undefined ? JSON.stringify(columns) : "";
+  const rowsKey = rows !== undefined ? JSON.stringify(rows) : "";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset is keyed on the serialized template, not the prop identity — an inline array literal must not wipe a user's drag every render.
+  useLayoutEffect(() => {
+    setColOverrides(null);
+  }, [colsKey]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see above.
+  useLayoutEffect(() => {
+    setRowOverrides(null);
+  }, [rowsKey]);
+
+  // Move the boundary after track `index` so the LEADING track reaches
+  // `desiredLeading` px. The leading track is pinned to px; the trailing track is
+  // pinned too ONLY when it's already fixed (preserving a fixed/fixed pair's sum)
+  // — when it's flexible (`fr`/`auto`) it's left alone so it stays flush to the
+  // container edge and reflows with it. `base` is the px size of every track at
+  // the start of the gesture. Returns the resolved px sizes of the two tracks for
+  // `onTrackSizesChange`, or `null` if nothing moved.
+  const resizeBoundary = useCallback(
+    (
+      axis: "col" | "row",
+      index: number,
+      base: number[],
+      desiredLeading: number,
+    ): number[] | null => {
+      const a = base[index];
+      const b = base[index + 1];
+      if (a == null || b == null) return null;
+      const prop = axis === "col" ? columns : rows;
+      const tokens = prop !== undefined ? tokenizeTemplate(prop) : [];
+      const existing = axis === "col" ? colOverrides : rowOverrides;
+      const trailingToken = tokens[index + 1];
+      // Treat an unknown/missing token as fixed (safest — pins the pair).
+      const trailingFixed =
+        existing?.[index + 1] != null ||
+        (trailingToken !== undefined ? !isFlexibleToken(trailingToken) : true);
+      const trailingMin = trailingFixed ? minTrack : 0;
+      const newLeading = Math.max(minTrack, Math.min(desiredLeading, a + b - trailingMin));
+      const grow = newLeading - a;
+      const next = (existing ?? base.map(() => null)).slice();
+      next[index] = newLeading;
+      if (trailingFixed) next[index + 1] = b - grow;
+      if (axis === "col") setColOverrides(next);
+      else setRowOverrides(next);
+      const sizes = base.slice();
+      sizes[index] = newLeading;
+      sizes[index + 1] = b - grow;
+      return sizes;
+    },
+    [columns, rows, colOverrides, rowOverrides, minTrack],
+  );
+
+  // The px size of every track right now: override if pinned, else last measured.
+  const currentSizes = useCallback(
+    (axis: "col" | "row"): number[] => {
+      const m = (axis === "col" ? measured?.colSizes : measured?.rowSizes) ?? [];
+      const ov = axis === "col" ? colOverrides : rowOverrides;
+      return m.map((s, i) => ov?.[i] ?? s);
+    },
+    [measured, colOverrides, rowOverrides],
+  );
 
   // One drag instance serves every gutter; onStart reads axis + index off the
-  // handle and freezes that axis to px, then onMove redistributes the pair.
+  // handle, then onMove drives the boundary from the cursor delta.
   const dragRef = useRef<{
     axis: "col" | "row";
     index: number;
@@ -262,20 +402,16 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
       const axis = el.dataset.axis as "col" | "row" | undefined;
       const index = Number(el.dataset.index);
       if (!grid || !axis || Number.isNaN(index)) return;
-      const start = measureAxis(grid, axis).sizes;
-      dragRef.current = { axis, index, start };
-      // Freeze the axis to explicit px so redistribution is deterministic.
-      if (axis === "col") setColSizes(start);
-      else setRowSizes(start);
+      dragRef.current = { axis, index, start: measureAxis(grid, axis).sizes };
     },
     onMove: (delta) => {
       const d = dragRef.current;
       if (!d) return;
       const move = d.axis === "col" ? delta.dx : delta.dy;
-      const next = redistribute(d.start, d.index, move, minTrack);
-      d.latest = next;
-      if (d.axis === "col") setColSizes(next);
-      else setRowSizes(next);
+      const leadingStart = d.start[d.index];
+      if (leadingStart == null) return;
+      const sizes = resizeBoundary(d.axis, d.index, d.start, leadingStart + move);
+      if (sizes) d.latest = sizes;
     },
     onEnd: () => {
       const d = dragRef.current;
@@ -284,42 +420,43 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     },
   });
 
-  // Double-click a gutter to split its two tracks evenly.
+  // Double-click a gutter to reset its two tracks to their template sizing
+  // (clears their overrides, restoring `fr`/`auto` flexibility).
   const resetGutter = useCallback(
     (axis: "col" | "row", index: number) => {
+      const existing = axis === "col" ? colOverrides : rowOverrides;
+      if (!existing) return;
+      const next = existing.slice();
+      next[index] = null;
+      next[index + 1] = null;
+      const cleared = next.every((v) => v == null) ? null : next;
+      if (axis === "col") setColOverrides(cleared);
+      else setRowOverrides(cleared);
+      // Report the resolved sizes once the reverted template has laid out.
       const grid = gridRef.current;
-      if (!grid) return;
-      const base = (axis === "col" ? colSizes : rowSizes) ?? measureAxis(grid, axis).sizes;
-      const a = base[index];
-      const b = base[index + 1];
-      if (a == null || b == null) return;
-      const half = (a + b) / 2;
-      const next = base.slice();
-      next[index] = half;
-      next[index + 1] = half;
-      if (axis === "col") setColSizes(next);
-      else setRowSizes(next);
-      onTrackSizesChange?.(axis === "col" ? "columns" : "rows", next);
+      if (grid) {
+        requestAnimationFrame(() =>
+          onTrackSizesChange?.(axis === "col" ? "columns" : "rows", measureAxis(grid, axis).sizes),
+        );
+      }
     },
-    [colSizes, rowSizes, onTrackSizesChange],
+    [colOverrides, rowOverrides, onTrackSizesChange],
   );
 
   // Keyboard resize on a focused gutter. Arrow keys nudge by a step; Shift larger.
   const resizeGutterByKey = useCallback(
     (axis: "col" | "row", index: number, ev: KeyboardEvent<HTMLDivElement>) => {
-      const grid = gridRef.current;
-      if (!grid) return;
       const [dec, inc] = axis === "col" ? ["ArrowLeft", "ArrowRight"] : ["ArrowUp", "ArrowDown"];
       if (ev.key !== dec && ev.key !== inc) return;
       ev.preventDefault();
       const step = (ev.shiftKey ? 24 : 8) * (ev.key === inc ? 1 : -1);
-      const base = (axis === "col" ? colSizes : rowSizes) ?? measureAxis(grid, axis).sizes;
-      const next = redistribute(base, index, step, minTrack);
-      if (axis === "col") setColSizes(next);
-      else setRowSizes(next);
-      onTrackSizesChange?.(axis === "col" ? "columns" : "rows", next);
+      const base = currentSizes(axis);
+      const leading = base[index];
+      if (leading == null) return;
+      const sizes = resizeBoundary(axis, index, base, leading + step);
+      if (sizes) onTrackSizesChange?.(axis === "col" ? "columns" : "rows", sizes);
     },
-    [colSizes, rowSizes, minTrack, onTrackSizesChange],
+    [currentSizes, resizeBoundary, onTrackSizesChange],
   );
 
   const computedStyle = buildGridStyle({
@@ -339,13 +476,17 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
     inline,
   });
 
-  // Once an axis is frozen, drive it from explicit px tracks.
-  if (colSizes) computedStyle.gridTemplateColumns = colSizes.map((s) => `${s}px`).join(" ");
-  if (rowSizes) computedStyle.gridTemplateRows = rowSizes.map((s) => `${s}px`).join(" ");
+  // Apply px overrides over the template, keeping un-pinned tracks flexible.
+  const colTemplate = axisTemplate(columns, colOverrides, measured?.colSizes);
+  const rowTemplate = axisTemplate(rows, rowOverrides, measured?.rowSizes);
+  if (colTemplate) computedStyle.gridTemplateColumns = colTemplate;
+  if (rowTemplate) computedStyle.gridTemplateRows = rowTemplate;
 
   // Gutter overlay — absolutely positioned so it never occupies a grid track.
-  const colPos = colSizes ?? measured?.colSizes;
-  const rowPos = rowSizes ?? measured?.rowSizes;
+  // Positioned from the live measured sizes so handles stay on the boundaries
+  // through reflow, container resize, and applied overrides.
+  const colPos = measured?.colSizes;
+  const rowPos = measured?.rowSizes;
   const overlay =
     isResizable && measured ? (
       <div className={styles.gutterLayer} key="sf-gutter-layer">

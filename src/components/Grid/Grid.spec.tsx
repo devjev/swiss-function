@@ -227,3 +227,58 @@ test("dragging a gutter past its neighbor's minimum clamps both tracks", async (
   expect(a0).toBeLessThan(60);
   expect(a0 + a1).toBeCloseTo(400, 0);
 });
+
+test("dragging pins only the leading track; a trailing fr track stays flexible", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <Grid rows={["auto", 1]} resizable="rows" style={{ height: 400, width: 200 }}>
+      <div style={{ blockSize: 80 }}>sidebar</div>
+      <div>main</div>
+    </Grid>,
+  );
+  // The inline template string (not the computed px) reveals which tracks are
+  // pinned vs. still flexible.
+  const template = () => component.evaluate((el) => (el as HTMLElement).style.gridTemplateRows);
+
+  const box = await component.locator('[data-axis="row"]').boundingBox();
+  if (!box) throw new Error("missing gutter bounding box");
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx, cy + 60, { steps: 8 });
+  await page.mouse.up();
+
+  const tpl = (await template()).trim().split(/\s+/);
+  // Track 0 pinned to px; track 1 kept its flexible `1fr` token (stays flush).
+  expect(tpl[0]).toMatch(/px$/);
+  expect(tpl[1]).toBe("1fr");
+});
+
+test("re-supplying rows resets pinned overrides", async ({ mount, page }) => {
+  const component = await mount(
+    <Grid rows={["auto", 1]} resizable="rows" style={{ height: 400, width: 200 }}>
+      <div style={{ blockSize: 80 }}>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  const template = () => component.evaluate((el) => (el as HTMLElement).style.gridTemplateRows);
+  const box = await component.locator('[data-axis="row"]').boundingBox();
+  if (!box) throw new Error("missing gutter bounding box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 60, { steps: 6 });
+  await page.mouse.up();
+  expect((await template()).trim().split(/\s+/)[0]).toMatch(/px$/);
+
+  // Re-render with a different template (by content) — overrides clear.
+  await component.update(
+    <Grid rows={["auto", 2]} resizable="rows" style={{ height: 400, width: 200 }}>
+      <div style={{ blockSize: 80 }}>a</div>
+      <div>b</div>
+    </Grid>,
+  );
+  await expect.poll(async () => (await template()).trim().split(/\s+/)[0]).not.toMatch(/px$/);
+});

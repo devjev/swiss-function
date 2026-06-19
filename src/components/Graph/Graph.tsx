@@ -130,6 +130,12 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   defaultFullscreen?: boolean;
   /** Notified when the graph is maximized / restored. */
   onFullscreenChange?: (expanded: boolean) => void;
+  /** Fill the parent's height instead of the default fixed height. The parent
+   *  must establish a height (e.g. a grid/flex track). Default `false`. */
+  fill?: boolean;
+  /** Draw the component's own border + corner. Default `true`. Set `false` when
+   *  the graph sits inside a framed container, to avoid a double border. */
+  frame?: boolean;
 }
 
 /** How far an arrow-key press nudges the camera, in screen pixels. */
@@ -362,6 +368,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     fullscreen = true,
     defaultFullscreen,
     onFullscreenChange,
+    fill = false,
+    frame = true,
     ...rest
   },
   ref,
@@ -641,6 +649,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       }
     });
 
+    // Re-fit the WebGL canvas to its CONTAINER, not just the window: Sigma only
+    // re-measures on window `resize`, so a graph that fills a pane/tab whose size
+    // changes via layout (drag, tab show, flex reflow) would otherwise stay at its
+    // stale size. `resize()` re-reads the container box; `refresh()` repaints.
+    const resizeObserver = new ResizeObserver(() => {
+      if (sigmaRef.current !== renderer) return;
+      renderer.resize();
+      renderer.refresh();
+      bumpEpoch();
+    });
+    resizeObserver.observe(container);
+
     // Signal overlays (minimap) that a fresh graph + display data exist (seed
     // positions; refreshed again once the stable layout lands below).
     bumpEpoch();
@@ -664,6 +684,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
 
     return () => {
       cancelAnimationFrame(initialRaf);
+      resizeObserver.disconnect();
       document.removeEventListener("pointermove", onDocPointerMove);
       document.removeEventListener("pointerup", onDocPointerUp);
       document.removeEventListener("keydown", onDocKeyDown);
@@ -949,8 +970,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
         <div
           {...rest}
           ref={ref}
+          data-graph-root
           data-fullscreen={isFullscreen || undefined}
-          className={cx(styles.root, isFullscreen && styles.fullscreen, className)}
+          className={cx(
+            styles.root,
+            fill && styles.fill,
+            !frame && styles.frameless,
+            isFullscreen && styles.fullscreen,
+            className,
+          )}
         >
           {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
             make the surface a keyboard target for pan/zoom; `aria-describedby`

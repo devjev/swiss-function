@@ -184,3 +184,27 @@ test("right-clicking an edge offers Delete which fires onEdgeDelete", async ({ m
   await del.click();
   await expect(c.getByTestId("last-event")).toHaveText("delete:e1");
 });
+
+// --- Layout: fill + frame -------------------------------------------------
+
+test("the default frame draws a border", async ({ mount }) => {
+  const c = await mount(<GraphHarness />);
+  await expect(c.locator("[data-graph-root]")).toHaveCSS("border-top-width", "1px");
+});
+
+test("frame={false} removes the component's border", async ({ mount }) => {
+  const c = await mount(<GraphHarness frame={false} />);
+  await expect(c.locator("[data-graph-root]")).toHaveCSS("border-top-width", "0px");
+});
+
+test("fill makes the graph fill its parent's height", async ({ mount }) => {
+  // The harness wraps the graph in a 600×400 box.
+  const c = await mount(<GraphHarness fill />);
+  await expect(c.locator("[data-graph-root]")).toHaveCSS("height", "400px");
+});
+
+test("without fill the graph keeps its fixed default height", async ({ mount }) => {
+  // 24 × --sf-unit (1.5rem @ 16px) = 576px.
+  const c = await mount(<GraphHarness />);
+  await expect(c.locator("[data-graph-root]")).toHaveCSS("height", "576px");
+});
