@@ -63,6 +63,24 @@ const languages = [
   { value: "ex", label: "Elixir" },
 ];
 
+export const InlineOverflow: Story = () => {
+  const [value, setValue] = useState<string[]>(cities.slice(0, 8));
+  return (
+    <div style={{ maxWidth: "20rem" }}>
+      <Selector
+        layout="inline"
+        items={cities}
+        value={value}
+        onChange={setValue}
+        placeholder="Search cities…"
+      />
+      <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
+        Collapsed to one row with a “+N” pill; click it to expand the chips as an overlay.
+      </p>
+    </div>
+  );
+};
+
 export const Sizes: Story = () => {
   const [sm, setSm] = useState<string[]>(["Paris"]);
   const [md, setMd] = useState<string[]>(["Paris"]);

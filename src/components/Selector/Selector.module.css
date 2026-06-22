@@ -43,3 +43,76 @@
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
 }
+
+/* --- Inline layout: collapsed one-row control that expands as an overlay --- */
+
+/* Reserves the collapsed (one-row) height so the expanding overlay never shifts
+   surrounding layout. The group itself is absolutely positioned on top. */
+.inlineShell {
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 1.5);
+}
+.inlineShell[data-size="sm"] {
+  min-block-size: var(--sf-unit);
+}
+.inlineShell[data-size="lg"] {
+  min-block-size: calc(var(--sf-unit) * 2);
+}
+
+/* The input group overlays the shell. Collapsed: clipped to one row. Focused:
+   grows downward over the content below, lifted with elevation. */
+.inlineGroup {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  max-block-size: calc(var(--sf-unit) * 1.5);
+  overflow: hidden;
+  transition:
+    max-block-size var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+}
+.inlineGroup[data-size="sm"] {
+  max-block-size: var(--sf-unit);
+}
+.inlineGroup[data-size="lg"] {
+  max-block-size: calc(var(--sf-unit) * 2);
+}
+
+.inlineGroup:focus-within {
+  max-block-size: 60vh;
+  overflow: auto;
+  z-index: var(--sf-z-dropdown);
+  box-shadow: var(--sf-elevation-3);
+}
+
+/* "+N" overflow pill — shown collapsed when chips wrap past the first row. */
+.overflowPill {
+  position: absolute;
+  top: 0;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) / 3);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-muted);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-sm);
+  pointer-events: none;
+}
+.inlineShell[data-size="sm"] .overflowPill {
+  block-size: var(--sf-unit);
+}
+.inlineShell[data-size="lg"] .overflowPill {
+  block-size: calc(var(--sf-unit) * 2);
+}
+/* Hide the pill while expanded (all chips are visible). */
+.inlineShell:focus-within .overflowPill {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inlineGroup {
+    transition: none;
+  }
+}

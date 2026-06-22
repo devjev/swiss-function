@@ -75,12 +75,33 @@ test("object items search by label and select by value", async ({ mount, page })
 
 test("size presets change the inline control height", async ({ mount }) => {
   const small = await mount(<SelectorHarness size="sm" layout="inline" initial={["Apple"]} />);
-  await expect(small.locator('[data-size="sm"]')).toHaveCount(1);
-  const sb = await small.locator('[data-size="sm"]').boundingBox();
+  const sb = await small.locator('[data-size="sm"]').first().boundingBox();
   await small.unmount();
   const large = await mount(<SelectorHarness size="lg" layout="inline" initial={["Apple"]} />);
-  await expect(large.locator('[data-size="lg"]')).toHaveCount(1);
-  const lb = await large.locator('[data-size="lg"]').boundingBox();
+  const lb = await large.locator('[data-size="lg"]').first().boundingBox();
   if (!sb || !lb) throw new Error("missing bounding box");
   expect(lb.height).toBeGreaterThan(sb.height);
+});
+
+test("inline overflow: collapses to one row with a +N pill, expands on focus", async ({
+  mount,
+}) => {
+  const items = ["Amsterdam", "Berlin", "Geneva", "London", "Madrid", "Oslo", "Paris", "Tokyo"];
+  const c = await mount(
+    <SelectorHarness
+      layout="inline"
+      items={items}
+      initial={items.slice(0, 8)}
+      style={{ maxWidth: "18rem" }}
+    />,
+  );
+  const group = c.locator('[class*="inlineGroup"]');
+  const pill = c.getByText(/^\+\d+$/);
+  await expect(pill).toBeVisible(); // chips overflow one row → pill shown
+  const collapsed = (await group.boundingBox())?.height ?? 0;
+
+  await c.getByRole("combobox").focus(); // expands via :focus-within
+  await expect(pill).toBeHidden();
+  const expanded = (await group.boundingBox())?.height ?? 0;
+  expect(expanded).toBeGreaterThan(collapsed);
 });

@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useMemo, useState } from "react";
+import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Combobox } from "../Combobox";
 import styles from "./Selector.module.css";
@@ -85,6 +85,27 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     [selected, byValue],
   );
 
+  // Inline layout: the collapsed control is one row tall and clips overflowing
+  // chips; we count how many wrapped past the first row to show a "+N" pill, and
+  // focus the input when the (possibly clipped) control is clicked so it expands.
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
+  const [hiddenCount, setHiddenCount] = useState(0);
+  useLayoutEffect(() => {
+    if (layout !== "inline") return;
+    const el = chipsRef.current;
+    if (!el) return;
+    const measure = () => {
+      const chips = Array.from(el.children) as HTMLElement[];
+      const firstTop = chips[0]?.offsetTop ?? 0;
+      setHiddenCount(chips.filter((c) => c.offsetTop > firstTop + 2).length);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout, selected, size]);
+
   const renderChips = () =>
     selected.map((v) => {
       const label = byValue.get(v)?.label ?? v;
@@ -127,11 +148,36 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       >
         {layout === "inline" ? (
           <>
-            <Combobox.InputGroup data-size={size}>
-              <Combobox.Chips>{renderChips()}</Combobox.Chips>
-              <Combobox.Input placeholder={selected.length ? "" : placeholder} />
-              {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
-            </Combobox.InputGroup>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: focus-forwarding
+                wrapper for the clipped overlay; the real controls live inside. */}
+            <div
+              className={styles.inlineShell}
+              data-size={size}
+              // Clicking the collapsed (clipped) control focuses the input,
+              // which expands the overlay via :focus-within.
+              onMouseDown={(e) => {
+                const t = e.target as HTMLElement;
+                if (t.closest("button") || t === inlineInputRef.current) return;
+                e.preventDefault();
+                inlineInputRef.current?.focus();
+              }}
+            >
+              <Combobox.InputGroup data-size={size} className={styles.inlineGroup}>
+                <Combobox.Chips ref={chipsRef}>{renderChips()}</Combobox.Chips>
+                <Combobox.Input
+                  ref={inlineInputRef}
+                  placeholder={selected.length ? "" : placeholder}
+                />
+                {selected.length > 0 && (
+                  <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>
+                )}
+              </Combobox.InputGroup>
+              {hiddenCount > 0 && (
+                <span className={styles.overflowPill} aria-hidden="true">
+                  +{hiddenCount}
+                </span>
+              )}
+            </div>
             {dropdown}
           </>
         ) : (
