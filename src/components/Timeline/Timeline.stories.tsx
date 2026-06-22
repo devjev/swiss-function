@@ -26,6 +26,29 @@ export const MonthlyTicks: Story = () => (
   </div>
 );
 
+export const Compact: Story = () => {
+  const [value, setValue] = useState<Date>(new Date("2026-05-01"));
+  return (
+    <div style={{ width: "min(50rem, 100%)" }}>
+      <Timeline
+        compact
+        start={new Date("2026-01-01")}
+        end={new Date("2026-12-31")}
+        value={value}
+        onChange={setValue}
+      >
+        <Timeline.Event date={new Date("2026-02-12")}>Alpha</Timeline.Event>
+        <Timeline.Event date={new Date("2026-04-22")}>Beta</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-04")}>RC</Timeline.Event>
+        <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
+      </Timeline>
+      <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
+        Labels are hidden until you hover an event — or scrub the playhead near one.
+      </p>
+    </div>
+  );
+};
+
 export const DailyTicks: Story = () => (
   <div style={{ width: "min(50rem, 100%)" }}>
     <Timeline start={new Date("2026-06-01")} end={new Date("2026-06-08")}>

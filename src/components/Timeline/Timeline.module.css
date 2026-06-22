@@ -171,6 +171,24 @@
   pointer-events: auto;
 }
 
+/* Compact strip: labels are hidden at rest and revealed only when their event
+   is hovered/focused, or (while scrubbing) for the event nearest the playhead. */
+.viewport[data-compact] .eventLabel {
+  opacity: 0;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+.viewport[data-compact] .event:hover .eventLabel,
+.viewport[data-compact] .event:focus-within .eventLabel,
+.viewport[data-compact] .event[data-active] .eventLabel {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport[data-compact] .eventLabel {
+    transition: none;
+  }
+}
+
 /* Vertical hairline from the marker up to the label's bottom edge — visible
    only when lane > 0 (its height is driven by the same variable). Helps the
    eye trace which marker each stacked label belongs to. */

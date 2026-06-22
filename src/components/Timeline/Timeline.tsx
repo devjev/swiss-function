@@ -55,6 +55,9 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   showNow?: boolean;
   /** Maximum stacking lanes for label collision avoidance. Default 3. */
   maxLanes?: number;
+  /** Compact strip: hide event labels at rest (revealed on hover/focus, and for
+   *  the event nearest the playhead while scrubbing) and collapse to one lane. */
+  compact?: boolean;
   children?: ReactNode;
 }
 
@@ -68,6 +71,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     height,
     showNow = true,
     maxLanes = 3,
+    compact = false,
     className,
     style,
     children,
@@ -125,6 +129,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
 
   // --- Scrub handlers — convert a clientX on the track to a Date ---
   const isScrubbable = onChange != null;
+  const [scrubbing, setScrubbing] = useState(false);
   const dateFromClientX = (clientX: number): Date | null => {
     const el = trackRef.current;
     if (!el) return null;
@@ -138,6 +143,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isScrubbable) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    setScrubbing(true);
     const d = dateFromClientX(e.clientX);
     if (d) onChange?.(d);
   };
@@ -149,6 +155,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   };
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isScrubbable) return;
+    setScrubbing(false);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -174,22 +181,45 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     return [];
   }, [snap, eventInputs, ticks]);
 
+  // Compact strips collapse to a single lane (labels are transient, so they
+  // don't need collision-avoidance stacking).
+  const effectiveMaxLanes = compact ? 1 : maxLanes;
   const laneResult = useMemo(
-    () => assignLanes(eventInputs, start, layoutPxPerDay, { maxLanes }),
-    [eventInputs, start, layoutPxPerDay, maxLanes],
+    () => assignLanes(eventInputs, start, layoutPxPerDay, { maxLanes: effectiveMaxLanes }),
+    [eventInputs, start, layoutPxPerDay, effectiveMaxLanes],
   );
 
-  // Decorate each Event child with its assigned lane index.
+  // While scrubbing a compact timeline, reveal the label of the event nearest
+  // the playhead so the scrub has context.
+  const activeEventIdx = useMemo(() => {
+    if (!compact || !scrubbing || value == null || eventInputs.length === 0) return -1;
+    let best = -1;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    eventInputs.forEach((e, i) => {
+      const diff = Math.abs(e.date.getTime() - value.getTime());
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = i;
+      }
+    });
+    return best;
+  }, [compact, scrubbing, value, eventInputs]);
+
+  // Decorate each Event child with its assigned lane index (+ active flag).
   const decoratedChildren = useMemo(() => {
     let i = 0;
     return Children.map(children, (child) => {
       if (!isValidElement(child) || child.type !== Event) return child;
       const props = child.props as TimelineEventProps;
       if (!(props.date instanceof Date)) return child;
-      const lane = laneResult.lanes[i++] ?? 0;
-      return cloneElement(child as ReactElement<TimelineEventProps>, { lane });
+      const idx = i++;
+      const lane = laneResult.lanes[idx] ?? 0;
+      return cloneElement(child as ReactElement<TimelineEventProps>, {
+        lane,
+        active: idx === activeEventIdx,
+      });
     });
-  }, [children, laneResult]);
+  }, [children, laneResult, activeEventIdx]);
 
   // Total height grows LINEARLY with lane count: 1.5u for ticks below the
   // axis + 0.25u gap + N × 1.25u for stacked event labels above. The axis
@@ -205,7 +235,14 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
 
   return (
     <TimelineContext.Provider value={{ start, end }}>
-      <div {...rest} ref={setRef} className={cx(styles.viewport, className)} style={wrapperStyle}>
+      <div
+        {...rest}
+        ref={setRef}
+        className={cx(styles.viewport, className)}
+        style={wrapperStyle}
+        data-compact={compact || undefined}
+        data-scrubbing={scrubbing || undefined}
+      >
         <div
           ref={trackRef}
           className={styles.track}
@@ -277,10 +314,12 @@ export interface TimelineEventProps extends Omit<HTMLAttributes<HTMLDivElement>,
   children?: ReactNode;
   /** @internal — assigned by <Timeline> via lane-collision avoidance. */
   lane?: number;
+  /** @internal — set by <Timeline> to reveal this label while scrubbing. */
+  active?: boolean;
 }
 
 const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEvent(
-  { date, onClick, className, children, lane = 0, ...rest },
+  { date, onClick, className, children, lane = 0, active, ...rest },
   ref,
 ) {
   const { start, end } = useTimelineContext();
@@ -305,6 +344,7 @@ const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEv
       }
       data-event=""
       data-lane={lane}
+      data-active={active || undefined}
       onPointerDown={stopScrub}
       onMouseDown={stopScrub}
     >

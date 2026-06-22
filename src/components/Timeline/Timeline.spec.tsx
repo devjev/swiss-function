@@ -278,3 +278,19 @@ test('snap="none" (default) does NOT snap — free continuous position', async (
     expect((received as Date).getTime()).not.toBe(eventDate.getTime());
   }
 });
+
+test("compact: event labels are hidden at rest and revealed on hover", async ({ mount }) => {
+  const component = await mount(
+    <Timeline compact start={new Date("2026-01-01")} end={new Date("2026-12-31")}>
+      <Timeline.Event date={new Date("2026-06-01")} onClick={() => {}}>
+        Midpoint
+      </Timeline.Event>
+    </Timeline>,
+  );
+  const label = component.getByText("Midpoint");
+  await expect(label).toHaveCSS("opacity", "0");
+  // Hover the marker (the wrapper is a 0×0 positioning anchor); :hover bubbles
+  // to the event so the label reveals.
+  await component.getByRole("button", { name: "Midpoint" }).hover();
+  await expect(label).toHaveCSS("opacity", "1");
+});
