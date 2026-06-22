@@ -11,6 +11,7 @@
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-md);
   line-height: var(--sf-line-height-tight);
   /* DOS-style chunky caret. `caret-shape: block` is CSS UI L4 — supported

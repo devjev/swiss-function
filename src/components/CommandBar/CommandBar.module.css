@@ -72,6 +72,7 @@
 
 .shortcut {
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
 }

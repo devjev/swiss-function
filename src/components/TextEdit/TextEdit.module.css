@@ -10,6 +10,7 @@
   border: 1px solid var(--sf-color-primary);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-md);
   /* line-height = --sf-leading-base so multi-line text lands on the unit baseline grid. */
   line-height: var(--sf-leading-base);

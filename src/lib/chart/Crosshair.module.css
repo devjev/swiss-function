@@ -14,6 +14,7 @@
 .yLabel {
   fill: var(--sf-color-fg);
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-semibold);
   /* Small opaque background hint so labels stay readable against the data. */

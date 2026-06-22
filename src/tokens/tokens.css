@@ -73,6 +73,14 @@
        (e.g. via Google Fonts or @fontsource). Falls back to system mono. */
     --sf-font-mono:
       "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    /* Monospace reads optically larger than the sans at the same font-size
+       because its x-height is taller (JetBrains Mono ≈ 0.55 of the em box vs
+       ~0.52 for the system sans stack). Apply this via `font-size-adjust`
+       wherever the mono family is used, so mono is scaled to the same x-height
+       as the sans and the two look the same size side by side. Value = the
+       target (sans) x-height ratio; tune here if the body sans changes. Old
+       browsers without font-size-adjust simply keep the current rendering. */
+    --sf-font-mono-adjust: 0.52;
     /* Three sizes total. Body text sits at md (the foundation); sm and lg
        sit ~2px on either side for secondary content and emphasis. There is
        no xs / xl / 2xl — restraint is the point. Hierarchy beyond these

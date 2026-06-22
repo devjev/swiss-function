@@ -117,6 +117,7 @@
 .valueLabel {
   fill: var(--sf-color-fg);
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   pointer-events: none;

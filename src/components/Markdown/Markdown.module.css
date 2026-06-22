@@ -114,6 +114,7 @@
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: 0.9em;
 }
 
@@ -128,6 +129,7 @@
 }
 .rendered pre code {
   font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   line-height: var(--sf-leading-base);
   background: none;
