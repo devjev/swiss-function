@@ -232,6 +232,24 @@ export function DataTable<T>(props: DataTableProps<T>) {
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
 
+  // The header (a real grid) sizes to the columns' total width via
+  // `min-width: min-content`; the virtualized body's rows are abs-positioned and
+  // don't, so mirror the header's measured width onto the body to keep rows and
+  // separators aligned across the full content when scrolled horizontally.
+  const headerRowRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const vp = containerRef.current;
+    const hr = headerRowRef.current;
+    if (!vp || !hr) return;
+    const measure = () => setContentWidth(Math.round(hr.getBoundingClientRect().width));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    ro.observe(hr);
+    return () => ro.disconnect();
+  }, []);
+
   // --- Selection ---
   const colCount = visibleLeaves.length;
   const {
@@ -639,8 +657,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
       >
         {/* Headers — one row per header group; parent groups span their leaves. */}
-        {headerGroups.map((hg) => (
-          <div key={hg.id} className={styles.headerRow} style={{ gridTemplateColumns }} role="row">
+        {headerGroups.map((hg, hgIndex) => (
+          <div
+            key={hg.id}
+            ref={hgIndex === 0 ? headerRowRef : undefined}
+            className={styles.headerRow}
+            style={{ gridTemplateColumns }}
+            role="row"
+          >
             {hg.headers.map((header) => {
               const span = header.colSpan;
               const isGroupHeader = header.subHeaders.length > 0;
@@ -752,7 +776,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
         ) : (
           <div
             className={styles.body}
-            style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}
+            style={{
+              height: rowVirtualizer.getTotalSize(),
+              position: "relative",
+              minWidth: contentWidth ?? undefined,
+            }}
           >
             {virtualRows.map((vr) => {
               const row = rows[vr.index];

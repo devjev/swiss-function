@@ -79,6 +79,14 @@ export const SnapAndEdgeFade: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={240} scrollSnap="rows" edgeFade />
 );
 
+// Narrow container: columns shrink toward their minimums to fit (no horizontal
+// scroll) until even the minimums don't fit, at which point the table scrolls.
+export const NarrowContainer: Story = () => (
+  <div style={{ width: 360 }}>
+    <DataTable data={seed(30)} columns={baseColumns} height={240} />
+  </div>
+);
+
 // Excel-style column resizing (on by default). Drag a header's trailing edge,
 // double-click it to auto-fit content, or focus it and use Arrow keys
 // (Shift = larger step). The "Active" column is locked with resizable: false.

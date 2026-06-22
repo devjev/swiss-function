@@ -1,14 +1,14 @@
 /** Column-width plumbing for resizable DataTable columns.
  *
- * The table always spans its container at full width and never changes total
- * width when columns are resized:
- *   - Every column except the last has a definite width (a runtime px override,
- *     the column def's `width` in `--sf-unit` multiples, or a default).
- *   - The last column is a `1fr` filler that soaks up the remaining width, so
- *     the columns always add up to the container exactly (no gap, no scroll).
- *   - Dragging a column's trailing edge grows/shrinks it and cascades the
- *     opposite change through the columns to its right (see `resizeBoundary`),
- *     keeping the total constant.
+ * Each track is `minmax(minWidth, preferred)`, so when the columns' preferred
+ * widths don't fit the container they shrink toward their minimums (no scroll);
+ * only when even the minimums don't fit does the table scroll horizontally. The
+ * last column's preferred is `1fr`, so when there's slack it fills the container.
+ *   - `preferred` = a runtime px override, the column def's `width`, or a default.
+ *   - `minWidth` = the column def's `minWidth` or the global `COLUMN_MIN_UNITS`.
+ *   - Dragging a trailing edge sets preferred widths via `resizeBoundary`
+ *     (cascading through the columns to the right, keeping the total constant);
+ *     the minmax shrink is what handles a container narrower than those widths.
  */
 
 /** Minimum a column may be dragged to, as a `--sf-unit` multiple. Mirrors the
@@ -20,13 +20,15 @@ const DEFAULT_COL_UNITS = 8;
 
 export interface TemplateLeaf {
   id: string;
-  /** Static width in `--sf-unit` multiples, from the column def. */
+  /** Preferred width in `--sf-unit` multiples, from the column def. */
   width?: number;
+  /** Lower bound in `--sf-unit` multiples; defaults to `COLUMN_MIN_UNITS`. */
+  minWidth?: number;
 }
 
-/** Build the `grid-template-columns` string shared by the header and every
- *  body row. The last track is `1fr` so the table fills its container; all
- *  others take their override / declared / default width. */
+/** Build the `grid-template-columns` string shared by the header and every body
+ *  row. Every track is `minmax(min, preferred)`; the last column's preferred is
+ *  `1fr` so it fills any slack. */
 export function buildColumnTemplate(
   leaves: TemplateLeaf[],
   overrides: Record<string, number>,
@@ -34,13 +36,16 @@ export function buildColumnTemplate(
   const lastIdx = leaves.length - 1;
   return leaves
     .map((col, i) => {
-      if (i === lastIdx) {
-        return `minmax(calc(var(--sf-unit) * ${COLUMN_MIN_UNITS}), 1fr)`;
-      }
+      const min = `calc(var(--sf-unit) * ${col.minWidth ?? COLUMN_MIN_UNITS})`;
+      if (i === lastIdx) return `minmax(${min}, 1fr)`;
       const override = overrides[col.id];
-      if (override != null) return `${override}px`;
-      if (col.width != null) return `calc(var(--sf-unit) * ${col.width})`;
-      return `calc(var(--sf-unit) * ${DEFAULT_COL_UNITS})`;
+      const preferred =
+        override != null
+          ? `${override}px`
+          : col.width != null
+            ? `calc(var(--sf-unit) * ${col.width})`
+            : `calc(var(--sf-unit) * ${DEFAULT_COL_UNITS})`;
+      return `minmax(${min}, ${preferred})`;
     })
     .join(" ");
 }

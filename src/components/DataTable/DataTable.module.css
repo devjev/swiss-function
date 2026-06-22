@@ -59,10 +59,14 @@
   mask-composite: intersect;
 }
 
-/* Header row sits at the top of the scroll container and stays put. */
+/* Header row sits at the top of the scroll container and stays put.
+   `min-width: min-content` lets it grow to the columns' total minimum width when
+   they can't all fit — so on horizontal scroll the header background extends
+   across every column instead of clipping at the viewport edge. */
 .headerRow {
   display: grid;
   width: 100%;
+  min-width: min-content;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -200,6 +204,7 @@
 /* Body wrapper — either plain flow (paginated) or relative + spacer (virtualized) */
 .body {
   width: 100%;
+  min-width: min-content;
 }
 
 /* Use inset box-shadow instead of border-bottom so row height equals exactly
@@ -207,6 +212,7 @@
    positioned editors overflow downward and cover this separator). */
 .row {
   display: grid;
+  min-width: min-content;
   box-shadow: inset 0 -1px 0 var(--sf-color-border-subtle);
 }
 

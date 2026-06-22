@@ -32,8 +32,11 @@ export interface LeafColumnDef<T> {
   accessor: keyof T | ((row: T) => unknown);
   /** Custom cell renderer; defaults to String(value). */
   cell?: (props: CellRenderProps<T>) => ReactNode;
-  /** Column width in --sf-unit multiples. Omit for auto-sized fluid column. */
+  /** Preferred width in --sf-unit multiples. Omit for the default width. */
   width?: number;
+  /** Lower bound in --sf-unit multiples that the column shrinks to before the
+   *  table scrolls. Defaults to the global column minimum (3 units). */
+  minWidth?: number;
   /** Allow this column to be drag/keyboard-resized. Default true (when the
    *  table's `resizableColumns` is on). Set false to lock this column's width. */
   resizable?: boolean;

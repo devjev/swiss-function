@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { buildColumnTemplate, resizeBoundary } from "./columnWidths";
 
 const LAST = "minmax(calc(var(--sf-unit) * 3), 1fr)";
+// A non-last track: minmax(min, preferred). Default min is 3 units.
+const track = (preferred: string, min = 3) => `minmax(calc(var(--sf-unit) * ${min}), ${preferred})`;
 
 describe("buildColumnTemplate", () => {
   it("makes the last column a 1fr filler regardless of width/override", () => {
@@ -13,24 +15,30 @@ describe("buildColumnTemplate", () => {
         ],
         { z: 240 },
       ),
-    ).toBe(`calc(var(--sf-unit) * 8) ${LAST}`);
+    ).toBe(`${track("calc(var(--sf-unit) * 8)")} ${LAST}`);
   });
 
-  it("emits a unit-multiple track for a non-last static width", () => {
+  it("wraps a non-last static width as the minmax preferred", () => {
     expect(buildColumnTemplate([{ id: "a", width: 8 }, { id: "z" }], {})).toBe(
-      `calc(var(--sf-unit) * 8) ${LAST}`,
+      `${track("calc(var(--sf-unit) * 8)")} ${LAST}`,
     );
   });
 
-  it("defaults a non-last auto column to a fixed width", () => {
+  it("defaults a non-last auto column's preferred to a fixed width", () => {
     expect(buildColumnTemplate([{ id: "a" }, { id: "z" }], {})).toBe(
-      `calc(var(--sf-unit) * 8) ${LAST}`,
+      `${track("calc(var(--sf-unit) * 8)")} ${LAST}`,
     );
   });
 
-  it("emits a fixed px track when a non-last column has an override", () => {
+  it("uses a px override as the preferred when present", () => {
     expect(buildColumnTemplate([{ id: "a", width: 8 }, { id: "z" }], { a: 240 })).toBe(
-      `240px ${LAST}`,
+      `${track("240px")} ${LAST}`,
+    );
+  });
+
+  it("honours a per-column minWidth in the track minimum", () => {
+    expect(buildColumnTemplate([{ id: "a", width: 8, minWidth: 6 }, { id: "z" }], {})).toBe(
+      `${track("calc(var(--sf-unit) * 8)", 6)} ${LAST}`,
     );
   });
 

@@ -365,3 +365,32 @@ test("edgeFade renders a bottom fade overlay (and none without it)", async ({ mo
   const faded = await mount(<DataTableHarness data={DATA} cols={COLUMNS} edgeFade />);
   expect(await faded.locator('[class*="edgeFade"]').count()).toBe(1);
 });
+
+test("columns shrink to fit a narrow container, then scroll with the header spanning content", async ({
+  mount,
+}) => {
+  const COLS = ["name", "age", "active"];
+  // Tight: 8u (192) preferred each can't all fit 400, but mins (3u=72) do → shrink, no scroll.
+  const tight = await mount(
+    <DataTableHarness data={DATA} cols={COLS} widths={{ name: 8, age: 8 }} containerWidth={400} />,
+  );
+  const m1 = await tight
+    .locator('[class*="viewport"]')
+    .first()
+    .evaluate((el) => ({ s: el.scrollWidth, c: el.clientWidth }));
+  expect(m1.s).toBeLessThanOrEqual(m1.c + 1); // shrank to fit — no horizontal scroll
+  await tight.unmount();
+
+  // Overflow: even mins don't fit 180 → scrolls, and the header spans the full content.
+  const over = await mount(
+    <DataTableHarness data={DATA} cols={COLS} widths={{ name: 8, age: 8 }} containerWidth={180} />,
+  );
+  const vp = over.locator('[class*="viewport"]').first();
+  const m2 = await vp.evaluate((el) => ({ s: el.scrollWidth, c: el.clientWidth }));
+  expect(m2.s).toBeGreaterThan(m2.c); // can't fit even at min → scrolls
+  const headerW = await over
+    .locator('[class*="headerRow"]')
+    .first()
+    .evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  expect(headerW).toBeGreaterThan(m2.c); // header background spans the full content, not the viewport
+});
