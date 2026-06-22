@@ -44,9 +44,33 @@ export const Compact: Story = () => {
         <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
       </Timeline>
       <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
-        A thin bordered strip (compact). Labels are hidden until you hover an event — or scrub the
+        A thin bordered control strip. Labels are hidden until you hover an event — or scrub the
         playhead near one — and float above the box.
       </p>
+    </div>
+  );
+};
+
+/**
+ * The control strip follows the same `sm` / `md` / `lg` size classes as Input
+ * and Selector — 24 / 36 / 48px tall. `compact` is an alias that defaults to
+ * `md`. At `sm`, the floating labels shrink to 85% to stay proportionate.
+ */
+export const Sizes: Story = () => {
+  const start = new Date("2026-01-01");
+  const end = new Date("2026-12-31");
+  return (
+    <div style={{ width: "min(50rem, 100%)", display: "grid", gap: "2rem", paddingTop: "2rem" }}>
+      {(["sm", "md", "lg"] as const).map((size) => (
+        <div key={size}>
+          <p style={{ margin: "0 0 0.5rem", fontSize: "0.875rem" }}>size=&quot;{size}&quot;</p>
+          <Timeline size={size} bordered start={start} end={end}>
+            <Timeline.Event date={new Date("2026-02-12")}>Alpha</Timeline.Event>
+            <Timeline.Event date={new Date("2026-06-04")}>RC</Timeline.Event>
+            <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
+          </Timeline>
+        </div>
+      ))}
     </div>
   );
 };

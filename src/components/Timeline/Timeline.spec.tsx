@@ -293,10 +293,66 @@ test("compact: event labels are hidden at rest and revealed on hover", async ({ 
   // to the event so the label reveals.
   await component.getByRole("button", { name: "Midpoint" }).hover();
   await expect(label).toHaveCSS("opacity", "1");
+});
 
-  // Compact strip is one --sf-unit tall (same as a sm Input ≈ 24px).
-  const h = await component.evaluate((el) => Math.round(el.getBoundingClientRect().height));
-  expect(h).toBeLessThanOrEqual(26);
+test("size scales the strip height like Input (sm/md/lg = 24/36/48), compact defaults to md", async ({
+  mount,
+}) => {
+  const start = new Date("2026-01-01");
+  const end = new Date("2026-12-31");
+  const c = await mount(
+    <div>
+      <div data-id="sm">
+        <Timeline size="sm" start={start} end={end} />
+      </div>
+      <div data-id="md">
+        <Timeline size="md" start={start} end={end} />
+      </div>
+      <div data-id="lg">
+        <Timeline size="lg" start={start} end={end} />
+      </div>
+      <div data-id="compact">
+        <Timeline compact start={start} end={end} />
+      </div>
+    </div>,
+  );
+  const h = async (id: string) =>
+    Math.round(
+      await c
+        .locator(`[data-id="${id}"] > *`)
+        .first()
+        .evaluate((n) => n.getBoundingClientRect().height),
+    );
+  expect(await h("sm")).toBe(24);
+  expect(await h("md")).toBe(36);
+  expect(await h("lg")).toBe(48);
+  // Bare `compact` (no size) follows the md default.
+  expect(await h("compact")).toBe(36);
+});
+
+test("sm shrinks the floating event label to 85%", async ({ mount }) => {
+  const c = await mount(
+    <div>
+      <div data-id="sm">
+        <Timeline size="sm" start={new Date("2026-06-01")} end={new Date("2026-06-30")}>
+          <Timeline.Event date={new Date("2026-06-15")}>Ev</Timeline.Event>
+        </Timeline>
+      </div>
+      <div data-id="md">
+        <Timeline size="md" start={new Date("2026-06-01")} end={new Date("2026-06-30")}>
+          <Timeline.Event date={new Date("2026-06-15")}>Ev</Timeline.Event>
+        </Timeline>
+      </div>
+    </div>,
+  );
+  const fontPx = async (id: string) =>
+    c
+      .locator(`[data-id="${id}"] [class*="eventLabel"]`)
+      .first()
+      .evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
+  // md = --sf-font-size-sm (14px); sm = 85% of it (≈11.9px).
+  expect(await fontPx("md")).toBeCloseTo(14, 1);
+  expect(await fontPx("sm")).toBeCloseTo(11.9, 1);
 });
 
 test("range: dragging the start handle moves the start bound later", async ({ mount, page }) => {

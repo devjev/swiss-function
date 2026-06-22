@@ -62,9 +62,15 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   showNow?: boolean;
   /** Maximum stacking lanes for label collision avoidance. Default 3. */
   maxLanes?: number;
-  /** Compact strip: hide event labels at rest (revealed on hover/focus, and for
-   *  the event nearest the playhead while scrubbing) and collapse to one lane. */
+  /** Render the condensed control strip — event labels hidden at rest (revealed
+   *  on hover/focus, and for the event nearest the playhead while scrubbing) and
+   *  collapsed to one lane. Height follows `size` (defaults to `md`). A bare
+   *  `<Timeline>` without `compact`/`size` stays the full lane view. */
   compact?: boolean;
+  /** Strip height, mirroring Input/Selector — `sm` / `md` / `lg`
+   *  (24 / 36 / 48px at the default unit). Implies the control strip. Default
+   *  `md`. Ignored by the full lane view. */
+  size?: "sm" | "md" | "lg";
   /** Wrap the strip in an Input-style border (1px + radius). Default false. */
   bordered?: boolean;
   /** Resting depth — same `--sf-elevation-N` scale as Box / Input (0–5). Pairs
@@ -90,6 +96,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     showNow = true,
     maxLanes = 3,
     compact = false,
+    size,
     bordered = false,
     elevation = 0,
     valueLabel = false,
@@ -298,9 +305,15 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     return [];
   }, [snap, eventInputs, ticks]);
 
+  // The control strip is active when `compact` is set or a `size` is given;
+  // its height follows `size`, defaulting to `md`. A bare timeline (neither
+  // prop) keeps the full lane view.
+  const stripMode = compact || size != null;
+  const stripSize = size ?? "md";
+
   // Compact strips collapse to a single lane (labels are transient, so they
   // don't need collision-avoidance stacking).
-  const effectiveMaxLanes = compact ? 1 : maxLanes;
+  const effectiveMaxLanes = stripMode ? 1 : maxLanes;
   const laneResult = useMemo(
     () => assignLanes(eventInputs, start, layoutPxPerDay, { maxLanes: effectiveMaxLanes }),
     [eventInputs, start, layoutPxPerDay, effectiveMaxLanes],
@@ -309,7 +322,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   // While scrubbing a compact timeline, reveal the label of the event nearest
   // the playhead so the scrub has context.
   const activeEventIdx = useMemo(() => {
-    if (!compact || !scrubbing || value == null || eventInputs.length === 0) return -1;
+    if (!stripMode || !scrubbing || value == null || eventInputs.length === 0) return -1;
     let best = -1;
     let bestDiff = Number.POSITIVE_INFINITY;
     eventInputs.forEach((e, i) => {
@@ -320,7 +333,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
       }
     });
     return best;
-  }, [compact, scrubbing, value, eventInputs]);
+  }, [stripMode, scrubbing, value, eventInputs]);
 
   // Decorate each Event child with its assigned lane index (+ active flag).
   const decoratedChildren = useMemo(() => {
@@ -357,7 +370,8 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
         ref={setRef}
         className={cx(styles.viewport, className)}
         style={wrapperStyle}
-        data-compact={compact || undefined}
+        data-compact={stripMode || undefined}
+        data-size={stripMode ? stripSize : undefined}
         data-bordered={bordered || undefined}
         data-elevation={elevation || undefined}
         data-value-label={valueLabel || undefined}
