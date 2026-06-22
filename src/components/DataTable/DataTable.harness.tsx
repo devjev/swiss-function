@@ -15,6 +15,8 @@ interface HarnessProps {
   widths?: Record<string, number>;
   /** Fixed wrapper width in px, for deterministic layout in tests. */
   containerWidth?: number;
+  scrollSnap?: DataTableProps<Row>["scrollSnap"];
+  edgeFade?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
 }
 
@@ -29,6 +31,8 @@ export function DataTableHarness({
   lockedCols,
   widths,
   containerWidth,
+  scrollSnap,
+  edgeFade,
   onCellChange,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
@@ -54,6 +58,8 @@ export function DataTableHarness({
       editable={editable}
       paginate={paginate}
       resizableColumns={resizableColumns}
+      scrollSnap={scrollSnap}
+      edgeFade={edgeFade}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />

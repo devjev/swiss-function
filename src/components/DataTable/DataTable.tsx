@@ -56,6 +56,12 @@ export interface DataTableProps<T>
   /** Allow leaf columns to be drag/keyboard-resized (Excel-style). Default true.
    *  Lock individual columns with `resizable: false` on their column def. */
   resizableColumns?: boolean;
+  /** Elastically snap scrolling to row and/or column edges (CSS `proximity`
+   *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
+  scrollSnap?: "none" | "rows" | "columns" | "both";
+  /** Fade the rows nearest the bottom scroll edge with a dithered mask, hinting
+   *  there's more to scroll. The sticky header is never faded. Default `false`. */
+  edgeFade?: boolean;
 
   /** Return child rows for a parent. Omit for flat tables. */
   getSubRows?: (row: T) => T[] | undefined;
@@ -137,6 +143,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     height = DEFAULT_HEIGHT,
     empty,
     resizableColumns = true,
+    scrollSnap = "none",
+    edgeFade = false,
     getSubRows,
     treeColumn,
     defaultExpanded,
@@ -627,6 +635,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         className={styles.viewport}
         style={{ maxHeight: height, "--sf-row-height": `${rowHeight}px` } as CSSProperties}
         onKeyDown={handleKeyDown}
+        data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
+        data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
       >
         {/* Headers — one row per header group; parent groups span their leaves. */}
         {headerGroups.map((hg) => (
@@ -768,6 +778,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
             })}
           </div>
         )}
+
+        {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so
+            it overlays the last rows without adding layout space; the sticky
+            header stays above it and is never faded. */}
+        {edgeFade && !showEmpty ? <div className={styles.edgeFade} aria-hidden="true" /> : null}
       </div>
 
       {paginate && (

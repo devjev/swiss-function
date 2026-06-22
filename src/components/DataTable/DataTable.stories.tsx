@@ -74,6 +74,11 @@ export const ReadOnly: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={360} />
 );
 
+// Elastic row snapping + a dithered fade at the bottom scroll edge.
+export const SnapAndEdgeFade: Story = () => (
+  <DataTable data={seed(50)} columns={baseColumns} height={240} scrollSnap="rows" edgeFade />
+);
+
 // Excel-style column resizing (on by default). Drag a header's trailing edge,
 // double-click it to auto-fit content, or focus it and use Arrow keys
 // (Shift = larger step). The "Active" column is locked with resizable: false.

@@ -350,3 +350,18 @@ test("the last column gets a leading handle when its neighbour is locked", async
   expect(Math.abs((await widthOf(component, "age")) - ageBefore)).toBeLessThanOrEqual(1); // locked
   expect(Math.abs((await total()) - totalBefore)).toBeLessThanOrEqual(1); // total unchanged
 });
+
+test("scrollSnap sets the snap data-attributes on the viewport", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} scrollSnap="both" />);
+  const vp = c.locator('[class*="viewport"]').first();
+  await expect(vp).toHaveAttribute("data-snap-rows", "");
+  await expect(vp).toHaveAttribute("data-snap-cols", "");
+});
+
+test("edgeFade renders a bottom fade overlay (and none without it)", async ({ mount }) => {
+  const plain = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  expect(await plain.locator('[class*="edgeFade"]').count()).toBe(0);
+  await plain.unmount();
+  const faded = await mount(<DataTableHarness data={DATA} cols={COLUMNS} edgeFade />);
+  expect(await faded.locator('[class*="edgeFade"]').count()).toBe(1);
+});

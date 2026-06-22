@@ -16,6 +16,49 @@
   outline: none;
 }
 
+/* Elastic scroll-snap (proximity = only nudges near a boundary). Snap points
+   live on rows (block axis) and header cells (inline axis). */
+.viewport[data-snap-rows]:not([data-snap-cols]) {
+  scroll-snap-type: y proximity;
+}
+.viewport[data-snap-cols]:not([data-snap-rows]) {
+  scroll-snap-type: x proximity;
+}
+.viewport[data-snap-rows][data-snap-cols] {
+  scroll-snap-type: both proximity;
+}
+.viewport[data-snap-rows] .row {
+  scroll-snap-align: start none;
+}
+.viewport[data-snap-cols] .headerCell {
+  scroll-snap-align: none start;
+}
+
+/* Dithered fade at the bottom scroll edge. Sticky to the bottom of the
+   scrollport; the negative margin pulls it back over the last rows so it adds
+   no layout space. The dither = a gradient mask intersected with a Bayer dot
+   pattern, so the fade quantises into shade dots rather than a smooth ramp. */
+.edgeFade {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  block-size: calc(var(--sf-unit) * 2);
+  margin-block-start: calc(var(--sf-unit) * -2);
+  pointer-events: none;
+  background-color: var(--sf-color-bg);
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000), var(--sf-dither);
+  mask-image: linear-gradient(to bottom, transparent, #000), var(--sf-dither);
+  -webkit-mask-size:
+    100% 100%,
+    2px 2px;
+  mask-size:
+    100% 100%,
+    2px 2px;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
 /* Header row sits at the top of the scroll container and stays put. */
 .headerRow {
   display: grid;
