@@ -19,6 +19,8 @@ export interface SelectorProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   onChange?: (value: string[]) => void;
   /** Placeholder for the search field. */
   placeholder?: string;
+  /** Control size, mirroring `Input` (`sm` / `md` / `lg`). Default `md`. */
+  size?: "sm" | "md" | "lg";
   /**
    * Where the chosen-items "bucket" lives.
    * - `"panel"` (default): a separate container below the search field.
@@ -49,6 +51,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     defaultValue,
     onChange,
     placeholder = "Search…",
+    size = "md",
     layout = "panel",
     disabled,
     emptyMessage = "No results",
@@ -124,7 +127,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       >
         {layout === "inline" ? (
           <>
-            <Combobox.InputGroup>
+            <Combobox.InputGroup data-size={size}>
               <Combobox.Chips>{renderChips()}</Combobox.Chips>
               <Combobox.Input placeholder={selected.length ? "" : placeholder} />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
@@ -133,7 +136,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
           </>
         ) : (
           <>
-            <Combobox.Input placeholder={placeholder} />
+            <Combobox.Input placeholder={placeholder} data-size={size} />
             {dropdown}
             <div className={styles.bucket}>
               <div className={styles.bucketHeader}>

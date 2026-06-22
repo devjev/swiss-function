@@ -30,6 +30,10 @@ Playground.argTypes = {
     options: ["panel", "inline"],
     control: { type: "radio" },
   },
+  size: {
+    options: ["sm", "md", "lg"],
+    control: { type: "radio" },
+  },
   disabled: { control: { type: "boolean" } },
 };
 
@@ -58,6 +62,19 @@ const languages = [
   { value: "py", label: "Python" },
   { value: "ex", label: "Elixir" },
 ];
+
+export const Sizes: Story = () => {
+  const [sm, setSm] = useState<string[]>(["Paris"]);
+  const [md, setMd] = useState<string[]>(["Paris"]);
+  const [lg, setLg] = useState<string[]>(["Paris"]);
+  return (
+    <div style={{ display: "grid", gap: "1rem", maxWidth: "24rem" }}>
+      <Selector size="sm" layout="inline" items={cities} value={sm} onChange={setSm} />
+      <Selector size="md" layout="inline" items={cities} value={md} onChange={setMd} />
+      <Selector size="lg" layout="inline" items={cities} value={lg} onChange={setLg} />
+    </div>
+  );
+};
 
 export const ObjectItems: Story = () => {
   const [value, setValue] = useState<string[]>(["ts", "rs"]);

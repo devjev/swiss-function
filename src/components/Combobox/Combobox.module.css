@@ -17,6 +17,18 @@
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* Size presets, mirroring Input's sm/md/lg (md is the unmarked default). */
+.input[data-size="sm"] {
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+}
+.input[data-size="lg"] {
+  block-size: calc(var(--sf-unit) * 2);
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
+  font-size: var(--sf-font-size-lg);
+}
+
 .input::placeholder {
   color: var(--sf-color-muted);
 }
@@ -108,6 +120,25 @@
   border: 1px solid var(--sf-color-primary);
   border-radius: var(--sf-radius-default);
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Size presets — mirror `.input`'s sm/md/lg via the same `data-size` attr.
+   The group grows with chips, so size sets the single-row floor + font. */
+.inputGroup[data-size="sm"] {
+  min-block-size: var(--sf-unit);
+  padding: calc(var(--sf-unit) / 6) calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+}
+.inputGroup[data-size="sm"] .input {
+  font-size: var(--sf-font-size-sm);
+}
+.inputGroup[data-size="lg"] {
+  min-block-size: calc(var(--sf-unit) * 2);
+  padding: calc(var(--sf-unit) / 3) calc(var(--sf-unit) * 2 / 3);
+  font-size: var(--sf-font-size-lg);
+}
+.inputGroup[data-size="lg"] .input {
+  font-size: var(--sf-font-size-lg);
 }
 
 .inputGroup:hover {
