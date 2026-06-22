@@ -131,6 +131,40 @@ export const Scrubbable: Story = () => {
 };
 
 /**
+ * Range selection — two draggable handles with a band between them. Drag a
+ * handle to move one bound, the band to pan the whole range, or click the track
+ * to pull the nearest bound; arrow keys nudge a focused handle.
+ */
+export const RangeSelect: Story = () => {
+  const [range, setRange] = useState<[Date, Date]>([
+    new Date("2026-03-01"),
+    new Date("2026-08-01"),
+  ]);
+  return (
+    <div style={{ width: "min(50rem, 100%)" }}>
+      <Timeline
+        start={new Date("2026-01-01")}
+        end={new Date("2026-12-31")}
+        rangeValue={range}
+        onRangeChange={setRange}
+      >
+        <Timeline.Event date={new Date("2026-04-22")}>Beta</Timeline.Event>
+        <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
+      </Timeline>
+      <div
+        style={{
+          marginTop: "calc(var(--sf-unit) / 2)",
+          fontFamily: "var(--sf-font-mono)",
+          fontSize: "var(--sf-font-size-sm)",
+        }}
+      >
+        {range[0].toISOString().slice(0, 10)} → {range[1].toISOString().slice(0, 10)}
+      </div>
+    </div>
+  );
+};
+
+/**
  * Snap to events — the playhead jumps to the nearest event date as you scrub.
  */
 export const SnapToEvents: Story = () => {

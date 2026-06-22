@@ -294,3 +294,46 @@ test("compact: event labels are hidden at rest and revealed on hover", async ({ 
   await component.getByRole("button", { name: "Midpoint" }).hover();
   await expect(label).toHaveCSS("opacity", "1");
 });
+
+test("range: dragging the start handle moves the start bound later", async ({ mount, page }) => {
+  let range: [Date, Date] = [new Date(2026, 0, 1), new Date(2026, 11, 31)];
+  const start = new Date(2026, 0, 1);
+  const end = new Date(2026, 11, 31);
+  const c = await mount(
+    <Timeline
+      start={start}
+      end={end}
+      rangeValue={[new Date(2026, 2, 1), new Date(2026, 9, 1)]}
+      onRangeChange={(r) => {
+        range = r;
+      }}
+    />,
+  );
+  const handle = await c.getByTestId("timeline-range-start").boundingBox();
+  const track = await c.boundingBox();
+  if (!handle || !track) throw new Error("no bounding box");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width * 0.5, handle.y + handle.height / 2, { steps: 6 });
+  await page.mouse.up();
+  // Start dragged toward mid-year — later than Mar 1, never past the end bound.
+  expect(range[0].getTime()).toBeGreaterThan(new Date(2026, 2, 1).getTime());
+  expect(range[0].getTime()).toBeLessThanOrEqual(range[1].getTime());
+});
+
+test("range: arrow keys nudge a focused handle", async ({ mount, page }) => {
+  let range: [Date, Date] = [new Date(2026, 0, 1), new Date(2026, 11, 31)];
+  const c = await mount(
+    <Timeline
+      start={new Date(2026, 0, 1)}
+      end={new Date(2026, 11, 31)}
+      rangeValue={[new Date(2026, 5, 1), new Date(2026, 9, 1)]}
+      onRangeChange={(r) => {
+        range = r;
+      }}
+    />,
+  );
+  await c.getByTestId("timeline-range-start").focus();
+  await page.keyboard.press("ArrowRight");
+  expect(range[0].getTime()).toBeGreaterThan(new Date(2026, 5, 1).getTime());
+});

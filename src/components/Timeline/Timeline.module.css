@@ -121,6 +121,40 @@
   transform: translateX(-50%);
 }
 
+/* --- Range selection ---------------------------------------------------- */
+
+/* Highlighted band between the two range handles. Draggable to pan the range. */
+.rangeRegion {
+  position: absolute;
+  inset-block: 0;
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+  border-inline: 1px solid color-mix(in srgb, var(--sf-color-primary), transparent 40%);
+  /* Below events (z-index 1) so event markers stay clickable; the band is still
+     draggable wherever no event sits on top of it. */
+  z-index: 0;
+  cursor: grab;
+}
+
+/* The two draggable edges of the range. */
+.rangeHandle {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 1px;
+  /* A wider invisible hit target straddling the 1px line for easy grabbing. */
+  padding-inline: calc(var(--sf-unit) / 4);
+  margin-inline-start: calc(var(--sf-unit) / -4);
+  background-color: var(--sf-color-primary);
+  background-clip: content-box;
+  z-index: 3;
+  cursor: ew-resize;
+  outline: none;
+}
+
+.rangeHandle:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
 /* --- Events ------------------------------------------------------------- */
 
 .event {

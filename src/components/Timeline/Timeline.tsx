@@ -44,6 +44,13 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   /** Fired on click + drag of the track with the date at the pointer's x.
    *  When omitted, the timeline is read-only (no scrub). */
   onChange?: (date: Date) => void;
+  /** Range selection (controlled): a `[start, end]` pair rendered as two draggable
+   *  handles with a highlighted band between them. Takes over from the single
+   *  playhead; pass with `onRangeChange`. */
+  rangeValue?: [Date, Date];
+  /** Fired while dragging a range handle, the band, or clicking the track, with
+   *  the new `[start, end]` pair (clamped to the timeline and never crossed). */
+  onRangeChange?: (range: [Date, Date]) => void;
   /** Scrub snapping behavior:
    *   - `"none"` (default): free, continuous position
    *   - `"events"`: snap to the nearest `<Timeline.Event>` date
@@ -67,6 +74,8 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     end,
     value,
     onChange,
+    rangeValue,
+    onRangeChange,
     snap = "none",
     height,
     showNow = true,
@@ -120,27 +129,98 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
       ? ((now.getTime() - start.getTime()) / MS_DAY / totalDays) * 100
       : null;
 
-  // Playhead — clamped to [0, 100] so a stale `value` outside the range still
-  // renders at the boundary instead of off-screen.
-  const valuePct =
-    value != null && totalDays > 0
-      ? Math.max(0, Math.min(100, ((value.getTime() - start.getTime()) / MS_DAY / totalDays) * 100))
-      : null;
+  // Fraction → percent (clamped, so a stale value outside the range renders at
+  // the boundary instead of off-screen).
+  const pct = (d: Date): number =>
+    totalDays > 0
+      ? Math.max(0, Math.min(100, ((d.getTime() - start.getTime()) / MS_DAY / totalDays) * 100))
+      : 0;
+  const valuePct = value != null ? pct(value) : null;
 
-  // --- Scrub handlers — convert a clientX on the track to a Date ---
-  const isScrubbable = onChange != null;
-  const [scrubbing, setScrubbing] = useState(false);
-  const dateFromClientX = (clientX: number): Date | null => {
+  // Range selection takes over from the single playhead when both props are set.
+  const rangeMode = rangeValue != null && onRangeChange != null;
+  const rangeStartPct = rangeValue ? pct(rangeValue[0]) : null;
+  const rangeEndPct = rangeValue ? pct(rangeValue[1]) : null;
+
+  // --- Pointer → Date helpers ---
+  const rawDateFromClientX = (clientX: number): Date | null => {
     const el = trackRef.current;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
     if (rect.width <= 0) return null;
     const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const raw = new Date(start.getTime() + fraction * (end.getTime() - start.getTime()));
-    return snapDate(raw, snap, snapCandidates);
+    return new Date(start.getTime() + fraction * (end.getTime() - start.getTime()));
+  };
+  const dateFromClientX = (clientX: number): Date | null => {
+    const raw = rawDateFromClientX(clientX);
+    return raw ? snapDate(raw, snap, snapCandidates) : null;
+  };
+  const clampMs = (ms: number) => Math.max(start.getTime(), Math.min(end.getTime(), ms));
+
+  const isScrubbable = onChange != null && !rangeMode;
+  const [scrubbing, setScrubbing] = useState(false);
+
+  // Which range bound (or the band) a drag is moving; a ref so moves don't
+  // re-render. Captured bounds let the band translate while preserving width.
+  const rangeDrag = useRef<{
+    target: "start" | "end" | "region";
+    grabMs: number;
+    startMs: number;
+    endMs: number;
+  } | null>(null);
+
+  const applyRangeDrag = (clientX: number) => {
+    const dr = rangeDrag.current;
+    if (!dr || !onRangeChange) return;
+    if (dr.target === "region") {
+      const raw = rawDateFromClientX(clientX);
+      if (!raw) return;
+      const width = dr.endMs - dr.startMs;
+      const s = Math.max(
+        start.getTime(),
+        Math.min(end.getTime() - width, dr.startMs + (raw.getTime() - dr.grabMs)),
+      );
+      onRangeChange([new Date(s), new Date(s + width)]);
+    } else {
+      const at = dateFromClientX(clientX);
+      if (!at) return;
+      if (dr.target === "start") {
+        onRangeChange([new Date(Math.min(clampMs(at.getTime()), dr.endMs)), new Date(dr.endMs)]);
+      } else {
+        onRangeChange([
+          new Date(dr.startMs),
+          new Date(Math.max(clampMs(at.getTime()), dr.startMs)),
+        ]);
+      }
+    }
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (rangeValue && onRangeChange) {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setScrubbing(true);
+      const raw = rawDateFromClientX(e.clientX);
+      if (!raw) return;
+      const hit = (e.target as HTMLElement).closest("[data-bound]") as HTMLElement | null;
+      let target = hit?.dataset.bound as "start" | "end" | "region" | undefined;
+      if (!target) {
+        // Empty track — grab the nearer bound.
+        const at = dateFromClientX(e.clientX) ?? raw;
+        target =
+          Math.abs(at.getTime() - rangeValue[0].getTime()) <=
+          Math.abs(at.getTime() - rangeValue[1].getTime())
+            ? "start"
+            : "end";
+      }
+      rangeDrag.current = {
+        target,
+        grabMs: raw.getTime(),
+        startMs: rangeValue[0].getTime(),
+        endMs: rangeValue[1].getTime(),
+      };
+      if (target !== "region") applyRangeDrag(e.clientX);
+      return;
+    }
     if (!isScrubbable) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setScrubbing(true);
@@ -148,16 +228,39 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     if (d) onChange?.(d);
   };
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isScrubbable) return;
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    if (rangeMode) {
+      applyRangeDrag(e.clientX);
+      return;
+    }
+    if (!isScrubbable) return;
     const d = dateFromClientX(e.clientX);
     if (d) onChange?.(d);
   };
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isScrubbable) return;
     setScrubbing(false);
+    rangeDrag.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  // Keyboard: arrows nudge a focused range handle by 1% of the span.
+  const nudgeRange = (target: "start" | "end") => (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!rangeValue || !onRangeChange) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const stepMs = ((end.getTime() - start.getTime()) / 100) * (e.key === "ArrowRight" ? 1 : -1);
+    if (target === "start") {
+      onRangeChange([
+        new Date(Math.min(clampMs(rangeValue[0].getTime() + stepMs), rangeValue[1].getTime())),
+        rangeValue[1],
+      ]);
+    } else {
+      onRangeChange([
+        rangeValue[0],
+        new Date(Math.max(clampMs(rangeValue[1].getTime() + stepMs), rangeValue[0].getTime())),
+      ]);
     }
   };
 
@@ -299,6 +402,51 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
             >
               <span className={styles.playheadGrabber} />
             </div>
+          ) : null}
+
+          {/* Range selection — a draggable band between two handles */}
+          {rangeStartPct != null && rangeEndPct != null ? (
+            <>
+              <div
+                className={styles.rangeRegion}
+                data-bound="region"
+                style={{ left: `${rangeStartPct}%`, width: `${rangeEndPct - rangeStartPct}%` }}
+                data-testid="timeline-range-region"
+                aria-hidden="true"
+              />
+              <div
+                className={styles.rangeHandle}
+                data-bound="start"
+                style={{ left: `${rangeStartPct}%` }}
+                role="slider"
+                tabIndex={0}
+                aria-label="Range start"
+                aria-valuemin={start.getTime()}
+                aria-valuemax={end.getTime()}
+                aria-valuenow={rangeValue ? rangeValue[0].getTime() : undefined}
+                aria-valuetext={rangeValue ? rangeValue[0].toISOString() : undefined}
+                data-testid="timeline-range-start"
+                onKeyDown={nudgeRange("start")}
+              >
+                <span className={styles.playheadGrabber} />
+              </div>
+              <div
+                className={styles.rangeHandle}
+                data-bound="end"
+                style={{ left: `${rangeEndPct}%` }}
+                role="slider"
+                tabIndex={0}
+                aria-label="Range end"
+                aria-valuemin={start.getTime()}
+                aria-valuemax={end.getTime()}
+                aria-valuenow={rangeValue ? rangeValue[1].getTime() : undefined}
+                aria-valuetext={rangeValue ? rangeValue[1].toISOString() : undefined}
+                data-testid="timeline-range-end"
+                onKeyDown={nudgeRange("end")}
+              >
+                <span className={styles.playheadGrabber} />
+              </div>
+            </>
           ) : null}
         </div>
       </div>
