@@ -67,6 +67,13 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   compact?: boolean;
   /** Wrap the strip in an Input-style border (1px + radius). Default false. */
   bordered?: boolean;
+  /** Resting depth — same `--sf-elevation-N` scale as Box / Input (0–5). Pairs
+   *  with `bordered`. Default 0 (flat). */
+  elevation?: 0 | 1 | 2 | 3 | 4 | 5;
+  /** Float a small value tag above the playhead / range handles. Default false. */
+  valueLabel?: boolean;
+  /** Format a scrub-head value for its tag. Default: `YYYY-MM-DD`. */
+  formatValue?: (date: Date) => ReactNode;
   children?: ReactNode;
 }
 
@@ -84,6 +91,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     maxLanes = 3,
     compact = false,
     bordered = false,
+    elevation = 0,
+    valueLabel = false,
+    formatValue,
     className,
     style,
     children,
@@ -139,6 +149,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
       ? Math.max(0, Math.min(100, ((d.getTime() - start.getTime()) / MS_DAY / totalDays) * 100))
       : 0;
   const valuePct = value != null ? pct(value) : null;
+  const fmtValue = formatValue ?? defaultFormatValue;
 
   // Range selection takes over from the single playhead when both props are set.
   const rangeMode = rangeValue != null && onRangeChange != null;
@@ -348,6 +359,8 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
         style={wrapperStyle}
         data-compact={compact || undefined}
         data-bordered={bordered || undefined}
+        data-elevation={elevation || undefined}
+        data-value-label={valueLabel || undefined}
         data-scrubbing={scrubbing || undefined}
       >
         <div
@@ -404,6 +417,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
               data-testid="timeline-playhead"
               aria-hidden="true"
             >
+              {valueLabel && value != null ? (
+                <span className={styles.scrubValue}>{fmtValue(value)}</span>
+              ) : null}
               <span className={styles.playheadGrabber} />
             </div>
           ) : null}
@@ -432,6 +448,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 data-testid="timeline-range-start"
                 onKeyDown={nudgeRange("start")}
               >
+                {valueLabel && rangeValue ? (
+                  <span className={styles.scrubValue}>{fmtValue(rangeValue[0])}</span>
+                ) : null}
                 <span className={styles.playheadGrabber} />
               </div>
               <div
@@ -448,6 +467,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 data-testid="timeline-range-end"
                 onKeyDown={nudgeRange("end")}
               >
+                {valueLabel && rangeValue ? (
+                  <span className={styles.scrubValue}>{fmtValue(rangeValue[1])}</span>
+                ) : null}
                 <span className={styles.playheadGrabber} />
               </div>
             </>
@@ -517,6 +539,11 @@ const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEv
 });
 
 // --- Snap helper -------------------------------------------------------
+
+/** Default scrub-value formatter — ISO `YYYY-MM-DD`. */
+function defaultFormatValue(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
 
 function snapDate(raw: Date, mode: TimelineSnap, candidates: Date[]): Date {
   if (mode === "none" || candidates.length === 0) return raw;

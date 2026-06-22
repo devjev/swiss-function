@@ -349,3 +349,45 @@ test("bordered adds an Input-style 1px frame", async ({ mount }) => {
   await expect(c).toHaveCSS("border-top-width", "1px");
   await expect(c).toHaveCSS("border-top-style", "solid");
 });
+
+test("elevation applies a resting drop shadow", async ({ mount }) => {
+  const c = await mount(
+    <Timeline bordered elevation={2} start={new Date("2026-01-01")} end={new Date("2026-12-31")} />,
+  );
+  await expect(c).not.toHaveCSS("box-shadow", "none");
+});
+
+// Note: `formatValue` can't be exercised through Playwright CT (a synchronous-
+// return function prop can't cross the mount RPC boundary), so these rely on the
+// default ISO `YYYY-MM-DD` formatter.
+test("valueLabel renders a formatted tag above the playhead", async ({ mount }) => {
+  // The tag floats above the strip, so give the mount headroom (mirrors the story).
+  const c = await mount(
+    <div style={{ paddingTop: "3rem" }}>
+      <Timeline
+        valueLabel
+        value={new Date("2026-06-15")}
+        start={new Date("2026-06-01")}
+        end={new Date("2026-06-30")}
+        onChange={() => {}}
+      />
+    </div>,
+  );
+  await expect(c.getByText("2026-06-15")).toBeVisible();
+});
+
+test("valueLabel renders a tag above each range handle", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ paddingTop: "3rem" }}>
+      <Timeline
+        valueLabel
+        rangeValue={[new Date("2026-03-01"), new Date("2026-08-01")]}
+        onRangeChange={() => {}}
+        start={new Date("2026-01-01")}
+        end={new Date("2026-12-31")}
+      />
+    </div>,
+  );
+  await expect(c.getByText("2026-03-01")).toBeVisible();
+  await expect(c.getByText("2026-08-01")).toBeVisible();
+});

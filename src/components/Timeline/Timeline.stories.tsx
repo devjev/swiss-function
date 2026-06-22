@@ -167,6 +167,61 @@ export const RangeSelect: Story = () => {
 };
 
 /**
+ * Floating value labels — a tag above each scrub head shows its formatted date.
+ * Works for the single playhead and for both range handles.
+ */
+export const ValueLabels: Story = () => {
+  const start = new Date("2026-06-01");
+  const end = new Date("2026-06-14");
+  const [value, setValue] = useState<Date>(new Date("2026-06-05"));
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return (
+    <div style={{ width: "min(50rem, 100%)", paddingTop: "2rem" }}>
+      <Timeline
+        start={start}
+        end={end}
+        value={value}
+        onChange={setValue}
+        valueLabel
+        formatValue={fmt}
+      >
+        <Timeline.Event date={new Date("2026-06-03")}>Merged #147</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-06")}>Hotfix</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-10")}>Post-mortem</Timeline.Event>
+      </Timeline>
+    </div>
+  );
+};
+
+/**
+ * Range value labels on a bordered, elevated strip — each handle carries its
+ * own floating tag, and the framed strip casts a resting shadow.
+ */
+export const RangeValueLabels: Story = () => {
+  const [range, setRange] = useState<[Date, Date]>([
+    new Date("2026-03-01"),
+    new Date("2026-08-01"),
+  ]);
+  return (
+    <div style={{ width: "min(50rem, 100%)", paddingBlock: "2rem" }}>
+      <Timeline
+        start={new Date("2026-01-01")}
+        end={new Date("2026-12-31")}
+        rangeValue={range}
+        onRangeChange={setRange}
+        bordered
+        elevation={2}
+        valueLabel
+        formatValue={(d) => d.toISOString().slice(0, 10)}
+      >
+        <Timeline.Event date={new Date("2026-04-22")}>Beta</Timeline.Event>
+        <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
+      </Timeline>
+    </div>
+  );
+};
+
+/**
  * Snap to events — the playhead jumps to the nearest event date as you scrub.
  */
 export const SnapToEvents: Story = () => {
