@@ -93,6 +93,50 @@ export function TreeHarness({
   );
 }
 
+// --- Merged-cell harness ---
+
+type TeamRow = { id: string; dept: string; name: string; q1: number; q2: number };
+
+// Fixed dataset: the first three rows share a department, so the Department
+// column merges into a 3-row span; the rest are singletons.
+const TEAM_DATA: TeamRow[] = [
+  { id: "1", dept: "Engineering", name: "Ada", q1: 12, q2: 15 },
+  { id: "2", dept: "Engineering", name: "Bo", q1: 9, q2: 11 },
+  { id: "3", dept: "Engineering", name: "Cai", q1: 14, q2: 13 },
+  { id: "4", dept: "Design", name: "Dani", q1: 7, q2: 8 },
+];
+
+export function MergeHarness() {
+  const columns: ColumnDef<TeamRow>[] = [
+    { id: "dept", header: "Department", accessor: "dept", width: 10 },
+    { id: "name", header: "Name", accessor: "name" },
+    {
+      id: "y2026",
+      header: "2026",
+      columns: [
+        { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 5 },
+        { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 5 },
+      ],
+    },
+  ];
+  return (
+    <DataTable<TeamRow>
+      data={TEAM_DATA}
+      columns={columns}
+      height={300}
+      getCellSpan={({ rowIndex, colIndex }) => {
+        if (colIndex !== 0) return undefined;
+        const dept = TEAM_DATA[rowIndex]?.dept;
+        if (dept == null) return undefined;
+        if (TEAM_DATA[rowIndex - 1]?.dept === dept) return undefined;
+        let rowSpan = 1;
+        while (TEAM_DATA[rowIndex + rowSpan]?.dept === dept) rowSpan++;
+        return rowSpan > 1 ? { rowSpan } : undefined;
+      }}
+    />
+  );
+}
+
 // --- Column-group harness ---
 
 type AddrRow = { name: string; street: string; city: string; zip: string; age: number };

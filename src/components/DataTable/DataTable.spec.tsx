@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DataTableHarness, GroupsHarness, TreeHarness } from "./DataTable.harness";
+import { DataTableHarness, GroupsHarness, MergeHarness, TreeHarness } from "./DataTable.harness";
 
 const COLUMNS = ["name", "age", "active"];
 const DATA = [
@@ -393,4 +393,33 @@ test("columns shrink to fit a narrow container, then scroll with the header span
     .first()
     .evaluate((el) => Math.round(el.getBoundingClientRect().width));
   expect(headerW).toBeGreaterThan(m2.c); // header background spans the full content, not the viewport
+});
+
+test("merge: covered cells are blanked and the lead carries the content", async ({ mount }) => {
+  const c = await mount(<MergeHarness />);
+  // Department merges rows 0–2 ("Engineering"): only the lead shows the text,
+  // the two covered cells render blank.
+  await expect(c.getByRole("gridcell").filter({ hasText: "Engineering" })).toHaveCount(1);
+  // Internal seams erased on the lead + the middle covered cell, not the region's
+  // last row — so exactly two cells in the merged column carry data-merge-bottom.
+  await expect(c.locator('[role="gridcell"][data-merge-bottom]')).toHaveCount(2);
+});
+
+test("merge: a suppressed edge resolves to the no-op shadow", async ({ mount }) => {
+  const c = await mount(<MergeHarness />);
+  const lead = c.getByRole("gridcell").filter({ hasText: "Engineering" });
+  // The lead's bottom edge (toward the covered cell below) is erased.
+  const edgeB = await lead.evaluate((el) =>
+    getComputedStyle(el).getPropertyValue("--sf-cell-edge-b").trim(),
+  );
+  expect(edgeB).toBe("0 0 transparent");
+});
+
+test("merge: an ungrouped leaf header fills the full header height", async ({ mount }) => {
+  const c = await mount(<MergeHarness />);
+  // "Department" is ungrouped, so its placeholder above merges down.
+  const placeholders = c.locator('[role="columnheader"][data-merge-bottom]');
+  await expect(placeholders.first()).toBeVisible();
+  // The grouped "2026" header colspans its two quarter columns (existing behaviour).
+  await expect(c.getByRole("columnheader", { name: "2026" })).toBeVisible();
 });

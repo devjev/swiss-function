@@ -390,3 +390,49 @@ export const TreeAndColumnGroups: Story = () => (
     height={320}
   />
 );
+
+// Visually merged cells. The "Department" column merges down across consecutive
+// rows that share a value (rowspan), and the grouped "2026" header spans its two
+// quarter columns (colspan) while the ungrouped Department/Name headers fill the
+// full header height (rowspan) instead of leaving a hollow box on top.
+type TeamRow = { id: string; dept: string; name: string; q1: number; q2: number };
+
+const teamData: TeamRow[] = [
+  { id: "1", dept: "Engineering", name: "Ada", q1: 12, q2: 15 },
+  { id: "2", dept: "Engineering", name: "Bo", q1: 9, q2: 11 },
+  { id: "3", dept: "Engineering", name: "Cai", q1: 14, q2: 13 },
+  { id: "4", dept: "Design", name: "Dani", q1: 7, q2: 8 },
+  { id: "5", dept: "Design", name: "Em", q1: 10, q2: 12 },
+  { id: "6", dept: "Sales", name: "Fae", q1: 20, q2: 22 },
+];
+
+const teamColumns: ColumnDef<TeamRow>[] = [
+  { id: "dept", header: "Department", accessor: "dept", width: 10 },
+  { id: "name", header: "Name", accessor: "name" },
+  {
+    id: "y2026",
+    header: "2026",
+    columns: [
+      { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 5 },
+      { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 5 },
+    ],
+  },
+];
+
+export const MergedCells: Story = () => (
+  <DataTable<TeamRow>
+    data={teamData}
+    columns={teamColumns}
+    height={320}
+    getCellSpan={({ rowIndex, colIndex }) => {
+      // Only the Department column merges, and only at the top of each run.
+      if (colIndex !== 0) return undefined;
+      const dept = teamData[rowIndex]?.dept;
+      if (dept == null) return undefined;
+      if (teamData[rowIndex - 1]?.dept === dept) return undefined;
+      let rowSpan = 1;
+      while (teamData[rowIndex + rowSpan]?.dept === dept) rowSpan++;
+      return rowSpan > 1 ? { rowSpan } : undefined;
+    }}
+  />
+);

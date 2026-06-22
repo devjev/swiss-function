@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
+import { computeMergeMap } from "./cellSpans";
 import { buildColumnTemplate, COLUMN_MIN_UNITS, resizeBoundary } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
@@ -21,6 +22,7 @@ import type {
   AdvanceHint,
   Cell,
   CellChange,
+  CellSpanFn,
   ColumnDef,
   ExpandedState,
   LeafColumnDef,
@@ -62,6 +64,11 @@ export interface DataTableProps<T>
   /** Fade the rows nearest the bottom scroll edge with a dithered mask, hinting
    *  there's more to scroll. The sticky header is never faded. Default `false`. */
   edgeFade?: boolean;
+  /** Visually merge cells. Return e.g. `{ rowSpan: 3 }` at the top-left ("lead")
+   *  cell of a region; the cells it covers are blanked and the internal borders
+   *  erased so the region reads as one cell. Spans are by visible position, so
+   *  recompute from the current sort order if needed. */
+  getCellSpan?: CellSpanFn<T>;
 
   /** Return child rows for a parent. Omit for flat tables. */
   getSubRows?: (row: T) => T[] | undefined;
@@ -145,6 +152,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     resizableColumns = true,
     scrollSnap = "none",
     edgeFade = false,
+    getCellSpan,
     getSubRows,
     treeColumn,
     defaultExpanded,
@@ -560,6 +568,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [visibleLeaves, columnWidths],
   );
 
+  // --- Visual cell merge (blank covered cells + erase internal seams) ---
+  // O(rows × cols), and only when `getCellSpan` is set — intended for the modest
+  // tables that use merging, not huge virtualized datasets.
+  const mergeMap = useMemo(() => {
+    if (!getCellSpan) return null;
+    return computeMergeMap({
+      rowCount: visibleRows.length,
+      colCount,
+      getSpan: (r, c) => {
+        const vr = visibleRows[r];
+        const col = visibleLeaves[c];
+        if (!vr || !col) return undefined;
+        return getCellSpan({ rowIndex: r, colIndex: c, row: vr.original, column: col });
+      },
+    });
+  }, [getCellSpan, visibleRows, colCount, visibleLeaves]);
+
   // --- Tree column index (where the chevron + indent live) ---
   const treeColIdx = useMemo(() => {
     if (!getSubRows) return -1;
@@ -582,6 +607,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
     // A column explicitly opted out of resizing (only meaningful when the table
     // is otherwise resizable) — gets a subtle "fixed width" hint.
     const isLocked = resizableColumns && colDef.resizable === false;
+
+    // Visual merge: covered cells render blank; internal seams are erased via the
+    // data-merge-* attributes (see `.cell` in the stylesheet).
+    const key = cellKey(rowIndex, colIndex);
+    const isCovered = mergeMap?.covered.has(key) ?? false;
+    const mergeRight = mergeMap?.suppressRight.has(key) || undefined;
+    const mergeBottom = mergeMap?.suppressBottom.has(key) || undefined;
 
     const content = (
       <>
@@ -620,12 +652,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-align={align}
         data-tree-cell={isTreeCell || undefined}
         data-locked={isLocked || undefined}
+        data-merge-right={mergeRight}
+        data-merge-bottom={mergeBottom}
         className={styles.cell}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
         onPointerEnter={() => handleCellPointerEnter(cell)}
         onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
       >
-        {isEditing && colDef.edit ? (
+        {/* Covered cells render blank — the lead cell carries the content. */}
+        {isCovered ? null : isEditing && colDef.edit ? (
           <CellEditor
             value={getValueAt(rowIndex, colIndex)}
             config={colDef.edit}
@@ -698,6 +733,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   data-align={isGroupHeader ? "center" : "start"}
                   data-sortable={canSort || undefined}
                   data-locked={isLocked || undefined}
+                  // A placeholder sits above an ungrouped leaf's real header —
+                  // erase the seam below it so the column reads as one full-height
+                  // header instead of a hollow box stacked on the title.
+                  data-merge-bottom={header.isPlaceholder || undefined}
                   onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                 >
                   {!header.isPlaceholder && (

@@ -71,10 +71,16 @@
   top: 0;
   z-index: 1;
   background-color: var(--sf-color-bg-subtle);
-  border-bottom: 1px solid var(--sf-color-border-subtle);
 }
 
+/* Same per-cell edge model as body cells (see `.cell`): each header cell draws
+   its own right + bottom separator via two custom properties, so a seam can be
+   erased per-column — e.g. an ungrouped leaf merging up through its empty
+   placeholder cell to fill the full header height. The bottom edge of the last
+   header row is the header/body divider. */
 .headerCell {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
@@ -83,9 +89,15 @@
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
-  border-inline-end: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
   user-select: none;
   position: relative;
+}
+
+/* Placeholder above an ungrouped leaf: erase the seam below it so the empty top
+   cell reads as one full-height header with the titled leaf underneath. */
+.headerCell[data-merge-bottom] {
+  --sf-cell-edge-b: 0 0 transparent;
 }
 
 /* Column resize handle — a wide invisible hit target straddling the column's
@@ -142,7 +154,8 @@
    trailing separator, plus an inert edge zone that shows `not-allowed` and a
    muted (non-primary) hairline when the locked header is hovered. */
 .headerCell[data-locked] {
-  border-inline-end-style: dashed;
+  --sf-cell-edge-r: 0 0 transparent;
+  border-inline-end: 1px dashed var(--sf-color-border-subtle);
 }
 
 .lockedEdge {
@@ -177,7 +190,7 @@
 }
 
 .headerCell:last-child {
-  border-inline-end: none;
+  --sf-cell-edge-r: 0 0 transparent;
 }
 
 .headerCell[data-align="end"] {
@@ -207,28 +220,26 @@
   min-width: min-content;
 }
 
-/* Use inset box-shadow instead of border-bottom so row height equals exactly
-   rowHeight (border-box would subtract 1px from content, making absolutely
-   positioned editors overflow downward and cover this separator). */
 .row {
   display: grid;
   min-width: min-content;
-  box-shadow: inset 0 -1px 0 var(--sf-color-border-subtle);
 }
 
-.row:last-child {
-  box-shadow: none;
-}
-
+/* Separators are inset box-shadows (not borders) so the row height equals exactly
+   rowHeight — a border-box border would subtract 1px from content, making
+   absolutely positioned editors overflow downward and cover the separator. Each
+   cell draws its own right + bottom edge via two custom properties, so a single
+   edge can be erased (e.g. to merge cells visually) without fighting the single
+   `box-shadow` property. `0 0 transparent` is a valid no-op shadow. */
 .cell {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   display: flex;
   align-items: center;
   padding: 0 calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
-  /* Same trick as row separator — inset shadow so cell content area stays exactly
-     the grid track width. */
-  box-shadow: inset -1px 0 0 var(--sf-color-border-subtle);
+  box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
   outline: none;
   overflow: hidden;
   white-space: nowrap;
@@ -241,15 +252,28 @@
   user-select: none;
 }
 
+/* Outer table edges: no trailing right border on the last column, no bottom
+   border under the last row (keep the perpendicular edge). */
 .cell:last-child {
-  box-shadow: none;
+  --sf-cell-edge-r: 0 0 transparent;
+}
+.row:last-child .cell {
+  --sf-cell-edge-b: 0 0 transparent;
 }
 
-/* Locked column: dashed trailing separator to match the header hint. Uses a
-   real border (box-border keeps the cell exactly one track wide) instead of the
-   solid box-shadow line the other cells use. */
+/* Visually merged region: erase the internal seam toward the covered neighbour. */
+.cell[data-merge-right] {
+  --sf-cell-edge-r: 0 0 transparent;
+}
+.cell[data-merge-bottom] {
+  --sf-cell-edge-b: 0 0 transparent;
+}
+
+/* Locked column: dashed trailing separator to match the header hint — a real
+   border (box-border keeps the cell exactly one track wide) instead of the solid
+   box-shadow line. The bottom edge stays on the box-shadow. */
 .cell[data-locked] {
-  box-shadow: none;
+  --sf-cell-edge-r: 0 0 transparent;
   border-inline-end: 1px dashed var(--sf-color-border-subtle);
 }
 

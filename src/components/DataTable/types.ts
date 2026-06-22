@@ -62,6 +62,19 @@ export interface GroupColumnDef<T> {
 
 export type ColumnDef<T> = LeafColumnDef<T> | GroupColumnDef<T>;
 
+/** How many rows/columns a cell visually merges across (1 = no span). */
+export type CellSpan = { rowSpan?: number; colSpan?: number };
+
+/** Return a span at the top-left ("lead") cell of a region to visually merge it.
+ *  Covered cells are blanked and the internal borders erased. Spans are by
+ *  visible position, so recompute from the current sort order if needed. */
+export type CellSpanFn<T> = (ctx: {
+  rowIndex: number;
+  colIndex: number;
+  row: T;
+  column: LeafColumnDef<T>;
+}) => CellSpan | undefined;
+
 /** Type guard — true when the column is a header group. */
 export function isGroup<T>(col: ColumnDef<T>): col is GroupColumnDef<T> {
   return "columns" in col && Array.isArray((col as GroupColumnDef<T>).columns);
