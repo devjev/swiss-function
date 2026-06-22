@@ -58,3 +58,14 @@ test("consumer style wins over computed sizing", async ({ mount }) => {
   const width = await component.evaluate((el) => getComputedStyle(el).width);
   expect(width).toBe("200px");
 });
+
+test("default skeleton has no canvas (shimmer only)", async ({ mount }) => {
+  const c = await mount(<Skeleton />);
+  expect(await c.locator("canvas").count()).toBe(0);
+});
+
+test("effect renders a dithered-fill canvas and flags the root", async ({ mount }) => {
+  const c = await mount(<Skeleton effect="noise" height={4} />);
+  await expect(c).toHaveAttribute("data-effect", "");
+  expect(await c.locator("canvas").count()).toBe(1);
+});

@@ -41,6 +41,20 @@
   }
 }
 
+/* Dithered-effect mode: the canvas replaces the shimmer sweep. */
+.root[data-effect]::after {
+  content: none;
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Subtle by default — the dither reads as a quiet placeholder texture. */
+  color: var(--sf-color-border-subtle);
+}
+
 .shapeCircle {
   border-radius: 50%;
   aspect-ratio: 1 / 1;

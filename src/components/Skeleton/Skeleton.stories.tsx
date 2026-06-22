@@ -18,6 +18,14 @@ export const Rect: Story = () => (
   </div>
 );
 
+export const DitheredEffect: Story = () => (
+  <div style={{ display: "grid", gap: "1rem", maxWidth: "calc(var(--sf-unit) * 20)" }}>
+    <Skeleton effect="noise" height={4} />
+    <Skeleton effect="plasma" height={4} />
+    <Skeleton effect="ripple" height={4} />
+  </div>
+);
+
 export const Sized: Story = () => (
   <Grid gap={0.5}>
     <Skeleton width={20} height={1} />
