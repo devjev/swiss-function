@@ -29,9 +29,10 @@ export const MonthlyTicks: Story = () => (
 export const Compact: Story = () => {
   const [value, setValue] = useState<Date>(new Date("2026-05-01"));
   return (
-    <div style={{ width: "min(50rem, 100%)" }}>
+    <div style={{ width: "min(50rem, 100%)", paddingTop: "2rem" }}>
       <Timeline
         compact
+        bordered
         start={new Date("2026-01-01")}
         end={new Date("2026-12-31")}
         value={value}
@@ -43,7 +44,8 @@ export const Compact: Story = () => {
         <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
       </Timeline>
       <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
-        Labels are hidden until you hover an event — or scrub the playhead near one.
+        A thin bordered strip (compact). Labels are hidden until you hover an event — or scrub the
+        playhead near one — and float above the box.
       </p>
     </div>
   );

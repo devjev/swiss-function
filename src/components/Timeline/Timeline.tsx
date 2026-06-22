@@ -65,6 +65,8 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   /** Compact strip: hide event labels at rest (revealed on hover/focus, and for
    *  the event nearest the playhead while scrubbing) and collapse to one lane. */
   compact?: boolean;
+  /** Wrap the strip in an Input-style border (1px + radius). Default false. */
+  bordered?: boolean;
   children?: ReactNode;
 }
 
@@ -81,6 +83,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     showNow = true,
     maxLanes = 3,
     compact = false,
+    bordered = false,
     className,
     style,
     children,
@@ -344,6 +347,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
         className={cx(styles.viewport, className)}
         style={wrapperStyle}
         data-compact={compact || undefined}
+        data-bordered={bordered || undefined}
         data-scrubbing={scrubbing || undefined}
       >
         <div

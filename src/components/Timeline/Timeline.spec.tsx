@@ -341,3 +341,11 @@ test("range: arrow keys nudge a focused handle", async ({ mount, page }) => {
   await page.keyboard.press("ArrowRight");
   expect(range[0].getTime()).toBeGreaterThan(new Date(2026, 5, 1).getTime());
 });
+
+test("bordered adds an Input-style 1px frame", async ({ mount }) => {
+  const c = await mount(
+    <Timeline bordered start={new Date("2026-01-01")} end={new Date("2026-12-31")} />,
+  );
+  await expect(c).toHaveCSS("border-top-width", "1px");
+  await expect(c).toHaveCSS("border-top-style", "solid");
+});

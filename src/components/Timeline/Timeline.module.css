@@ -8,6 +8,7 @@
   font-family: var(--sf-font-sans);
   /* Dragging the playhead or a range handle shouldn't select label/tick text. */
   user-select: none;
+  box-sizing: border-box;
   block-size: calc(
     var(--sf-unit) *
     1.5 +
@@ -17,6 +18,12 @@
     var(--sf-unit) *
     1.25
   );
+}
+
+/* Optional Input-style frame around the strip. */
+.viewport[data-bordered] {
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
 }
 
 /* The track holds the axis + ticks + events. Width is set inline based on
@@ -214,6 +221,12 @@
    the event nearest the playhead. */
 .viewport[data-compact] {
   block-size: var(--sf-unit);
+  /* The strip itself doesn't scroll (the track fills it), so let revealed
+     labels float above the box instead of being clipped to one unit. */
+  overflow: visible;
+}
+.viewport[data-compact] .track {
+  overflow: visible;
 }
 .viewport[data-compact] .axis,
 .viewport[data-compact] .eventMarker {
@@ -227,9 +240,8 @@
   display: none;
 }
 .viewport[data-compact] .eventLabel {
-  /* Centered inside the strip; its opaque bg makes it readable over the axis. */
-  bottom: 50%;
-  transform: translateY(50%);
+  /* Float just above the strip on reveal (the box no longer clips it). */
+  bottom: calc(var(--sf-unit) + var(--sf-unit) / 8);
   padding-block: 1px;
   opacity: 0;
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
