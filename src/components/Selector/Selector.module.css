@@ -1,0 +1,45 @@
+.root {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  inline-size: 100%;
+}
+
+.empty {
+  padding: var(--sf-space-2) var(--sf-space-3);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+/* The "bucket": a bordered container collecting the chosen items. */
+.bucket {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 2);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+}
+
+.bucketHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-fg);
+}
+
+/* The count is secondary metadata — muted is appropriate here. */
+.count {
+  color: var(--sf-color-muted);
+  font-weight: var(--sf-font-weight-regular);
+}
+
+.bucketBody {
+  min-block-size: calc(var(--sf-unit) * 1.5);
+}
+
+.bucketEmpty {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}

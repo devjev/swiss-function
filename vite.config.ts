@@ -39,6 +39,7 @@ const componentNames = [
   "Timeline",
   "ToggleGroup",
   "Accordion",
+  "Selector",
 ];
 
 const componentEntries = Object.fromEntries(

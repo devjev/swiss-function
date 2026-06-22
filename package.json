@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -163,6 +163,10 @@
     "./toggle-group": {
       "types": "./dist/components/ToggleGroup/index.d.ts",
       "import": "./dist/components/ToggleGroup/index.js"
+    },
+    "./selector": {
+      "types": "./dist/components/Selector/index.d.ts",
+      "import": "./dist/components/Selector/index.js"
     },
     "./package.json": "./package.json"
   },

@@ -25,6 +25,7 @@ export * from "./components/Popover";
 export * from "./components/Prose";
 export * from "./components/Radio";
 export * from "./components/Scatterplot";
+export * from "./components/Selector";
 export * from "./components/Skeleton";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Switch";

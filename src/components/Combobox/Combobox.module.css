@@ -51,6 +51,7 @@
 .item {
   display: flex;
   align-items: center;
+  gap: var(--sf-space-2);
   padding: var(--sf-space-2) var(--sf-space-3);
   border-radius: var(--sf-radius-default);
   font-size: var(--sf-font-size-sm);
@@ -62,8 +63,151 @@
   background-color: var(--sf-color-bg-subtle);
 }
 
+.item[data-selected] {
+  font-weight: var(--sf-font-weight-medium);
+}
+
 .empty {
   padding: var(--sf-space-2) var(--sf-space-3);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
+}
+
+/* Checkmark slot in the dropdown. Reserve width so labels don't shift when
+   selection toggles; the glyph itself is supplied by the consumer's children. */
+.itemIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1em;
+  color: var(--sf-color-primary);
+}
+
+/* Multi-select: the input and its chips share one bordered group, mirroring
+   the standalone `.input` treatment. */
+.inputGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  inline-size: 100%;
+  min-block-size: calc(var(--sf-unit) * 1.5);
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.inputGroup:hover {
+  border-color: var(--sf-color-primary-hover);
+}
+
+.inputGroup:focus-within {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* When the input lives inside a group, it sheds its own border/sizing and
+   just flexes to fill the remaining row. */
+.inputGroup .input {
+  flex: 1 1 6rem;
+  inline-size: auto;
+  min-inline-size: 6rem;
+  block-size: auto;
+  padding-inline: 0;
+  border: none;
+  outline: none;
+}
+
+.inputGroup .input:hover:not(:disabled),
+.inputGroup .input:focus-visible {
+  border: none;
+  outline: none;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  padding: 0 calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-subtle);
+  /* Sharp corners — deliberately not a pill. */
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-tight);
+  white-space: nowrap;
+}
+
+.chip[data-highlighted] {
+  border-color: var(--sf-color-primary);
+}
+
+.chipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--sf-color-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.chipRemove:hover,
+.chipRemove:focus-visible {
+  color: var(--sf-color-fg);
+}
+
+.chipRemove:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.clear {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 calc(var(--sf-unit) / 4);
+  background: none;
+  border: none;
+  color: var(--sf-color-muted);
+  font-family: var(--sf-font-mono);
+  font-size: var(--sf-font-size-sm);
+  cursor: pointer;
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.clear:hover,
+.clear:focus-visible {
+  color: var(--sf-color-fg);
+}
+
+.clear:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inputGroup,
+  .chipRemove,
+  .clear {
+    transition: none;
+  }
 }

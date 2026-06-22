@@ -74,7 +74,8 @@ Ladle (`npm run dev`).
 | `Radio`         | Single-choice within a group.                             |
 | `Switch`        | Binary on/off for a setting, with an immediate effect.    |
 | `ToggleGroup`   | Mutually-exclusive segmented control.                     |
-| `Combobox`      | Input + filterable dropdown. For "type to find" choices.  |
+| `Combobox`      | Input + filterable dropdown. For "type to find" choices. Pass `multiple` plus the chip parts (`Combobox.Chips` / `.Chip` / `.ChipRemove` / `.Clear`, inside `Combobox.InputGroup`) for an inline tag-input. |
+| `Selector`      | Search + multi-select with a visible "bucket" of chosen items as removable chips. `layout="panel"` (separate bucket, default) or `"inline"` (tag-input). High-level: `<Selector items value onChange />`. Built on a multi-select `Combobox`. |
 
 ### Surfaces & layout
 
@@ -232,6 +233,7 @@ Common requests and the right component:
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
+| "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |
 | "a Cmd-K palette" / "quick switcher"               | `CommandBar`                                     |
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |
