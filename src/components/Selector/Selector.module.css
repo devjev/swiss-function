@@ -54,6 +54,27 @@
   overflow: hidden;
 }
 
+/* Fixed height matching the Input of the same size (Combobox's base only sets a
+   `min-block-size`, so chips would otherwise grow the row). The contents center
+   vertically (align-items: center from `.inputGroup`) and the chips shrink/clip
+   to fit rather than pushing the control taller. The `[data-size]` attribute in
+   each selector keeps these ahead of Combobox's `.inputGroup[data-size]`. */
+.root .inlineGroup[data-size="sm"] {
+  block-size: var(--sf-unit);
+  min-block-size: 0;
+  padding-block: 0;
+}
+.root .inlineGroup[data-size="md"] {
+  block-size: calc(var(--sf-unit) * 1.5);
+  min-block-size: 0;
+  padding-block: 0;
+}
+.root .inlineGroup[data-size="lg"] {
+  block-size: calc(var(--sf-unit) * 2);
+  min-block-size: 0;
+  padding-block: 0;
+}
+
 /* Chips lay out in one row and clip on the right; they shrink before the
    input (its min-width keeps it usable) however many are selected. */
 .root .inlineChips {
