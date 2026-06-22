@@ -85,11 +85,10 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     [selected, byValue],
   );
 
-  // Inline layout: the collapsed control is one row tall and clips overflowing
-  // chips; we count how many wrapped past the first row to show a "+N" pill, and
-  // focus the input when the (possibly clipped) control is clicked so it expands.
+  // Inline layout stays exactly one row — chips never wrap; overflow is clipped
+  // horizontally and counted into a "+N" pill. The full selection is reviewed and
+  // unchecked in the dropdown, so the control never grows vertically.
   const chipsRef = useRef<HTMLDivElement>(null);
-  const inlineInputRef = useRef<HTMLInputElement>(null);
   const [hiddenCount, setHiddenCount] = useState(0);
   useLayoutEffect(() => {
     if (layout !== "inline") return;
@@ -97,8 +96,9 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     if (!el) return;
     const measure = () => {
       const chips = Array.from(el.children) as HTMLElement[];
-      const firstTop = chips[0]?.offsetTop ?? 0;
-      setHiddenCount(chips.filter((c) => c.offsetTop > firstTop + 2).length);
+      // A chip is hidden when it's clipped past the (shrunk) container's width.
+      const limit = el.clientWidth + 1;
+      setHiddenCount(chips.filter((c) => c.offsetLeft + c.offsetWidth > limit).length);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -148,36 +148,18 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       >
         {layout === "inline" ? (
           <>
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: focus-forwarding
-                wrapper for the clipped overlay; the real controls live inside. */}
-            <div
-              className={styles.inlineShell}
-              data-size={size}
-              // Clicking the collapsed (clipped) control focuses the input,
-              // which expands the overlay via :focus-within.
-              onMouseDown={(e) => {
-                const t = e.target as HTMLElement;
-                if (t.closest("button") || t === inlineInputRef.current) return;
-                e.preventDefault();
-                inlineInputRef.current?.focus();
-              }}
-            >
-              <Combobox.InputGroup data-size={size} className={styles.inlineGroup}>
-                <Combobox.Chips ref={chipsRef}>{renderChips()}</Combobox.Chips>
-                <Combobox.Input
-                  ref={inlineInputRef}
-                  placeholder={selected.length ? "" : placeholder}
-                />
-                {selected.length > 0 && (
-                  <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>
-                )}
-              </Combobox.InputGroup>
+            <Combobox.InputGroup data-size={size} className={styles.inlineGroup}>
+              <Combobox.Chips ref={chipsRef} className={styles.inlineChips}>
+                {renderChips()}
+              </Combobox.Chips>
               {hiddenCount > 0 && (
                 <span className={styles.overflowPill} aria-hidden="true">
                   +{hiddenCount}
                 </span>
               )}
-            </div>
+              <Combobox.Input placeholder={selected.length ? "" : placeholder} />
+              {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+            </Combobox.InputGroup>
             {dropdown}
           </>
         ) : (
