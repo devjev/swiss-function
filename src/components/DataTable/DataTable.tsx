@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import { buildColumnTemplate, COLUMN_MIN_UNITS } from "./columnWidths";
+import { buildColumnTemplate, COLUMN_MIN_UNITS, resizeBoundary } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
@@ -361,22 +361,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   // Keyboard resize on a focused handle. Arrow keys nudge by a step; Shift = larger.
-  const resizeColumnByKey = useCallback(
-    (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
-      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
-      ev.preventDefault();
-      const dir = ev.key === "ArrowRight" ? 1 : -1;
-      const step = ev.shiftKey ? 24 : 8;
-      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
-      setColumnWidths((prev) => {
-        const current = prev[columnId] ?? headerCell.getBoundingClientRect().width;
-        const next = Math.max(minPx, Math.round(current + dir * step));
-        return { ...prev, [columnId]: next };
-      });
-    },
-    [],
-  );
-
   // --- Top-level keyboard router ---
   const handleKeyDown = useCallback(
     (ev: KeyboardEvent<HTMLDivElement>) => {
@@ -427,11 +411,75 @@ export function DataTable<T>(props: DataTableProps<T>) {
     return ids;
   }, [resizableColumns, visibleLeaves]);
 
+  // Snapshot the column widths from the (bottom) header row a handle lives in,
+  // indexed to match `visibleLeaves`.
+  const measureLeafWidths = useCallback((headerCell: HTMLElement): number[] | null => {
+    const row = headerCell.parentElement;
+    if (!row) return null;
+    return Array.from(row.children).map((el) => el.getBoundingClientRect().width);
+  }, []);
+
+  // The last column is resized via the boundary on its left — normally that's
+  // the previous column's trailing handle. But if the previous column is locked
+  // it has no handle, so the last column would be stuck. In that case give the
+  // last column its own leading-edge handle that trades width with the nearest
+  // resizable column to the left (the locked ones in between just shift).
+  const lastColLeadingTarget = useMemo(() => {
+    const last = visibleLeaves[colCount - 1];
+    const prev = visibleLeaves[colCount - 2];
+    if (!last || !resizableColumnIds.has(last.id)) return null;
+    if (!prev || resizableColumnIds.has(prev.id)) return null; // prev's handle already serves
+    for (let k = colCount - 2; k >= 0; k--) {
+      const leaf = visibleLeaves[k];
+      if (leaf && resizableColumnIds.has(leaf.id)) return leaf.id;
+    }
+    return null;
+  }, [visibleLeaves, colCount, resizableColumnIds]);
+
+  // The handle id → the column its drag actually grows. A leading handle (on the
+  // last column) is remapped to the nearest resizable column on the left; every
+  // other handle resizes its own column.
+  const resolveResizeIdx = useCallback(
+    (id: string): number => {
+      const idx = visibleLeaves.findIndex((c) => c.id === id);
+      if (idx === colCount - 1 && lastColLeadingTarget) {
+        return visibleLeaves.findIndex((c) => c.id === lastColLeadingTarget);
+      }
+      return idx;
+    },
+    [visibleLeaves, colCount, lastColLeadingTarget],
+  );
+
+  // Apply a boundary move starting from `startWidths`: cascade the change
+  // through the right-hand columns and write the new widths as px overrides
+  // (the last column stays its `1fr` filler, so it's left untouched).
+  const applyResize = useCallback(
+    (idx: number, startWidths: number[], dx: number, minPx: number) => {
+      const resizable = visibleLeaves.map((c) => resizableColumnIds.has(c.id));
+      const out = resizeBoundary(startWidths, resizable, idx, dx, minPx);
+      setColumnWidths((prev) => {
+        let changed = false;
+        const nextWidths = { ...prev };
+        for (let k = 0; k < out.length - 1; k++) {
+          const leaf = visibleLeaves[k];
+          if (!leaf) continue;
+          const v = Math.round(out[k] as number);
+          if (nextWidths[leaf.id] !== v) {
+            nextWidths[leaf.id] = v;
+            changed = true;
+          }
+        }
+        return changed ? nextWidths : prev;
+      });
+    },
+    [visibleLeaves, resizableColumnIds],
+  );
+
   // A single drag instance serves every handle; onStart reads which column is
-  // being resized (and its start geometry) off the handle element.
+  // being resized (and the start geometry of the whole row) off the handle.
   const resizeRef = useRef<{
-    id: string;
-    startWidth: number;
+    idx: number;
+    startWidths: number[];
     minPx: number;
     handle: HTMLElement;
   } | null>(null);
@@ -441,10 +489,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const id = handle.dataset.columnId;
       const headerCell = handle.parentElement as HTMLElement | null;
       if (!id || !headerCell) return;
+      const startWidths = measureLeafWidths(headerCell);
+      const idx = resolveResizeIdx(id);
+      if (!startWidths || idx < 0) return;
       handle.dataset.dragging = "true";
       resizeRef.current = {
-        id,
-        startWidth: headerCell.getBoundingClientRect().width,
+        idx,
+        startWidths,
         minPx: measureCssWidth(headerCell, "var(--sf-datatable-col-min)"),
         handle,
       };
@@ -452,8 +503,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onMove: (delta) => {
       const r = resizeRef.current;
       if (!r) return;
-      const next = Math.max(r.minPx, Math.round(r.startWidth + delta.dx));
-      setColumnWidths((prev) => (prev[r.id] === next ? prev : { ...prev, [r.id]: next }));
+      applyResize(r.idx, r.startWidths, delta.dx, r.minPx);
     },
     onEnd: () => {
       const r = resizeRef.current;
@@ -461,6 +511,22 @@ export function DataTable<T>(props: DataTableProps<T>) {
       resizeRef.current = null;
     },
   });
+
+  // Keyboard resize on a focused handle: arrows nudge the boundary (Shift =
+  // larger step), cascading through the same logic as a drag.
+  const resizeColumnByKey = useCallback(
+    (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
+      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+      ev.preventDefault();
+      const startWidths = measureLeafWidths(headerCell);
+      const idx = resolveResizeIdx(columnId);
+      if (!startWidths || idx < 0) return;
+      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      const dx = (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 24 : 8);
+      applyResize(idx, startWidths, dx, minPx);
+    },
+    [measureLeafWidths, applyResize, resolveResizeIdx],
+  );
 
   // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
@@ -487,6 +553,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const isEditing = editing?.cell.row === rowIndex && editing?.cell.col === colIndex;
     const align = colDef.align ?? "start";
     const isTreeCell = colIndex === treeColIdx;
+    // A column explicitly opted out of resizing (only meaningful when the table
+    // is otherwise resizable) — gets a subtle "fixed width" hint.
+    const isLocked = resizableColumns && colDef.resizable === false;
 
     const content = (
       <>
@@ -524,6 +593,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-in-range={inRange || undefined}
         data-align={align}
         data-tree-cell={isTreeCell || undefined}
+        data-locked={isLocked || undefined}
         className={styles.cell}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
         onPointerEnter={() => handleCellPointerEnter(cell)}
@@ -572,7 +642,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
               const canSort = header.column.getCanSort();
               const sortDir = header.column.getIsSorted();
               const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
-              const showResizeHandle = isLeafHeader && resizableColumnIds.has(header.column.id);
+              // The last column is the flexible filler — it has no trailing
+              // handle (its width is set by resizing the column on its left).
+              const isLastLeaf = header.column.id === visibleLeaves[colCount - 1]?.id;
+              const showTrailingHandle =
+                isLeafHeader && resizableColumnIds.has(header.column.id) && !isLastLeaf;
+              // Leading-edge handle for the last column when its locked neighbour
+              // leaves it with no grip; it trades width with `lastColLeadingTarget`.
+              const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
+              const showResizeHandle = showTrailingHandle || showLeadingHandle;
+              // A leaf that opted out of resizing while the table is resizable —
+              // gets the "fixed width" hint (dashed edge + muted hover hairline).
+              const isLocked =
+                isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
               return (
                 <div
                   key={header.id}
@@ -581,6 +663,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   style={{ gridColumn: `span ${span}` }}
                   data-align={isGroupHeader ? "center" : "start"}
                   data-sortable={canSort || undefined}
+                  data-locked={isLocked || undefined}
                   onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                 >
                   {!header.isPlaceholder && (
@@ -606,16 +689,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       aria-valuemin={COLUMN_MIN_UNITS * 24}
                       tabIndex={0}
                       data-column-id={header.column.id}
-                      className={styles.resizeHandle}
+                      className={cx(
+                        styles.resizeHandle,
+                        showLeadingHandle && styles.resizeHandleStart,
+                      )}
                       onPointerDown={onColumnResizeDown}
                       // Don't let a click on the handle toggle column sorting.
                       onClick={(e) => e.stopPropagation()}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
-                        autoFitColumn(
-                          header.column.id,
-                          e.currentTarget.parentElement as HTMLElement,
-                        );
+                        // Auto-fit only makes sense for a trailing handle (it
+                        // fits the column it sits on); skip it for leading ones.
+                        if (!showLeadingHandle) {
+                          autoFitColumn(
+                            header.column.id,
+                            e.currentTarget.parentElement as HTMLElement,
+                          );
+                        }
                       }}
                       onKeyDown={(e) =>
                         resizeColumnByKey(
@@ -626,6 +716,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       }
                     />
                   )}
+                  {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
                 </div>
               );
             })}

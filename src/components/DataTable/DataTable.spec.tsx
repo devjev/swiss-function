@@ -262,3 +262,91 @@ test("resizableColumns={false} renders no resize handles", async ({ mount }) => 
   await expect(component.getByRole("columnheader", { name: "name" })).toBeVisible();
   expect(await component.locator("[data-column-id]").count()).toBe(0);
 });
+
+test("the last column is the filler and has no resize handle", async ({ mount }) => {
+  // COLUMNS = ["name", "age", "active"]; "active" is last → no trailing handle.
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  await expect(component.locator('[data-column-id="active"]')).toHaveCount(0);
+  await expect(component.locator('[data-column-id="name"]')).toHaveCount(1);
+  await expect(component.locator('[data-column-id="age"]')).toHaveCount(1);
+});
+
+test("a locked column carries the data-locked hint on its header and cells", async ({ mount }) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} lockedCols={["age"]} />,
+  );
+  // Exactly one header is marked locked, and it's "age".
+  const lockedHeaders = component.locator('[role="columnheader"][data-locked]');
+  await expect(lockedHeaders).toHaveCount(1);
+  await expect(lockedHeaders).toHaveText(/age/);
+  // Its body cells are marked too (one per data row).
+  expect(await component.locator('[role="gridcell"][data-locked]').count()).toBe(DATA.length);
+});
+
+const widthOf = async (c: import("@playwright/test").Locator, id: string) => {
+  const b = await c.getByRole("columnheader", { name: id }).boundingBox();
+  if (!b) throw new Error(`missing ${id} header`);
+  return b.width;
+};
+
+test("resizing keeps the total width constant and pushes the neighbour", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      widths={{ name: 8, age: 8 }}
+      containerWidth={900}
+    />,
+  );
+  const total = async () =>
+    (await widthOf(component, "name")) +
+    (await widthOf(component, "age")) +
+    (await widthOf(component, "active"));
+  const totalBefore = await total();
+  const nameBefore = await widthOf(component, "name");
+  const ageBefore = await widthOf(component, "age");
+
+  await dragHandle(page, component.locator('[data-column-id="name"]'), 60);
+
+  expect(await widthOf(component, "name")).toBeGreaterThan(nameBefore + 40);
+  expect(await widthOf(component, "age")).toBeLessThan(ageBefore - 40); // neighbour pushed
+  expect(Math.abs((await total()) - totalBefore)).toBeLessThanOrEqual(1); // total unchanged
+});
+
+test("the last column gets a leading handle when its neighbour is locked", async ({
+  mount,
+  page,
+}) => {
+  // "age" locked → no handle. "active" is the last filler whose neighbour (age)
+  // is locked, so it gets its own leading-edge handle and stays resizable; the
+  // cascade trades with "name", flowing around the locked "age".
+  const component = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      lockedCols={["age"]}
+      widths={{ name: 8, age: 8 }}
+      containerWidth={900}
+    />,
+  );
+  await expect(component.locator('[data-column-id="age"]')).toHaveCount(0);
+  const lastHandle = component.locator('[data-column-id="active"]');
+  await expect(lastHandle).toHaveCount(1); // last column has its own (leading) handle
+
+  const total = async () =>
+    (await widthOf(component, "name")) +
+    (await widthOf(component, "age")) +
+    (await widthOf(component, "active"));
+  const totalBefore = await total();
+  const ageBefore = await widthOf(component, "age");
+  const activeBefore = await widthOf(component, "active");
+
+  await dragHandle(page, lastHandle, -60); // drag the leading handle left → last grows
+
+  expect(await widthOf(component, "active")).toBeGreaterThan(activeBefore + 40);
+  expect(Math.abs((await widthOf(component, "age")) - ageBefore)).toBeLessThanOrEqual(1); // locked
+  expect(Math.abs((await total()) - totalBefore)).toBeLessThanOrEqual(1); // total unchanged
+});

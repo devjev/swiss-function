@@ -19,6 +19,7 @@
 /* Header row sits at the top of the scroll container and stays put. */
 .headerRow {
   display: grid;
+  width: 100%;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -45,7 +46,9 @@
 .resizeHandle {
   position: absolute;
   top: 0;
-  inset-inline-end: 0;
+  /* Straddle the column's trailing border so the hit target and the hairline
+     below center on the boundary (and on the cursor during a drag). */
+  inset-inline-end: calc(var(--sf-unit) / -4);
   inline-size: calc(var(--sf-unit) / 2);
   block-size: 100%;
   padding: 0;
@@ -66,6 +69,17 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* Leading-edge variant: the last column uses this (when its previous column is
+   locked) so it still has a grip — on its left edge, straddling that boundary. */
+.resizeHandleStart {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--sf-unit) / -4);
+}
+.resizeHandleStart::after {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--sf-unit) / 4 - 1px);
+}
+
 .headerCell:hover .resizeHandle::after,
 .resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after,
@@ -77,8 +91,40 @@
   outline: none;
 }
 
+/* Locked columns (resizable: false) — a quiet "fixed width" hint: a dashed
+   trailing separator, plus an inert edge zone that shows `not-allowed` and a
+   muted (non-primary) hairline when the locked header is hovered. */
+.headerCell[data-locked] {
+  border-inline-end-style: dashed;
+}
+
+.lockedEdge {
+  position: absolute;
+  top: 0;
+  inset-inline-end: calc(var(--sf-unit) / -4);
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: 100%;
+  cursor: not-allowed;
+  z-index: 2;
+}
+
+.lockedEdge::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: calc(var(--sf-unit) / 4 - 1px);
+  inline-size: 2px;
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.headerCell[data-locked]:hover .lockedEdge::after {
+  background-color: var(--sf-color-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .resizeHandle::after {
+  .resizeHandle::after,
+  .lockedEdge::after {
     transition: none;
   }
 }
@@ -148,6 +194,14 @@
 
 .cell:last-child {
   box-shadow: none;
+}
+
+/* Locked column: dashed trailing separator to match the header hint. Uses a
+   real border (box-border keeps the cell exactly one track wide) instead of the
+   solid box-shadow line the other cells use. */
+.cell[data-locked] {
+  box-shadow: none;
+  border-inline-end: 1px dashed var(--sf-color-border-subtle);
 }
 
 .cell[data-align="end"] {

@@ -106,7 +106,7 @@ Ladle (`npm run dev`).
 
 | Component                | Use for                                            |
 | ------------------------ | -------------------------------------------------- |
-| `DataTable`              | Tabular data — sorting, selection, virtualization, Excel-style column resize (on by default; `resizableColumns={false}` or per-column `resizable: false` to lock; double-click a header edge to auto-fit). The serious one. |
+| `DataTable`              | Tabular data — sorting, selection, virtualization, Column resize (on by default; `resizableColumns={false}` or per-column `resizable: false` to lock; double-click a header edge to auto-fit). The table always spans its container at a constant total width: dragging a column's trailing edge grows/shrinks it and cascades the opposite change through the columns to its right (nearest first, skipping locked ones), stopping when none can give more. The last column is the flexible filler — it has no handle and soaks up remaining width (set `width` per column, in `--sf-unit` multiples). The serious one. |
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |

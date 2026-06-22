@@ -9,6 +9,12 @@ interface HarnessProps {
   editable?: boolean;
   paginate?: PaginateConfig;
   resizableColumns?: boolean;
+  /** Column ids to lock with `resizable: false`. */
+  lockedCols?: string[];
+  /** Fixed widths (in --sf-unit multiples) per column id. */
+  widths?: Record<string, number>;
+  /** Fixed wrapper width in px, for deterministic layout in tests. */
+  containerWidth?: number;
   onCellChange?: DataTableProps<Row>["onCellChange"];
 }
 
@@ -20,14 +26,28 @@ export function DataTableHarness({
   editable,
   paginate,
   resizableColumns,
+  lockedCols,
+  widths,
+  containerWidth,
   onCellChange,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
-    if (id === "age") return { id, header: id, accessor: "age", edit: { type: "number" } };
-    if (id === "active") return { id, header: id, accessor: "active", edit: { type: "boolean" } };
-    return { id, header: id, accessor: id as keyof Row, edit: { type: "text" } };
+    const locked = lockedCols?.includes(id) ? { resizable: false as const } : null;
+    const width = widths?.[id] != null ? { width: widths[id] } : null;
+    if (id === "age")
+      return { id, header: id, accessor: "age", edit: { type: "number" }, ...locked, ...width };
+    if (id === "active")
+      return { id, header: id, accessor: "active", edit: { type: "boolean" }, ...locked, ...width };
+    return {
+      id,
+      header: id,
+      accessor: id as keyof Row,
+      edit: { type: "text" },
+      ...locked,
+      ...width,
+    };
   });
-  return (
+  const table = (
     <DataTable<Row>
       data={data}
       columns={columns}
@@ -38,6 +58,7 @@ export function DataTableHarness({
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />
   );
+  return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
 }
 
 // --- Tree harness ---
