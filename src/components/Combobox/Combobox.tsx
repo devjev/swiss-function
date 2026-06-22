@@ -6,7 +6,6 @@ import styles from "./Combobox.module.css";
 
 const Root = BaseCombobox.Root;
 const Portal = BaseCombobox.Portal;
-const Positioner = BaseCombobox.Positioner;
 const Empty = BaseCombobox.Empty;
 const List = BaseCombobox.List;
 // Renders no element of its own — pass-through.
@@ -19,6 +18,23 @@ const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseC
     );
   },
 );
+
+// The positioner establishes the popup's stacking context (Base UI applies a
+// `transform`), so its own z-index — not the popup's — is what stacks against
+// page content like a DataTable's sticky header. Carry the dropdown z-index
+// here so the popup reliably paints above such content (fixes issue #2).
+const Positioner = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof BaseCombobox.Positioner>
+>(function ComboboxPositioner({ className, ...rest }, ref) {
+  return (
+    <BaseCombobox.Positioner
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.positioner, className)}
+    />
+  );
+});
 
 // Wrapper for the input plus its chips/controls. In multi-select, the chips
 // live inside this group (inline/tag-input layout) and the border moves here.

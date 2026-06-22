@@ -35,7 +35,17 @@
   cursor: not-allowed;
 }
 
+/* The positioner is the transformed element that creates the popup's stacking
+   context, so the dropdown z-index must live here to win against positioned
+   page content (e.g. a DataTable's sticky header). */
+.positioner {
+  z-index: var(--sf-z-dropdown);
+}
+
 .popup {
+  /* `position: relative` so the popup's own z-index participates too (the bare
+     value was inert on a statically-positioned popup — issue #2). */
+  position: relative;
   min-width: var(--anchor-width, 12rem);
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);
