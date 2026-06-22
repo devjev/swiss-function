@@ -6,6 +6,8 @@
   overflow-x: auto;
   overflow-y: hidden;
   font-family: var(--sf-font-sans);
+  /* Dragging the playhead or a range handle shouldn't select label/tick text. */
+  user-select: none;
   block-size: calc(
     var(--sf-unit) *
     1.5 +
@@ -205,9 +207,30 @@
   pointer-events: auto;
 }
 
-/* Compact strip: labels are hidden at rest and revealed only when their event
-   is hovered/focused, or (while scrubbing) for the event nearest the playhead. */
+/* Compact strip: one `--sf-unit` tall — the height of a `sm` Input. The axis,
+   tick marks and event markers center vertically; tick labels are dropped; and
+   event labels are hidden at rest, revealed (as an overlapping tag inside the
+   strip) only when their event is hovered/focused, or — while scrubbing — for
+   the event nearest the playhead. */
+.viewport[data-compact] {
+  block-size: var(--sf-unit);
+}
+.viewport[data-compact] .axis,
+.viewport[data-compact] .eventMarker {
+  bottom: calc(var(--sf-unit) / 2);
+}
+.viewport[data-compact] .tick {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.viewport[data-compact] .tickLabel {
+  display: none;
+}
 .viewport[data-compact] .eventLabel {
+  /* Centered inside the strip; its opaque bg makes it readable over the axis. */
+  bottom: 50%;
+  transform: translateY(50%);
+  padding-block: 1px;
   opacity: 0;
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
 }

@@ -293,6 +293,10 @@ test("compact: event labels are hidden at rest and revealed on hover", async ({ 
   // to the event so the label reveals.
   await component.getByRole("button", { name: "Midpoint" }).hover();
   await expect(label).toHaveCSS("opacity", "1");
+
+  // Compact strip is one --sf-unit tall (same as a sm Input ≈ 24px).
+  const h = await component.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  expect(h).toBeLessThanOrEqual(26);
 });
 
 test("range: dragging the start handle moves the start bound later", async ({ mount, page }) => {
