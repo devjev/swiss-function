@@ -231,8 +231,7 @@
   background: none;
   border: none;
   color: var(--sf-color-muted);
-  font-family: var(--sf-font-mono);
-  font-size-adjust: var(--sf-font-mono-adjust);
+  font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
   cursor: pointer;
   transition: color var(--sf-duration-fast) var(--sf-ease-out);
