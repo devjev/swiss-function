@@ -1,4 +1,11 @@
+.positioner {
+  z-index: var(--sf-z-dropdown);
+}
+
 .popup {
+  /* `position: relative` so the popup's own z-index participates (inert on a
+     statically-positioned popup). */
+  position: relative;
   min-width: 12rem;
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);

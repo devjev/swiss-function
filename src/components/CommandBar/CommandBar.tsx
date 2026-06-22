@@ -57,7 +57,7 @@ const Content = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseM
     const side = position === "bottom" ? "top" : "bottom";
     return (
       <BaseMenu.Portal>
-        <BaseMenu.Positioner side={side} sideOffset={4} align="start">
+        <BaseMenu.Positioner className={styles.positioner} side={side} sideOffset={4} align="start">
           <BaseMenu.Popup
             {...rest}
             ref={ref}
