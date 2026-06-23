@@ -12,6 +12,7 @@ const FRAG = `precision highp float;
 uniform vec2 u_res;uniform vec2 u_cell;uniform vec2 u_grid;uniform float u_t;
 uniform int u_effect;uniform float u_speed;uniform float u_wavelength;uniform float u_gain;
 uniform float u_seed;uniform vec3 u_color;uniform float u_alpha;
+uniform sampler2D u_lifeState;
 float hash(vec3 p){p=fract(p*vec3(0.1031,0.1030,0.0973));p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
 void main(){
   float colf=gl_FragCoord.x/u_cell.x;
@@ -137,7 +138,7 @@ void main(){
       inten+=sin(d*0.5-age*18.0)*smoothstep(1.0,0.0,age)*step(d,age*45.0);
     }
     inten=inten*0.5+0.15;
-  }else{ // glitch — datamosh / broken signal: row-blocks tear and jump
+  }else if(u_effect==24){ // glitch — datamosh / broken signal: row-blocks tear and jump
     float blockRow=floor(cy/3.0);
     float epoch=floor(u_t*u_speed*5.0);
     float shift=(hash(vec3(blockRow,epoch+5.0,u_seed))-0.5)*u_grid.x*step(0.5,hash(vec3(blockRow,epoch,u_seed)));
@@ -146,6 +147,29 @@ void main(){
     float speckle=hash(vec3(floor(gx),blockRow,epoch));
     inten=mix(stripes,speckle,0.4);
     inten=max(inten,step(0.9,hash(vec3(blockRow,epoch+11.0,u_seed))));
+  }else if(u_effect==25){ // twinkle — each cell blinks on its own random phase (even coverage)
+    float ph=hash(vec3(cx,cy,3.0))*6.2831853;
+    inten=0.44+0.14*sin(u_t*u_speed*2.0+ph);
+  }else if(u_effect==26){ // breathe — even field; whole density gently rises and falls
+    inten=0.42+0.12*sin(u_t*u_speed*0.7)+(hash(vec3(cx,cy,1.0))-0.5)*0.12;
+  }else if(u_effect==27){ // interleave — two checker sets trade density back and forth
+    float parity=mod(cx+cy,2.0);float wave=sin(u_t*u_speed*1.6);
+    inten=0.44+0.13*(parity>0.5?wave:-wave);
+  }else if(u_effect==29){ // life — Conway's Game of Life; liveness from the feedback texture
+    inten=texture2D(u_lifeState,(vec2(cx,cy)+0.5)/u_grid).r;
+  }else if(u_effect==30){ // rotate — cells in 4 hash buckets light up in round-robin
+    float grp=floor(hash(vec3(cx,cy,4.0))*4.0);
+    inten=0.42+0.18*sin(u_t*u_speed*0.9-grp*1.5707963);
+  }else if(u_effect==28){ // stripes — rows toggle in a soft vertical wave
+    inten=0.42+0.17*sin(u_t*u_speed*1.0-cy*0.5);
+  }else if(u_effect==31){ // diagonal — diagonal bands of dots toggle in sequence
+    inten=0.42+0.17*sin(u_t*u_speed*1.0-(cx+cy)*0.4);
+  }else if(u_effect==32){ // blocks — coarse blocks each blink on their own phase
+    float bph=hash(vec3(floor(cx/3.0),floor(cy/3.0),5.0))*6.2831853;
+    inten=0.42+0.17*sin(u_t*u_speed*1.6+bph);
+  }else{ // rings — concentric rings of dots toggle outward (33)
+    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
+    inten=0.42+0.17*sin(u_t*u_speed*1.2-sqrt(dx*dx+dy*dy)*0.4);
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -158,6 +182,26 @@ void main(){
   float sth=sidx==0?0.125:sidx==1?0.625:sidx==2?0.875:0.375;
   float on=fillRatio>sth?1.0:0.0;
   gl_FragColor=vec4(u_color,on*u_alpha);
+}`;
+
+// Game-of-Life step shader: reads the previous generation from u_state and writes
+// the next. One texel per cell; the board wraps toroidally. Run into a ping-pong
+// framebuffer between display frames (see the "life" path in draw()).
+const SIM = `precision highp float;
+uniform sampler2D u_state;uniform vec2 u_size;
+float cell(vec2 c){return step(0.5,texture2D(u_state,(c+0.5)/u_size).r);}
+void main(){
+  vec2 c=floor(gl_FragCoord.xy);
+  float n=0.0;
+  for(int dy=-1;dy<=1;dy++){for(int dx=-1;dx<=1;dx++){
+    if(dx==0&&dy==0)continue;
+    vec2 nc=mod(c+vec2(float(dx),float(dy))+u_size,u_size);
+    n+=cell(nc);
+  }}
+  float alive=cell(c);
+  // Survive on 2–3 neighbours; born on exactly 3 (float-safe range tests).
+  float next=alive>0.5?step(1.5,n)*step(n,3.5):step(2.5,n)*step(n,3.5);
+  gl_FragColor=vec4(next,next,next,1.0);
 }`;
 
 // Codes match the shader's u_effect branches (5 is unused — pulse was removed).
@@ -186,6 +230,15 @@ const EFFECT_CODE: Record<EffectName, number> = {
   checker: 22,
   droplets: 23,
   glitch: 24,
+  twinkle: 25,
+  breathe: 26,
+  interleave: 27,
+  stripes: 28,
+  life: 29,
+  rotate: 30,
+  diagonal: 31,
+  blocks: 32,
+  rings: 33,
 };
 
 export interface FillFrame extends EffectOptions {
@@ -259,6 +312,116 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     seed: u("u_seed"),
     color: u("u_color"),
     alpha: u("u_alpha"),
+    lifeState: u("u_lifeState"),
+  };
+
+  // --- Game of Life feedback pipeline (built lazily, only when effect="life") ---
+  const simFs = compile(gl.FRAGMENT_SHADER, SIM);
+  const simProg = gl.createProgram();
+  let simLoc = -1;
+  let simU: { state: WebGLUniformLocation | null; size: WebGLUniformLocation | null } | null = null;
+  if (vs && simFs && simProg) {
+    gl.attachShader(simProg, vs);
+    gl.attachShader(simProg, simFs);
+    gl.linkProgram(simProg);
+    simLoc = gl.getAttribLocation(simProg, "p");
+    simU = {
+      state: gl.getUniformLocation(simProg, "u_state"),
+      size: gl.getUniformLocation(simProg, "u_size"),
+    };
+  }
+
+  type Life = {
+    front: WebGLTexture;
+    back: WebGLTexture;
+    fboFront: WebGLFramebuffer;
+    fboBack: WebGLFramebuffer;
+    w: number;
+    h: number;
+    lastGen: number;
+  };
+  let life: Life | null = null;
+
+  const makeCellTex = (w: number, h: number, data: Uint8Array | null): WebGLTexture | null => {
+    const t = gl.createTexture();
+    if (!t) return null;
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    return t;
+  };
+
+  const destroyLife = () => {
+    if (!life) return;
+    gl.deleteTexture(life.front);
+    gl.deleteTexture(life.back);
+    gl.deleteFramebuffer(life.fboFront);
+    gl.deleteFramebuffer(life.fboBack);
+    life = null;
+  };
+
+  // Seed both buffers with a random board sized to the cell grid.
+  const ensureLife = (w: number, h: number) => {
+    if (life && life.w === w && life.h === h) return;
+    destroyLife();
+    if (!simProg || w < 1 || h < 1) return;
+    const seed = new Uint8Array(w * h * 4);
+    for (let i = 0; i < w * h; i++) {
+      const v = Math.random() < 0.32 ? 255 : 0;
+      seed[i * 4] = v;
+      seed[i * 4 + 3] = 255;
+    }
+    const front = makeCellTex(w, h, seed);
+    const back = makeCellTex(w, h, null);
+    const fboFront = gl.createFramebuffer();
+    const fboBack = gl.createFramebuffer();
+    if (!front || !back || !fboFront || !fboBack) return;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboFront);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, front, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboBack);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, back, 0);
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (!ok) return; // FBO render targets unsupported → life renders nothing
+    life = { front, back, fboFront, fboBack, w, h, lastGen: -1e9 };
+  };
+
+  // Advance one generation into the back buffer, then swap. Throttled so the board
+  // ticks visibly (not once per animation frame).
+  const stepLife = (t: number, speed: number) => {
+    if (!life || !simProg || !simU) return;
+    const interval = 0.11 / Math.max(speed, 0.05);
+    if (t - life.lastGen < interval) return;
+    life.lastGen = t;
+    // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
+    gl.useProgram(simProg);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, life.fboBack);
+    gl.viewport(0, 0, life.w, life.h);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.enableVertexAttribArray(simLoc);
+    gl.vertexAttribPointer(simLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, life.front);
+    gl.uniform1i(simU.state, 0);
+    gl.uniform2f(simU.size, life.w, life.h);
+    gl.disable(gl.BLEND);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.enable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // Swap front/back.
+    const ft = life.front;
+    life.front = life.back;
+    life.back = ft;
+    const ff = life.fboFront;
+    life.fboFront = life.fboBack;
+    life.fboBack = ff;
+    // Restore the display program's vertex attrib.
+    // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
+    gl.useProgram(prog);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
   };
 
   let dpr = 1;
@@ -273,6 +436,19 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       const effect = f.effect ?? "ripple";
       const [r, g, b] = f.color ?? [0.42, 0.447, 0.502];
       const alpha = f.alpha ?? 1;
+      const cols = Math.max(1, Math.round(f.cols));
+      const rows = Math.max(1, Math.round(f.rows));
+      // Game of Life: advance the cellular automaton in its own buffers first,
+      // then the display shader samples the current generation. Other effects are
+      // purely analytic and need none of this.
+      if (effect === "life") {
+        ensureLife(cols, rows);
+        stepLife(f.t, f.speed ?? 1);
+      } else if (life) {
+        destroyLife();
+      }
+      // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
+      gl.useProgram(prog);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(U.res, canvas.width, canvas.height);
       gl.uniform2f(U.cell, f.cellW * dpr, f.cellH * dpr);
@@ -285,11 +461,17 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       gl.uniform1f(U.seed, f.seed ?? 1);
       gl.uniform3f(U.color, r, g, b);
       gl.uniform1f(U.alpha, alpha);
+      if (effect === "life" && life) {
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, life.front);
+        gl.uniform1i(U.lifeState, 0);
+      }
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     },
     destroy() {
+      destroyLife();
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     },
   };

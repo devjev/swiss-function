@@ -26,7 +26,21 @@ export type EffectName =
   | "helix"
   | "checker"
   | "droplets"
-  | "glitch";
+  | "glitch"
+  // Subtle, evenly-covered effects — toggle different sets of dots in different
+  // patterns: breathe = all together, twinkle = per-cell, interleave = checker,
+  // rotate = round-robin buckets, stripes = rows, diagonal = diagonal bands,
+  // blocks = coarse blocks, rings = concentric.
+  | "breathe"
+  | "twinkle"
+  | "interleave"
+  | "rotate"
+  | "stripes"
+  | "diagonal"
+  | "blocks"
+  | "rings"
+  // Conway's Game of Life — a feedback cellular automaton (stateful).
+  | "life";
 
 /** Advanced, effect-specific tuning. Overall density is the top-level `density`
  *  prop; animation pace is `speed`. */

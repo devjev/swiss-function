@@ -422,7 +422,7 @@ Empty / no-results / error / loading state rendered as a block with a dithered W
 | `title` | `ReactNode` | — | Headline. |
 | `description` | `ReactNode` | — | Secondary line. |
 | `action` | `ReactNode` | — | Action slot (usually a `Button`). |
-| `effect` | `"plasma" \| "noise" \| "scan" \| "ripple"` | per-variant | Override fill effect. |
+| `effect` | `EffectName` | per-variant | Override fill effect. The `breathe`/`twinkle`/`interleave`/`rotate`/`stripes`/`diagonal`/`blocks`/`rings` set are subtle and evenly-covered (toggling dot patterns); `life` is Conway's Game of Life. |
 | `speed` | `number` | `1` | Animation speed multiplier. |
 | `density` | `number` | `0.6` | Fill coverage 0–1. |
 | `effectOptions` | `EffectOptions` | — | Advanced tuning (ripple `wavelength`, `seed`). |

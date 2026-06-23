@@ -113,9 +113,10 @@ export const OddSize: Story = () => (
   />
 );
 
-// All 24 animated effects. The gallery is split into sub-stories of 6 so each
+// All animated effects. The gallery is split into sub-stories of 6 so each
 // rendered story stays well under the browser's ~16 simultaneous-WebGL-context
-// limit (each block owns its own canvas/context).
+// limit (each block owns its own canvas/context). breathe/twinkle/interleave/
+// rotate/stripes/diagonal/blocks/rings are the subtle, evenly-covered set.
 const ALL_EFFECTS = [
   "ripple",
   "noise",
@@ -141,6 +142,15 @@ const ALL_EFFECTS = [
   "checker",
   "droplets",
   "glitch",
+  "life",
+  "breathe",
+  "twinkle",
+  "interleave",
+  "rotate",
+  "stripes",
+  "diagonal",
+  "blocks",
+  "rings",
 ] as const;
 
 function EffectGrid({ effects }: { effects: readonly (typeof ALL_EFFECTS)[number][] }) {
@@ -156,7 +166,9 @@ function EffectGrid({ effects }: { effects: readonly (typeof ALL_EFFECTS)[number
 export const Effects1: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(0, 6)} />;
 export const Effects2: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(6, 12)} />;
 export const Effects3: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(12, 18)} />;
-export const Effects4: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(18, 24)} />;
+export const Effects4: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(18, 25)} />;
+// The subtle, evenly-covered set: breathe + its toggling variants.
+export const EffectsSubtle: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(25, 33)} />;
 
 export const Playground: Story<{
   variant: NonIdealStateVariant;
