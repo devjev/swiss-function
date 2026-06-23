@@ -331,6 +331,34 @@ test("columnFill: last column gets a handle and a dither filler renders", async 
   await expect(component.locator('[class*="columnFill"]')).toHaveCount(1);
 });
 
+test("columnFill: virtualized body keeps the header's column widths when the viewport is narrower than the columns (issue #3)", async ({
+  mount,
+}) => {
+  // Columns total 3×14u (= 1008px) inside a 480px wrapper → viewport < columns.
+  const c = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      columnFill={{ animated: false, color: "var(--sf-color-primary)" }}
+      widths={{ name: 14, age: 14, active: 14 }}
+      containerWidth={480}
+    />,
+  );
+  const headerRow = c.locator('[class*="headerRow"]').first();
+  const bodyRow = c.locator('[class*="body"] [role="row"]').first();
+
+  // The body's resolved grid tracks must equal the header's (they diverge before
+  // the fix: the virtualized body collapses to the viewport width).
+  const headerTpl = await headerRow.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  const bodyTpl = await bodyRow.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  expect(bodyTpl).toBe(headerTpl);
+
+  // And the body spans the full columns width, not the (smaller) viewport.
+  const headerW = await headerRow.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  const bodyW = await bodyRow.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  expect(Math.abs(bodyW - headerW)).toBeLessThanOrEqual(1);
+});
+
 test("a locked column carries the data-locked hint on its header and cells", async ({ mount }) => {
   const component = await mount(
     <DataTableHarness data={DATA} cols={COLUMNS} lockedCols={["age"]} />,

@@ -1287,10 +1287,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
             style={{
               height: rowVirtualizer.getTotalSize(),
               position: "relative",
-              // In fill mode the header is shrink-to-fit, so `contentWidth` is the
-              // columns' width; let `.body` keep its `width:100%` + `min-content`
-              // instead so it stays ≥ viewport and the filler has room.
-              minWidth: fillOn ? undefined : (contentWidth ?? undefined),
+              // In fill mode pin the virtualized body to the columns' real total
+              // (`columnsWidth`). Its rows are absolutely positioned, so they
+              // don't establish `max-content`; without this the CSS
+              // `min-width: max-content` collapses to ~0 and `width:100%` shrinks
+              // the body to the viewport when it's narrower than the columns,
+              // misaligning it from the header (issue #3). When the viewport is
+              // wider, `width:100%` (≥ columnsWidth) still wins, so the dither
+              // filler keeps its room.
+              minWidth: fillOn ? columnsWidth || undefined : (contentWidth ?? undefined),
             }}
           >
             {virtualRows.map((vr) => {
