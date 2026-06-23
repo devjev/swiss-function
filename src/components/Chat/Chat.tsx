@@ -1,5 +1,5 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent } from "react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
 import { Markdown } from "../Markdown";
@@ -45,6 +45,40 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   const [input, setInput] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Assistant messages whose reveal animation is still in flight. A message is
+  // added while it streams and stays here — keeping its `StreamingTerminalText`
+  // mounted — even after `isStreaming` flips off, until the reveal catches up
+  // (drains) and reports completion. Only then do we hand off to a static
+  // `Markdown` render. Without this the reveal would be abandoned mid-animation
+  // and the full formatted reply would snap in at once.
+  const [revealing, setRevealing] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const streamingIds = messages
+      .filter((m) => m.role === "assistant" && m.isStreaming)
+      .map((m) => m.id);
+    if (streamingIds.length === 0) return;
+    setRevealing((prev) => {
+      let next = prev;
+      for (const id of streamingIds) {
+        if (!next.has(id)) {
+          if (next === prev) next = new Set(prev);
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }, [messages]);
+
+  const finishReveal = useCallback((id: string) => {
+    setRevealing((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   // Auto-scroll to bottom on every messages change — including streaming
   // text growth — so the latest content stays in view.
@@ -97,8 +131,12 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
           >
             {msg.role === "user" ? (
               <span className={styles.userContent}>{msg.content}</span>
-            ) : msg.isStreaming ? (
-              <StreamingTerminalText content={msg.content} isComplete={false} />
+            ) : msg.isStreaming || revealing.has(msg.id) ? (
+              <StreamingTerminalText
+                content={msg.content}
+                isComplete={!msg.isStreaming}
+                onRevealComplete={() => finishReveal(msg.id)}
+              />
             ) : (
               <Markdown value={msg.content} />
             )}

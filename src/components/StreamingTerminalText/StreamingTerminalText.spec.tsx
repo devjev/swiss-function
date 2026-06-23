@@ -67,6 +67,31 @@ test("a burst of content does not jump the reveal", async ({ mount, page }) => {
   expect(realLetters.length).toBeLessThan(10);
 });
 
+test("flipping isComplete drains the reveal to the end (no premature dump, no leftover shade)", async ({
+  mount,
+  page,
+}) => {
+  const content = "# Hello World, this is a longer streamed reply that reveals slowly.";
+  // Stream slowly while incomplete — like Chat, the feed outpaces the reveal,
+  // so only part of the text has resolved by the time it completes.
+  const c = await mount(
+    <StreamingTerminalText content={content} isComplete={false} charIntervalMs={40} />,
+  );
+  await page.waitForTimeout(120);
+  // Mid-stream the heading exists but still carries shade-block tail glyphs.
+  expect(/[▒▓]/.test((await c.textContent()) ?? "")).toBe(true);
+
+  // Completion: the in-flight reveal must drain to the end, not be abandoned.
+  await c.update(<StreamingTerminalText content={content} isComplete charIntervalMs={40} />);
+  await expect(c.locator("h1")).toHaveText(
+    "Hello World, this is a longer streamed reply that reveals slowly.",
+    {
+      timeout: 3000,
+    },
+  );
+  expect(/[▒▓█]/.test((await c.textContent()) ?? "")).toBe(false);
+});
+
 test("block boundary crossed → next block opens with shade blocks already styled", async ({
   mount,
   page,

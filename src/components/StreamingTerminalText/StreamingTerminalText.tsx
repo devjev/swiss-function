@@ -75,6 +75,11 @@ export interface StreamingTerminalTextProps extends HTMLAttributes<HTMLDivElemen
   content: string;
   /** True once no more text will arrive. */
   isComplete: boolean;
+  /** Fired once when the reveal has caught up to all of `content` and
+   *  `isComplete` is true — i.e. the animation has fully finished. Lets a
+   *  parent (e.g. Chat) keep this component mounted until the reveal lands,
+   *  then hand off to a static render without a visible jump. */
+  onRevealComplete?: () => void;
   /** Unrevealed non-whitespace letters held in the developing tail. */
   tailLength?: number;
   /** Milliseconds per resolved tick. */
@@ -99,6 +104,7 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
     {
       content,
       isComplete,
+      onRevealComplete,
       tailLength = 3,
       charIntervalMs = 64,
       shadeRamp = ["▒", "▓"],
@@ -109,6 +115,18 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
     ref,
   ) {
     const [revealedCount, setRevealedCount] = useState(0);
+
+    // Honor reduced-motion: skip the per-char shimmer and show everything
+    // received so far at once. Updates live if the user toggles the setting.
+    const [reduced, setReduced] = useState(false);
+    useEffect(() => {
+      if (typeof window === "undefined" || !window.matchMedia) return;
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      setReduced(mq.matches);
+      const handler = () => setReduced(mq.matches);
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }, []);
 
     const positions = useMemo(() => computePositions(content), [content]);
 
@@ -130,7 +148,13 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
           const p = positionsRef.current;
           const tail = tailLengthRef.current;
           const cap = isCompleteRef.current ? p.length : Math.max(0, p.length - tail);
-          return rc >= cap ? rc : rc + 1;
+          if (rc >= cap) return rc;
+          // Steady one-char shimmer while streaming. Once complete, drain any
+          // backlog proportionally so a fast-arrived message finishes its
+          // animation in ~24 ticks (≈1.5 s) instead of crawling for seconds —
+          // and is never abandoned by a hard swap to static markdown.
+          const step = isCompleteRef.current ? Math.max(1, Math.ceil((cap - rc) / 24)) : 1;
+          return Math.min(cap, rc + step);
         });
       }, charIntervalMs);
       return () => window.clearInterval(id);
@@ -145,14 +169,34 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
       prevContentLen.current = content.length;
     }, [content]);
 
+    // Under reduced motion the whole received string is shown at once — no
+    // per-char reveal and no developing tail.
+    const effectiveRevealed = reduced ? positions.length : revealedCount;
+
+    // Fire once when the reveal has caught up to all of `content` and no more
+    // is coming. Re-arms if `content` grows again afterwards.
+    const completeFiredRef = useRef(false);
+    useEffect(() => {
+      if (isComplete && effectiveRevealed >= positions.length) {
+        if (!completeFiredRef.current) {
+          completeFiredRef.current = true;
+          onRevealComplete?.();
+        }
+      } else {
+        completeFiredRef.current = false;
+      }
+    }, [isComplete, effectiveRevealed, positions.length, onRevealComplete]);
+
     // Resolved boundary + tail glyph string built into a single source string,
     // then passed through Markdown. Each block gets its proper styling as
     // soon as it appears — no swap, no size jump.
     const boundary =
-      revealedCount < positions.length ? (positions[revealedCount] as number) : content.length;
+      effectiveRevealed < positions.length
+        ? (positions[effectiveRevealed] as number)
+        : content.length;
     let tailStr = "";
-    if (revealedCount < positions.length) {
-      const lastTailPos = Math.min(revealedCount + tailLength, positions.length) - 1;
+    if (effectiveRevealed < positions.length) {
+      const lastTailPos = Math.min(effectiveRevealed + tailLength, positions.length) - 1;
       const lastTailIdx = positions[lastTailPos] as number;
       let rank = 0;
       const rampLen = shadeRamp.length;
