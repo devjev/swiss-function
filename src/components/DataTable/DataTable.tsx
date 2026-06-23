@@ -1,8 +1,25 @@
 import {
+  DndContext,
+  type DragEndEvent,
+  DragOverlay,
+  type DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getSortedRowModel,
+  type Header,
   type SortingState,
   type ColumnDef as TSColumnDef,
   useReactTable,
@@ -33,6 +50,7 @@ import type {
 } from "./types";
 import { isGroup } from "./types";
 import { useColumnGroupCollapse } from "./useColumnGroupCollapse";
+import { useColumnOrder } from "./useColumnOrder";
 import { useColumnWidths } from "./useColumnWidths";
 import { useTableClipboard } from "./useTableClipboard";
 import { useTableEdit } from "./useTableEdit";
@@ -107,6 +125,14 @@ export interface DataTableProps<T>
    *  sparse table doesn't read as unfinished). `true` uses a static CSS dither;
    *  pass an object to animate it or tune the look. Default `false`. */
   columnFill?: ColumnFill;
+  /** Allow leaf columns to be reordered by dragging their headers. Default false. */
+  reorderableColumns?: boolean;
+  /** Controlled column order (leaf column ids). Pass with `onColumnOrderChange`. */
+  columnOrder?: string[];
+  /** Initial column order when uncontrolled (e.g. restored from storage). */
+  defaultColumnOrder?: string[];
+  /** Fired with the full order array whenever a column is dragged to a new spot. */
+  onColumnOrderChange?: (order: string[]) => void;
 }
 
 export type ColumnFill =
@@ -148,6 +174,38 @@ function flatLeaves<T>(defs: ColumnDef<T>[]): LeafColumnDef<T>[] {
   return defs.flatMap((d) => (isGroup(d) ? flatLeaves(d.columns) : [d]));
 }
 
+/** Reorder leaf defs by an `order` array of ids; ids absent from `order` keep
+ *  their natural position at the tail. Empty order = natural order. */
+function applyOrder<T>(leaves: LeafColumnDef<T>[], order: string[]): LeafColumnDef<T>[] {
+  if (order.length === 0) return leaves;
+  const byId = new Map(leaves.map((l) => [l.id, l]));
+  const seen = new Set<string>();
+  const out: LeafColumnDef<T>[] = [];
+  for (const id of order) {
+    const leaf = byId.get(id);
+    if (leaf && !seen.has(id)) {
+      out.push(leaf);
+      seen.add(id);
+    }
+  }
+  for (const leaf of leaves) if (!seen.has(leaf.id)) out.push(leaf);
+  return out;
+}
+
+/** Map each leaf column id → its parent group id (or null at the top level), so
+ *  reorder drops can be rejected when they'd move a leaf out of its group. */
+function leafParentMap<T>(
+  defs: ColumnDef<T>[],
+  parent: string | null = null,
+  out = new Map<string, string | null>(),
+): Map<string, string | null> {
+  for (const d of defs) {
+    if (isGroup(d)) leafParentMap(d.columns, d.id, out);
+    else out.set(d.id, parent);
+  }
+  return out;
+}
+
 /** Map our ColumnDef (recursive) to TanStack's ColumnDef (also recursive).
  *  Preserves `meta.collapsedGroupId` on placeholder leaves so the header
  *  renderer can wire the chevron back to the right group. */
@@ -177,6 +235,28 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
   };
 }
 
+/** Drag wiring handed to a header cell so it can be both a grid cell and a
+ *  sortable item. Supplied by `SortableHeaderCell`, omitted for static headers. */
+interface HeaderDnd {
+  ref: (node: HTMLElement | null) => void;
+  listeners?: Record<string, unknown>;
+  style?: CSSProperties;
+  dragging?: boolean;
+}
+
+/** Calls `useSortable` for one leaf header and hands the drag wiring to `render`
+ *  (the table's `renderHeaderCell`). Kept separate so the hook is only invoked
+ *  for reorderable leaves. */
+function SortableHeaderCell({ id, render }: { id: string; render: (dnd: HeaderDnd) => ReactNode }) {
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id });
+  return render({
+    ref: setNodeRef,
+    listeners: listeners as Record<string, unknown> | undefined,
+    style: { transform: CSS.Transform.toString(transform), transition },
+    dragging: isDragging,
+  });
+}
+
 export function DataTable<T>(props: DataTableProps<T>) {
   const {
     data,
@@ -204,6 +284,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     defaultColumnWidths,
     onColumnWidthsChange,
     columnFill = false,
+    reorderableColumns = false,
+    columnOrder: controlledColumnOrder,
+    defaultColumnOrder,
+    onColumnOrderChange,
     className,
     style,
     ...rest
@@ -225,8 +309,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onChange: onColumnGroupsCollapsedChange,
   });
 
-  /** Flat visible leaf columns in display order. Drives cell indexing everywhere. */
-  const visibleLeaves = useMemo(() => flatLeaves(effectiveColumns), [effectiveColumns]);
+  // --- Column order (drag-to-reorder) ---
+  const { columnOrder, setColumnOrder } = useColumnOrder({
+    columnOrder: controlledColumnOrder,
+    defaultColumnOrder,
+    onColumnOrderChange,
+  });
+
+  /** Flat visible leaf columns in display order (with any drag-reorder applied).
+   *  Drives cell indexing everywhere; the TanStack `columnOrder` state below keeps
+   *  the header in lockstep. */
+  const visibleLeaves = useMemo(
+    () => applyOrder(flatLeaves(effectiveColumns), columnOrder),
+    [effectiveColumns, columnOrder],
+  );
 
   // --- Tree expansion ---
   const {
@@ -249,8 +345,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const table = useReactTable({
     data,
     columns: tsColumns,
-    state: { sorting, expanded: expandedState },
+    state: { sorting, expanded: expandedState, columnOrder },
     onSortingChange: setSorting,
+    onColumnOrderChange: (updater) =>
+      setColumnOrder((typeof updater === "function" ? updater(columnOrder) : updater) as string[]),
     onExpandedChange: (updater) =>
       setExpanded(
         (typeof updater === "function" ? updater(expandedState) : updater) as ExpandedState,
@@ -842,6 +940,37 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const headerGroups = table.getHeaderGroups();
   const showEmpty = data.length === 0;
 
+  // --- Column drag-to-reorder (reorderableColumns) ---
+  const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
+  const leafParents = useMemo(() => leafParentMap(columns), [columns]);
+  const reorderSensors = useSensors(
+    // 4px threshold so a plain click still sorts and the resize handle still resizes.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+  const [draggingColId, setDraggingColId] = useState<string | null>(null);
+  const draggingLeaf = draggingColId
+    ? visibleLeaves.find((l) => l.id === draggingColId)
+    : undefined;
+
+  const onColumnDragStart = useCallback((e: DragStartEvent) => {
+    setDraggingColId(String(e.active.id));
+  }, []);
+  const onColumnDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      setDraggingColId(null);
+      const activeId = String(e.active.id);
+      const overId = e.over ? String(e.over.id) : null;
+      if (!overId || activeId === overId) return;
+      // A leaf may only reorder within its own parent group.
+      if (leafParents.get(activeId) !== leafParents.get(overId)) return;
+      const from = orderedLeafIds.indexOf(activeId);
+      const to = orderedLeafIds.indexOf(overId);
+      if (from < 0 || to < 0) return;
+      setColumnOrder(arrayMove(orderedLeafIds, from, to));
+    },
+    [leafParents, orderedLeafIds, setColumnOrder],
+  );
+
   // Dither panel filling the space right of the last column (columnFill mode).
   // Lives inside `.body` so it spans the full body height and scrolls vertically
   // with the rows; collapses to ~0 width when the columns overflow the viewport.
@@ -870,6 +999,92 @@ export function DataTable<T>(props: DataTableProps<T>) {
       </div>
     ) : null;
 
+  /** Render one header cell. `dnd` (from `SortableHeaderCell`) makes it a draggable
+   *  sortable item; omitted for group/placeholder/non-reorderable headers. */
+  const renderHeaderCell = (header: Header<T, unknown>, dnd?: HeaderDnd): ReactNode => {
+    const span = header.colSpan;
+    const isGroupHeader = header.subHeaders.length > 0;
+    const def = header.column.columnDef;
+    const colMeta = (def as { meta?: { collapsedGroupId?: string } }).meta;
+    // For placeholder leaves (collapsed groups), pull the original group id back
+    // out so the chevron toggles the right thing.
+    const collapsedGroupId = colMeta?.collapsedGroupId;
+    const canSort = header.column.getCanSort();
+    const sortDir = header.column.getIsSorted();
+    const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
+    const isLastLeaf = header.column.id === visibleLeaves[colCount - 1]?.id;
+    const showTrailingHandle =
+      isLeafHeader && resizableColumnIds.has(header.column.id) && (!isLastLeaf || fillOn);
+    const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
+    const showResizeHandle = showTrailingHandle || showLeadingHandle;
+    const isLocked = isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
+    return (
+      <div
+        key={header.id}
+        ref={dnd?.ref}
+        role="columnheader"
+        className={cx(
+          styles.headerCell,
+          isGroupHeader && styles.headerCellGroup,
+          dnd?.listeners && styles.headerDraggable,
+          dnd?.dragging && styles.headerDragging,
+        )}
+        style={{ gridColumn: `span ${span}`, ...dnd?.style }}
+        data-align={isGroupHeader ? "center" : "start"}
+        data-sortable={canSort || undefined}
+        data-locked={isLocked || undefined}
+        // A placeholder sits above an ungrouped leaf's real header — erase the seam
+        // below it so the column reads as one full-height header.
+        data-merge-bottom={header.isPlaceholder || undefined}
+        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+        {...(dnd?.listeners ?? {})}
+      >
+        {!header.isPlaceholder && (
+          <>
+            <span>{flexRender(def.header, header.getContext())}</span>
+            {sortDir === "asc" && <span aria-hidden="true"> ▲</span>}
+            {sortDir === "desc" && <span aria-hidden="true"> ▼</span>}
+            {(isGroupHeader || collapsedGroupId) && (
+              <TreeChevron
+                expanded={isGroupHeader}
+                onToggle={() => toggleGroup(collapsedGroupId ?? header.column.id)}
+                ariaLabel={isGroupHeader ? "Collapse group" : "Expand group"}
+              />
+            )}
+          </>
+        )}
+        {showResizeHandle && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
+            aria-valuenow={Math.round(columnWidths[header.column.id] ?? 0)}
+            aria-valuemin={COLUMN_MIN_UNITS * 24}
+            tabIndex={0}
+            data-column-id={header.column.id}
+            className={cx(styles.resizeHandle, showLeadingHandle && styles.resizeHandleStart)}
+            // Stop the drag/reorder + sort from firing when grabbing the resizer.
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onColumnResizeDown(e);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (!showLeadingHandle) {
+                autoFitColumn(header.column.id, e.currentTarget.parentElement as HTMLElement);
+              }
+            }}
+            onKeyDown={(e) =>
+              resizeColumnByKey(header.column.id, e.currentTarget.parentElement as HTMLElement, e)
+            }
+          />
+        )}
+        {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
+      </div>
+    );
+  };
+
   return (
     <div className={cx(styles.wrapper, className)} style={style} {...rest}>
       <div
@@ -889,111 +1104,54 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
       >
-        {/* Headers — one row per header group; parent groups span their leaves. */}
-        {headerGroups.map((hg, hgIndex) => (
-          <div
-            key={hg.id}
-            ref={hgIndex === 0 ? headerRowRef : undefined}
-            className={styles.headerRow}
-            style={{ gridTemplateColumns }}
-            role="row"
-          >
-            {hg.headers.map((header) => {
-              const span = header.colSpan;
-              const isGroupHeader = header.subHeaders.length > 0;
-              const def = header.column.columnDef;
-              const colMeta = (def as { meta?: { collapsedGroupId?: string } }).meta;
-              // For placeholder leaves (collapsed groups), pull the original
-              // group id back out so the chevron toggles the right thing.
-              const collapsedGroupId = colMeta?.collapsedGroupId;
-              const canSort = header.column.getCanSort();
-              const sortDir = header.column.getIsSorted();
-              const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
-              // The last column is normally the flexible filler — no trailing
-              // handle (its width is set by resizing the column on its left). In
-              // fill mode it's fixed-width, so it gets its own trailing handle.
-              const isLastLeaf = header.column.id === visibleLeaves[colCount - 1]?.id;
-              const showTrailingHandle =
-                isLeafHeader && resizableColumnIds.has(header.column.id) && (!isLastLeaf || fillOn);
-              // Leading-edge handle for the last column when its locked neighbour
-              // leaves it with no grip; it trades width with `lastColLeadingTarget`.
-              const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
-              const showResizeHandle = showTrailingHandle || showLeadingHandle;
-              // A leaf that opted out of resizing while the table is resizable —
-              // gets the "fixed width" hint (dashed edge + muted hover hairline).
-              const isLocked =
-                isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
-              return (
-                <div
-                  key={header.id}
-                  role="columnheader"
-                  className={cx(styles.headerCell, isGroupHeader && styles.headerCellGroup)}
-                  style={{ gridColumn: `span ${span}` }}
-                  data-align={isGroupHeader ? "center" : "start"}
-                  data-sortable={canSort || undefined}
-                  data-locked={isLocked || undefined}
-                  // A placeholder sits above an ungrouped leaf's real header —
-                  // erase the seam below it so the column reads as one full-height
-                  // header instead of a hollow box stacked on the title.
-                  data-merge-bottom={header.isPlaceholder || undefined}
-                  onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                >
-                  {!header.isPlaceholder && (
-                    <>
-                      <span>{flexRender(def.header, header.getContext())}</span>
-                      {sortDir === "asc" && <span aria-hidden="true"> ▲</span>}
-                      {sortDir === "desc" && <span aria-hidden="true"> ▼</span>}
-                      {(isGroupHeader || collapsedGroupId) && (
-                        <TreeChevron
-                          expanded={isGroupHeader}
-                          onToggle={() => toggleGroup(collapsedGroupId ?? header.column.id)}
-                          ariaLabel={isGroupHeader ? "Collapse group" : "Expand group"}
-                        />
-                      )}
-                    </>
-                  )}
-                  {showResizeHandle && (
-                    <div
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
-                      aria-valuenow={Math.round(columnWidths[header.column.id] ?? 0)}
-                      aria-valuemin={COLUMN_MIN_UNITS * 24}
-                      tabIndex={0}
-                      data-column-id={header.column.id}
-                      className={cx(
-                        styles.resizeHandle,
-                        showLeadingHandle && styles.resizeHandleStart,
-                      )}
-                      onPointerDown={onColumnResizeDown}
-                      // Don't let a click on the handle toggle column sorting.
-                      onClick={(e) => e.stopPropagation()}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        // Auto-fit only makes sense for a trailing handle (it
-                        // fits the column it sits on); skip it for leading ones.
-                        if (!showLeadingHandle) {
-                          autoFitColumn(
-                            header.column.id,
-                            e.currentTarget.parentElement as HTMLElement,
-                          );
-                        }
-                      }}
-                      onKeyDown={(e) =>
-                        resizeColumnByKey(
-                          header.column.id,
-                          e.currentTarget.parentElement as HTMLElement,
-                          e,
-                        )
-                      }
-                    />
-                  )}
-                  {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        {/* Headers — one row per header group; parent groups span their leaves.
+            With `reorderableColumns`, leaf headers are sortable (drag to reorder). */}
+        {(() => {
+          const headerRows = headerGroups.map((hg, hgIndex) => (
+            <div
+              key={hg.id}
+              ref={hgIndex === 0 ? headerRowRef : undefined}
+              className={styles.headerRow}
+              style={{ gridTemplateColumns }}
+              role="row"
+            >
+              {hg.headers.map((header) => {
+                const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
+                return reorderableColumns && isLeaf ? (
+                  <SortableHeaderCell
+                    key={header.id}
+                    id={header.column.id}
+                    render={(dnd) => renderHeaderCell(header, dnd)}
+                  />
+                ) : (
+                  renderHeaderCell(header)
+                );
+              })}
+            </div>
+          ));
+          if (!reorderableColumns) return headerRows;
+          return (
+            <DndContext
+              sensors={reorderSensors}
+              onDragStart={onColumnDragStart}
+              onDragEnd={onColumnDragEnd}
+              onDragCancel={() => setDraggingColId(null)}
+            >
+              <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
+                {headerRows}
+              </SortableContext>
+              <DragOverlay dropAnimation={null}>
+                {draggingLeaf ? (
+                  <div className={styles.headerDragOverlay}>
+                    {typeof draggingLeaf.header === "string"
+                      ? draggingLeaf.header
+                      : draggingLeaf.id}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          );
+        })()}
 
         {/* Body */}
         {showEmpty ? (

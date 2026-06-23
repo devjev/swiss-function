@@ -18,6 +18,7 @@ interface HarnessProps {
   scrollSnap?: DataTableProps<Row>["scrollSnap"];
   edgeFade?: boolean;
   columnFill?: DataTableProps<Row>["columnFill"];
+  reorderableColumns?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
 }
 
@@ -35,6 +36,7 @@ export function DataTableHarness({
   scrollSnap,
   edgeFade,
   columnFill,
+  reorderableColumns,
   onCellChange,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
@@ -63,6 +65,7 @@ export function DataTableHarness({
       scrollSnap={scrollSnap}
       edgeFade={edgeFade}
       columnFill={columnFill}
+      reorderableColumns={reorderableColumns}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />

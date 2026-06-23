@@ -235,6 +235,10 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0–1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
+| `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. |
+| `columnOrder` | `string[]` | — | Controlled column order (leaf ids), with `onColumnOrderChange`. |
+| `defaultColumnOrder` | `string[]` | — | Uncontrolled initial order (e.g. restored from storage). |
+| `onColumnOrderChange` | `(order: string[]) => void` | — | Fired with the full order on each reorder — persist to save it. |
 | `columnWidths` | `Record<string, number>` | — | Controlled px width overrides by column id (with `onColumnWidthsChange`). |
 | `defaultColumnWidths` | `Record<string, number>` | — | Uncontrolled initial px overrides (e.g. restored from storage). |
 | `onColumnWidthsChange` | `(widths: Record<string, number>) => void` | — | Fired on resize/auto-fit — persist it to "save" the user's widths. |

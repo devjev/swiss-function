@@ -74,6 +74,22 @@ export const ReadOnly: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={360} />
 );
 
+// Drag a column header onto a neighbour to reorder; order persists via
+// onColumnOrderChange. Clicking a header still sorts; the right edge still resizes.
+export const Reorderable: Story = () => {
+  const [order, setOrder] = useState<string[]>([]);
+  return (
+    <DataTable
+      data={seed(50)}
+      columns={baseColumns}
+      height={360}
+      reorderableColumns
+      columnOrder={order}
+      onColumnOrderChange={setOrder}
+    />
+  );
+};
+
 // columnFill: fixed-width columns that don't stretch; the leftover space to the
 // right shows a static dither (so a sparse table doesn't read as unfinished).
 // Resize a column (incl. the last) — widths persist via onColumnWidthsChange,

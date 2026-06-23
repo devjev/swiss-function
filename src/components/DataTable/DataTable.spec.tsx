@@ -271,6 +271,34 @@ test("the last column is the filler and has no resize handle", async ({ mount })
   await expect(component.locator('[data-column-id="age"]')).toHaveCount(1);
 });
 
+test("reorderableColumns: dragging a header past its neighbour reorders the columns", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} reorderableColumns containerWidth={600} />,
+  );
+  const headers = c.getByRole("columnheader");
+  await expect(headers.first()).toHaveText(/name/);
+
+  const nameBox = await c.getByRole("columnheader", { name: "name" }).boundingBox();
+  const ageBox = await c.getByRole("columnheader", { name: "age" }).boundingBox();
+  if (!nameBox || !ageBox) throw new Error("missing header boxes");
+
+  // Drag "name" onto the right side of "age" so it lands after it.
+  await page.mouse.move(nameBox.x + nameBox.width / 2, nameBox.y + nameBox.height / 2);
+  await page.mouse.down();
+  // Cross the 4px sensor threshold, then move over the age column in small steps.
+  await page.mouse.move(nameBox.x + nameBox.width / 2 + 12, nameBox.y + nameBox.height / 2, {
+    steps: 4,
+  });
+  await page.mouse.move(ageBox.x + ageBox.width * 0.8, ageBox.y + ageBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  // "age" is now the first column.
+  await expect(headers.first()).toHaveText(/age/);
+});
+
 test("columnFill: last column gets a handle and a dither filler renders", async ({ mount }) => {
   const component = await mount(
     <DataTableHarness data={DATA} cols={COLUMNS} columnFill containerWidth={900} />,

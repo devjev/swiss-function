@@ -120,6 +120,37 @@
   --sf-cell-edge-b: 0 0 transparent;
 }
 
+/* Reorderable leaf header (reorderableColumns): grabbable; @dnd-kit drives the
+   transform that slides neighbours aside, so animate the snap-back transition. */
+.headerDraggable {
+  cursor: grab;
+  touch-action: none;
+}
+.headerDraggable:active {
+  cursor: grabbing;
+}
+/* The lifted column dims in place; the DragOverlay carries the moving label. */
+.headerDragging {
+  opacity: 0.35;
+  z-index: 1;
+}
+
+/* Floating label that follows the pointer while dragging a column. */
+.headerDragOverlay {
+  display: flex;
+  align-items: center;
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding: 0 calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg-subtle);
+  border: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-elevation-3);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  cursor: grabbing;
+}
+
 /* Column resize handle — a wide invisible hit target straddling the column's
    trailing border, with a hairline that lights up on hover/focus. */
 .resizeHandle {
