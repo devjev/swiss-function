@@ -1,16 +1,14 @@
 # API reference
 
-Per-component prop/element reference for the components actively shaped in this
-workstream: **Button, Combobox, DataTable, Selector, Timeline**.
+Per-component prop/element reference for every exported component in the library.
 
-> Scope: this is a focused reference, not the full catalogue. For "when the user
-> asks for X, reach for Y" guidance, token/`cx()` conventions, and the complete
-> component list, see [AGENTS.md](../AGENTS.md). For *why* the library looks the
-> way it does, see [AESTHETICS.md](../AESTHETICS.md).
+> For "when the user asks for X, reach for Y" guidance, token/`cx()` conventions,
+> and anti-patterns, see [AGENTS.md](../AGENTS.md). For *why* the library looks
+> the way it does, see [AESTHETICS.md](../AESTHETICS.md).
 >
 > **Maintenance:** keep this file in sync with the code. Whenever a documented
 > prop, default, element, or `--sf-*` variable changes, update the matching
-> section in the same change.
+> section in the same change. When a component is added, add a section for it.
 
 ## Conventions
 
@@ -18,11 +16,79 @@ workstream: **Button, Combobox, DataTable, Selector, Timeline**.
   merges `className` via `src/lib/cx.ts`.
 - Sizes (`sm`/`md`/`lg`) map to `--sf-unit` multiples — `1` / `1.5` / `2`
   (24 / 36 / 48px at the default unit).
-- "u" in this doc means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
+- "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
   JS. Dark mode is `[data-theme="dark"]` on any ancestor.
+- Required props show `—` in the Default column. Props "extend `HTMLAttributes`"
+  means native attributes pass through to the root and aren't re-listed.
+- Many compound components are thin wrappers over Base UI (`@base-ui/react`);
+  their parts forward props to the underlying primitive — see the Base UI docs
+  for the full surface.
+
+**Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
+ButtonGroup · Chat · Checkbox · Combobox · CommandBar · DataTable · Dialog ·
+Explorer · Field · Fullscreen · Graph · Grid · Input · Markdown · Menu ·
+NonIdealState · Outliner · Pane · Popover · Prose · Radio · Scatterplot ·
+Selector · Skeleton · StreamingTerminalText · Switch · Tabs · TextEdit ·
+Timeline · ToggleGroup
 
 ---
+
+## Accordion
+
+`import { Accordion } from "@tarassov-ch/swiss-function/accordion"`
+
+Compound, collapsible sections. Wraps Base UI's Accordion. Extends `HTMLAttributes<HTMLDivElement>`.
+
+**Elements / Parts:** `Accordion.Root` (container), `Accordion.Item` (one section),
+`Accordion.Header` (semantic heading), `Accordion.Trigger` (toggles the panel),
+`Accordion.Panel` (collapsible content).
+
+## BarChart
+
+`import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
+
+Responsive bar chart with Tufte/hover/full scaffolding modes. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `categories` | `string[]` | — | x-axis category labels. |
+| `series` | `BarSeries[]` | — | `{ name, values, color? }` per series. |
+| `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. |
+
+## Box
+
+`import { Box } from "@tarassov-ch/swiss-function/box"`
+
+Flexible container with elevation, optional texture, and unit-based padding. Extends `HTMLAttributes<HTMLElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `0` | Shadow depth. |
+| `texture` | `boolean` | `false` | Subtle monochrome noise overlay (`mix-blend-mode: multiply`). |
+| `padding` | `number \| string` | `1` | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `render` | `useRender.RenderProp` | `<div />` | Base UI render prop to swap the root element. |
+
+## BridgeChart
+
+`import { BridgeChart } from "@tarassov-ch/swiss-function/bridge-chart"`
+
+Waterfall/bridge chart of cumulative deltas and totals. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `items` | `BridgeItem[]` | — | `{ label, value, kind: "total" \| "delta" }`. |
+| `yDomain` | `[number, number]` | auto-fit | Y range. |
+| `yLabel` | `string` | — | Axis label. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showConnectors` | `boolean` | `true` | Dashed connectors between bars. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `renderTooltip` | `(datum: BridgeTooltipDatum) => ReactNode` | default formatter | Receives label, value, kind, cumulative. |
 
 ## Button
 
@@ -33,9 +99,9 @@ A single `<button>`. Extends `ButtonHTMLAttributes<HTMLButtonElement>`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `variant` | `"primary" \| "secondary" \| "ghost" \| "danger"` | `"primary"` | Colour role. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Height + font. Inherits from an enclosing `<ButtonGroup size>`; an explicit `size` wins. |
-| `tight` | `boolean` | `false` | Compact horizontal padding (`3/16u`) + `0.25u` icon/text gap. Height still comes from `size`, so tight buttons line up with non-tight peers. Composes with `size` and `variant`. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth, same `--sf-elevation-N` scale as `Box`. `ghost` is always flat. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Height + font. Inherits from an enclosing `<ButtonGroup size>`; explicit `size` wins. |
+| `tight` | `boolean` | `false` | Compact horizontal padding (`3/16u`) + `0.25u` icon/text gap. Height still comes from `size`, so tight buttons line up with peers. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). `ghost` is always flat. |
 
 ```tsx
 <Button variant="secondary" size="sm" tight>
@@ -44,34 +110,53 @@ A single `<button>`. Extends `ButtonHTMLAttributes<HTMLButtonElement>`.
 </Button>
 ```
 
----
+## ButtonGroup
+
+`import { ButtonGroup } from "@tarassov-ch/swiss-function/button-group"`
+
+Container (`role="group"`) that cascades a size to child Buttons. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `size` | `"sm" \| "md" \| "lg"` | — | Cascades to child Buttons; an explicit Button `size` wins. |
+
+## Chat
+
+`import { Chat } from "@tarassov-ch/swiss-function/chat"`
+
+Conversational UI with message history, auto-scroll, and streaming. Auto-focuses the input when `disabled` flips to false. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `messages` | `ChatMessage[]` | — | `{ id, role: "user" \| "assistant", content, isStreaming? }`. |
+| `onSubmit` | `(text: string) => void` | — | Enter submits (Shift+Enter = newline); input clears. |
+| `placeholder` | `string` | `"Ask anything…"` | Input placeholder. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
+| `disabled` | `boolean` | — | Blocks submit (e.g. while streaming). |
+
+## Checkbox
+
+`import { Checkbox } from "@tarassov-ch/swiss-function/checkbox"`
+
+Wraps Base UI's Checkbox with token styling. Extends `HTMLAttributes<HTMLButtonElement>` and Base UI Checkbox props (`checked`, `onCheckedChange`, …).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
 
 ## Combobox
 
 `import { Combobox } from "@tarassov-ch/swiss-function/combobox"`
 
-A thin wrapper over Base UI's Combobox (`@base-ui/react/combobox`) with library
-styling. Compound API — compose the parts. For single-select autocomplete use it
-directly; for an opinionated multi-select prefer [Selector](#selector).
+A thin wrapper over Base UI's Combobox with library styling. Compound API. For single-select autocomplete use it directly; for an opinionated multi-select prefer [Selector](#selector).
 
-**Parts** (namespace on `Combobox`):
+**Parts:** `Root`, `Input`, `InputGroup`, `Portal`, `Positioner`, `Popup`,
+`List`, `Item`, `ItemIndicator`, `Empty`, `Value`, `Chips`, `Chip`, `ChipRemove`,
+`Clear`.
 
-`Root`, `Input`, `InputGroup`, `Portal`, `Positioner`, `Popup`, `List`, `Item`,
-`ItemIndicator`, `Empty`, `Value`, `Chips`, `Chip`, `ChipRemove`, `Clear`.
-
-`Root` forwards Base UI props directly. Most-used:
-
-| Prop | Type | Notes |
-| --- | --- | --- |
-| `items` | `T[]` | Source list rendered by `List`'s render-prop. |
-| `multiple` | `boolean` | Multi-select; selected values render as `Chip`s. |
-| `value` / `defaultValue` | `T[] \| T` | Controlled / uncontrolled selection. |
-| `onValueChange` | `(value) => void` | Selection changed. |
-| `disabled` | `boolean` | Disable the control. |
-
-See the Base UI Combobox docs for the full prop surface (filtering, open state,
-positioning, etc.). `Positioner` carries the dropdown `z-index` so the popup
-paints above page chrome like a DataTable sticky header.
+`Root` forwards Base UI props. Most-used: `items`, `multiple`, `value` /
+`defaultValue`, `onValueChange`, `disabled`. `Positioner` carries the dropdown
+`z-index` so the popup paints above page chrome (e.g. a DataTable sticky header).
 
 ```tsx
 <Combobox.Root items={fruits}>
@@ -94,63 +179,27 @@ paints above page chrome like a DataTable sticky header.
 </Combobox.Root>
 ```
 
----
+## CommandBar
 
-## Selector
+`import { CommandBar } from "@tarassov-ch/swiss-function/command-bar"`
 
-`import { Selector } from "@tarassov-ch/swiss-function/selector"`
+Compound menu bar (top or bottom edge) with a search slot and nested submenus. Wraps Base UI's Menubar/Menu.
 
-Opinionated, controlled multi-select built on Combobox. Search a list, pick
-several, see the chosen set. Extends `HTMLAttributes<HTMLDivElement>` (minus
-`onChange`).
+**Elements / Parts:** `Root` (bar container), `Menu`, `Trigger`, `Content`
+(portal + Box popup, elevation 3), `Item`, `Separator`, `Submenu`,
+`SubmenuTrigger`, `SubmenuContent`, `Logo` (left slot), `Search` (right-aligned,
+wraps `Input` size `sm`).
 
-```ts
-type SelectorItem = string | { value: string; label: string };
-```
-
-| Prop | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `items` | `SelectorItem[]` | — | Choices. Bare string, or `{ value, label }`. |
-| `value` | `string[]` | — | Controlled selection (pass with `onChange`). |
-| `defaultValue` | `string[]` | `[]` | Uncontrolled initial selection. |
-| `onChange` | `(value: string[]) => void` | — | Fired with the full selected set. |
-| `placeholder` | `string` | `"Search…"` | Search field placeholder. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Mirrors `Input`. |
-| `layout` | `"panel" \| "inline" \| "compact"` | `"panel"` | See below. |
-| `disabled` | `boolean` | — | Disable the whole control. |
-| `emptyMessage` | `ReactNode` | `"No results"` | Shown in the dropdown when the filter matches nothing. |
-| `bucketLabel` | `ReactNode` | `"Selected"` | Heading for the bucket — `layout="panel"` only. |
-| `compactLabel` | `(count: number) => ReactNode` | `` `${n} item${n===1?"":"s"}` `` | Count wording — `layout="compact"` only. |
-
-**Layouts**
-
-- `panel` — search field with a separate bucket of removable chips below.
-- `inline` — chips sit inside the search field (tag-input). Strictly one row; chips
-  clip and a trailing `⋯` appears when they overflow.
-- `compact` — collapses to an "N items" count + Clear, sized to its content for
-  tight spaces / toolbars. The full set is reviewed and unchecked in the dropdown.
-
-Chips render in the body sans (the input stays monospace) with a muted half-drop
-dither fill.
-
-```tsx
-<Selector
-  layout="compact"
-  items={cities}
-  value={value}
-  onChange={setValue}
-  compactLabel={(n) => `${n} cities`}
-/>
-```
-
----
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `position` | `Root` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
+| `shortcut` | `Item` | `string` | — | Right-aligned hint; mirrored to `aria-keyshortcuts`. |
 
 ## DataTable
 
-`import { DataTable } from "@tarassov-ch/swiss-function/datatable"`
+`import { DataTable } from "@tarassov-ch/swiss-function/data-table"`
 
-Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends
-`HTMLAttributes<HTMLElement>` (minus `children` / `onChange`).
+Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttributes<HTMLElement>` (minus `children` / `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -165,7 +214,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends
 | `empty` | `ReactNode` | — | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
-| `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = fade depth in rows (2), `density` = peak dot opacity 0–1 (1). |
+| `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0–1 (1). |
 | `getCellSpan` | `CellSpanFn<T>` | — | Visually merge cells (return `{ rowSpan, colSpan }` at the lead cell). |
 | `getSubRows` | `(row: T) => T[] \| undefined` | — | Tree rows. |
 | `treeColumn` | `string` | first leaf | Column owning the tree chevron + indent. |
@@ -174,88 +223,430 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends
 | `columnGroupsCollapsed` / `onColumnGroupsCollapsedChange` | `Record<string, boolean>` / fn | — | Controlled column-group collapse. |
 
 **ColumnDef** — `LeafColumnDef<T> | GroupColumnDef<T>`:
+- Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
+  `width?` (u), `minWidth?` (u, default 3), `resizable?`, `align?`
+  (`start|center|end`), `edit?` (`EditConfig`), `sortable?`.
+- Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`.
+- `EditConfig`: `{ type: "text" | "number" | "boolean" }` or
+  `{ type: "select"; options: { value; label }[] }`.
 
-Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`, `width?`
-(u), `minWidth?` (u, default 3), `resizable?`, `align?` (`start|center|end`),
-`edit?` (`EditConfig`), `sortable?`.
-
-Group: `id`, `header`, `columns` (children), `defaultCollapsed?`, `collapsedCell?`.
-
-`EditConfig`: `{ type: "text" | "number" | "boolean" }` or
-`{ type: "select"; options: { value; label }[] }`.
-
-**Keyboard / selection behaviour**
-
+**Keyboard / selection:**
 - With a selected cell, arrows move the active cell one cell and scroll it into
-  view. Tab/Enter navigate Excel-style; Cmd/Ctrl+C/V copy/paste; Cmd/Ctrl+A
+  view; Tab/Enter navigate Excel-style; Cmd/Ctrl+C/V copy/paste; Cmd/Ctrl+A
   selects all.
-- With **no** cell selected, arrows scroll the viewport exactly one row / one
+- With **no** selected cell, arrows scroll the viewport exactly one row / one
   column, snapped to the row-height grid and leaf-column boundaries.
-- The range-selection tint is a translucent overlay painted *on top* of cell
-  content, so a consumer-set cell background never hides the highlight.
+- The range tint is a translucent overlay painted *on top* of cell content, so a
+  consumer-set cell background never hides the highlight.
 
 ```tsx
-<DataTable
-  data={rows}
-  columns={columns}
-  scrollSnap="rows"
-  edgeFade={{ rows: 4, density: 0.6 }}
-/>
+<DataTable data={rows} columns={columns} scrollSnap="rows"
+           edgeFade={{ rows: 4, density: 0.6 }} />
 ```
 
----
+## Dialog
+
+`import { Dialog } from "@tarassov-ch/swiss-function/dialog"`
+
+Compound modal dialog with optional dragging and resizing. Wraps Base UI's Dialog.
+
+**Elements / Parts:** `Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`, `Handle`
+(drag grip, active only in a draggable Popup), `Title`, `Description`, `Close`.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `draggable` | `Popup` | `boolean` | — | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
+| `resizable` | `Popup` | `boolean` | — | Resize from right/bottom/SE edges; arrow keys adjust, Escape exits. |
+
+## Explorer
+
+`import { Explorer } from "@tarassov-ch/swiss-function/explorer"`
+
+Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and a context menu. Fully controlled. Keyboard: arrows, Cmd/Ctrl+A, Delete, F2/Enter to edit.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `nodes` | `ExplorerNode<M>[]` | — | Root nodes; a node is a folder iff `children` is defined (even `[]`). |
+| `columns` | `ExplorerColumn<M>[]` | — | First column becomes the tree column (chevron + indent + name). |
+| `selectedIds` | `Set<string>` | `new Set()` | Controlled selection. |
+| `onSelectionChange` | `(ids: Set<string>) => void` | — | Click / Shift-range / Ctrl-toggle / Cmd-A. |
+| `expandedIds` | `Set<string>` | `new Set()` | Controlled expansion. |
+| `onExpandedChange` | `(ids: Set<string>) => void` | — | Chevron click or Left/Right arrow. |
+| `editingId` | `string \| null` | `null` | Controlled edit mode (one row at a time). |
+| `onEditingChange` | `(id: string \| null) => void` | — | Double-click or F2/Enter. |
+| `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. |
+| `onRename` | `(id, newName) => void` | — | Rename committed. |
+| `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | — | From context menu (null = root). |
+| `onMove` | `(id, newParentId, beforeId?) => void` | — | Drag drop; `beforeId` for order, null = append. |
+| `onDelete` | `(ids: string[]) => void` | — | Context menu or Delete/Backspace. |
+| `icon` | `(node) => ReactNode` | — | Override the per-node glyph. |
+| `showHeader` | `boolean` | `true` | Column header row. |
+| `rowHeight` | `number` | `32` | Px (≈ `unit * 4/3`). |
+| `height` | `number \| string` | `"100%"` | Viewport height; number = px, string = CSS. |
+
+## Field
+
+`import { Field } from "@tarassov-ch/swiss-function/field"`
+
+Compound form field with label, description, and error. Wraps Base UI's Field.
+
+**Elements / Parts:** `Root`, `Label` (shows `*` when `required`), `Description`,
+`Error`.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `orientation` | `Root` | `"vertical" \| "horizontal"` | `"vertical"` | Stack vs side-by-side. |
+| `required` | `Root` | `boolean` | `false` | Visual `*` on Label; add `required` to the control for HTML validation. |
+
+## Fullscreen
+
+`import { Fullscreen, FullscreenToggle } from "@tarassov-ch/swiss-function/fullscreen"`
+
+Container that toggles into a fixed CSS viewport overlay (not OS fullscreen); Escape exits. `FullscreenToggle` is a reusable corner icon button.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `expanded` | both | `boolean` | — | Controlled state. |
+| `defaultExpanded` | `Fullscreen` | `boolean` | `false` | Uncontrolled initial state. |
+| `onExpandedChange` | `Fullscreen` | `(expanded: boolean) => void` | — | Button click or Escape. |
+| `onToggle` | `FullscreenToggle` | `() => void` | — | Button click. |
+| `buttonPosition` / `position` | `Fullscreen` / `Toggle` | `"top-right" \| "top-left" \| "bottom-right" \| "bottom-left"` | `"top-right"` | Corner. |
+
+## Graph
+
+`import { Graph } from "@tarassov-ch/swiss-function/graph"`
+
+Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and optional drag-to-connect editing.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `GraphData` | — | `{ nodes, edges }` with arbitrary per-item data. |
+| `layout` | `LayoutKind` | — | Controlled layout (animated transition on change). |
+| `defaultLayout` | `"force" \| "tree" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
+| `onLayoutChange` | `(next: LayoutKind) => void` | — | Layout changed (prop/toolbar/keyboard). |
+| `onNodeClick` / `onEdgeClick` | `(id: string) => void` | — | Clicks (edges clickable when `editable` or this is set). |
+| `onSelectionChange` | `(id: string \| null) => void` | — | Selected node id. |
+| `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | — | Override visual attrs; omitted fields use defaults. |
+| `onNodeContextMenu` | `(id, event) => void` | — | Before right-click menu opens. |
+| `contextMenuItems` | `(target: GraphMenuTarget) => GraphMenuItem[]` | — | Custom menu (`[]` suppresses). |
+| `editable` | `boolean` | `false` | Connect-mode edge creation + deletion. |
+| `onEdgeCreate` | `({ id, source, target }) => void` | — | Connect drag completed. |
+| `onEdgeDelete` | `(id: string) => void` | — | Edge deleted (menu/keyboard). |
+| `generateEdgeId` | `() => string` | `edge-UUID`/counter | Custom edge id. |
+| `fullscreen` | `boolean` | `true` | Corner fullscreen toggle. |
+| `defaultFullscreen` | `boolean` | `false` | Uncontrolled fullscreen. |
+| `onFullscreenChange` | `(expanded) => void` | — | Maximized/restored. |
+| `fill` | `boolean` | `false` | Fill parent height (parent must set height). |
+| `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
+
+**Elements / Parts:** `Graph.Controls` (zoom/fit/reset/layout/Connect toolbar),
+`Graph.Minimap` (viewport overlay).
+
+## Grid
+
+`import { Grid } from "@tarassov-ch/swiss-function/grid"`
+
+CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable track resizing.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `columns` | `number \| string \| (number \| string)[]` | — | `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw template; `array` → joined tracks. |
+| `rows` | `number \| string \| (number \| string)[]` | — | Same shape, for rows. |
+| `areas` | `string[]` | — | `grid-template-areas` row strings. |
+| `gap` / `columnGap` / `rowGap` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `flow` | `"row" \| "column" \| "dense" \| "row dense" \| "column dense"` | — | `grid-auto-flow`. |
+| `autoColumns` / `autoRows` | `string` | — | `grid-auto-columns` / `-rows`. |
+| `alignItems` / `justifyItems` / `alignContent` / `justifyContent` | `CSSProperties[...]` | — | Alignment. |
+| `inline` | `boolean` | `false` | `inline-grid` instead of `grid`. |
+| `resizable` | `boolean \| "columns" \| "rows" \| "both"` | `false` | Draggable track boundaries. |
+| `minTrackSize` | `number` | `48` | Min track px during resize. |
+| `onTrackSizesChange` | `(axis, sizes: number[]) => void` | — | Resize settled (drag end / key / double-click reset). |
+| `render` | `RenderProp` | `<div />` | Base UI render prop. |
+
+**Elements / Parts:** `Grid.Item` — occupies cells via `area`, `col`/`row`, or
+`colSpan`/`rowSpan`.
+
+## Input
+
+`import { Input } from "@tarassov-ch/swiss-function/input"`
+
+Text input wrapping Base UI's Input. Extends `HTMLAttributes<HTMLInputElement>` and Base UI Input props.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `inputSize` | `"sm" \| "md" \| "lg"` | `"md"` | Visual size. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
+
+## Markdown
+
+`import { Markdown } from "@tarassov-ch/swiss-function/markdown"`
+
+Rendered Markdown (react-markdown + GFM) with optional double-click edit mode and an inline variant.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `string` | — | Markdown source. |
+| `editable` | `boolean` | `false` | Double-click to edit. |
+| `onChange` | `(next: string) => void` | — | Commit (blur or Cmd/Ctrl+Enter). |
+| `placeholder` | `string` | `"Nothing here yet."` | Shown when empty and not editing. |
+| `editRows` | `number` | `4` | Min textarea rows when editing. |
+| `preprocess` | `(source: string) => string` | — | Transform source before parse (render mode only). |
+| `components` | `ReactMarkdown["components"]` | — | Override renderers. |
+| `urlTransform` | `ReactMarkdown["urlTransform"]` | — | Custom URL sanitization. |
+| `inline` | `boolean` | `false` | `<span>` wrappers, flattened paragraphs; editing unsupported. |
+| `measured` | `boolean` | `false` | Cap prose to `--sf-measure`. `<Prose>` sets this. |
+
+## Menu
+
+`import { Menu } from "@tarassov-ch/swiss-function/menu"`
+
+Dropdown menu wrapping Base UI's Menu. Parts forward all Base UI props.
+
+**Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup`, `Item`,
+`Separator`, `Group`, `GroupLabel`.
+
+## NonIdealState
+
+`import { NonIdealState } from "@tarassov-ch/swiss-function/non-ideal-state"`
+
+Empty / no-results / error / loading state rendered as a block with a dithered WebGL fill and centered message.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `variant` | `"empty" \| "no-results" \| "error" \| "loading"` | `"empty"` | Picks default effect/tint/a11y. `error`→`role="alert"`; `loading`→`role="status"` + `aria-busy`. |
+| `title` | `ReactNode` | — | Headline. |
+| `description` | `ReactNode` | — | Secondary line. |
+| `action` | `ReactNode` | — | Action slot (usually a `Button`). |
+| `effect` | `"plasma" \| "noise" \| "scan" \| "ripple"` | per-variant | Override fill effect. |
+| `speed` | `number` | `1` | Animation speed multiplier. |
+| `density` | `number` | `0.6` | Fill coverage 0–1. |
+| `effectOptions` | `EffectOptions` | — | Advanced tuning (ripple `wavelength`, `seed`). |
+| `cellSize` | `number` | `7` | Dither cell px. |
+| `color` | `string` | muted token | Base fill colour; `error` uses danger token. |
+| `opacity` | `number` | `0.85` | Fill opacity 0–1. |
+| `width` / `height` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+
+## Outliner
+
+`import { Outliner } from "@tarassov-ch/swiss-function/outliner"`
+
+Tree outline editor with collapsible bullets, keyboard nav, wiki-links, and block-ref transclusion. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `Bullet[]` | — | Tree; each bullet `{ id, content, collapsed?, children[] }`. |
+| `onChange` | `(next: Bullet[]) => void` | — | Any mutation (edit, indent, delete, collapse, reorder). |
+| `readOnly` | `boolean` | `false` | Navigation/read only. |
+| `generateId` | `() => string` | `crypto.randomUUID()` | New-bullet id factory. |
+| `onWikiLinkClick` | `(name: string) => void` | — | `[[wiki link]]` clicked. |
+| `resolveBlockRef` | `(id: string) => string \| null` | — | Resolve `((block-id))`; null → "missing" placeholder. |
+
+## Pane
+
+`import { Pane } from "@tarassov-ch/swiss-function/pane"`
+
+Full-height container with a fixed header and scrollable body (CSS-grid `auto / 1fr` with cascading `min-block-size: 0`). Parts extend `HTMLAttributes<HTMLDivElement>`.
+
+**Elements / Parts:** `Pane.Root` (grid container), `Pane.Header` (auto-sized, no
+scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
+
+## Popover
+
+`import { Popover } from "@tarassov-ch/swiss-function/popover"`
+
+Base UI Popover wrapper with themed styling.
+
+**Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup` (Box
+elevation 3), `Title`, `Description`, `Arrow`, `Close`.
+
+## Prose
+
+`import { Prose } from "@tarassov-ch/swiss-function/prose"`
+
+Virtualized Markdown document with an auto-generated heading outline and scroll-to-heading nav. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `source` | `string` | — | Markdown to parse (ignored if `blocks` given). |
+| `blocks` | `ProseBlock[]` | — | Pre-parsed blocks; bypass the parser. |
+| `measured` | `boolean` | `true` | Cap block width to `--sf-measure`. |
+| `split` | `boolean` | `false` | 2-column grid (outline + body). |
+
+**Elements / Parts:** `Prose.Root` (context provider), `Prose.Outline`
+(`ariaLabel`, default "Document outline"), `Prose.Body` (`estimateBlockSize`
+default 96, `overscan` default 6).
+
+## Radio
+
+`import { Radio, RadioGroup } from "@tarassov-ch/swiss-function/radio"`
+
+Base UI radio + group wrappers. `RadioGroup` forwards all Base UI RadioGroup props; `Radio` forwards Base UI Radio.Root props.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `elevation` | `Radio` | `0 \| 1 \| 2 \| 3 \| 4` | `2` | Resting depth; sets `data-elevation`. |
+
+## Scatterplot
+
+`import { Scatterplot } from "@tarassov-ch/swiss-function/scatterplot"`
+
+Responsive scatter plot with optional lines, multi-series, scaffolding modes, and a hover tooltip. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `series` | `ScatterSeries[]` | — | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints? }`. |
+| `xDomain` | `[number, number] \| [Date, Date]` | auto-fit | Detects date vs numeric. |
+| `yDomain` | `[number, number]` | auto-fit | Y range. |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
+
+## Selector
+
+`import { Selector } from "@tarassov-ch/swiss-function/selector"`
+
+Opinionated, controlled multi-select built on Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label }`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `items` | `SelectorItem[]` | — | Choices. |
+| `value` | `string[]` | — | Controlled selection (pass with `onChange`). |
+| `defaultValue` | `string[]` | `[]` | Uncontrolled initial selection. |
+| `onChange` | `(value: string[]) => void` | — | Fired with the full selected set. |
+| `placeholder` | `string` | `"Search…"` | Search placeholder. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Mirrors `Input`. |
+| `layout` | `"panel" \| "inline" \| "compact"` | `"panel"` | See below. |
+| `disabled` | `boolean` | — | Disable the control. |
+| `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
+| `bucketLabel` | `ReactNode` | `"Selected"` | Bucket heading — `panel` only. |
+| `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording — `compact` only. |
+
+**Layouts:** `panel` (search + chip bucket below), `inline` (chips inside the
+field, one row, overflow shows a trailing `⋯`), `compact` (collapses to "N items"
++ Clear for tight spaces; review/uncheck in the dropdown).
+
+```tsx
+<Selector layout="compact" items={cities} value={value} onChange={setValue}
+          compactLabel={(n) => `${n} cities`} />
+```
+
+## Skeleton
+
+`import { Skeleton } from "@tarassov-ch/swiss-function/skeleton"`
+
+Animated loading placeholder (shimmer, or a NonIdealState-style dithered effect). Extends `HTMLAttributes<HTMLElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `shape` | `"rect" \| "circle" \| "pill"` | `"rect"` | rect is sharp; circle/pill rounded. |
+| `width` / `height` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `size` | `number \| string` | — | Shorthand for `width = height`. |
+| `effect` | `EffectName` | — | Dithered effect instead of shimmer. |
+| `speed` | `number` | — | Effect speed (with `effect`). |
+| `density` | `number` | `0.6` | Effect coverage (with `effect`). |
+| `cellSize` | `number` | — | Dither cell px (with `effect`). |
+| `effectOptions` | `EffectOptions` | — | Advanced tuning (with `effect`). |
+| `render` | `RenderProp` | `<div />` | Base UI render prop. |
+
+## StreamingTerminalText
+
+`import { StreamingTerminalText } from "@tarassov-ch/swiss-function/streaming-terminal-text"`
+
+Reveals text character-by-character with a shade-block tail (terminal typewriter). Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `content` | `string` | — | Full text received so far (grows as chunks arrive). |
+| `isComplete` | `boolean` | — | True once no more text will arrive. |
+| `tailLength` | `number` | `3` | Unrevealed letters held in the tail. |
+| `charIntervalMs` | `number` | `64` | Ms per tick. |
+| `shadeRamp` | `string[]` | `["▒", "▓"]` | Shade glyphs, far → near. |
+| `spacePlaceholder` | `string` | `" "` | Glyph filling spaces in the tail. |
+
+## Switch
+
+`import { Switch } from "@tarassov-ch/swiss-function/switch"`
+
+Toggle switch (Base UI Switch.Root + Thumb). Forwards Base UI Switch props (`checked`, `disabled`, `onCheckedChange`, …).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth; sets `data-elevation`. |
+
+## Tabs
+
+`import { Tabs } from "@tarassov-ch/swiss-function/tabs"`
+
+Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props.
+
+**Elements / Parts:** `Root`, `List`, `Tab`, `Indicator` (active underline),
+`Panel` (paired by index).
+
+## TextEdit
+
+`import { TextEdit } from "@tarassov-ch/swiss-function/text-edit"`
+
+Styled `<textarea>`. Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `rows` | `number` | `3` | Initial textarea rows. |
 
 ## Timeline
 
 `import { Timeline } from "@tarassov-ch/swiss-function/timeline"`
 
-A horizontal time axis with ticks, event markers, optional scrubbing/range
-selection, and a condensed control-strip mode. Extends
-`HTMLAttributes<HTMLDivElement>`.
-
-```ts
-type TimelineSnap = "none" | "events" | "ticks";
-```
+Horizontal time axis with ticks, event markers, optional scrubbing/range selection, and a condensed strip mode. Extends `HTMLAttributes<HTMLDivElement>`. `TimelineSnap = "none" | "events" | "ticks"`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `start` / `end` | `Date` | — | Axis range (required). |
-| `value` | `Date` | — | Playhead position (controlled); renders a draggable scrubber. |
+| `value` | `Date` | — | Playhead (controlled); renders a draggable scrubber. |
 | `onChange` | `(date: Date) => void` | — | Scrub/click; omit for read-only. |
-| `rangeValue` | `[Date, Date]` | — | Range selection (two handles + band). Takes over from the single playhead. |
+| `rangeValue` | `[Date, Date]` | — | Range selection (two handles + band); takes over from the playhead. |
 | `onRangeChange` | `(range: [Date, Date]) => void` | — | Range drag/click. |
 | `snap` | `TimelineSnap` | `"none"` | Snap scrubbing to events or ticks. |
 | `height` | `number \| string` | auto | Defaults to fit the lane count. |
-| `showNow` | `boolean` | `true` | Faint vertical line at the current time. |
-| `maxLanes` | `number` | `3` | Max stacking lanes for label collision avoidance. |
-| `tickSpacing` | `number` | tuned (~80–200px) | Target **minimum px between ticks**; the unit (year/month/week/day/hour) is chosen so neighbours sit at least this far apart. Larger = sparser. |
-| `compact` | `boolean` | `false` | Condensed control strip — labels hidden at rest. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Strip height; implies the control strip. The `sm` value label shrinks to 75%. |
+| `showNow` | `boolean` | `true` | Faint line at the current time. |
+| `maxLanes` | `number` | `3` | Max label-stacking lanes. |
+| `tickSpacing` | `number` | tuned (~80–200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. |
+| `compact` | `boolean` | `false` | Condensed strip — labels hidden at rest. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Strip height; implies the strip. `sm` value label shrinks to 75%. |
 | `bordered` | `boolean` | `false` | Input-style frame. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `0` | Resting depth; pairs with `bordered`. |
 | `valueLabel` | `boolean` | `false` | Floating value tag above playhead/handles. |
 | `formatValue` | `(date: Date) => ReactNode` | ISO `YYYY-MM-DD` | Value-tag formatter. |
-| `color` | `string` | `var(--sf-color-primary)` | Accent for playhead, now line, markers, range band, value tag. Any CSS colour or token reference. |
+| `color` | `string` | `var(--sf-color-primary)` | Accent (playhead, now line, markers, range band, value tag). |
 
-**Elements**
-
-- `Timeline.Event` — `{ date: Date; onClick?: () => void; children }`. A marker on
-  the axis; with `onClick` it becomes an interactive button.
+**Elements / Parts:** `Timeline.Event` — `{ date: Date; onClick?: () => void; children }`.
+With `onClick` it becomes an interactive button.
 
 ```tsx
 <Timeline start={start} end={end} value={value} onChange={setValue}
           valueLabel color="var(--sf-color-success)" tickSpacing={100}>
   <Timeline.Event date={beta}>Beta</Timeline.Event>
-  <Timeline.Event date={ga}>v1.0</Timeline.Event>
 </Timeline>
 ```
 
+## ToggleGroup
+
+`import { ToggleGroup } from "@tarassov-ch/swiss-function/toggle-group"`
+
+Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards Base UI props (`value`, `onValueChange`, `toggleMultiple`, …).
+
+**Elements / Parts:** `ToggleGroup.Root` (group), `ToggleGroup.Item` (`value: string`, required).
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
+
 ---
 
-## CSS variables introduced by these components
+## CSS variables set per-instance
 
-These are set per-instance (via a prop or inline style) and read by the
-component's stylesheet:
+Set via a prop or inline style and read by the component's stylesheet:
 
 | Variable | Component | Set by |
 | --- | --- | --- |
@@ -263,3 +654,4 @@ component's stylesheet:
 | `--sf-datatable-fade-rows` | DataTable | `edgeFade.rows` |
 | `--sf-datatable-fade-density` | DataTable | `edgeFade.density` |
 | `--sf-datatable-col-min` | DataTable | minimum column width (default `3u`) |
+| `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |
