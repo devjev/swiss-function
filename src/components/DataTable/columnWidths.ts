@@ -26,25 +26,38 @@ export interface TemplateLeaf {
   minWidth?: number;
 }
 
+export interface ColumnTemplateOptions {
+  /** When true (default), the last column's preferred is `1fr` so it fills any
+   *  slack. When false, the last column is fixed like the rest — used by the
+   *  `columnFill` mode, where leftover space is taken by a dither filler instead. */
+  stretchLast?: boolean;
+  /** Preferred width (in `--sf-unit` multiples) for columns with no `width`.
+   *  Defaults to `DEFAULT_COL_UNITS`. */
+  defaultWidth?: number;
+}
+
 /** Build the `grid-template-columns` string shared by the header and every body
- *  row. Every track is `minmax(min, preferred)`; the last column's preferred is
- *  `1fr` so it fills any slack. */
+ *  row. Every track is `minmax(min, preferred)`; by default the last column's
+ *  preferred is `1fr` so it fills any slack (see `stretchLast`). */
 export function buildColumnTemplate(
   leaves: TemplateLeaf[],
   overrides: Record<string, number>,
+  options?: ColumnTemplateOptions,
 ): string {
+  const stretchLast = options?.stretchLast ?? true;
+  const defaultWidth = options?.defaultWidth ?? DEFAULT_COL_UNITS;
   const lastIdx = leaves.length - 1;
   return leaves
     .map((col, i) => {
       const min = `calc(var(--sf-unit) * ${col.minWidth ?? COLUMN_MIN_UNITS})`;
-      if (i === lastIdx) return `minmax(${min}, 1fr)`;
+      if (i === lastIdx && stretchLast) return `minmax(${min}, 1fr)`;
       const override = overrides[col.id];
       const preferred =
         override != null
           ? `${override}px`
           : col.width != null
             ? `calc(var(--sf-unit) * ${col.width})`
-            : `calc(var(--sf-unit) * ${DEFAULT_COL_UNITS})`;
+            : `calc(var(--sf-unit) * ${defaultWidth})`;
       return `minmax(${min}, ${preferred})`;
     })
     .join(" ");

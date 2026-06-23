@@ -5,7 +5,7 @@
   position: relative;
   /* The timeline's accent — playhead, now line, markers, range band, value tag.
      Defaults to the primary token; override per-instance via the `color` prop. */
-  --sf-timeline-color: var(--sf-timeline-color);
+  --sf-timeline-color: var(--sf-color-primary);
   overflow-x: auto;
   overflow-y: hidden;
   font-family: var(--sf-font-sans);
@@ -167,6 +167,23 @@
   white-space: nowrap;
   pointer-events: none;
   z-index: 4;
+  /* Dim at rest, snap to full on interaction. `scale` is the individual transform
+     property so it composes with the `translateX(-50%)` centering above without
+     clobbering it. The overshoot easing gives a tactile, mechanical-keyboard
+     "pop" rather than a soft fade. */
+  opacity: 0.3;
+  scale: 0.92;
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-out),
+    scale var(--sf-duration-fast) var(--sf-ease-snap);
+}
+
+/* Reveal at full strength while the timeline is hovered, focused, or scrubbing. */
+.viewport:hover .scrubValue,
+.viewport:focus-within .scrubValue,
+.viewport[data-scrubbing] .scrubValue {
+  opacity: 1;
+  scale: 1;
 }
 
 /* Down-pointing triangle at the TOP of the playhead — a clear "drag me" cue. */
@@ -183,12 +200,23 @@
 
 /* --- Range selection ---------------------------------------------------- */
 
-/* Highlighted band between the two range handles. Draggable to pan the range. */
+/* Highlighted band between the two range handles. Draggable to pan the range.
+   `--sf-timeline-range-opacity` (set by the `rangeOpacity` prop) is the fill's
+   alpha; the border tracks it but stays a touch more opaque so the edges read. */
 .rangeRegion {
   position: absolute;
   inset-block: 0;
-  background-color: color-mix(in srgb, var(--sf-timeline-color), transparent 88%);
-  border-inline: 1px solid color-mix(in srgb, var(--sf-timeline-color), transparent 40%);
+  background-color: color-mix(
+    in srgb,
+    var(--sf-timeline-color) var(--sf-timeline-range-opacity, 12%),
+    transparent
+  );
+  border-inline: 1px solid
+    color-mix(
+      in srgb,
+      var(--sf-timeline-color) calc(var(--sf-timeline-range-opacity, 12%) + 48%),
+      transparent
+    );
   /* Below events (z-index 1) so event markers stay clickable; the band is still
      draggable wherever no event sits on top of it. */
   z-index: 0;
@@ -391,5 +419,10 @@
     /* No scale cue under reduced motion, so darken the accent for hover feedback
        — derived from the (possibly custom) timeline colour. */
     background-color: color-mix(in srgb, var(--sf-timeline-color), var(--sf-color-fg) 20%);
+  }
+  /* Keep the opacity reveal but drop the springy scale "pop". */
+  .scrubValue {
+    scale: 1;
+    transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
   }
 }

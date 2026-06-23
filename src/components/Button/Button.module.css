@@ -22,12 +22,14 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     var(--sf-elevation-2);
+  /* Snap easing on `transform` so the press travel bottoms out and pops back like
+     a mechanical key, rather than gliding; everything else uses the calm ease-out. */
   transition:
     background-color var(--sf-duration-fast) var(--sf-ease-out),
     border-color var(--sf-duration-fast) var(--sf-ease-out),
     color var(--sf-duration-fast) var(--sf-ease-out),
     box-shadow var(--sf-duration-fast) var(--sf-ease-out),
-    transform var(--sf-duration-fast) var(--sf-ease-out);
+    transform var(--sf-duration-fast) var(--sf-ease-snap);
 }
 
 .root:focus-visible {
@@ -144,4 +146,19 @@
 .tight {
   padding-inline: calc(var(--sf-unit) * 3 / 16);
   gap: calc(var(--sf-unit) / 4);
+}
+
+/* Drop the press travel (and its springy easing) under reduced motion; the inset
+   shadow on :active still conveys the press without moving the button. */
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition:
+      background-color var(--sf-duration-fast) var(--sf-ease-out),
+      border-color var(--sf-duration-fast) var(--sf-ease-out),
+      color var(--sf-duration-fast) var(--sf-ease-out),
+      box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+  }
+  .root:active:not([data-disabled]) {
+    transform: none;
+  }
 }

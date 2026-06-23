@@ -88,6 +88,9 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    *  tag. Any CSS colour (or a token reference like `var(--sf-color-success)`).
    *  Defaults to the primary token. */
   color?: string;
+  /** Opacity (0–1) of the range-selection highlight band's fill. The band border
+   *  tracks it but stays a touch more opaque. Default 0.12. */
+  rangeOpacity?: number;
   children?: ReactNode;
 }
 
@@ -111,6 +114,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     valueLabel = false,
     formatValue,
     color,
+    rangeOpacity,
     className,
     style,
     children,
@@ -371,6 +375,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     height: typeof height === "number" ? `${height}px` : height,
     "--sf-timeline-lanes": numLanes,
     ...(color ? { "--sf-timeline-color": color } : null),
+    ...(rangeOpacity != null ? { "--sf-timeline-range-opacity": `${rangeOpacity * 100}%` } : null),
     ...style,
   } as CSSProperties;
 

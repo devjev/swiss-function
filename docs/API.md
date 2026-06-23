@@ -215,6 +215,11 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0–1 (1). |
+| `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it. |
+| `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
+| `columnWidths` | `Record<string, number>` | — | Controlled px width overrides by column id (with `onColumnWidthsChange`). |
+| `defaultColumnWidths` | `Record<string, number>` | — | Uncontrolled initial px overrides (e.g. restored from storage). |
+| `onColumnWidthsChange` | `(widths: Record<string, number>) => void` | — | Fired on resize/auto-fit — persist it to "save" the user's widths. |
 | `getCellSpan` | `CellSpanFn<T>` | — | Visually merge cells (return `{ rowSpan, colSpan }` at the lead cell). |
 | `getSubRows` | `(row: T) => T[] \| undefined` | — | Tree rows. |
 | `treeColumn` | `string` | first leaf | Column owning the tree chevron + indent. |
@@ -619,6 +624,7 @@ Horizontal time axis with ticks, event markers, optional scrubbing/range selecti
 | `valueLabel` | `boolean` | `false` | Floating value tag above playhead/handles. |
 | `formatValue` | `(date: Date) => ReactNode` | ISO `YYYY-MM-DD` | Value-tag formatter. |
 | `color` | `string` | `var(--sf-color-primary)` | Accent (playhead, now line, markers, range band, value tag). |
+| `rangeOpacity` | `number` | `0.12` | Opacity (0–1) of the range-selection highlight band's fill (border tracks it, slightly more opaque). |
 
 **Elements / Parts:** `Timeline.Event` — `{ date: Date; onClick?: () => void; children }`.
 With `onClick` it becomes an interactive button.
@@ -651,7 +657,9 @@ Set via a prop or inline style and read by the component's stylesheet:
 | Variable | Component | Set by |
 | --- | --- | --- |
 | `--sf-timeline-color` | Timeline | `color` prop |
+| `--sf-timeline-range-opacity` | Timeline | `rangeOpacity` prop |
 | `--sf-datatable-fade-rows` | DataTable | `edgeFade.rows` |
 | `--sf-datatable-fade-density` | DataTable | `edgeFade.density` |
 | `--sf-datatable-col-min` | DataTable | minimum column width (default `3u`) |
+| `--sf-columns-width` | DataTable | columns' total width — placement of the `columnFill` dither panel |
 | `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |

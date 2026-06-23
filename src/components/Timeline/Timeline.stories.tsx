@@ -239,6 +239,7 @@ export const RangeSelect: Story = () => {
         end={new Date("2026-12-31")}
         rangeValue={range}
         onRangeChange={setRange}
+        rangeOpacity={0.3}
       >
         <Timeline.Event date={new Date("2026-04-22")}>Beta</Timeline.Event>
         <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>

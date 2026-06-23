@@ -240,6 +240,70 @@
   min-width: min-content;
 }
 
+/* Column-fill mode: the header must not paint its bg across the empty space (the
+   dither owns it) yet must keep its columns aligned with the body. Moving the bg
+   from the row onto the cells leaves the leftover transparent without changing
+   track widths; `min-width: max-content` holds the columns at their preferred
+   width (so they don't shrink) on both the header and the body. */
+.viewport[data-column-fill] .headerRow {
+  background-color: transparent;
+  min-width: max-content;
+}
+.viewport[data-column-fill] .headerCell {
+  background-color: var(--sf-color-bg-subtle);
+}
+.viewport[data-column-fill] .headerCellGroup {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+}
+.viewport[data-column-fill] .body {
+  min-width: max-content;
+}
+
+/* In fill mode the last column is a real fixed column with the dither panel to
+   its right, so it keeps its trailing separator (normally erased because the
+   last column is the flush-right filler). */
+.viewport[data-column-fill] .headerCell:last-child,
+.viewport[data-column-fill] .cell:last-child {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+}
+
+/* Column-fill mode: a dither panel filling the space to the right of the last
+   column, from the columns' trailing edge (`--sf-columns-width`, set inline) to
+   the viewport's right edge. It's a direct child of the scroll viewport spanning
+   the full content height (set inline) — header strip included — so the empty
+   space reads as one block. Non-interactive; collapses to ~0 width when the
+   columns overflow the viewport. */
+.columnFill {
+  position: absolute;
+  top: 0;
+  inset-inline-start: var(--sf-columns-width, 0);
+  inset-inline-end: 0;
+  pointer-events: none;
+  color: var(--sf-color-muted);
+}
+
+/* Static variant: a uniform muted Bayer dither (half-drop, ~12.5% coverage),
+   the same dither vocabulary as the edge fade and Selector chips. */
+.columnFill:not(.columnFillAnimated) {
+  background-color: var(
+    --sf-columnfill-color,
+    color-mix(in srgb, var(--sf-color-muted), transparent 55%)
+  );
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* Animated variant: the WebGL dither canvas fills the panel. */
+.columnFillCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .row {
   display: grid;
   min-width: min-content;

@@ -271,6 +271,19 @@ test("the last column is the filler and has no resize handle", async ({ mount })
   await expect(component.locator('[data-column-id="age"]')).toHaveCount(1);
 });
 
+test("columnFill: last column gets a handle and a dither filler renders", async ({ mount }) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} columnFill containerWidth={900} />,
+  );
+  // The viewport opts into fill mode.
+  await expect(component.locator("[data-column-fill]")).toHaveCount(1);
+  // The last column ("active") now has its own trailing resize handle (it's no
+  // longer the flush-right filler).
+  await expect(component.locator('[data-column-id="active"]')).toHaveCount(1);
+  // The dither filler panel renders in the leftover space.
+  await expect(component.locator('[class*="columnFill"]')).toHaveCount(1);
+});
+
 test("a locked column carries the data-locked hint on its header and cells", async ({ mount }) => {
   const component = await mount(
     <DataTableHarness data={DATA} cols={COLUMNS} lockedCols={["age"]} />,

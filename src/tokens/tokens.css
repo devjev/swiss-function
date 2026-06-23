@@ -141,6 +141,10 @@
     --sf-duration-slow: 240ms;
     --sf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --sf-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Snap: overshoots slightly past the target then settles — a tactile,
+       mechanical-keyboard "pop". For deliberate state changes (reveals, presses),
+       never for continuous motion. Always gated behind prefers-reduced-motion. */
+    --sf-ease-snap: cubic-bezier(0.34, 1.7, 0.5, 1);
 
     /* Z-indices */
     --sf-z-dropdown: 1000;

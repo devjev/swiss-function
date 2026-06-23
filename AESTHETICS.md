@@ -141,9 +141,22 @@ delight.
 - **Three durations**: `--sf-duration-fast` (120ms), `-base` (180ms),
   `-slow` (240ms). Anything longer is going to feel laggy to the user
   who's actually trying to work.
-- **Two easings**: `--sf-ease-out` for entrances and reveals,
-  `-in-out` for state transitions. Don't introduce custom curves
-  unless a component genuinely needs one.
+- **Three easings**: `--sf-ease-out` for entrances and reveals,
+  `-in-out` for state transitions, and `--sf-ease-snap` for a tactile
+  "pop". Don't introduce custom curves unless a component genuinely
+  needs one.
+- **The snap easing is a tactile cue, used sparingly.** `--sf-ease-snap`
+  (`cubic-bezier(0.34, 1.7, 0.5, 1)`) overshoots slightly past the
+  target then settles — the feel of a good mechanical keyboard:
+  immediate, physical, decisive. Reserve it for *discrete, deliberate*
+  moments — a value label revealing on hover, a button settling after a
+  press — paired with a fast duration and a single transformed property
+  (use the individual `scale`/`translate` properties so it composes with
+  layout transforms). It is **not** a general entrance curve and never
+  goes on continuous or incidental motion. This is the one sanctioned
+  exception to "no bouncy springs" below: one crisp overshoot on a
+  purposeful interaction reads as quality; springs on *everything* read
+  as a toy.
 - **Always respect `prefers-reduced-motion: reduce`**. This isn't
   optional. Every transition needs a static fallback. Many of our
   users have vestibular sensitivity; some are just trying to focus.

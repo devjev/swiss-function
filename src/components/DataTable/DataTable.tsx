@@ -9,10 +9,12 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
+import type { EffectName } from "../NonIdealState/effects";
+import { useDitheredFill } from "../NonIdealState/useDitheredFill";
 import { computeMergeMap } from "./cellSpans";
 import { buildColumnTemplate, COLUMN_MIN_UNITS, resizeBoundary } from "./columnWidths";
 import styles from "./DataTable.module.css";
@@ -31,6 +33,7 @@ import type {
 } from "./types";
 import { isGroup } from "./types";
 import { useColumnGroupCollapse } from "./useColumnGroupCollapse";
+import { useColumnWidths } from "./useColumnWidths";
 import { useTableClipboard } from "./useTableClipboard";
 import { useTableEdit } from "./useTableEdit";
 import { useTableSelection } from "./useTableSelection";
@@ -87,7 +90,37 @@ export interface DataTableProps<T>
   /** Controlled column-group collapse state. */
   columnGroupsCollapsed?: Record<string, boolean>;
   onColumnGroupsCollapsedChange?: (state: Record<string, boolean>) => void;
+
+  /** Standard preferred width (in `--sf-unit` multiples) for columns that don't
+   *  declare their own `width`. Default 8. */
+  defaultColumnWidth?: number;
+  /** Controlled px width overrides keyed by column id. Pass with
+   *  `onColumnWidthsChange`. */
+  columnWidths?: Record<string, number>;
+  /** Initial px width overrides when uncontrolled (e.g. restored from storage). */
+  defaultColumnWidths?: Record<string, number>;
+  /** Fired with the full override map whenever a column is resized or auto-fit —
+   *  persist it to "save" the user's widths. */
+  onColumnWidthsChange?: (widths: Record<string, number>) => void;
+  /** Don't stretch the last column to the right edge; instead keep all columns at
+   *  their fixed widths and fill the leftover space with a dither panel (so a
+   *  sparse table doesn't read as unfinished). `true` uses a static CSS dither;
+   *  pass an object to animate it or tune the look. Default `false`. */
+  columnFill?: ColumnFill;
 }
+
+export type ColumnFill =
+  | boolean
+  | {
+      /** Use the animated WebGL dither instead of the static CSS one. */
+      animated?: boolean;
+      /** Animated effect name (default `"noise"`). */
+      effect?: EffectName;
+      /** Dither colour (any CSS colour). Defaults to a muted token. */
+      color?: string;
+      /** Animated coverage density 0–1 (default 0.5). */
+      density?: number;
+    };
 
 const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_HEIGHT = 400;
@@ -164,10 +197,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onExpandedChange,
     columnGroupsCollapsed: controlledGroupsCollapsed,
     onColumnGroupsCollapsedChange,
+    defaultColumnWidth,
+    columnWidths: controlledColumnWidths,
+    defaultColumnWidths,
+    onColumnWidthsChange,
+    columnFill = false,
     className,
     style,
     ...rest
   } = props;
+
+  // Column-fill mode: fixed columns + a dither filler in the leftover space.
+  const fillOn = columnFill !== false;
+  const fillOpts = typeof columnFill === "object" ? columnFill : {};
+  const fillAnimated = fillOpts.animated === true;
 
   // --- Column-group collapse ---
   const {
@@ -503,7 +546,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   // --- Column-width overrides (px), set by dragging the resize handle ---
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  // Controlled/uncontrolled with an onChange so resized widths can be persisted.
+  const { columnWidths, setColumnWidths } = useColumnWidths({
+    columnWidths: controlledColumnWidths,
+    defaultColumnWidths,
+    onColumnWidthsChange,
+  });
 
   /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
   const resizableColumnIds = useMemo(() => {
@@ -528,6 +576,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // last column its own leading-edge handle that trades width with the nearest
   // resizable column to the left (the locked ones in between just shift).
   const lastColLeadingTarget = useMemo(() => {
+    // In fill mode the last column has its own trailing handle, so the
+    // leading-edge workaround never applies.
+    if (fillOn) return null;
     const last = visibleLeaves[colCount - 1];
     const prev = visibleLeaves[colCount - 2];
     if (!last || !resizableColumnIds.has(last.id)) return null;
@@ -537,7 +588,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (leaf && resizableColumnIds.has(leaf.id)) return leaf.id;
     }
     return null;
-  }, [visibleLeaves, colCount, resizableColumnIds]);
+  }, [visibleLeaves, colCount, resizableColumnIds, fillOn]);
 
   // The handle id → the column its drag actually grows. A leading handle (on the
   // last column) is remapped to the nearest resizable column on the left; every
@@ -558,6 +609,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // (the last column stays its `1fr` filler, so it's left untouched).
   const applyResize = useCallback(
     (idx: number, startWidths: number[], dx: number, minPx: number) => {
+      // Fill mode: columns are independent (the dither filler / scroll absorbs
+      // slack), so a drag just sets that one column's width — no cascade.
+      if (fillOn) {
+        const leaf = visibleLeaves[idx];
+        if (!leaf) return;
+        const v = Math.max(minPx, Math.round((startWidths[idx] ?? 0) + dx));
+        setColumnWidths((prev) => (prev[leaf.id] === v ? prev : { ...prev, [leaf.id]: v }));
+        return;
+      }
       const resizable = visibleLeaves.map((c) => resizableColumnIds.has(c.id));
       const out = resizeBoundary(startWidths, resizable, idx, dx, minPx);
       setColumnWidths((prev) => {
@@ -575,7 +635,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         return changed ? nextWidths : prev;
       });
     },
-    [visibleLeaves, resizableColumnIds],
+    [visibleLeaves, resizableColumnIds, fillOn, setColumnWidths],
   );
 
   // A single drag instance serves every handle; onStart reads which column is
@@ -633,9 +693,40 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
-    () => buildColumnTemplate(visibleLeaves, columnWidths),
-    [visibleLeaves, columnWidths],
+    () =>
+      buildColumnTemplate(visibleLeaves, columnWidths, {
+        stretchLast: !fillOn,
+        defaultWidth: defaultColumnWidth,
+      }),
+    [visibleLeaves, columnWidths, fillOn, defaultColumnWidth],
   );
+
+  // --- Column-fill filler ---
+  // Total px width of the columns (sum of the resolved grid tracks), used to
+  // place the dither filler. Unlike `contentWidth` (the header element, which is
+  // 100% of the viewport in fill mode) this is the columns' real trailing edge.
+  const [columnsWidth, setColumnsWidth] = useState(0);
+  // Full scrollable content height (header + body), so the filler spans the whole
+  // leftover column rather than only the body.
+  const [fillHeight, setFillHeight] = useState(0);
+  useLayoutEffect(() => {
+    if (!fillOn) return;
+    const hr = headerRowRef.current;
+    const vp = containerRef.current;
+    if (hr) {
+      const tracks = getComputedStyle(hr).gridTemplateColumns.split(" ");
+      setColumnsWidth(tracks.reduce((sum, t) => sum + (Number.parseFloat(t) || 0), 0));
+    }
+    if (vp) setFillHeight(vp.scrollHeight);
+  }, [fillOn, gridTemplateColumns, contentWidth, data.length, rowHeight, paginate]);
+
+  // The animated variant renders a WebGL dither canvas; the hook is inert until
+  // a canvas mounts (static mode), mirroring Skeleton's usage.
+  const { rootRef: fillRootRef, canvasRef: fillCanvasRef } = useDitheredFill({
+    effect: fillOpts.effect ?? "noise",
+    density: fillOpts.density ?? 0.5,
+    color: fillOpts.color,
+  });
 
   // --- Visual cell merge (blank covered cells + erase internal seams) ---
   // O(rows × cols), and only when `getCellSpan` is set — intended for the modest
@@ -748,6 +839,34 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const headerGroups = table.getHeaderGroups();
   const showEmpty = data.length === 0;
 
+  // Dither panel filling the space right of the last column (columnFill mode).
+  // Lives inside `.body` so it spans the full body height and scrolls vertically
+  // with the rows; collapses to ~0 width when the columns overflow the viewport.
+  const columnFiller =
+    fillOn && !showEmpty ? (
+      <div
+        ref={
+          fillAnimated
+            ? (node) => {
+                fillRootRef.current = node;
+              }
+            : undefined
+        }
+        className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+        aria-hidden="true"
+        style={
+          {
+            height: fillHeight,
+            "--sf-columns-width": `${columnsWidth}px`,
+            ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
+          } as CSSProperties
+        }
+      >
+        {/* aria-hidden lives on the parent .columnFill; canvas is decorative. */}
+        {fillAnimated ? <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} /> : null}
+      </div>
+    ) : null;
+
   return (
     <div className={cx(styles.wrapper, className)} style={style} {...rest}>
       <div
@@ -765,6 +884,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         onKeyDown={handleKeyDown}
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
+        data-column-fill={fillOn || undefined}
       >
         {/* Headers — one row per header group; parent groups span their leaves. */}
         {headerGroups.map((hg, hgIndex) => (
@@ -786,11 +906,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
               const canSort = header.column.getCanSort();
               const sortDir = header.column.getIsSorted();
               const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
-              // The last column is the flexible filler — it has no trailing
-              // handle (its width is set by resizing the column on its left).
+              // The last column is normally the flexible filler — no trailing
+              // handle (its width is set by resizing the column on its left). In
+              // fill mode it's fixed-width, so it gets its own trailing handle.
               const isLastLeaf = header.column.id === visibleLeaves[colCount - 1]?.id;
               const showTrailingHandle =
-                isLeafHeader && resizableColumnIds.has(header.column.id) && !isLastLeaf;
+                isLeafHeader && resizableColumnIds.has(header.column.id) && (!isLastLeaf || fillOn);
               // Leading-edge handle for the last column when its locked neighbour
               // leaves it with no grip; it trades width with `lastColLeadingTarget`.
               const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
@@ -893,7 +1014,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
             style={{
               height: rowVirtualizer.getTotalSize(),
               position: "relative",
-              minWidth: contentWidth ?? undefined,
+              // In fill mode the header is shrink-to-fit, so `contentWidth` is the
+              // columns' width; let `.body` keep its `width:100%` + `min-content`
+              // instead so it stays ≥ viewport and the filler has room.
+              minWidth: fillOn ? undefined : (contentWidth ?? undefined),
             }}
           >
             {virtualRows.map((vr) => {
@@ -920,6 +1044,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             })}
           </div>
         )}
+        {columnFiller}
 
         {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so
             it overlays the last rows without adding layout space; the sticky

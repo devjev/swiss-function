@@ -74,6 +74,38 @@ export const ReadOnly: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={360} />
 );
 
+// columnFill: fixed-width columns that don't stretch; the leftover space to the
+// right shows a static dither (so a sparse table doesn't read as unfinished).
+// Resize a column (incl. the last) — widths persist via onColumnWidthsChange,
+// and the filler grows/shrinks with the last column.
+const fewColumns = baseColumns.slice(0, 2);
+
+export const ColumnFillStatic: Story = () => {
+  const [widths, setWidths] = useState<Record<string, number>>({});
+  return (
+    <DataTable
+      data={seed(50)}
+      columns={fewColumns}
+      height={360}
+      defaultColumnWidth={10}
+      columnFill
+      columnWidths={widths}
+      onColumnWidthsChange={setWidths}
+    />
+  );
+};
+
+// Same, but the filler is the animated WebGL dither (reduced-motion → static).
+export const ColumnFillAnimated: Story = () => (
+  <DataTable
+    data={seed(50)}
+    columns={fewColumns}
+    height={360}
+    defaultColumnWidth={10}
+    columnFill={{ animated: true, effect: "noise", density: 0.5 }}
+  />
+);
+
 // Elastic row snapping + a dithered fade at the bottom scroll edge.
 export const SnapAndEdgeFade: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={240} scrollSnap="rows" edgeFade />
