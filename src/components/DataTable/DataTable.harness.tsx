@@ -19,6 +19,7 @@ interface HarnessProps {
   edgeFade?: boolean;
   columnFill?: DataTableProps<Row>["columnFill"];
   reorderableColumns?: boolean;
+  filterableColumns?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
 }
 
@@ -37,6 +38,7 @@ export function DataTableHarness({
   edgeFade,
   columnFill,
   reorderableColumns,
+  filterableColumns,
   onCellChange,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
@@ -66,6 +68,7 @@ export function DataTableHarness({
       edgeFade={edgeFade}
       columnFill={columnFill}
       reorderableColumns={reorderableColumns}
+      filterableColumns={filterableColumns}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />

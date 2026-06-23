@@ -271,6 +271,25 @@ test("the last column is the filler and has no resize handle", async ({ mount })
   await expect(component.locator('[data-column-id="age"]')).toHaveCount(1);
 });
 
+test("filterableColumns: unchecking a value in a column filter narrows the rows", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} filterableColumns containerWidth={600} />,
+  );
+  await expect(c.getByRole("gridcell").filter({ hasText: "Alice" })).toBeVisible();
+
+  // Open the boolean "active" column's filter and uncheck "True".
+  await c.getByRole("button", { name: "Filter active" }).click();
+  // The popover renders in a portal (document.body), so query via `page`.
+  await page.getByRole("checkbox", { name: "True" }).click();
+
+  // Only the inactive row (Bob) survives.
+  await expect(c.getByRole("gridcell").filter({ hasText: "Bob" })).toBeVisible();
+  await expect(c.getByRole("gridcell").filter({ hasText: "Alice" })).toHaveCount(0);
+});
+
 test("reorderableColumns: dragging a header past its neighbour reorders the columns", async ({
   mount,
   page,

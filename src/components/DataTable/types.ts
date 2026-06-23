@@ -45,6 +45,10 @@ export interface LeafColumnDef<T> {
   edit?: EditConfig;
   /** Click header to sort. Default false. */
   sortable?: boolean;
+  /** Show a header filter for this column when the table's `filterableColumns` is
+   *  on. Set false to exclude this column. Default true. The control type follows
+   *  `edit.type` (text/select/boolean → value checklist; number → min/max range). */
+  filterable?: boolean;
 }
 
 /** A header that groups several columns. Has no data of its own. */

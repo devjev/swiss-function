@@ -236,6 +236,10 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
 | `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. |
+| `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
+| `columnFilters` | `ColumnFiltersState` | — | Controlled filters (TanStack), with `onColumnFiltersChange`. |
+| `defaultColumnFilters` | `ColumnFiltersState` | — | Uncontrolled initial filters. |
+| `onColumnFiltersChange` | `(filters: ColumnFiltersState) => void` | — | Fired on each filter change — persist to save it. |
 | `columnOrder` | `string[]` | — | Controlled column order (leaf ids), with `onColumnOrderChange`. |
 | `defaultColumnOrder` | `string[]` | — | Uncontrolled initial order (e.g. restored from storage). |
 | `onColumnOrderChange` | `(order: string[]) => void` | — | Fired with the full order on each reorder — persist to save it. |
@@ -252,7 +256,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 **ColumnDef** — `LeafColumnDef<T> | GroupColumnDef<T>`:
 - Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
   `width?` (u), `minWidth?` (u, default 3), `resizable?`, `align?`
-  (`start|center|end`), `edit?` (`EditConfig`), `sortable?`.
+  (`start|center|end`), `edit?` (`EditConfig`), `sortable?`, `filterable?`.
 - Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`.
 - `EditConfig`: `{ type: "text" | "number" | "boolean" }` or
   `{ type: "select"; options: { value; label }[] }`.

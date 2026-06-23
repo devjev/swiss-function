@@ -120,6 +120,15 @@
   --sf-cell-edge-b: 0 0 transparent;
 }
 
+/* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
+   header text so it reads as a quiet indicator, not a glyph. */
+.sortArrow {
+  margin-inline-start: calc(var(--sf-unit) / 4);
+  font-size: 0.85em;
+  line-height: 1;
+  color: var(--sf-color-primary);
+}
+
 /* Reorderable leaf header (reorderableColumns): grabbable; @dnd-kit drives the
    transform that slides neighbours aside, so animate the snap-back transition. */
 .headerDraggable {

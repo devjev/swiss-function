@@ -74,6 +74,12 @@ export const ReadOnly: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={360} />
 );
 
+// Per-column header filters (funnel). Text/select/boolean get a value checklist;
+// number gets a min/max range. Filters apply live and compose with sorting.
+export const Filterable: Story = () => (
+  <DataTable data={seed(80)} columns={baseColumns} height={360} filterableColumns />
+);
+
 // Drag a column header onto a neighbour to reorder; order persists via
 // onColumnOrderChange. Clicking a header still sorts; the right edge still resizes.
 export const Reorderable: Story = () => {

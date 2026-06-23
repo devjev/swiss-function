@@ -15,9 +15,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  type ColumnFiltersState,
+  type FilterFn,
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
+  getFilteredRowModel,
   getSortedRowModel,
   type Header,
   type SortingState,
@@ -32,6 +35,7 @@ import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import type { EffectName } from "../NonIdealState/effects";
 import { useDitheredFill } from "../NonIdealState/useDitheredFill";
+import { ColumnFilter, type FilterOption } from "./ColumnFilter";
 import { computeMergeMap } from "./cellSpans";
 import { buildColumnTemplate, COLUMN_MIN_UNITS, resizeBoundary } from "./columnWidths";
 import styles from "./DataTable.module.css";
@@ -49,6 +53,7 @@ import type {
   Selection,
 } from "./types";
 import { isGroup } from "./types";
+import { useColumnFilters } from "./useColumnFilters";
 import { useColumnGroupCollapse } from "./useColumnGroupCollapse";
 import { useColumnOrder } from "./useColumnOrder";
 import { useColumnWidths } from "./useColumnWidths";
@@ -133,6 +138,18 @@ export interface DataTableProps<T>
   defaultColumnOrder?: string[];
   /** Fired with the full order array whenever a column is dragged to a new spot. */
   onColumnOrderChange?: (order: string[]) => void;
+  /** Show a per-column header filter (funnel) on leaf columns. The control type
+   *  follows the column's `edit.type` (text/select/boolean → value checklist;
+   *  number → min/max range). Exclude a column with `filterable: false`.
+   *  Default false. */
+  filterableColumns?: boolean;
+  /** Controlled column filters (TanStack `ColumnFiltersState`). Pass with
+   *  `onColumnFiltersChange`. */
+  columnFilters?: ColumnFiltersState;
+  /** Initial filters when uncontrolled. */
+  defaultColumnFilters?: ColumnFiltersState;
+  /** Fired with the full filter array whenever a filter changes. */
+  onColumnFiltersChange?: (filters: ColumnFiltersState) => void;
 }
 
 export type ColumnFill =
@@ -168,6 +185,23 @@ function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknow
   if (typeof accessor === "function") return accessor(row);
   return (row as Record<string, unknown>)[accessor as string];
 }
+
+/** Checklist filter: keep rows whose stringified value is in the allowed set.
+ *  Only runs when a filter entry exists, so an empty set is treated as "keep". */
+const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
+  const allowed = filterValue as string[] | undefined;
+  if (!allowed || allowed.length === 0) return true;
+  return allowed.includes(String(row.getValue(columnId)));
+};
+
+/** Numeric range filter: keep rows within [min, max]; a blank bound is open. */
+const rangeFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
+  const [min, max] = (filterValue as [number | undefined, number | undefined]) ?? [];
+  const v = Number(row.getValue(columnId));
+  if (min != null && !(v >= min)) return false;
+  if (max != null && !(v <= max)) return false;
+  return true;
+};
 
 /** Walk a ColumnDef tree, returning leaf defs in display order. */
 function flatLeaves<T>(defs: ColumnDef<T>[]): LeafColumnDef<T>[] {
@@ -224,6 +258,9 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
     header,
     accessorFn: (row: T) => getCellValue(row, def.accessor),
     enableSorting: def.sortable ?? false,
+    // Filter kind follows the edit type: numbers use a range, everything else a
+    // value checklist. Harmless on unfiltered columns (only runs with an entry).
+    filterFn: (def.edit?.type === "number" ? rangeFilter : includesFilter) as FilterFn<T>,
     ...(meta ? { meta } : {}),
     cell: def.cell
       ? ({ getValue, row }) =>
@@ -288,6 +325,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     columnOrder: controlledColumnOrder,
     defaultColumnOrder,
     onColumnOrderChange,
+    filterableColumns = false,
+    columnFilters: controlledColumnFilters,
+    defaultColumnFilters,
+    onColumnFiltersChange,
     className,
     style,
     ...rest
@@ -314,6 +355,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
     columnOrder: controlledColumnOrder,
     defaultColumnOrder,
     onColumnOrderChange,
+  });
+
+  // --- Column filters ---
+  const { columnFilters, setColumnFilters } = useColumnFilters({
+    columnFilters: controlledColumnFilters,
+    defaultColumnFilters,
+    onColumnFiltersChange,
   });
 
   /** Flat visible leaf columns in display order (with any drag-reorder applied).
@@ -345,15 +393,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const table = useReactTable({
     data,
     columns: tsColumns,
-    state: { sorting, expanded: expandedState, columnOrder },
+    state: { sorting, expanded: expandedState, columnOrder, columnFilters },
     onSortingChange: setSorting,
     onColumnOrderChange: (updater) =>
       setColumnOrder((typeof updater === "function" ? updater(columnOrder) : updater) as string[]),
+    onColumnFiltersChange: (updater) =>
+      setColumnFilters(
+        (typeof updater === "function" ? updater(columnFilters) : updater) as ColumnFiltersState,
+      ),
     onExpandedChange: (updater) =>
       setExpanded(
         (typeof updater === "function" ? updater(expandedState) : updater) as ExpandedState,
       ),
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     ...(getSubRows ? { getSubRows: (row: T) => getSubRows(row) ?? undefined } : {}),
@@ -938,7 +991,44 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Render ---
   const headerGroups = table.getHeaderGroups();
-  const showEmpty = data.length === 0;
+  // Empty when there's no data OR filters narrowed everything away.
+  const showEmpty = rows.length === 0;
+
+  // --- Column filters (filterableColumns) ---
+  // Per-column filter kind + selectable values: number → range; select uses its
+  // defined options; boolean → true/false; text/other → distinct values from data.
+  const filterMeta = useMemo(() => {
+    const map = new Map<string, { kind: "checklist" | "range"; options: FilterOption[] }>();
+    if (!filterableColumns) return map;
+    for (const leaf of visibleLeaves) {
+      if (leaf.filterable === false) continue;
+      const type = leaf.edit?.type;
+      if (type === "number") {
+        map.set(leaf.id, { kind: "range", options: [] });
+        continue;
+      }
+      let options: FilterOption[];
+      if (type === "boolean") {
+        options = [
+          { value: "true", label: "True" },
+          { value: "false", label: "False" },
+        ];
+      } else if (leaf.edit?.type === "select") {
+        options = leaf.edit.options;
+      } else {
+        const seen = new Set<string>();
+        for (const row of data) {
+          const v = getCellValue(row, leaf.accessor);
+          seen.add(v == null ? "" : String(v));
+        }
+        options = [...seen]
+          .sort((a, b) => a.localeCompare(b))
+          .map((s) => ({ value: s, label: s === "" ? "(empty)" : s }));
+      }
+      map.set(leaf.id, { kind: "checklist", options });
+    }
+    return map;
+  }, [filterableColumns, visibleLeaves, data]);
 
   // --- Column drag-to-reorder (reorderableColumns) ---
   const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
@@ -1018,6 +1108,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
     const showResizeHandle = showTrailingHandle || showLeadingHandle;
     const isLocked = isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
+    const fmeta = isLeafHeader ? filterMeta.get(header.column.id) : undefined;
+    const filterValue = fmeta ? header.column.getFilterValue() : undefined;
+    const isFiltered = filterValue != null;
     return (
       <div
         key={header.id}
@@ -1033,6 +1126,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-align={isGroupHeader ? "center" : "start"}
         data-sortable={canSort || undefined}
         data-locked={isLocked || undefined}
+        data-filtered={isFiltered || undefined}
         // A placeholder sits above an ungrouped leaf's real header — erase the seam
         // below it so the column reads as one full-height header.
         data-merge-bottom={header.isPlaceholder || undefined}
@@ -1042,8 +1136,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
         {!header.isPlaceholder && (
           <>
             <span>{flexRender(def.header, header.getContext())}</span>
-            {sortDir === "asc" && <span aria-hidden="true"> ▲</span>}
-            {sortDir === "desc" && <span aria-hidden="true"> ▼</span>}
+            {sortDir === "asc" && (
+              <span aria-hidden="true" className={styles.sortArrow}>
+                ↑
+              </span>
+            )}
+            {sortDir === "desc" && (
+              <span aria-hidden="true" className={styles.sortArrow}>
+                ↓
+              </span>
+            )}
             {(isGroupHeader || collapsedGroupId) && (
               <TreeChevron
                 expanded={isGroupHeader}
@@ -1051,6 +1153,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 ariaLabel={isGroupHeader ? "Collapse group" : "Expand group"}
               />
             )}
+            {fmeta ? (
+              <ColumnFilter
+                label={typeof def.header === "string" ? def.header : header.column.id}
+                kind={fmeta.kind}
+                options={fmeta.options}
+                value={filterValue}
+                active={isFiltered}
+                onChange={(v) => header.column.setFilterValue(v)}
+              />
+            ) : null}
           </>
         )}
         {showResizeHandle && (
