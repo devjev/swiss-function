@@ -11,6 +11,7 @@ export * from "./components/Combobox";
 export * from "./components/CommandBar";
 export * from "./components/DataTable";
 export * from "./components/Dialog";
+export * from "./components/Drawer";
 export * from "./components/Explorer";
 export * from "./components/Field";
 export * from "./components/Fullscreen";

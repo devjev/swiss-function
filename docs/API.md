@@ -289,6 +289,28 @@ Compound modal dialog with optional dragging and resizing. Wraps Base UI's Dialo
 | `draggable` | `Popup` | `boolean` | — | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
 | `resizable` | `Popup` | `boolean` | — | Resize from right/bottom/SE edges; arrow keys adjust, Escape exits. |
 
+## Drawer
+
+`import { Drawer } from "@tarassov-ch/swiss-function/drawer"`
+
+A panel that slides in from the left, right, or bottom edge. Wraps Base UI's
+Drawer (slide, swipe-to-dismiss, focus/a11y); **non-modal by default** so the page
+stays interactive.
+
+**Elements / Parts:** `Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`,
+`Viewport`, `Content`, `SwipeArea`, `Title`, `Description`, `Close`.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `side` | `Root` | `"left" \| "right" \| "bottom"` | `"right"` | Edge to slide from (maps to Base UI `swipeDirection`). |
+| `modal` | `Root` | `boolean \| "trap-focus"` | `false` | `true` adds a backdrop + focus trap. |
+| `open` / `defaultOpen` / `onOpenChange` | `Root` | — | — | Base UI open-state API. |
+
+Render a `Drawer.SwipeArea` (a grab rail pinned to the edge) **outside the
+`Portal`** for an optional persistent handle that stays visible while closed and
+reopens on swipe/drag. Panel size is set on `Drawer.Popup` (default 18u wide /
+16u tall); put a `<Pane>` inside `Drawer.Content` for a header + scrollable body.
+
 ## Explorer
 
 `import { Explorer } from "@tarassov-ch/swiss-function/explorer"`

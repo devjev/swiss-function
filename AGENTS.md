@@ -91,6 +91,7 @@ Ladle (`npm run dev`).
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. Backdrop dim is deliberately very subtle. For a window-like dialog, add `draggable` + `resizable` to `Dialog.Popup` and wrap the header in `Dialog.Handle`. |
+| `Drawer`        | Edge panel sliding from left/right/bottom (`side`). Non-modal by default; render `Drawer.SwipeArea` outside the `Portal` for a persistent reopen handle. |
 | `Popover`       | Anchored, click-triggered floating content.              |
 | `Menu`          | Right-click or dropdown menus.                           |
 | `CommandBar`    | Cmd-K command palette.                                   |
@@ -234,6 +235,7 @@ Common requests and the right component:
 | "a button" / "an action"                           | `Button` (variant chosen by destructiveness)     |
 | "a form"                                           | `Field.Root` per row + the right control inside  |
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
+| "a drawer" / "side panel" / "sheet"                | `Drawer`                                          |
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |

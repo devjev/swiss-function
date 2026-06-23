@@ -27,6 +27,7 @@ const componentNames = [
   "Switch",
   "Radio",
   "Dialog",
+  "Drawer",
   "Popover",
   "Menu",
   "Prose",
