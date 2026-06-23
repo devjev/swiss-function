@@ -102,7 +102,7 @@ export const ColumnFillAnimated: Story = () => (
     columns={fewColumns}
     height={360}
     defaultColumnWidth={10}
-    columnFill={{ animated: true, effect: "noise", density: 0.5 }}
+    columnFill={{ animated: true, effect: "noise", density: 0.5, speed: 0.5 }}
   />
 );
 

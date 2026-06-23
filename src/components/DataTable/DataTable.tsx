@@ -120,6 +120,8 @@ export type ColumnFill =
       color?: string;
       /** Animated coverage density 0–1 (default 0.5). */
       density?: number;
+      /** Animation speed multiplier (1 = normal, 2 = twice as fast). Animated only. */
+      speed?: number;
     };
 
 const DEFAULT_ROW_HEIGHT = 36;
@@ -726,6 +728,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     effect: fillOpts.effect ?? "noise",
     density: fillOpts.density ?? 0.5,
     color: fillOpts.color,
+    speed: fillOpts.speed,
   });
 
   // --- Visual cell merge (blank covered cells + erase internal seams) ---
