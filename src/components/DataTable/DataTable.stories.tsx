@@ -79,6 +79,16 @@ export const SnapAndEdgeFade: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={240} scrollSnap="rows" edgeFade />
 );
 
+// A taller, gentler fade — 4 rows deep with a lower peak dot density.
+export const EdgeFadeTuned: Story = () => (
+  <DataTable
+    data={seed(50)}
+    columns={baseColumns}
+    height={240}
+    edgeFade={{ rows: 4, density: 0.6 }}
+  />
+);
+
 // Narrow container: columns shrink toward their minimums to fit (no horizontal
 // scroll) until even the minimums don't fit, at which point the table scrolls.
 export const NarrowContainer: Story = () => (

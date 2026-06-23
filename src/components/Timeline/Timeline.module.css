@@ -3,6 +3,9 @@
    1.5u below the axis for ticks + 0.25u gap + N × 1.25u above for labels. */
 .viewport {
   position: relative;
+  /* The timeline's accent — playhead, now line, markers, range band, value tag.
+     Defaults to the primary token; override per-instance via the `color` prop. */
+  --sf-timeline-color: var(--sf-timeline-color);
   overflow-x: auto;
   overflow-y: hidden;
   font-family: var(--sf-font-sans);
@@ -124,7 +127,7 @@
   position: absolute;
   inset-block: 0;
   inline-size: 1px;
-  background-color: var(--sf-color-primary);
+  background-color: var(--sf-timeline-color);
   opacity: 0.45;
   pointer-events: none;
 }
@@ -135,7 +138,7 @@
   position: absolute;
   inset-block: 0;
   inline-size: 1px;
-  background-color: var(--sf-color-primary);
+  background-color: var(--sf-timeline-color);
   /* Higher than events (z-index 1) so the playhead reads as the topmost
      interactive cursor. Pointer events pass through so the underlying track
      keeps receiving scrub events. */
@@ -154,7 +157,7 @@
   margin-block-end: calc(var(--sf-unit) / 4);
   padding: 1px calc(var(--sf-unit) / 4);
   background-color: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-primary);
+  border: 1px solid var(--sf-timeline-color);
   border-radius: var(--sf-radius-default);
   color: var(--sf-color-fg);
   font-family: var(--sf-font-mono);
@@ -174,7 +177,7 @@
   inline-size: 0;
   block-size: 0;
   border-inline: 5px solid transparent;
-  border-block-start: 6px solid var(--sf-color-primary);
+  border-block-start: 6px solid var(--sf-timeline-color);
   transform: translateX(-50%);
 }
 
@@ -184,8 +187,8 @@
 .rangeRegion {
   position: absolute;
   inset-block: 0;
-  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
-  border-inline: 1px solid color-mix(in srgb, var(--sf-color-primary), transparent 40%);
+  background-color: color-mix(in srgb, var(--sf-timeline-color), transparent 88%);
+  border-inline: 1px solid color-mix(in srgb, var(--sf-timeline-color), transparent 40%);
   /* Below events (z-index 1) so event markers stay clickable; the band is still
      draggable wherever no event sits on top of it. */
   z-index: 0;
@@ -200,7 +203,7 @@
   /* A wider invisible hit target straddling the 1px line for easy grabbing. */
   padding-inline: calc(var(--sf-unit) / 4);
   margin-inline-start: calc(var(--sf-unit) / -4);
-  background-color: var(--sf-color-primary);
+  background-color: var(--sf-timeline-color);
   background-clip: content-box;
   z-index: 3;
   cursor: ew-resize;
@@ -359,7 +362,7 @@
   block-size: 8px;
   margin: 0;
   padding: 0;
-  background-color: var(--sf-color-primary);
+  background-color: var(--sf-timeline-color);
   border: none;
   transform: translate(-50%, 50%) rotate(45deg);
   pointer-events: auto;
@@ -385,6 +388,8 @@
   }
   .eventMarkerInteractive:hover {
     transform: translate(-50%, 50%) rotate(45deg);
-    background-color: var(--sf-color-primary-hover);
+    /* No scale cue under reduced motion, so darken the accent for hover feedback
+       — derived from the (possibly custom) timeline colour. */
+    background-color: color-mix(in srgb, var(--sf-timeline-color), var(--sf-color-fg) 20%);
   }
 }

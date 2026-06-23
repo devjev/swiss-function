@@ -80,6 +80,10 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   valueLabel?: boolean;
   /** Format a scrub-head value for its tag. Default: `YYYY-MM-DD`. */
   formatValue?: (date: Date) => ReactNode;
+  /** Accent colour for the playhead, now line, markers, range band and value
+   *  tag. Any CSS colour (or a token reference like `var(--sf-color-success)`).
+   *  Defaults to the primary token. */
+  color?: string;
   children?: ReactNode;
 }
 
@@ -101,6 +105,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     elevation = 0,
     valueLabel = false,
     formatValue,
+    color,
     className,
     style,
     children,
@@ -360,6 +365,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   const wrapperStyle: CSSProperties = {
     height: typeof height === "number" ? `${height}px` : height,
     "--sf-timeline-lanes": numLanes,
+    ...(color ? { "--sf-timeline-color": color } : null),
     ...style,
   } as CSSProperties;
 

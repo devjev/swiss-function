@@ -44,18 +44,31 @@
 /* Dithered fade at the bottom scroll edge. Sticky to the bottom of the
    scrollport; the negative margin pulls it back over the last rows so it adds
    no layout space. The dither = a gradient mask intersected with a Bayer dot
-   pattern, so the fade quantises into shade dots rather than a smooth ramp. */
+   pattern, so the fade quantises into shade dots rather than a smooth ramp.
+   Two knobs (set per-instance via the `edgeFade` prop):
+     --sf-datatable-fade-rows    how tall the fade is, in rows (default 2)
+     --sf-datatable-fade-density peak opacity at the very bottom, 0–1 (default 1)
+   The gradient's terminal alpha caps the densest dots, so a lower density reads
+   as a gentler fade. */
 .edgeFade {
   position: sticky;
   bottom: 0;
   z-index: 1;
-  block-size: calc(var(--sf-unit) * 2);
-  margin-block-start: calc(var(--sf-unit) * -2);
+  --sf-fade-block: calc(
+    var(--sf-row-height, calc(var(--sf-unit) * 2)) *
+    var(--sf-datatable-fade-rows, 2)
+  );
+  block-size: var(--sf-fade-block);
+  margin-block-start: calc(-1 * var(--sf-fade-block));
   pointer-events: none;
   background-color: var(--sf-color-bg);
   --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000), var(--sf-dither);
-  mask-image: linear-gradient(to bottom, transparent, #000), var(--sf-dither);
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent, rgb(0 0 0 / var(--sf-datatable-fade-density, 1))),
+    var(--sf-dither);
+  mask-image:
+    linear-gradient(to bottom, transparent, rgb(0 0 0 / var(--sf-datatable-fade-density, 1))),
+    var(--sf-dither);
   -webkit-mask-size:
     100% 100%,
     2px 2px;
@@ -308,17 +321,25 @@
 
 /* (Chevron styles moved to src/lib/TreeChevron.module.css — shared with Outliner.) */
 
-/* Range cells: a soft tint of primary so the selection block reads as a unit. */
-.cell[data-in-range] {
+/* Range cells: a soft tint of primary so the selection block reads as a unit.
+   Painted as a translucent overlay on top of the content (not a cell
+   background), so a consumer-set cell background can't hide the highlight. The
+   active cell is excluded — it carries the outline and stays untinted. */
+.cell[data-in-range]:not([data-active])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   background-color: color-mix(in srgb, var(--sf-color-primary), transparent 92%);
+  pointer-events: none;
+  z-index: 1;
 }
 
-/* Active cell: 2px primary outline inset (doesn't shift layout). */
+/* Active cell: 2px primary outline inset (doesn't shift layout). The outline
+   renders above content, so a consumer cell background can't hide it. */
 .cell[data-active] {
   outline: 2px solid var(--sf-color-primary);
   outline-offset: -2px;
   z-index: 1;
-  background-color: var(--sf-color-bg);
 }
 
 .empty {

@@ -126,6 +126,42 @@ export const StackedLanes: Story = () => (
   </div>
 );
 
+/**
+ * The accent — playhead, now line, markers, range band and value tag — is set
+ * with the `color` prop. Accepts any CSS colour or a token reference.
+ */
+export const CustomColor: Story = () => {
+  const start = new Date("2026-06-01");
+  const end = new Date("2026-06-14");
+  const [value, setValue] = useState<Date>(new Date("2026-06-06"));
+  return (
+    <div style={{ width: "min(50rem, 100%)", display: "grid", gap: "2rem", paddingTop: "2rem" }}>
+      <Timeline
+        start={start}
+        end={end}
+        value={value}
+        onChange={setValue}
+        valueLabel
+        color="var(--sf-color-success)"
+      >
+        <Timeline.Event date={new Date("2026-06-03")}>Merged #147</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-10")}>Post-mortem</Timeline.Event>
+      </Timeline>
+      <Timeline
+        start={start}
+        end={end}
+        value={value}
+        onChange={setValue}
+        valueLabel
+        color="#b91c1c"
+      >
+        <Timeline.Event date={new Date("2026-06-03")}>Merged #147</Timeline.Event>
+        <Timeline.Event date={new Date("2026-06-10")}>Post-mortem</Timeline.Event>
+      </Timeline>
+    </div>
+  );
+};
+
 export const MultiYear: Story = () => (
   <div style={{ width: "min(50rem, 100%)" }}>
     <Timeline start={new Date("2020-01-01")} end={new Date("2026-12-31")}>

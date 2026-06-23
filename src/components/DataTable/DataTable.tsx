@@ -62,8 +62,12 @@ export interface DataTableProps<T>
    *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
   scrollSnap?: "none" | "rows" | "columns" | "both";
   /** Fade the rows nearest the bottom scroll edge with a dithered mask, hinting
-   *  there's more to scroll. The sticky header is never faded. Default `false`. */
-  edgeFade?: boolean;
+   *  there's more to scroll. The sticky header is never faded. `true` uses the
+   *  defaults; pass an object to tune it:
+   *   - `rows`: how many rows tall the fade is (default 2)
+   *   - `density`: peak dot opacity at the very bottom, 0–1 (default 1)
+   *  Default `false`. */
+  edgeFade?: boolean | { rows?: number; density?: number };
   /** Visually merge cells. Return e.g. `{ rowSpan: 3 }` at the top-left ("lead")
    *  cell of a region; the cells it covers are blanked and the internal borders
    *  erased so the region reads as one cell. Spans are by visible position, so
@@ -394,6 +398,59 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [visibleLeaves],
   );
 
+  // Left edges of every leaf column (plus the trailing right edge), in content
+  // px, read off any fully-mounted body row. Used to snap arrow-key scrolling to
+  // column boundaries. Null until a complete row is mounted.
+  const getColumnEdges = useCallback((): number[] | null => {
+    const byRow = new Map<number, Map<number, HTMLDivElement>>();
+    for (const [k, el] of cellRefs.current) {
+      const [rs, cs] = k.split(":");
+      const r = Number(rs);
+      const c = Number(cs);
+      let cols = byRow.get(r);
+      if (!cols) byRow.set(r, (cols = new Map()));
+      cols.set(c, el);
+    }
+    for (const cols of byRow.values()) {
+      if (cols.size !== colCount) continue;
+      const edges: number[] = [];
+      for (let c = 0; c < colCount; c++) edges.push(cols.get(c)?.offsetLeft ?? 0);
+      const last = cols.get(colCount - 1);
+      if (last) edges.push(last.offsetLeft + last.offsetWidth);
+      return edges;
+    }
+    return null;
+  }, [colCount]);
+
+  // Scroll the viewport exactly one row / one column in the arrow's direction,
+  // snapping to the row-height grid (block) and leaf-column boundaries (inline)
+  // so each press advances a single cell. Used only when no cell is selected —
+  // an active cell handles arrows itself (it moves + scrolls into view).
+  const scrollByArrow = useCallback(
+    (key: string) => {
+      const vp = containerRef.current;
+      if (!vp) return;
+      if (key === "ArrowUp" || key === "ArrowDown") {
+        const dir = key === "ArrowDown" ? 1 : -1;
+        const aligned = Math.round(vp.scrollTop / rowHeight) * rowHeight;
+        vp.scrollTo({ top: aligned + dir * rowHeight });
+        return;
+      }
+      const dir = key === "ArrowRight" ? 1 : -1;
+      const edges = getColumnEdges();
+      if (!edges) {
+        vp.scrollBy({ left: dir * rowHeight });
+        return;
+      }
+      // Index of the column currently snapped to (or just past) the left edge.
+      let idx = 0;
+      for (let i = 0; i < edges.length; i++) if ((edges[i] ?? 0) <= vp.scrollLeft + 1) idx = i;
+      const target = Math.max(0, Math.min(idx + dir, edges.length - 1));
+      vp.scrollTo({ left: edges[target] ?? 0 });
+    },
+    [rowHeight, getColumnEdges],
+  );
+
   // Keyboard resize on a focused handle. Arrow keys nudge by a step; Shift = larger.
   // --- Top-level keyboard router ---
   const handleKeyDown = useCallback(
@@ -420,6 +477,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
         return;
       }
 
+      // No selected cell: arrow keys scroll the viewport one row/column at a
+      // time (snapped to boundaries) instead of the browser's line-scroll.
+      if (!active && native.key.startsWith("Arrow")) {
+        ev.preventDefault();
+        scrollByArrow(native.key);
+        return;
+      }
+
       handleSelectionKey(native);
     },
     [
@@ -430,6 +495,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       handleCopy,
       handlePaste,
       handleSelectionKey,
+      scrollByArrow,
     ],
   );
 
@@ -855,7 +921,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
         {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so
             it overlays the last rows without adding layout space; the sticky
             header stays above it and is never faded. */}
-        {edgeFade && !showEmpty ? <div className={styles.edgeFade} aria-hidden="true" /> : null}
+        {edgeFade && !showEmpty ? (
+          <div
+            className={styles.edgeFade}
+            aria-hidden="true"
+            style={
+              typeof edgeFade === "object"
+                ? ({
+                    "--sf-datatable-fade-rows": edgeFade.rows,
+                    "--sf-datatable-fade-density": edgeFade.density,
+                  } as CSSProperties)
+                : undefined
+            }
+          />
+        ) : null}
       </div>
 
       {paginate && (
