@@ -1,6 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import { Chat, type ChatMessage } from "./Chat";
+import type { GraphData } from "../Graph";
+import { Chat, type ChatAction, type ChatMessage } from "./Chat";
 
 const SAMPLE_REPLY = `Sure — here's a tiny example of how to throttle a function in JavaScript:
 
@@ -88,6 +89,148 @@ export const Empty: Story = () => {
           setMessages((prev) => [...prev, { id: String(Date.now()), role: "user", content: text }])
         }
         placeholder="Start a conversation…"
+      />
+    </div>
+  );
+};
+
+/**
+ * Rich responses: an assistant message can carry ordered `parts` instead of a
+ * single markdown string. Here a text block is followed by an in-chat **choice
+ * menu**; picking an option fires `onAction`, which the app turns into the next
+ * turn.
+ */
+export const Choices: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: "u1", role: "user", content: "Help me start a new project." },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Sure — which **template** do you want?" },
+        {
+          type: "choices",
+          partId: "template",
+          prompt: "Pick one:",
+          options: [
+            { id: "React app", label: "React app", description: "Vite + TypeScript" },
+            { id: "Node service", label: "Node service", description: "Express + REST" },
+            { id: "Library", label: "Library", description: "Bundled, typed, published" },
+          ],
+        },
+      ],
+    },
+  ]);
+
+  const handleAction = (a: ChatAction) => {
+    const choice = String(a.value);
+    const base = String(Date.now());
+    setMessages((prev) => [
+      ...prev,
+      { id: `${base}-u`, role: "user", content: choice },
+      {
+        id: `${base}-a`,
+        role: "assistant",
+        content: `Scaffolding a **${choice}** for you now.`,
+      },
+    ]);
+  };
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat messages={messages} onSubmit={() => {}} onAction={handleAction} />
+    </div>
+  );
+};
+
+const ORCHESTRATION_TREE: GraphData = {
+  nodes: [
+    { id: "request", label: "Request", kind: "primary" },
+    { id: "plan", label: "Plan", kind: "secondary" },
+    { id: "search", label: "Search", kind: "tertiary" },
+    { id: "code", label: "Code", kind: "tertiary" },
+    { id: "verify", label: "Verify", kind: "quaternary" },
+    { id: "answer", label: "Answer", kind: "primary" },
+  ],
+  edges: [
+    { id: "e1", source: "request", target: "plan" },
+    { id: "e2", source: "plan", target: "search" },
+    { id: "e3", source: "plan", target: "code" },
+    { id: "e4", source: "search", target: "verify" },
+    { id: "e5", source: "code", target: "verify" },
+    { id: "e6", source: "verify", target: "answer" },
+  ],
+};
+
+/**
+ * A **decision / orchestration tree** part renders with the `Graph` component
+ * (`tree` layout). Clicking a node fires `onAction` with the node id.
+ */
+export const DecisionTree: Story = () => {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [messages] = useState<ChatMessage[]>([
+    { id: "u1", role: "user", content: "Show me how you'll handle this." },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Here's the plan — click a node to inspect a step:" },
+        { type: "tree", partId: "plan", data: ORCHESTRATION_TREE, height: 360 },
+      ],
+    },
+  ]);
+
+  return (
+    <div style={{ maxWidth: 720 }}>
+      <Chat
+        height={560}
+        messages={messages}
+        onSubmit={() => {}}
+        onAction={(a) => setPicked(String(a.value))}
+      />
+      {picked ? <p>Inspecting step: {picked}</p> : null}
+    </div>
+  );
+};
+
+/**
+ * Any other block type is rendered by `renderPart` — an escape hatch for custom
+ * micro-UIs. Here a `status` part renders a small service-health card.
+ */
+export const CustomBlock: Story = () => {
+  const [messages] = useState<ChatMessage[]>([
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Deployment finished. Current status:" },
+        { type: "status", partId: "st", service: "api", state: "healthy", latencyMs: 42 },
+      ],
+    },
+  ]);
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat
+        messages={messages}
+        onSubmit={() => {}}
+        renderPart={(part) =>
+          part.type === "status" ? (
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--sf-unit)",
+                alignItems: "baseline",
+                border: "1px solid var(--sf-color-border)",
+                padding: "calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3)",
+              }}
+            >
+              <strong>{String(part.service)}</strong>
+              <span>{String(part.state)}</span>
+              <span>{String(part.latencyMs)} ms</span>
+            </div>
+          ) : null
+        }
       />
     </div>
   );

@@ -1,19 +1,72 @@
-import type { CSSProperties, HTMLAttributes, KeyboardEvent } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
+import { Graph, type GraphData, type LayoutKind } from "../Graph";
 import { Markdown } from "../Markdown";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
 import styles from "./Chat.module.css";
+import { type ChatChoice, ChatChoices } from "./ChatChoices";
+
+export type { ChatChoice };
 
 export type ChatRole = "user" | "assistant";
+
+/** A plain markdown / text block. */
+export interface ChatTextPart {
+  type: "text";
+  partId?: string;
+  text: string;
+}
+
+/** An in-chat choice menu. Selections are reported via `Chat`'s `onAction`. */
+export interface ChatChoicesPart {
+  type: "choices";
+  partId?: string;
+  prompt?: string;
+  options: ChatChoice[];
+  multiple?: boolean;
+}
+
+/** A decision / orchestration tree, rendered with the `Graph` component
+ *  (`tree` layout by default). Node clicks are reported via `onAction`. */
+export interface ChatTreePart {
+  type: "tree";
+  partId?: string;
+  data: GraphData;
+  layout?: LayoutKind;
+  /** Rendered height in px. Default 320. */
+  height?: number;
+}
+
+/** Escape hatch for any other block — rendered by `Chat`'s `renderPart`. */
+export interface ChatCustomPart {
+  type: string;
+  partId?: string;
+  [key: string]: unknown;
+}
+
+export type ChatPart = ChatTextPart | ChatChoicesPart | ChatTreePart | ChatCustomPart;
+
+/** Emitted when a user interacts with a non-text block (chooses an option,
+ *  clicks a tree node, or a custom block calls back). */
+export interface ChatAction {
+  messageId: string;
+  partId?: string;
+  /** The part `type` that produced the action (e.g. "choices", "tree"). */
+  type: string;
+  value: unknown;
+}
 
 export interface ChatMessage {
   id: string;
   role: ChatRole;
-  /** Markdown source for assistant messages, plain text for user messages. */
-  content: string;
+  /** Markdown source (assistant) or plain text (user). Optional when `parts`
+   *  is provided. */
+  content?: string;
+  /** Ordered rich blocks. When present, takes precedence over `content`. */
+  parts?: ChatPart[];
   /** True while an assistant message is still streaming in. */
   isStreaming?: boolean;
 }
@@ -22,6 +75,10 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   messages: ChatMessage[];
   /** Fired with the trimmed text when the user submits. Input clears automatically. */
   onSubmit: (text: string) => void;
+  /** Render a custom (non-built-in) part by `type`. Return null/undefined to skip. */
+  renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
+  /** Fired when a user interacts with a choices / tree / custom block. */
+  onAction?: (action: ChatAction) => void;
   placeholder?: string;
   /** Container height. Default `calc(var(--sf-unit) * 20)` (= ~480px). */
   height?: number | string;
@@ -33,6 +90,8 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   {
     messages,
     onSubmit,
+    renderPart,
+    onAction,
     placeholder = "Ask anything…",
     height,
     disabled,
@@ -119,6 +178,85 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     ...style,
   };
 
+  // A text/markdown block. Animates (terminal reveal) while it's the active
+  // streaming target; otherwise renders as static markdown. The reveal is kept
+  // mounted through the `isStreaming` flip until it drains — see `revealing`.
+  const renderText = (text: string, msg: ChatMessage, animate: boolean) =>
+    animate ? (
+      <StreamingTerminalText
+        content={text}
+        isComplete={!msg.isStreaming}
+        onRevealComplete={() => finishReveal(msg.id)}
+      />
+    ) : (
+      <Markdown value={text} />
+    );
+
+  const renderAssistant = (msg: ChatMessage): ReactNode => {
+    const animating = !!msg.isStreaming || revealing.has(msg.id);
+
+    // No parts → the legacy single markdown string.
+    if (!msg.parts) return renderText(msg.content ?? "", msg, animating);
+
+    // Only the trailing text block animates while streaming; earlier blocks and
+    // interactive blocks render statically.
+    let lastTextIdx = -1;
+    msg.parts.forEach((p, i) => {
+      if (p.type === "text") lastTextIdx = i;
+    });
+
+    return msg.parts.map((part, i) => {
+      const key = part.partId ?? `${msg.id}-${i}`;
+      switch (part.type) {
+        case "text":
+          return (
+            <div key={key} className={styles.part}>
+              {renderText((part as ChatTextPart).text, msg, animating && i === lastTextIdx)}
+            </div>
+          );
+        case "choices": {
+          const p = part as ChatChoicesPart;
+          return (
+            <div key={key} className={styles.part}>
+              <ChatChoices
+                prompt={p.prompt}
+                options={p.options}
+                multiple={p.multiple}
+                onSelect={(value) =>
+                  onAction?.({ messageId: msg.id, partId: p.partId, type: "choices", value })
+                }
+              />
+            </div>
+          );
+        }
+        case "tree": {
+          const p = part as ChatTreePart;
+          return (
+            <div key={key} className={styles.part}>
+              <Graph
+                data={p.data}
+                layout={p.layout ?? "tree"}
+                fullscreen={false}
+                style={{ blockSize: p.height ?? 320 }}
+                onNodeClick={(id) =>
+                  onAction?.({ messageId: msg.id, partId: p.partId, type: "tree", value: id })
+                }
+              />
+            </div>
+          );
+        }
+        default: {
+          const node = renderPart?.(part, { message: msg });
+          return node ? (
+            <div key={key} className={styles.part}>
+              {node}
+            </div>
+          ) : null;
+        }
+      }
+    });
+  };
+
   return (
     <div ref={ref} {...rest} className={cx(styles.root, className)} style={wrapperStyle}>
       <div ref={scrollerRef} className={styles.messages} data-testid="chat-messages">
@@ -131,14 +269,8 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
           >
             {msg.role === "user" ? (
               <span className={styles.userContent}>{msg.content}</span>
-            ) : msg.isStreaming || revealing.has(msg.id) ? (
-              <StreamingTerminalText
-                content={msg.content}
-                isComplete={!msg.isStreaming}
-                onRevealComplete={() => finishReveal(msg.id)}
-              />
             ) : (
-              <Markdown value={msg.content} />
+              renderAssistant(msg)
             )}
           </article>
         ))}

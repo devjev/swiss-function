@@ -1,0 +1,86 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.prompt {
+  margin: 0;
+  color: var(--sf-color-fg);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+/* A choice row. Sharp corners, hairline border; hover/selected tint toward
+   primary. Block caret-free, left-aligned, label over optional description. */
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  inline-size: 100%;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
+  text-align: start;
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-base);
+  cursor: pointer;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.option:hover {
+  border-color: var(--sf-color-primary);
+  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 92%);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.optionSelected {
+  border-color: var(--sf-color-primary);
+  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 85%);
+}
+
+.optionLabel {
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.optionDescription {
+  color: var(--sf-color-fg-subtle);
+  font-size: var(--sf-font-size-sm);
+}
+
+.confirm {
+  align-self: flex-start;
+  padding: calc(var(--sf-unit) / 2) var(--sf-unit);
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-sans);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.confirm:hover:not(:disabled) {
+  background-color: var(--sf-color-primary-hover);
+}
+
+.confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

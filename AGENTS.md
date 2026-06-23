@@ -145,7 +145,7 @@ scale fades in on hover). Use `scaffolding="full"` for dense data,
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Chat`          | Message-stream UI for chat-style interfaces.             |
+| `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` (text / choices menu / decision tree via `Graph` / custom via `renderPart`); interactions report through `onAction`. |
 
 ---
 
@@ -255,6 +255,7 @@ Common requests and the right component:
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "chat UI"                                          | `Chat`                                           |
+| "in-chat choice menu / decision tree / custom block in a chat reply" | `Chat` `parts` (+ `renderPart` for custom) + `onAction` |
 
 Don't try to compose any of these from scratch. They exist for a reason.
 

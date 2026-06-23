@@ -146,11 +146,43 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `messages` | `ChatMessage[]` | — | `{ id, role: "user" \| "assistant", content, isStreaming? }`. |
+| `messages` | `ChatMessage[]` | — | `{ id, role: "user" \| "assistant", content?, parts?, isStreaming? }`. |
 | `onSubmit` | `(text: string) => void` | — | Enter submits (Shift+Enter = newline); input clears. |
+| `renderPart` | `(part, ctx) => ReactNode` | — | Render a custom (non-built-in) part by `type`. Return null to skip. |
+| `onAction` | `(action: ChatAction) => void` | — | Fired when a user interacts with a choices / tree / custom block. |
 | `placeholder` | `string` | `"Ask anything…"` | Input placeholder. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | — | Blocks submit (e.g. while streaming). |
+
+### Rich (non-text) responses
+
+An assistant message can carry ordered **`parts`** instead of (or as well as) a single markdown `content` string. When `parts` is present it takes precedence; while streaming, only the trailing `text` part animates.
+
+`ChatPart` is a union:
+
+- `{ type: "text"; text }` — markdown (streams when it's the active block).
+- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }` — an in-chat choice menu. Single-select submits on click; multi-select submits via Confirm. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
+- `{ type: "tree"; data: GraphData; layout?; height?; partId? }` — a decision / orchestration tree, rendered with [`Graph`](#graph) (`tree` layout by default). Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: string; partId?; [key]: unknown }` — any custom micro-UI; rendered by `renderPart`.
+
+`onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless — the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
+
+```tsx
+<Chat
+  messages={[{
+    id: "a1", role: "assistant",
+    parts: [
+      { type: "text", text: "Pick a template:" },
+      { type: "choices", partId: "tpl", options: [
+        { id: "react", label: "React app", description: "Vite + TS" },
+        { id: "node", label: "Node service" },
+      ] },
+    ],
+  }]}
+  onSubmit={handleSubmit}
+  onAction={(a) => append(a.value)}
+/>
+```
 
 ## Checkbox
 

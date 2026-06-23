@@ -25,6 +25,12 @@
   min-inline-size: 0;
 }
 
+/* A rich-message block (text / choices / tree / custom). Stacked vertically
+   inside an assistant message with a half-unit gap between blocks. */
+.part:not(:first-child) {
+  margin-block-start: calc(var(--sf-unit) / 2);
+}
+
 /* User messages — right-aligned bubble with a tinted bg (~12% primary mixed
    with the page bg) + matching hairline border, max 75% width so they don't
    span the full column. Elevation-2 lifts the bubble off the page. */
