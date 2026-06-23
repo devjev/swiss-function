@@ -408,7 +408,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const r = Number(rs);
       const c = Number(cs);
       let cols = byRow.get(r);
-      if (!cols) byRow.set(r, (cols = new Map()));
+      if (!cols) {
+        cols = new Map();
+        byRow.set(r, cols);
+      }
       cols.set(c, el);
     }
     for (const cols of byRow.values()) {
