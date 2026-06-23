@@ -8,6 +8,7 @@ This repo already ships two authoritative guides — defer to them, don't restat
 
 - **AGENTS.md** — what to build with the library: component catalogue, "when the user asks for X reach for Y", token/CSS/Field/`cx()` conventions, and anti-patterns. This is the usage contract.
 - **AESTHETICS.md** — *why* the library looks the way it does (Swiss/Bauhaus posture, sharp corners, no gray body text, reduced-motion, no "personality").
+- **docs/API.md** — per-component prop/element reference for actively-maintained components. Keep it in sync: when a documented prop/default/element/`--sf-*` variable changes, update API.md in the same change.
 
 CLAUDE.md covers only the build/test/architecture wiring that isn't obvious from those.
 

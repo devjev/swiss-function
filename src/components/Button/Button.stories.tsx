@@ -33,8 +33,8 @@ export const AllSizes: Story = () => (
   </div>
 );
 
-// Tight: uniform 3/16u padding + 0.25u icon/text gap. Good for icon-only or
-// dense toolbar buttons. Composes with size (font) and variant (colour).
+// Tight: 3/16u inline padding + 0.25u icon/text gap, same height as the size.
+// Good for dense toolbar buttons. Composes with size (font) and variant (colour).
 export const Tight: Story = () => (
   <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
     <Button tight aria-label="Add">

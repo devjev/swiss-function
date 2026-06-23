@@ -44,12 +44,13 @@
   color: var(--sf-color-muted);
 }
 
-/* --- Inline layout: a strict single row that never grows vertically --- */
+/* --- Inline & compact layouts: a strict single row that never grows vertically --- */
 
 /* The input group stays one row: nothing wraps, overflow is clipped. The
    chips give way (shrink/clip) so the input + clear stay visible. Scoped under
    `.root` so these beat Combobox's base `.inputGroup` / `.chips` (which wrap). */
-.root .inlineGroup {
+.root .inlineGroup,
+.root .compactGroup {
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -59,20 +60,43 @@
    vertically (align-items: center from `.inputGroup`) and the chips shrink/clip
    to fit rather than pushing the control taller. The `[data-size]` attribute in
    each selector keeps these ahead of Combobox's `.inputGroup[data-size]`. */
-.root .inlineGroup[data-size="sm"] {
+.root .inlineGroup[data-size="sm"],
+.root .compactGroup[data-size="sm"] {
   block-size: var(--sf-unit);
   min-block-size: 0;
   padding-block: 0;
 }
-.root .inlineGroup[data-size="md"] {
+.root .inlineGroup[data-size="md"],
+.root .compactGroup[data-size="md"] {
   block-size: calc(var(--sf-unit) * 1.5);
   min-block-size: 0;
   padding-block: 0;
 }
-.root .inlineGroup[data-size="lg"] {
+.root .inlineGroup[data-size="lg"],
+.root .compactGroup[data-size="lg"] {
   block-size: calc(var(--sf-unit) * 2);
   min-block-size: 0;
   padding-block: 0;
+}
+
+/* Compact layout: collapses to just a count + clear so it fits in tight spaces.
+   The (still-present, for search) input shrinks to a minimal width; the count
+   sits ahead of it. */
+.root .compactGroup {
+  inline-size: fit-content;
+}
+.root .compactInput {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* Count badge — "N selected" ahead of the search input. Sans, never shrinks. */
+.root .compactCount {
+  flex: 0 0 auto;
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
 }
 
 /* Chips lay out in one row and clip on the right; they shrink before the

@@ -11,10 +11,9 @@ export type ButtonSize = "sm" | "md" | "lg";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Compact padding: uniform 3/16u on every side plus a 0.25u icon/text gap,
-   *  with the height following content instead of the size's fixed height.
-   *  Composes with `size` (which still sets the font) and `variant`. Default
-   *  false. */
+  /** Compact horizontal padding (3/16u) plus a 0.25u icon/text gap. The height
+   *  still comes from `size`, so a tight button lines up with its non-tight
+   *  peers. Composes with `size` (font) and `variant` (colour). Default false. */
   tight?: boolean;
   /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
   elevation?: BoxElevation;

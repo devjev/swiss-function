@@ -27,7 +27,7 @@ Playground.args = {
 };
 Playground.argTypes = {
   layout: {
-    options: ["panel", "inline"],
+    options: ["panel", "inline", "compact"],
     control: { type: "radio" },
   },
   size: {
@@ -52,6 +52,32 @@ export const Inline: Story = () => {
       onChange={setValue}
       placeholder="Search cities…"
     />
+  );
+};
+
+// Compact: collapses to "N selected" + Clear, sized to its content so it tucks
+// into a toolbar. The dropdown is where you review and uncheck the full set.
+export const Compact: Story = () => {
+  const [value, setValue] = useState<string[]>(["Paris", "Tokyo", "Oslo"]);
+  return (
+    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <Selector
+        layout="compact"
+        items={cities}
+        value={value}
+        onChange={setValue}
+        placeholder="Filter…"
+      />
+      <Selector
+        layout="compact"
+        items={cities}
+        value={value}
+        onChange={setValue}
+        placeholder="Filter…"
+        compactLabel={(n) => `${n} cities`}
+      />
+      <span style={{ fontSize: "0.875rem" }}>← custom wording via compactLabel</span>
+    </div>
   );
 };
 

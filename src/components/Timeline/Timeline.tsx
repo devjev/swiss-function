@@ -62,6 +62,10 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   showNow?: boolean;
   /** Maximum stacking lanes for label collision avoidance. Default 3. */
   maxLanes?: number;
+  /** Target minimum pixel spacing between adjacent axis ticks; the tick unit
+   *  (year/month/week/day/hour) is chosen so neighbours sit at least this far
+   *  apart. Larger = sparser ticks. Default: the tuned ~80–200px heuristic. */
+  tickSpacing?: number;
   /** Render the condensed control strip — event labels hidden at rest (revealed
    *  on hover/focus, and for the event nearest the playhead while scrubbing) and
    *  collapsed to one lane. Height follows `size` (defaults to `md`). A bare
@@ -99,6 +103,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     height,
     showNow = true,
     maxLanes = 3,
+    tickSpacing,
     compact = false,
     size,
     bordered = false,
@@ -142,8 +147,8 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   const layoutPxPerDay = measuredWidth != null && totalDays > 0 ? measuredWidth / totalDays : 4;
 
   const ticks = useMemo(
-    () => computeTicks(start, end, layoutPxPerDay),
-    [start, end, layoutPxPerDay],
+    () => computeTicks(start, end, layoutPxPerDay, tickSpacing),
+    [start, end, layoutPxPerDay, tickSpacing],
   );
 
   // Now-line as a fraction of the total range, or null if out of range / disabled.

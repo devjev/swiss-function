@@ -86,6 +86,25 @@ export const Sizes: Story = () => {
   );
 };
 
+/**
+ * `tickSpacing` sets the target minimum px between ticks, so the axis unit
+ * adapts to how dense you want the ruler. Larger = sparser. Same range, three
+ * spacings.
+ */
+export const TickSpacing: Story = () => (
+  <div style={{ width: "min(50rem, 100%)", display: "grid", gap: "2rem" }}>
+    {[40, 100, 200].map((px) => (
+      <div key={px}>
+        <p style={{ margin: "0 0 0.5rem", fontSize: "0.875rem" }}>tickSpacing={px}</p>
+        <Timeline start={new Date("2026-01-01")} end={new Date("2026-12-31")} tickSpacing={px}>
+          <Timeline.Event date={new Date("2026-04-22")}>Beta</Timeline.Event>
+          <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>
+        </Timeline>
+      </div>
+    ))}
+  </div>
+);
+
 export const DailyTicks: Story = () => (
   <div style={{ width: "min(50rem, 100%)" }}>
     <Timeline start={new Date("2026-06-01")} end={new Date("2026-06-08")}>

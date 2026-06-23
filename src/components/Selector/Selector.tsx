@@ -25,14 +25,19 @@ export interface SelectorProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    * Where the chosen-items "bucket" lives.
    * - `"panel"` (default): a separate container below the search field.
    * - `"inline"`: chips sit inside the search field (tag-input style).
+   * - `"compact"`: collapses to just an "N selected" count + Clear, so it fits
+   *   in tight spaces; the full set is reviewed/unchecked in the dropdown.
    */
-  layout?: "panel" | "inline";
+  layout?: "panel" | "inline" | "compact";
   /** Disable the whole control. */
   disabled?: boolean;
   /** Shown in the dropdown when the filter matches nothing. */
   emptyMessage?: ReactNode;
   /** Heading for the bucket panel (only used by `layout="panel"`). */
   bucketLabel?: ReactNode;
+  /** Wording for the count in `layout="compact"`, given the number selected.
+   *  Default: `N item` / `N items`. */
+  compactLabel?: (count: number) => ReactNode;
 }
 
 function normalize(item: SelectorItem): SelectorOption {
@@ -56,6 +61,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     disabled,
     emptyMessage = "No results",
     bucketLabel = "Selected",
+    compactLabel = (count) => `${count} item${count === 1 ? "" : "s"}`,
     className,
     ...rest
   },
@@ -154,6 +160,20 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
                 </span>
               )}
               <Combobox.Input placeholder={selected.length ? "" : placeholder} />
+              {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+            </Combobox.InputGroup>
+            {dropdown}
+          </>
+        ) : layout === "compact" ? (
+          <>
+            <Combobox.InputGroup data-size={size} className={styles.compactGroup}>
+              {selected.length > 0 && (
+                <span className={styles.compactCount}>{compactLabel(selected.length)}</span>
+              )}
+              <Combobox.Input
+                className={styles.compactInput}
+                placeholder={selected.length ? "" : placeholder}
+              />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
             </Combobox.InputGroup>
             {dropdown}
