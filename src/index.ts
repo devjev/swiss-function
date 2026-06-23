@@ -4,6 +4,7 @@ export * from "./components/Box";
 export * from "./components/BridgeChart";
 export * from "./components/Button";
 export * from "./components/ButtonGroup";
+export * from "./components/CandlestickChart";
 export * from "./components/Chat";
 export * from "./components/Checkbox";
 export * from "./components/Combobox";

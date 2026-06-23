@@ -120,6 +120,24 @@ Container (`role="group"`) that cascades a size to child Buttons. Extends `HTMLA
 | --- | --- | --- | --- |
 | `size` | `"sm" \| "md" \| "lg"` | — | Cascades to child Buttons; an explicit Button `size` wins. |
 
+## CandlestickChart
+
+`import { CandlestickChart } from "@tarassov-ch/swiss-function/candlestick-chart"`
+
+OHLC financial candlestick chart. Candles are spaced evenly (index-based, no
+time gaps); up candles (`close >= open`) are success-coloured, down candles
+danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
+`Candle = { x: number | Date; open; high; low; close }`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `candles` | `Candle[]` | — | OHLC bars, chronological. |
+| `yDomain` | `[number, number]` | auto-fit | Price range; auto-fit is padded and **not** zero-anchored. |
+| `yLabel` / `xLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis/gridline posture (same as the other charts). |
+| `renderTooltip` | `(c: Candle) => ReactNode` | mono O/H/L/C | Hover tooltip body. |
+
 ## Chat
 
 `import { Chat } from "@tarassov-ch/swiss-function/chat"`

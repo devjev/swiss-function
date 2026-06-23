@@ -1,0 +1,148 @@
+/* Same grid skeleton as Scatterplot / BarChart / BridgeChart. */
+
+.root {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  /* Half a label's height — so the topmost y-axis tick label can sit centered
+     on the plot's top edge without clipping the chart's outer bound. */
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  justify-self: center;
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* --- Scaffolding: gridlines + y-axis reveal ---------------------------- */
+
+.gridline {
+  stroke: var(--sf-color-border-subtle);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.gridlineMajor {
+  /* A zero line never appears for prices; kept for parity with the other charts. */
+}
+
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+.root[data-scaffolding="hover"] .yAxis {
+  opacity: 0;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .yAxis {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline,
+  .yAxis {
+    transition: none;
+  }
+}
+
+/* --- Candles ----------------------------------------------------------- */
+
+/* `up`/`down` set the group colour; wick + body inherit it via currentColor,
+   so a candle is semantically green (gain) or red (loss). */
+.up {
+  color: var(--sf-color-success);
+}
+.down {
+  color: var(--sf-color-danger);
+}
+
+.candle {
+  cursor: default;
+  outline: none;
+}
+
+.wick {
+  stroke: currentColor;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.body {
+  fill: currentColor;
+  pointer-events: none;
+  transition: filter var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Transparent column that captures the hover/focus for its candle. */
+.hit {
+  fill: transparent;
+}
+
+.candle:hover .body,
+.candle:focus-visible .body {
+  filter: brightness(1.12);
+}
+
+.candle:focus-visible .hit {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body {
+    transition: none;
+  }
+}

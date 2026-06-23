@@ -48,6 +48,10 @@
       "types": "./dist/components/ButtonGroup/index.d.ts",
       "import": "./dist/components/ButtonGroup/index.js"
     },
+    "./candlestick-chart": {
+      "types": "./dist/components/CandlestickChart/index.d.ts",
+      "import": "./dist/components/CandlestickChart/index.js"
+    },
     "./chat": {
       "types": "./dist/components/Chat/index.d.ts",
       "import": "./dist/components/Chat/index.js"

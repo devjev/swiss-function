@@ -124,12 +124,13 @@ Ladle (`npm run dev`).
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Scatterplot`   | Points and/or lines on numeric or time axes. Series-based. |
-| `BarChart`      | Categorical bars, single or grouped series.              |
-| `BridgeChart`   | Waterfall / financier's bridge — totals + signed deltas. |
-| `Timeline`      | Horizontal time strip with stacked event labels and a scrubbable playhead. |
+| `Scatterplot`      | Points and/or lines on numeric or time axes. Series-based. |
+| `BarChart`         | Categorical bars, single or grouped series.              |
+| `BridgeChart`      | Waterfall / financier's bridge — totals + signed deltas. |
+| `CandlestickChart` | OHLC financial candles (up = success, down = danger), index-spaced. |
+| `Timeline`         | Horizontal time strip with stacked event labels and a scrubbable playhead. |
 
-All four charts default to `scaffolding="hover"` (Tufte-minimal idle, full
+All charts default to `scaffolding="hover"` (Tufte-minimal idle, full
 scale fades in on hover). Use `scaffolding="full"` for dense data,
 `"minimal"` when you don't want any reveal.
 
@@ -245,6 +246,7 @@ Common requests and the right component:
 | "an outline / nested list editor"                  | `Outliner`                                       |
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
+| "candlestick" / "OHLC" / "stock chart"             | `CandlestickChart`                                        |
 | "a network / dependency graph / mind map"          | `Graph`                                          |
 | "loading state"                                    | `Skeleton` (inline placeholder) / `NonIdealState variant="loading"` (whole region) |
 | "empty state" / "no results" / "error state"       | `NonIdealState` (variant per case)               |

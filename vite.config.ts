@@ -10,6 +10,7 @@ const componentNames = [
   "BridgeChart",
   "Button",
   "ButtonGroup",
+  "CandlestickChart",
   "Chat",
   "CommandBar",
   "Explorer",
