@@ -1,0 +1,35 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dim box-drawing guides; whitespace preserved for column alignment. */
+.guide {
+  color: var(--sf-color-muted);
+  white-space: pre;
+}
+
+.label {
+  color: var(--sf-color-fg);
+}
+
+/* Each node is a flat, full-width, left-aligned monospace Button row. Element-
+   qualified to beat the Button base `.root`. */
+button.row {
+  inline-size: 100%;
+  justify-content: flex-start;
+  gap: 0;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  text-align: start;
+  color: var(--sf-color-fg);
+}
+
+button.row:hover {
+  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
+}
+
+button.row:hover .label,
+button.row:focus-visible .label {
+  color: var(--sf-color-primary);
+}

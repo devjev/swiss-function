@@ -1,0 +1,30 @@
+/* Terminal-style framed panel. Monospace, hairline frame, faint surface, sharp
+   corners — the shared shell for TUI chat blocks. */
+.root {
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg-subtle);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  overflow: hidden;
+}
+
+/* Dim lowercase title bar, separated from the body by a hairline — reads like a
+   window chrome label. */
+.title {
+  display: block;
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  color: var(--sf-color-muted);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
+  user-select: none;
+}
+
+.title::before {
+  content: "● ";
+}
+
+.body {
+  padding: calc(var(--sf-unit) / 2);
+}

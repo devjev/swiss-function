@@ -10,15 +10,21 @@
   color: var(--sf-color-fg);
 }
 
-/* Messages list — scrolls vertically; takes all remaining height above the
-   input row. */
+/* Scroll viewport — takes all remaining height above the input row. */
 .messages {
   flex: 1;
+  min-block-size: 0;
   overflow-y: auto;
-  padding: var(--sf-unit);
+}
+
+/* Message list — the growing content the viewport scrolls over. A
+   ResizeObserver watches this element to keep the view pinned to the bottom as
+   the streaming reveal grows it. */
+.content {
   display: flex;
   flex-direction: column;
   gap: var(--sf-unit);
+  padding: var(--sf-unit);
 }
 
 .message {

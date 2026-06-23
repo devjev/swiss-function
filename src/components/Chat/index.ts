@@ -8,6 +8,8 @@ export type {
   ChatProps,
   ChatRole,
   ChatTextPart,
+  ChatTreeNode,
   ChatTreePart,
 } from "./Chat";
 export { Chat } from "./Chat";
+export { ChatBlock, type ChatBlockProps } from "./ChatBlock";

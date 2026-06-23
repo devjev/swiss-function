@@ -145,7 +145,7 @@ scale fades in on hover). Use `scaffolding="full"` for dense data,
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` (text / choices menu / decision tree via `Graph` / custom via `renderPart`); interactions report through `onAction`. |
+| `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, or custom blocks via `renderPart` (wrap them in `ChatBlock`). Interactions report through `onAction`. |
 
 ---
 

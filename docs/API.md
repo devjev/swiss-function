@@ -158,12 +158,14 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 
 An assistant message can carry ordered **`parts`** instead of (or as well as) a single markdown `content` string. When `parts` is present it takes precedence; while streaming, only the trailing `text` part animates.
 
+Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hairline-framed panels (`ChatBlock`), box-drawing tree guides, caret/`[x]` selection markers.
+
 `ChatPart` is a union:
 
 - `{ type: "text"; text }` — markdown (streams when it's the active block).
-- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }` — an in-chat choice menu. Single-select submits on click; multi-select submits via Confirm. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
-- `{ type: "tree"; data: GraphData; layout?; height?; partId? }` — a decision / orchestration tree, rendered with [`Graph`](#graph) (`tree` layout by default). Node click → `onAction({ type: "tree", value: nodeId })`.
-- `{ type: string; partId?; [key]: unknown }` — any custom micro-UI; rendered by `renderPart`.
+- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }` — a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }` — `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
+- `{ type: "tree"; roots: ChatTreeNode[]; partId? }` — a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children? }`. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: string; partId?; [key]: unknown }` — any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, children }`) to match the built-in TUI frame.
 
 `onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless — the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
 

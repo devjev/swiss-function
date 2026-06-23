@@ -1,7 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import type { GraphData } from "../Graph";
-import { Chat, type ChatAction, type ChatMessage } from "./Chat";
+import { Chat, type ChatAction, type ChatMessage, type ChatTreeNode } from "./Chat";
+import { ChatBlock } from "./ChatBlock";
 
 const SAMPLE_REPLY = `Sure — here's a tiny example of how to throttle a function in JavaScript:
 
@@ -143,28 +143,28 @@ export const Choices: Story = () => {
   );
 };
 
-const ORCHESTRATION_TREE: GraphData = {
-  nodes: [
-    { id: "request", label: "Request", kind: "primary" },
-    { id: "plan", label: "Plan", kind: "secondary" },
-    { id: "search", label: "Search", kind: "tertiary" },
-    { id: "code", label: "Code", kind: "tertiary" },
-    { id: "verify", label: "Verify", kind: "quaternary" },
-    { id: "answer", label: "Answer", kind: "primary" },
-  ],
-  edges: [
-    { id: "e1", source: "request", target: "plan" },
-    { id: "e2", source: "plan", target: "search" },
-    { id: "e3", source: "plan", target: "code" },
-    { id: "e4", source: "search", target: "verify" },
-    { id: "e5", source: "code", target: "verify" },
-    { id: "e6", source: "verify", target: "answer" },
-  ],
-};
+const ORCHESTRATION_TREE: ChatTreeNode[] = [
+  {
+    id: "request",
+    label: "request",
+    children: [
+      {
+        id: "plan",
+        label: "plan",
+        children: [
+          { id: "search", label: "search", children: [{ id: "read", label: "read sources" }] },
+          { id: "code", label: "code", children: [{ id: "edit", label: "edit files" }] },
+        ],
+      },
+      { id: "verify", label: "verify", children: [{ id: "tests", label: "run tests" }] },
+      { id: "answer", label: "answer" },
+    ],
+  },
+];
 
 /**
- * A **decision / orchestration tree** part renders with the `Graph` component
- * (`tree` layout). Clicking a node fires `onAction` with the node id.
+ * A **decision / orchestration tree** part renders as a terminal directory tree.
+ * Clicking a node fires `onAction` with the node id.
  */
 export const DecisionTree: Story = () => {
   const [picked, setPicked] = useState<string | null>(null);
@@ -175,7 +175,7 @@ export const DecisionTree: Story = () => {
       role: "assistant",
       parts: [
         { type: "text", text: "Here's the plan — click a node to inspect a step:" },
-        { type: "tree", partId: "plan", data: ORCHESTRATION_TREE, height: 360 },
+        { type: "tree", partId: "plan", roots: ORCHESTRATION_TREE },
       ],
     },
   ]);
@@ -216,19 +216,20 @@ export const CustomBlock: Story = () => {
         onSubmit={() => {}}
         renderPart={(part) =>
           part.type === "status" ? (
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--sf-unit)",
-                alignItems: "baseline",
-                border: "1px solid var(--sf-color-border)",
-                padding: "calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3)",
-              }}
-            >
-              <strong>{String(part.service)}</strong>
-              <span>{String(part.state)}</span>
-              <span>{String(part.latencyMs)} ms</span>
-            </div>
+            <ChatBlock title="status">
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--sf-unit)",
+                  alignItems: "baseline",
+                  fontFamily: "var(--sf-font-mono)",
+                }}
+              >
+                <strong>{String(part.service)}</strong>
+                <span>{String(part.state)}</span>
+                <span># {String(part.latencyMs)} ms</span>
+              </div>
+            </ChatBlock>
           ) : null
         }
       />

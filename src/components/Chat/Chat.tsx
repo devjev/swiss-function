@@ -2,14 +2,14 @@ import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "re
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
-import { Graph, type GraphData, type LayoutKind } from "../Graph";
 import { Markdown } from "../Markdown";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
 import styles from "./Chat.module.css";
 import { type ChatChoice, ChatChoices } from "./ChatChoices";
+import { ChatTree, type ChatTreeNode } from "./ChatTree";
 
-export type { ChatChoice };
+export type { ChatChoice, ChatTreeNode };
 
 export type ChatRole = "user" | "assistant";
 
@@ -29,15 +29,13 @@ export interface ChatChoicesPart {
   multiple?: boolean;
 }
 
-/** A decision / orchestration tree, rendered with the `Graph` component
- *  (`tree` layout by default). Node clicks are reported via `onAction`. */
+/** A decision / orchestration tree, rendered as a terminal directory tree.
+ *  Node clicks are reported via `onAction`. */
 export interface ChatTreePart {
   type: "tree";
   partId?: string;
-  data: GraphData;
-  layout?: LayoutKind;
-  /** Rendered height in px. Default 320. */
-  height?: number;
+  /** Top-level nodes (a forest of `ChatTreeNode`). */
+  roots: ChatTreeNode[];
 }
 
 /** Escape hatch for any other block — rendered by `Chat`'s `renderPart`. */
@@ -103,7 +101,11 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
 ) {
   const [input, setInput] = useState("");
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Whether the viewport is pinned to the bottom. Stays true until the user
+  // scrolls up to read history — then we stop yanking the view down.
+  const stickRef = useRef(true);
 
   // Assistant messages whose reveal animation is still in flight. A message is
   // added while it streams and stays here — keeping its `StreamingTerminalText`
@@ -139,14 +141,28 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     });
   }, []);
 
-  // Auto-scroll to bottom on every messages change — including streaming
-  // text growth — so the latest content stays in view.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `messages` is the trigger; we don't read it inside.
+  // Keep the viewport pinned to the bottom as content grows — not just when
+  // `messages` changes, but as the streaming reveal grows the DOM tick by tick
+  // (including the post-stream drain). A ResizeObserver on the message list
+  // catches every height change; we only follow when the user is at the bottom.
   useEffect(() => {
+    const scroller = scrollerRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+    const ro = new ResizeObserver(() => {
+      if (stickRef.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
+
+  // Track whether the user is at the bottom (within a small threshold). Once
+  // they scroll up, auto-follow pauses; scrolling back to the bottom resumes it.
+  const handleScroll = () => {
     const el = scrollerRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages]);
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  };
 
   // Restore focus to the input whenever the chat becomes interactable again
   // (initial mount, or after a streaming response ends and `disabled` flips
@@ -160,6 +176,8 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     if (disabled) return;
     const text = input.trim();
     if (!text) return;
+    // The user just sent a message — snap back to the bottom to follow the reply.
+    stickRef.current = true;
     onSubmit(text);
     setInput("");
     inputRef.current?.focus();
@@ -233,12 +251,9 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
           const p = part as ChatTreePart;
           return (
             <div key={key} className={styles.part}>
-              <Graph
-                data={p.data}
-                layout={p.layout ?? "tree"}
-                fullscreen={false}
-                style={{ blockSize: p.height ?? 320 }}
-                onNodeClick={(id) =>
+              <ChatTree
+                roots={p.roots}
+                onSelect={(id) =>
                   onAction?.({ messageId: msg.id, partId: p.partId, type: "tree", value: id })
                 }
               />
@@ -259,21 +274,28 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
 
   return (
     <div ref={ref} {...rest} className={cx(styles.root, className)} style={wrapperStyle}>
-      <div ref={scrollerRef} className={styles.messages} data-testid="chat-messages">
-        {messages.map((msg) => (
-          <article
-            key={msg.id}
-            className={cx(styles.message, msg.role === "user" && styles.userMessage)}
-            data-role={msg.role}
-            aria-label={msg.role === "user" ? "You" : "Assistant"}
-          >
-            {msg.role === "user" ? (
-              <span className={styles.userContent}>{msg.content}</span>
-            ) : (
-              renderAssistant(msg)
-            )}
-          </article>
-        ))}
+      <div
+        ref={scrollerRef}
+        className={styles.messages}
+        data-testid="chat-messages"
+        onScroll={handleScroll}
+      >
+        <div ref={contentRef} className={styles.content}>
+          {messages.map((msg) => (
+            <article
+              key={msg.id}
+              className={cx(styles.message, msg.role === "user" && styles.userMessage)}
+              data-role={msg.role}
+              aria-label={msg.role === "user" ? "You" : "Assistant"}
+            >
+              {msg.role === "user" ? (
+                <span className={styles.userContent}>{msg.content}</span>
+              ) : (
+                renderAssistant(msg)
+              )}
+            </article>
+          ))}
+        </div>
       </div>
       <form
         className={styles.inputRow}
