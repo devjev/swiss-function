@@ -59,12 +59,23 @@ export const Compact: Story = () => {
 export const Sizes: Story = () => {
   const start = new Date("2026-01-01");
   const end = new Date("2026-12-31");
+  const [value, setValue] = useState<Date>(new Date("2026-06-04"));
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return (
     <div style={{ width: "min(50rem, 100%)", display: "grid", gap: "2rem", paddingTop: "2rem" }}>
       {(["sm", "md", "lg"] as const).map((size) => (
         <div key={size}>
           <p style={{ margin: "0 0 0.5rem", fontSize: "0.875rem" }}>size=&quot;{size}&quot;</p>
-          <Timeline size={size} bordered start={start} end={end}>
+          <Timeline
+            size={size}
+            bordered
+            start={start}
+            end={end}
+            value={value}
+            onChange={setValue}
+            valueLabel
+            formatValue={fmt}
+          >
             <Timeline.Event date={new Date("2026-02-12")}>Alpha</Timeline.Event>
             <Timeline.Event date={new Date("2026-06-04")}>RC</Timeline.Event>
             <Timeline.Event date={new Date("2026-09-30")}>v1.0</Timeline.Event>

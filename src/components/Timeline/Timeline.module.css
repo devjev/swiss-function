@@ -305,11 +305,22 @@
   opacity: 0;
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
 }
-/* At `sm` the floating labels (event tags + scrub-value tags) shrink to 85% so
-   they stay proportionate to the denser strip. */
-.viewport[data-compact][data-size="sm"] .eventLabel,
-.viewport[data-compact][data-size="sm"] .scrubValue {
+/* Center the scrub-value tag vertically within a band of one strip-height above
+   the strip (rather than hugging the top edge): the playhead/handle spans the
+   strip, so `bottom: 150%` lands the bottom edge at the band's middle and the
+   `translateY(50%)` pulls the tag's own center back onto it. */
+.viewport[data-compact] .scrubValue {
+  bottom: 150%;
+  margin-block-end: 0;
+  transform: translate(-50%, 50%);
+}
+/* At `sm` the floating event tags shrink to 85% so they stay proportionate to
+   the denser strip; the scrub-value tag shrinks further to 75%. */
+.viewport[data-compact][data-size="sm"] .eventLabel {
   font-size: calc(var(--sf-font-size-sm) * 0.85);
+}
+.viewport[data-compact][data-size="sm"] .scrubValue {
+  font-size: calc(var(--sf-font-size-sm) * 0.75);
 }
 .viewport[data-compact] .event:hover .eventLabel,
 .viewport[data-compact] .event:focus-within .eventLabel,

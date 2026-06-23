@@ -84,9 +84,44 @@
   overflow: hidden;
 }
 
-/* "+N" pill — count of chips clipped off the right edge. Inline, never shrinks,
-   sits between the clipped chips and the input. */
-.overflowPill {
+/* Chips read in the body sans even though the Selector's input stays monospace —
+   selected items are content, not query text. `.root` descendant beats Combobox's
+   base `.chip` (mono) regardless of stylesheet order. */
+.root .chip {
+  font-family: var(--sf-font-sans);
+  font-size-adjust: none;
+  /* The dither fill below is its own stacking context layer; keep it behind the
+     label + remove button. */
+  position: relative;
+  isolation: isolate;
+  /* Foreground text over a muted dither fill. Bold weight keeps the label crisp
+     against the speckled tint. */
+  color: var(--sf-color-fg);
+  font-weight: var(--sf-font-weight-bold);
+  border-color: color-mix(in srgb, var(--sf-color-muted), transparent 55%);
+}
+
+/* Colored density dither: a Bayer dot field of the muted tone, so the chip reads
+   as a quantised tint built from dots rather than a flat fill — the same dither
+   vocabulary as the DataTable edge fade. Two dots per 4×4 tile = 12.5% coverage,
+   on a staggered (half-drop) grid so every dot is equidistant from its
+   neighbours — a uniform halftone field rather than scattered or lined dots. */
+.root .chip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--sf-color-muted);
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* Overflow ellipsis — a single "⋯" shown when chips are clipped off the right
+   edge. Inline, never shrinks, sits between the clipped chips and the input. */
+.overflowEllipsis {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;

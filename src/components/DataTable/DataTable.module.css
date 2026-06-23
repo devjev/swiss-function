@@ -17,7 +17,14 @@
 }
 
 /* Elastic scroll-snap (proximity = only nudges near a boundary). Snap points
-   live on rows (block axis) and header cells (inline axis). */
+   live on rows (block axis) and header cells (inline axis). The sticky header
+   overlaps the top of the scrollport, so without offsetting the snap origin a
+   row's `start` point lands *behind* the header — the first row can never settle
+   and proximity snap bounces it to the second. `scroll-padding-top` pushes the
+   snap origin below the header (one 1.5u row per header group). */
+.viewport[data-snap-rows] {
+  scroll-padding-top: calc(var(--sf-unit) * 1.5 * var(--sf-header-rows, 1));
+}
 .viewport[data-snap-rows]:not([data-snap-cols]) {
   scroll-snap-type: y proximity;
 }

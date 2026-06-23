@@ -686,7 +686,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
         role="grid"
         tabIndex={-1}
         className={styles.viewport}
-        style={{ maxHeight: height, "--sf-row-height": `${rowHeight}px` } as CSSProperties}
+        style={
+          {
+            maxHeight: height,
+            "--sf-row-height": `${rowHeight}px`,
+            "--sf-header-rows": headerGroups.length,
+          } as CSSProperties
+        }
         onKeyDown={handleKeyDown}
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}

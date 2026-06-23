@@ -83,7 +83,7 @@ test("size presets change the inline control height", async ({ mount }) => {
   expect(lb.height).toBeGreaterThan(sb.height);
 });
 
-test("inline overflow: stays one row with a +N pill, even when focused", async ({ mount }) => {
+test("inline overflow: stays one row with an ellipsis, even when focused", async ({ mount }) => {
   const items = ["Amsterdam", "Berlin", "Geneva", "London", "Madrid", "Oslo", "Paris", "Tokyo"];
   const c = await mount(
     <SelectorHarness
@@ -94,12 +94,12 @@ test("inline overflow: stays one row with a +N pill, even when focused", async (
     />,
   );
   const group = c.locator('[class*="inlineGroup"]');
-  const pill = c.getByText(/^\+\d+$/);
-  await expect(pill).toBeVisible(); // chips overflow one row → pill shown
+  const ellipsis = c.locator('[class*="overflowEllipsis"]');
+  await expect(ellipsis).toBeVisible(); // chips overflow one row → ellipsis shown
   const before = (await group.boundingBox())?.height ?? 0;
 
   await c.getByRole("combobox").focus(); // must NOT grow vertically
-  await expect(pill).toBeVisible(); // pill stays — overflow is still clipped
+  await expect(ellipsis).toBeVisible(); // ellipsis stays — overflow is still clipped
   const after = (await group.boundingBox())?.height ?? 0;
   expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
 });

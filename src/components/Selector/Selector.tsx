@@ -86,20 +86,16 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
   );
 
   // Inline layout stays exactly one row — chips never wrap; overflow is clipped
-  // horizontally and counted into a "+N" pill. The full selection is reviewed and
-  // unchecked in the dropdown, so the control never grows vertically.
+  // horizontally and flagged with a trailing ellipsis. The full selection is
+  // reviewed and unchecked in the dropdown, so the control never grows vertically.
   const chipsRef = useRef<HTMLDivElement>(null);
-  const [hiddenCount, setHiddenCount] = useState(0);
+  const [overflowing, setOverflowing] = useState(false);
   useLayoutEffect(() => {
     if (layout !== "inline") return;
     const el = chipsRef.current;
     if (!el) return;
-    const measure = () => {
-      const chips = Array.from(el.children) as HTMLElement[];
-      // A chip is hidden when it's clipped past the (shrunk) container's width.
-      const limit = el.clientWidth + 1;
-      setHiddenCount(chips.filter((c) => c.offsetLeft + c.offsetWidth > limit).length);
-    };
+    // A 1px slack keeps sub-pixel rounding from reporting a phantom overflow.
+    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -110,7 +106,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     selected.map((v) => {
       const label = byValue.get(v)?.label ?? v;
       return (
-        <Combobox.Chip key={v}>
+        <Combobox.Chip key={v} className={styles.chip}>
           {label}
           <Combobox.ChipRemove aria-label={`Remove ${label}`}>×</Combobox.ChipRemove>
         </Combobox.Chip>
@@ -152,9 +148,9 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
               <Combobox.Chips ref={chipsRef} className={styles.inlineChips}>
                 {renderChips()}
               </Combobox.Chips>
-              {hiddenCount > 0 && (
-                <span className={styles.overflowPill} aria-hidden="true">
-                  +{hiddenCount}
+              {overflowing && (
+                <span className={styles.overflowEllipsis} aria-hidden="true">
+                  ⋯
                 </span>
               )}
               <Combobox.Input placeholder={selected.length ? "" : placeholder} />
