@@ -135,3 +135,13 @@
   padding-inline: var(--sf-unit);
   font-size: var(--sf-font-size-lg);
 }
+
+/* Tight: uniform 3/16u padding on every side (height follows content instead of
+   the size's fixed block-size) and a 0.25u icon/text gap — a compact, square-ish
+   button for icon-only or dense toolbars. Composes with any size/variant; comes
+   after the size rules so its padding/block-size win on equal specificity. */
+.tight {
+  block-size: auto;
+  padding: calc(var(--sf-unit) * 3 / 16);
+  gap: calc(var(--sf-unit) / 4);
+}

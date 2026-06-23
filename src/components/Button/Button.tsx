@@ -11,6 +11,11 @@ export type ButtonSize = "sm" | "md" | "lg";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Compact padding: uniform 3/16u on every side plus a 0.25u icon/text gap,
+   *  with the height following content instead of the size's fixed height.
+   *  Composes with `size` (which still sets the font) and `variant`. Default
+   *  false. */
+  tight?: boolean;
   /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
   elevation?: BoxElevation;
 }
@@ -29,7 +34,7 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size, elevation, className, disabled, type = "button", ...rest },
+  { variant = "primary", size, tight, elevation, className, disabled, type = "button", ...rest },
   ref,
 ) {
   // Inside a <ButtonGroup size="..."> the group's size cascades — but an
@@ -44,7 +49,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled}
       data-disabled={disabled || undefined}
       data-elevation={elevation}
-      className={cx(styles.root, variantClass[variant], sizeClass[resolvedSize], className)}
+      className={cx(
+        styles.root,
+        variantClass[variant],
+        sizeClass[resolvedSize],
+        tight && styles.tight,
+        className,
+      )}
     />
   );
 });

@@ -2,7 +2,7 @@ import type { Story } from "@ladle/react";
 import { Button, type ButtonProps } from "./Button";
 
 export const Playground: Story<ButtonProps> = (args) => <Button {...args}>Click me</Button>;
-Playground.args = { variant: "primary", size: "md", disabled: false };
+Playground.args = { variant: "primary", size: "md", tight: false, disabled: false };
 Playground.argTypes = {
   variant: {
     options: ["primary", "secondary", "ghost", "danger"],
@@ -12,6 +12,7 @@ Playground.argTypes = {
     options: ["sm", "md", "lg"],
     control: { type: "radio" },
   },
+  tight: { control: { type: "boolean" } },
   disabled: { control: { type: "boolean" } },
 };
 
@@ -29,6 +30,27 @@ export const AllSizes: Story = () => (
     <Button size="sm">Small</Button>
     <Button size="md">Medium</Button>
     <Button size="lg">Large</Button>
+  </div>
+);
+
+// Tight: uniform 3/16u padding + 0.25u icon/text gap. Good for icon-only or
+// dense toolbar buttons. Composes with size (font) and variant (colour).
+export const Tight: Story = () => (
+  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+    <Button tight aria-label="Add">
+      ＋
+    </Button>
+    <Button tight>
+      <span aria-hidden="true">＋</span>
+      Add
+    </Button>
+    <Button tight variant="secondary" size="sm">
+      <span aria-hidden="true">↻</span>
+      Refresh
+    </Button>
+    <Button tight variant="ghost" size="lg">
+      Tight large
+    </Button>
   </div>
 );
 
