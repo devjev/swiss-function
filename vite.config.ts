@@ -12,6 +12,7 @@ const componentNames = [
   "ButtonGroup",
   "CandlestickChart",
   "Chat",
+  "ChatDrawer",
   "CommandBar",
   "Explorer",
   "Field",

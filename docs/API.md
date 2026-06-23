@@ -186,6 +186,48 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 />
 ```
 
+## ChatDrawer
+
+`import { ChatDrawer } from "@tarassov-ch/swiss-function/chat-drawer"`
+
+A composite: a `Chat` inside an edge `Drawer` (non-modal). While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` is controlled by the consumer.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `trigger` | `ReactElement` | — | Element that opens the drawer (rendered as the drawer trigger). |
+| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the drawer slides from. |
+| `open` / `defaultOpen` / `onOpenChange` | — | — | Drawer open state (Base UI). |
+| `title` | `ReactNode` | — | Optional accessible panel title. |
+| `padding` | `number \| string` | `1` | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
+| `thinking` | `boolean` | `false` | While true, the effect blooms behind the chat. |
+| `onThinkingStart` / `onThinkingEnd` | `() => void` | — | Fired on the `thinking` false↔true transitions. |
+| `effect` | `EffectName` | `"ripple"` | Background effect (any `NonIdealState` effect). |
+| `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
+| `speed` | `number` | `1` | Effect animation speed multiplier. |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. |
+| `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
+
+The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition. The effect shows in the padding gutter (more `padding` → more effect on show).
+
+```tsx
+const [busy, setBusy] = useState(false);
+<ChatDrawer
+  trigger={<Button>Chat</Button>}
+  thinking={busy}
+  onThinkingStart={() => {/* … */}}
+  onThinkingEnd={() => {/* … */}}
+  effect="ripple"
+  color="var(--sf-color-primary)"
+  messages={messages}
+  onSubmit={async (text) => {
+    setBusy(true);
+    const reply = await llm(text);
+    push(reply);
+    setBusy(false);
+  }}
+/>
+```
+
 ## Checkbox
 
 `import { Checkbox } from "@tarassov-ch/swiss-function/checkbox"`

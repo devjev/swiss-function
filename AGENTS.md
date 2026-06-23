@@ -146,6 +146,7 @@ scale fades in on hover). Use `scaffolding="full"` for dense data,
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, or custom blocks via `renderPart` (wrap them in `ChatBlock`). Interactions report through `onAction`. |
+| `ChatDrawer`    | A `Chat` inside an edge `Drawer` with customizable padding. While `thinking`, an animated effect blooms from the centre and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. `effect`/`color`/`speed` parametrize the background. |
 
 ---
 
@@ -255,6 +256,7 @@ Common requests and the right component:
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "chat UI"                                          | `Chat`                                           |
+| "a chat in a drawer / assistant side panel / chat that shows it's thinking" | `ChatDrawer` (`thinking` + `onThinkingStart`/`End`) |
 | "in-chat choice menu / decision tree / custom block in a chat reply" | `Chat` `parts` (+ `renderPart` for custom) + `onAction` |
 
 Don't try to compose any of these from scratch. They exist for a reason.

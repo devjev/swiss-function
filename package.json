@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -55,6 +55,10 @@
     "./chat": {
       "types": "./dist/components/Chat/index.d.ts",
       "import": "./dist/components/Chat/index.js"
+    },
+    "./chat-drawer": {
+      "types": "./dist/components/ChatDrawer/index.d.ts",
+      "import": "./dist/components/ChatDrawer/index.js"
     },
     "./command-bar": {
       "types": "./dist/components/CommandBar/index.d.ts",

@@ -6,6 +6,7 @@ export * from "./components/Button";
 export * from "./components/ButtonGroup";
 export * from "./components/CandlestickChart";
 export * from "./components/Chat";
+export * from "./components/ChatDrawer";
 export * from "./components/Checkbox";
 export * from "./components/Combobox";
 export * from "./components/CommandBar";

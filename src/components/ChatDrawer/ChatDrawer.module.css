@@ -1,0 +1,62 @@
+/* Roomier default panel for a chat (Drawer's default is 18u). */
+.popup {
+  --sf-drawer-size: calc(var(--sf-unit) * 22);
+}
+
+/* Animated thinking background, behind the chat. Revealed with a clip-path
+   circle that grows from the centre outward — so the effect "starts from zero".
+   `.popup` is position:fixed, so this absolute layer fills the whole panel. */
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  clip-path: circle(0% at 50% 50%);
+  transition: clip-path var(--sf-duration-slow) var(--sf-ease-out);
+}
+
+.bg[data-open] {
+  clip-path: circle(85% at 50% 50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg {
+    transition: none;
+  }
+}
+
+/* NonIdealState used as a pure fill: drop its frame/min-height and let it cover
+   the panel. */
+.fill {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+
+/* Padded content above the effect. Transparent, so the effect shows through the
+   gutter around the (opaque) chat. */
+.content {
+  position: relative;
+  z-index: 1;
+  block-size: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.chatWrap {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+/* Lift the chat off the animated background. */
+.chat {
+  box-shadow: var(--sf-elevation-2);
+}
