@@ -174,8 +174,18 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
 
   const onDividerKey = (e: KeyboardEvent<HTMLDivElement>) => {
     // The key that grows the panel points from the divider toward the main pane.
-    const growBySide = { left: "ArrowRight", right: "ArrowLeft", top: "ArrowDown", bottom: "ArrowUp" };
-    const shrinkBySide = { left: "ArrowLeft", right: "ArrowRight", top: "ArrowUp", bottom: "ArrowDown" };
+    const growBySide = {
+      left: "ArrowRight",
+      right: "ArrowLeft",
+      top: "ArrowDown",
+      bottom: "ArrowUp",
+    };
+    const shrinkBySide = {
+      left: "ArrowLeft",
+      right: "ArrowRight",
+      top: "ArrowUp",
+      bottom: "ArrowDown",
+    };
     const grow = growBySide[side];
     const shrink = shrinkBySide[side];
     let next: number;

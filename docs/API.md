@@ -511,6 +511,24 @@ Text input wrapping Base UI's Input. Extends `HTMLAttributes<HTMLInputElement>` 
 | `inputSize` | `"sm" \| "md" \| "lg"` | `"md"` | Visual size. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
 
+## Kbd
+
+`import { Kbd } from "@tarassov-ch/swiss-function/kbd"`
+
+Renders a keyboard shortcut as OS-aware keycaps — for labels, menus, tooltips. Extends `HTMLAttributes<HTMLSpanElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `combo` | `string` | — | `+`-separated combination, e.g. `"mod+shift+k"`, `"alt+enter"`. |
+| `mac` | `boolean` | auto | Force macOS rendering. Auto-detected from the browser otherwise; pass it for SSR/tests so output is deterministic. |
+
+`mod` is the **primary modifier** — `⌘` on macOS, `Ctrl` elsewhere (its aliases `cmd`/`command`/`meta` follow suit, so a "cmd" shortcut never shows `⌘` off-Mac). Other modifiers: `ctrl` (`⌃`/Ctrl), `alt`/`opt` (`⌥`/Alt), `shift` (`⇧`/Shift). Named keys resolve to glyphs (`enter` → `↵`, `esc` → `Esc`, `tab` → `⇥`, `arrowup` → `↑`, …); single letters uppercase. On macOS the glyphs render adjacent (`⌘⇧K`); elsewhere modifiers join with `+` (`Ctrl + Shift + K`).
+
+```tsx
+<Kbd combo="mod+k" />            // ⌘K on macOS, Ctrl+K elsewhere
+<Kbd combo="mod+shift+enter" />
+```
+
 ## Markdown
 
 `import { Markdown } from "@tarassov-ch/swiss-function/markdown"`

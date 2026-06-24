@@ -19,6 +19,7 @@ export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";
 export * from "./components/Input";
+export * from "./components/Kbd";
 export * from "./components/Markdown";
 export * from "./components/Menu";
 export * from "./components/NonIdealState";

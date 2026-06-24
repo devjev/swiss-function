@@ -20,6 +20,7 @@ const componentNames = [
   "Graph",
   "Grid",
   "Input",
+  "Kbd",
   "Markdown",
   "NonIdealState",
   "Outliner",

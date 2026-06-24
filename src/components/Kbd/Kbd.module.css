@@ -1,0 +1,33 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+/* A single keycap — a small, subtly raised box. */
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: calc(var(--sf-unit) * 0.9);
+  block-size: calc(var(--sf-unit) * 0.9);
+  padding: 0 calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-1);
+  font: inherit;
+  line-height: 1;
+}
+
+.sep {
+  color: var(--sf-color-muted);
+  padding-inline: 1px;
+}

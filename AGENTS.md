@@ -69,6 +69,7 @@ Ladle (`npm run dev`).
 | `ButtonGroup`   | A row of related buttons sharing a cascading size.        |
 | `Field`         | Compound for any form row: `Field.Root` + `Field.Label` + control + `Field.Description` + `Field.Error`. Don't roll your own. |
 | `Input`         | Single-line text input. Monospace by design.              |
+| `Kbd`           | Renders a keyboard shortcut as OS-aware keycaps (`combo="mod+k"` → ⌘K on macOS, Ctrl+K elsewhere). `mod` = primary modifier; never shows ⌘ off-Mac. For labels/menus/tooltips. |
 | `TextEdit`      | Multi-line / auto-growing text input.                     |
 | `Checkbox`      | Binary independent toggles in lists.                      |
 | `Radio`         | Single-choice within a group.                             |
@@ -243,6 +244,7 @@ Common requests and the right component:
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |
 | "a Cmd-K palette" / "quick switcher"               | `CommandBar`                                     |
+| "show a keyboard shortcut" / "render a hotkey / keycap" | `Kbd` (OS-aware; `mod` → ⌘/Ctrl)             |
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |
 | "tabs"                                             | `Tabs`                                           |
