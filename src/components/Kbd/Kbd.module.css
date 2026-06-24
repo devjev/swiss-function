@@ -17,8 +17,15 @@
    default (sanctioned in AESTHETICS.md). `.key` is the darker BODY (its lower
    edge reads as the keycap's front lip); `::before` is the lighter, raised TOP
    FACE with a sheen + bevel + dish; `.legend` rides on top. Scales to any key
-   width without distortion (unlike a stretched SVG). Theme-aware via color-mix. */
+   width without distortion (unlike a stretched SVG). Theme-aware via color-mix.
+   The highlight strengths are vars so dark mode can dial them down — a bright
+   white bevel glares on a dark surface. */
 .key {
+  --kbd-bevel: 0.6; /* top bevel highlight alpha */
+  --kbd-sheen: 0.5; /* radial top sheen alpha */
+  --kbd-face: 40%; /* how much lighter the top face is than the surface */
+  --kbd-engrave: 0.55; /* engraved-legend highlight alpha */
+
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -33,8 +40,7 @@
   box-shadow:
     0 2px 3px rgb(0 0 0 / 0.28),
     inset 0 -1px 1px rgb(0 0 0 / 0.18);
-  /* engraved legend */
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--sf-color-bg-subtle), white 60%);
+  text-shadow: 0 1px 0 rgb(255 255 255 / var(--kbd-engrave));
   font: inherit;
   line-height: 1;
 }
@@ -47,15 +53,24 @@
   inset: 1px 1px 3px;
   border-radius: calc(var(--sf-unit) / 4.5);
   background:
-    radial-gradient(125% 85% at 50% 0%, rgb(255 255 255 / 0.5), transparent 62%),
+    radial-gradient(125% 85% at 50% 0%, rgb(255 255 255 / var(--kbd-sheen)), transparent 62%),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--sf-color-bg-subtle), white 40%),
+      color-mix(in srgb, var(--sf-color-bg-subtle), white var(--kbd-face)),
       var(--sf-color-bg-subtle)
     );
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 1px 0 rgb(255 255 255 / var(--kbd-bevel)),
     inset 0 -2px 2px rgb(0 0 0 / 0.1);
+}
+
+/* Dark mode: a bright highlight reads as glare, so make the cap subtle — soften
+   the bevel/sheen and the top-face lift. */
+[data-theme="dark"] .key {
+  --kbd-bevel: 0.14;
+  --kbd-sheen: 0.1;
+  --kbd-face: 15%;
+  --kbd-engrave: 0.06;
 }
 
 .legend {
