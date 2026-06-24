@@ -1,8 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
+import { cx } from "../../lib/cx";
+import { useFullscreen } from "../../lib/useFullscreen";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart } from "../Chat";
 import { type EffectName, NonIdealState } from "../NonIdealState";
-import { SplitPane, type SplitSide } from "../SplitPane";
+import { SplitPane, type SplitSide, useSplitPane } from "../SplitPane";
 import styles from "./ChatDrawer.module.css";
 
 export interface ChatDrawerProps {
@@ -69,6 +71,72 @@ function toPadding(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
 }
 
+const ICON_PROPS = {
+  viewBox: "0 0 16 16",
+  width: 14,
+  height: 14,
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+} as const;
+
+const ExpandIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" strokeLinecap="square" />
+  </svg>
+);
+const CollapseIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" strokeLinecap="square" />
+  </svg>
+);
+const CloseIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
+  </svg>
+);
+
+/** Panel header: caption on the left, fullscreen + close on the right. Rendered
+ *  inside the SplitPane so the close button can drive its open state. */
+function PanelHeader({
+  title,
+  expanded,
+  onToggleFullscreen,
+}: {
+  title?: ReactNode;
+  expanded: boolean;
+  onToggleFullscreen: () => void;
+}) {
+  const { setOpen } = useSplitPane();
+  return (
+    <div className={styles.header}>
+      {title != null ? <h2 className={styles.title}>{title}</h2> : null}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.iconButton}
+          onClick={onToggleFullscreen}
+          aria-label={expanded ? "Exit fullscreen" : "Enter fullscreen"}
+          aria-pressed={expanded}
+        >
+          {expanded ? <CollapseIcon /> : <ExpandIcon />}
+        </button>
+        <button
+          type="button"
+          className={styles.iconButton}
+          onClick={() => setOpen(false)}
+          aria-label="Close"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** A chat in a resizable side panel that **pushes** the main content aside (a
  *  split, not an overlay). While `thinking`, an animated `NonIdealState` effect
  *  blooms from the centre outward and fills the padding frame around the chat. */
@@ -133,6 +201,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
 
   useEffect(() => () => clearTimeout(unmountTimer.current), []);
 
+  // Fullscreen: the panel pops out to a viewport overlay; Escape exits.
+  const { expanded, toggle } = useFullscreen();
+
   const contentStyle: CSSProperties = { padding: toPadding(padding) };
 
   // `--cd-effect-color` tints the default wash; `--cd-wash` (set only when the
@@ -140,6 +211,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
   const panelStyle = {
     "--cd-effect-color": color,
     ...(wash !== undefined && { "--cd-wash": wash === false ? "transparent" : wash }),
+    // Override SplitPane's inline size so the fullscreen overlay (inset:0) fills
+    // the viewport. SplitPane spreads our style after its own, so this wins.
+    ...(expanded && { inlineSize: "auto", blockSize: "auto" }),
   } as CSSProperties;
 
   return (
@@ -156,7 +230,10 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       onSizeChange={onSizeChange}
     >
       <SplitPane.Main>{children}</SplitPane.Main>
-      <SplitPane.Panel className={styles.panel} style={panelStyle}>
+      <SplitPane.Panel
+        className={cx(styles.panel, expanded && styles.fullscreen)}
+        style={panelStyle}
+      >
         {/* Static full-pane wash — a faint flat tint of the effect colour that's
             always present (so the idle panel isn't stark white), behind everything. */}
         <div className={styles.wash} aria-hidden="true" />
@@ -172,7 +249,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
           ) : null}
         </div>
         <div className={styles.content} style={contentStyle}>
-          {title ? <h2 className={styles.title}>{title}</h2> : null}
+          <PanelHeader title={title} expanded={expanded} onToggleFullscreen={toggle} />
           <div className={styles.chatWrap}>
             <Chat
               className={styles.chat}

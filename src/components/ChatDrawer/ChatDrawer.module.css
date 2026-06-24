@@ -71,11 +71,60 @@
   gap: calc(var(--sf-unit) / 2);
 }
 
+/* Panel header: caption left, action buttons pushed to the right. */
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+
 .title {
   margin: 0;
+  min-inline-size: 0;
+  overflow: hidden;
   font-size: var(--sf-font-size-lg);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: calc(var(--sf-unit) / 4);
+  margin-inline-start: auto;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  background-color: transparent;
+  color: var(--sf-color-fg);
+  border: 0;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.iconButton:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+.iconButton:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Fullscreen: pop the panel out to a viewport overlay. The size override comes
+   from inline style (the component sets inline/block-size: auto when expanded, so
+   inset:0 fills the screen) — it beats SplitPane's own inline size. */
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sf-z-modal);
 }
 
 .chatWrap {

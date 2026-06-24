@@ -197,7 +197,7 @@ A composite: a `Chat` in a **resizable side panel that pushes the main content a
 | `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
 | `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the panel sits on. |
 | `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state. |
-| `title` | `ReactNode` | — | Optional panel heading. |
+| `title` | `ReactNode` | — | Caption shown at the left of the panel header. The header also carries a fullscreen toggle (pops the panel to a viewport overlay; Escape exits) and a close button (collapses the panel) on the right. |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` = fixed panel, no divider. |
 | `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
 | `minSize` / `maxSize` | `number` | — | px clamps. |
