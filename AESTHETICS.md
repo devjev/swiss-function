@@ -37,6 +37,16 @@ Concretely:
 These are defaults; they bend when content demands. But they bend with
 intent, not because the rest of the industry has bent that way.
 
+**One sanctioned exception — light skeuomorphism.** In rare, deliberate
+cases we reach for a touch of skeuomorphism reminiscent of *old computers*:
+a tactile keycap, a physical-feeling switch, a beveled readout. The aim is
+never nostalgia-as-decoration. It's to evoke the era when software was
+**fast, understandable, and lightweight** — when a control looked like the
+thing it did and did exactly that. Used sparingly and only where it earns
+its keep (e.g. `Kbd` rendering a shortcut as a real key), it reinforces the
+instrument posture rather than betraying it. The test: does it make the tool
+read as *more* honest and direct, or just cuter? If the latter, drop it.
+
 ---
 
 ## Foundations

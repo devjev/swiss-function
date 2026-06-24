@@ -1,28 +1,45 @@
 .root {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: calc(var(--sf-font-size-sm) * 0.82);
   color: var(--sf-color-fg);
   white-space: nowrap;
   vertical-align: baseline;
+  /* The 3D skirt + ground shadow extend ~4px below each cap; reserve room so a
+     line of text doesn't clip them. */
+  line-height: 1.6;
 }
 
-/* A single keycap — a small, subtly raised box. */
+/* A skeuomorphic keycap — a deliberate, old-school departure from the library's
+   flat default (the consumer asked for it). Rounded top face with a sheen + bevel
+   highlight, a darker side "skirt", and a soft ground shadow give it depth.
+   Theme-aware: every shade is derived from the tokens via color-mix. */
 .key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-inline-size: calc(var(--sf-unit) * 0.8);
-  block-size: calc(var(--sf-unit) * 0.8);
+  min-inline-size: calc(var(--sf-unit) * 0.85);
+  block-size: calc(var(--sf-unit) * 0.95);
   padding: 0 calc(var(--sf-unit) / 5);
-  background-color: var(--sf-color-bg-subtle);
+  border-radius: calc(var(--sf-unit) / 4);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sf-color-bg-subtle), white 42%),
+    var(--sf-color-bg-subtle)
+  );
+  border: 1px solid color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 20%);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
-  border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-elevation-1);
+  box-shadow: /* top bevel highlight (lit edge) */
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    /* the key's side wall — a solid darker skirt */
+    0 2px 0 color-mix(in srgb, var(--sf-color-bg-subtle), black 22%),
+    /* it sits above the surface */
+    0 3px 4px rgb(0 0 0 / 0.22);
+  /* engraved legend */
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--sf-color-bg-subtle), white 55%);
   font: inherit;
   line-height: 1;
 }
