@@ -44,6 +44,9 @@ export interface ChatDrawerProps {
   color?: string;
   /** Effect animation speed multiplier. Default `1`. */
   speed?: number;
+  /** The always-on panel wash. A CSS colour overrides it; `false` disables it
+   *  (idle panel stays plain). Omit for the default — a faint 7% tint of `color`. */
+  wash?: string | false;
 
   /** Chat messages. */
   messages: ChatMessage[];
@@ -89,6 +92,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     effect = "ripple",
     color = "var(--sf-color-primary)",
     speed = 1,
+    wash,
     messages,
     onSubmit,
     onAction,
@@ -131,6 +135,13 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
 
   const contentStyle: CSSProperties = { padding: toPadding(padding) };
 
+  // `--cd-effect-color` tints the default wash; `--cd-wash` (set only when the
+  // consumer customizes it) overrides the whole wash colour, or disables it.
+  const panelStyle = {
+    "--cd-effect-color": color,
+    ...(wash !== undefined && { "--cd-wash": wash === false ? "transparent" : wash }),
+  } as CSSProperties;
+
   return (
     <SplitPane
       ref={ref}
@@ -145,10 +156,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       onSizeChange={onSizeChange}
     >
       <SplitPane.Main>{children}</SplitPane.Main>
-      <SplitPane.Panel
-        className={styles.panel}
-        style={{ "--cd-effect-color": color } as CSSProperties}
-      >
+      <SplitPane.Panel className={styles.panel} style={panelStyle}>
         {/* Static full-pane wash — a faint flat tint of the effect colour that's
             always present (so the idle panel isn't stark white), behind everything. */}
         <div className={styles.wash} aria-hidden="true" />

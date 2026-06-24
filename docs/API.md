@@ -208,6 +208,7 @@ A composite: a `Chat` in a **resizable side panel that pushes the main content a
 | `effect` | `EffectName` | `"ripple"` | Background effect (any `NonIdealState` effect). |
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
+| `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
 | `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 
