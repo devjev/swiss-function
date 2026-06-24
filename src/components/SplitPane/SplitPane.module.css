@@ -52,12 +52,17 @@
   border: 0;
   padding: 0;
 }
+/* The divider straddles the seam with zero net layout width (negative margins
+   cancel its size), so Main and Panel sit flush — the panel's content reaches the
+   divider line with no white gap — while the wide box stays easy to grab. */
 .divider[aria-orientation="vertical"] {
   inline-size: calc(var(--sf-unit) / 2);
+  margin-inline: calc(var(--sf-unit) / -4);
   cursor: col-resize;
 }
 .divider[aria-orientation="horizontal"] {
   block-size: calc(var(--sf-unit) / 2);
+  margin-block: calc(var(--sf-unit) / -4);
   cursor: row-resize;
 }
 
