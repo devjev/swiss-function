@@ -114,7 +114,9 @@ export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
         <Fragment key={`${k}-${i}`}>
           {/* Off-Mac, separate the word-modifiers with a "+"; macOS glyphs read as a unit. */}
           {i > 0 && !isMac ? <span className={styles.sep}>+</span> : null}
-          <kbd className={styles.key}>{renderKey(k, isMac)}</kbd>
+          <kbd className={styles.key}>
+            <span className={styles.legend}>{renderKey(k, isMac)}</span>
+          </kbd>
         </Fragment>
       ))}
     </span>
