@@ -135,6 +135,16 @@
     --sf-elevation-4: 0 4px 8px rgb(0 0 0 / 0.07), 0 8px 16px rgb(0 0 0 / 0.09);
     --sf-elevation-5: 0 8px 16px rgb(0 0 0 / 0.08), 0 16px 32px rgb(0 0 0 / 0.12);
 
+    /* Recess scale — the elevation scale inverted (inset shadows), so an element
+       reads as sunken *into* the surface rather than floating above it. Same six
+       steps; pair with a surface that's slightly darker/tinted than its frame. */
+    --sf-recess-0: none;
+    --sf-recess-1: inset 0 1px 1px rgb(0 0 0 / 0.06);
+    --sf-recess-2: inset 0 1px 2px rgb(0 0 0 / 0.05), inset 0 2px 4px rgb(0 0 0 / 0.05);
+    --sf-recess-3: inset 0 2px 4px rgb(0 0 0 / 0.06), inset 0 4px 8px rgb(0 0 0 / 0.07);
+    --sf-recess-4: inset 0 4px 8px rgb(0 0 0 / 0.07), inset 0 8px 16px rgb(0 0 0 / 0.09);
+    --sf-recess-5: inset 0 8px 16px rgb(0 0 0 / 0.08), inset 0 16px 32px rgb(0 0 0 / 0.12);
+
     /* Motion */
     --sf-duration-fast: 120ms;
     --sf-duration-base: 180ms;

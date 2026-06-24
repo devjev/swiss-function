@@ -263,6 +263,8 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
             />
           </div>
         </div>
+        {/* Recess overlay — casts the inset shadow over the whole panel. */}
+        <div className={styles.recess} aria-hidden="true" />
       </SplitPane.Panel>
     </SplitPane>
   );

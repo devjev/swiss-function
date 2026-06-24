@@ -5,6 +5,16 @@
   flex-direction: column;
 }
 
+/* Recess overlay: casts an inset shadow over the whole panel (above the content)
+   so it reads as sunken into the page. Non-interactive. */
+.recess {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: var(--sf-recess-3);
+}
+
 /* Animated thinking background, behind the chat. Revealed with a clip-path
    circle that grows from the centre outward — so the effect "starts from zero".
    The SplitPane panel is `position: relative`, so this absolute layer fills it. */
