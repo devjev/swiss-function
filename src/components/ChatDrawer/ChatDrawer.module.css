@@ -8,10 +8,31 @@
 /* Animated thinking background, behind the chat. Revealed with a clip-path
    circle that grows from the centre outward — so the effect "starts from zero".
    The SplitPane panel is `position: relative`, so this absolute layer fills it. */
-.bg {
+/* Static full-pane wash: a faint flat tint of the effect colour that covers the
+   whole panel (behind the dither and the chat) while thinking. Unlike `.bg` it
+   isn't clipped — no bloom — so the gutter reads as a uniform tint to every edge,
+   including the divider seam. */
+.wash {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
+  background-color: color-mix(
+    in srgb,
+    var(--cd-effect-color, var(--sf-color-primary)) 7%,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--sf-duration-slow) var(--sf-ease-out);
+}
+.wash[data-open] {
+  opacity: 1;
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   overflow: hidden;
   pointer-events: none;
   clip-path: circle(0% at 50% 50%);
@@ -23,6 +44,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .wash,
   .bg {
     transition: none;
   }
@@ -45,7 +67,7 @@
    gutter around the (opaque) chat. */
 .content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   flex: 1 1 auto;
   min-block-size: 0;
   box-sizing: border-box;

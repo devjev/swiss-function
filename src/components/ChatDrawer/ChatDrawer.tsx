@@ -145,7 +145,13 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       onSizeChange={onSizeChange}
     >
       <SplitPane.Main>{children}</SplitPane.Main>
-      <SplitPane.Panel className={styles.panel}>
+      <SplitPane.Panel
+        className={styles.panel}
+        style={{ "--cd-effect-color": color } as CSSProperties}
+      >
+        {/* Static full-pane wash — a faint flat tint of the effect colour while
+            thinking (no bloom), behind everything. */}
+        <div className={styles.wash} data-open={revealed || undefined} aria-hidden="true" />
         <div className={styles.bg} data-open={revealed || undefined} aria-hidden="true">
           {visible ? (
             <NonIdealState
