@@ -149,9 +149,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
         className={styles.panel}
         style={{ "--cd-effect-color": color } as CSSProperties}
       >
-        {/* Static full-pane wash — a faint flat tint of the effect colour while
-            thinking (no bloom), behind everything. */}
-        <div className={styles.wash} data-open={revealed || undefined} aria-hidden="true" />
+        {/* Static full-pane wash — a faint flat tint of the effect colour that's
+            always present (so the idle panel isn't stark white), behind everything. */}
+        <div className={styles.wash} aria-hidden="true" />
         <div className={styles.bg} data-open={revealed || undefined} aria-hidden="true">
           {visible ? (
             <NonIdealState

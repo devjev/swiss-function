@@ -57,12 +57,12 @@
   overflow-wrap: anywhere;
 }
 
-/* Input row — pinned at the bottom with a hairline above. align-items: start
-   so the send button stays anchored to the TOP of the row even when the
-   textarea grows downward into multi-line. */
+/* Input row — pinned at the bottom with a hairline above. align-items: end so
+   the send button sits flush with the lower edge of the input, staying aligned
+   to the last line as the textarea grows downward into multi-line. */
 .inputRow {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: calc(var(--sf-unit) / 2);
   padding: calc(var(--sf-unit) / 2);
   border-block-start: 1px solid var(--sf-color-border-subtle);

@@ -8,10 +8,10 @@
 /* Animated thinking background, behind the chat. Revealed with a clip-path
    circle that grows from the centre outward — so the effect "starts from zero".
    The SplitPane panel is `position: relative`, so this absolute layer fills it. */
-/* Static full-pane wash: a faint flat tint of the effect colour that covers the
-   whole panel (behind the dither and the chat) while thinking. Unlike `.bg` it
-   isn't clipped — no bloom — so the gutter reads as a uniform tint to every edge,
-   including the divider seam. */
+/* Static full-pane wash: a faint flat tint of the effect colour that always
+   covers the whole panel (behind the dither and the chat) — so the idle panel
+   isn't stark white. Unlike `.bg` it isn't clipped, so the tint reaches every
+   edge, including the divider seam. The dither blooms on top only while thinking. */
 .wash {
   position: absolute;
   inset: 0;
@@ -22,11 +22,6 @@
     var(--cd-effect-color, var(--sf-color-primary)) 7%,
     transparent
   );
-  opacity: 0;
-  transition: opacity var(--sf-duration-slow) var(--sf-ease-out);
-}
-.wash[data-open] {
-  opacity: 1;
 }
 
 .bg {
@@ -44,7 +39,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wash,
   .bg {
     transition: none;
   }
