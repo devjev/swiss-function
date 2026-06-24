@@ -195,7 +195,7 @@ A composite: a `Chat` in a **resizable side panel that pushes the main content a
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
-| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the panel sits on. |
+| `side` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` | Edge the panel sits on. |
 | `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state. |
 | `title` | `ReactNode` | — | Caption shown at the left of the panel header. The header also carries a fullscreen toggle (pops the panel to a viewport overlay; Escape exits) and a close button (collapses the panel) on the right. |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` = fixed panel, no divider. |
@@ -694,7 +694,7 @@ A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane
 
 | Prop (root) | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the panel sits on. |
+| `side` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` | Edge the panel sits on. |
 | `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state (controlled or uncontrolled). |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` removes it. |
 | `defaultSize` | `number` | `320` | Panel size in px (remembered across open/close). |

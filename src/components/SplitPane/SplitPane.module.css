@@ -6,6 +6,7 @@
   min-inline-size: 0;
   min-block-size: 0;
 }
+.root[data-side="top"],
 .root[data-side="bottom"] {
   flex-direction: column;
 }

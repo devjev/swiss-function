@@ -13,7 +13,7 @@ import { cx } from "../../lib/cx";
 import { type DragDelta, usePointerDrag } from "../../lib/usePointerDrag";
 import styles from "./SplitPane.module.css";
 
-export type SplitSide = "left" | "right" | "bottom";
+export type SplitSide = "left" | "right" | "top" | "bottom";
 
 /** Smallest the main pane is allowed to get (px) — the panel can't be dragged
  *  wider than `container − this`. */
@@ -57,7 +57,8 @@ const Panel = forwardRef<HTMLDivElement, SplitPanelProps>(function SplitPanel(
 ) {
   const ctx = useContext(SplitContext);
   const size = ctx?.open ? (ctx?.size ?? 0) : 0;
-  const sizeProp = ctx?.side === "bottom" ? "blockSize" : "inlineSize";
+  const vertical = ctx?.side === "top" || ctx?.side === "bottom";
+  const sizeProp = vertical ? "blockSize" : "inlineSize";
   return (
     <div
       {...rest}
@@ -136,7 +137,8 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
       let max = maxSize ?? Number.POSITIVE_INFINITY;
       const el = containerRef.current;
       if (el) {
-        const containerPx = side === "bottom" ? el.clientHeight : el.clientWidth;
+        const verticalAxis = side === "top" || side === "bottom";
+        const containerPx = verticalAxis ? el.clientHeight : el.clientWidth;
         max = Math.min(max, containerPx - MIN_MAIN);
       }
       return Math.max(minSize, Math.min(max, raw));
@@ -149,6 +151,7 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
   const rawFromDelta = useCallback(
     (d: DragDelta) => {
       if (side === "left") return startSize.current + d.dx;
+      if (side === "top") return startSize.current + d.dy;
       if (side === "bottom") return startSize.current - d.dy;
       return startSize.current - d.dx; // right
     },
@@ -170,8 +173,11 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
   });
 
   const onDividerKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const grow = side === "left" ? "ArrowRight" : side === "bottom" ? "ArrowUp" : "ArrowLeft";
-    const shrink = side === "left" ? "ArrowLeft" : side === "bottom" ? "ArrowDown" : "ArrowRight";
+    // The key that grows the panel points from the divider toward the main pane.
+    const growBySide = { left: "ArrowRight", right: "ArrowLeft", top: "ArrowDown", bottom: "ArrowUp" };
+    const shrinkBySide = { left: "ArrowLeft", right: "ArrowRight", top: "ArrowUp", bottom: "ArrowDown" };
+    const grow = growBySide[side];
+    const shrink = shrinkBySide[side];
     let next: number;
     if (e.key === grow) next = size + KEY_STEP;
     else if (e.key === shrink) next = size - KEY_STEP;
@@ -190,7 +196,7 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
     else if (child.type === Panel) panelEl = child;
   });
 
-  const orientation = side === "bottom" ? "horizontal" : "vertical";
+  const orientation = side === "top" || side === "bottom" ? "horizontal" : "vertical";
   const divider =
     resizable && open ? (
       // biome-ignore lint/a11y/useSemanticElements: ARIA splitter pattern — a focusable, draggable resize separator; <hr> can't be interactive.
@@ -208,9 +214,10 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
       />
     ) : null;
 
-  // Render order so the panel sits on the chosen edge.
+  // Render order so the panel sits on the chosen edge (panel-first for the
+  // leading edges: left and top).
   const ordered =
-    side === "left" ? (
+    side === "left" || side === "top" ? (
       <>
         {panelEl}
         {divider}

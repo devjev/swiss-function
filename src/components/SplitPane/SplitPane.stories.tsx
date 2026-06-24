@@ -58,6 +58,7 @@ function Demo({ side, resizable = true }: { side: SplitSide; resizable?: boolean
  *  button; drag the divider to resize (or focus it and use the arrow keys). */
 export const Right: Story = () => <Demo side="right" />;
 export const Left: Story = () => <Demo side="left" />;
+export const Top: Story = () => <Demo side="top" />;
 export const Bottom: Story = () => <Demo side="bottom" />;
 
 /** `resizable={false}` → a fixed-size panel with no divider. */
