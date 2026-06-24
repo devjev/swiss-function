@@ -30,6 +30,7 @@ export * from "./components/Radio";
 export * from "./components/Scatterplot";
 export * from "./components/Selector";
 export * from "./components/Skeleton";
+export * from "./components/SplitPane";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Switch";
 export * from "./components/Tabs";

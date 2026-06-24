@@ -1,21 +1,31 @@
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart } from "../Chat";
-import { Drawer, type DrawerSide } from "../Drawer";
 import { type EffectName, NonIdealState } from "../NonIdealState";
+import { SplitPane, type SplitSide } from "../SplitPane";
 import styles from "./ChatDrawer.module.css";
 
 export interface ChatDrawerProps {
-  /** Element that opens the drawer (rendered as the drawer trigger). */
-  trigger?: ReactElement;
-  /** Edge the drawer slides in from. Default `"right"`. */
-  side?: DrawerSide;
-  /** Controlled open state (Base UI Drawer). */
+  /** The main app content — the chat panel pushes it aside (it doesn't overlay). */
+  children?: ReactNode;
+  /** Edge the panel sits on. Default `"right"`. */
+  side?: SplitSide;
+  /** Controlled open state. */
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   /** Optional accessible title for the panel. */
   title?: ReactNode;
+
+  /** Allow dragging the divider to resize the panel. Default `true`. */
+  resizable?: boolean;
+  /** Panel size in px (uncontrolled). Default 360. */
+  defaultSize?: number;
+  /** Min / max panel size in px. */
+  minSize?: number;
+  maxSize?: number;
+  /** Fired with the new panel size (px) when a resize settles. */
+  onSizeChange?: (size: number) => void;
 
   /** Padding around the chat — the gutter the thinking effect fills.
    *  `number` → multiples of `--sf-unit` (default `1`); `string` → raw CSS. */
@@ -56,17 +66,22 @@ function toPadding(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
 }
 
-/** A chat inside an edge drawer. While `thinking`, an animated `NonIdealState`
- *  effect blooms from the centre outward (starting from zero) and fills the
- *  padding frame around the chat; it clears when thinking ends. */
+/** A chat in a resizable side panel that **pushes** the main content aside (a
+ *  split, not an overlay). While `thinking`, an animated `NonIdealState` effect
+ *  blooms from the centre outward and fills the padding frame around the chat. */
 export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function ChatDrawer(
   {
-    trigger,
+    children,
     side = "right",
     open,
     defaultOpen,
     onOpenChange,
     title,
+    resizable = true,
+    defaultSize = 360,
+    minSize,
+    maxSize,
+    onSizeChange,
     padding = 1,
     thinking = false,
     onThinkingStart,
@@ -117,38 +132,47 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
   const contentStyle: CSSProperties = { padding: toPadding(padding) };
 
   return (
-    <Drawer.Root side={side} open={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
-      {trigger ? <Drawer.Trigger render={trigger} /> : null}
-      <Drawer.Portal>
-        <Drawer.Popup ref={ref} className={styles.popup}>
-          <div className={styles.bg} data-open={revealed || undefined} aria-hidden="true">
-            {visible ? (
-              <NonIdealState
-                key={runKey}
-                effect={effect}
-                color={color}
-                speed={speed}
-                className={styles.fill}
-              />
-            ) : null}
+    <SplitPane
+      ref={ref}
+      side={side}
+      open={open}
+      defaultOpen={defaultOpen}
+      onOpenChange={onOpenChange}
+      resizable={resizable}
+      defaultSize={defaultSize}
+      minSize={minSize}
+      maxSize={maxSize}
+      onSizeChange={onSizeChange}
+    >
+      <SplitPane.Main>{children}</SplitPane.Main>
+      <SplitPane.Panel className={styles.panel}>
+        <div className={styles.bg} data-open={revealed || undefined} aria-hidden="true">
+          {visible ? (
+            <NonIdealState
+              key={runKey}
+              effect={effect}
+              color={color}
+              speed={speed}
+              className={styles.fill}
+            />
+          ) : null}
+        </div>
+        <div className={styles.content} style={contentStyle}>
+          {title ? <h2 className={styles.title}>{title}</h2> : null}
+          <div className={styles.chatWrap}>
+            <Chat
+              className={styles.chat}
+              height="100%"
+              messages={messages}
+              onSubmit={onSubmit}
+              onAction={onAction}
+              renderPart={renderPart}
+              placeholder={placeholder}
+              disabled={disabled ?? thinking}
+            />
           </div>
-          <div className={styles.content} style={contentStyle}>
-            {title ? <Drawer.Title className={styles.title}>{title}</Drawer.Title> : null}
-            <div className={styles.chatWrap}>
-              <Chat
-                className={styles.chat}
-                height="100%"
-                messages={messages}
-                onSubmit={onSubmit}
-                onAction={onAction}
-                renderPart={renderPart}
-                placeholder={placeholder}
-                disabled={disabled ?? thinking}
-              />
-            </div>
-          </div>
-        </Drawer.Popup>
-      </Drawer.Portal>
-    </Drawer.Root>
+        </div>
+      </SplitPane.Panel>
+    </SplitPane>
   );
 });

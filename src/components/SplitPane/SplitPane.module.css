@@ -1,0 +1,91 @@
+/* Split container — fills its parent; row for left/right, column for bottom. */
+.root {
+  display: flex;
+  inline-size: 100%;
+  block-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+.root[data-side="bottom"] {
+  flex-direction: column;
+}
+
+/* Main pane — flexes to fill whatever the panel leaves. */
+.main {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: auto;
+}
+
+/* Side panel — sized via inline-size (row) / block-size (column), animated on
+   open/close. `overflow: hidden` clips its content while collapsing. */
+.panel {
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--sf-color-bg);
+  transition:
+    inline-size var(--sf-duration-base) var(--sf-ease-out),
+    block-size var(--sf-duration-base) var(--sf-ease-out);
+}
+/* While dragging, track the pointer 1:1 (no animation lag). */
+.root[data-dragging] .panel {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+}
+
+/* Divider — a thin hairline with a wider hit area; highlights primary on
+   hover / focus / drag. */
+.divider {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  touch-action: none;
+  z-index: 1;
+  background-color: transparent;
+  border: 0;
+  padding: 0;
+}
+.divider[aria-orientation="vertical"] {
+  inline-size: calc(var(--sf-unit) / 2);
+  cursor: col-resize;
+}
+.divider[aria-orientation="horizontal"] {
+  block-size: calc(var(--sf-unit) / 2);
+  cursor: row-resize;
+}
+
+.divider::after {
+  content: "";
+  position: absolute;
+  background-color: var(--sf-color-border-subtle);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.divider[aria-orientation="vertical"]::after {
+  inset-block: 0;
+  inset-inline-start: 50%;
+  inline-size: 1px;
+  transform: translateX(-50%);
+}
+.divider[aria-orientation="horizontal"]::after {
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 1px;
+  transform: translateY(-50%);
+}
+
+.divider:hover::after,
+.divider:focus-visible::after,
+.root[data-dragging] .divider::after {
+  background-color: var(--sf-color-primary);
+}
+.divider:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}

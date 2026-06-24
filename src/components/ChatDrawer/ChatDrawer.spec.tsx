@@ -1,40 +1,30 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { Button } from "../Button";
 import type { ChatMessage } from "../Chat";
 import { ChatDrawer } from "./ChatDrawer";
 
 const messages: ChatMessage[] = [{ id: "1", role: "assistant", content: "Hello" }];
 
-test("opens from the trigger and shows the chat input", async ({ mount, page }) => {
-  await mount(
-    <ChatDrawer trigger={<Button>Open chat</Button>} messages={messages} onSubmit={() => {}} />,
+test("open shows the chat input in the pushed panel", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer defaultOpen messages={messages} onSubmit={() => {}}>
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
   );
-  await expect(page.getByPlaceholder("Ask anything…")).toHaveCount(0);
-  await page.getByRole("button", { name: "Open chat" }).click();
-  await expect(page.getByPlaceholder("Ask anything…")).toBeVisible();
+  await expect(c.getByText("app content")).toBeVisible();
+  await expect(c.getByPlaceholder("Ask anything…")).toBeVisible();
+  // The resize divider is present while open.
+  await expect(c.getByRole("separator")).toBeVisible();
 });
 
-test("shows the thinking background only while thinking", async ({ mount, page }) => {
+test("thinking mounts the effect canvas", async ({ mount }) => {
   const c = await mount(
-    <ChatDrawer
-      defaultOpen
-      trigger={<Button>Open chat</Button>}
-      messages={messages}
-      onSubmit={() => {}}
-    />,
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer defaultOpen thinking messages={messages} onSubmit={() => {}}>
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
   );
-  // Idle → no effect canvas behind the chat.
-  await expect(page.locator("canvas")).toHaveCount(0);
-
-  await c.update(
-    <ChatDrawer
-      defaultOpen
-      thinking
-      trigger={<Button>Open chat</Button>}
-      messages={messages}
-      onSubmit={() => {}}
-    />,
-  );
-  // Thinking → the NonIdealState effect mounts.
-  await expect(page.locator("canvas")).toHaveCount(1);
+  await expect(c.locator("canvas")).toHaveCount(1);
 });

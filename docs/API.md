@@ -190,14 +190,18 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 `import { ChatDrawer } from "@tarassov-ch/swiss-function/chat-drawer"`
 
-A composite: a `Chat` inside an edge `Drawer` (non-modal). While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` is controlled by the consumer.
+A composite: a `Chat` in a **resizable side panel that pushes the main content aside** (built on [SplitPane](#splitpane) — a split, not an overlay). You pass the main app as `children`; the chat lives in the panel. While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` and `open` are controlled by the consumer.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `trigger` | `ReactElement` | — | Element that opens the drawer (rendered as the drawer trigger). |
-| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the drawer slides from. |
-| `open` / `defaultOpen` / `onOpenChange` | — | — | Drawer open state (Base UI). |
-| `title` | `ReactNode` | — | Optional accessible panel title. |
+| `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
+| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the panel sits on. |
+| `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state. |
+| `title` | `ReactNode` | — | Optional panel heading. |
+| `resizable` | `boolean` | `true` | Drag the divider to resize; `false` = fixed panel, no divider. |
+| `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
+| `minSize` / `maxSize` | `number` | — | px clamps. |
+| `onSizeChange` | `(px: number) => void` | — | Fired when a resize settles — persist it. |
 | `padding` | `number \| string` | `1` | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
 | `thinking` | `boolean` | `false` | While true, the effect blooms behind the chat. |
 | `onThinkingStart` / `onThinkingEnd` | `() => void` | — | Fired on the `thinking` false↔true transitions. |
@@ -207,25 +211,25 @@ A composite: a `Chat` inside an edge `Drawer` (non-modal). While the agent is **
 | `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 
-The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition. The effect shows in the padding gutter (more `padding` → more effect on show).
+The container must have a height (e.g. `100vh`) so the split fills it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
 
 ```tsx
+const [open, setOpen] = useState(true);
 const [busy, setBusy] = useState(false);
-<ChatDrawer
-  trigger={<Button>Chat</Button>}
-  thinking={busy}
-  onThinkingStart={() => {/* … */}}
-  onThinkingEnd={() => {/* … */}}
-  effect="ripple"
-  color="var(--sf-color-primary)"
-  messages={messages}
-  onSubmit={async (text) => {
-    setBusy(true);
-    const reply = await llm(text);
-    push(reply);
-    setBusy(false);
-  }}
-/>
+<div style={{ height: "100vh" }}>
+  <ChatDrawer
+    open={open} onOpenChange={setOpen}
+    thinking={busy}
+    messages={messages}
+    onSubmit={async (text) => {
+      setBusy(true);
+      push(await llm(text));
+      setBusy(false);
+    }}
+  >
+    <YourApp />            {/* gets pushed aside; put a toggle button in here */}
+  </ChatDrawer>
+</div>
 ```
 
 ## Checkbox
@@ -678,6 +682,36 @@ Animated loading placeholder (shimmer, or a NonIdealState-style dithered effect)
 | `cellSize` | `number` | — | Dither cell px (with `effect`). |
 | `effectOptions` | `EffectOptions` | — | Advanced tuning (with `effect`). |
 | `render` | `RenderProp` | `<div />` | Base UI render prop. |
+
+## SplitPane
+
+`import { SplitPane } from "@tarassov-ch/swiss-function/split-pane"`
+
+A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane.Panel` that **pushes** the main content aside (in document flow — not an overlay). Drag the divider to resize; closed → the panel collapses to zero and Main reclaims the space. Fills its parent, so give the parent a height.
+
+**Parts:** `SplitPane` (root), `SplitPane.Main`, `SplitPane.Panel`. Also exports a `useSplitPane()` hook (`{ side, open, size, setOpen }`) for a close button inside the panel.
+
+| Prop (root) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `side` | `"left" \| "right" \| "bottom"` | `"right"` | Edge the panel sits on. |
+| `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state (controlled or uncontrolled). |
+| `resizable` | `boolean` | `true` | Drag the divider to resize; `false` removes it. |
+| `defaultSize` | `number` | `320` | Panel size in px (remembered across open/close). |
+| `minSize` / `maxSize` | `number` | `200` / — | px clamps. `maxSize` is also capped to the container minus a small main minimum. |
+| `onSizeChange` | `(px: number) => void` | — | Fired when a resize settles, or on a keyboard step. |
+
+The divider is `role="separator"` with `aria-orientation` + `aria-valuenow/min/max`, focusable, and resizes with the arrow keys. The collapse/expand animates `inline-size`/`block-size` (instant under `prefers-reduced-motion`; no transition while dragging).
+
+```tsx
+const [open, setOpen] = useState(true);
+<div style={{ height: "100vh" }}>
+  <SplitPane side="right" open={open} onOpenChange={setOpen}
+    defaultSize={360} minSize={280} maxSize={640} onSizeChange={persist}>
+    <SplitPane.Main><YourApp onToggle={() => setOpen(o => !o)} /></SplitPane.Main>
+    <SplitPane.Panel><Inspector /></SplitPane.Panel>
+  </SplitPane>
+</div>
+```
 
 ## StreamingTerminalText
 

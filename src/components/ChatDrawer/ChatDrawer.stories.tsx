@@ -2,16 +2,13 @@ import type { Story } from "@ladle/react";
 import { useState } from "react";
 import { Button } from "../Button";
 import type { ChatMessage } from "../Chat";
-import { ChatDrawer, type ChatDrawerProps } from "./ChatDrawer";
+import { ChatDrawer } from "./ChatDrawer";
 
 export default { title: "ChatDrawer" };
 
-type DemoProps = Pick<ChatDrawerProps, "side" | "padding" | "effect" | "color" | "speed">;
-
-function Demo({ side, padding, effect, color, speed }: DemoProps) {
+function Demo({ side }: { side?: "left" | "right" | "bottom" }) {
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [events, setEvents] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: "1", role: "assistant", content: "Hi! Ask me anything and watch me **think**." },
   ]);
@@ -20,7 +17,6 @@ function Demo({ side, padding, effect, color, speed }: DemoProps) {
     const base = String(Date.now());
     setMessages((prev) => [...prev, { id: `${base}-u`, role: "user", content: text }]);
     setBusy(true);
-    // Simulate an LLM call: thinking for a beat, then a reply.
     window.setTimeout(() => {
       setMessages((prev) => [
         ...prev,
@@ -35,41 +31,42 @@ function Demo({ side, padding, effect, color, speed }: DemoProps) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-      <p>Thinking events: {events.length ? events.join(" → ") : "—"}</p>
+    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-subtle)" }}>
       <ChatDrawer
+        side={side}
         open={open}
         onOpenChange={setOpen}
-        trigger={<Button>Open chat</Button>}
         title="Assistant"
-        side={side}
-        padding={padding}
-        effect={effect}
-        color={color}
-        speed={speed}
         thinking={busy}
-        onThinkingStart={() => setEvents((e) => [...e, "start"])}
-        onThinkingEnd={() => setEvents((e) => [...e, "end"])}
+        defaultSize={380}
+        minSize={300}
+        maxSize={640}
         messages={messages}
         onSubmit={handleSubmit}
-      />
+      >
+        {/* The main app content — the chat panel pushes it aside. */}
+        <div
+          style={{
+            padding: "var(--sf-unit)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.75rem",
+          }}
+        >
+          <Button onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Open"} assistant</Button>
+          <h1 style={{ margin: 0 }}>Your app</h1>
+          <p style={{ margin: 0 }}>
+            The assistant sits beside this content and pushes it — it doesn't overlay. Drag the
+            divider to resize the panel. Send a message to watch the thinking ripple bloom.
+          </p>
+        </div>
+      </ChatDrawer>
     </div>
   );
 }
 
-/**
- * A chat in a right-edge drawer. Send a message: while the agent "thinks", a
- * ripple blooms from the centre and fills the 1u padding frame around the chat,
- * then clears when the reply lands. `onThinkingStart`/`End` fire on the edges.
- */
-export const Default: Story = () => (
-  <Demo side="right" padding={1} effect="ripple" color="var(--sf-color-primary)" speed={1} />
-);
+/** A resizable chat panel that pushes the app content aside. */
+export const Default: Story = () => <Demo side="right" />;
 
-/**
- * A bottom drawer with a larger padding gutter and a different effect/colour/
- * speed — the same thinking bloom, more of it on show.
- */
-export const BottomVariant: Story = () => (
-  <Demo side="bottom" padding={2} effect="plasma" color="var(--sf-color-success)" speed={1.6} />
-);
+/** Left-edge variant. */
+export const Left: Story = () => <Demo side="left" />;

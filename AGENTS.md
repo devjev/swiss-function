@@ -146,7 +146,8 @@ scale fades in on hover). Use `scaffolding="full"` for dense data,
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, or custom blocks via `renderPart` (wrap them in `ChatBlock`). Interactions report through `onAction`. |
-| `ChatDrawer`    | A `Chat` inside an edge `Drawer` with customizable padding. While `thinking`, an animated effect blooms from the centre and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. `effect`/`color`/`speed` parametrize the background. |
+| `ChatDrawer`    | A `Chat` in a resizable side panel that **pushes** the app content aside (built on `SplitPane`). Pass the app as `children`. While `thinking`, an animated effect blooms and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. |
+| `SplitPane`     | Resizable split layout: `SplitPane.Main` + a collapsible `SplitPane.Panel` that pushes content aside with a draggable divider (not an overlay). For overlay sheets use `Drawer` instead. |
 
 ---
 
@@ -236,7 +237,8 @@ Common requests and the right component:
 | "a button" / "an action"                           | `Button` (variant chosen by destructiveness)     |
 | "a form"                                           | `Field.Root` per row + the right control inside  |
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
-| "a drawer" / "side panel" / "sheet"                | `Drawer`                                          |
+| "a drawer" / "sheet" / "overlay panel"             | `Drawer`                                          |
+| "a resizable split / panel that pushes content / IDE-style side panel" | `SplitPane` |
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |

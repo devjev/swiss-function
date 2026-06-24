@@ -1,11 +1,13 @@
-/* Roomier default panel for a chat (Drawer's default is 18u). */
-.popup {
-  --sf-drawer-size: calc(var(--sf-unit) * 22);
+/* The chat fills the SplitPane panel as a flex column. (SplitPane's `.panel`
+   already provides the size, `position: relative`, and `overflow: hidden`.) */
+.panel {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Animated thinking background, behind the chat. Revealed with a clip-path
    circle that grows from the centre outward — so the effect "starts from zero".
-   `.popup` is position:fixed, so this absolute layer fills the whole panel. */
+   The SplitPane panel is `position: relative`, so this absolute layer fills it. */
 .bg {
   position: absolute;
   inset: 0;
@@ -44,11 +46,19 @@
 .content {
   position: relative;
   z-index: 1;
-  block-size: 100%;
+  flex: 1 1 auto;
+  min-block-size: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: calc(var(--sf-unit) / 2);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sf-font-size-lg);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
 }
 
 .chatWrap {
