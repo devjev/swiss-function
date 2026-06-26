@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.30.4",
+  "version": "0.31.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -187,6 +187,18 @@
     "./selector": {
       "types": "./dist/components/Selector/index.d.ts",
       "import": "./dist/components/Selector/index.js"
+    },
+    "./reflow": {
+      "types": "./dist/components/Reflow/index.d.ts",
+      "import": "./dist/components/Reflow/index.js"
+    },
+    "./toolbar": {
+      "types": "./dist/components/Toolbar/index.d.ts",
+      "import": "./dist/components/Toolbar/index.js"
+    },
+    "./lib/use-collapse": {
+      "types": "./dist/lib/useCollapse.d.ts",
+      "import": "./dist/lib/useCollapse.js"
     },
     "./package.json": "./package.json"
   },

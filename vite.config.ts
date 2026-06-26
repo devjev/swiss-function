@@ -45,6 +45,8 @@ const componentNames = [
   "ToggleGroup",
   "Accordion",
   "Selector",
+  "Reflow",
+  "Toolbar",
 ];
 
 const componentEntries = Object.fromEntries(

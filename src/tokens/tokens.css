@@ -156,6 +156,24 @@
        never for continuous motion. Always gated behind prefers-reduced-motion. */
     --sf-ease-snap: cubic-bezier(0.34, 1.7, 0.5, 1);
 
+    /* Scrollbars — opt-in via the `scrollable` utility (src/lib/scrollable.module.css),
+       not applied globally (the library is headless; consumers own app chrome).
+       Uses the standard `scrollbar-width`/`scrollbar-color` properties only, NOT
+       the `::-webkit-scrollbar` pseudo-element: the pseudo forces always-visible
+       bars and would regress macOS overlay scrollbars (and standard props can't
+       reach arrows, a thumb-only :hover, or an animated fade anyway —
+       scrollbar-color is not transitionable). The thumb is invisible at rest and
+       appears in the primary color when the scroll surface is hovered (the
+       :hover lives on the container, since scrollbar-color has no hover pseudo).
+       On macOS the native overlay handles the genuine fade-in for free; on
+       Windows/Linux the thumb appears instantly (no fade — see above). Track is
+       always transparent. Invisible-until-hover, in keeping with the Swiss
+       "make it recede" posture. */
+    --sf-scrollbar-width: thin;
+    --sf-scrollbar-thumb: transparent;
+    --sf-scrollbar-thumb-hover: var(--sf-color-primary);
+    --sf-scrollbar-track: transparent;
+
     /* Z-indices */
     --sf-z-dropdown: 1000;
     --sf-z-overlay: 1100;

@@ -15,6 +15,7 @@
 
 /* --- Outline --- */
 .outline {
+  composes: scrollable from "../../lib/scrollable.module.css";
   overflow-y: auto;
   min-block-size: 0;
   padding: calc(var(--sf-unit) / 4) 0;
@@ -69,6 +70,7 @@
 
 /* --- Body (virtualized scroll container) --- */
 .body {
+  composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   /* Fill the parent so this element IS the scroll viewport. Without a
      constrained height the virtualizer's scrollElement never scrolls

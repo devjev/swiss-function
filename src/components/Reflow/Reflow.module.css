@@ -1,0 +1,32 @@
+.root {
+  inline-size: 100%;
+}
+
+/* Wide state: equal-width columns. grid-template-columns + gap are set inline
+   (count and gap are dynamic). minmax(0,1fr) keeps widths equal and stops a
+   long column from blowing out the track. */
+.grid {
+  display: grid;
+}
+
+.column {
+  min-inline-size: 0;
+}
+
+/* Column title — full-strength text (never gray), weight carries the hierarchy.
+   Mirrors the Accordion trigger's type so the wide and narrow states read the
+   same. */
+.heading {
+  margin: 0 0 calc(var(--sf-unit) / 2);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+}
+
+.body {
+  color: var(--sf-color-fg);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-line-height-grid);
+}

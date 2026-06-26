@@ -23,6 +23,7 @@
   /* Same min-0 rule as the root, so nested Panes don't push their scroll
      onto an outer container. Combined with `overflow-y: auto` the Body
      becomes the natural scroll surface when its content exceeds height. */
+  composes: scrollable from "../../lib/scrollable.module.css";
   min-block-size: 0;
   overflow-y: auto;
 }

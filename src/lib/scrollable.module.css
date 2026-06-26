@@ -1,0 +1,22 @@
+/* Shared scroll-surface styling. `composes: scrollable from` this file into
+   any component's scroll container (Pane.Body, Prose body, DataTable viewport,
+   …) so every scrollable surface in the system reads the same.
+
+   Standard properties only — see the scrollbar token block in tokens.css for
+   why we deliberately avoid `::-webkit-scrollbar` (it would regress macOS
+   overlay scrollbars). `scrollbar-color` ships in Firefox, Chromium, and
+   WebKit 18.2+; older WebKit simply falls back to the native scrollbar. */
+.scrollable {
+  scrollbar-width: var(--sf-scrollbar-width);
+  scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
+}
+
+/* No hover pseudo exists for the scrollbar thumb in the standard model, so we
+   hook :hover on the scroll container instead: the thumb is invisible at rest
+   and appears in the primary color when the surface is hovered. This recolors on
+   region hover rather than thumb hover, and appears instantly rather than fading
+   (scrollbar-color can't be transitioned) — both are the only standard-property
+   behavior available. On macOS the native overlay gives the genuine fade-in. */
+.scrollable:hover {
+  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+}

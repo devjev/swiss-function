@@ -28,9 +28,9 @@ Per-component prop/element reference for every exported component in the library
 **Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · Combobox · CommandBar · DataTable · Dialog ·
 Explorer · Field · Fullscreen · Graph · Grid · Input · Markdown · Menu ·
-NonIdealState · Outliner · Pane · Popover · Prose · Radio · Scatterplot ·
-Selector · Skeleton · StreamingTerminalText · Switch · Tabs · TextEdit ·
-Timeline · ToggleGroup
+NonIdealState · Outliner · Pane · Popover · Prose · Radio · Reflow ·
+Scatterplot · Selector · Skeleton · StreamingTerminalText · Switch · Tabs ·
+TextEdit · Timeline · Toolbar · ToggleGroup
 
 ---
 
@@ -638,6 +638,39 @@ Base UI radio + group wrappers. `RadioGroup` forwards all Base UI RadioGroup pro
 | --- | --- | --- | --- | --- |
 | `elevation` | `Radio` | `0 \| 1 \| 2 \| 3 \| 4` | `2` | Resting depth; sets `data-elevation`. |
 
+## Reflow
+
+`import { Reflow } from "@tarassov-ch/swiss-function/reflow"`
+
+Responsive multi-column layout. Wide: equal-width columns side by side. When its
+**container** (not the viewport) is narrower than `collapseAt`, it collapses to
+either a vertical accordion or a tab switcher so you move between columns. Detection
+is container-width via `ResizeObserver` (the shared `useCollapse` hook), so it works
+inside sidebars/split layouts — not just full width.
+
+`Reflow.Root` props (a discriminated union on `collapseMode`; extends `HTMLAttributes<HTMLDivElement>`):
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `collapseMode` | `"accordion" \| "tabs"` | `"accordion"` | Narrow rendering. |
+| `collapseAt` | `number \| string` | `32` | Collapse threshold. `number` → `--sf-unit` multiples; `string` → any CSS length. |
+| `gap` | `number \| string` | `1` | Wide column gap; `number` → `--sf-unit` multiples. |
+| `headingLevel` | `2 \| 3 \| 4 \| 5 \| 6` | `3` | Wide-state column heading tag. |
+| `value` / `defaultValue` | `string[]` (accordion) / `string` (tabs) | first column | Open section(s) / active column. Control `value` to persist state across the breakpoint. |
+| `onValueChange` | `(value: string[]) => void` (accordion) / `(value: string) => void` (tabs) | — | Selection callback. |
+| `openMultiple` | `boolean` | `false` | Accordion only: allow several sections open. |
+
+**Elements / Parts:** `Reflow.Column` — `{ title: ReactNode; value?: string }` + `HTMLAttributes`.
+`title` is the heading / accordion trigger / tab label. Children must be `Reflow.Column`
+(fragments are flattened); pass an explicit `value` when columns are conditionally rendered.
+
+```tsx
+<Reflow.Root collapseMode="tabs" collapseAt={40}>
+  <Reflow.Column title="Overview" value="overview">…</Reflow.Column>
+  <Reflow.Column title="Details" value="details">…</Reflow.Column>
+</Reflow.Root>
+```
+
 ## Scatterplot
 
 `import { Scatterplot } from "@tarassov-ch/swiss-function/scatterplot"`
@@ -811,6 +844,45 @@ With `onClick` it becomes an interactive button.
           valueLabel color="var(--sf-color-success)" tickSpacing={100}>
   <Timeline.Event date={beta}>Beta</Timeline.Event>
 </Timeline>
+```
+
+## Toolbar
+
+`import { Toolbar } from "@tarassov-ch/swiss-function/toolbar"`
+
+Responsive control bar (`role="toolbar"`). Holds **arbitrary controls** — buttons
+of any variant, switches, segmented toggles, inputs, etc. When its **container** is
+narrower than `collapseAt`, every control folds behind a hamburger (☰) on the right
+that opens a vertical `Popover` panel, each control on its own row with a label. A
+`Popover` (not a `Menu`) is used because the panel holds real interactive controls,
+not command items. Detection is container-width via `ResizeObserver` (the shared
+`useCollapse` hook). Each `Toolbar.Item` is declared once and renders in both states.
+
+`Toolbar.Root` props (extends `HTMLAttributes<HTMLDivElement>`):
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `collapseAt` | `number \| string` | `24` | Collapse threshold. `number` → `--sf-unit` multiples; `string` → any CSS length. |
+| `gap` | `number \| string` | `0.5` | Row item gap; `number` → `--sf-unit` multiples. |
+| `menuLabel` | `string` | `"Menu"` | Accessible name for the icon-only collapsed trigger. |
+| `menuIcon` | `ReactNode` | inline ☰ | Override the hamburger glyph. |
+
+**Elements / Parts:**
+- `Toolbar.Item` — wraps one control (you supply the `Button`/`Switch`/`Input`/…). `label?: ReactNode` shows beside the control in the collapsed panel (omit for self-describing controls like a labelled button). Extends `HTMLAttributes<HTMLDivElement>`.
+- `Toolbar.Start` — persistent left slot (title/logo); always in the bar, never in the panel.
+- `Toolbar.Separator` — vertical rule in the row, horizontal rule in the panel.
+- `Toolbar.Spacer` — pushes following row items to the right; no-op in the panel.
+
+```tsx
+<Toolbar.Root collapseAt={48}>
+  <Toolbar.Start>Editor</Toolbar.Start>
+  <Toolbar.Item><Button variant="primary" size="sm">Save</Button></Toolbar.Item>
+  <Toolbar.Separator />
+  <Toolbar.Item label="Wrap"><Switch checked={wrap} onCheckedChange={setWrap} /></Toolbar.Item>
+  <Toolbar.Item label="Find"><Input inputSize="sm" placeholder="Search…" /></Toolbar.Item>
+  <Toolbar.Spacer />
+  <Toolbar.Item><Button variant="danger" size="sm">Delete</Button></Toolbar.Item>
+</Toolbar.Root>
 ```
 
 ## ToggleGroup

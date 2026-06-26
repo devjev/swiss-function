@@ -8,6 +8,7 @@
 }
 
 .viewport {
+  composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   overflow: auto;
   border: 1px solid var(--sf-color-border-subtle);
