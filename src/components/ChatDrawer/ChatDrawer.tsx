@@ -5,7 +5,20 @@ import { useFullscreen } from "../../lib/useFullscreen";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart } from "../Chat";
 import { type EffectName, NonIdealState } from "../NonIdealState";
 import { SplitPane, type SplitSide, useSplitPane } from "../SplitPane";
+import { Tabs } from "../Tabs";
 import styles from "./ChatDrawer.module.css";
+
+/** A single panel view: an icon in the header switcher plus its body content. */
+export interface ChatDrawerView {
+  /** Stable id — the active-view value. */
+  id: string;
+  /** Icon shown in the header switcher (the icon also IS the control). */
+  icon: ReactNode;
+  /** Accessible label for the icon button (used as its `aria-label`). */
+  label: string;
+  /** Panel body for this view. */
+  content: ReactNode;
+}
 
 export interface ChatDrawerProps {
   /** The main app content — the chat panel pushes it aside (it doesn't overlay). */
@@ -50,10 +63,10 @@ export interface ChatDrawerProps {
    *  (idle panel stays plain). Omit for the default — a faint 7% tint of `color`. */
   wash?: string | false;
 
-  /** Chat messages. */
-  messages: ChatMessage[];
-  /** Fired with the trimmed text when the user submits. */
-  onSubmit: (text: string) => void;
+  /** Chat messages. Required unless `views` is provided. */
+  messages?: ChatMessage[];
+  /** Fired with the trimmed text when the user submits. Required unless `views` is provided. */
+  onSubmit?: (text: string) => void;
   /** Fired when a user interacts with a choices / tree / custom block. */
   onAction?: (action: ChatAction) => void;
   /** Render a custom part by `type`. */
@@ -61,6 +74,21 @@ export interface ChatDrawerProps {
   placeholder?: string;
   /** Disable the input. Defaults to `thinking` (input locks while the agent works). */
   disabled?: boolean;
+
+  /** Multi-view mode: the header becomes an icon bar with one icon per view,
+   *  and the panel body shows the active view. Chat is just one view you supply.
+   *  When set, `messages`/`onSubmit` are ignored — render your own `Chat` as a
+   *  view's `content`. */
+  views?: ChatDrawerView[];
+  /** Controlled active view id (pairs with `onActiveViewChange`). */
+  activeView?: string;
+  /** Initial active view id (uncontrolled). Defaults to the first view. */
+  defaultActiveView?: string;
+  /** Fired with the new view id when the active view changes. */
+  onActiveViewChange?: (id: string) => void;
+  /** Extra icon buttons placed in the header, before the fullscreen/close pair.
+   *  Works in both default (chat) and `views` mode. */
+  actions?: ReactNode;
 }
 
 /** Roughly matches `--sf-duration-slow`; used to unmount the effect after its
@@ -99,14 +127,19 @@ const CloseIcon = () => (
   </svg>
 );
 
-/** Panel header: caption on the left, fullscreen + close on the right. Rendered
- *  inside the SplitPane so the close button can drive its open state. */
+/** Panel header: caption + optional view switcher on the left, custom actions
+ *  and the fullscreen/close pair on the right. Rendered inside the SplitPane so
+ *  the close button can drive its open state. */
 function PanelHeader({
   title,
+  views,
+  actions,
   expanded,
   onToggleFullscreen,
 }: {
   title?: ReactNode;
+  views?: ChatDrawerView[];
+  actions?: ReactNode;
   expanded: boolean;
   onToggleFullscreen: () => void;
 }) {
@@ -114,7 +147,22 @@ function PanelHeader({
   return (
     <div className={styles.header}>
       {title != null ? <h2 className={styles.title}>{title}</h2> : null}
+      {views && views.length > 0 ? (
+        <Tabs.List className={styles.viewTabs}>
+          {views.map((view) => (
+            <Tabs.Tab
+              key={view.id}
+              value={view.id}
+              className={styles.viewTab}
+              aria-label={view.label}
+            >
+              {view.icon}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      ) : null}
       <div className={styles.actions}>
+        {actions}
         <button
           type="button"
           className={styles.iconButton}
@@ -167,6 +215,11 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     renderPart,
     placeholder,
     disabled,
+    views,
+    activeView,
+    defaultActiveView,
+    onActiveViewChange,
+    actions,
   },
   ref,
 ) {
@@ -249,19 +302,48 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
           ) : null}
         </div>
         <div className={styles.content} style={contentStyle}>
-          <PanelHeader title={title} expanded={expanded} onToggleFullscreen={toggle} />
-          <div className={styles.chatWrap}>
-            <Chat
-              className={styles.chat}
-              height="100%"
-              messages={messages}
-              onSubmit={onSubmit}
-              onAction={onAction}
-              renderPart={renderPart}
-              placeholder={placeholder}
-              disabled={disabled ?? thinking}
-            />
-          </div>
+          {views && views.length > 0 ? (
+            <Tabs.Root
+              className={styles.views}
+              value={activeView}
+              defaultValue={defaultActiveView ?? views[0]?.id}
+              onValueChange={(value) => onActiveViewChange?.(value as string)}
+            >
+              <PanelHeader
+                title={title}
+                views={views}
+                actions={actions}
+                expanded={expanded}
+                onToggleFullscreen={toggle}
+              />
+              {views.map((view) => (
+                <Tabs.Panel key={view.id} value={view.id} keepMounted className={styles.viewPanel}>
+                  {view.content}
+                </Tabs.Panel>
+              ))}
+            </Tabs.Root>
+          ) : (
+            <>
+              <PanelHeader
+                title={title}
+                actions={actions}
+                expanded={expanded}
+                onToggleFullscreen={toggle}
+              />
+              <div className={styles.chatWrap}>
+                <Chat
+                  className={styles.chat}
+                  height="100%"
+                  messages={messages ?? []}
+                  onSubmit={onSubmit ?? (() => {})}
+                  onAction={onAction}
+                  renderPart={renderPart}
+                  placeholder={placeholder}
+                  disabled={disabled ?? thinking}
+                />
+              </div>
+            </>
+          )}
         </div>
         {/* Recess overlay — casts the inset shadow over the whole panel. */}
         <div className={styles.recess} aria-hidden="true" />

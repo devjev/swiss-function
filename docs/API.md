@@ -192,6 +192,8 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 A composite: a `Chat` in a **resizable side panel that pushes the main content aside** (built on [SplitPane](#splitpane) — a split, not an overlay). You pass the main app as `children`; the chat lives in the panel. While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` and `open` are controlled by the consumer.
 
+The panel **header acts as an icon bar**: it always carries the fullscreen toggle and close button, and you can add your own icon buttons via `actions`. For more than a chat, pass `views` — a list of `{ id, icon, label, content }` (the `ChatDrawerView` shape) — and the header renders one icon per view (built on [Tabs](#tabs)) while the body swaps to the active view. Chat is then just one view you supply (`content={<Chat … />}`); `messages`/`onSubmit` are ignored in `views` mode. Inactive views stay mounted, so a chat keeps its state while you're on another view. Give each view's content its own surface (e.g. an elevated `Chat`/`Box`) so it reads against the panel wash.
+
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
@@ -209,8 +211,11 @@ A composite: a `Chat` in a **resizable side panel that pushes the main content a
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
+| `actions` | `ReactNode` | — | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
+| `views` | `ChatDrawerView[]` | — | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
+| `activeView` / `defaultActiveView` / `onActiveViewChange` | — | first view | Active view id (controlled / uncontrolled / change callback). |
 
 The container must have a height (e.g. `100vh`) so the split fills it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
 

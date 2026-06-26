@@ -102,8 +102,43 @@
 .actions {
   display: flex;
   flex: none;
+  align-items: center;
   gap: calc(var(--sf-unit) / 4);
   margin-inline-start: auto;
+}
+
+/* View switcher: a row of icon tabs sitting after the title. */
+.viewTabs {
+  display: flex;
+  flex: none;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+/* Icon tab — same box as .iconButton, with a selected-background state. */
+.viewTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  background-color: transparent;
+  color: var(--sf-color-fg);
+  border: 0;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.viewTab:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+.viewTab:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+.viewTab[data-selected] {
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-primary);
 }
 
 .iconButton {
@@ -138,6 +173,22 @@
 }
 
 .chatWrap {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+/* Views mode: the Tabs.Root replaces the content's flex column, so it carries
+   the same layout — header on top, the active panel fills the rest. */
+.views {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+/* The active view's body fills the remaining space (Base UI hides the rest). */
+.viewPanel {
   flex: 1 1 auto;
   min-block-size: 0;
 }
