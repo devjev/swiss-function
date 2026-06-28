@@ -16,7 +16,7 @@
 
 .header {
   /* Auto-sized by the grid track. Nothing else to set — consumers fill in
-     whatever Toolbar / Tabs / breadcrumb chrome they need inside. */
+     whatever MenuBar / Tabs / breadcrumb chrome they need inside. */
 }
 
 .body {

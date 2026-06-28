@@ -87,9 +87,8 @@ Ladle (`npm run dev`).
 | `Pane`          | Full-height region split into Header (auto) + Body (scrollable). Compound: `Pane`, `Pane.Header`, `Pane.Body`. Nests cleanly. Use whenever a region needs to fill its parent and scroll its overflow internally. |
 | `Fullscreen`    | Wraps content with a corner toggle that expands it to fill the browser viewport (a fixed overlay — not OS fullscreen, works everywhere); a single child stretches to 100%. Escape exits; locks page scroll while open. Props: `expanded`/`defaultExpanded`/`onExpandedChange`, `buttonPosition`. |
 | `Reflow`        | Responsive multi-column layout. Wide: equal columns side by side; when its container is narrower than `collapseAt` it collapses to a vertical accordion or a tab switcher (`collapseMode`). Compound: `Reflow.Root` + `Reflow.Column` (each with a `title`). Reach for this to make a multi-column region usable on narrow screens. |
-| `Toolbar`       | Responsive control bar. Wide: a row of mixed controls (buttons of any variant, switches, toggles, inputs — you supply them as children of `Toolbar.Item`); when narrow, collapses behind a ☰ that opens a vertical `Popover` panel with each control labelled. Compound: `Toolbar.Root` + `Toolbar.Item` (with `label`) / `.Start` / `.Separator` / `.Spacer`. |
 
-Both `Reflow` and `Toolbar` adapt to their **container** width via `ResizeObserver` (the shared `useCollapse` hook), not viewport media queries — the library's container-responsiveness mechanism, so they work inside sidebars/split panes. Use JS-measured collapse (not CSS `@container`) whenever the breakpoint must swap which subtree renders.
+Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to their **container** width via `ResizeObserver` (the shared `useCollapse` hook), not viewport media queries — the library's container-responsiveness mechanism, so they work inside sidebars/split panes. Use JS-measured collapse (not CSS `@container`) whenever the breakpoint must swap which subtree renders.
 
 ### Overlays
 
@@ -99,7 +98,7 @@ Both `Reflow` and `Toolbar` adapt to their **container** width via `ResizeObserv
 | `Drawer`        | Edge panel sliding from left/right/bottom (`side`). Non-modal by default; render `Drawer.SwipeArea` outside the `Portal` for a persistent reopen handle. |
 | `Popover`       | Anchored, click-triggered floating content.              |
 | `Menu`          | Right-click or dropdown menus.                           |
-| `CommandBar`    | Cmd-K command palette.                                   |
+| `MenuBar`       | Application menu bar (`role="menubar"`; wraps Base UI Menubar/Menu) at the top or bottom edge. `MenuBar.Trigger` opens a `MenuBar.Content` dropdown of `MenuBar.Item` (with `shortcut`) / `.Separator` / `.Submenu`. Slots: `.Logo` (left), `.Search` (right). It can also host in-place controls via `.Control` (any Button/Switch/Input; `label` shows in the collapsed panel) plus `.Spacer`. Responsive (container-width): `collapse="all"` (with `collapseAt`) folds the whole bar behind one ☰; `collapse="items"` folds items progressively into a ⋯ overflow menu from the trailing edge. **Not** a Cmd-K palette. |
 
 ### Disclosure
 
@@ -247,7 +246,7 @@ Common requests and the right component:
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "right-click menu"                  | `Menu`                                           |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |
-| "a Cmd-K palette" / "quick switcher"               | `CommandBar`                                     |
+| "an app menu bar" / "File/Edit/View menus" / "toolbar of controls" | `MenuBar` (no dedicated Cmd-K palette exists — use `Dialog` + `Combobox`/`Selector` for a quick switcher) |
 | "show a keyboard shortcut" / "render a hotkey / keycap" | `Kbd` (OS-aware; `mod` → ⌘/Ctrl)             |
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |

@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -59,10 +59,6 @@
     "./chat-drawer": {
       "types": "./dist/components/ChatDrawer/index.d.ts",
       "import": "./dist/components/ChatDrawer/index.js"
-    },
-    "./command-bar": {
-      "types": "./dist/components/CommandBar/index.d.ts",
-      "import": "./dist/components/CommandBar/index.js"
     },
     "./explorer": {
       "types": "./dist/components/Explorer/index.d.ts",
@@ -144,6 +140,10 @@
       "types": "./dist/components/Menu/index.d.ts",
       "import": "./dist/components/Menu/index.js"
     },
+    "./menu-bar": {
+      "types": "./dist/components/MenuBar/index.d.ts",
+      "import": "./dist/components/MenuBar/index.js"
+    },
     "./skeleton": {
       "types": "./dist/components/Skeleton/index.d.ts",
       "import": "./dist/components/Skeleton/index.js"
@@ -192,13 +192,13 @@
       "types": "./dist/components/Reflow/index.d.ts",
       "import": "./dist/components/Reflow/index.js"
     },
-    "./toolbar": {
-      "types": "./dist/components/Toolbar/index.d.ts",
-      "import": "./dist/components/Toolbar/index.js"
-    },
     "./lib/use-collapse": {
       "types": "./dist/lib/useCollapse.d.ts",
       "import": "./dist/lib/useCollapse.js"
+    },
+    "./lib/use-overflow": {
+      "types": "./dist/lib/useOverflow.d.ts",
+      "import": "./dist/lib/useOverflow.js"
     },
     "./package.json": "./package.json"
   },

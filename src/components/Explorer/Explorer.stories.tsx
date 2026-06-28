@@ -1,6 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import { CommandBar } from "../CommandBar";
+import { MenuBar } from "../MenuBar";
 import { Skeleton } from "../Skeleton";
 import { Explorer } from "./Explorer";
 import type { ExplorerNode } from "./types";
@@ -242,21 +242,21 @@ export const Editable: Story = () => {
   );
 };
 
-export const WithCommandBar: Story = () => {
+export const WithMenuBar: Story = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src", "src/components"]));
   return (
     <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
-      <CommandBar.Root>
-        <CommandBar.Logo>◇ Project</CommandBar.Logo>
-        <CommandBar.Menu>
-          <CommandBar.Trigger>File</CommandBar.Trigger>
-          <CommandBar.Content>
-            <CommandBar.Item>New</CommandBar.Item>
-          </CommandBar.Content>
-        </CommandBar.Menu>
-        <CommandBar.Search placeholder="Find file…" />
-      </CommandBar.Root>
+      <MenuBar.Root>
+        <MenuBar.Logo>◇ Project</MenuBar.Logo>
+        <MenuBar.Menu>
+          <MenuBar.Trigger>File</MenuBar.Trigger>
+          <MenuBar.Content>
+            <MenuBar.Item>New</MenuBar.Item>
+          </MenuBar.Content>
+        </MenuBar.Menu>
+        <MenuBar.Search placeholder="Find file…" />
+      </MenuBar.Root>
       <Explorer
         nodes={seed}
         columns={[
