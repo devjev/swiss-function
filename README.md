@@ -62,7 +62,7 @@ Dark mode is opt-in via `[data-theme="dark"]` on any ancestor (commonly `<html>`
 | `Button`               | `Dialog`     | `Combobox`    |
 | `Input`                | `Popover`    | `Tabs`        |
 | `Checkbox`             | `Menu`       | `Accordion`   |
-| `Switch`               | `CommandBar` | `ToggleGroup` |
+| `Switch`               | `MenuBar`    | `ToggleGroup` |
 | `Radio` + `RadioGroup` |              |               |
 
 This is a teaser; see [AGENTS.md](./AGENTS.md) for the full catalogue (charts, `DataTable`, `Graph`, `Prose`, and more).

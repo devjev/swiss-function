@@ -13,7 +13,6 @@ const componentNames = [
   "CandlestickChart",
   "Chat",
   "ChatDrawer",
-  "CommandBar",
   "Explorer",
   "Field",
   "Fullscreen",
@@ -22,6 +21,7 @@ const componentNames = [
   "Input",
   "Kbd",
   "Markdown",
+  "MenuBar",
   "NonIdealState",
   "Outliner",
   "Pane",
@@ -46,7 +46,6 @@ const componentNames = [
   "Accordion",
   "Selector",
   "Reflow",
-  "Toolbar",
 ];
 
 const componentEntries = Object.fromEntries(

@@ -26,11 +26,11 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · Combobox · CommandBar · DataTable · Dialog ·
+ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog ·
 Explorer · Field · Fullscreen · Graph · Grid · Input · Markdown · Menu ·
-NonIdealState · Outliner · Pane · Popover · Prose · Radio · Reflow ·
+MenuBar · NonIdealState · Outliner · Pane · Popover · Prose · Radio · Reflow ·
 Scatterplot · Selector · Skeleton · StreamingTerminalText · Switch · Tabs ·
-TextEdit · Timeline · Toolbar · ToggleGroup
+TextEdit · Timeline · ToggleGroup
 
 ---
 
@@ -192,6 +192,8 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 A composite: a `Chat` in a **resizable side panel that pushes the main content aside** (built on [SplitPane](#splitpane) — a split, not an overlay). You pass the main app as `children`; the chat lives in the panel. While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` and `open` are controlled by the consumer.
 
+The panel **header acts as an icon bar**: it always carries the fullscreen toggle and close button, and you can add your own icon buttons via `actions`. For more than a chat, pass `views` — a list of `{ id, icon, label, content }` (the `ChatDrawerView` shape) — and the header renders one icon per view (built on [Tabs](#tabs)) while the body swaps to the active view. Chat is then just one view you supply (`content={<Chat … />}`); `messages`/`onSubmit` are ignored in `views` mode. Inactive views stay mounted, so a chat keeps its state while you're on another view. Give each view's content its own surface (e.g. an elevated `Chat`/`Box`) so it reads against the panel wash.
+
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
@@ -209,8 +211,11 @@ A composite: a `Chat` in a **resizable side panel that pushes the main content a
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
+| `actions` | `ReactNode` | — | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
+| `views` | `ChatDrawerView[]` | — | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
+| `activeView` / `defaultActiveView` / `onActiveViewChange` | — | first view | Active view id (controlled / uncontrolled / change callback). |
 
 The container must have a height (e.g. `100vh`) so the split fills it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
 
@@ -277,22 +282,6 @@ A thin wrapper over Base UI's Combobox with library styling. Compound API. For s
   </Combobox.Portal>
 </Combobox.Root>
 ```
-
-## CommandBar
-
-`import { CommandBar } from "@tarassov-ch/swiss-function/command-bar"`
-
-Compound menu bar (top or bottom edge) with a search slot and nested submenus. Wraps Base UI's Menubar/Menu.
-
-**Elements / Parts:** `Root` (bar container), `Menu`, `Trigger`, `Content`
-(portal + Box popup, elevation 3), `Item`, `Separator`, `Submenu`,
-`SubmenuTrigger`, `SubmenuContent`, `Logo` (left slot), `Search` (right-aligned,
-wraps `Input` size `sm`).
-
-| Prop | On | Type | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `position` | `Root` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
-| `shortcut` | `Item` | `string` | — | Right-aligned hint; mirrored to `aria-keyshortcuts`. |
 
 ## DataTable
 
@@ -556,6 +545,61 @@ Dropdown menu wrapping Base UI's Menu. Parts forward all Base UI props.
 
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup`, `Item`,
 `Separator`, `Group`, `GroupLabel`.
+
+## MenuBar
+
+`import { MenuBar } from "@tarassov-ch/swiss-function/menu-bar"`
+
+Application menu bar (`role="menubar"`, top or bottom edge) wrapping Base UI's
+Menubar/Menu: menu triggers open dropdowns with shortcuts and nested submenus,
+plus `Logo`/`Search` slots. It can **also** host in-place controls (`Control`).
+Two opt-in responsive modes (both container-width via `ResizeObserver`, so they
+work in sidebars/split panes): `collapse="all"` folds the whole bar — menus and
+controls — behind one hamburger (☰) `Popover` when narrower than `collapseAt`;
+`collapse="items"` folds items **progressively** into a ⋯ overflow menu from the
+trailing edge, keeping as many inline as fit (only `Logo` pinned). Default is no
+collapse. **Not** a Cmd-K command palette.
+
+**Elements / Parts:** `Root` (bar container), `Menu`, `Trigger` (full-width row in
+the collapsed panel), `Content` (portal + Box popup, elevation 3), `Item`,
+`Separator` (a menu separator inside `Content`; a bar rule when placed directly in
+the bar), `Submenu`, `SubmenuTrigger`, `SubmenuContent`, `Logo` (persistent left
+slot), `Search` (right-aligned, wraps `Input` size `sm`), `Control` (generic in-place
+control slot — you supply the `Button`/`Switch`/`Input`/…), `Spacer` (pushes
+following row items right; no-op in the panel).
+
+`MenuBar.Root` props (extends Base UI `Menubar` props):
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `position` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
+| `bordered` | `boolean` | `true` | Draw the hairline on the `position` edge. Set `false` when the bar already sits inside a bordered surface. |
+| `collapse` | `"none" \| "all" \| "items"` | `collapseAt ? "all" : "none"` | Responsive mode. `"all"` folds the whole bar behind one ☰ at `collapseAt`; `"items"` folds items progressively into a ⋯ overflow menu from the trailing edge (only `Logo` pinned; `collapseAt`/`menuAlign` ignored). |
+| `collapseAt` | `number \| string` | — | Threshold for `collapse="all"`. `number` → `--sf-unit` multiples; `string` → any CSS length. |
+| `gap` | `number \| string` | `0` | Gap between bar items; `number` → `--sf-unit` multiples. |
+| `menuAlign` | `"start" \| "end"` | `"end"` | (`collapse="all"` only) Side the collapsed ☰ trigger sits on. `"start"` keeps it next to the `Logo`. |
+| `menuLabel` | `string` | `"Menu"` | Accessible name for the icon-only collapsed trigger. |
+| `menuIcon` | `ReactNode` | inline ☰ | Override the hamburger glyph. |
+
+Other parts: `Item` takes `shortcut?: string` (right-aligned hint, mirrored to
+`aria-keyshortcuts`); `Control` takes `label?: ReactNode` (shown beside the control
+in the collapsed panel; omit for self-describing controls).
+
+```tsx
+<MenuBar.Root collapseAt={48} gap={0.5}>
+  <MenuBar.Logo>Editor</MenuBar.Logo>
+  <MenuBar.Menu>
+    <MenuBar.Trigger>File</MenuBar.Trigger>
+    <MenuBar.Content>
+      <MenuBar.Item shortcut="⌘S" onClick={save}>Save</MenuBar.Item>
+    </MenuBar.Content>
+  </MenuBar.Menu>
+  <MenuBar.Separator />
+  <MenuBar.Control label="Wrap"><Switch checked={wrap} onCheckedChange={setWrap} /></MenuBar.Control>
+  <MenuBar.Spacer />
+  <MenuBar.Control><Button variant="danger" size="sm">Delete</Button></MenuBar.Control>
+</MenuBar.Root>
+```
 
 ## NonIdealState
 
@@ -844,45 +888,6 @@ With `onClick` it becomes an interactive button.
           valueLabel color="var(--sf-color-success)" tickSpacing={100}>
   <Timeline.Event date={beta}>Beta</Timeline.Event>
 </Timeline>
-```
-
-## Toolbar
-
-`import { Toolbar } from "@tarassov-ch/swiss-function/toolbar"`
-
-Responsive control bar (`role="toolbar"`). Holds **arbitrary controls** — buttons
-of any variant, switches, segmented toggles, inputs, etc. When its **container** is
-narrower than `collapseAt`, every control folds behind a hamburger (☰) on the right
-that opens a vertical `Popover` panel, each control on its own row with a label. A
-`Popover` (not a `Menu`) is used because the panel holds real interactive controls,
-not command items. Detection is container-width via `ResizeObserver` (the shared
-`useCollapse` hook). Each `Toolbar.Item` is declared once and renders in both states.
-
-`Toolbar.Root` props (extends `HTMLAttributes<HTMLDivElement>`):
-
-| Prop | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `collapseAt` | `number \| string` | `24` | Collapse threshold. `number` → `--sf-unit` multiples; `string` → any CSS length. |
-| `gap` | `number \| string` | `0.5` | Row item gap; `number` → `--sf-unit` multiples. |
-| `menuLabel` | `string` | `"Menu"` | Accessible name for the icon-only collapsed trigger. |
-| `menuIcon` | `ReactNode` | inline ☰ | Override the hamburger glyph. |
-
-**Elements / Parts:**
-- `Toolbar.Item` — wraps one control (you supply the `Button`/`Switch`/`Input`/…). `label?: ReactNode` shows beside the control in the collapsed panel (omit for self-describing controls like a labelled button). Extends `HTMLAttributes<HTMLDivElement>`.
-- `Toolbar.Start` — persistent left slot (title/logo); always in the bar, never in the panel.
-- `Toolbar.Separator` — vertical rule in the row, horizontal rule in the panel.
-- `Toolbar.Spacer` — pushes following row items to the right; no-op in the panel.
-
-```tsx
-<Toolbar.Root collapseAt={48}>
-  <Toolbar.Start>Editor</Toolbar.Start>
-  <Toolbar.Item><Button variant="primary" size="sm">Save</Button></Toolbar.Item>
-  <Toolbar.Separator />
-  <Toolbar.Item label="Wrap"><Switch checked={wrap} onCheckedChange={setWrap} /></Toolbar.Item>
-  <Toolbar.Item label="Find"><Input inputSize="sm" placeholder="Search…" /></Toolbar.Item>
-  <Toolbar.Spacer />
-  <Toolbar.Item><Button variant="danger" size="sm">Delete</Button></Toolbar.Item>
-</Toolbar.Root>
 ```
 
 ## ToggleGroup
