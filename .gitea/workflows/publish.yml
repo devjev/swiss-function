@@ -12,6 +12,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history so the "integrated on main" guard below can run merge-base.
+          fetch-depth: 0
+
+      # Only publish release tags that are actually merged into main. A tag placed
+      # on a feature branch would otherwise publish a partial build (this is how
+      # 0.34.0 / 0.35.0 went out incomplete). Tag releases AFTER merging to main.
+      - name: Guard — tag must be integrated on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "::error::$GITHUB_SHA is not reachable from origin/main — refusing to publish a non-integrated build. Tag releases only after merging to main."
+            exit 1
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,7 +49,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Idempotent: skip (don't fail) if this version is already in the registry,
+      # so re-pushed tags or re-run jobs don't 409.
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-        run: npm publish
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "@tarassov-ch/swiss-function@$VERSION" version >/dev/null 2>&1; then
+            echo "Version $VERSION is already published — skipping."
+            exit 0
+          fi
+          npm publish
