@@ -21,10 +21,10 @@
     /* ONE neutral structural border for all chrome — panes, inputs, dividers.
        There is deliberately a single border colour; `-strong` and `-subtle` are
        kept only as aliases so existing references resolve to it unchanged. Do
-       not reintroduce a second structural border tone — use elevation/spacing
-       to separate, not a lighter line. Primary is for state (focus/hover/checked),
-       never a resting edge. */
-    --sf-color-border: #303030;
+       not reintroduce a second structural border tone. The line is a SUBTLE
+       hairline — separation comes from the line plus elevation/spacing, never a
+       heavy edge. Primary is for state (focus/hover/checked), never a resting edge. */
+    --sf-color-border: #e5e7eb;
     --sf-color-border-strong: var(--sf-color-border);
     --sf-color-border-subtle: var(--sf-color-border);
     /* Faint hairline for DATA-VIZ scaffolding only — chart gridlines/axes and
@@ -192,7 +192,7 @@
     --sf-color-fg: #fafafa;
     --sf-color-fg-subtle: #d4d4d4;
     --sf-color-muted: #9ca3af;
-    --sf-color-border: #e0e0e0;
+    --sf-color-border: #262626;
     --sf-color-border-strong: var(--sf-color-border);
     --sf-color-primary: #3b82f6;
     --sf-color-primary-fg: #ffffff;

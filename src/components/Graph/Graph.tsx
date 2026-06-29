@@ -181,7 +181,7 @@ function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
   ) => {
     context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
     context.fillStyle = token("--sf-color-bg", "#ffffff", el);
-    context.strokeStyle = token("--sf-color-border", "#303030", el);
+    context.strokeStyle = token("--sf-color-border", "#e5e7eb", el);
     context.lineWidth = 1;
 
     const PADDING = 2;
