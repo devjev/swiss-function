@@ -500,3 +500,25 @@ export const MergedCells: Story = () => (
     }}
   />
 );
+
+// Freeze the first N columns (here 2) so they stay pinned to the left while the
+// rest scroll horizontally — the column analogue of the sticky header. A soft
+// shadow marks the frozen boundary once you scroll right. The narrow wrapper
+// forces horizontal overflow so there's something to scroll.
+const wideColumns: ColumnDef<Person>[] = [
+  { id: "name", header: "Name", accessor: "name", width: 10, sortable: true },
+  { id: "role", header: "Role", accessor: "role", width: 8 },
+  ...Array.from({ length: 12 }, (_, i) => ({
+    id: `m${i}`,
+    header: `Month ${i + 1}`,
+    accessor: (r: Person) => r.age + i,
+    align: "end" as const,
+    width: 6,
+  })),
+];
+
+export const FrozenColumns: Story = () => (
+  <div style={{ width: 520 }}>
+    <DataTable data={seed(60)} columns={wideColumns} height={360} frozenColumns={2} />
+  </div>
+);

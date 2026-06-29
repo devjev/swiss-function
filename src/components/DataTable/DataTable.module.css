@@ -348,6 +348,10 @@
 .row {
   display: grid;
   min-width: min-content;
+  /* Own stacking context so a frozen cell's z-index stays scoped to its row and
+     always paints below the sticky header — in both virtualized (transform
+     already isolates) and paginated (flow) modes. */
+  isolation: isolate;
 }
 
 /* Separators are inset box-shadows (not borders) so the row height equals exactly
@@ -400,6 +404,33 @@
 .cell[data-locked] {
   --sf-cell-edge-r: 0 0 transparent;
   border-inline-end: 1px dashed var(--sf-color-border-subtle);
+}
+
+/* --- Frozen (pinned-left) columns ---------------------------------------
+   Mirror the sticky header, but horizontally: the first N cells stick to the
+   left edge (inline `left` offset set per cell). An opaque background hides the
+   scrolling cells passing beneath. z-index 2 sits above the active-cell outline
+   (z-index 1) inside the row; the row's `isolation` keeps it under the header. */
+.cell[data-frozen] {
+  position: sticky;
+  z-index: 2;
+  background-color: var(--sf-color-bg);
+}
+.headerCell[data-frozen] {
+  position: sticky;
+  z-index: 2;
+  background-color: var(--sf-color-bg-subtle);
+}
+
+/* The trailing edge of the frozen region gains a soft shadow once the body is
+   scrolled, signalling the boundary (theme-aware via color-mix). */
+.viewport[data-frozen-scrolled] .cell[data-frozen-edge],
+.viewport[data-frozen-scrolled] .headerCell[data-frozen-edge] {
+  box-shadow:
+    var(--sf-cell-edge-r),
+    var(--sf-cell-edge-b),
+    calc(var(--sf-unit) / 4) 0 calc(var(--sf-unit) / 3) calc(var(--sf-unit) / -4)
+    color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
 }
 
 .cell[data-align="end"] {

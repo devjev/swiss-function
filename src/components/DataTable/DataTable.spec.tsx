@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DataTableHarness, GroupsHarness, MergeHarness, TreeHarness } from "./DataTable.harness";
+import {
+  DataTableHarness,
+  FrozenHarness,
+  GroupsHarness,
+  MergeHarness,
+  TreeHarness,
+} from "./DataTable.harness";
 
 const COLUMNS = ["name", "age", "active"];
 const DATA = [
@@ -510,4 +516,31 @@ test("merge: an ungrouped leaf header fills the full header height", async ({ mo
   await expect(placeholders.first()).toBeVisible();
   // The grouped "2026" header colspans its two quarter columns (existing behaviour).
   await expect(c.getByRole("columnheader", { name: "2026" })).toBeVisible();
+});
+
+test("frozen columns stay pinned while the rest scroll horizontally", async ({ mount, page }) => {
+  const c = await mount(<FrozenHarness width={360} frozenColumns={2} />);
+  const nameHeader = c.getByRole("columnheader", { name: "Name" });
+  await expect(nameHeader).toHaveAttribute("data-frozen", "true");
+  const firstCell = c.getByRole("gridcell").filter({ hasText: "Name 0" }).first();
+  await expect(firstCell).toHaveAttribute("data-frozen", "true");
+
+  const before = await nameHeader.boundingBox();
+  const vp = c.getByRole("grid");
+  await vp.evaluate((el) => {
+    el.scrollLeft = 300;
+  });
+  await page.waitForTimeout(50);
+
+  // The viewport actually scrolled, but the frozen header didn't move.
+  const scrolled = await vp.evaluate((el) => el.scrollLeft);
+  expect(scrolled).toBeGreaterThan(0);
+  const after = await nameHeader.boundingBox();
+  expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeLessThan(2);
+  await expect(nameHeader).toBeVisible();
+});
+
+test("frozenColumns=0 leaves no frozen cells", async ({ mount }) => {
+  const c = await mount(<FrozenHarness width={360} frozenColumns={0} />);
+  await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildColumnTemplate, resizeBoundary } from "./columnWidths";
+import {
+  buildColumnTemplate,
+  frozenLeftOffsets,
+  frozenTotalWidth,
+  resizeBoundary,
+} from "./columnWidths";
 
 const LAST = "minmax(calc(var(--sf-unit) * 3), 1fr)";
 // A non-last track: minmax(min, preferred). Default min is 3 units.
@@ -44,6 +49,50 @@ describe("buildColumnTemplate", () => {
 
   it("a lone column is just the filler", () => {
     expect(buildColumnTemplate([{ id: "a", width: 8 }], { a: 100 })).toBe(LAST);
+  });
+
+  it("emits the first frozenCount tracks as fixed (non-shrinkable) widths", () => {
+    expect(
+      buildColumnTemplate(
+        [{ id: "a", width: 8 }, { id: "b", width: 10 }, { id: "c" }, { id: "z" }],
+        { b: 200 },
+        { frozenCount: 2 },
+      ),
+    ).toBe(`calc(var(--sf-unit) * 8) 200px ${track("calc(var(--sf-unit) * 8)")} ${LAST}`);
+  });
+});
+
+describe("frozenLeftOffsets", () => {
+  it("returns cumulative left offsets, starting at 0px", () => {
+    expect(
+      frozenLeftOffsets([{ id: "a", width: 8 }, { id: "b", width: 10 }, { id: "z" }], {}, 2),
+    ).toEqual(["0px", "calc(calc(var(--sf-unit) * 8))"]);
+  });
+
+  it("uses px overrides in the cumulative sum", () => {
+    expect(
+      frozenLeftOffsets(
+        [{ id: "a", width: 8 }, { id: "b" }, { id: "c" }, { id: "z" }],
+        { a: 120 },
+        3,
+      ),
+    ).toEqual(["0px", "calc(120px)", "calc(120px + calc(var(--sf-unit) * 8))"]);
+  });
+
+  it("is empty when nothing is frozen", () => {
+    expect(frozenLeftOffsets([{ id: "a" }, { id: "z" }], {}, 0)).toEqual([]);
+  });
+});
+
+describe("frozenTotalWidth", () => {
+  it("sums the frozen columns' widths", () => {
+    expect(frozenTotalWidth([{ id: "a", width: 8 }, { id: "b" }, { id: "z" }], { b: 200 }, 2)).toBe(
+      "calc(calc(var(--sf-unit) * 8) + 200px)",
+    );
+  });
+
+  it("is 0px when nothing is frozen", () => {
+    expect(frozenTotalWidth([{ id: "a" }], {}, 0)).toBe("0px");
   });
 });
 

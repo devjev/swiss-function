@@ -301,6 +301,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
 | `empty` | `ReactNode` | — | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. |
+| `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll — the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0–1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |

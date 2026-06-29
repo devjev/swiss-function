@@ -78,7 +78,16 @@ function CollapsedMenu({
         {icon}
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner side={side} align={align} sideOffset={4}>
+        {/* The panel is a menu, so it ranks at the dropdown tier (like
+            MenuBar.Content) rather than Popover's default popover tier — above
+            page content, but low enough that a dropdown opened *inside* it (a
+            folded Selector/Combobox, also dropdown tier) stacks above it. */}
+        <Popover.Positioner
+          side={side}
+          align={align}
+          sideOffset={4}
+          style={{ zIndex: "var(--sf-z-dropdown)" }}
+        >
           <Popover.Popup className={styles.panel}>
             <SurfaceContext.Provider value="panel">{items}</SurfaceContext.Provider>
           </Popover.Popup>
