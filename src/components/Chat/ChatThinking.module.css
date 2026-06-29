@@ -1,3 +1,13 @@
+/* No frame — the thinking block reads as quiet, de-emphasized text (70%), not a
+   panel. (Other chat blocks keep the ChatBlock box; this one opts out.) */
+.root {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  opacity: 0.7;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -29,6 +39,11 @@
 }
 .chevron[data-open] {
   transform: rotate(90deg);
+}
+/* No fan-out yet: keep the chevron's space so the row doesn't jump when one
+   appears. */
+.chevronPlaceholder {
+  visibility: hidden;
 }
 
 .text {

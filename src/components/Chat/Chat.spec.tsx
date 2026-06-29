@@ -156,6 +156,25 @@ test("clicking a step fires onAction with type 'thinking' and the node id", asyn
   expect(action).toEqual({ messageId: "a1", partId: "orch", type: "thinking", value: "s0" });
 });
 
+test("thinking with no steps shows just the indicator + label, no fan-out", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "thinking", status: "running", label: "Thinking…" }],
+        },
+      ]}
+      onSubmit={() => {}}
+    />,
+  );
+  await expect(c.getByText("Thinking…")).toBeVisible();
+  // No fan-out → no expand/collapse control and no tree wrapper.
+  await expect(c.getByRole("button", { name: /steps/ })).toHaveCount(0);
+  await expect(c.locator('[class*="bodyWrap"]')).toHaveCount(0);
+});
+
 test("thinking (done) collapses to a summary and re-expands on click", async ({ mount }) => {
   const c = await mount(
     <Chat

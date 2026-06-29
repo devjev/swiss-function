@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Spinner } from "../Spinner";
-import { ChatBlock } from "./ChatBlock";
 import styles from "./ChatThinking.module.css";
 import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
 
@@ -99,6 +98,11 @@ export function ChatThinking({
         </button>
       ) : (
         <div className={styles.header} data-static="">
+          {/* Reserve the chevron's box so adding a fan-out later doesn't shift
+              the row sideways. */}
+          <span className={cx(styles.chevron, styles.chevronPlaceholder)} aria-hidden="true">
+            ▸
+          </span>
           {indicator}
           <span className={styles.text}>{headerText}</span>
         </div>
@@ -121,5 +125,5 @@ export function ChatThinking({
     </>
   );
 
-  return <ChatBlock>{content}</ChatBlock>;
+  return <div className={styles.root}>{content}</div>;
 }
