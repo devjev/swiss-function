@@ -1,0 +1,92 @@
+.root {
+  inline-size: 100%;
+  font-family: var(--sf-font-sans);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: var(--sf-heatmap-h, calc(var(--sf-unit) * 14)) auto auto;
+  column-gap: calc(var(--sf-unit) / 2);
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 1px solid var(--sf-color-border-subtle);
+  cursor: crosshair;
+}
+
+.contour {
+  stroke: var(--sf-color-fg);
+  stroke-opacity: 0.55;
+  stroke-width: 1;
+  fill: none;
+  /* viewBox is scaled to fill — keep the line a crisp 1px regardless. */
+  vector-effect: non-scaling-stroke;
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  min-inline-size: calc(var(--sf-unit) * 2);
+}
+.yTick {
+  position: absolute;
+  inset-inline-end: calc(var(--sf-unit) / 3);
+  transform: translateY(50%);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+  position: relative;
+  block-size: calc(var(--sf-unit) * 1.25);
+}
+.xTick {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  transform: translateX(-50%);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+
+.tip {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+.tipMeta {
+  color: var(--sf-color-muted);
+}
