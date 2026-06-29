@@ -1,5 +1,8 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
+import { DataTable } from "../DataTable";
+import type { ColumnDef } from "../DataTable/types";
+import { Selector } from "../Selector";
 import { Switch } from "../Switch";
 import { MenuBar } from "./MenuBar";
 
@@ -421,3 +424,52 @@ export const Overflow: Story = () => (
     </div>
   </div>
 );
+
+// Regression (issue #5): a collapse="items" overflow panel rendered directly
+// above a DataTable. The panel must paint above the table's sticky header, and a
+// Selector folded into the panel must open its dropdown above the panel.
+type RowT = { name: string; v: number };
+
+function OverflowOverTableBar() {
+  const [wrap, setWrap] = useState(true);
+  const [funds, setFunds] = useState<string[]>(["Alpha"]);
+  const cols: ColumnDef<RowT>[] = [
+    { id: "name", header: "Name", accessor: "name", width: 10 },
+    { id: "v", header: "Value", accessor: "v", align: "end", width: 6 },
+    ...Array.from({ length: 8 }, (_, i) => ({
+      id: `m${i}`,
+      header: `Month ${i + 1}`,
+      accessor: (r: RowT) => r.v + i,
+      align: "end" as const,
+      width: 6,
+    })),
+  ];
+  const data: RowT[] = Array.from({ length: 40 }, (_, i) => ({ name: `Row ${i}`, v: i }));
+  return (
+    <div style={{ width: 480, display: "flex", flexDirection: "column", height: 360 }}>
+      <MenuBar.Root collapse="items">
+        <MenuBar.Logo>◇ Fund</MenuBar.Logo>
+        <MenuBar.Menu>
+          <MenuBar.Trigger>File</MenuBar.Trigger>
+          <MenuBar.Content>
+            <MenuBar.Item onClick={log("export")}>Export</MenuBar.Item>
+          </MenuBar.Content>
+        </MenuBar.Menu>
+        <MenuBar.Control label="Funds">
+          <Selector
+            layout="compact"
+            items={["Alpha", "Beta", "Gamma", "Delta"]}
+            value={funds}
+            onChange={setFunds}
+          />
+        </MenuBar.Control>
+        <MenuBar.Control label="Wrap">
+          <Switch checked={wrap} onCheckedChange={setWrap} />
+        </MenuBar.Control>
+      </MenuBar.Root>
+      <DataTable data={data} columns={cols} height={300} />
+    </div>
+  );
+}
+
+export const OverflowOverDataTable: Story = () => <OverflowOverTableBar />;

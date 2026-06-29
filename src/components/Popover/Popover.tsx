@@ -8,9 +8,26 @@ import styles from "./Popover.module.css";
 const Root = BasePopover.Root;
 const Trigger = BasePopover.Trigger;
 const Portal = BasePopover.Portal;
-const Positioner = BasePopover.Positioner;
 const Arrow = BasePopover.Arrow;
 const Close = BasePopover.Close;
+
+// Base UI positions the popup with an inline `transform`, which creates a
+// stacking context — so the popup's own `z-index` is trapped inside it and inert
+// at the page root. The tier must live on the positioner to win against
+// positioned page content (e.g. a DataTable sticky header). Same fix as the
+// Menu/Combobox positioners.
+const Positioner = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<typeof BasePopover.Positioner>
+>(function PopoverPositioner({ className, ...rest }, ref) {
+  return (
+    <BasePopover.Positioner
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.positioner, className)}
+    />
+  );
+});
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BasePopover.Popup>>(
   function PopoverPopup({ className, ...rest }, ref) {

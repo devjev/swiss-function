@@ -76,6 +76,40 @@ export function DataTableHarness({
   return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
 }
 
+// --- Frozen-columns harness ---
+
+// Many narrow columns in a fixed-width wrapper so the table overflows
+// horizontally, with the first N frozen (pinned left).
+export function FrozenHarness({
+  width = 360,
+  frozenColumns = 2,
+}: {
+  width?: number;
+  frozenColumns?: number;
+}) {
+  const columns: ColumnDef<Row>[] = [
+    { id: "name", header: "Name", accessor: "name", width: 10 },
+    { id: "age", header: "Age", accessor: "age", align: "end", width: 6 },
+    ...Array.from({ length: 10 }, (_, i) => ({
+      id: `c${i}`,
+      header: `Col ${i}`,
+      accessor: () => i,
+      align: "end" as const,
+      width: 6,
+    })),
+  ];
+  const data: Row[] = Array.from({ length: 20 }, (_, i) => ({
+    name: `Name ${i}`,
+    age: 20 + i,
+    active: i % 2 === 0,
+  }));
+  return (
+    <div style={{ width }}>
+      <DataTable<Row> data={data} columns={columns} height={240} frozenColumns={frozenColumns} />
+    </div>
+  );
+}
+
 // --- Tree harness ---
 
 type TreeRow = { id: string; name: string; value: number; children?: TreeRow[] };

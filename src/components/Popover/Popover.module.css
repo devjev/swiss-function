@@ -1,3 +1,12 @@
+/* The positioner is the transform element that creates the popup's stacking
+   context (Base UI applies the placement offset via an inline `transform`), so
+   the popup's own z-index is trapped inside it and inert at the page root. Put
+   the tier here so the popup ranks correctly against positioned page content
+   (e.g. a DataTable sticky header). Mirrors the Menu/Combobox positioners. */
+.positioner {
+  z-index: var(--sf-z-popover);
+}
+
 /* Popup is now a <Box> via Base UI's `render` prop — chrome (bg, border,
    radius, shadow, padding) comes from Box. The remaining popup-specific
    styling: enter/exit animation, font sizing, max width, z-index. */

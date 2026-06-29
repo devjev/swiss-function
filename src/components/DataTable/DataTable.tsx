@@ -28,7 +28,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { TreeChevron } from "../../lib/TreeChevron";
@@ -37,7 +37,13 @@ import type { EffectName } from "../NonIdealState/effects";
 import { useDitheredFill } from "../NonIdealState/useDitheredFill";
 import { ColumnFilter, type FilterOption } from "./ColumnFilter";
 import { computeMergeMap } from "./cellSpans";
-import { buildColumnTemplate, COLUMN_MIN_UNITS, resizeBoundary } from "./columnWidths";
+import {
+  buildColumnTemplate,
+  COLUMN_MIN_UNITS,
+  frozenLeftOffsets,
+  frozenTotalWidth,
+  resizeBoundary,
+} from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
@@ -84,6 +90,12 @@ export interface DataTableProps<T>
   /** Allow leaf columns to be drag/keyboard-resized (Excel-style). Default true.
    *  Lock individual columns with `resizable: false` on their column def. */
   resizableColumns?: boolean;
+  /** Freeze the first N columns so they stay pinned to the left while the rest
+   *  scroll horizontally (the column analogue of the sticky header). Counts leaf
+   *  columns in display order (the tree/chevron column included). Frozen columns
+   *  keep a fixed width and never shrink. A column group is pinned only when its
+   *  whole span is inside the frozen region. Default `0` (off). */
+  frozenColumns?: number;
   /** Elastically snap scrolling to row and/or column edges (CSS `proximity`
    *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
   scrollSnap?: "none" | "rows" | "columns" | "both";
@@ -306,6 +318,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     height = DEFAULT_HEIGHT,
     empty,
     resizableColumns = true,
+    frozenColumns = 0,
     scrollSnap = "none",
     edgeFade = false,
     getCellSpan,
@@ -844,14 +857,45 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [measureLeafWidths, applyResize, resolveResizeIdx],
   );
 
+  // --- Frozen (pinned-left) columns ---
+  // Clamp so at least one column still scrolls; counts leaf columns.
+  const frozenCount = Math.max(0, Math.min(frozenColumns, visibleLeaves.length - 1));
+  // CSS `left` per frozen column + the region's total width, as calc() strings so
+  // they track the consumer's --sf-unit without resolving px in JS.
+  const frozenLefts = useMemo(
+    () =>
+      frozenLeftOffsets(visibleLeaves, columnWidths, frozenCount, {
+        defaultWidth: defaultColumnWidth,
+      }),
+    [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth],
+  );
+  const frozenWidth = useMemo(
+    () =>
+      frozenTotalWidth(visibleLeaves, columnWidths, frozenCount, {
+        defaultWidth: defaultColumnWidth,
+      }),
+    [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth],
+  );
+  // Toggle a boundary shadow on the frozen edge once the body is scrolled right.
+  const [frozenScrolled, setFrozenScrolled] = useState(false);
+  const handleViewportScroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      if (frozenCount === 0) return;
+      const next = e.currentTarget.scrollLeft > 0;
+      setFrozenScrolled((prev) => (prev === next ? prev : next));
+    },
+    [frozenCount],
+  );
+
   // --- Grid template (from visible leaves + runtime width overrides) ---
   const gridTemplateColumns = useMemo(
     () =>
       buildColumnTemplate(visibleLeaves, columnWidths, {
         stretchLast: !fillOn,
         defaultWidth: defaultColumnWidth,
+        frozenCount,
       }),
-    [visibleLeaves, columnWidths, fillOn, defaultColumnWidth],
+    [visibleLeaves, columnWidths, fillOn, defaultColumnWidth, frozenCount],
   );
 
   // --- Column-fill filler ---
@@ -918,6 +962,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const isEditing = editing?.cell.row === rowIndex && editing?.cell.col === colIndex;
     const align = colDef.align ?? "start";
     const isTreeCell = colIndex === treeColIdx;
+    const isFrozen = colIndex < frozenCount;
     // A column explicitly opted out of resizing (only meaningful when the table
     // is otherwise resizable) — gets a subtle "fixed width" hint.
     const isLocked = resizableColumns && colDef.resizable === false;
@@ -966,9 +1011,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-align={align}
         data-tree-cell={isTreeCell || undefined}
         data-locked={isLocked || undefined}
+        data-frozen={isFrozen || undefined}
+        data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
         data-merge-right={mergeRight}
         data-merge-bottom={mergeBottom}
         className={styles.cell}
+        style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
         onPointerEnter={() => handleCellPointerEnter(cell)}
         onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
@@ -1093,6 +1141,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
    *  sortable item; omitted for group/placeholder/non-reorderable headers. */
   const renderHeaderCell = (header: Header<T, unknown>, dnd?: HeaderDnd): ReactNode => {
     const span = header.colSpan;
+    // Freeze a header cell only when its whole leaf span sits inside the frozen
+    // region (a group straddling the boundary scrolls — documented).
+    const firstLeafId = header.getLeafHeaders()[0]?.column.id;
+    const leafStart =
+      firstLeafId != null ? visibleLeaves.findIndex((c) => c.id === firstLeafId) : -1;
+    const isFrozen = leafStart >= 0 && leafStart + span <= frozenCount;
+    const isFrozenEdge = isFrozen && leafStart + span === frozenCount;
     const isGroupHeader = header.subHeaders.length > 0;
     const def = header.column.columnDef;
     const colMeta = (def as { meta?: { collapsedGroupId?: string } }).meta;
@@ -1122,10 +1177,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
           dnd?.listeners && styles.headerDraggable,
           dnd?.dragging && styles.headerDragging,
         )}
-        style={{ gridColumn: `span ${span}`, ...dnd?.style }}
+        style={{
+          gridColumn: `span ${span}`,
+          ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
+          ...dnd?.style,
+        }}
         data-align={isGroupHeader ? "center" : "start"}
         data-sortable={canSort || undefined}
         data-locked={isLocked || undefined}
+        data-frozen={isFrozen || undefined}
+        data-frozen-edge={isFrozenEdge || undefined}
         data-filtered={isFiltered || undefined}
         // A placeholder sits above an ungrouped leaf's real header — erase the seam
         // below it so the column reads as one full-height header.
@@ -1209,12 +1270,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
             maxHeight: height,
             "--sf-row-height": `${rowHeight}px`,
             "--sf-header-rows": headerGroups.length,
+            ...(frozenCount > 0 ? { scrollPaddingInlineStart: frozenWidth } : {}),
           } as CSSProperties
         }
         onKeyDown={handleKeyDown}
+        onScroll={frozenCount > 0 ? handleViewportScroll : undefined}
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
+        data-frozen={frozenCount > 0 || undefined}
+        data-frozen-scrolled={frozenScrolled || undefined}
       >
         {/* Headers — one row per header group; parent groups span their leaves.
             With `reorderableColumns`, leaf headers are sortable (drag to reorder). */}
