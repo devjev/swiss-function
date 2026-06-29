@@ -32,6 +32,7 @@ export * from "./components/Reflow";
 export * from "./components/Scatterplot";
 export * from "./components/Selector";
 export * from "./components/Skeleton";
+export * from "./components/Spinner";
 export * from "./components/SplitPane";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Switch";

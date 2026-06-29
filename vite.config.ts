@@ -35,6 +35,7 @@ const componentNames = [
   "Prose",
   "Scatterplot",
   "Skeleton",
+  "Spinner",
   "SplitPane",
   "StreamingTerminalText",
   "Combobox",

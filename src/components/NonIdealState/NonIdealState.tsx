@@ -1,9 +1,13 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useCallback } from "react";
 import { cx } from "../../lib/cx";
-import type { EffectName, EffectOptions } from "./effects";
+import {
+  DEFAULT_CELL,
+  type EffectName,
+  type EffectOptions,
+  useDitheredFill,
+} from "../../lib/effects";
 import styles from "./NonIdealState.module.css";
-import { DEFAULT_CELL, useDitheredFill } from "./useDitheredFill";
 
 export type NonIdealStateVariant = "empty" | "no-results" | "error" | "loading";
 export type { EffectName };

@@ -31,10 +31,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import type { EffectName } from "../../lib/effects";
+import { useDitheredFill } from "../../lib/effects";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import type { EffectName } from "../NonIdealState/effects";
-import { useDitheredFill } from "../NonIdealState/useDitheredFill";
 import { ColumnFilter, type FilterOption } from "./ColumnFilter";
 import { computeMergeMap } from "./cellSpans";
 import {

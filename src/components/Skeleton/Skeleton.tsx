@@ -2,8 +2,7 @@ import { useRender } from "@base-ui/react/use-render";
 import type { CSSProperties, HTMLAttributes, Ref } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
-import type { EffectName, EffectOptions } from "../NonIdealState/effects";
-import { useDitheredFill } from "../NonIdealState/useDitheredFill";
+import { type EffectName, type EffectOptions, useDitheredFill } from "../../lib/effects";
 import styles from "./Skeleton.module.css";
 
 export type { EffectName };

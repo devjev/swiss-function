@@ -160,16 +160,18 @@ void main(){
   }else if(u_effect==30){ // rotate — cells in 4 hash buckets light up in round-robin
     float grp=floor(hash(vec3(cx,cy,4.0))*4.0);
     inten=0.42+0.18*sin(u_t*u_speed*0.9-grp*1.5707963);
-  }else if(u_effect==28){ // stripes — rows toggle in a soft vertical wave
-    inten=0.42+0.17*sin(u_t*u_speed*1.0-cy*0.5);
-  }else if(u_effect==31){ // diagonal — diagonal bands of dots toggle in sequence
-    inten=0.42+0.17*sin(u_t*u_speed*1.0-(cx+cy)*0.4);
   }else if(u_effect==32){ // blocks — coarse blocks each blink on their own phase
     float bph=hash(vec3(floor(cx/3.0),floor(cy/3.0),5.0))*6.2831853;
     inten=0.42+0.17*sin(u_t*u_speed*1.6+bph);
-  }else{ // rings — concentric rings of dots toggle outward (33)
-    float dx=cx-(u_grid.x-1.0)*0.5;float dy=cy-(u_grid.y-1.0)*0.5;
-    inten=0.42+0.17*sin(u_t*u_speed*1.2-sqrt(dx*dx+dy*dy)*0.4);
+  }else if(u_effect==34){ // shimmer — directional high-freq sheen; cells ride the
+    // ░↔▒ level edge so a fine sheen travels the whole (always dense) field.
+    inten=0.66+0.24*sin(u_t*u_speed*3.0+cx*1.3+cy*0.9);
+  }else if(u_effect==35){ // sparkle — sparse bright glints pop on a dense even base
+    float ep=floor(u_t*u_speed*4.0);
+    inten=0.46+0.5*step(0.9,hash(vec3(cx,cy,ep+u_seed)));
+  }else{ // blink — crisp per-cell on/off at a random phase; toggles ░↔▒ (36)
+    float ph=hash(vec3(cx,cy,7.0))*6.2831853;
+    inten=0.4+0.38*step(0.0,sin(u_t*u_speed*2.5+ph));
   }
   // u_gain scales overall density (average + max coverage).
   inten*=u_gain;
@@ -233,12 +235,12 @@ const EFFECT_CODE: Record<EffectName, number> = {
   twinkle: 25,
   breathe: 26,
   interleave: 27,
-  stripes: 28,
   life: 29,
   rotate: 30,
-  diagonal: 31,
   blocks: 32,
-  rings: 33,
+  shimmer: 34,
+  sparkle: 35,
+  blink: 36,
 };
 
 export interface FillFrame extends EffectOptions {

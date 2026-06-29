@@ -29,8 +29,8 @@ Per-component prop/element reference for every exported component in the library
 ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog ·
 Explorer · Field · Fullscreen · Graph · Grid · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Popover · Prose · Radio · Reflow ·
-Scatterplot · Selector · Skeleton · StreamingTerminalText · Switch · Tabs ·
-TextEdit · Timeline · ToggleGroup
+Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText · Switch ·
+Tabs · TextEdit · Timeline · ToggleGroup
 
 ---
 
@@ -614,7 +614,7 @@ Empty / no-results / error / loading state rendered as a block with a dithered W
 | `title` | `ReactNode` | — | Headline. |
 | `description` | `ReactNode` | — | Secondary line. |
 | `action` | `ReactNode` | — | Action slot (usually a `Button`). |
-| `effect` | `EffectName` | per-variant | Override fill effect. The `breathe`/`twinkle`/`interleave`/`rotate`/`stripes`/`diagonal`/`blocks`/`rings` set are subtle and evenly-covered (toggling dot patterns); `life` is Conway's Game of Life. |
+| `effect` | `EffectName` | per-variant | Override fill effect. The `breathe`/`twinkle`/`interleave`/`rotate`/`blocks`/`shimmer`/`sparkle`/`blink` set are subtle and evenly-covered (toggling dot patterns); `life` is Conway's Game of Life. |
 | `speed` | `number` | `1` | Animation speed multiplier. |
 | `density` | `number` | `0.6` | Fill coverage 0–1. |
 | `effectOptions` | `EffectOptions` | — | Advanced tuning (ripple `wavelength`, `seed`). |
@@ -779,6 +779,31 @@ Animated loading placeholder (shimmer, or a NonIdealState-style dithered effect)
 | `cellSize` | `number` | — | Dither cell px (with `effect`). |
 | `effectOptions` | `EffectOptions` | — | Advanced tuning (with `effect`). |
 | `render` | `RenderProp` | `<div />` | Base UI render prop. |
+
+## Spinner
+
+`import { Spinner } from "@tarassov-ch/swiss-function/spinner"`
+
+An animated monospace glyph spinner (CLI-style) for inline "busy" feedback —
+`role="status"`. Cycles a short frame sequence; honors `prefers-reduced-motion` by
+holding one static frame. Inherits `currentColor` and (by default) the surrounding
+font size. Extends `HTMLAttributes<HTMLSpanElement>` (minus `children`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `variant` | `SpinnerVariant` | `"braille"` | Which glyph animation (see list). |
+| `speed` | `number` | `1` | Speed multiplier (2 = twice as fast). |
+| `label` | `string` | `"Loading…"` | Accessible name (`aria-label`). |
+| `size` | `"sm" \| "lg"` (or `"md"`) | inherit | Glyph size; omit to inherit the surrounding font size. |
+| `color` | `string` | inherit | Glyph color — any CSS color/token (e.g. `var(--sf-color-primary)`). Omit to inherit `currentColor`. |
+
+**Variants (28):** `braille`, `line`, `blocks` (density shades), `bars`, `grow`,
+`bounce`, `arrow`, `quadrant`, `triangle`, `circle`, `corners`, `pipe`, `star`,
+`toggle`, `dots`, `pulse`, `scanner`, `arrowDouble`, `caret`, `trigram`, `dqpb`,
+`arc`, `clockface`, `balloon`, `weave`, `boxCorners`, `quadrantHeavy`, `static`.
+
+Also exported: `useSpinnerFrame(variant?, speed?): string` — the cycling glyph as a
+hook, to embed a spinner inline in any component without the wrapper.
 
 ## SplitPane
 

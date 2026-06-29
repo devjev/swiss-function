@@ -147,10 +147,10 @@ const ALL_EFFECTS = [
   "twinkle",
   "interleave",
   "rotate",
-  "stripes",
-  "diagonal",
   "blocks",
-  "rings",
+  "shimmer",
+  "sparkle",
+  "blink",
 ] as const;
 
 function EffectGrid({ effects }: { effects: readonly (typeof ALL_EFFECTS)[number][] }) {
@@ -168,7 +168,7 @@ export const Effects2: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(6, 1
 export const Effects3: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(12, 18)} />;
 export const Effects4: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(18, 25)} />;
 // The subtle, evenly-covered set: breathe + its toggling variants.
-export const EffectsSubtle: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(25, 33)} />;
+export const EffectsSubtle: Story = () => <EffectGrid effects={ALL_EFFECTS.slice(25)} />;
 
 export const Playground: Story<{
   variant: NonIdealStateVariant;

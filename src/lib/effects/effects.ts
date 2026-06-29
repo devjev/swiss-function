@@ -29,16 +29,17 @@ export type EffectName =
   | "glitch"
   // Subtle, evenly-covered effects — toggle different sets of dots in different
   // patterns: breathe = all together, twinkle = per-cell, interleave = checker,
-  // rotate = round-robin buckets, stripes = rows, diagonal = diagonal bands,
-  // blocks = coarse blocks, rings = concentric.
+  // rotate = round-robin buckets, blocks = coarse blocks. The shimmer trio keeps
+  // the field evenly dense (no empty regions): shimmer = directional high-freq
+  // sheen, sparkle = sparse bright pops on a dense base, blink = crisp per-cell.
   | "breathe"
   | "twinkle"
   | "interleave"
   | "rotate"
-  | "stripes"
-  | "diagonal"
   | "blocks"
-  | "rings"
+  | "shimmer"
+  | "sparkle"
+  | "blink"
   // Conway's Game of Life — a feedback cellular automaton (stateful).
   | "life";
 
