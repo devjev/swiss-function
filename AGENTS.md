@@ -94,7 +94,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. Backdrop dim is deliberately very subtle. For a window-like dialog, add `draggable` + `resizable` to `Dialog.Popup` and wrap the header in `Dialog.Handle`. |
+| `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. Backdrop dim is deliberately very subtle. For a window-like dialog, add `draggable` + `resizable` to `Dialog.Popup` and wrap the header in `Dialog.Handle`; drop a `Dialog.Actions` row inside the handle with `Dialog.Maximize` (fullscreen toggle) and `Dialog.CloseButton` (icon ✕) for window chrome. |
 | `Drawer`        | Edge panel sliding from left/right/bottom (`side`). Non-modal by default; render `Drawer.SwipeArea` outside the `Portal` for a persistent reopen handle. |
 | `Popover`       | Anchored, click-triggered floating content.              |
 | `Menu`          | Right-click or dropdown menus.                           |

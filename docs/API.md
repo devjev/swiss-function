@@ -354,15 +354,28 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 
 `import { Dialog } from "@tarassov-ch/swiss-function/dialog"`
 
-Compound modal dialog with optional dragging and resizing. Wraps Base UI's Dialog.
+Compound modal dialog with optional dragging, resizing, and window chrome
+(maximize / close). Wraps Base UI's Dialog.
 
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`, `Handle`
-(drag grip, active only in a draggable Popup), `Title`, `Description`, `Close`.
+(drag grip + title-bar row, active only in a draggable Popup), `Actions`
+(right-aligned chrome-button row, place inside `Handle`), `Maximize` (icon button
+that toggles fullscreen), `Title`, `Description`, `Close` (Base UI close, render
+your own button), `CloseButton` (pre-styled icon ✕).
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `draggable` | `Popup` | `boolean` | — | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
 | `resizable` | `Popup` | `boolean` | — | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
+| `defaultWidth` | `Popup` | `number` | — | Initial width in px (else content-driven, capped at 32rem). A resize takes over. |
+| `defaultHeight` | `Popup` | `number` | — | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
+
+`Maximize` reads the Popup's fullscreen state from context (so it must live
+inside a `Popup`); while maximized the Popup fills the viewport (`inset: 0`), drag
+and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
+`CloseButton` swallow pointer-down, so placing them in a draggable `Handle` never
+starts a drag. Fullscreen state is internal and resets each time the dialog
+reopens.
 
 ## Drawer
 

@@ -63,12 +63,63 @@
   transition: opacity var(--sf-duration-base) var(--sf-ease-out);
 }
 
-/* Drag grab region (wraps the title). Inert until inside a draggable popup. */
+/* Maximized to the viewport — the `.fullscreen` class wins over the centred
+   `.popup` layout (set later in the file, so no !important needed). Drag/size
+   inline overrides are skipped while expanded (see Dialog.tsx). */
+.fullscreen {
+  inset: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  transform: none;
+  border-radius: 0;
+}
+
+/* Title bar: lay the title and the window-chrome actions out in a row. Used as
+   the drag grab region; inert until inside a draggable popup. */
 .handle {
+  display: flex;
+  align-items: center;
+  gap: var(--sf-space-2);
+  margin-block-end: var(--sf-space-2);
   touch-action: none;
 }
 .handleActive {
   cursor: move;
+}
+
+/* Right-aligned window-chrome button row. */
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  margin-inline-start: auto;
+}
+
+/* Square icon button — matches ChatDrawer's header controls. */
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  background-color: transparent;
+  color: var(--sf-color-fg);
+  border: 0;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.iconButton:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+.iconButton:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
 }
 
 /* Resize handles — thin hit targets on every edge + corner. The popup is the
@@ -150,6 +201,11 @@
   font-size: var(--sf-font-size-lg);
   font-weight: var(--sf-font-weight-semibold);
   line-height: var(--sf-line-height-tight);
+}
+/* The title carries its own bottom margin for the no-handle case; drop it inside
+   a handle row, where the handle owns the spacing. */
+.handle .title {
+  margin-block-end: 0;
 }
 
 .description {
