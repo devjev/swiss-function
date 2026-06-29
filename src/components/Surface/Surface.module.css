@@ -1,0 +1,31 @@
+.root {
+  position: relative;
+  inline-size: 100%;
+  font-family: var(--sf-font-sans);
+}
+
+.canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: grab;
+  /* The orbit drag owns the pointer; don't let the browser pan/zoom. */
+  touch-action: none;
+}
+.canvas:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}
+.dragging {
+  cursor: grabbing;
+}
+
+.tip {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+.tipMeta {
+  color: var(--sf-color-muted);
+}

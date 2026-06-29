@@ -1,0 +1,52 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  font-family: var(--sf-font-sans);
+}
+
+.plot {
+  position: relative;
+  inline-size: 100%;
+}
+
+.canvas {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+.canvas:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}
+.dragging {
+  cursor: grabbing;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2) var(--sf-unit);
+  margin-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 3);
+}
+.swatch {
+  inline-size: calc(var(--sf-unit) / 1.5);
+  block-size: calc(var(--sf-unit) / 1.5);
+  border-radius: var(--sf-radius-default);
+}
+
+.tip {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}

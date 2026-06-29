@@ -134,10 +134,17 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | `BridgeChart`      | Waterfall / financier's bridge — totals + signed deltas. |
 | `CandlestickChart` | OHLC financial candles (up = success, down = danger), index-spaced. |
 | `Timeline`         | Horizontal time strip with stacked event labels and a scrubbable playhead. |
+| `Heatmap`          | 2D grid of `z = f(x,y)` as filled cells, with an optional marching-squares `contours` iso-line overlay. The default, Swiss-friendly read of a 2-variable field — reach for this before a 3D surface. |
+| `Surface`          | 3D surface `z = f(x,y)` (Canvas2D, axonometric, **drag-to-rotate**). For data that is genuinely 3D and loses meaning when flattened (response/optimization surfaces, terrain). Single-hue height ramp + measured cube frame. |
+| `PointCloud`       | 3D scatter / point cloud — `series` of x/y/z points (clusters, 3-component embeddings). Same axonometric engine as `Surface`. |
 
-All charts default to `scaffolding="hover"` (Tufte-minimal idle, full
+The 2D charts default to `scaffolding="hover"` (Tufte-minimal idle, full
 scale fades in on hover). Use `scaffolding="full"` for dense data,
-`"minimal"` when you don't want any reveal.
+`"minimal"` when you don't want any reveal. The 3D charts (`Surface`,
+`PointCloud`) are **orthographic and drag-to-rotate only — never auto-spin**;
+they're for intrinsically-3D data. **There are no 3D bars/pies/ribbons** (they
+distort comparison) — for a 2-variable field reach for `Heatmap`, and for
+categorical magnitudes a 2D `BarChart`.
 
 ### Graphs & networks
 
@@ -257,6 +264,10 @@ Common requests and the right component:
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
 | "candlestick" / "OHLC" / "stock chart"             | `CandlestickChart`                                        |
+| "a heatmap" / "contour plot" / "z = f(x,y) field"  | `Heatmap` (filled cells + optional `contours`)   |
+| "a 3D surface" / "response/optimization surface" / "terrain" | `Surface` (orthographic, drag-to-rotate) |
+| "a 3D scatter / point cloud" / "3-component embedding" | `PointCloud`                                  |
+| "a 3D bar / 3D pie chart"                          | none — chartjunk; use `Heatmap`, `Surface`, or a 2D `BarChart` |
 | "a network / dependency graph / mind map"          | `Graph`                                          |
 | "loading state"                                    | `Skeleton` (inline placeholder) / `NonIdealState variant="loading"` (whole region) |
 | "empty state" / "no results" / "error state"       | `NonIdealState` (variant per case)               |

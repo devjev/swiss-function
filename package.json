@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -80,6 +80,10 @@
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"
     },
+    "./heatmap": {
+      "types": "./dist/components/Heatmap/index.d.ts",
+      "import": "./dist/components/Heatmap/index.js"
+    },
     "./input": {
       "types": "./dist/components/Input/index.d.ts",
       "import": "./dist/components/Input/index.js"
@@ -136,6 +140,10 @@
       "types": "./dist/components/Pane/index.d.ts",
       "import": "./dist/components/Pane/index.js"
     },
+    "./point-cloud": {
+      "types": "./dist/components/PointCloud/index.d.ts",
+      "import": "./dist/components/PointCloud/index.js"
+    },
     "./menu": {
       "types": "./dist/components/Menu/index.d.ts",
       "import": "./dist/components/Menu/index.js"
@@ -155,6 +163,10 @@
     "./streaming-terminal-text": {
       "types": "./dist/components/StreamingTerminalText/index.d.ts",
       "import": "./dist/components/StreamingTerminalText/index.js"
+    },
+    "./surface": {
+      "types": "./dist/components/Surface/index.d.ts",
+      "import": "./dist/components/Surface/index.js"
     },
     "./combobox": {
       "types": "./dist/components/Combobox/index.d.ts",

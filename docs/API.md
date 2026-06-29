@@ -27,10 +27,10 @@ Per-component prop/element reference for every exported component in the library
 
 **Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog ·
-Explorer · Field · Fullscreen · Graph · Grid · Input · Markdown · Menu ·
-MenuBar · NonIdealState · Outliner · Pane · Popover · Prose · Radio · Reflow ·
-Scatterplot · Selector · Skeleton · StreamingTerminalText · Switch · Tabs ·
-TextEdit · Timeline · ToggleGroup
+Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
+MenuBar · NonIdealState · Outliner · Pane · PointCloud · Popover · Prose · Radio ·
+Reflow · Scatterplot · Selector · Skeleton · StreamingTerminalText · Surface ·
+Switch · Tabs · TextEdit · Timeline · ToggleGroup
 
 ---
 
@@ -490,6 +490,26 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 **Elements / Parts:** `Grid.Item` — occupies cells via `area`, `col`/`row`, or
 `colSpan`/`rowSpan`.
 
+## Heatmap
+
+`import { Heatmap } from "@tarassov-ch/swiss-function/heatmap"`
+
+2D heatmap of a gridded field `z = f(x,y)` (SVG filled cells) with an optional
+marching-squares contour overlay. The flat, Swiss-friendly read of a 2-variable
+field — reach for this before a 3D `Surface`. Shares the `GridData` shape
+(`{ x: number[]; y: number[]; z: number[][] }`, `z[j][i]` at `x[i]`,`y[j]`) with
+`Surface`. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `GridData` | — | The gridded values. |
+| `zDomain` | `[number, number]` | data min/max | Value range for the color ramp. |
+| `colorScale` | `[string, string]` | primary tint → primary | `[low, high]` ramp colors (any CSS color / token). |
+| `contours` | `number \| number[]` | — | Iso-line overlay: a level count, or explicit levels. |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
+| `renderTooltip` | `(d: HeatmapDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
+
 ## Input
 
 `import { Input } from "@tarassov-ch/swiss-function/input"`
@@ -646,6 +666,26 @@ Full-height container with a fixed header and scrollable body (CSS-grid `auto / 
 
 **Elements / Parts:** `Pane.Root` (grid container), `Pane.Header` (auto-sized, no
 scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
+
+## PointCloud
+
+`import { PointCloud } from "@tarassov-ch/swiss-function/point-cloud"`
+
+3D scatter / point cloud — `series` of x/y/z points (clusters, 3-component
+embeddings). Canvas2D, **orthographic (axonometric)** projection, **drag-to-rotate
+only** (never auto-spins; the idle view is a fixed angle, so reduced-motion is a
+no-op). Multi-series consumers pass explicit `color`s (one accent by default).
+Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `series` | `PointSeries[]` | — | `{ name; data: { x; y; z; label? }[]; color? }`. |
+| `xDomain` / `yDomain` / `zDomain` | `[number, number]` | data min/max | Axis ranges. |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `pointRadius` | `number` | `3` | Dot radius (px); nearer dots a touch larger. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 16)` | Plot height. |
+| `showLegend` | `boolean` | when >1 series | Series legend. |
+| `renderTooltip` | `(d: PointCloudDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
 ## Popover
 
@@ -824,6 +864,29 @@ Reveals text character-by-character with a shade-block tail (terminal typewriter
 | `charIntervalMs` | `number` | `64` | Ms per tick. |
 | `shadeRamp` | `string[]` | `["▒", "▓"]` | Shade glyphs, far → near. |
 | `spacePlaceholder` | `string` | `" "` | Glyph filling spaces in the tail. |
+
+## Surface
+
+`import { Surface } from "@tarassov-ch/swiss-function/surface"`
+
+3D surface `z = f(x,y)` for intrinsically-3D data (response/optimization surfaces,
+terrain) where flattening loses meaning — otherwise prefer the flat `Heatmap`.
+Canvas2D, **orthographic (axonometric)** projection (no perspective distortion —
+lengths stay comparable, like a CAD drawing), flat-shaded with a single-hue height
+ramp, a measured cube frame with axis ticks, and **drag-to-rotate only** (never
+auto-spins; idle = a fixed angle, so reduced-motion is a no-op). Data is the
+`GridData` shape (`{ x: number[]; y: number[]; z: number[][] }`, `z[j][i]` at
+`x[i]`,`y[j]`). Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `GridData` | — | The gridded heights. |
+| `zDomain` | `[number, number]` | data min/max | Height range for the ramp. |
+| `wireframe` | `boolean` | `true` | Hairline mesh over the shaded surface. |
+| `colorScale` | `[string, string]` | primary tint → primary | `[low, high]` height-ramp colors. |
+| `xLabel` / `yLabel` / `zLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 16)` | Plot height. |
+| `renderTooltip` | `(d: SurfaceDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
 ## Switch
 

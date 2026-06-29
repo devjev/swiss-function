@@ -143,6 +143,21 @@ Depth indicates layer, not personality.
   pretending to be physical. We are not simulating frosted plastic. We
   are stacking flat planes.
 
+**One sanctioned exception — measured 3D for genuinely-3D data.** The chrome
+stacks flat planes, but data can be intrinsically three-dimensional (a surface
+`z = f(x,y)`, a point cloud), and flattening it loses information. There the 3D
+charts (`Surface`, `PointCloud`) are allowed — rendered as *instruments*, not
+decoration: **orthographic (axonometric) projection**, so there's no
+vanishing-point perspective and lengths stay comparable along each axis, like a
+CAD/engineering drawing; flat shading and a single-hue, token-derived height
+ramp; a measured bounding-box frame with axis ticks; **drag-to-rotate only —
+never auto-spin** (the idle view is a fixed angle, so `prefers-reduced-motion` is
+satisfied by construction). The test is the usual one: does the depth *measure*
+the data, or just perform? If the latter, drop it — and reach for the flat
+`Heatmap` (2.5D contour/heatmap) instead, which is the default for `z = f(x,y)`.
+**3D bars, 3D pies, ribbon charts, and perspective cameras stay banned** —
+that's depth-for-personality, which distorts comparison.
+
 ### Motion
 
 Motion is functional. It explains state changes; it does not perform
