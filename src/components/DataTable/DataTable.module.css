@@ -504,7 +504,7 @@
   padding: 0 calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-primary);
+  border: 1px solid var(--sf-color-border);
   border-radius: 0;
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);

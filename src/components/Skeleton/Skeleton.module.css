@@ -4,7 +4,7 @@
   width: 100%;
   height: var(--sf-unit);
   background-color: var(--sf-color-bg-subtle);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-gridline);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
 }
@@ -52,7 +52,7 @@
   width: 100%;
   height: 100%;
   /* Subtle by default — the dither reads as a quiet placeholder texture. */
-  color: var(--sf-color-border-subtle);
+  color: var(--sf-color-gridline);
 }
 
 .shapeCircle {

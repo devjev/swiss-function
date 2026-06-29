@@ -23,6 +23,15 @@
 }
 
 .popup {
+  /* Custom diagonal resize cursors (see resize-handle block below for why). */
+  --sf-cursor-diag-nwse:
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cg%20stroke%3D%27%23fff%27%20stroke-width%3D%274%27%3E%3Cpath%20d%3D%27M6%206%2018%2018%27%2F%3E%3Cpath%20d%3D%27M6%206v5%27%2F%3E%3Cpath%20d%3D%27M6%206h5%27%2F%3E%3Cpath%20d%3D%27M18%2018v-5%27%2F%3E%3Cpath%20d%3D%27M18%2018h-5%27%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D%27%23000%27%20stroke-width%3D%272%27%3E%3Cpath%20d%3D%27M6%206%2018%2018%27%2F%3E%3Cpath%20d%3D%27M6%206v5%27%2F%3E%3Cpath%20d%3D%27M6%206h5%27%2F%3E%3Cpath%20d%3D%27M18%2018v-5%27%2F%3E%3Cpath%20d%3D%27M18%2018h-5%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E")
+    12 12,
+    nwse-resize;
+  --sf-cursor-diag-nesw:
+    url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2724%27%20height%3D%2724%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cg%20fill%3D%27none%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cg%20stroke%3D%27%23fff%27%20stroke-width%3D%274%27%3E%3Cpath%20d%3D%27M18%206%206%2018%27%2F%3E%3Cpath%20d%3D%27M18%206v5%27%2F%3E%3Cpath%20d%3D%27M18%206h-5%27%2F%3E%3Cpath%20d%3D%27M6%2018v-5%27%2F%3E%3Cpath%20d%3D%27M6%2018h5%27%2F%3E%3C%2Fg%3E%3Cg%20stroke%3D%27%23000%27%20stroke-width%3D%272%27%3E%3Cpath%20d%3D%27M18%206%206%2018%27%2F%3E%3Cpath%20d%3D%27M18%206v5%27%2F%3E%3Cpath%20d%3D%27M18%206h-5%27%2F%3E%3Cpath%20d%3D%27M6%2018v-5%27%2F%3E%3Cpath%20d%3D%27M6%2018h5%27%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E")
+    12 12,
+    nesw-resize;
   position: fixed;
   top: 50%;
   left: 50%;
@@ -62,33 +71,78 @@
   cursor: move;
 }
 
-/* Resize handles — thin hit targets on the right / bottom edges + corner. */
-.resizeE,
+/* Resize handles — thin hit targets on every edge + corner. The popup is the
+   positioned ancestor, so these pin to its edges. Corners must come AFTER edges
+   in the DOM (see Dialog.tsx) so they win the overlap at each corner.
+
+   Diagonal cursors are drawn from our own SVG: Chromium on macOS swaps the
+   system `nwse-resize`/`nesw-resize` glyphs, so a url() cursor (rasterised from
+   the bitmap below) is the only way to guarantee the correct diagonal. The
+   keyword stays as the fallback. */
+.resizeN,
 .resizeS,
-.resizeSE {
+.resizeE,
+.resizeW,
+.resizeNE,
+.resizeNW,
+.resizeSE,
+.resizeSW {
   position: absolute;
   z-index: 1;
   touch-action: none;
 }
-.resizeE {
-  top: 0;
-  inset-inline-end: 0;
-  inline-size: calc(var(--sf-unit) / 3);
-  block-size: 100%;
-  cursor: ew-resize;
-}
+/* Edges */
+.resizeN,
 .resizeS {
   inset-inline: 0;
-  bottom: 0;
   block-size: calc(var(--sf-unit) / 3);
   cursor: ns-resize;
 }
-.resizeSE {
-  inset-inline-end: 0;
+.resizeE,
+.resizeW {
+  inset-block: 0;
+  inline-size: calc(var(--sf-unit) / 3);
+  cursor: ew-resize;
+}
+.resizeN {
+  top: 0;
+}
+.resizeS {
   bottom: 0;
+}
+.resizeE {
+  inset-inline-end: 0;
+}
+.resizeW {
+  inset-inline-start: 0;
+}
+/* Corners — square hit targets that override the edge cursor. */
+.resizeNE,
+.resizeNW,
+.resizeSE,
+.resizeSW {
   inline-size: calc(var(--sf-unit) / 1.5);
   block-size: calc(var(--sf-unit) / 1.5);
-  cursor: nwse-resize;
+}
+.resizeNW {
+  top: 0;
+  inset-inline-start: 0;
+  cursor: var(--sf-cursor-diag-nwse);
+}
+.resizeSE {
+  bottom: 0;
+  inset-inline-end: 0;
+  cursor: var(--sf-cursor-diag-nwse);
+}
+.resizeNE {
+  top: 0;
+  inset-inline-end: 0;
+  cursor: var(--sf-cursor-diag-nesw);
+}
+.resizeSW {
+  bottom: 0;
+  inset-inline-start: 0;
+  cursor: var(--sf-cursor-diag-nesw);
 }
 
 .title {

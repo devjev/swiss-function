@@ -1,0 +1,73 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 3);
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  text-align: start;
+  cursor: pointer;
+}
+.header[data-static] {
+  cursor: default;
+}
+.header:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.chevron {
+  display: inline-block;
+  color: var(--sf-color-muted);
+  transition: transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.text {
+  color: var(--sf-color-fg);
+}
+
+.glyph {
+  white-space: pre;
+}
+.done {
+  color: var(--sf-color-success);
+}
+.error {
+  color: var(--sf-color-danger);
+}
+
+/* Subtle expand/collapse: animate the fan-out's height via the grid-rows
+   0fr↔1fr technique (transitions to/from content height, no fixed max-height). */
+.bodyWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--sf-duration-base) var(--sf-ease-in-out);
+}
+.bodyWrap[data-open] {
+  grid-template-rows: 1fr;
+}
+.body {
+  overflow: hidden;
+  min-block-size: 0;
+}
+/* The header/fan-out gap lives on an inner element so it's clipped away (not a
+   residual) when `.body` collapses to 0. */
+.bodyInner {
+  padding-block-start: calc(var(--sf-unit) / 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .bodyWrap {
+    transition: none;
+  }
+}

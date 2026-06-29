@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { useFullscreen } from "../../lib/useFullscreen";
+import type { ButtonVariant } from "../Button";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart } from "../Chat";
 import { type EffectName, NonIdealState } from "../NonIdealState";
 import { SplitPane, type SplitSide, useSplitPane } from "../SplitPane";
@@ -71,7 +72,14 @@ export interface ChatDrawerProps {
   onAction?: (action: ChatAction) => void;
   /** Render a custom part by `type`. */
   renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
+  /** Placeholder text for the built-in chat input. Default "Ask anything…". */
   placeholder?: string;
+  /** Caption for the built-in chat's submit button. Default "Send". */
+  sendLabel?: string;
+  /** Visual variant of the built-in chat's submit button. Default "secondary". */
+  sendVariant?: ButtonVariant;
+  /** Override the built-in chat input's border colour (any CSS colour). */
+  borderColor?: string;
   /** Disable the input. Defaults to `thinking` (input locks while the agent works). */
   disabled?: boolean;
 
@@ -214,6 +222,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     onAction,
     renderPart,
     placeholder,
+    sendLabel,
+    sendVariant,
+    borderColor,
     disabled,
     views,
     activeView,
@@ -339,6 +350,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
                   onAction={onAction}
                   renderPart={renderPart}
                   placeholder={placeholder}
+                  sendLabel={sendLabel}
+                  sendVariant={sendVariant}
+                  borderColor={borderColor}
                   disabled={disabled ?? thinking}
                 />
               </div>

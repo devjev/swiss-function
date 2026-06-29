@@ -7,7 +7,9 @@ export type {
   ChatPart,
   ChatProps,
   ChatRole,
+  ChatStepStatus,
   ChatTextPart,
+  ChatThinkingPart,
   ChatTreeNode,
   ChatTreePart,
 } from "./Chat";

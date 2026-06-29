@@ -60,7 +60,7 @@
 /* --- Scaffolding: gridlines + y-axis reveal ---------------------------- */
 
 .gridline {
-  stroke: var(--sf-color-border-subtle);
+  stroke: var(--sf-color-gridline);
   stroke-width: 1;
   opacity: 0;
   transition: opacity var(--sf-duration-base) var(--sf-ease-out);

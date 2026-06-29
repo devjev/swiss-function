@@ -150,7 +150,10 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `onSubmit` | `(text: string) => void` | — | Enter submits (Shift+Enter = newline); input clears. |
 | `renderPart` | `(part, ctx) => ReactNode` | — | Render a custom (non-built-in) part by `type`. Return null to skip. |
 | `onAction` | `(action: ChatAction) => void` | — | Fired when a user interacts with a choices / tree / custom block. |
-| `placeholder` | `string` | `"Ask anything…"` | Input placeholder. |
+| `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. |
+| `sendLabel` | `string` | `"Send"` | Caption for the submit button. |
+| `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
+| `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | — | Blocks submit (e.g. while streaming). |
 
@@ -164,7 +167,8 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 - `{ type: "text"; text }` — markdown (streams when it's the active block).
 - `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }` — a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }` — `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
-- `{ type: "tree"; roots: ChatTreeNode[]; partId? }` — a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children? }`. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: "tree"; roots: ChatTreeNode[]; partId? }` — a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node glyph — a live `Spinner` while `running`, `✓`/`✗` when `done`/`error`. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }` — an assistant "working on it" block: a spinner header ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. Auto-expanded while running; click the header to toggle. Drive it by updating the message over time (like `isStreaming`). Node click → `onAction({ type: "thinking", value: nodeId })`.
 - `{ type: string; partId?; [key]: unknown }` — any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, children }`) to match the built-in TUI frame.
 
 `onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless — the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
@@ -211,7 +215,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` | — | — | Passed through to `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` | — | — | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `actions` | `ReactNode` | — | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
 | `views` | `ChatDrawerView[]` | — | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
@@ -358,7 +362,7 @@ Compound modal dialog with optional dragging and resizing. Wraps Base UI's Dialo
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `draggable` | `Popup` | `boolean` | — | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
-| `resizable` | `Popup` | `boolean` | — | Resize from right/bottom/SE edges; arrow keys adjust, Escape exits. |
+| `resizable` | `Popup` | `boolean` | — | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
 
 ## Drawer
 

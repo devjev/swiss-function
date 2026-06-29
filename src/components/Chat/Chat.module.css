@@ -1,4 +1,7 @@
 .root {
+  /* Input border colour — neutral by default; overridable via the `borderColor`
+     prop (set inline as this custom property). */
+  --sf-chat-input-border: var(--sf-color-border);
   display: flex;
   flex-direction: column;
   inline-size: 100%;
@@ -69,9 +72,11 @@
   background-color: var(--sf-color-bg);
 }
 
-/* Chat-specific overrides on TextEdit: only auto-grow + elevation. Everything
-   else (monospace, primary border, block caret, padding-inline) comes from
-   TextEdit's defaults. Single-line height matches Button md (= 1.5u). */
+/* Chat-specific overrides on TextEdit: auto-grow, elevation, and a neutral
+   border (TextEdit defaults to a primary border — Chat de-accents it via the
+   `--sf-chat-input-border` custom property). Monospace + block caret +
+   padding-inline still come from TextEdit. Single-line height matches Button md
+   (= 1.5u). */
 .input {
   flex: 1;
   /* Auto-grow on modern browsers (Chrome 123+, Safari 17.4+, Firefox 128+).
@@ -83,4 +88,10 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     var(--sf-elevation-1);
+}
+/* Override TextEdit's primary `border` shorthand — needs the extra `.inputRow`
+   specificity to beat it regardless of stylesheet order. Hover stays neutral too. */
+.inputRow .input,
+.inputRow .input:hover:not(:disabled) {
+  border-color: var(--sf-chat-input-border);
 }

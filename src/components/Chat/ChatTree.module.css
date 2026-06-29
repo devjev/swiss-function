@@ -13,6 +13,25 @@
   color: var(--sf-color-fg);
 }
 
+/* Per-node status indicator (orchestration fan-out). */
+.status,
+.statusRunning {
+  margin-inline-end: calc(var(--sf-unit) / 3);
+  white-space: pre;
+}
+.statusRunning {
+  color: var(--sf-color-primary);
+}
+.pending {
+  color: var(--sf-color-muted);
+}
+.done {
+  color: var(--sf-color-success);
+}
+.error {
+  color: var(--sf-color-danger);
+}
+
 /* Each node is a flat, full-width, left-aligned monospace Button row. Element-
    qualified to beat the Button base `.root`. */
 button.row {

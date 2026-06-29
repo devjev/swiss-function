@@ -36,7 +36,7 @@ const DragContext = createContext<DragContextValue | null>(null);
 interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
   /** Allow the popup to be dragged around by a `Dialog.Handle` (or the title). */
   draggable?: boolean;
-  /** Allow the popup to be resized from its right / bottom / corner edges. */
+  /** Allow the popup to be resized from any edge or corner. */
   resizable?: boolean;
 }
 
@@ -52,7 +52,9 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const dragStart = useRef<{ ox: number; oy: number; rect: DOMRect } | null>(null);
-  const resizeStart = useRef<{ w: number; h: number; edge: string } | null>(null);
+  const resizeStart = useRef<{ w: number; h: number; ox: number; oy: number; edge: string } | null>(
+    null,
+  );
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -95,18 +97,35 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
       const edge = (event.currentTarget as HTMLElement).dataset.edge;
       if (!el || !edge) return;
       const r = el.getBoundingClientRect();
-      resizeStart.current = { w: r.width, h: r.height, edge };
+      resizeStart.current = { w: r.width, h: r.height, ox: offset.x, oy: offset.y, edge };
     },
     onMove: (delta) => {
       const s = resizeStart.current;
       if (!s) return;
+      const e = s.edge.includes("e");
+      const wst = s.edge.includes("w");
+      const so = s.edge.includes("s");
+      const no = s.edge.includes("n");
       let w = s.w;
       let h = s.h;
-      if (s.edge.includes("e")) w = s.w + delta.dx;
-      if (s.edge.includes("s")) h = s.h + delta.dy;
+      if (e) w = s.w + delta.dx;
+      if (wst) w = s.w - delta.dx;
+      if (so) h = s.h + delta.dy;
+      if (no) h = s.h - delta.dy;
       w = Math.max(MIN_W, Math.min(window.innerWidth - 16, w));
       h = Math.max(MIN_H, Math.min(window.innerHeight - 16, h));
       setSize({ w, h });
+      // The popup is centred (translate(-50%)), so growing it expands BOTH edges
+      // by half the delta. Shift the offset by half the size change toward the
+      // dragged edge so the OPPOSITE edge stays anchored and the grabbed edge
+      // tracks the pointer 1:1 (e/s push the offset +, w/n push it −).
+      let ox = s.ox;
+      let oy = s.oy;
+      if (e) ox = s.ox + (w - s.w) / 2;
+      if (wst) ox = s.ox - (w - s.w) / 2;
+      if (so) oy = s.oy + (h - s.h) / 2;
+      if (no) oy = s.oy - (h - s.h) / 2;
+      setOffset({ x: ox, y: oy });
     },
     onEnd: () => {
       resizeStart.current = null;
@@ -129,10 +148,17 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     if (ev.key === "ArrowUp") h -= step;
     w = Math.max(MIN_W, Math.min(window.innerWidth - 16, w));
     h = Math.max(MIN_H, Math.min(window.innerHeight - 16, h));
+    const dw = w - r.width;
+    const dh = h - r.height;
     setSize({ w, h });
+    // Anchor the top-left corner, same as pointer resize (see onMove above).
+    setOffset((o) => ({ x: o.x + dw / 2, y: o.y + dh / 2 }));
   }, []);
 
-  const dragStyle = draggable
+  // The drag offset also anchors the top-left corner while resizing, so a
+  // resizable-but-not-draggable popup needs the offset vars applied too.
+  const positioned = draggable || resizable;
+  const dragStyle = positioned
     ? ({ "--sf-dialog-x": `${offset.x}px`, "--sf-dialog-y": `${offset.y}px` } as CSSProperties)
     : undefined;
   const sizeStyle: CSSProperties | undefined = size
@@ -143,7 +169,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     <BaseDialog.Popup
       {...rest}
       ref={setRefs}
-      className={mergeClassName(cx(styles.popup, draggable && styles.draggable), className)}
+      className={mergeClassName(cx(styles.popup, positioned && styles.draggable), className)}
       style={{ ...dragStyle, ...sizeStyle, ...style }}
     >
       {draggable ? (
@@ -153,6 +179,20 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
       )}
       {resizable && (
         <>
+          {/* Edges first, then corners — corners must come later in the DOM so
+              they win the hit-test where they overlap an edge. */}
+          <div
+            aria-hidden="true"
+            data-edge="n"
+            className={styles.resizeN}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="s"
+            className={styles.resizeS}
+            onPointerDown={onResizeDown}
+          />
           <div
             aria-hidden="true"
             data-edge="e"
@@ -161,8 +201,26 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
           />
           <div
             aria-hidden="true"
-            data-edge="s"
-            className={styles.resizeS}
+            data-edge="w"
+            className={styles.resizeW}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="ne"
+            className={styles.resizeNE}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="nw"
+            className={styles.resizeNW}
+            onPointerDown={onResizeDown}
+          />
+          <div
+            aria-hidden="true"
+            data-edge="sw"
+            className={styles.resizeSW}
             onPointerDown={onResizeDown}
           />
           {/* biome-ignore lint/a11y/useSemanticElements: a focusable, draggable resize grip is not an <hr> */}

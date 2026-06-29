@@ -23,11 +23,13 @@ test("uses the monospace font family", async ({ mount }) => {
   expect(family).toContain("JetBrains Mono");
 });
 
-test("border resolves to the primary token", async ({ mount }) => {
+test("resting border is the neutral structural token (primary is focus-only)", async ({
+  mount,
+}) => {
   const component = await mount(<TextEdit />);
   const color = await component.evaluate((el) => getComputedStyle(el).borderColor);
-  // --sf-color-primary in light mode is #2563eb -> rgb(37, 99, 235).
-  expect(color).toBe("rgb(37, 99, 235)");
+  // --sf-color-border in light mode is #303030 -> rgb(48, 48, 48).
+  expect(color).toBe("rgb(48, 48, 48)");
 });
 
 test("accepts text input", async ({ mount }) => {

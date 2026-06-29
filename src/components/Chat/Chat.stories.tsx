@@ -1,6 +1,12 @@
 import type { Story } from "@ladle/react";
-import { useState } from "react";
-import { Chat, type ChatAction, type ChatMessage, type ChatTreeNode } from "./Chat";
+import { useEffect, useState } from "react";
+import {
+  Chat,
+  type ChatAction,
+  type ChatMessage,
+  type ChatThinkingPart,
+  type ChatTreeNode,
+} from "./Chat";
 import { ChatBlock } from "./ChatBlock";
 
 const SAMPLE_REPLY = `Sure — here's a tiny example of how to throttle a function in JavaScript:
@@ -89,6 +95,29 @@ export const Empty: Story = () => {
           setMessages((prev) => [...prev, { id: String(Date.now()), role: "user", content: text }])
         }
         placeholder="Start a conversation…"
+      />
+    </div>
+  );
+};
+
+/**
+ * The chat is **non-primary by default** — neutral input border, secondary send
+ * button. Re-accent it (and rename the button) when you want it to: `borderColor`,
+ * `sendVariant`, `sendLabel`, and `placeholder`.
+ */
+export const Customized: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [...prev, { id: String(Date.now()), role: "user", content: text }])
+        }
+        placeholder="Message the agent…"
+        sendLabel="Run"
+        sendVariant="primary"
+        borderColor="var(--sf-color-primary)"
       />
     </div>
   );
@@ -233,6 +262,101 @@ export const CustomBlock: Story = () => {
           ) : null
         }
       />
+    </div>
+  );
+};
+
+// --- Thinking / orchestration fan-out ---
+
+const FAN_LEAVES = ["search the web", "design schema", "build UI", "wire data", "write tests"];
+
+/** The thinking part at "phase" k: k leaves done, the (k+1)th running. */
+function thinkingPhase(k: number, running: boolean): ChatThinkingPart {
+  const children: ChatTreeNode[] = FAN_LEAVES.map((label, i) => ({
+    id: `s${i}`,
+    label,
+    status: i < k ? "done" : i === k && running ? "running" : "pending",
+  }));
+  const planDone = k >= FAN_LEAVES.length;
+  return {
+    type: "thinking",
+    status: running ? "running" : "done",
+    steps: [{ id: "plan", label: "plan", status: planDone ? "done" : "running", children }],
+    summary: `Ran ${FAN_LEAVES.length} steps · 4.2s`,
+  };
+}
+
+// Scripted frames: a bare "Thinking…" → fan-out filling in → done (collapses) →
+// final answer appended.
+const FRAMES: ChatThinkingPart[] = [
+  { type: "thinking", status: "running", label: "Thinking…" },
+  ...FAN_LEAVES.map((_, i) => thinkingPhase(i, true)),
+  thinkingPhase(FAN_LEAVES.length, false),
+];
+
+export const Thinking: Story = () => {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (frame >= FRAMES.length - 1) return;
+    const id = window.setTimeout(() => setFrame((f) => f + 1), 800);
+    return () => window.clearTimeout(id);
+  }, [frame]);
+
+  const done = frame >= FRAMES.length - 1;
+  const messages: ChatMessage[] = [
+    { id: "u1", role: "user", content: "Build me an analytics dashboard." },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        FRAMES[frame] as ChatThinkingPart,
+        ...(done ? [{ type: "text" as const, text: "Done — here's your dashboard plan. ✦" }] : []),
+      ],
+    },
+  ];
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      <Chat
+        messages={messages}
+        onSubmit={() => {}}
+        onAction={(a: ChatAction) => console.log("action", a)}
+        disabled={!done}
+        height={420}
+      />
+    </div>
+  );
+};
+
+export const ThinkingError: Story = () => {
+  const messages: ChatMessage[] = [
+    { id: "u1", role: "user", content: "Deploy to production." },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "thinking",
+          status: "error",
+          label: "Failed after 2 steps",
+          defaultExpanded: true,
+          steps: [
+            {
+              id: "deploy",
+              label: "deploy",
+              status: "error",
+              children: [
+                { id: "build", label: "build image", status: "done" },
+                { id: "push", label: "push registry", status: "error" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      <Chat messages={messages} onSubmit={() => {}} height={320} />
     </div>
   );
 };
