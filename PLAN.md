@@ -1,421 +1,394 @@
-# PLAN — NonIdealState: performant dithered fills (renderer + effects)
+# Work plan
 
-> **This file is the single source of truth for an autonomous ralph loop.**
-> Each iteration starts with **fresh context and no memory**. Everything you
-> need is in this file. Read it top-to-bottom every time before doing anything.
-
----
-
-## 0. Mission
-
-`NonIdealState` already renders a sizable block continuously filled with
-console-style dithered shade blocks (empty / no-results / error / loading),
-with a message in the cleared center and a ripple on loading. It works, but:
-
-1. The animated fill rebuilds a whole `<pre>` string every frame — **wasteful**.
-   We want the **least computation / best performance** renderer, after
-   honestly researching the options (incl. **canvas** and any libraries).
-2. We want to **prototype multiple renderers and benchmark** them, then keep
-   the one where the ripple is fastest.
-3. The ripple (and other effects) must be **parameterizable**.
-4. Add **more effects** — random noise, etc. — behind one effect API.
-5. The blocks should be **more subtle** — gray / transparent is fine — and
-   derived from **pre-defined base colors** (tokens), not loud saturated fills.
-6. Fix the **coverage bug**: the fill doesn't reach the right/bottom edge of
-   the block (see the white strip in the brief's screenshot). It must
-   **auto-fill the entire block** at any size.
-
-Root cause of #6 is known (see §9 D2): the cell grid is computed from a
-hardcoded `CELL_W=7 / CELL_H=11` that mismatches the real monospace cell
-(~6px at the 10px font), so too few columns are generated. A measured cell
-fixes the DOM path; a canvas sized to the block fixes it by construction.
-
-The path is: **harness + fix coverage → research → prototype a fixed set of
-renderers → benchmark → auto-select the fastest → rebuild with parameterized
-effects + subtle token-based color → test, document.**
+Detailed, grounded steps for the next batch of work. Each item keeps the
+original intent note, then current-state facts, approach, steps, and how to
+verify. File paths are relative to repo root.
 
 ---
 
-## 1. Ralph loop protocol — READ FIRST, EVERY ITERATION
+## 1. DataTable — scrollable container with elastic edge-snap + dithered edge fade
 
-Do this, in order, every single iteration:
+**Intent:** A data-table container we can make scrollable, where scrolling snaps
+*elastically* to the nearest column edge (horizontal) or row edge (vertical),
+and the rows/columns nearest the scroll edge fade out with a *dithered* fade.
+The header is sticky and does **not** scroll vertically.
 
-1. **Read this entire file**, including the **Decision log** (§9) and
-   **Progress notes** (§10). They are how past-you talks to present-you.
-2. **Confirm the working branch.** All work happens on `feat/non-ideal-state`.
-   ```bash
-   git rev-parse --abbrev-ref HEAD   # if not feat/non-ideal-state:
-   git checkout feat/non-ideal-state 2>/dev/null || git checkout -b feat/non-ideal-state main
-   ```
-3. **Pick exactly ONE task** — the *first* unchecked `[ ]` checkbox in §5,
-   reading top-to-bottom. Tasks are ordered; do not skip ahead. If a task
-   has unchecked sub-tasks, the first unchecked sub-task is your task.
-4. **Do only that one task.** Smallest correct, shippable change. Resist
-   scope creep. If a task is too big, split it into 2–4 finer `[ ]`
-   sub-tasks, then do the first.
-5. **Verify** with the gate in §3. The gate must be green.
-6. **If green:**
-   - Tick the box `[ ]`→`[x]` and append `— <one-line what/why>`.
-   - Add a dated bullet to **§10 Progress notes**.
-   - Record any decision / benchmark number in **§9 Decision log**.
-   - **Commit** (see §4). One task → one commit.
-7. **If blocked / not green:** do **not** tick the box. Append
-   `> BLOCKED: <reason + what you tried>` under the task and a §10 bullet;
-   commit safe partial progress as `wip:` *only if it builds*, else revert.
-   Then stop.
-8. **Stop after one task.** The loop re-invokes you for the next.
+**Current state**
+- Scroll container is `.viewport` (`overflow: auto`); header is `.headerRow`
+  (`position: sticky; top: 0; z-index: 1`). `DataTable.tsx` ~lines 623–771,
+  `DataTable.module.css` lines 10–28. No scroll-snap, no masks today.
+- Body rows: paginated (normal flow) or virtualized (`@tanstack/react-virtual`,
+  `position: absolute; transform: translateY(start)`, `overscan: 8`).
+- **Horizontal scroll is inherent, not a new mode.** The 1fr filler keeps the
+  table at constant width *only while the columns fit*. With many/wide columns
+  the fixed widths sum past the container, the filler collapses to its min, and
+  the table overflows ⇒ horizontal scroll. Two regimes:
+  - *Columns fit:* filler absorbs slack, table fills container, no h-scroll.
+  - *Columns overflow:* table exceeds container, h-scroll, filler at min.
+  So the column-axis features (horizontal snap, column edge-fade) have a natural
+  home — the overflow regime — and we do **not** need a separate `layout="scroll"`
+  mode. (Earlier framing of an opt-in scroll layout is dropped.)
+- **Latent layout bug — CONFIRMED, fix first (prerequisite for column features).**
+  Measured in a CT diagnostic (3 columns forced wide in a 400px container):
+  `viewport.scrollWidth = 1032` vs `clientWidth = 398` (overflow + h-scroll is
+  real), but `.headerRow` box width = **398** while the last header's right edge
+  is at **1033** — so when scrolled right the sticky header background (and the
+  row separators) stop at 398px and the overflowed cells have no background.
+  - The obvious CSS fix (`width: max-content; min-width: 100%` on `.headerRow` /
+    `.body` / `.row`) fixes the **header** and the **paginated** body (real grid
+    elements) but **NOT the virtualized body**: its rows are `position: absolute`,
+    and abs-positioned children don't contribute to a parent's `max-content`, so
+    the body stays clamped to the container. Virtualization is the default.
 
-**Hard rules**
+- **Chosen layout engine: per-column minimum + `minmax()` (decided).** Give each
+  column a `minWidth` (per-column override, defaulting to the global
+  `COLUMN_MIN_UNITS`). Size tracks as `minmax(minWidth, preferred)` for normal
+  columns and `minmax(minWidth, 1fr)` for the filler. CSS grid then does the
+  requested behaviour automatically:
+  - columns fit at their preferred widths → filler absorbs slack, table fills
+    the container — *behaves like now*;
+  - preferred widths exceed the container but the minimums still fit → columns
+    shrink from preferred toward their minimums (the 1fr gives up space first) to
+    stay within 100% — still no scroll;
+  - even the minimums exceed the container → columns pin at min, table overflows
+    → horizontal scroll.
+  The browser owns the fit↔scroll threshold; no JS width math for the common
+  cases. **Overflow — and therefore the header-bg/virtualized-body fix — is now
+  confined to the genuine "too many columns to fit even at min" case.**
+- **Overflow-case rendering fix (only when mins don't fit):** the table really
+  scrolls, so header bg + row separators + the virtualized body must render at
+  the *content* width (= Σ resolved widths). Header + paginated body get this via
+  `width: max-content`; the virtualized body needs an explicit width set in JS
+  (Σ column widths) since abs rows don't size their parent.
+- **Reconcile with the shipped resize cascade:** the cascade assumes fixed px
+  widths summing to the container. With `minmax` auto-shrink, decide whether a
+  manual resize sets a column's *preferred* (max) width and lets CSS redistribute
+  (simpler; naturally subsumes the min-clamping the cascade already does) or
+  keeps the explicit pixel cascade. Lean toward "resize sets preferred; CSS
+  minmax + filler do the rest."
+- The header-bg fix is worth shipping on its own — it's a real bug with many/wide
+  columns today.
 
-- One task, one commit. Never batch unrelated tasks.
-- Never work off `main`. Never `git push` (a human reviews/merges).
-- Never delete or rewrite §0–§4, §6, §7, §8. You may tick boxes in §5,
-  split tasks into sub-tasks, and append to §9/§10.
-- **Prefer no new runtime dependency.** Raw Canvas 2D / WebGL over a library
-  unless §2 research finds a *small, clearly-better* one — and even then,
-  record the bundle cost in §9 and get the rubric (§7) to justify it.
-- Keep the fill **decorative** (`aria-hidden`) and the message accessible.
-  The component's public behavior must stay backward-compatible (props may be
-  added; existing ones keep working).
-- If every box in §5 is `[x]`, the project is done: append a final §10 note
-  and stop.
+**Approach**
+- **Elastic snap:** CSS `scroll-snap-type` on `.viewport` with `proximity`
+  (gentle/elastic — only snaps when released near a boundary; `mandatory` would
+  feel rigid). Snap targets: `.row { scroll-snap-align: start }` for the
+  vertical axis; header (and first-row) cells `scroll-snap-align: start` for the
+  horizontal axis. Gate via a `scrollSnap?: "none" | "rows" | "columns" | "both"`
+  prop → sets `scroll-snap-type: y|x|both proximity`.
+- **Dithered edge fade:** the NonIdealState dither is a **WebGL fragment shader**
+  (`NonIdealState/webglFill.ts`) and is *not* extractable as a CSS mask. But a
+  *static* dithered fade is achievable in pure CSS by compositing two mask
+  layers on an edge overlay: `mask-image: <bayer-dot pattern>, linear-gradient(...)`
+  with `mask-composite: intersect` — the gradient gives the fade ramp, the Bayer
+  pattern quantises the alpha into dither dots. Static ⇒ reduced-motion-safe.
+  - Render an overlay element per fading edge (bottom for rows, inline-end for
+    columns) as a sibling inside `.viewport`, `position: sticky` to the edge,
+    `background: var(--sf-color-bg)`, masked so it dither-fades content beneath.
+    The overlay sits *below* the sticky header in z-order so the header stays
+    crisp; the bottom overlay never overlaps the header anyway.
+  - This overlay approach is **independent of virtualization** (it fades by
+    screen position, not by row index) — avoids per-virtual-row opacity math.
+  - Gate via `edgeFade?: "none" | "rows" | "columns" | "both"`.
 
----
+**Steps**
+1. Decide layout mode (a) vs (b) above; if (a), add `layout` prop +
+   `buildColumnTemplate` branch that omits the `1fr` filler in `scroll` mode.
+2. Add `scrollSnap` prop + CSS: `.viewport[data-snap~="rows"] { scroll-snap-type: y proximity }`,
+   `.row { scroll-snap-align: start }`; columns analogously on header cells.
+3. Add `edgeFade` prop + edge-overlay elements + the Bayer-dither mask CSS
+   (define the Bayer dot pattern as an inline SVG data-URI mask).
+4. Stories: a tall/wide dataset showing snap + dither fade in both axes; dark mode.
+5. Respect `prefers-reduced-motion`: snapping is fine; ensure no animated fade.
 
-## 2. Environment & how to run things
+**Verify:** Ladle DataTable stories — scroll vertically (rows snap, bottom edge
+dither-fades, header stays sticky/crisp) and horizontally in `scroll` layout
+(columns snap, trailing edge dither-fades). CT: assert overlay elements present
+and `scroll-snap-type` set. `npm run check/typecheck/build`.
 
-- **NixOS**: `node`/`npm` aren't on the bare PATH; this repo uses `direnv` +
-  a flake. If `npm` is missing, the dev shell isn't active.
-- **`just`** recipes: `just dev` (Ladle), `just check`, `just typecheck`,
-  `just test` (vitest, `*.test.{ts,tsx}` only), `just test-ct` (Playwright CT,
-  `*.spec.tsx`), `just build`.
-- **Ladle serves on http://localhost:61000** (see `.ladle/config.mjs`). NOTE:
-  the bundled `scripts/screenshot-story.mjs` still points at **:61001** — it is
-  stale and must be fixed (Task 0.2) before screenshots work. Story id is the
-  kebab-case `<file>--<export>` (e.g. `non-ideal-state--loading`); the story
-  renders inside an iframe, and `?mode=preview` shows it bare.
-- **Perf harness pattern**: model the new probe on `scripts/probe-graph.mjs`
-  (headless Playwright that drives a story and measures via `performance` +
-  `requestAnimationFrame`). It must report **sustained FPS**, **p95 JS
-  frame time**, and **long-task / dropped-frame count** over a few seconds.
-- **Reduced motion**: read `matchMedia("(prefers-reduced-motion: reduce)")`;
-  animated effects must render a single static frame instead.
-- **Canvas**: size the backing store to `cssWidth * devicePixelRatio` (and
-  scale the context) or the fill will be blurry / mis-covered on HiDPI.
-
----
-
-## 3. Verification gate (the change is only "green" if ALL pass)
-
-Run, at minimum:
-
-```bash
-just typecheck      # no TS errors
-just check          # Biome lint + format clean (run `just format` to fix)
-just test           # vitest green
-```
-
-When the task changes **rendering / effects / animation**, **also**:
-
-- Run the perf harness (Task 0.3) on the relevant story/size and record the
-  JSON numbers in §9. A perf-sensitive task is only green if it meets the
-  §7 target (sustained ≥ 55 fps at the M block, no long task > 50ms).
-- `just dev` + screenshot the relevant story (fixed script from 0.2); eyeball:
-  **the fill covers the entire block, every edge, at the tested size**; color
-  is subtle/token-based; no overlap/clipping of the message; reduced-motion
-  renders a clean static frame.
-
-`just test-ct` and `just build` are required green for the **Phase 5/6**
-finishing tasks, not every iteration.
-
----
-
-## 4. Commit convention
-
-```bash
-git add -A
-git commit -m "nis: <imperative summary of the one task>
-
-<optional 1–3 line body: what & why>
-
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
-```
-
-Keep messages scoped to the single task. Do not push.
-
----
-
-## 5. The plan (task checkboxes — tick as you complete)
-
-> House rules (full: `AGENTS.md` + `AESTHETICS.md`): tokens not literals,
-> CSS Grid for layout, `cx()`, sharp corners, **never grey body text** (the
-> message; the *fill* may be grey/transparent — it's decorative), always a
-> `prefers-reduced-motion` fallback, no new global color tokens, no
-> utility-class libs, no emoji, prefer no new deps.
-
-### Phase 0 — Setup, screenshot fix, perf harness, baseline
-
-- [x] **0.1** Confirm branch `feat/non-ideal-state` (create off `main` if
-      missing — the component already lives there). Baseline gate green. — on branch; baseline typecheck/check/test (63) green.
-- [x] **0.2** Fix `scripts/screenshot-story.mjs` to target **:61000** (Ladle's
-      configured port) instead of the stale :61001, so visual checks work.
-      Verify by screenshotting `non-ideal-state--empty`.
-- [x] **0.3** Add `scripts/probe-nonideal.mjs` (model on `probe-graph.mjs`): a
-      headless Playwright harness that opens a NonIdealState story at a given
-      block size, runs the animation ~4s, and prints one JSON line
-      `{renderer, w, h, fps, p95FrameMs, longTasks}`. Drive it via story hooks
-      (a `data-nis-*` attribute or a query param the lab stories read) so it
-      can target a specific renderer + size.
-- [x] **0.4** Record the **current** DOM-`<pre>` renderer's numbers at three
-      block sizes — S `≈240×140`, M `≈520×300`, L `≈960×540` — into §9 as the
-      baseline to beat.
-
-### Phase 1 — Fix the coverage bug (correctness, renderer-agnostic)
-
-- [x] **1.1** Replace the hardcoded `CELL_W/CELL_H` with a **measured** cell:
-      render a probe row, read its rect, compute `cols/rows` so the field
-      always **overfills by one cell and clips** — no gap on any edge. Verify
-      by screenshotting at deliberately awkward sizes (e.g. width 333px,
-      height 199px) in light **and** dark; the dither must reach all four
-      edges. (Canvas later makes this exact by construction; this fixes the
-      shipped DOM path now and gives a fair benchmark baseline.)
-
-### Phase 2 — Research + renderer prototypes (fixed shortlist)
-
-- [x] **2.0** Research note → §9: search for libraries that render an animated
-      dithered/ASCII *field* cheaply (e.g. three.js `AsciiEffect`, canvas
-      image-dither libs, shader toys). Record what exists, bundle cost, and
-      whether any fits (expectation per D3: image-dither libs are the wrong
-      shape and `AsciiEffect`/three is too heavy — roll our own — but
-      **confirm or refute**, don't assume).
-
-The loop benchmarks exactly these renderers (bounded set → converges). Each
-implements one shared field interface `intensity(x,y,t,params) → [0,1]` and a
-shared ramp, in a throwaway `src/components/NonIdealState/lab/`:
-
-1. **DOM `<pre>` string** (current, coverage-fixed) — baseline.
-2. **Canvas 2D — filled rects.** One alpha-stepped rect per cell, **batched by
-   ramp level** (group same-level cells, one fill per level) to cut draw calls.
-   Block-sized canvas ⇒ exact coverage.
-3. **Canvas 2D — `fillText`.** Draw the literal `░▒▓█` glyphs per cell (keeps
-   the true console character look); measure the text-draw cost.
-4. **WebGL fragment shader.** Compute intensity + Bayer threshold per cell on
-   the GPU (raw WebGL, no lib if feasible). The performance ceiling.
-
-- [x] **2.1** Extract the field math into a shared, renderer-agnostic module
-      (`fields.ts`): `ripple`, `noise`, `vignette` as pure
-      `(x,y,t,params)→intensity`, plus the Bayer ramp mapping. Unit-test it.
-- [x] **2.2** Prototype renderer #1 (DOM `<pre>`, coverage-fixed) behind the
-      shared interface as a lab story param. (May reuse current code.)
-- [x] **2.3** Prototype renderer #2 (Canvas 2D rects, batched) as a lab story.
-- [x] **2.4** Prototype renderer #3 (Canvas 2D `fillText`) as a lab story.
-- [x] **2.5** Prototype renderer #4 (WebGL shader) as a lab story. If WebGL
-      proves disproportionately complex for the win, split into a spike and
-      record the call in §9 rather than forcing it.
-
-### Phase 3 — Benchmark + auto-select the renderer
-
-- [x] **3.1** Run `probe-nonideal` on every prototype at S/M/L; record all
-      JSON rows in §9 (one table).
-- [x] **3.2** Apply the §7 rubric to pick the **winner**; record the winner +
-      scores + rationale in §9. Must clear the hard gates (≥55fps@M, full
-      coverage, supports subtle color + ≥2 effects).
-- [x] **3.3** Delete the losing prototypes' code (and any unused dep). Keep a
-      minimal perf-regression lab story for the winner only.
-
-### Phase 4 — Definitive renderer + parameterized effects + subtle color
-
-- [x] **4.1** Implement the winning renderer as the real `NonIdealState` fill,
-      replacing the per-frame `<pre>` rewrite. Keep it `aria-hidden`, keep the
-      message panel + variants, keep the vignette center-clear behavior.
-- [x] **4.2** Effects API: `effect?: "ripple" | "noise" | "vignette" | ...`
-      (variant picks a sensible default — loading→ripple, others→vignette).
-      Wire all effects through the shared `fields.ts`.
-- [x] **4.3** Parameterize the ripple: `{ speed, wavelength, amplitude,
-      origin }` (typed). Sensible defaults; expose via a prop
-      (e.g. `effectOptions`). Story shows live param control.
-- [x] **4.4** Add the **noise** effect: random per-cell density at a `rate`
-      (flicker fps), seedable for determinism. Reduced-motion → static seed.
-- [x] **4.5** **Subtle, token-based color**: a `color` prop accepting a base
-      (default a subtle token; `error`→`--sf-color-danger`) and render the
-      ramp as **alpha steps** of that base (grey/transparent), so the fill
-      reads as a faint texture, not a loud block. Theme-aware (light + dark).
-      Re-screenshot — should be markedly subtler than the brief's screenshot.
-- [x] **4.6** Guarantee **full coverage** in the winning renderer (canvas
-      sized to block × dpr, or measured-grid overfill) and pause work when
-      offscreen (IntersectionObserver) or the tab is hidden
-      (`visibilitychange`) to save CPU. Reduced-motion → one static frame.
-- [x] **4.7** Re-run the perf harness on the final component at S/M/L; confirm
-      the §7 target and record final numbers in §9.
-
-### Phase 5 — Stories, tests, docs, exports
-
-- [x] **5.1** Stories: an effects gallery (ripple / noise / vignette), a
-      params Playground (ripple speed/wavelength/amplitude), subtle-color
-      examples, and odd-size blocks proving full coverage.
-- [x] **5.2** CT specs (`*.spec.tsx`): message/action render; fill is
-      `aria-hidden`; role per variant; **fill covers the block** (canvas/grid
-      spans to each edge); reduced-motion renders static; an effect param
-      visibly changes output.
-- [x] **5.3** Keep `probe-nonideal` + a perf-regression lab story; record the
-      shipped numbers in §9.
-- [x] **5.4** Update `AGENTS.md`: document `effect`, `effectOptions`, `color`,
-      and the perf characteristics. Keep it terse.
-- [x] **5.5** Public surface: props-only, so no new `package.json` export /
-      `src/index.ts` change. Export any new effect/param **types** from the
-      component's `index.ts`. Keep the renderer + `fields.ts` internal.
-
-### Phase 6 — Finish
-
-- [x] **6.1** Full finishing gate green:
-      `just check && just typecheck && just test && just test-ct && just build`,
-      plus the perf target met (§7).
-- [x] **6.2** DoD sign-off (§6 below). Confirm every item; append a final
-      "PROJECT COMPLETE" §10 note. Stop.
+**Layout engine: decided** — per-column `minWidth` + `minmax()` tracks (browser
+handles fit→shrink-to-min→scroll). Remaining open items: (1) the overflow-case
+content-width render fix (header bg + virtualized body); (2) reconcile manual
+resize (preferred-width vs the explicit cascade). The header-bg fix is worth
+doing on its own — it's a latent bug today with many/wide columns.
 
 ---
 
-## 6. Definition of Done
+## 2. Skeleton — reuse the NonIdealState dithered effects (not just shimmer)
 
-- The dithered fill **covers the entire block** at any size, every edge, light
-  + dark — verified by screenshot at awkward sizes and by a CT assertion.
-- The animated fill uses the **benchmarked-fastest** renderer; it sustains
-  **≥ 55 fps at the M block** with no long task > 50ms (harness-measured,
-  numbers in §9), and **pauses when offscreen / tab hidden**.
-- The ripple is **parameterizable** (speed, wavelength, amplitude, origin) and
-  there is **≥ 1 additional effect** (noise) plus the static vignette, all
-  behind one `effect` API.
-- The fill color is **subtle and token-based** (alpha steps of a base color;
-  grey/transparent; `error` uses the danger token) and theme-aware.
-- No new **global** color token; **no new runtime dependency** unless the
-  rubric + §9 explicitly justify a small one. Fill stays `aria-hidden`; message
-  stays accessible; `role` per variant intact; reduced-motion static.
-- House rules honored (tokens, CSS Grid, `cx`, sharp corners, no emoji).
-- Tests: vitest for `fields.ts` math; CT for render / coverage / a11y /
-  reduced-motion / effect-param. `just test` + `just test-ct` green.
-- A renderer benchmark table + the auto-select rationale live in §9. Stories
-  cover effects + params + odd sizes. `AGENTS.md` updated. `just build` green.
-  Nothing pushed.
+**Intent:** Skeleton currently uses a shimmer sweep; give it the same animated
+dithered effects as NonIdealState.
 
----
+**Current state**
+- `Skeleton` is a static box with a CSS `::after` shimmer (`Skeleton.module.css`),
+  props: `shape`, `width/height/size`. Reduced-motion → shimmer hidden.
+- NonIdealState owns the effect engine: `createWebglFill(canvas)` +
+  `NonIdealState.tsx` (RAF loop, resize, IntersectionObserver pause,
+  visibilitychange pause, reduced-motion static frame). 24 effects in
+  `effects.ts`. Effect props: `effect`, `speed`, `density`, `cellSize`,
+  `effectOptions`, `color`, `opacity`.
 
-## 7. Selection rubric (Phase 3 — deterministic)
+**Approach**
+- Extract the canvas plumbing (create/resize/RAF/observers/reduced-motion) out of
+  `NonIdealState.tsx` into a reusable internal hook or component — e.g.
+  `src/components/NonIdealState/useDitheredFill.ts` (returns a `ref` + takes the
+  effect params) or a `<DitheredFill>` internal component. Refactor NonIdealState
+  to consume it (no behaviour change — keep its tests green).
+- Add effect support to Skeleton: a `effect?: EffectName` prop (+ pass-through
+  `speed`/`density`/`cellSize`/`color`/`effectOptions`). When set, render a
+  `<canvas>` filling `.root` (driven by the shared hook) and drop the shimmer
+  `::after`; when unset, keep today's shimmer (default, backward-compatible).
+- Reduced-motion: inherited from the shared hook (static `t=0` frame).
 
-For each renderer, from the §9 benchmark table. **Hard gates (must pass all,
-else disqualified):** sustains **≥ 55 fps at M**; **fully covers** the block at
-all sizes; can render **subtle token-based color**; supports **≥ 2 effects**.
+**Steps**
+1. Refactor: lift the WebGL/RAF/observer logic from `NonIdealState.tsx` into the
+   shared hook/component; rewire NonIdealState to use it; run NonIdealState tests.
+2. Add `effect` (+ effect params) to `SkeletonProps`; render the canvas when
+   present; gate the shimmer `::after` to the no-effect case.
+3. Stories: Skeleton with shimmer (default) and with a couple of effects.
 
-Among survivors, **weighted score** (higher = better), each metric normalized
-linearly across candidates to [0,1]:
+**Verify:** NonIdealState stories/tests unchanged; Skeleton stories show shimmer
+and effect modes; reduced-motion shows a static frame. Gates green.
 
-- Sustained FPS at **M** block — weight **0.35**
-- p95 JS frame time at **L** block (lower better) — weight **0.30**
-- Long-task / dropped-frame count at L (lower better) — weight **0.15**
-- Dither fidelity / crispness (does it still read as console blocks?) — **0.10**
-- Implementation simplicity / no-new-dep (less code, zero dep better) — **0.10**
-
-Highest score wins. Tie-break: fewer dependencies, then less code. Record the
-table, the normalized scores, and the winner in §9 so it isn't relitigated.
+**Note:** the dither is GPU/WebGL — Skeleton with an effect mounts a canvas +
+GL context, heavier than the CSS shimmer. Keep shimmer the default.
 
 ---
 
-## 8. Reference — house rules pointers (do not duplicate, just obey)
+## 3. Selector — inline chip overflow expands as a downward overlay (no reflow)
 
-- `AGENTS.md` — catalogue, conventions, anti-patterns; the `NonIdealState` row.
-- `AESTHETICS.md` — empty/error/loading guidance (explain what's missing; no
-  whimsy; no skeuomorphic texture — but console dither is a native idiom).
-- `src/tokens/tokens.css` — every `--sf-*` (colors, durations, eases).
-- `src/components/NonIdealState/` — current implementation (DOM `<pre>` +
-  `dither.ts`) being improved.
-- `scripts/probe-graph.mjs` — the perf-harness pattern to copy for 0.3.
-- `CLAUDE.md` — build chain, `*.test` vs `*.spec` split, three-place export
-  registration (not needed here — props only).
+**Intent:** In `layout="inline"`, when chips exceed one row, don't grow the box
+in place / push content down. On click/focus, raise elevation and expand
+*downward as an overlay* that covers content below; collapse back to one row on
+blur.
+
+**Current state**
+- `Selector.tsx` inline layout wraps `Combobox.Chips` + `Combobox.Input` (+ Clear)
+  in `Combobox.InputGroup`. `Combobox.module.css` `.inputGroup` is
+  `flex-wrap: wrap; min-block-size: calc(--sf-unit * 1.5)` ⇒ today it grows taller
+  in normal flow (pushes page content).
+- Elevation pattern exists: `Box` `data-elevation` + `--sf-elevation-1..5`;
+  `Popover.Popup` renders as `<Box elevation={3}>`. Z tokens: `--sf-z-dropdown`
+  1000 … `--sf-z-popover` 1300.
+
+**Approach**
+- Wrap the inline group in a `position: relative` shell that **reserves the
+  collapsed (one-row) height** so surrounding layout never shifts. The inner
+  group is the overlay:
+  - Collapsed (not focused): `max-block-size: <one row>`, `overflow: hidden`,
+    show a trailing "+N" overflow indicator when chips are clipped.
+  - Expanded (`:focus-within`): `position: absolute; inset-inline: 0; top: 0`,
+    `max-block-size: none` (auto height, wraps all chips), `z-index:
+    var(--sf-z-dropdown)`, elevation shadow (`--sf-elevation-3`), so it floats
+    over content below instead of pushing it.
+  - Prefer pure CSS `:focus-within` (no JS); if "+N" needs the hidden count, use a
+    small `expanded` state / `ResizeObserver`-free count (number of selected −
+    a CSS-derived visible count is hard, so compute "+N" only when collapsed and
+    chips overflow — acceptable to show total count e.g. "3 selected" collapsed).
+- The dropdown popup (Combobox.Positioner/Popup) is separate and already floats;
+  ensure it stacks above the expanded chip overlay (see item 8 z-index fix).
+
+**Steps**
+1. Restructure inline JSX: relative shell + inner overlay group; add a collapsed
+   overflow indicator element.
+2. CSS in `Selector.module.css` (inline-specific, so we don't disturb Combobox's
+   generic `.inputGroup`): collapsed `max-height` + clip; `:focus-within`
+   expanded absolute + elevation + z-index; transition (reduced-motion fallback).
+3. Decide the collapsed indicator: "+N" vs "N selected" vs fade — see open Q.
+4. Stories: inline Selector with many chips; show collapse/expand over content.
+
+**Verify:** Ladle — many chips, collapsed shows one row + indicator and does not
+push the element below; focusing expands downward as an elevated overlay; blur
+collapses. Dark mode; reduced-motion (no transition). CT for expand-on-focus.
+
+**Open question:** collapsed overflow affordance — "+N more" chip, a count, or a
+gradient fade? (Recommend a small "+N" pill at the trailing edge.)
 
 ---
 
-## 9. Decision log (append-only — newest at bottom)
+## 4. Selector — size presets (sm / md / lg), mirroring Input
 
-- **D1 — Branch.** Improvement work continues on `feat/non-ideal-state` (the
-  component is there, unmerged/unreleased). No merge until a human reviews.
-- **D2 — Coverage bug root cause.** The grid is computed from a hardcoded
-  `CELL_W=7 / CELL_H=11`, but at the 10px monospace font the real cell is
-  ~6px wide, so `cols = ceil(width/7)` under-counts and the field stops short
-  of the right/bottom edge (the brief's white strip). Fix: measure the real
-  cell (Phase 1); ultimately a canvas sized to the block makes coverage exact.
-- **D3 — Dependency stance.** Default to **no new dependency** — raw Canvas 2D
-  / WebGL. Image-dither libraries operate on bitmaps (wrong shape) and
-  three.js `AsciiEffect` pulls in a 3D engine (too heavy). Phase 2.0 must
-  *verify* this before committing; any lib must clear the rubric + log bundle
-  cost.
-- **D4 — Color.** Fill color becomes **subtle**: alpha steps of a base token
-  (grey/transparent by default; `error` = `--sf-color-danger` at low alpha),
-  not the current prominent muted fill. Decorative, so grey is allowed (unlike
-  body text).
-- **D5 — Tooling.** `scripts/screenshot-story.mjs` targets the stale port
-  :61001; Ladle serves :61000 (`.ladle/config.mjs`). Fixed in Task 0.2.
-- **D7 — Library research (2.0).** Surveyed: `ditherwave` (~8kb WebGL2, zero
-  deps) dithers a *source* `<img>/<video>/<canvas>` — wrong shape for a
-  procedural animated field; `ascii-shader-tsx` is a codegen agent-skill, not a
-  runtime dep; Aceternity / React Bits "Dither" / shadcn shader14 pull in
-  React-Three-Fiber / three.js (heavy) or are Tailwind-coupled (violates our
-  CSS-Modules rule). **Conclusion: no drop-in fits** — confirms D3, roll our own
-  Canvas 2D / WebGL. The shader examples validate WebGL as the perf path, as
-  raw WebGL (no dependency).
-- **D6 — Baseline (DOM `<pre>`, current renderer), via `probe-nonideal`.**
-  | size | w×h | fps | p95FrameMs | longTasks |
-  |------|-----|-----|-----------|-----------|
-  | S | 240×140 | 60 | 16.7 | 0 |
-  | M | 520×300 | 60 | 16.8 | 0 |
-  | L | 960×540 | 60 | 16.8 | 0 |
-  **Caveat:** the shipped component throttles its ripple to ~20fps (50ms), so
-  rAF stays at 60 and the per-update string-rebuild cost is hidden even at L —
-  the benchmark **understates** the DOM cost. Phase 2/3 prototypes must animate
-  at the **full 60fps update rate** (no throttle) so the harness exposes each
-  renderer's true cost; re-baseline the DOM renderer un-throttled in Phase 3
-  for an apples-to-apples comparison.
-- **D8 — Benchmark (3.1), unthrottled draw CPU cost (avgDrawMs).** All four
-  hold 60fps / 0 long-tasks at every size (rAF saturates), so per-frame draw
-  CPU time is the discriminator:
-  | renderer | S 240×140 | M 520×300 | L 960×540 |
-  |----------|-----------|-----------|-----------|
-  | webgl | 0.073 | 0.071 | **0.05** |
-  | dom `<pre>` | 0.193 | 0.345 | 0.899 |
-  | canvas-rects | 0.377 | 0.798 | 1.805 |
-  | canvas-text | 0.9 | 1.52 | 2.872 |
-  WebGL is cheapest and **flat** with grid size (GPU-bound); canvas-2D
-  (rects/text) is *slower* than the DOM string rewrite (per-cell fillRect/
-  fillText dominates).
-- **D9 — Winner: WebGL (3.2).** Rubric (§7) weights perf 0.80 → WebGL wins
-  decisively on draw CPU. The tradeoff (each effect re-coded in GLSL, token
-  color parsed to floats, context-loss handling) was surfaced to the user, who
-  **chose WebGL for maximum performance** over the simpler DOM renderer. So the
-  shipped fill is a WebGL fragment shader; effects (ripple/noise/vignette) and
-  ripple params live as shader uniforms; `fields.ts` stays the reference for
-  the DOM-side static/reduced-motion path and tests.
-- **D10 — Shipped renderer perf (4.7).** WebGL fill via `webglFill`: draw CPU
-  0.067 / 0.065 / 0.059 ms at S/M/L — flat with size, 60fps, 0 long-tasks.
-  ~3–15× cheaper than the old DOM baseline (0.193 / 0.345 / 0.899), well under
-  the §7 target. Animation also pauses entirely when offscreen/tab-hidden.
+**Intent:** Give Selector size presets like `Input`.
 
-## 10. Progress notes (append-only — newest at bottom)
+**Current state**
+- `Input` has `inputSize?: "sm" | "md" | "lg"` → `.sizeSm` / `.sizeLg` classes
+  (md is the unclassed default). They set `block-size`, `padding-inline`,
+  `font-size` (`Input.module.css` ~lines 79–89).
 
-- 2026-06-14 — Plan authored to improve the just-built `NonIdealState`.
-  Targets: research + benchmark renderers (DOM `<pre>` vs Canvas-rects vs
-  Canvas-`fillText` vs WebGL) and keep the fastest; parameterized ripple +
-  added effects (noise) via a shared `fields.ts`; subtle token-based color;
-  and fix the coverage bug (known cause: hardcoded cell metrics — D2). Build
-  order: harness + coverage fix first (correctness + fair baseline), then
-  research → prototypes → benchmark → auto-select → rebuild → test/doc. First
-  task for the loop: **0.1**. Watch-outs: HiDPI canvas sizing, pausing
-  animation offscreen/hidden, and keeping the fill `aria-hidden` while the
-  message stays accessible.
-- 2026-06-14 — **PROJECT COMPLETE.** All §5 boxes ticked; DoD (§6) confirmed:
-  WebGL fragment-shader fill (chosen by benchmark + user) at ~0.06ms/frame flat,
-  60fps, 0 long-tasks, pausing offscreen/tab-hidden; **coverage bug fixed**
-  (canvas × dpr — verified at 333×199 and via CT); parameterized ripple +
-  **noise** + vignette behind one `effect`/`effectOptions` API (`fields.ts`
-  reference + unit tests); **subtle token-based color** (`color`/`opacity`,
-  per-level alpha, error=danger, theme-aware); no new global token, **no new
-  dependency**; fill `aria-hidden`, message accessible, role per variant,
-  reduced-motion static. Finishing gate green: check, typecheck, vitest (73),
-  build, Playwright CT (175). Nothing pushed — awaiting human review. Done.
+**Approach & steps**
+1. Add `size?: "sm" | "md" | "lg"` (default `md`) to `SelectorProps`.
+2. Add sizing classes to `Selector.module.css` and the inline group in
+   `Combobox.module.css` (`.inputGroup` sm/lg variants) — `block-size`/
+   `min-block-size`, `font-size`, `padding` mirroring Input's three steps; scale
+   chip font-size with the control size.
+3. Thread the size to the rendered `Combobox.Input` / `InputGroup` (data-attr or
+   class). Keep the panel layout's search field sized too.
+4. Stories: all three sizes, panel + inline.
+
+**Verify:** Ladle three sizes line up with `Input` heights; chips scale; gates green.
+
+---
+
+## 5. Timeline — compact variant (labels only on hover / scrub)
+
+**Intent:** A compact Timeline with no always-visible labels; labels appear on
+hover and while scrubbing.
+
+**Current state**
+- `Timeline.tsx`: events render `.eventConnector` + `.eventLabel` + `.eventMarker`;
+  labels are **always visible** (`Timeline.module.css` `.eventLabel`, lanes via
+  `lanes.ts`). Scrub uses inline pointer handlers + `setPointerCapture`
+  (`dateFromClientX`), not `usePointerDrag`. Markers have a hover scale.
+
+**Approach**
+- Add `compact?: boolean` (or `labels?: "always" | "auto"`). In compact:
+  `.eventLabel { opacity: 0; transition: opacity … }`, revealed on
+  `.event:hover/:focus-within .eventLabel { opacity: 1 }`.
+- While scrubbing, reveal the label(s) near the playhead: track an `isScrubbing`
+  state (set on pointerdown, cleared on up) + the active date; mark the nearest
+  event(s) with a `data-active` flag → CSS reveals their labels.
+- In compact mode, lane stacking can collapse (labels are transient) → can reduce
+  default `maxLanes`/height; keep markers + axis always visible.
+
+**Steps**
+1. Add the prop; thread `data-compact` on the viewport.
+2. CSS opacity toggle (hover/focus + `[data-active]`); reduced-motion → no
+   transition (instant show/hide).
+3. Scrub-reveal: add `isScrubbing` state; compute nearest event to the current
+   scrub date; set `data-active` on it (and within a small window).
+4. Stories: compact timeline; verify labels appear on hover and during scrub.
+
+**Verify:** Ladle — compact hides labels at rest; hover/focus shows one; scrub
+reveals labels near the playhead. Reduced-motion. Gates green.
+
+---
+
+## 6. Timeline — range select / scrub variant
+
+**Intent:** A Timeline variant where you can select/scrub a *range* (not just a
+single playhead).
+
+**Current state**
+- Single playhead via `value?: Date` + `onChange?(date)`; one scrubbable track.
+
+**Approach (API decision needed)**
+- Add a range mode. Cleanest API: a discriminated `mode`:
+  - default (today): `value?: Date`, `onChange?(date)`.
+  - range: `value?: [Date, Date]`, `onChange?([start, end])` —选 either an
+    explicit `mode="range"` prop or infer from a tuple `value`. Recommend an
+    explicit `range` boolean (or `mode`) to keep types clean.
+- Render two playhead handles + a highlighted region between them. Pointer logic
+  (reuse `dateFromClientX` + snapping per handle):
+  - drag a handle → move that bound (clamp to the other bound + [start,end]);
+  - drag the region body → translate both bounds together;
+  - click on empty track → optionally move the nearest bound.
+- Keyboard a11y: handles focusable, arrow keys nudge (mirror the resize/keyboard
+  pattern), with `aria-valuemin/max/now` and role="slider".
+
+**Steps**
+1. Decide API (`range`/`mode` + value/onChange shape); update `TimelineProps`.
+2. Render two handles + brush region (new CSS: `.rangeHandle`, `.rangeRegion`).
+3. Pointer handlers for each handle + region drag; per-handle snapping; clamping.
+4. Keyboard handles (role=slider, arrows).
+5. Stories: range timeline with events; controlled value.
+
+**Verify:** Ladle — drag each handle, drag the region, snapping works, bounds
+clamp; keyboard moves handles. Gates green. (Heavier item — consider a separate
+PR.)
+
+---
+
+## 7. Typography — monospace looks larger than sans at the same `font-size`
+
+**Intent:** Research why mono reads larger than sans at equal size; apply the
+right correction.
+
+**Current state / cause**
+- Tokens (`tokens.css` ~71–93): `--sf-font-sans` (system UI sans),
+  `--sf-font-mono` (JetBrains Mono first). Size ladder sm/md/lg. **No
+  `font-size-adjust` anywhere.**
+- Cause is **x-height ratio**: JetBrains Mono has a notably tall x-height (~0.55
+  em) and wide fixed-width glyphs, so at an equal `font-size` it appears larger
+  and heavier than the system sans (whose x-height differs). This is the textbook
+  `font-size-adjust` problem.
+- Mono is used in: Input, TextEdit, Combobox/Selector input + chips, DataTable
+  code cells, Timeline/BarChart/BridgeChart/axis tick labels, CommandBar,
+  Markdown code, Outliner, Scatterplot tooltip. Sans is the body default.
+
+**Approach**
+- Preferred: `font-size-adjust` so mono is normalised to the same *perceived*
+  x-height as sans. Modern support: Chrome 127+, Firefox 3+, Safari 16.4+
+  (`font-size-adjust: <number>` and `from-font`). Apply to the mono base so all
+  mono text shrinks to match — e.g. set `font-size-adjust` matching the sans
+  x-height ratio (research the exact JetBrains Mono vs system-sans x-heights;
+  ~0.52–0.53 is a plausible target). 
+- Fallback for older engines: a tuned `--sf-font-mono-scale` (~0.92–0.94) applied
+  as `font-size: calc(<size> * var(--sf-font-mono-scale))` on mono usages, OR a
+  shared `.mono` utility. Prefer `font-size-adjust` with the scale as the
+  `@supports not` fallback.
+
+**Steps**
+1. Research & document the x-height ratios (cite sources) and pick the target
+   `font-size-adjust` value; prototype on Input + Timeline ticks (mono next to
+   sans) to tune by eye.
+2. Add the correction at the token/base level (a `--sf-*` token or a shared rule
+   applied wherever `--sf-font-mono` is set), with an `@supports` fallback scale.
+3. Visually verify mono/sans optical size match across components; check that
+   monospace alignment (the reason mono is used) is preserved.
+
+**Verify:** side-by-side mono vs sans at sm/md/lg read as the same size; Input,
+ticks, chips, code cells look right in light/dark; no layout breakage. Gates green.
+
+---
+
+## 8. Fix issue #2 — Combobox/Selector dropdown renders behind the sticky DataTable header
+
+Issue: https://code.tarassov.ch/ux/swiss-function/issues/2 (affects v0.11.0).
+
+**Intent / bug:** The Combobox/Selector dropdown popup declares
+`z-index: var(--sf-z-dropdown)` (1000) but sits on a `position: static` element,
+so the z-index is inert. Base UI's Positioner establishes a stacking context via
+`transform: translate(...)` with `z-index: auto`, trapping the popup. Result: a
+DataTable sticky header (`z-index: 1`) paints **over** the dropdown — the first
+list item hides behind the header row.
+
+**Current state**
+- `Combobox.module.css` `.popup` has `z-index: var(--sf-z-dropdown)` but the popup
+  isn't positioned, so the value does nothing. `Combobox.Positioner`
+  (`BaseCombobox.Positioner`) is currently a pass-through (unstyled).
+
+**Approach (root-cause fix, central in Combobox so Selector inherits it)**
+- Give the **positioner** the z-index (it's the element that creates the
+  transformed stacking context), so the whole floating context lifts above page
+  content. Wrap `BaseCombobox.Positioner` to apply a `styles.positioner` class
+  with `z-index: var(--sf-z-dropdown)`. Alternatively/additionally set
+  `.popup { position: relative }` so its own z-index participates. Prefer styling
+  the positioner.
+- Audit the **same latent bug** in other Base UI Positioner-based components:
+  `Menu`, `Popover` (Popover sets z-index on `.popup` too — check it's effective),
+  `CommandBar`. Apply the positioner-z-index fix where needed.
+
+**Steps**
+1. In `Combobox.tsx`, wrap `Positioner` to add `styles.positioner`; add
+   `.positioner { z-index: var(--sf-z-dropdown) }` in `Combobox.module.css`
+   (keep/也 set `.popup { position: relative }` as belt-and-suspenders).
+2. Grep other components for `Positioner` pass-throughs + `.popup { z-index }` on
+   static elements; fix the same way (Menu/Popover/CommandBar).
+3. Regression test: a Selector/Combobox positioned above a DataTable with a
+   sticky header — open the dropdown, assert the first option is visible above
+   the header (CT: compare bounding boxes / `toBeVisible` + not occluded).
+
+**Verify:** Ladle repro (Selector over a DataTable) — dropdown's first item is no
+longer hidden by the sticky header, in light/dark. CT regression. Gates green.
+This is small + high-value; good candidate to fix and release first (v0.11.1).
+
+---
+
+## Suggested sequencing
+
+1. **#8** (z-index) — small, fixes a shipped bug; release as v0.11.1.
+2. **#4** (Selector sizes) and **#3** (Selector overflow overlay) — related, do together.
+3. **#7** (mono/sans size) — small, broad polish.
+4. **#5** (compact Timeline), then **#6** (range Timeline — heaviest).
+5. **#2** (Skeleton effects, needs the NonIdealState refactor) and **#1**
+   (DataTable scroll/snap/fade — needs the layout-mode decision) — larger, last.

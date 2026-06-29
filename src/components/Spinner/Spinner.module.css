@@ -1,0 +1,23 @@
+.root {
+  display: inline-block;
+  /* Stable width so variable-width glyphs (and the cycling) never shift layout. */
+  min-inline-size: 1ch;
+  text-align: center;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  line-height: 1;
+  color: inherit;
+  /* Tabular, non-selectable instrument readout. */
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.sm {
+  font-size: var(--sf-font-size-sm);
+}
+.md {
+  font-size: var(--sf-font-size-md);
+}
+.lg {
+  font-size: var(--sf-font-size-lg);
+}

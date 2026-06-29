@@ -115,6 +115,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
+| `Spinner`                | Inline CLI-style animated glyph (`role="status"`) for "busy" feedback. 28 monospace `variant`s (braille/line/blocks/bars/grow/bounce/arrow/quadrant/triangle/circle/corners/pipe/star/toggle/dots/pulse/scanner/arrowDouble/caret/trigram/dqpb/arc/clockface/balloon/weave/boxCorners/quadrantHeavy/static); `color` (any token) + `size`, else inherits; `speed`. Reduced-motion → static frame. The `useSpinnerFrame(variant, speed)` hook embeds the glyph in other components. |
 | `NonIdealState`          | Empty / no-results / error / loading state for a region. A sizable block continuously filled (WebGL, ~0.06ms/frame, pauses offscreen) with console-style dithered shade blocks; message + action in the cleared center. Props: `variant`, `title`, `description`, `action`, `width`/`height`, `effect` (24 animated: ripple/noise/scan/plasma/rain/wave/spiral/radar/tunnel/fire/bars/metaballs/rotozoom/twister/copper/voronoi/grid/kaleidoscope/starfield/swirl/helix/checker/droplets/lissajous; per-variant defaults: empty→plasma, no-results→noise, error→scan, loading→ripple), `effectOptions` (speed/wavelength/amplitude/rate/density/seed), `speed`, `density` (overall coverage), `cellSize` (square shade-block px), `color` + `opacity`. Reduced-motion → static frame. |
 | `StreamingTerminalText`  | Terminal/log output that arrives incrementally.    |
 
@@ -270,6 +271,7 @@ Common requests and the right component:
 | "a 3D bar / 3D pie chart"                          | none — chartjunk; use `Heatmap`, `Surface`, or a 2D `BarChart` |
 | "a network / dependency graph / mind map"          | `Graph`                                          |
 | "loading state"                                    | `Skeleton` (inline placeholder) / `NonIdealState variant="loading"` (whole region) |
+| "a spinner" / "busy / activity indicator"          | `Spinner` (inline glyph; `useSpinnerFrame` to embed) |
 | "empty state" / "no results" / "error state"       | `NonIdealState` (variant per case)               |
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |

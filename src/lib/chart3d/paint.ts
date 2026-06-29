@@ -3,7 +3,7 @@
 /**
  * Size a canvas to its CSS box at device-pixel resolution and return a context
  * pre-scaled so all drawing can use CSS pixels. Returns null if the box is empty
- * or 2D context is unavailable. Mirrors the DPR sizing in NonIdealState/webglFill.
+ * or 2D context is unavailable. Mirrors the DPR sizing in lib/effects/webglFill.
  */
 export function prepareCanvas(
   canvas: HTMLCanvasElement,
