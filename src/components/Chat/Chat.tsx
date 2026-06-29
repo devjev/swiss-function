@@ -1,15 +1,16 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { Button } from "../Button";
+import { Button, type ButtonVariant } from "../Button";
 import { Markdown } from "../Markdown";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
 import styles from "./Chat.module.css";
 import { type ChatChoice, ChatChoices } from "./ChatChoices";
-import { ChatTree, type ChatTreeNode } from "./ChatTree";
+import { ChatThinking } from "./ChatThinking";
+import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
 
-export type { ChatChoice, ChatTreeNode };
+export type { ChatChoice, ChatStepStatus, ChatTreeNode };
 
 export type ChatRole = "user" | "assistant";
 
@@ -38,6 +39,24 @@ export interface ChatTreePart {
   roots: ChatTreeNode[];
 }
 
+/** An assistant "thinking" block: a spinner that expands into a live
+ *  orchestration fan-out (a status tree), collapsing to a summary when done.
+ *  Drive it by updating the message — like `isStreaming`. */
+export interface ChatThinkingPart {
+  type: "thinking";
+  partId?: string;
+  /** Run state. `running` shows a live spinner; `done` collapses to `summary`. */
+  status: "running" | "done" | "error";
+  /** Header text while running / on error. Default "Thinking…" / "Failed". */
+  label?: string;
+  /** The fan-out — status-annotated `ChatTreeNode`s, grown as agents spawn. */
+  steps?: ChatTreeNode[];
+  /** Collapsed-line text when done. Default `Ran N steps`. */
+  summary?: string;
+  /** Force the initial expand state (otherwise expanded unless `done`). */
+  defaultExpanded?: boolean;
+}
+
 /** Escape hatch for any other block — rendered by `Chat`'s `renderPart`. */
 export interface ChatCustomPart {
   type: string;
@@ -45,7 +64,12 @@ export interface ChatCustomPart {
   [key: string]: unknown;
 }
 
-export type ChatPart = ChatTextPart | ChatChoicesPart | ChatTreePart | ChatCustomPart;
+export type ChatPart =
+  | ChatTextPart
+  | ChatChoicesPart
+  | ChatTreePart
+  | ChatThinkingPart
+  | ChatCustomPart;
 
 /** Emitted when a user interacts with a non-text block (chooses an option,
  *  clicks a tree node, or a custom block calls back). */
@@ -77,7 +101,16 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
   /** Fired when a user interacts with a choices / tree / custom block. */
   onAction?: (action: ChatAction) => void;
+  /** Placeholder text shown in the empty input. Default "Ask anything…". */
   placeholder?: string;
+  /** Caption for the submit button. Default "Send". */
+  sendLabel?: string;
+  /** Visual variant of the submit button. Default "secondary" (non-primary). */
+  sendVariant?: ButtonVariant;
+  /** Override the input field's border colour (any CSS colour). Defaults to the
+   *  neutral `--sf-color-border` token; pass e.g. `var(--sf-color-primary)` to
+   *  restore the accented look. */
+  borderColor?: string;
   /** Container height. Default `calc(var(--sf-unit) * 20)` (= ~480px). */
   height?: number | string;
   /** Whether the input is disabled (e.g., while the assistant is still streaming). */
@@ -91,6 +124,9 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     renderPart,
     onAction,
     placeholder = "Ask anything…",
+    sendLabel = "Send",
+    sendVariant = "secondary",
+    borderColor,
     height,
     disabled,
     className,
@@ -193,6 +229,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
 
   const wrapperStyle: CSSProperties = {
     height: typeof height === "number" ? `${height}px` : (height ?? "calc(var(--sf-unit) * 20)"),
+    ...(borderColor ? { "--sf-chat-input-border": borderColor } : null),
     ...style,
   };
 
@@ -260,6 +297,23 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
             </div>
           );
         }
+        case "thinking": {
+          const p = part as ChatThinkingPart;
+          return (
+            <div key={key} className={styles.part}>
+              <ChatThinking
+                status={p.status}
+                label={p.label}
+                steps={p.steps}
+                summary={p.summary}
+                defaultExpanded={p.defaultExpanded}
+                onSelect={(id) =>
+                  onAction?.({ messageId: msg.id, partId: p.partId, type: "thinking", value: id })
+                }
+              />
+            </div>
+          );
+        }
         default: {
           const node = renderPart?.(part, { message: msg });
           return node ? (
@@ -313,8 +367,13 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
           rows={1}
           className={styles.input}
         />
-        <Button type="submit" variant="primary" elevation={1} disabled={disabled || !input.trim()}>
-          Send
+        <Button
+          type="submit"
+          variant={sendVariant}
+          elevation={1}
+          disabled={disabled || !input.trim()}
+        >
+          {sendLabel}
         </Button>
       </form>
     </div>

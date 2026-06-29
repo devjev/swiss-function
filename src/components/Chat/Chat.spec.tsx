@@ -54,6 +54,32 @@ test("send button is disabled when input is empty", async ({ mount }) => {
   await expect(c.getByRole("button", { name: "Send" })).toBeDisabled();
 });
 
+test("send button is non-primary by default; sendLabel/sendVariant customize it", async ({
+  mount,
+}) => {
+  // Two chats side by side: the default (secondary) button must NOT share the
+  // primary's fill — proving the default is de-accented — and both captions land.
+  const c = await mount(
+    <div>
+      <Chat messages={[]} onSubmit={() => {}} sendLabel="Go" />
+      <Chat messages={[]} onSubmit={() => {}} sendVariant="primary" sendLabel="Ship" />
+    </div>,
+  );
+  const defaultBg = await c
+    .getByRole("button", { name: "Go" })
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  const primaryBg = await c
+    .getByRole("button", { name: "Ship" })
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(defaultBg).not.toBe(primaryBg);
+});
+
+test("input border is neutral by default and overridable via borderColor", async ({ mount }) => {
+  const c = await mount(<Chat messages={[]} onSubmit={() => {}} borderColor="rgb(255, 0, 0)" />);
+  const border = await c.locator("textarea").evaluate((el) => getComputedStyle(el).borderTopColor);
+  expect(border).toBe("rgb(255, 0, 0)");
+});
+
 test("streaming assistant message renders via StreamingTerminalText", async ({ mount, page }) => {
   const c = await mount(
     <Chat
@@ -79,4 +105,87 @@ test("disabled prop disables the send button but NOT the input", async ({ mount 
   const c = await mount(<Chat messages={[]} onSubmit={() => {}} disabled />);
   await expect(c.locator("textarea")).not.toBeDisabled();
   await expect(c.getByRole("button", { name: "Send" })).toBeDisabled();
+});
+
+// --- Thinking / orchestration fan-out ---
+
+const RUNNING_THINKING = {
+  id: "a1",
+  role: "assistant" as const,
+  parts: [
+    {
+      type: "thinking" as const,
+      partId: "orch",
+      status: "running" as const,
+      steps: [
+        {
+          id: "plan",
+          label: "plan",
+          status: "running" as const,
+          children: [
+            { id: "s0", label: "search", status: "running" as const },
+            { id: "s1", label: "build UI", status: "pending" as const },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+test("thinking (running) shows a live spinner and the fan-out is expanded", async ({ mount }) => {
+  const c = await mount(<Chat messages={[RUNNING_THINKING]} onSubmit={() => {}} />);
+  // A spinner is a role=status (header + each running node).
+  await expect(c.getByRole("status").first()).toBeVisible();
+  // Auto-expanded while running → step labels are present.
+  await expect(c.getByText("search")).toBeVisible();
+  await expect(c.getByText("build UI")).toBeVisible();
+});
+
+test("clicking a step fires onAction with type 'thinking' and the node id", async ({ mount }) => {
+  let action: { type: string; value: unknown; partId?: string } | null = null;
+  const c = await mount(
+    <Chat
+      messages={[RUNNING_THINKING]}
+      onSubmit={() => {}}
+      onAction={(a) => {
+        action = a;
+      }}
+    />,
+  );
+  await c.getByRole("button", { name: /search/ }).click();
+  expect(action).toEqual({ messageId: "a1", partId: "orch", type: "thinking", value: "s0" });
+});
+
+test("thinking (done) collapses to a summary and re-expands on click", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "thinking",
+              status: "done",
+              summary: "Ran 2 steps",
+              steps: [
+                { id: "s0", label: "search", status: "done" },
+                { id: "s1", label: "build UI", status: "done" },
+              ],
+            },
+          ],
+        },
+      ]}
+      onSubmit={() => {}}
+    />,
+  );
+  // Collapsed: summary shown, steps hidden.
+  await expect(c.getByText("Ran 2 steps")).toBeVisible();
+  // Collapsed: the fan-out wrapper animates to ~0 height.
+  const body = c.locator('[class*="bodyWrap"]');
+  await expect.poll(async () => (await body.boundingBox())?.height ?? 99).toBeLessThan(2);
+  // Expand via the header toggle → fan-out grows past the animation to full height.
+  await c.getByRole("button", { name: "Expand steps" }).click();
+  await expect(c.getByText("search")).toBeVisible();
+  await expect.poll(async () => (await body.boundingBox())?.height ?? 0).toBeGreaterThan(10);
 });

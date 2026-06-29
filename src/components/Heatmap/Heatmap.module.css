@@ -16,7 +16,7 @@
   display: block;
   inline-size: 100%;
   block-size: 100%;
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-gridline);
   cursor: crosshair;
 }
 

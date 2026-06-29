@@ -129,6 +129,22 @@ journeying.
   where the rounded form carries semantic weight — typically "this is a
   badge, not a button".
 
+### Borders
+
+- **One structural border.** Every edge that frames a thing — panes,
+  cards, dialogs, popovers, menus, inputs, and the dividers inside tables
+  and lists — uses the single `--sf-color-border`. There is no "strong vs
+  subtle" tier for structure; `--sf-color-border-strong`/`-subtle` are
+  aliases of it. When you need two things to read as separate, use
+  elevation and spacing, not a second, lighter line.
+- **A resting border is never primary.** Inputs sit on the neutral border
+  at rest; `--sf-color-primary` appears only on *state* — focus ring,
+  hover, checked/selected. A blue box just sitting there means nothing.
+- **`--sf-color-gridline` is the one exception, and it is not a border.**
+  It's the faint hairline for data-viz scaffolding — chart gridlines and
+  axes, Skeleton placeholder edges — deliberately quieter than the
+  structural border so data and content stay in front of the scaffolding.
+
 ### Depth
 
 Depth indicates layer, not personality.

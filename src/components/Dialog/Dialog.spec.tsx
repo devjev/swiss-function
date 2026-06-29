@@ -53,6 +53,28 @@ test("dragging the SE corner resizes the popup", async ({ mount, page }) => {
   expect(after.height).toBeGreaterThan(before.height + 30);
 });
 
+test("dragging the W edge grows the popup while anchoring the right edge", async ({
+  mount,
+  page,
+}) => {
+  await mount(<DialogWindowHarness resizable />);
+  const popup = page.getByTestId("popup");
+  const before = await popup.boundingBox();
+  if (!before) throw new Error("missing bounding box");
+  const rightBefore = before.x + before.width;
+  // The W handle runs down the popup's left edge.
+  await page.mouse.move(before.x + 3, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x - 120, before.y + before.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const after = await popup.boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  // Width grew, the left edge moved left, and the right edge stayed put.
+  expect(after.width).toBeGreaterThan(before.width + 80);
+  expect(after.x).toBeLessThan(before.x - 80);
+  expect(after.x + after.width).toBeCloseTo(rightBefore, 0);
+});
+
 test("a resizable popup clamps to its minimum size", async ({ mount, page }) => {
   await mount(<DialogWindowHarness resizable />);
   const popup = page.getByTestId("popup");

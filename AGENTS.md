@@ -157,7 +157,7 @@ categorical magnitudes a 2D `BarChart`.
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, or custom blocks via `renderPart` (wrap them in `ChatBlock`). Interactions report through `onAction`. |
+| `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, a **`thinking`** block (a spinner that expands into a live orchestration fan-out — a status tree — then collapses to a summary), or custom blocks via `renderPart` (wrap them in `ChatBlock`). Tree nodes take a `status` (pending/running/done/error) → per-node spinner/✓/✗. Interactions report through `onAction`. |
 | `ChatDrawer`    | A `Chat` in a resizable side panel that **pushes** the app content aside (built on `SplitPane`). Pass the app as `children`. While `thinking`, an animated effect blooms and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. The header is an icon bar: add your own buttons with `actions`, or pass `views` (`{ id, icon, label, content }[]`) to host multiple icon-switched panels — chat becomes just one view. |
 | `SplitPane`     | Resizable split layout: `SplitPane.Main` + a collapsible `SplitPane.Panel` that pushes content aside with a draggable divider (not an overlay). For overlay sheets use `Drawer` instead. |
 
