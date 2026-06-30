@@ -77,6 +77,8 @@ Ladle (`npm run dev`).
 | `ToggleGroup`   | Mutually-exclusive segmented control.                     |
 | `Combobox`      | Input + filterable dropdown. For "type to find" choices. Pass `multiple` plus the chip parts (`Combobox.Chips` / `.Chip` / `.ChipRemove` / `.Clear`, inside `Combobox.InputGroup`) for an inline tag-input. |
 | `Selector`      | Search + multi-select with a visible "bucket" of chosen items as removable chips. `layout="panel"` (separate bucket, default) or `"inline"` (tag-input). High-level: `<Selector items value onChange />`. Built on a multi-select `Combobox`. |
+| `Picker`        | Search + single-select — the one-choice sibling of `Selector` (same item shape, `value` is one string). The field shows the chosen label and doubles as the filter. High-level: `<Picker items value onChange />`. Built on a single-select `Combobox`. |
+| `Dropzone`      | File drag-and-drop zone (+ click-to-browse) that surfaces files via `onFilesChange` and renders them as a removable list. Presentational — the upload itself is yours; feed per-file progress/error through the `fileStatus` slot. |
 
 ### Surfaces & layout
 
@@ -262,6 +264,8 @@ Common requests and the right component:
 | "a dropdown" / "a menu off a button"               | `Menu`                                           |
 | "a right-click menu" / "context menu"              | `ContextMenu`                                    |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |
+| "single-select" / "pick one from a searchable list" / "searchable dropdown" | `Picker` (`Combobox` directly if you need full control) |
+| "file upload" / "drop files here" / "drag-and-drop files" / "attach files" | `Dropzone` |
 | "an app menu bar" / "File/Edit/View menus" / "toolbar of controls" | `MenuBar` (no dedicated Cmd-K palette exists — use `Dialog` + `Combobox`/`Selector` for a quick switcher) |
 | "show a keyboard shortcut" / "render a hotkey / keycap" | `Kbd` (OS-aware; `mod` → ⌘/Ctrl)             |
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |

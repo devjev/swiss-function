@@ -52,6 +52,8 @@ const componentNames = [
   "Accordion",
   "Selector",
   "Reflow",
+  "Picker",
+  "Dropzone",
 ];
 
 const componentEntries = Object.fromEntries(

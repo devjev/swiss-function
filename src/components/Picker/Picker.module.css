@@ -1,0 +1,16 @@
+.root {
+  display: grid;
+  inline-size: 100%;
+}
+
+/* The field hosts the search input plus an optional inline clear button; the
+   border lives on the group (Combobox resets the inner input's own border). */
+.root .group {
+  inline-size: 100%;
+}
+
+.empty {
+  padding: var(--sf-space-2) var(--sf-space-3);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}

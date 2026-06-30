@@ -26,9 +26,9 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog ·
+ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
-MenuBar · NonIdealState · Outliner · Pane · PointCloud · Popover · Prose · Radio ·
+MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
 Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup
 
@@ -399,6 +399,28 @@ Render a `Drawer.SwipeArea` (a grab rail pinned to the edge) **outside the
 reopens on swipe/drag. Panel size is set on `Drawer.Popup` (default 18u wide /
 16u tall); put a `<Pane>` inside `Drawer.Content` for a header + scrollable body.
 
+## Dropzone
+
+`import { Dropzone } from "@tarassov-ch/swiss-function/dropzone"`
+
+Drag-and-drop file zone (with click-to-browse) that surfaces chosen files and renders them as a removable list. Presentational only — the actual upload (network, progress) is the consumer's job; feed per-file state back via `fileStatus`. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `files` | `File[]` | — | Controlled list (pass with `onFilesChange`). |
+| `defaultFiles` | `File[]` | `[]` | Uncontrolled initial list. |
+| `onFilesChange` | `(files: File[]) => void` | — | Fired with the full list after drop / browse / remove. |
+| `accept` | `string` | — | Forwarded to the native input (e.g. `"image/*,.pdf"`). |
+| `multiple` | `boolean` | `true` | When `false`, a new pick replaces the list. |
+| `disabled` | `boolean` | — | Disable the control. |
+| `label` | `ReactNode` | `"Drop files here"` | Primary prompt. |
+| `description` | `ReactNode` | `"or click to browse"` | Secondary line. |
+| `icon` | `ReactNode` | `"⤓"` | Glyph above the label. |
+| `showList` | `boolean` | `true` | Render the built-in removable file list. |
+| `fileStatus` | `(file: File, index: number) => ReactNode` | — | Per-file trailing slot (progress/error). |
+
+Files dedupe by name + size + lastModified. Drag-over and keyboard focus share the accent treatment.
+
 ## Explorer
 
 `import { Explorer } from "@tarassov-ch/swiss-function/explorer"`
@@ -748,6 +770,24 @@ Full-height container with a fixed header and scrollable body (CSS-grid `auto / 
 
 **Elements / Parts:** `Pane.Root` (grid container), `Pane.Header` (auto-sized, no
 scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
+
+## Picker
+
+`import { Picker } from "@tarassov-ch/swiss-function/picker"`
+
+Search a list and choose exactly one — the single-selection sibling of [Selector](#selector), built on a single-select Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `items` | `PickerItem[]` | — | Choices. |
+| `value` | `string` | — | Controlled selection; `""` = none (pass with `onChange`). |
+| `defaultValue` | `string` | `""` | Uncontrolled initial selection. |
+| `onChange` | `(value: string) => void` | — | Fired with the value (or `""` when cleared). |
+| `placeholder` | `string` | `"Search…"` | Search placeholder. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Mirrors `Input`. |
+| `disabled` | `boolean` | — | Disable the control. |
+| `clearable` | `boolean` | `true` | Show a clear button once selected. |
+| `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
 
 ## PointCloud
 

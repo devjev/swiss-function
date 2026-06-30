@@ -1,0 +1,147 @@
+.root {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  inline-size: 100%;
+}
+
+/* The drop target — a dashed, full-width zone. Click to browse; drag-over and
+   keyboard focus share the same accent treatment. */
+.zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--sf-unit) / 4);
+  inline-size: 100%;
+  padding: var(--sf-space-6) var(--sf-space-4);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+  text-align: center;
+  background-color: var(--sf-color-bg);
+  border: 1px dashed var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  appearance: none;
+  transition:
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.zone:hover:not(:disabled) {
+  border-color: var(--sf-color-primary);
+}
+
+.zone:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Active drag-over: accent border plus a faint accent wash. */
+.zone[data-dragging] {
+  border-color: var(--sf-color-primary);
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 92%);
+}
+
+.zone:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.icon {
+  font-size: calc(var(--sf-font-size-base) * 1.5);
+  line-height: 1;
+  color: var(--sf-color-muted);
+}
+
+.label {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.description {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+/* Visually-hidden native file input — triggered programmatically from the zone. */
+.input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.list {
+  display: grid;
+  gap: calc(var(--sf-unit) / 4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: var(--sf-space-2);
+  padding: calc(var(--sf-unit) / 4) var(--sf-space-2);
+  font-size: var(--sf-font-size-sm);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+}
+
+.fileName {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sf-color-fg);
+}
+
+/* File size reads as data — monospace, muted, like other numeric metadata. */
+.fileSize {
+  flex: 0 0 auto;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-muted);
+}
+
+.fileStatusSlot {
+  flex: 0 0 auto;
+}
+
+.remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--sf-unit);
+  block-size: var(--sf-unit);
+  padding: 0;
+  font-size: var(--sf-font-size-base);
+  line-height: 1;
+  color: var(--sf-color-muted);
+  background: none;
+  border: none;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+}
+
+.remove:hover,
+.remove:focus-visible {
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg-subtle);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zone {
+    transition: none;
+  }
+}
