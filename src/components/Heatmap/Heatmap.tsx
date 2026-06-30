@@ -27,6 +27,11 @@ export interface HeatmapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCh
   colorScale?: [string, string];
   /** Iso-line overlay: a level count, or explicit levels. */
   contours?: number | number[];
+  /** Print each cell's value on top of its colour (for coarse, table-like
+   *  matrices — a dense grid is unreadable). A halo keeps it legible on any fill. */
+  showValues?: boolean;
+  /** Format a cell value when `showValues`. Default: `formatNumber(z)`. */
+  valueFormat?: (z: number, datum: HeatmapDatum) => string;
   xLabel?: string;
   yLabel?: string;
   /** Plot height. Default `calc(var(--sf-unit) * 14)`. */
@@ -50,6 +55,8 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     zDomain,
     colorScale,
     contours,
+    showValues,
+    valueFormat,
     xLabel,
     yLabel,
     height = "calc(var(--sf-unit) * 14)",
@@ -100,6 +107,22 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
       })),
     );
   }, [contours, data.z, zDom, ny]);
+
+  // Cell value labels, emitted top row first (j = ny-1) to match the cells'
+  // larger-y-up orientation under CSS grid's left-to-right, top-to-bottom flow.
+  const valueCells = useMemo(() => {
+    if (!showValues) return [];
+    const fmt = valueFormat ?? ((z: number) => formatNumber(z));
+    const out: { key: string; text: string }[] = [];
+    for (let r = 0; r < ny; r++) {
+      const j = ny - 1 - r;
+      for (let i = 0; i < nx; i++) {
+        const z = data.z[j]?.[i] ?? 0;
+        out.push({ key: `${i}-${j}`, text: fmt(z, { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z }) });
+      }
+    }
+    return out;
+  }, [showValues, valueFormat, data, nx, ny]);
 
   const xTicks = useMemo(
     () =>
@@ -186,6 +209,22 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
             />
           ))}
         </svg>
+        {valueCells.length > 0 ? (
+          <div
+            className={styles.values}
+            aria-hidden="true"
+            style={{
+              gridTemplateColumns: `repeat(${nx}, 1fr)`,
+              gridTemplateRows: `repeat(${ny}, 1fr)`,
+            }}
+          >
+            {valueCells.map((c) => (
+              <span key={c.key} className={styles.value}>
+                {c.text}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className={styles.xAxis}>
           {xTicks.map((t) => (
             <span

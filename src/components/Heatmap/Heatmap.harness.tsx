@@ -15,10 +15,18 @@ function grid(n: number): GridData {
   return { x, y, z };
 }
 
-export function HeatmapHarness({ n = 8, contours }: { n?: number; contours?: number }) {
+export function HeatmapHarness({
+  n = 8,
+  contours,
+  showValues,
+}: {
+  n?: number;
+  contours?: number;
+  showValues?: boolean;
+}) {
   return (
     <div style={{ width: 360 }}>
-      <Heatmap data={grid(n)} contours={contours} />
+      <Heatmap data={grid(n)} contours={contours} showValues={showValues} />
     </div>
   );
 }

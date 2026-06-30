@@ -17,3 +17,17 @@ test("hovering a cell shows a tooltip", async ({ mount, page }) => {
   await c.locator("svg").hover({ position: { x: 40, y: 40 } });
   await expect(page.getByRole("tooltip")).toBeVisible();
 });
+
+test("showValues prints one value label per cell, leaving hover intact", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeatmapHarness n={5} showValues />);
+  // One label per grid value (5×5); harness grid z = i+j, so the top-right
+  // corner value (8) is present. (Scope to the spans inside the .values overlay.)
+  await expect(c.locator('[class*="values"] span')).toHaveCount(25);
+  await expect(c.getByText("8", { exact: true })).toBeVisible();
+  // The overlay is non-interactive — the SVG underneath still drives the tooltip.
+  await c.locator("svg").hover({ position: { x: 40, y: 40 } });
+  await expect(page.getByRole("tooltip")).toBeVisible();
+});

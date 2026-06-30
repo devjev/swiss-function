@@ -20,6 +20,38 @@
   cursor: crosshair;
 }
 
+/* Value labels overlaid on the cells. Same grid cell as the plot, so the nx×ny
+   sub-grid lines up with the SVG rects. Non-interactive — the SVG underneath
+   keeps the hover/tooltip. */
+.values {
+  grid-column: 3;
+  grid-row: 1;
+  display: grid;
+  pointer-events: none;
+}
+.value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  line-height: 1;
+  color: var(--sf-color-fg);
+  /* Crisp 1px outline (hard 0-blur shadows, 8 directions) so the number stays
+     legible on any cell fill, in either theme — no blur. */
+  text-shadow:
+    1px 0 0 var(--sf-color-bg),
+    -1px 0 0 var(--sf-color-bg),
+    0 1px 0 var(--sf-color-bg),
+    0 -1px 0 var(--sf-color-bg),
+    1px 1px 0 var(--sf-color-bg),
+    -1px 1px 0 var(--sf-color-bg),
+    1px -1px 0 var(--sf-color-bg),
+    -1px -1px 0 var(--sf-color-bg);
+}
+
 .contour {
   stroke: var(--sf-color-fg);
   stroke-opacity: 0.55;

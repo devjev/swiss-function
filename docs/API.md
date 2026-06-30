@@ -523,6 +523,8 @@ field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 | `zDomain` | `[number, number]` | data min/max | Value range for the color ramp. |
 | `colorScale` | `[string, string]` | primary tint → primary | `[low, high]` ramp colors (any CSS color / token). |
 | `contours` | `number \| number[]` | — | Iso-line overlay: a level count, or explicit levels. |
+| `showValues` | `boolean` | — | Print each cell's value on top of its colour (crisp-outlined for legibility). For coarse, table-like grids only — a dense grid is unreadable. |
+| `valueFormat` | `(z: number, d: HeatmapDatum) => string` | `formatNumber(z)` | Format a cell value when `showValues`. |
 | `xLabel` / `yLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
 | `renderTooltip` | `(d: HeatmapDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
