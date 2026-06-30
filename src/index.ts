@@ -9,6 +9,7 @@ export * from "./components/Chat";
 export * from "./components/ChatDrawer";
 export * from "./components/Checkbox";
 export * from "./components/Combobox";
+export * from "./components/ContextMenu";
 export * from "./components/DataTable";
 export * from "./components/Dialog";
 export * from "./components/Drawer";

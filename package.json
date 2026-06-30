@@ -152,6 +152,10 @@
       "types": "./dist/components/MenuBar/index.d.ts",
       "import": "./dist/components/MenuBar/index.js"
     },
+    "./context-menu": {
+      "types": "./dist/components/ContextMenu/index.d.ts",
+      "import": "./dist/components/ContextMenu/index.js"
+    },
     "./skeleton": {
       "types": "./dist/components/Skeleton/index.d.ts",
       "import": "./dist/components/Skeleton/index.js"

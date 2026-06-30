@@ -34,6 +34,7 @@ const componentNames = [
   "Drawer",
   "Popover",
   "Menu",
+  "ContextMenu",
   "Prose",
   "Scatterplot",
   "Skeleton",

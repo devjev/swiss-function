@@ -586,6 +586,18 @@ Dropdown menu wrapping Base UI's Menu. Parts forward all Base UI props.
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup`, `Item`,
 `Separator`, `Group`, `GroupLabel`.
 
+## ContextMenu
+
+`import { ContextMenu } from "@tarassov-ch/swiss-function/context-menu"`
+
+Right-click (context) menu wrapping Base UI's ContextMenu. Reuses every `Menu`
+part and its styling verbatim — only `Root`/`Trigger` differ. `ContextMenu.Trigger`
+renders the region that opens the menu on right-click (rather than a button that
+opens it on click). Parts forward all Base UI props.
+
+**Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup`, `Item`,
+`Separator`, `Group`, `GroupLabel`.
+
 ## MenuBar
 
 `import { MenuBar } from "@tarassov-ch/swiss-function/menu-bar"`

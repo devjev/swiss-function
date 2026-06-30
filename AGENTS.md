@@ -97,7 +97,8 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | `Dialog`        | Modal interruption. Confirmations, forms, destructive actions. Backdrop dim is deliberately very subtle. For a window-like dialog, add `draggable` + `resizable` to `Dialog.Popup` and wrap the header in `Dialog.Handle`; drop a `Dialog.Actions` row inside the handle with `Dialog.Maximize` (fullscreen toggle) and `Dialog.CloseButton` (icon ✕) for window chrome. |
 | `Drawer`        | Edge panel sliding from left/right/bottom (`side`). Non-modal by default; render `Drawer.SwipeArea` outside the `Portal` for a persistent reopen handle. |
 | `Popover`       | Anchored, click-triggered floating content.              |
-| `Menu`          | Right-click or dropdown menus.                           |
+| `Menu`          | Button/trigger-anchored dropdown menus.                  |
+| `ContextMenu`   | Right-click (context) menu. Same parts/styling as `Menu`; `ContextMenu.Trigger` marks the right-clickable region instead of a button. |
 | `MenuBar`       | Application menu bar (`role="menubar"`; wraps Base UI Menubar/Menu) at the top or bottom edge. `MenuBar.Trigger` opens a `MenuBar.Content` dropdown of `MenuBar.Item` (with `shortcut`) / `.Separator` / `.Submenu`. Slots: `.Logo` (left), `.Search` (right). It can also host in-place controls via `.Control` (any Button/Switch/Input; `label` shows in the collapsed panel) plus `.Spacer`. Responsive (container-width): `collapse="all"` (with `collapseAt`) folds the whole bar behind one ☰; `collapse="items"` folds items progressively into a ⋯ overflow menu from the trailing edge. **Not** a Cmd-K palette. |
 
 ### Disclosure
@@ -252,7 +253,8 @@ Common requests and the right component:
 | "a drawer" / "sheet" / "overlay panel"             | `Drawer`                                          |
 | "a resizable split / panel that pushes content / IDE-style side panel" | `SplitPane` |
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
-| "a dropdown" / "right-click menu"                  | `Menu`                                           |
+| "a dropdown" / "a menu off a button"               | `Menu`                                           |
+| "a right-click menu" / "context menu"              | `ContextMenu`                                    |
 | "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (`Combobox multiple` for the inline-only case) |
 | "an app menu bar" / "File/Edit/View menus" / "toolbar of controls" | `MenuBar` (no dedicated Cmd-K palette exists — use `Dialog` + `Combobox`/`Selector` for a quick switcher) |
 | "show a keyboard shortcut" / "render a hotkey / keycap" | `Kbd` (OS-aware; `mod` → ⌘/Ctrl)             |
