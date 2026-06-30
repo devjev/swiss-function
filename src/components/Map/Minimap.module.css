@@ -1,0 +1,24 @@
+/* Overview minimap, overlaid on the bottom-end corner of the map surface.
+
+   Like Map.Controls, it lives in the Map root's single grid cell (1/1) and is
+   pinned to a corner via align/justify-self. It hosts a second, non-interactive
+   MapLibre instance showing the whole area at a lower zoom, with a rectangle
+   marking the main map's current viewport. */
+.root {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  justify-self: end;
+  z-index: 1;
+  margin: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 4);
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+}
+
+.surface {
+  display: block;
+  inline-size: calc(var(--sf-unit) * 11);
+  block-size: calc(var(--sf-unit) * 7);
+}

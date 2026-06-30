@@ -124,6 +124,10 @@
       "types": "./dist/components/Prose/index.d.ts",
       "import": "./dist/components/Prose/index.js"
     },
+    "./map": {
+      "types": "./dist/components/Map/index.d.ts",
+      "import": "./dist/components/Map/index.js"
+    },
     "./markdown": {
       "types": "./dist/components/Markdown/index.d.ts",
       "import": "./dist/components/Markdown/index.js"
@@ -249,6 +253,7 @@
     "graphology": "^0.26.0",
     "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
+    "maplibre-gl": "^5.24.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "sigma": "^3.0.3"

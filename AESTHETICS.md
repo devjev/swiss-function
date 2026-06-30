@@ -174,6 +174,16 @@ the data, or just perform? If the latter, drop it — and reach for the flat
 **3D bars, 3D pies, ribbon charts, and perspective cameras stay banned** —
 that's depth-for-personality, which distorts comparison.
 
+**Maps — a restrained default, with off-aesthetic opt-ins.** Geographic data is
+intrinsically spatial, so `Map` is sanctioned like the 3D charts. Its default
+`minimal` basemap stays on-posture: a monochrome vector style colored entirely
+from `--sf-*` tokens (land/water/roads/labels), data-ink only, re-tinted with the
+theme. The `street` and `terrain` presets are deliberately *off-aesthetic* —
+photographic-ish, busy, personality-laden — and exist only because some tasks
+genuinely need a recognizable map; reach for `minimal` first. One hard rule:
+tile-provider **attribution stays visible** (it's a license requirement, not a
+decoration to strip), even under `frame={false}` or fullscreen.
+
 ### Motion
 
 Motion is functional. It explains state changes; it does not perform

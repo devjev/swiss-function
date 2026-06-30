@@ -21,6 +21,7 @@ export * from "./components/Grid";
 export * from "./components/Heatmap";
 export * from "./components/Input";
 export * from "./components/Kbd";
+export * from "./components/Map";
 export * from "./components/Markdown";
 export * from "./components/Menu";
 export * from "./components/MenuBar";

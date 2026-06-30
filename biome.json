@@ -80,6 +80,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/components/Map/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noShadowRestrictedNames": "off"
+          }
+        }
+      }
     }
   ]
 }

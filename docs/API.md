@@ -558,6 +558,54 @@ Renders a keyboard shortcut as OS-aware keycaps — for labels, menus, tooltips.
 <Kbd combo="mod+shift+enter" />
 ```
 
+## Map
+
+`import { Map } from "@tarassov-ch/swiss-function/map"`
+
+Geographic map (MapLibre GL JS) with a token-tinted vector basemap and declarative
+point / area / vector overlays.
+
+**Requires two CSS imports** at app root — the library tokens and MapLibre's own
+stylesheet (the latter is a third-party sheet the library does not bundle):
+
+```ts
+import "@tarassov-ch/swiss-function/tokens.css";
+import "maplibre-gl/dist/maplibre-gl.css"; // required for Map
+```
+
+All coordinates are **GeoJSON `[longitude, latitude]`** — not the spoken "lat,
+lng". Tile attribution is a license requirement and stays visible.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `center` | `[lng, lat]` | `[0, 20]` | Initial camera center. |
+| `zoom` | `number` | `1` | Initial zoom (0 world … ~22 building). |
+| `bounds` | `[[lng,lat],[lng,lat]]` | — | Fit on mount (wins over center/zoom); re-fits on change. |
+| `basemap` | `"minimal" \| "street" \| "terrain"` | — | Controlled basemap preset. |
+| `defaultBasemap` | `Basemap` | `"minimal"` | Uncontrolled initial basemap. |
+| `onBasemapChange` | `(next: Basemap) => void` | — | Basemap changed (prop/toolbar/`setBasemap`). |
+| `styleUrl` | `string \| StyleSpecification` | — | Override basemap entirely (self-hosted/keyed tiles). |
+| `points` | `MapPoint[]` | — | Circle markers: `{ at, radius?, color?, label?, data? }`. |
+| `areas` | `MapArea[]` | — | Polygons: `{ polygon, strokeColor?, strokeWidth?, fillOpacity?, … }`. |
+| `vectors` | `MapVector[]` | — | Poly-lines: `{ path, width?, arrow?, dashed?, color?, label? }`. |
+| `geojson` | `FeatureCollection` | — | Power-user path; token-tinted defaults. |
+| `height` | `number \| string` | — | Fixed height (number → px). Ignored when `fill`. |
+| `fill` | `boolean` | `false` | Fill parent height (parent must set one). |
+| `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
+| `fullscreen` | `boolean` | `true` | Corner fullscreen toggle. |
+| `interactive` | `boolean` | `true` | Pan/zoom/rotate; `false` for a static map. |
+| `onFeatureClick` | `(hit: MapFeatureHit) => void` | — | Click on a point/area/vector. |
+| `renderTooltip` | `(hit: MapFeatureHit) => ReactNode` | label | Custom hover tooltip (`null` = none). |
+
+Basemap notes: `minimal` (the default) is a restrained vector style colored from
+`--sf-*` tokens and re-tinted on dark-mode switch; `street` and `terrain` are
+richer, intentionally off-aesthetic opt-ins backed by free no-key providers
+(OpenFreeMap, Mapterhorn DEM) — best-effort, no SLA. WebGL is required; without it
+the map renders a `NonIdealState` fallback.
+
+**Elements / Parts:** `Map.Controls` (zoom/fit/reset/basemap toolbar),
+`Map.Minimap` (overview inset — a second WebGL context; use deliberately).
+
 ## Markdown
 
 `import { Markdown } from "@tarassov-ch/swiss-function/markdown"`

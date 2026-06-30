@@ -1,0 +1,28 @@
+/* Floating navigation toolbar, overlaid on the map surface.
+
+   Both clusters (zoom/fit/reset buttons + the basemap ToggleGroup) sit in the
+   same grid cell as MapLibre's canvas (the Map root is a single-cell grid), so
+   the toolbar is positioned over the top-start corner of the surface. */
+.root {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: start;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  margin: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 4);
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+}
+
+/* The zoom/fit/reset buttons read as one related group. */
+.cluster {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
