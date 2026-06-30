@@ -1,11 +1,24 @@
 /** Flat shading + a sequential color ramp for the 3D charts.
  *
- * Colors come from `--sf-*` tokens that may be hex / rgb / oklch / named, which
- * canvas can't interpolate. We resolve any CSS color to `[r,g,b]` once per render
- * via computed style (the browser always serializes `color` to rgb), then lerp /
- * darken in plain RGB. One accent + neutral ramp keeps it on-brand. */
+ * Colors come from `--sf-*` tokens that may be hex / rgb / oklch / named / a
+ * `color-mix()`, which canvas can't interpolate. We resolve any CSS color to
+ * `[r,g,b]` once per render via computed style, then lerp / darken in plain RGB.
+ * (Computed `color` is usually `rgb(…)` 0–255, but a resolved `color-mix()`
+ * serializes as `color(srgb …)` 0–1 — `resolveRgb` handles both.) One accent +
+ * neutral ramp keeps it on-brand. */
 
 export type Rgb = [number, number, number];
+
+/** Parse a *computed* `color` serialization into `[r,g,b]` (0–255), or null if it
+ *  has fewer than three channels. Computed `color` is usually `rgb(…)` with 0–255
+ *  channels, but a resolved `color-mix()` serializes as `color(srgb …)` with 0–1
+ *  floats — scale those up, else `Math.round(0.5)` collapses every mix to near-black. */
+export function parseComputedColor(computed: string): Rgb | null {
+  const m = computed.match(/-?\d+(?:\.\d+)?/g);
+  if (!m || m.length < 3) return null;
+  const scale = /^color\(/.test(computed) ? 255 : 1;
+  return [Number(m[0]) * scale, Number(m[1]) * scale, Number(m[2]) * scale];
+}
 
 /** Resolve any CSS color string to `[r,g,b]` using a throwaway probe inside the
  *  chart's subtree (so `var(--sf-*)` and `data-theme` resolve correctly). */
@@ -16,9 +29,7 @@ export function resolveRgb(color: string, host: Element, fallback: Rgb = [37, 99
   host.appendChild(probe);
   const computed = getComputedStyle(probe).color;
   host.removeChild(probe);
-  const m = computed.match(/-?\d+(?:\.\d+)?/g);
-  if (!m || m.length < 3) return fallback;
-  return [Number(m[0]), Number(m[1]), Number(m[2])];
+  return parseComputedColor(computed) ?? fallback;
 }
 
 const clamp01 = (t: number) => (t < 0 ? 0 : t > 1 ? 1 : t);

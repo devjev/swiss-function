@@ -1,10 +1,21 @@
 import type { FeatureCollection } from "geojson";
 import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
+// MapLibre's own stylesheet is REQUIRED: it makes the GL canvas `position:absolute`
+// (out of normal flow). Without it the in-flow canvas feeds its height back into
+// the container, growing unbounded every frame — a resize loop that flickers and
+// hides the map. It also lays out the attribution / zoom controls.
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { HIT_LAYERS, kindOfLayer, overlayBounds, syncOverlays } from "../../lib/map/layers";
+import {
+  HIT_LAYERS,
+  kindOfLayer,
+  makeResolver,
+  overlayBounds,
+  syncOverlays,
+} from "../../lib/map/layers";
 import { isTokenTinted, resolveStyle } from "../../lib/map/style";
 import type {
   Basemap,
@@ -293,14 +304,23 @@ const MapRoot = forwardRef<HTMLDivElement, MapProps>(function Map(
 
     // Re-tint a token-derived basemap + overlays when the theme flips. MapLibre
     // paint is JS-set, so (unlike pure CSS components) it can't auto-respond to a
-    // `[data-theme]` change — we observe it and rebuild in place. Observes the
-    // common theme hosts (html / body); a deeper ancestor toggle is rare.
+    // `[data-theme]` change — we observe it and rebuild in place. The contract puts
+    // `[data-theme]` on ANY ancestor, and the NEAREST one wins (it re-scopes the
+    // tokens), so we must watch the whole chain from the surface up to <html> — not
+    // just html/body. Walking the chain (vs. a document-wide subtree observer) keeps
+    // this precise: only real theme hosts can fire it.
     let themeRaf = 0;
+    let lastBg = makeResolver(container)("var(--sf-color-bg)");
     const reTint = () => {
       cancelAnimationFrame(themeRaf);
       themeRaf = requestAnimationFrame(() => {
         if (mapRef.current !== map) return;
         if (!isTokenTinted(basemapRef.current, styleUrlRef.current)) return;
+        // Cheap guard: a `class` mutation up the chain rarely changes the resolved
+        // theme — only rebuild when the surface's background token actually moved.
+        const bg = makeResolver(container)("var(--sf-color-bg)");
+        if (bg === lastBg) return;
+        lastBg = bg;
         map.setStyle(resolveStyle(basemapRef.current, styleUrlRef.current, container), {
           diff: true,
         });
@@ -312,8 +332,9 @@ const MapRoot = forwardRef<HTMLDivElement, MapProps>(function Map(
       attributes: true,
       attributeFilter: ["data-theme", "class"],
     };
-    themeObserver.observe(document.documentElement, themeOpts);
-    if (document.body) themeObserver.observe(document.body, themeOpts);
+    for (let el: Element | null = container; el; el = el.parentElement) {
+      themeObserver.observe(el, themeOpts);
+    }
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
     media?.addEventListener?.("change", reTint);
 

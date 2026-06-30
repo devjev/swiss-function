@@ -347,11 +347,22 @@ function ensureGeojsonLayers(map: MaplibreMap, resolve: ColorResolver): void {
 }
 
 /** Bind a `ColorResolver` to the map's themed subtree — any CSS color (incl. a
- *  `var(--sf-*)` token) → an `rgb(...)` string MapLibre paint understands. */
+ *  `var(--sf-*)` token) → an `rgb(...)` string MapLibre paint understands.
+ *
+ *  Memoized per resolver: `resolveRgb` appends a probe and reads computed style
+ *  (a forced layout). Overlays reuse a handful of colors across thousands of
+ *  features, so caching collapses thousands of reflows down to one per distinct
+ *  color. The cache lives only for this resolver (one `syncOverlays` pass), so it
+ *  never goes stale across a theme change (each sync rebuilds the resolver). */
 export function makeResolver(host: Element | null): ColorResolver {
   if (!host) return (c) => c;
+  const cache = new Map<string, string>();
   return (color) => {
+    const hit = cache.get(color);
+    if (hit !== undefined) return hit;
     const [r, g, b] = resolveRgb(color, host);
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+    const out = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+    cache.set(color, out);
+    return out;
   };
 }

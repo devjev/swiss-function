@@ -52,6 +52,19 @@
   block-size: 100%;
   touch-action: none;
   outline: none;
+
+  /* Basemap land (the background layer) and water fill, read off this element via
+     the host probe (see lib/map/style.ts). Theme-divergent and private to the map
+     (not public tokens): light mode keeps white land + a soft-grey water; dark mode
+     keeps black land (= bg) and lifts the water to a dark grey so the two separate.
+     A single color-mix can't express both directions, hence the override. */
+  --sf-map-land: var(--sf-color-bg);
+  --sf-map-water: color-mix(in srgb, var(--sf-color-bg), var(--sf-color-fg) 14%);
+}
+
+[data-theme="dark"] .surface {
+  --sf-map-land: var(--sf-color-bg);
+  --sf-map-water: color-mix(in srgb, var(--sf-color-bg), var(--sf-color-fg) 40%);
 }
 
 .surface:focus-visible {

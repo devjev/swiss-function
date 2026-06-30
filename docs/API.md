@@ -565,13 +565,16 @@ Renders a keyboard shortcut as OS-aware keycaps — for labels, menus, tooltips.
 Geographic map (MapLibre GL JS) with a token-tinted vector basemap and declarative
 point / area / vector overlays.
 
-**Requires two CSS imports** at app root — the library tokens and MapLibre's own
-stylesheet (the latter is a third-party sheet the library does not bundle):
+Like every component, it needs the library tokens at app root:
 
 ```ts
 import "@tarassov-ch/swiss-function/tokens.css";
-import "maplibre-gl/dist/maplibre-gl.css"; // required for Map
 ```
+
+MapLibre's own stylesheet (`maplibre-gl/dist/maplibre-gl.css`) is **required** for
+the map to lay out — without it the GL canvas escapes its container and grows
+unbounded. The `Map` module imports it itself (resolved against your installed
+`maplibre-gl` peer dependency), so you don't import it separately.
 
 All coordinates are **GeoJSON `[longitude, latitude]`** — not the spoken "lat,
 lng". Tile attribution is a license requirement and stays visible.

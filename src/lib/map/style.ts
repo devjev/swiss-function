@@ -45,14 +45,17 @@ export function buildMinimalStyle(host: Element | null): StyleSpecification {
       openmaptiles: { type: "vector", url: OPENFREEMAP_TILES, attribution: TILE_ATTRIBUTION },
     },
     layers: [
-      { id: "sf-bg", type: "background", paint: { "background-color": c("var(--sf-color-bg)") } },
+      { id: "sf-bg", type: "background", paint: { "background-color": c("var(--sf-map-land)") } },
       {
         id: "sf-water",
         type: "fill",
         source: "openmaptiles",
         "source-layer": "water",
         paint: {
-          "fill-color": c("color-mix(in srgb, var(--sf-color-border) 70%, var(--sf-color-bg))"),
+          // Theme-divergent water (see Map.module.css `--sf-map-water`): a subtle
+          // step toward `fg` in light mode, an explicit grey in dark mode so water
+          // reads lighter than — not collapsed into — the near-black land.
+          "fill-color": c("var(--sf-map-water)"),
         },
       },
       {
@@ -60,11 +63,12 @@ export function buildMinimalStyle(host: Element | null): StyleSpecification {
         type: "line",
         source: "openmaptiles",
         "source-layer": "boundary",
-        filter: ["<=", ["get", "admin_level"], 4],
+        // Country borders only (admin_level 2), and drop maritime boundaries — the
+        // offshore EEZ lines tracing every coastline are too noisy.
+        filter: ["all", ["==", ["get", "admin_level"], 2], ["!=", ["get", "maritime"], 1]],
         paint: {
-          "line-color": c("var(--sf-color-border)"),
-          "line-width": 0.8,
-          "line-dasharray": [3, 2],
+          "line-color": c("var(--sf-color-muted)"),
+          "line-width": 1,
         },
       },
       {
@@ -74,7 +78,8 @@ export function buildMinimalStyle(host: Element | null): StyleSpecification {
         "source-layer": "transportation",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": c("var(--sf-color-border)"),
+          "line-color": c("var(--sf-color-muted)"),
+          "line-opacity": 0.6,
           "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.4, 16, 2],
         },
       },
