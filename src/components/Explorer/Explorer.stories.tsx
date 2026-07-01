@@ -174,6 +174,75 @@ export const ReadOnly: Story = () => {
   );
 };
 
+/**
+ * The data-grid face of Explorer: sortable + filterable columns, drag-to-resize
+ * and drag-to-reorder metadata columns (the Name tree column stays pinned at
+ * index 0), plus a dithered bottom edge-fade. Sorting reorders each folder's
+ * children in place — the hierarchy is preserved. Filtering keeps the path to
+ * every match and auto-expands it.
+ */
+export const DataGrid: Story = () => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    new Set(["src", "src/components", "src/tokens"]),
+  );
+  return (
+    <div style={{ width: "min(44rem, 100%)", height: 320 }}>
+      <Explorer
+        nodes={seed}
+        resizableColumns
+        reorderableColumns
+        filterableColumns
+        edgeFade
+        columns={[
+          { id: "name", header: "Name", sortable: true },
+          {
+            id: "size",
+            header: "Size",
+            align: "end",
+            width: 110,
+            sortable: true,
+            sortType: "number",
+            accessor: (n) => n.meta?.size,
+            render: (n) => formatSize(n.meta?.size),
+          },
+          {
+            id: "kind",
+            header: "Kind",
+            width: 120,
+            sortable: true,
+            accessor: (n) => n.meta?.kind,
+            render: (n) => n.meta?.kind ?? "",
+          },
+          {
+            id: "modified",
+            header: "Modified",
+            width: 140,
+            sortable: true,
+            sortType: "date",
+            accessor: (n) => n.meta?.modified,
+            render: (n) => n.meta?.modified ?? "—",
+          },
+        ]}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        expandedIds={expandedIds}
+        onExpandedChange={setExpandedIds}
+      />
+      <p
+        style={{
+          marginTop: "calc(var(--sf-unit) / 2)",
+          color: "var(--sf-color-muted)",
+          fontSize: "var(--sf-font-size-sm)",
+        }}
+      >
+        Click a header to sort (asc → desc → off) · funnel to filter · drag a column border to
+        resize · drag a metadata header to reorder
+      </p>
+    </div>
+  );
+};
+
 export const Editable: Story = () => {
   const [nodes, setNodes] = useState(() => cloneTree(seed));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

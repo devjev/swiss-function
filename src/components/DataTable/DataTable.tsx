@@ -30,12 +30,15 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useColumnOrder } from "../../lib/columns/useColumnOrder";
+import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
 import type { EffectName } from "../../lib/effects";
 import { useDitheredFill } from "../../lib/effects";
+import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
+import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import { ColumnFilter, type FilterOption } from "./ColumnFilter";
 import { computeMergeMap } from "./cellSpans";
 import {
   buildColumnTemplate,
@@ -59,10 +62,7 @@ import type {
   Selection,
 } from "./types";
 import { isGroup } from "./types";
-import { useColumnFilters } from "./useColumnFilters";
 import { useColumnGroupCollapse } from "./useColumnGroupCollapse";
-import { useColumnOrder } from "./useColumnOrder";
-import { useColumnWidths } from "./useColumnWidths";
 import { useTableClipboard } from "./useTableClipboard";
 import { useTableEdit } from "./useTableEdit";
 import { useTableSelection } from "./useTableSelection";

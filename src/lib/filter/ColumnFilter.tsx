@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { cx } from "../../lib/cx";
-import { Button } from "../Button";
-import { Checkbox } from "../Checkbox";
-import { Input } from "../Input";
-import { Popover } from "../Popover";
+import { Button } from "../../components/Button";
+import { Checkbox } from "../../components/Checkbox";
+import { Input } from "../../components/Input";
+import { Popover } from "../../components/Popover";
+import { cx } from "../cx";
 import styles from "./ColumnFilter.module.css";
 
 export type ColumnFilterKind = "checklist" | "range";

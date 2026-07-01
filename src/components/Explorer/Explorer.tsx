@@ -8,25 +8,65 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  MouseEvent,
+  ReactNode,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { resizeBoundary } from "../../lib/columns/resizeBoundary";
+import { useColumnOrder } from "../../lib/columns/useColumnOrder";
+import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
+import { useDitheredFill } from "../../lib/effects";
+import {
+  ColumnFilter,
+  type ColumnFilterKind,
+  type FilterOption,
+} from "../../lib/filter/ColumnFilter";
+import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Menu } from "../Menu";
 import type { FlatRow } from "./dnd";
 import { findNode, flatten, wouldCycle } from "./dnd";
 import styles from "./Explorer.module.css";
 import { RenameField } from "./RenameField";
-import type { ExplorerColumn, ExplorerNode, ExplorerProps } from "./types";
+import {
+  checklistTest,
+  collectKeptFolderIds,
+  filterTree,
+  makeComparator,
+  rangeTest,
+  sortTree,
+} from "./transform";
+import type { ExplorerColumn, ExplorerNode, ExplorerProps, ExplorerSort } from "./types";
 import { isFolder } from "./types";
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
+
+/** Lower bound a column may be dragged to when `resizableColumns` is on (px). */
+const MIN_COL_PX = 48;
+/** Preferred width for a resizable column that declares no numeric `width`. */
+const DEFAULT_COL_PX = 120;
 
 type DropZone =
   | { kind: "into"; folderId: string }
   | { kind: "before"; flatIndex: number }
   | { kind: "after-all" };
+
+/** Inferred filter UI for a column: its kind and (checklist) selectable values. */
+type FilterMeta = { kind: ColumnFilterKind; options: FilterOption[] };
 
 // --- Default folder / file glyphs ------------------------------------------
 
@@ -51,6 +91,8 @@ function FileGlyph() {
 
 // --- Helpers ----------------------------------------------------------------
 
+/** Display value for a cell (runs `render`, else accessor / `meta[id]`, and
+ *  stringifies). Sort/filter use the raw `read` closures below instead. */
 function readCell<M>(col: ExplorerColumn<M>, node: ExplorerNode<M>): ReactNode {
   if (col.render) return col.render(node);
   const raw = col.accessor
@@ -59,9 +101,57 @@ function readCell<M>(col: ExplorerColumn<M>, node: ExplorerNode<M>): ReactNode {
   return raw == null ? "" : String(raw);
 }
 
-function buildGridTemplate<M>(columns: ExplorerColumn<M>[]): string {
+/** Raw value a column reads, with the tree column (index 0) falling back to
+ *  `node.name` (its displayed value). Used for sorting and filtering. */
+function makeRead<M>(col: ExplorerColumn<M>, isTree: boolean): (node: ExplorerNode<M>) => unknown {
+  return (node) =>
+    col.accessor
+      ? col.accessor(node)
+      : isTree
+        ? node.name
+        : (node.meta as Record<string, unknown> | undefined)?.[col.id];
+}
+
+function forEachNode<M>(nodes: ExplorerNode<M>[], fn: (n: ExplorerNode<M>) => void): void {
+  for (const n of nodes) {
+    fn(n);
+    if (n.children) forEachNode(n.children, fn);
+  }
+}
+
+/** Build the `grid-template-columns` string shared by the header and every row.
+ *  Without resizing it keeps Explorer's original semantics (number→px, string
+ *  as-is, undefined→`1fr`). With resizing on it mirrors DataTable: every track
+ *  is `minmax(min, preferred)` and the last stretches, so `resizeBoundary`'s px
+ *  overrides cascade into the flexible filler. */
+function buildGridTemplate<M>(
+  columns: ExplorerColumn<M>[],
+  overrides: Record<string, number>,
+  resizable: boolean,
+): string {
+  if (!resizable) {
+    return columns
+      .map((c) => {
+        const ov = overrides[c.id];
+        if (ov != null) return `${ov}px`;
+        return typeof c.width === "number" ? `${c.width}px` : (c.width ?? "minmax(0, 1fr)");
+      })
+      .join(" ");
+  }
+  const lastIdx = columns.length - 1;
   return columns
-    .map((c) => (typeof c.width === "number" ? `${c.width}px` : (c.width ?? "minmax(0, 1fr)")))
+    .map((c, i) => {
+      const min = `${c.minWidth ?? MIN_COL_PX}px`;
+      if (i === lastIdx) return `minmax(${min}, 1fr)`;
+      const ov = overrides[c.id];
+      const preferred =
+        ov != null
+          ? `${ov}px`
+          : typeof c.width === "number"
+            ? `${c.width}px`
+            : (c.width ?? `${DEFAULT_COL_PX}px`);
+      return `minmax(${min}, ${preferred})`;
+    })
     .join(" ");
 }
 
@@ -82,8 +172,27 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     onAdd,
     onMove,
     onDelete,
+    resizableColumns = false,
+    columnWidths: controlledColumnWidths,
+    defaultColumnWidths,
+    onColumnWidthsChange,
+    reorderableColumns = false,
+    columnOrder: controlledColumnOrder,
+    defaultColumnOrder,
+    onColumnOrderChange,
+    sort: controlledSort,
+    defaultSort,
+    onSortChange,
+    sortFoldersFirst = true,
+    filterableColumns = false,
+    columnFilters: controlledColumnFilters,
+    defaultColumnFilters,
+    onColumnFiltersChange,
     icon,
     showHeader = true,
+    empty = "No data",
+    edgeFade = false,
+    columnFill = false,
     rowHeight = 32,
     height = "100%",
     className,
@@ -97,9 +206,139 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const [ctx, setCtx] = useState<{ x: number; y: number; targetId: string | null } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone | null>(null);
+  const [draggingColId, setDraggingColId] = useState<string | null>(null);
 
-  // --- Derived ------------------------------------------------------------
-  const flatRows = useMemo(() => flatten(nodes, expandedIds), [nodes, expandedIds]);
+  // --- Column state (widths / order), controlled or internal ----------------
+  const { columnWidths, setColumnWidths } = useColumnWidths({
+    columnWidths: controlledColumnWidths,
+    defaultColumnWidths,
+    onColumnWidthsChange,
+  });
+  const { columnOrder, setColumnOrder } = useColumnOrder({
+    columnOrder: controlledColumnOrder,
+    defaultColumnOrder,
+    onColumnOrderChange,
+  });
+  const { columnFilters, setColumnFilters } = useColumnFilters({
+    columnFilters: controlledColumnFilters,
+    defaultColumnFilters,
+    onColumnFiltersChange,
+  });
+
+  // --- Sort state (controlled or internal) ----------------------------------
+  const [internalSort, setInternalSort] = useState<ExplorerSort | null>(defaultSort ?? null);
+  const sort = controlledSort !== undefined ? controlledSort : internalSort;
+  const setSort = (next: ExplorerSort | null) => {
+    if (controlledSort === undefined) setInternalSort(next);
+    onSortChange?.(next);
+  };
+
+  // --- Ordered columns (tree column pinned at index 0) ----------------------
+  const orderedColumns = useMemo(() => {
+    const treeCol = columns[0];
+    if (!treeCol || !reorderableColumns || columnOrder.length === 0) return columns;
+    const rest = columns.slice(1);
+    const byId = new Map(rest.map((c) => [c.id, c]));
+    const seen = new Set<string>();
+    const ordered: ExplorerColumn<M>[] = [];
+    // Defensive: ignore the tree id if a consumer echoed it into columnOrder.
+    for (const id of columnOrder) {
+      if (id === treeCol.id) continue;
+      const c = byId.get(id);
+      if (c && !seen.has(id)) {
+        ordered.push(c);
+        seen.add(id);
+      }
+    }
+    for (const c of rest) if (!seen.has(c.id)) ordered.push(c);
+    return [treeCol, ...ordered];
+  }, [columns, columnOrder, reorderableColumns]);
+
+  const treeColId = orderedColumns[0]?.id;
+  const gridTemplate = useMemo(
+    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns),
+    [orderedColumns, columnWidths, resizableColumns],
+  );
+
+  // --- Filtering: infer each filterable column's UI + build active filters ---
+  const filterCols = useMemo(
+    () => (filterableColumns ? orderedColumns.filter((c) => c.filterable !== false) : []),
+    [filterableColumns, orderedColumns],
+  );
+
+  const filterMeta = useMemo(() => {
+    const map = new Map<string, FilterMeta>();
+    for (const col of filterCols) {
+      const read = makeRead(col, col.id === treeColId);
+      if (col.filter) {
+        map.set(col.id, { kind: col.filter.kind, options: col.filter.options ?? [] });
+        continue;
+      }
+      const values: unknown[] = [];
+      forEachNode(nodes, (n) => values.push(read(n)));
+      const present = values.filter((v) => v != null);
+      const allNumeric = present.length > 0 && present.every((v) => typeof v === "number");
+      if (allNumeric) {
+        map.set(col.id, { kind: "range", options: [] });
+      } else {
+        const distinct = [...new Set(present.map((v) => String(v)))].sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true }),
+        );
+        map.set(col.id, {
+          kind: "checklist",
+          options: distinct.map((v) => ({ value: v, label: v })),
+        });
+      }
+    }
+    return map;
+  }, [filterCols, nodes, treeColId]);
+
+  const activeFilters = useMemo(() => {
+    const out: { read: (n: ExplorerNode<M>) => unknown; test: (v: unknown) => boolean }[] = [];
+    for (const f of columnFilters) {
+      const meta = filterMeta.get(f.id);
+      const col = orderedColumns.find((c) => c.id === f.id);
+      if (!meta || !col) continue;
+      const read = makeRead(col, col.id === treeColId);
+      const test =
+        meta.kind === "range"
+          ? rangeTest(f.value as [number | undefined, number | undefined])
+          : checklistTest(f.value as string[] | undefined);
+      out.push({ read, test });
+    }
+    return out;
+  }, [columnFilters, filterMeta, orderedColumns, treeColId]);
+
+  // --- Sort comparator ------------------------------------------------------
+  const comparator = useMemo(() => {
+    if (!sort) return null;
+    const idx = orderedColumns.findIndex((c) => c.id === sort.columnId);
+    const col = orderedColumns[idx];
+    if (!col) return null;
+    if (col.sortComparator) {
+      const c = col.sortComparator;
+      return sort.dir === "desc" ? (a: ExplorerNode<M>, b: ExplorerNode<M>) => -c(a, b) : c;
+    }
+    return makeComparator(makeRead(col, idx === 0), sort.dir, col.sortType);
+  }, [sort, orderedColumns]);
+
+  // --- Data pipeline: filter → sort → (effective expand) → flatten ----------
+  const filtered = useMemo(() => filterTree(nodes, activeFilters), [nodes, activeFilters]);
+  const sorted = useMemo(
+    () => sortTree(filtered, comparator, sortFoldersFirst),
+    [filtered, comparator, sortFoldersFirst],
+  );
+  const filterActive = columnFilters.length > 0;
+  const effectiveExpandedIds = useMemo(
+    () =>
+      filterActive ? new Set([...expandedIds, ...collectKeptFolderIds(filtered)]) : expandedIds,
+    [filterActive, expandedIds, filtered],
+  );
+
+  const flatRows = useMemo(
+    () => flatten(sorted, effectiveExpandedIds),
+    [sorted, effectiveExpandedIds],
+  );
   const indexById = useMemo(() => {
     const m = new Map<string, number>();
     for (let i = 0; i < flatRows.length; i++) {
@@ -108,10 +347,11 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     }
     return m;
   }, [flatRows]);
-  const gridTemplate = useMemo(() => buildGridTemplate(columns), [columns]);
+  const showEmpty = flatRows.length === 0;
 
   // --- Virtualization -----------------------------------------------------
   const viewportRef = useRef<HTMLDivElement>(null);
+  const headerRowRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => viewportRef.current,
@@ -125,11 +365,125 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const setEditing = (id: string | null) => onEditingChange?.(id);
 
   const toggleExpand = (id: string) => {
+    // Toggle against the raw controlled set (not the filter-effective one), so
+    // user collapses persist and are restored when the filter clears.
     const next = new Set(expandedIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setExpanded(next);
   };
+
+  // --- Column resizing ------------------------------------------------------
+  const measureHeaderWidths = (): number[] | null => {
+    const row = headerRowRef.current;
+    if (!row) return null;
+    return Array.from(row.children).map((el) => (el as HTMLElement).getBoundingClientRect().width);
+  };
+
+  const applyResize = (idx: number, startWidths: number[], dx: number, minPx: number) => {
+    const resizable = orderedColumns.map((c) => c.resizable !== false);
+    const out = resizeBoundary(startWidths, resizable, idx, dx, minPx);
+    setColumnWidths((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (let k = 0; k < out.length - 1; k++) {
+        const col = orderedColumns[k];
+        if (!col) continue;
+        const v = Math.round(out[k] as number);
+        if (next[col.id] !== v) {
+          next[col.id] = v;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  };
+
+  const resizeRef = useRef<{
+    idx: number;
+    startWidths: number[];
+    minPx: number;
+    handle: HTMLElement;
+  } | null>(null);
+  const { onPointerDown: onColumnResizeDown } = usePointerDrag({
+    onStart: (_origin, event) => {
+      const handle = event.currentTarget as HTMLElement;
+      const id = handle.dataset.columnId;
+      if (!id) return;
+      const idx = orderedColumns.findIndex((c) => c.id === id);
+      const startWidths = measureHeaderWidths();
+      if (idx < 0 || !startWidths) return;
+      handle.dataset.dragging = "true";
+      resizeRef.current = {
+        idx,
+        startWidths,
+        minPx: orderedColumns[idx]?.minWidth ?? MIN_COL_PX,
+        handle,
+      };
+    },
+    onMove: (delta) => {
+      const r = resizeRef.current;
+      if (r) applyResize(r.idx, r.startWidths, delta.dx, r.minPx);
+    },
+    onEnd: () => {
+      const r = resizeRef.current;
+      if (r) delete r.handle.dataset.dragging;
+      resizeRef.current = null;
+    },
+  });
+
+  const nudgeResize = (colId: string, delta: number) => {
+    const idx = orderedColumns.findIndex((c) => c.id === colId);
+    const widths = measureHeaderWidths();
+    if (idx < 0 || !widths) return;
+    applyResize(idx, widths, delta, orderedColumns[idx]?.minWidth ?? MIN_COL_PX);
+  };
+
+  // --- Sorting header interaction -------------------------------------------
+  const cycleSort = (columnId: string) => {
+    if (!sort || sort.columnId !== columnId) setSort({ columnId, dir: "asc" });
+    else if (sort.dir === "asc") setSort({ columnId, dir: "desc" });
+    else setSort(null);
+  };
+
+  // --- Column reorder DnD (own context; tree column excluded) ---------------
+  const colSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
+  const nonTreeIds = useMemo(() => orderedColumns.slice(1).map((c) => c.id), [orderedColumns]);
+  const onColDragEnd = (e: DragEndEvent) => {
+    setDraggingColId(null);
+    const activeId = String(e.active.id);
+    const overId = e.over ? String(e.over.id) : null;
+    if (!overId || activeId === overId) return;
+    const from = nonTreeIds.indexOf(activeId);
+    const to = nonTreeIds.indexOf(overId);
+    if (from < 0 || to < 0) return;
+    setColumnOrder(arrayMove(nonTreeIds, from, to));
+  };
+
+  // --- Column-fill dither ---------------------------------------------------
+  const fillOn = columnFill !== false;
+  const fillOpts = typeof columnFill === "object" ? columnFill : {};
+  const fillAnimated = fillOpts.animated === true;
+  const [columnsWidth, setColumnsWidth] = useState(0);
+  const [fillHeight, setFillHeight] = useState(0);
+  useEffect(() => {
+    if (!fillOn) return;
+    const hr = headerRowRef.current;
+    const vp = viewportRef.current;
+    if (hr) {
+      const tracks = getComputedStyle(hr).gridTemplateColumns.split(" ");
+      setColumnsWidth(tracks.reduce((sum, t) => sum + (Number.parseFloat(t) || 0), 0));
+    }
+    if (vp) setFillHeight(Math.max(vp.scrollHeight, virtualizer.getTotalSize()));
+  }, [fillOn, gridTemplate, flatRows.length, rowHeight, virtualizer]);
+  const { rootRef: fillRootRef, canvasRef: fillCanvasRef } = useDitheredFill({
+    effect: fillOpts.effect ?? "noise",
+    density: fillOpts.density ?? 0.5,
+    color: fillOpts.color,
+    speed: fillOpts.speed,
+  });
 
   // --- Selection --------------------------------------------------------
   const handleRowPointerDown = (e: MouseEvent, row: FlatRow<M>) => {
@@ -238,7 +592,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       moveFocus((idx ?? flatRows.length) - 1);
     } else if (e.key === "ArrowLeft" && cur) {
       e.preventDefault();
-      if (isFolder(cur.node) && expandedIds.has(cur.node.id)) {
+      if (isFolder(cur.node) && effectiveExpandedIds.has(cur.node.id)) {
         toggleExpand(cur.node.id);
       } else if (cur.parentId) {
         const parentIdx = indexById.get(cur.parentId);
@@ -247,7 +601,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     } else if (e.key === "ArrowRight" && cur) {
       e.preventDefault();
       if (isFolder(cur.node)) {
-        if (!expandedIds.has(cur.node.id)) {
+        if (!effectiveExpandedIds.has(cur.node.id)) {
           toggleExpand(cur.node.id);
         } else {
           const child = flatRows[(idx ?? -1) + 1];
@@ -267,7 +621,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     }
   };
 
-  // --- DnD ----------------------------------------------------------------
+  // --- Row DnD ------------------------------------------------------------
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const computeDropZone = (e: DragMoveEvent | DragEndEvent): DropZone | null => {
@@ -326,6 +680,9 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     setDropZone(null);
     setDraggingId(null);
     if (!zone || !id) return;
+    // A reorder while sorted would compute `beforeId` from the sorted order,
+    // not the persisted one — ignore drops until the sort is cleared.
+    if (sort) return;
     if (zone.kind === "into") onMove?.(id, zone.folderId, null);
     else if (zone.kind === "after-all") onMove?.(id, null, null);
     else {
@@ -343,15 +700,122 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // --- Context menu derived ----------------------------------------------
   const ctxTargetRow = ctx?.targetId != null ? flatRows[indexById.get(ctx.targetId) ?? -1] : null;
   const ctxTargetIsFolder = ctxTargetRow ? isFolder(ctxTargetRow.node) : false;
-  // "Add" is relative to where you'd want the new node placed:
-  //   - right-click on folder        → add as child of that folder
-  //   - right-click on file          → add as sibling (same parent)
-  //   - right-click on empty space   → add to root
   const addParentId = ctxTargetRow
     ? ctxTargetIsFolder
       ? ctxTargetRow.node.id
       : ctxTargetRow.parentId
     : null;
+
+  // --- Header cell rendering ------------------------------------------------
+  const renderHeaderCell = (col: ExplorerColumn<M>, index: number, dnd?: HeaderDnd): ReactNode => {
+    const isLast = index === orderedColumns.length - 1;
+    const isSorted = sort?.columnId === col.id;
+    const meta = filterableColumns ? filterMeta.get(col.id) : undefined;
+    const filterValue = columnFilters.find((f) => f.id === col.id)?.value;
+    return (
+      <div
+        key={col.id}
+        ref={dnd?.ref}
+        className={cx(styles.headerCell, dnd?.dragging && styles.headerDragging)}
+        data-align={col.align ?? "start"}
+        data-sortable={col.sortable || undefined}
+        style={dnd?.style}
+        onClick={col.sortable ? () => cycleSort(col.id) : undefined}
+        {...(dnd?.attributes ?? {})}
+      >
+        <span
+          className={cx(styles.headerLabel, dnd && styles.headerDraggable)}
+          {...(dnd?.listeners ?? {})}
+        >
+          {col.header}
+        </span>
+        {col.sortable && isSorted ? (
+          <span className={styles.sortArrow} aria-hidden="true">
+            {sort?.dir === "asc" ? "↑" : "↓"}
+          </span>
+        ) : null}
+        {meta ? (
+          <ColumnFilter
+            label={col.header}
+            kind={meta.kind}
+            options={meta.options}
+            value={filterValue}
+            active={filterValue !== undefined}
+            onChange={(value) =>
+              setColumnFilters((prev) => {
+                const others = prev.filter((f) => f.id !== col.id);
+                return value === undefined ? others : [...others, { id: col.id, value }];
+              })
+            }
+          />
+        ) : null}
+        {resizableColumns && !isLast && col.resizable !== false ? (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={`Resize ${col.header}`}
+            tabIndex={0}
+            data-column-id={col.id}
+            className={styles.resizeHandle}
+            onPointerDown={(e: ReactPointerEvent) => {
+              e.stopPropagation();
+              onColumnResizeDown(e);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              e.preventDefault();
+              e.stopPropagation();
+              const step = (e.shiftKey ? 1 : 8) * (e.key === "ArrowRight" ? 1 : -1);
+              nudgeResize(col.id, step);
+            }}
+          />
+        ) : null}
+      </div>
+    );
+  };
+
+  const headerCells = orderedColumns.map((col, i) =>
+    reorderableColumns && i > 0 ? (
+      <SortableHeaderCell
+        key={col.id}
+        id={col.id}
+        render={(dnd) => renderHeaderCell(col, i, dnd)}
+      />
+    ) : (
+      renderHeaderCell(col, i)
+    ),
+  );
+
+  const header = showHeader ? (
+    <div
+      ref={headerRowRef}
+      className={styles.headerRow}
+      style={{ gridTemplateColumns: gridTemplate }}
+    >
+      {reorderableColumns ? (
+        <DndContext
+          sensors={colSensors}
+          onDragStart={(e) => setDraggingColId(String(e.active.id))}
+          onDragEnd={onColDragEnd}
+          onDragCancel={() => setDraggingColId(null)}
+        >
+          <SortableContext items={nonTreeIds} strategy={horizontalListSortingStrategy}>
+            {headerCells}
+          </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {draggingColId ? (
+              <div className={styles.headerDragOverlay}>
+                {orderedColumns.find((c) => c.id === draggingColId)?.header}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        headerCells
+      )}
+    </div>
+  ) : null;
 
   // --- Render -------------------------------------------------------------
   return (
@@ -361,6 +825,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       data-explorer-root=""
       {...rest}
     >
+      {header}
+
       <DndContext
         sensors={sensors}
         onDragStart={onDragStart}
@@ -368,16 +834,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
-        {showHeader ? (
-          <div className={styles.headerRow} style={{ gridTemplateColumns: gridTemplate }}>
-            {columns.map((col) => (
-              <div key={col.id} className={styles.headerCell} data-align={col.align ?? "start"}>
-                {col.header}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
         <div
           ref={viewportRef}
           role="treegrid"
@@ -389,43 +845,89 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
           onContextMenu={handleViewportContextMenu}
           onClick={handleViewportClick}
         >
-          <div className={styles.body} style={{ height: `${virtualizer.getTotalSize()}px` }}>
-            {virtualizer.getVirtualItems().map((vRow) => {
-              const row = flatRows[vRow.index];
-              if (!row) return null;
-              const id = row.node.id;
-              const isLast = vRow.index === flatRows.length - 1;
-              return (
-                <ExplorerRow<M>
-                  key={id}
-                  row={row}
-                  rowIndex={vRow.index}
-                  top={vRow.start}
-                  rowHeight={rowHeight}
-                  columns={columns}
-                  gridTemplate={gridTemplate}
-                  isSelected={selectedIds.has(id)}
-                  isFocused={focusedId === id}
-                  isExpanded={expandedIds.has(id)}
-                  isEditing={editingId === id}
-                  isDragging={draggingId === id}
-                  dropZone={dropZone}
-                  isLastRow={isLast}
-                  draggable={editable}
-                  icon={icon}
-                  onChevronToggle={() => toggleExpand(id)}
-                  onPointerDown={(e) => handleRowPointerDown(e, row)}
-                  onDoubleClick={() => handleRowDoubleClick(row)}
-                  onContextMenu={(e) => handleRowContextMenu(e, row)}
-                  onRenameCommit={(name) => {
-                    onRename?.(id, name);
-                    setEditing(null);
-                  }}
-                  onRenameCancel={() => setEditing(null)}
-                />
-              );
-            })}
-          </div>
+          {showEmpty ? (
+            <div className={styles.empty}>{empty}</div>
+          ) : (
+            <div className={styles.body} style={{ height: `${virtualizer.getTotalSize()}px` }}>
+              {fillOn ? (
+                <div
+                  ref={
+                    fillAnimated
+                      ? (node) => {
+                          fillRootRef.current = node;
+                        }
+                      : undefined
+                  }
+                  className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+                  aria-hidden="true"
+                  style={
+                    {
+                      height: fillHeight || "100%",
+                      "--sf-columns-width": `${columnsWidth}px`,
+                      ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
+                    } as CSSProperties
+                  }
+                >
+                  {fillAnimated ? (
+                    <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} />
+                  ) : null}
+                </div>
+              ) : null}
+              {virtualizer.getVirtualItems().map((vRow) => {
+                const row = flatRows[vRow.index];
+                if (!row) return null;
+                const id = row.node.id;
+                const isLast = vRow.index === flatRows.length - 1;
+                return (
+                  <ExplorerRow<M>
+                    key={id}
+                    row={row}
+                    rowIndex={vRow.index}
+                    top={vRow.start}
+                    rowHeight={rowHeight}
+                    columns={orderedColumns}
+                    gridTemplate={gridTemplate}
+                    isSelected={selectedIds.has(id)}
+                    isFocused={focusedId === id}
+                    isExpanded={effectiveExpandedIds.has(id)}
+                    isEditing={editingId === id}
+                    isDragging={draggingId === id}
+                    dropZone={dropZone}
+                    isLastRow={isLast}
+                    draggable={editable}
+                    icon={icon}
+                    onChevronToggle={() => toggleExpand(id)}
+                    onPointerDown={(e) => handleRowPointerDown(e, row)}
+                    onDoubleClick={() => handleRowDoubleClick(row)}
+                    onContextMenu={(e) => handleRowContextMenu(e, row)}
+                    onRenameCommit={(name) => {
+                      onRename?.(id, name);
+                      setEditing(null);
+                    }}
+                    onRenameCancel={() => setEditing(null)}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {edgeFade && !showEmpty ? (
+            <div
+              className={styles.edgeFade}
+              aria-hidden="true"
+              style={
+                {
+                  "--sf-row-height": `${rowHeight}px`,
+                  ...(typeof edgeFade === "object"
+                    ? {
+                        "--sf-datatable-fade-rows": edgeFade.rows,
+                        "--sf-datatable-fade-density": edgeFade.density,
+                      }
+                    : null),
+                } as CSSProperties
+              }
+            />
+          ) : null}
         </div>
 
         <DragOverlay dropAnimation={null}>
@@ -460,6 +962,29 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       </DndContext>
     </div>
   );
+}
+
+// --- Sortable header cell (column reorder) --------------------------------
+
+interface HeaderDnd {
+  ref: (node: HTMLElement | null) => void;
+  attributes: Record<string, unknown>;
+  listeners: Record<string, unknown> | undefined;
+  style: CSSProperties;
+  dragging: boolean;
+}
+
+function SortableHeaderCell({ id, render }: { id: string; render: (dnd: HeaderDnd) => ReactNode }) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id,
+  });
+  return render({
+    ref: setNodeRef,
+    attributes: attributes as unknown as Record<string, unknown>,
+    listeners: listeners as Record<string, unknown> | undefined,
+    style: { transform: CSS.Transform.toString(transform), transition },
+    dragging: isDragging,
+  });
 }
 
 // --- ExplorerRow (internal) -----------------------------------------------
@@ -671,14 +1196,6 @@ interface ContextMenuProps {
 function ContextMenu(props: ContextMenuProps) {
   const { ctx, hasTarget, onClose, onNewFile, onNewFolder, onRename, onDelete } = props;
   const triggerRef = useRef<HTMLButtonElement>(null);
-
-  // Programmatically open by focusing+clicking the trigger after position update.
-  useEffect(() => {
-    if (ctx && triggerRef.current) {
-      // The Menu's open is controlled via the `open` prop on Root.
-      // Nothing to do here — Root re-renders with open=true.
-    }
-  }, [ctx]);
 
   return (
     <Menu.Root open={ctx != null} onOpenChange={(open) => !open && onClose()}>

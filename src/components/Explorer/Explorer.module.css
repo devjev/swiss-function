@@ -32,8 +32,10 @@
 }
 
 .headerCell {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: calc(var(--sf-unit) / 4);
   padding: 0 calc(var(--sf-unit) / 2);
   block-size: calc(var(--sf-unit) * 1.25);
   font-size: var(--sf-font-size-sm);
@@ -41,6 +43,7 @@
   color: var(--sf-color-fg);
   border-inline-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
+  background-color: var(--sf-color-bg-subtle);
 }
 
 .headerCell:last-child {
@@ -49,6 +52,166 @@
 
 .headerCell[data-align="end"] {
   justify-content: flex-end;
+}
+
+/* The label takes the slack; sort arrow / filter / resize handle sit at the end. */
+.headerLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.headerCell[data-align="end"] .headerLabel {
+  margin-inline-start: auto;
+}
+
+.headerCell[data-sortable] {
+  cursor: pointer;
+}
+
+.headerCell[data-sortable]:hover {
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+}
+
+.sortArrow {
+  font-size: 0.85em;
+  line-height: 1;
+  color: var(--sf-color-primary);
+}
+
+/* --- Column reorder (drag grip + lifted cell + overlay) --- */
+.headerDraggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.headerDraggable:active {
+  cursor: grabbing;
+}
+
+.headerDragging {
+  opacity: 0.35;
+  z-index: 1;
+}
+
+.headerDragOverlay {
+  display: flex;
+  align-items: center;
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0 calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg-subtle);
+  border: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-elevation-3);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  cursor: grabbing;
+}
+
+/* --- Column resize handle (straddles the trailing border) --- */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  inset-inline-end: calc(var(--sf-unit) / -4);
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.resizeHandle::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: calc(var(--sf-unit) / 4 - 1px);
+  inline-size: 2px;
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.headerCell:hover .resizeHandle::after,
+.resizeHandle:hover::after,
+.resizeHandle[data-dragging]::after,
+.resizeHandle:focus-visible::after {
+  background-color: var(--sf-color-primary);
+}
+
+.resizeHandle:focus-visible {
+  outline: none;
+}
+
+/* --- Empty state --- */
+.empty {
+  display: grid;
+  place-items: center;
+  padding: var(--sf-unit);
+  color: var(--sf-color-muted);
+  font-size: var(--sf-font-size-sm);
+}
+
+/* --- Edge fade (dithered bottom scroll fade) --- */
+.edgeFade {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  --sf-fade-block: calc(
+    var(--sf-row-height, calc(var(--sf-unit) * 2)) *
+    var(--sf-datatable-fade-rows, 2)
+  );
+  block-size: var(--sf-fade-block);
+  margin-block-start: calc(-1 * var(--sf-fade-block));
+  pointer-events: none;
+  background-color: var(--sf-color-bg);
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent, rgb(0 0 0 / var(--sf-datatable-fade-density, 1))),
+    var(--sf-dither);
+  mask-image:
+    linear-gradient(to bottom, transparent, rgb(0 0 0 / var(--sf-datatable-fade-density, 1))),
+    var(--sf-dither);
+  -webkit-mask-size:
+    100% 100%,
+    2px 2px;
+  mask-size:
+    100% 100%,
+    2px 2px;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+/* --- Column fill (dither in the space right of fixed-width columns) --- */
+.columnFill {
+  position: absolute;
+  top: 0;
+  inset-inline-start: var(--sf-columns-width, 0);
+  inset-inline-end: 0;
+  pointer-events: none;
+  color: var(--sf-color-muted);
+}
+
+.columnFill:not(.columnFillAnimated) {
+  background-color: var(
+    --sf-columnfill-color,
+    color-mix(in srgb, var(--sf-color-muted), transparent 55%)
+  );
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+.columnFillCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* --- Body / row --- */
@@ -210,7 +373,8 @@
 
 /* Respect prefers-reduced-motion: drag overlay never animates beyond opacity. */
 @media (prefers-reduced-motion: reduce) {
-  .row {
+  .row,
+  .resizeHandle::after {
     transition: none;
   }
 }

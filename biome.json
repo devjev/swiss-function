@@ -57,7 +57,7 @@
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
-      "includes": ["src/components/DataTable/**"],
+      "includes": ["src/components/DataTable/**", "src/lib/filter/**"],
       "linter": {
         "rules": {
           "a11y": {
@@ -69,14 +69,15 @@
       }
     },
     {
-      "includes": ["src/components/Outliner/**"],
+      "includes": ["src/components/Outliner/**", "src/components/Explorer/**"],
       "linter": {
         "rules": {
           "a11y": {
             "useSemanticElements": "off",
             "useFocusableInteractive": "off",
             "useKeyWithClickEvents": "off",
-            "noStaticElementInteractions": "off"
+            "noStaticElementInteractions": "off",
+            "useAriaPropsForRole": "off"
           }
         }
       }

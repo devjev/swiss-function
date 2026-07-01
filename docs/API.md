@@ -26,7 +26,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · Combobox · DataTable · Dialog · Dropzone ·
+ButtonGroup · Chat · Checkbox · DataTable · Dialog · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -252,41 +252,6 @@ Wraps Base UI's Checkbox with token styling. Extends `HTMLAttributes<HTMLButtonE
 | --- | --- | --- | --- |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
 
-## Combobox
-
-`import { Combobox } from "@tarassov-ch/swiss-function/combobox"`
-
-A thin wrapper over Base UI's Combobox with library styling. Compound API. For single-select autocomplete use it directly; for an opinionated multi-select prefer [Selector](#selector).
-
-**Parts:** `Root`, `Input`, `InputGroup`, `Portal`, `Positioner`, `Popup`,
-`List`, `Item`, `ItemIndicator`, `Empty`, `Value`, `Chips`, `Chip`, `ChipRemove`,
-`Clear`.
-
-`Root` forwards Base UI props. Most-used: `items`, `multiple`, `value` /
-`defaultValue`, `onValueChange`, `disabled`. `Positioner` carries the dropdown
-`z-index` so the popup paints above page chrome (e.g. a DataTable sticky header).
-
-```tsx
-<Combobox.Root items={fruits}>
-  <Combobox.Input placeholder="Search fruit…" />
-  <Combobox.Portal>
-    <Combobox.Positioner sideOffset={4}>
-      <Combobox.Popup>
-        <Combobox.Empty>No results</Combobox.Empty>
-        <Combobox.List>
-          {(fruit: string) => (
-            <Combobox.Item key={fruit} value={fruit}>
-              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
-              {fruit}
-            </Combobox.Item>
-          )}
-        </Combobox.List>
-      </Combobox.Popup>
-    </Combobox.Positioner>
-  </Combobox.Portal>
-</Combobox.Root>
-```
-
 ## DataTable
 
 `import { DataTable } from "@tarassov-ch/swiss-function/data-table"`
@@ -425,7 +390,9 @@ Files dedupe by name + size + lastModified. Drag-over and keyboard focus share t
 
 `import { Explorer } from "@tarassov-ch/swiss-function/explorer"`
 
-Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and a context menu. Fully controlled. Keyboard: arrows, Cmd/Ctrl+A, Delete, F2/Enter to edit.
+Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and a context menu. It also carries the DataTable-style column affordances that fit a tree — **column sorting, filtering, resizing, reordering**, an empty state, and a dithered edge-fade. Fully controlled. Keyboard: arrows, Cmd/Ctrl+A, Delete, F2/Enter to edit.
+
+Sorting reorders each folder's children in place (hierarchy preserved, like Finder); filtering keeps the path to every match and auto-expands it. Reorder drag is ignored while a sort is active.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -442,10 +409,27 @@ Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and
 | `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | — | From context menu (null = root). |
 | `onMove` | `(id, newParentId, beforeId?) => void` | — | Drag drop; `beforeId` for order, null = append. |
 | `onDelete` | `(ids: string[]) => void` | — | Context menu or Delete/Backspace. |
+| `resizableColumns` | `boolean` | `false` | Drag column borders to resize. Widths are **raw px** (unlike DataTable's `--sf-unit` multiples). |
+| `columnWidths` / `defaultColumnWidths` | `Record<string, number>` | — | Controlled / initial px width overrides, keyed by column id. |
+| `onColumnWidthsChange` | `(widths) => void` | — | Fires on resize; persist for sticky widths. |
+| `reorderableColumns` | `boolean` | `false` | Drag metadata headers to reorder. The tree column stays pinned at index 0. |
+| `columnOrder` / `defaultColumnOrder` | `string[]` | — | Controlled / initial order — **non-tree column ids only** (the tree id is never included). |
+| `onColumnOrderChange` | `(order) => void` | — | Fires on reorder. |
+| `sort` / `defaultSort` | `ExplorerSort \| null` | `null` | `{ columnId, dir: "asc" \| "desc" }`. Header click cycles asc → desc → off. |
+| `onSortChange` | `(sort) => void` | — | Fires on header click. |
+| `sortFoldersFirst` | `boolean` | `true` | Keep folders above files within each sibling group when sorting. |
+| `filterableColumns` | `boolean` | `false` | Show per-column filter funnels (checklist or numeric range, inferred from values). |
+| `columnFilters` / `defaultColumnFilters` | `ColumnFiltersState` | `[]` | Controlled / initial filters (`{ id, value }[]`). |
+| `onColumnFiltersChange` | `(filters) => void` | — | Fires on filter change. |
 | `icon` | `(node) => ReactNode` | — | Override the per-node glyph. |
 | `showHeader` | `boolean` | `true` | Column header row. |
+| `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
+| `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
+| `columnFill` | `boolean \| { animated?, effect?, color?, density?, speed? }` | `false` | Dither filler right of fixed-width columns; a no-op when the last column already stretches (the default). |
 | `rowHeight` | `number` | `32` | Px (≈ `unit * 4/3`). |
 | `height` | `number \| string` | `"100%"` | Viewport height; number = px, string = CSS. |
+
+**`ExplorerColumn<M>`** adds per-column: `minWidth` (px, resize floor, default 48), `resizable` (default true), `sortable`, `sortType` (`"string" \| "number" \| "date"`, inferred otherwise), `sortComparator` (full override), `filterable` (default true when filtering is on), and `filter` (`{ kind, options? }` to force the filter UI instead of inferring it).
 
 ## Field
 
@@ -775,7 +759,7 @@ scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
 
 `import { Picker } from "@tarassov-ch/swiss-function/picker"`
 
-Search a list and choose exactly one — the single-selection sibling of [Selector](#selector), built on a single-select Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
+Search a list and choose exactly one — the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -899,7 +883,7 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 
 `import { Selector } from "@tarassov-ch/swiss-function/selector"`
 
-Opinionated, controlled multi-select built on Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label }`.
+Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label }`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |

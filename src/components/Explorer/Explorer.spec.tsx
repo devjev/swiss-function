@@ -149,3 +149,59 @@ test("context menu New file fires onAdd with target's parent", async ({ mount, p
   await page.getByRole("menuitem", { name: "New file" }).click();
   await expect(c.getByTestId("last-op")).toHaveText("add:root:file");
 });
+
+// --- Data-grid features (sort / filter / resize / empty) -------------------
+
+test("empty tree shows the empty state", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness emptyData />);
+  await expect(c.getByText("No data")).toBeVisible();
+  await expect(c.locator('[data-row-id="README.md"]')).toHaveCount(0);
+});
+
+test("clicking a sortable header sorts sibling groups, folders first", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness grid expanded={["src"]} />);
+  // Seed order inside src: index.ts (file) then components (folder).
+  const before = await c.locator('[data-row-id="src/index.ts"]').boundingBox();
+  const beforeFolder = await c.locator('[data-row-id="src/components"]').boundingBox();
+  expect(before!.y).toBeLessThan(beforeFolder!.y);
+  // Sort by Name asc → folders first, so components moves above index.ts.
+  await c.getByText("Name", { exact: true }).click();
+  const after = await c.locator('[data-row-id="src/index.ts"]').boundingBox();
+  const afterFolder = await c.locator('[data-row-id="src/components"]').boundingBox();
+  expect(afterFolder!.y).toBeLessThan(after!.y);
+});
+
+test("sort cycles asc → desc → none, showing/removing the arrow", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness grid />);
+  const name = c.getByText("Name", { exact: true });
+  await expect(name.locator("xpath=..").getByText("↑")).toHaveCount(0);
+  await name.click();
+  await expect(name.locator("xpath=..").getByText("↑")).toBeVisible();
+  await name.click();
+  await expect(name.locator("xpath=..").getByText("↓")).toBeVisible();
+  await name.click();
+  await expect(name.locator("xpath=..").getByText("↓")).toHaveCount(0);
+});
+
+test("keyboard resize widens a column (ArrowRight on its separator)", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness grid />);
+  const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
+  const before = (await nameCell.boundingBox())!.width;
+  const handle = c.getByRole("separator", { name: "Resize Name" });
+  await handle.focus();
+  for (let i = 0; i < 6; i++) await handle.press("ArrowRight");
+  const after = (await nameCell.boundingBox())!.width;
+  expect(after).toBeGreaterThan(before);
+});
+
+test("filter funnel prunes to matches and keeps the ancestor path", async ({ mount, page }) => {
+  const c = await mount(<ExplorerHarness grid expanded={["src", "src/components"]} />);
+  // Filter the Kind column down to "tsx" — only Box.tsx / Grid.tsx qualify, so
+  // src → components is retained (auto-expanded) and README.md is pruned.
+  await c.getByRole("button", { name: "Filter Kind", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Select all" }).click(); // clear
+  await page.getByRole("checkbox", { name: "tsx" }).click();
+  await expect(c.locator('[data-row-id="src/components/Box.tsx"]')).toBeVisible();
+  await expect(c.locator('[data-row-id="README.md"]')).toHaveCount(0);
+  await expect(c.locator('[data-row-id="src/index.ts"]')).toHaveCount(0);
+});

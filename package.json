@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -187,10 +187,6 @@
     "./surface": {
       "types": "./dist/components/Surface/index.d.ts",
       "import": "./dist/components/Surface/index.js"
-    },
-    "./combobox": {
-      "types": "./dist/components/Combobox/index.d.ts",
-      "import": "./dist/components/Combobox/index.js"
     },
     "./data-table": {
       "types": "./dist/components/DataTable/index.d.ts",

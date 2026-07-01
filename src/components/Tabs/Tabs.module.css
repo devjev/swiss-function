@@ -16,13 +16,13 @@
   padding: var(--sf-space-2) var(--sf-space-4);
   background: none;
   border: none;
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
   cursor: pointer;
-  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .tab:focus-visible {
@@ -32,7 +32,7 @@
 }
 
 .tab:hover {
-  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg-subtle);
 }
 
 .tab[data-selected] {

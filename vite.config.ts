@@ -43,7 +43,6 @@ const componentNames = [
   "SplitPane",
   "StreamingTerminalText",
   "Surface",
-  "Combobox",
   "DataTable",
   "Tabs",
   "TextEdit",
