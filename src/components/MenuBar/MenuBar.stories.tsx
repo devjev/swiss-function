@@ -6,7 +6,8 @@ import { Selector } from "../Selector";
 import { Switch } from "../Switch";
 import { MenuBar } from "./MenuBar";
 
-const log = (msg: string) => () => console.log(msg);
+// Demo no-op: menu items get a handler without logging to the console.
+const log = (_msg: string) => () => {};
 
 function Bar({ position }: { position?: "top" | "bottom" }) {
   return (
@@ -95,7 +96,7 @@ export const Classic: Story = () => (
   <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
     <Bar />
     <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>
-      Window content goes here. Click a menu above; clicks log to console.
+      Window content goes here. Click a menu above.
     </div>
   </div>
 );

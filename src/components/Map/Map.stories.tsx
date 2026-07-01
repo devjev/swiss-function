@@ -19,7 +19,7 @@ export const Points: Story = () => (
       { at: PARIS, label: "Paris" },
       { at: ROME, label: "Rome", radius: 8 },
     ]}
-    onFeatureClick={(f) => console.log("clicked", f)}
+    onFeatureClick={() => {}}
   />
 );
 

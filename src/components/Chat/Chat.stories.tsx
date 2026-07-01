@@ -319,7 +319,7 @@ export const Thinking: Story = () => {
       <Chat
         messages={messages}
         onSubmit={() => {}}
-        onAction={(a: ChatAction) => console.log("action", a)}
+        onAction={() => {}}
         disabled={!done}
         height={420}
       />
