@@ -127,7 +127,11 @@
    The group grows with chips, so size sets the single-row floor + font. */
 .inputGroup[data-size="sm"] {
   min-block-size: var(--sf-unit);
-  padding: calc(var(--sf-unit) / 6) calc(var(--sf-unit) / 3);
+  /* No block padding: the 1u (24px) min-block-size is the single-row floor and
+     align-items centers the field, so a single-row sm group is exactly 24px —
+     the same height as Input/Button sm. (Block padding here would stack on the
+     floor and push it to ~30px.) The group still grows per row when chips wrap. */
+  padding: 0 calc(var(--sf-unit) / 3);
   font-size: var(--sf-font-size-sm);
 }
 .inputGroup[data-size="sm"] .input {
