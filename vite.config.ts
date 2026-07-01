@@ -53,6 +53,7 @@ const componentNames = [
   "Reflow",
   "Picker",
   "Dropzone",
+  "WindowArray",
 ];
 
 const componentEntries = Object.fromEntries(

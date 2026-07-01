@@ -1,0 +1,323 @@
+/* WindowArray — Niri-style horizontally scrolling strip of window columns.
+
+   LOAD-BEARING INVARIANT: `.root` must stay the ONLY positioned ancestor
+   between a window and the component root. A fullscreen window is
+   `position: absolute; inset: 0` and covers the root's box precisely because
+   `.viewport` and `.strip` never establish a containing block — do NOT give
+   either `position`, `transform`, `filter`, `contain`, or
+   `will-change: transform`, or fullscreen breaks (it would be re-captured by
+   the scrolled content). */
+.root {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: hidden;
+  background-color: var(--sf-color-bg-subtle);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.viewport {
+  composes: scrollable from "../../lib/scrollable.module.css";
+  inline-size: 100%;
+  block-size: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Keyboard auto-scroll animates via CSS, so reduced-motion is a pure CSS
+     override (see media query below) — no JS matchMedia. */
+  scroll-behavior: smooth;
+  /* Don't chain strip scrolling into the page (or trigger the browser's
+     swipe-back navigation at the strip's ends). */
+  overscroll-behavior-x: contain;
+}
+
+/* Optional column snapping (`snap`): proximity, not mandatory, so free
+   scrolling stays possible; columns settle flush with a viewport EDGE (their
+   gutter kept in view via scroll-padding), matching the keyboard auto-scroll's
+   nearest-edge policy. Backdrops snap `start` and windows snap `end` — the
+   same column contributes both edge positions, so the scroller picks the
+   nearest one. */
+.root[data-snap] .viewport {
+  scroll-snap-type: inline proximity;
+  scroll-padding-inline: var(--sf-wa-gap, calc(var(--sf-unit) / 2));
+}
+.root[data-snap] .columnBack {
+  scroll-snap-align: start;
+}
+.root[data-snap] .window {
+  scroll-snap-align: end;
+}
+/* Suspend snapping mid-gesture: dnd-kit's auto-scroll and gutter resizing
+   move scrollLeft/track widths continuously and re-snapping would fight. */
+.root[data-snap][data-interacting] .viewport {
+  scroll-snap-type: none;
+}
+
+/* While a window is fullscreen the strip behind is inert: no scrollbar poking
+   out underneath, no gutter interactions (the gutter rule sits after .gutter
+   below). Scroll POSITION is preserved — only the overflow is hidden. */
+.root[data-has-fullscreen] .viewport {
+  overflow-x: hidden;
+}
+
+/* One flat grid for the whole strip: alternating gutter/column tracks and
+   `subrowCount` fractional rows (both templates set inline). Windows are
+   placed by grid-column/grid-row as direct children — never nested in column
+   elements — so a rearrange is a placement change on a keyed sibling and the
+   window's content state survives the move. Vertical spacing is window
+   margins, NOT row-gap: gaps between fractional subrows would consume real
+   height. */
+.strip {
+  display: grid;
+  block-size: 100%;
+  min-inline-size: max-content;
+  padding-block: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
+  box-sizing: border-box;
+}
+
+/* Invisible full-height item under a column's windows: carries the consumer's
+   Column props, measures for auto-scroll, and catches drops when empty. Must
+   stay un-positioned (see the file header) and unstyled by default. */
+.columnBack {
+  grid-row: 1 / -1;
+  min-inline-size: 0;
+}
+
+/* In-flow resize gutter between columns (also the "drop here to make a new
+   column" target while dragging). The leading gutter is drop-only. */
+.gutter {
+  position: relative;
+  grid-row: 1 / -1;
+  touch-action: none;
+  outline: none;
+}
+.gutter[data-resizable] {
+  cursor: col-resize;
+}
+/* Centered 2px line — invisible at rest, primary on hover/focus/drag and as
+   the new-column drop indicator (Grid's gutter affordance). */
+.gutter::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  inline-size: 2px;
+  transform: translateX(-50%);
+  background-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.gutter[data-resizable]:hover::after,
+.gutter[data-resizable]:focus-visible::after,
+.gutter[data-dragging]::after,
+.gutter[data-drop-active]::after {
+  background-color: var(--sf-color-primary);
+}
+.root[data-has-fullscreen] .gutter {
+  pointer-events: none;
+}
+
+.window {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-block-size: 0;
+  min-inline-size: 0;
+  /* Half the gap on each block edge: window-to-window reads as one full gap,
+     and the strip's padding-block supplies the other half at the strip edges. */
+  margin-block: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-1);
+  overflow: hidden;
+  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+/* Active = state, so the primary border is allowed (never a resting edge). */
+.window[data-active] {
+  border-color: var(--sf-color-primary);
+}
+.window[data-dragging] {
+  opacity: 0.4;
+}
+/* Containing-block escape: absolute against `.root` (see file header), so the
+   window covers exactly the component's box and ignores the strip's scroll. */
+.window[data-fullscreen] {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Drop indicator: 2px primary line at the projected insertion edge. */
+.window[data-drop-edge="before"]::before,
+.window[data-drop-edge="after"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  block-size: 2px;
+  background-color: var(--sf-color-primary);
+  z-index: 3;
+  pointer-events: none;
+}
+.window[data-drop-edge="before"]::before {
+  inset-block-start: 0;
+}
+.window[data-drop-edge="after"]::after {
+  inset-block-end: 0;
+}
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-bg-subtle);
+  border-block-end: 1px solid var(--sf-color-border);
+  user-select: none;
+  touch-action: none;
+}
+
+/* The title doubles as the window's single Tab stop and drag grip. */
+.handle {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: 0 calc(var(--sf-unit) / 4);
+  border: 0;
+  background: none;
+  color: var(--sf-color-fg);
+  font-family: inherit;
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  line-height: var(--sf-line-height-tight);
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--sf-radius-default);
+}
+.titlebar[data-movable] .handle {
+  cursor: grab;
+}
+.handle:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Right-aligned window-chrome button row (Dialog.Actions pattern). */
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  margin-inline-start: auto;
+}
+
+/* Square icon button — matches Dialog/ChatDrawer header controls. */
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  background-color: transparent;
+  color: var(--sf-color-fg);
+  border: 0;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.iconButton:hover {
+  background-color: var(--sf-color-bg);
+}
+.iconButton:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.body {
+  composes: scrollable from "../../lib/scrollable.module.css";
+  overflow: auto;
+  min-block-size: 0;
+}
+
+/* Drag ghost rendered in the DragOverlay portal: just the title bar — no full
+   window, no scaling, no rotation. */
+.dragGhost {
+  display: flex;
+  align-items: center;
+  max-inline-size: calc(var(--sf-unit) * 12);
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg-subtle);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* Optional prev/next paddles (`controls`): floating square buttons at the
+   inline edges. They are siblings of the viewport, never window ancestors, so
+   the centering transform here does not break the fullscreen containing
+   block. z-index 1 keeps them under a fullscreen window (z-index 2). */
+.pager {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-2);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.pager[data-side="start"] {
+  inset-inline-start: calc(var(--sf-unit) / 4);
+}
+.pager[data-side="end"] {
+  inset-inline-end: calc(var(--sf-unit) / 4);
+}
+.pager:hover:not(:disabled) {
+  background-color: var(--sf-color-bg-subtle);
+}
+.pager:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+.pager:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport {
+    scroll-behavior: auto;
+  }
+  .window,
+  .iconButton,
+  .pager,
+  .gutter::after {
+    transition: none;
+  }
+}

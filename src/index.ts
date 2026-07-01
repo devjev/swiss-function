@@ -46,6 +46,7 @@ export * from "./components/Tabs";
 export * from "./components/TextEdit";
 export * from "./components/Timeline";
 export * from "./components/ToggleGroup";
+export * from "./components/WindowArray";
 export type { Domain, GridData, Point3, PointSeries } from "./lib/chart3d/types";
 export * from "./lib/useCollapse";
 export * from "./lib/useOverflow";

@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -119,6 +119,10 @@
     "./dropzone": {
       "types": "./dist/components/Dropzone/index.d.ts",
       "import": "./dist/components/Dropzone/index.js"
+    },
+    "./window-array": {
+      "types": "./dist/components/WindowArray/index.d.ts",
+      "import": "./dist/components/WindowArray/index.js"
     },
     "./popover": {
       "types": "./dist/components/Popover/index.d.ts",

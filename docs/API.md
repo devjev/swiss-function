@@ -30,7 +30,7 @@ ButtonGroup · Chat · Checkbox · DataTable · Dialog · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
-Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup
+Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup · WindowArray
 
 ---
 
@@ -1097,6 +1097,68 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 | --- | --- | --- | --- | --- |
 | `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
 
+## WindowArray
+
+`import { WindowArray } from "@tarassov-ch/swiss-function/window-array"`
+
+A window-manager main area in the style of Niri's scrollable tiling: an infinitely horizontally-scrollable strip of columns, each column a vertical stack of equal-height windows with Dialog-style chrome (title bar, optional ✕ and fullscreen buttons). Declarative: the consumer owns the column/window list and re-renders it; the component reports every rearrangement through `onWindowMove` and never mutates order itself. Fills its parent, so give the parent a height.
+
+**Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection).
+
+| Prop (root) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `activeId` / `defaultActiveId` / `onActiveChange` | `string \| null` | `null` | Active window (primary border, the roving Tab stop). |
+| `fullscreenId` / `defaultFullscreenId` / `onFullscreenChange` | `string \| null` | `null` | At most one window covers the WindowArray container (not the browser viewport). Escape exits. |
+| `onWindowMove` | `(move: WindowMove) => void` | — | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
+| `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
+| `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |
+| `snap` | `boolean` | `false` | Proximity scroll-snap: columns settle flush with the nearest viewport edge, gutter in view (free scrolling stays possible; suspended mid-drag/resize so gestures aren't fought). |
+| `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). |
+| `hotkeys` | `boolean` | `false` | Alt+ArrowLeft/Right switch columns while focus is *anywhere inside the array*, window content included (component-scoped — suppresses the browser's Alt+Arrow history navigation only there). |
+
+| Prop (Column) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | — | Stable identity for move targets and width callbacks. |
+| `width` / `defaultWidth` / `onWidthChange` | `number` | — / `480` | px width, controlled or uncontrolled. The callback fires when a resize settles (drag end, key press, double-click reset — which restores `defaultWidth`). |
+| `minWidth` | `number` | root's `columnMinWidth` | |
+| `resizable` | `boolean` | `true` | `false` removes the column's trailing resize gutter. |
+
+| Prop (Window) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `id` | `string` | — | Stable identity; also keys active/fullscreen state. |
+| `title` | `ReactNode` | — | Title-bar text and the window's accessible label. |
+| `onClose` | `() => void` | — | Renders the ✕. Closing = removing the element from your state. |
+| `maximizable` | `boolean` | `true` | Shows the fullscreen toggle. |
+| `movable` | `boolean` | `true` | Per-window opt-out of drag/keyboard rearranging. |
+| `actions` | `ReactNode` | — | Extra icon buttons before maximize/close (never start a drag). |
+
+`WindowMove` is `{ windowId, from: { columnId, index }, to }` where `to` is `{ type: "cell", columnId, index }` (into an existing column) or `{ type: "column", index }` (break out into a new column at that strip position — pointer drops on a gutter, or Shift+Left/Right at the strip's ends). **Index convention:** every `to` index is relative to the state after the window left its source column *and* after an emptied source column was removed — applying a move is two splices, no off-by-one:
+
+```tsx
+const [columns, setColumns] = useState(initial);
+<div style={{ height: "100vh" }}>
+  <WindowArray aria-label="Workspace" defaultActiveId="editor"
+    onWindowMove={(m) => setColumns((cols) => applyMove(cols, m))}>
+    {columns.map((col) => (
+      <WindowArray.Column key={col.id} id={col.id} defaultWidth={420}>
+        {col.windows.map((w) => (
+          <WindowArray.Window key={w.id} id={w.id} title={w.title}
+            onClose={() => setColumns((cols) => remove(cols, w.id))}>
+            {w.content}
+          </WindowArray.Window>
+        ))}
+      </WindowArray.Column>
+    ))}
+  </WindowArray>
+</div>
+// applyMove: splice the window out of from.columnId; drop that column if now
+// empty; then splice into to.columnId at to.index (or insert a new column).
+```
+
+Keyboard (on a focused title bar — each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen. With `hotkeys`, Alt+ArrowLeft/Right additionally switch columns from anywhere inside the array — including focused window content. Focus moves auto-scroll the strip (container-scoped; minimal reveal — the column lands flush with the nearest edge, its gutter kept in view) — smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
+
+Notes: windows render as flat, keyed siblings of one strip grid and are placed into columns purely by grid coordinates, so a move (any direction, including across columns) never remounts a window — React state and DOM state (inputs, scroll) survive; an `<iframe>` may still reload when a move reorders the DOM. The window body scrolls internally. Empty columns render as one full-height drop target; removing an emptied column is the consumer's call.
+
 ---
 
 ## CSS variables set per-instance
@@ -1112,3 +1174,4 @@ Set via a prop or inline style and read by the component's stylesheet:
 | `--sf-datatable-col-min` | DataTable | minimum column width (default `3u`) |
 | `--sf-columns-width` | DataTable | columns' total width — placement of the `columnFill` dither panel |
 | `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |
+| `--sf-wa-gap` | WindowArray | `gap` prop — column/window gap and gutter width |
