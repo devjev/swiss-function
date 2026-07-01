@@ -42,6 +42,9 @@ import styles from "./WindowArray.module.css";
 export type { WindowMove } from "./layout";
 
 const DEFAULT_COLUMN_WIDTH = 480;
+/** Largest near-fit overflow (px) absorbed by narrowing the last column
+ *  instead of growing a horizontal scrollbar. */
+const SQUEEZE_MAX = 8;
 
 function toUnit(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
@@ -517,6 +520,38 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     });
   }, [resolvedActive]);
 
+  // --- Near-fit overflow absorption ------------------------------------------
+  // When the columns' natural width exceeds the viewport by no more than
+  // SQUEEZE_MAX px (an "exactly full" layout off by a rounding hair or a gap),
+  // the rendered width of the LAST column is reduced by the overflow so no
+  // horizontal scrollbar appears. State (widths, aria-valuenow) is untouched.
+  const [squeeze, setSqueeze] = useState(0);
+  const squeezeRef = useRef(0);
+  squeezeRef.current = squeeze;
+  const measureSqueeze = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    // scrollWidth already reflects the currently applied squeeze — add it
+    // back to recover the natural width, so the fixpoint is stable.
+    const natural = viewport.scrollWidth + squeezeRef.current;
+    const overflow = natural - viewport.clientWidth;
+    const next = overflow > 0 && overflow <= SQUEEZE_MAX ? overflow : 0;
+    setSqueeze((prev) => (prev === next ? prev : next));
+  }, []);
+  // Track widths and column count change through renders; container size
+  // changes through the observer.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally runs after every commit — any re-render may have changed the strip's natural width.
+  useEffect(() => {
+    measureSqueeze();
+  });
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(measureSqueeze);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [measureSqueeze]);
+
   // --- Column switching (paddle controls + Alt+Arrow hotkeys) ---------------
   // With no active window, "next" starts at the strip's first window and
   // "previous" at its last; otherwise the neighbouring column, row clamped.
@@ -564,12 +599,18 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // column i), fractional subrows so unequal stacks share the height exactly.
   // Windows are placed by grid-column/grid-row, NOT nested in column elements
   // — a rearrange only changes a keyed sibling's placement, so React keeps the
-  // window's fiber and its content state survives the move.
+  // window's fiber and its content state survives the move. The dithered
+  // "desk" the windows sit on is the strip's ::before (see the CSS).
   const subrows = subrowCount(columns.map((c) => c.windows.length));
+  const trackWidths = columns.map((c) => columnWidth(c.props));
+  if (squeeze > 0 && trackWidths.length > 0) {
+    const last = trackWidths.length - 1;
+    trackWidths[last] = Math.max(0, (trackWidths[last] ?? 0) - squeeze);
+  }
   const stripStyle: CSSProperties | undefined = lastColumn
     ? {
-        gridTemplateColumns: `${gapSize} ${columns
-          .map((c) => `${columnWidth(c.props)}px`)
+        gridTemplateColumns: `${gapSize} ${trackWidths
+          .map((w) => `${w}px`)
           .join(` ${gapSize} `)} ${gapSize}`,
         gridTemplateRows: `repeat(${subrows}, minmax(0, 1fr))`,
       }
@@ -586,6 +627,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       style={{ "--sf-wa-gap": gapSize, ...style } as CSSProperties}
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
       data-snap={snap ? "" : undefined}
+      data-controls={controls ? "" : undefined}
       data-interacting={draggingId != null || resizingId != null ? "" : undefined}
       onKeyDown={handleRootKeyDown}
     >

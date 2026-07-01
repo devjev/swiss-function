@@ -315,6 +315,63 @@ test("snap turns on proximity column snapping, suspended while resizing", async 
   expect(await snapType()).toBe("inline");
 });
 
+test("the strip background is the dither fill, pinned to the root's box", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness columnCount={1} />);
+  const root = page.getByTestId("window-array");
+  const before = await root.evaluate((el) => {
+    const strip = el.firstElementChild?.firstElementChild as HTMLElement;
+    const style = getComputedStyle(strip, "::before");
+    return {
+      position: style.position,
+      mask: style.maskImage,
+      background: style.backgroundColor,
+    };
+  });
+  // Positioned against .root (the containing-block invariant) with the Bayer
+  // dither mask over a muted color — DataTable's column-fill vocabulary.
+  expect(before.position).toBe("absolute");
+  expect(before.mask).toContain("svg+xml");
+  expect(before.background).not.toBe("rgba(0, 0, 0, 0)");
+  // An underfilled strip has no horizontal overflow.
+  const viewport = await root.evaluate((el) => {
+    const v = el.firstElementChild as HTMLElement;
+    return { scrollWidth: v.scrollWidth, clientWidth: v.clientWidth };
+  });
+  expect(viewport.scrollWidth).toBe(viewport.clientWidth);
+});
+
+test("a near-exact fit absorbs up to 8px of overflow instead of scrolling", async ({
+  mount,
+  page,
+}) => {
+  // 2×305px columns + 3×12px gutters = 646px natural in a 638px viewport
+  // (640 minus the root border) — 8px of overflow, absorbed by the last column.
+  await mount(<WindowArrayHarness columnCount={2} columnWidth={305} />);
+  const root = page.getByTestId("window-array");
+  await expect
+    .poll(() =>
+      root.evaluate((el) => {
+        const v = el.firstElementChild as HTMLElement;
+        return v.scrollWidth - v.clientWidth;
+      }),
+    )
+    .toBe(0);
+  // Only the rendered track shrank — the width STATE still reports 305.
+  await expect(page.getByRole("separator").first()).toHaveAttribute("aria-valuenow", "305");
+});
+
+test("controls hide the horizontal scrollbar", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness controls />);
+  const root = page.getByTestId("window-array");
+  const scrollbarWidth = await root.evaluate(
+    (el) => getComputedStyle(el.firstElementChild as HTMLElement).scrollbarWidth,
+  );
+  expect(scrollbarWidth).toBe("none");
+});
+
 test("window content state survives a cross-column move", async ({ mount, page }) => {
   await mount(<WindowArrayHarness />);
   const input = page.getByLabel("Note for Window 1A");

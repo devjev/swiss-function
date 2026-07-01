@@ -55,6 +55,13 @@
   scroll-snap-type: none;
 }
 
+/* With paddle controls on, the horizontal scrollbar is redundant chrome —
+   hide it. The strip still scrolls (wheel, keyboard, paddles, drag
+   auto-scroll); this only removes the bar. */
+.root[data-controls] .viewport {
+  scrollbar-width: none;
+}
+
 /* While a window is fullscreen the strip behind is inert: no scrollbar poking
    out underneath, no gutter interactions (the gutter rule sits after .gutter
    below). Scroll POSITION is preserved — only the overflow is hidden. */
@@ -83,6 +90,29 @@
 .columnBack {
   grid-row: 1 / -1;
   min-inline-size: 0;
+}
+
+/* The "desk" the windows sit on: the whole strip background carries the same
+   muted half-drop Bayer dither as DataTable's column-fill. Positioned
+   absolutely, so its containing block is `.root` (the invariant above) — it
+   covers exactly the root's box and does NOT scroll with the strip; windows
+   slide over a stationary surface. Living INSIDE the scroll viewport keeps
+   the scrollbar painting above it, and windows/gutters (positioned, later in
+   tree order) paint above it too. Recolor via --sf-wa-fill-color. */
+.strip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(
+    --sf-wa-fill-color,
+    color-mix(in srgb, var(--sf-color-muted), transparent 55%)
+  );
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
 }
 
 /* In-flow resize gutter between columns (also the "drop here to make a new
