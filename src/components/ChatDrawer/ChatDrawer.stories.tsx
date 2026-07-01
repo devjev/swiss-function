@@ -35,7 +35,7 @@ const PlusIcon = () => (
   </svg>
 );
 
-function Demo({ side }: { side?: "left" | "right" | "bottom" }) {
+function Demo({ side, cellSize }: { side?: "left" | "right" | "bottom"; cellSize?: number }) {
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -67,6 +67,7 @@ function Demo({ side }: { side?: "left" | "right" | "bottom" }) {
         onOpenChange={setOpen}
         title="Assistant"
         thinking={busy}
+        cellSize={cellSize}
         defaultSize={380}
         minSize={300}
         maxSize={640}
@@ -96,6 +97,10 @@ function Demo({ side }: { side?: "left" | "right" | "bottom" }) {
 
 /** A resizable chat panel that pushes the app content aside. */
 export const Default: Story = () => <Demo side="right" />;
+
+/** Coarser thinking-effect grain: `cellSize` sets the shade-block size in px
+ *  (default 7); send a message to compare the chunkier dither. */
+export const CoarseGrain: Story = () => <Demo side="right" cellSize={14} />;
 
 /** Left-edge variant. */
 export const Left: Story = () => <Demo side="left" />;

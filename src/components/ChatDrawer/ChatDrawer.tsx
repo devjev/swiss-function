@@ -60,6 +60,9 @@ export interface ChatDrawerProps {
   color?: string;
   /** Effect animation speed multiplier. Default `1`. */
   speed?: number;
+  /** Grain of the effect: shade-block size in px (square). Smaller = finer
+   *  dither. Defaults to `NonIdealState`'s cell size (7). */
+  cellSize?: number;
   /** The always-on panel wash. A CSS colour overrides it; `false` disables it
    *  (idle panel stays plain). Omit for the default — a faint 7% tint of `color`. */
   wash?: string | false;
@@ -216,6 +219,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     effect = "ripple",
     color = "var(--sf-color-primary)",
     speed = 1,
+    cellSize,
     wash,
     messages,
     onSubmit,
@@ -308,6 +312,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
               effect={effect}
               color={color}
               speed={speed}
+              cellSize={cellSize}
               className={styles.fill}
             />
           ) : null}

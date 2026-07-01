@@ -214,6 +214,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `effect` | `EffectName` | `"ripple"` | Background effect (any `NonIdealState` effect). |
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
+| `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
 | `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` | — | — | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
