@@ -379,8 +379,12 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     ...style,
   } as CSSProperties;
 
+  // Stable context identity: `start`/`end` are consumer Date props — when they
+  // don't change, the (potentially many) Event children skip re-rendering.
+  const rangeCtx = useMemo(() => ({ start, end }), [start, end]);
+
   return (
-    <TimelineContext.Provider value={{ start, end }}>
+    <TimelineContext.Provider value={rangeCtx}>
       <div
         {...rest}
         ref={setRef}

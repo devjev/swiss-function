@@ -21,7 +21,16 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
 } from "react";
-import { Fragment, forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  Fragment,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cx } from "../../lib/cx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import type { DropSlot, NavDirection, StripModel, WindowMove } from "./layout";
@@ -34,6 +43,7 @@ import {
   neighbor,
   projectMove,
   rowTrack,
+  slotsEqual,
   subrowCount,
   successor,
 } from "./layout";
@@ -195,17 +205,25 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   ref,
 ) {
   // --- Model from declarative children (Reflow collection pattern) ---------
-  const columnEls = collectElements<WindowArrayColumnProps>(children, Column);
-  const columns = columnEls.map((el) => ({
-    props: el.props,
-    windows: collectElements<WindowArrayWindowProps>(el.props.children, Window).map((w) => w.props),
-  }));
-  const model: StripModel = {
-    columns: columns.map((c) => ({
-      id: c.props.id,
-      windowIds: c.windows.map((w) => w.id),
-    })),
-  };
+  // Memoized on `children`: internal state changes (drop slot per pointermove,
+  // width overrides per resize step, squeeze, active/fullscreen) re-render
+  // without re-walking the consumer's element tree.
+  const { columns, model } = useMemo(() => {
+    const columnEls = collectElements<WindowArrayColumnProps>(children, Column);
+    const cols = columnEls.map((el) => ({
+      props: el.props,
+      windows: collectElements<WindowArrayWindowProps>(el.props.children, Window).map(
+        (w) => w.props,
+      ),
+    }));
+    const strip: StripModel = {
+      columns: cols.map((c) => ({
+        id: c.props.id,
+        windowIds: c.windows.map((w) => w.id),
+      })),
+    };
+    return { columns: cols, model: strip };
+  }, [children]);
   const modelRef = useRef(model);
   modelRef.current = model;
 
@@ -382,7 +400,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   );
   const onDragMove = useCallback(
     (e: DragMoveEvent) => {
-      setDropSlot(draggingId ? computeDrop(e, draggingId) : null);
+      const next = draggingId ? computeDrop(e, draggingId) : null;
+      // Bail out (same reference → no re-render) while the pointer stays
+      // within one slot — the strip only re-renders when the indicator must
+      // actually move.
+      setDropSlot((prev) => (slotsEqual(prev, next) ? prev : next));
     },
     [draggingId, computeDrop],
   );

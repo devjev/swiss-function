@@ -1,5 +1,5 @@
 import type { ComponentProps, HTMLAttributes, KeyboardEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cx } from "../../lib/cx";
@@ -7,6 +7,14 @@ import { TextEdit } from "../TextEdit";
 import styles from "./Markdown.module.css";
 
 type ReactMarkdownComponents = ComponentProps<typeof ReactMarkdown>["components"];
+
+// react-markdown re-runs the full remark/rehype parse on EVERY invocation, so
+// skippability is the whole optimization: with stable props (module-const
+// plugins, memoized components map, string children) a parent re-render that
+// doesn't change the source skips the parse entirely. This is what keeps a
+// Chat keystroke from re-parsing a whole transcript of static messages.
+const MemoizedReactMarkdown = memo(ReactMarkdown);
+const REMARK_PLUGINS = [remarkGfm];
 
 export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Markdown source. */
@@ -94,6 +102,17 @@ export function Markdown(props: MarkdownProps) {
     }
   };
 
+  // In inline mode, flatten paragraph wrappers and use span elements so the
+  // output can live inside `<p>`/`<code>`/etc. without invalid HTML nesting.
+  // Memoized (and placed before the `editing` early return — hook order) so
+  // the renderer's props stay referentially stable across re-renders.
+  const effectiveComponents: ReactMarkdownComponents = useMemo(
+    () =>
+      inline ? { p: ({ children }) => <>{children}</>, ...(components ?? {}) } : (components ?? {}),
+    [inline, components],
+  );
+  const source = useMemo(() => (preprocess ? preprocess(value) : value), [preprocess, value]);
+
   if (editing) {
     const rows = Math.max(editRows, draft.split("\n").length + 1);
     return (
@@ -112,22 +131,16 @@ export function Markdown(props: MarkdownProps) {
 
   const isEmpty = value.trim() === "";
 
-  // In inline mode, flatten paragraph wrappers and use span elements so the
-  // output can live inside `<p>`/`<code>`/etc. without invalid HTML nesting.
-  const effectiveComponents: ReactMarkdownComponents = inline
-    ? { p: ({ children }) => <>{children}</>, ...(components ?? {}) }
-    : (components ?? {});
-
   const body = isEmpty ? (
     <span className={styles.empty}>{placeholder}</span>
   ) : (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+    <MemoizedReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
       components={effectiveComponents}
       urlTransform={urlTransform}
     >
-      {preprocess ? preprocess(value) : value}
-    </ReactMarkdown>
+      {source}
+    </MemoizedReactMarkdown>
   );
 
   if (inline) {

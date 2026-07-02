@@ -5,7 +5,15 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { createContext, forwardRef, useCallback, useContext, useRef, useState } from "react";
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cx, mergeClassName } from "../../lib/cx";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { usePointerDrag } from "../../lib/usePointerDrag";
@@ -222,12 +230,18 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
         }
       : undefined;
 
-  const ctx: PopupContextValue = {
-    // Dragging is meaningless once maximized — drop the handle starter.
-    onHandlePointerDown: draggable && !expanded ? onHandlePointerDown : undefined,
-    expanded,
-    toggleFullscreen: toggle,
-  };
+  // Stable context identity: dragging updates `offset` state per pointermove —
+  // without the memo, every frame would hand Handle/Maximize/CloseButton a
+  // fresh context object and re-render them all.
+  const ctx: PopupContextValue = useMemo(
+    () => ({
+      // Dragging is meaningless once maximized — drop the handle starter.
+      onHandlePointerDown: draggable && !expanded ? onHandlePointerDown : undefined,
+      expanded,
+      toggleFullscreen: toggle,
+    }),
+    [draggable, expanded, onHandlePointerDown, toggle],
+  );
 
   return (
     <BaseDialog.Popup

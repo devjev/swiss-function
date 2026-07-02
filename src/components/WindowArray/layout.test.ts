@@ -11,6 +11,7 @@ import {
   neighbor,
   projectMove,
   rowTrack,
+  slotsEqual,
   subrowCount,
   successor,
 } from "./layout";
@@ -216,6 +217,39 @@ describe("successor", () => {
     expect(successor(model, "b1")).toBe("a1");
     const single: StripModel = { columns: [{ id: "only", windowIds: ["w"] }] };
     expect(successor(single, "w")).toBeNull();
+  });
+});
+
+describe("slotsEqual", () => {
+  it("matches structurally identical slots and nulls", () => {
+    expect(slotsEqual(null, null)).toBe(true);
+    expect(
+      slotsEqual(
+        { kind: "cell", columnId: "a", index: 1 },
+        { kind: "cell", columnId: "a", index: 1 },
+      ),
+    ).toBe(true);
+    expect(slotsEqual({ kind: "column", index: 2 }, { kind: "column", index: 2 })).toBe(true);
+  });
+
+  it("distinguishes null, kind, columnId, and index", () => {
+    expect(slotsEqual(null, { kind: "column", index: 0 })).toBe(false);
+    expect(slotsEqual({ kind: "column", index: 0 }, null)).toBe(false);
+    expect(
+      slotsEqual({ kind: "column", index: 1 }, { kind: "cell", columnId: "a", index: 1 }),
+    ).toBe(false);
+    expect(
+      slotsEqual(
+        { kind: "cell", columnId: "a", index: 1 },
+        { kind: "cell", columnId: "b", index: 1 },
+      ),
+    ).toBe(false);
+    expect(
+      slotsEqual(
+        { kind: "cell", columnId: "a", index: 1 },
+        { kind: "cell", columnId: "a", index: 2 },
+      ),
+    ).toBe(false);
   });
 });
 

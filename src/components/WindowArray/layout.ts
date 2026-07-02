@@ -28,6 +28,15 @@ export type DropSlot =
 
 export type NavDirection = "up" | "down" | "left" | "right";
 
+/** Structural equality for drop slots — used to skip state updates (and the
+ *  full-strip re-render they cause) while a drag stays within one slot. */
+export function slotsEqual(a: DropSlot | null, b: DropSlot | null): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (a.kind !== b.kind || a.index !== b.index) return false;
+  return a.kind !== "cell" || b.kind !== "cell" || a.columnId === b.columnId;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }

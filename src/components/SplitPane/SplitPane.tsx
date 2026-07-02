@@ -6,6 +6,7 @@ import {
   isValidElement,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -241,8 +242,12 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
       </>
     );
 
+  // Stable context identity: without the memo every parent-driven re-render
+  // hands consumers a fresh object and re-renders them all.
+  const splitCtx = useMemo(() => ({ side, open, size, setOpen }), [side, open, size, setOpen]);
+
   return (
-    <SplitContext.Provider value={{ side, open, size, setOpen }}>
+    <SplitContext.Provider value={splitCtx}>
       <div
         {...rest}
         ref={setRefs}
