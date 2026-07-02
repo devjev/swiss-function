@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "date": "2026-07-02T00:44:32.385Z",
+    "host": "cortex",
+    "cpus": 32,
+    "node": "v26.2.0",
+    "commit": "4f3446d",
+    "runs": 5
+  },
+  "results": {
+    "datatable-scroll-100k": {
+      "p95FrameMs": 16.7,
+      "readyMs": 704,
+      "heapMB": 306.63
+    },
+    "datatable-interactions-10k": {
+      "sortMs": 13.1,
+      "resizeStepMs": 29.2,
+      "readyMs": 701,
+      "heapMB": 72.19
+    },
+    "explorer-tree-11k": {
+      "p95FrameMs": 16.8,
+      "toggleMs": 102.3,
+      "selectMs": 24,
+      "readyMs": 705,
+      "heapMB": 39.03
+    },
+    "graph-panzoom-large": {
+      "p95FrameMs": 566.6,
+      "readyMs": 6333,
+      "heapMB": 39.88
+    },
+    "windowarray-strip-54": {
+      "p95DragFrameMs": 16.7,
+      "keyboardMoveMs": 29.7,
+      "resizeStepMs": 30.2,
+      "readyMs": 671,
+      "heapMB": 27.01
+    },
+    "selector-1000": {
+      "openMs": 18.9,
+      "filterKeyMs": 55.7,
+      "arrowMs": 15.6,
+      "readyMs": 689,
+      "heapMB": 50.82
+    },
+    "heatmap-dense-100": {
+      "hoverMs": 54.1,
+      "hoverMoveMs": 58.5,
+      "readyMs": 659,
+      "heapMB": 46.51
+    },
+    "chat-transcript-200": {
+      "keystrokeMs": 30.4,
+      "sendMs": 32.5,
+      "p95StreamFrameMs": 16.7,
+      "readyMs": 692,
+      "heapMB": 31.97
+    }
+  }
+}

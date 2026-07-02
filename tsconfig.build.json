@@ -13,6 +13,7 @@
     "src/**/*.stories.tsx",
     "src/**/*.spec.tsx",
     "src/**/*.test.tsx",
+    "src/**/*.bench.ts",
     "dist",
     "node_modules"
   ]

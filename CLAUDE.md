@@ -33,7 +33,13 @@ Pre-publish gate (`npm run prepublishOnly`): check → typecheck → build.
 
 ### The test-file split is load-bearing
 
-`*.test.tsx` → Vitest. `*.spec.tsx` → Playwright CT. The two runners are configured to match disjoint globs (`vitest.config.ts` vs `playwright-ct.config.ts`); naming a file the wrong way means its runner silently ignores it.
+`*.test.tsx` → Vitest. `*.spec.tsx` → Playwright CT. The two runners are configured to match disjoint globs (`vitest.config.ts` vs `playwright-ct.config.ts`); naming a file the wrong way means its runner silently ignores it. `*.bench.ts` is a third disjoint glob — micro-benchmarks, run only by `npm run bench`.
+
+### Performance tests (three layers, all local-only)
+
+- `npm run bench` — vitest micro-benchmarks of pure logic (`*.bench.ts`, colocated; shared options + seeded PRNG in `perf/benchOptions.ts` — bench data must never use `Math.random`).
+- `npm run perf` — interaction-latency probes: `scripts/perf/run.mjs` drives `Perf/*` Ladle stories (`*.perf.stories.tsx`, deterministic data, root marks `[data-perf-ready]`) headlessly via `scripts/perf/runner.mjs` and reports medians (readyMs, p95 frame during scripted interaction, input→paint, heap). **Ladle must already be running on :61000.** Compares against `perf/baseline.json` (±20% + 5ms floor) when present; `npm run perf:update` rewrites it. Timings are machine-specific — update baselines only deliberately, on the baseline machine.
+- `npm run size` — per-entry bundle cost: walks each `package.json` exports entry through the dist ESM import graph (gzip bytes; wrongly-bundled deps count against the entry). Compares against `perf/size-baseline.json`, fails on > max(5%, 2KB) growth; `npm run size:update` rewrites. Needs a fresh `npm run build`.
 
 ## Architecture
 

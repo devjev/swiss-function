@@ -20,3 +20,4 @@ playwright/.cache
 .direnv
 
 *.tgz
+perf/results

@@ -30,6 +30,26 @@ test-watch:
 test-ct:
     npm run test:ct
 
+# Run micro-benchmarks (vitest bench, *.bench.ts)
+bench:
+    npm run bench
+
+# Run interaction-latency probes against a running Ladle (just dev)
+perf:
+    npm run perf
+
+# Rewrite the perf baseline from this run
+perf-update:
+    npm run perf:update
+
+# Measure per-entry bundle sizes of dist (build first)
+size:
+    npm run size
+
+# Rewrite the size baseline from this dist
+size-update:
+    npm run size:update
+
 # Biome lint
 lint:
     npm run lint
@@ -56,4 +76,4 @@ install:
 
 # Clean build artifacts
 clean:
-    rm -rf dist .ladle/build test-results playwright-report coverage
+    rm -rf dist .ladle/build test-results playwright-report coverage perf/results

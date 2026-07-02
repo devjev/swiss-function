@@ -114,6 +114,14 @@ export default defineConfig({
         /^maplibre-gl/,
         /^react-markdown/,
         /^remark-/,
+        // Graph's engine — same treatment as maplibre-gl: in `dependencies`,
+        // resolved by the consumer's bundler, never pre-bundled into dist.
+        // Their transitive deps (graphology-utils, pandemonium, events) must
+        // NOT be listed here: our own dist must never emit bare specifiers we
+        // don't declare (pnpm strict mode) — they vanish from the bundle once
+        // their importers are external.
+        /^graphology/,
+        /^sigma/,
       ],
       input: {
         index: resolve(__dirname, "src/index.ts"),
