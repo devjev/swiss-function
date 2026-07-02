@@ -1113,6 +1113,7 @@ A window-manager main area in the style of Niri's scrollable tiling: an infinite
 | `onWindowMove` | `(move: WindowMove) => void` | — | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
 | `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting shadow depth for the windows (`--sf-elevation-N`); fullscreen windows stay flat. |
 | `snap` | `boolean` | `false` | Proximity scroll-snap: columns settle flush with the nearest viewport edge, gutter in view (free scrolling stays possible; suspended mid-drag/resize so gestures aren't fought). |
 | `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). Also hides the horizontal scrollbar — the strip still scrolls by wheel, keyboard, and drag. |
 | `hotkeys` | `boolean` | `false` | Alt+ArrowLeft/Right switch columns while focus is *anywhere inside the array*, window content included (component-scoped — suppresses the browser's Alt+Arrow history navigation only there). |
@@ -1176,3 +1177,4 @@ Set via a prop or inline style and read by the component's stylesheet:
 | `--sf-columns-width` | DataTable | columns' total width — placement of the `columnFill` dither panel |
 | `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |
 | `--sf-wa-gap` | WindowArray | `gap` prop — column/window gap and gutter width |
+| `--sf-wa-elevation` | WindowArray | `elevation` prop — resting window shadow; inherits, so set it on an individual `WindowArray.Window` (`style`) to raise just that window |
