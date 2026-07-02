@@ -160,7 +160,10 @@
   background-color: var(--sf-color-bg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-elevation-1);
+  /* Resting elevation. Override --sf-wa-elevation on the WindowArray (whole
+     array) or on an individual Window (per window) — the [data-fullscreen] and
+     drag-state rules set box-shadow directly, so they still win over this. */
+  box-shadow: var(--sf-wa-elevation, var(--sf-elevation-1));
   overflow: hidden;
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
 }

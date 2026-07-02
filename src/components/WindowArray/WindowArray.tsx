@@ -149,6 +149,9 @@ function Window(_props: WindowArrayWindowProps): null {
 
 // --- Root -------------------------------------------------------------------
 
+/** Resting shadow depth for the strip's windows (`--sf-elevation-N`). */
+export type WindowArrayElevation = 0 | 1 | 2 | 3 | 4 | 5;
+
 export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Controlled active (focused) window id. */
   activeId?: string | null;
@@ -168,6 +171,8 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   gap?: number | string;
   /** Default min column width in px for resizing. Default `240`. */
   columnMinWidth?: number;
+  /** Resting shadow depth for the windows (`--sf-elevation-N`). Default `1`. */
+  elevation?: WindowArrayElevation;
   /** Proximity scroll-snap to column centers (suspended while dragging or
    *  resizing so gestures aren't fought). Default `false`. */
   snap?: boolean;
@@ -193,6 +198,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onWindowMove,
     gap = 0.5,
     columnMinWidth = 240,
+    elevation = 1,
     snap = false,
     controls = false,
     hotkeys = false,
@@ -646,7 +652,13 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       {...rest}
       ref={setRefs}
       className={cx(styles.root, className)}
-      style={{ "--sf-wa-gap": gapSize, ...style } as CSSProperties}
+      style={
+        {
+          "--sf-wa-gap": gapSize,
+          "--sf-wa-elevation": `var(--sf-elevation-${elevation})`,
+          ...style,
+        } as CSSProperties
+      }
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
       data-snap={snap ? "" : undefined}
       data-controls={controls ? "" : undefined}

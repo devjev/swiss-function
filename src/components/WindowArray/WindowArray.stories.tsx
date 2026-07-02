@@ -1,6 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import type { WindowMove } from "./WindowArray";
+import type { WindowArrayElevation, WindowMove } from "./WindowArray";
 import { WindowArray } from "./WindowArray";
 import { applyWindowMove } from "./WindowArray.harness";
 
@@ -64,6 +64,7 @@ function Demo({
   snap = false,
   controls = false,
   hotkeys = false,
+  elevation,
 }: {
   columns?: DemoColumn[];
   height?: number;
@@ -71,6 +72,7 @@ function Demo({
   snap?: boolean;
   controls?: boolean;
   hotkeys?: boolean;
+  elevation?: WindowArrayElevation;
 }) {
   const [columns, setColumns] = useState(initial);
   const close = (id: string) =>
@@ -89,6 +91,7 @@ function Demo({
         snap={snap}
         controls={controls}
         hotkeys={hotkeys}
+        elevation={elevation}
       >
         {columns.map((col) => (
           <WindowArray.Column key={col.id} id={col.id} defaultWidth={360}>
@@ -133,6 +136,10 @@ export const ManyColumns: Story = () => (
     }))}
   />
 );
+
+/** `elevation={4}` lifts every window off the dithered desk with a deeper
+ *  resting shadow (the default is `1`); fullscreen windows stay flat. */
+export const Elevated: Story = () => <Demo elevation={4} />;
 
 /** Window bodies that overflow scroll internally; the fullscreen toggle
  *  expands a window over the WindowArray container only (Escape exits). */
