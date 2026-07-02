@@ -246,10 +246,12 @@
     "perf:update": "node scripts/perf/run.mjs --update",
     "size": "node scripts/perf/size.mjs",
     "size:update": "node scripts/perf/size.mjs --update",
+    "audit": "npm audit --audit-level=high",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:ci": "vitest run",
     "prepublishOnly": "npm run check && npm run typecheck && npm run build"
   },
   "peerDependencies": {
@@ -272,6 +274,7 @@
     "sigma": "^3.0.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.15",
     "@ladle/react": "^4.1.2",
     "@playwright/experimental-ct-react": "1.59.1",
     "@playwright/test": "1.59.1",
