@@ -238,6 +238,7 @@
     "dev": "ladle serve",
     "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs",
     "build:stories": "ladle build",
+    "build-storybook": "ladle build -o storybook-static",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ct": "playwright test -c playwright-ct.config.ts",
