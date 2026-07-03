@@ -253,6 +253,32 @@ Wraps Base UI's Checkbox with token styling. Extends `HTMLAttributes<HTMLButtonE
 | --- | --- | --- | --- |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
 
+## Chip
+
+`import { Chip } from "@tarassov-ch/swiss-function/chip"`
+
+A compact token — tag, filter, status marker, or removable selection. Renders a `<span>`; extends `HTMLAttributes<HTMLSpanElement>`. Sharp (2px) by default — reach for `round` only for the tag/badge reading. Neutral unless a `tone` gives the colour meaning.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Semantic colour. Use a tone only when the colour is information (status, priority) — not decoratively. Tints surface, rim, and text from one accent (theme-aware via `color-mix`). |
+| `size` | `"sm" \| "md"` | `"md"` | `md` is 1.25u tall; `sm` is 1u (aligns with a small `Button`). |
+| `round` | `boolean` | `false` | Pill form (`--sf-radius-full`) instead of the sharp default. |
+| `dot` | `boolean` | `false` | Leading status marker tinted to the tone — a small square, or a dot when `round`. |
+| `onRemove` | `() => void` | — | Renders a keyboard-reachable ✕ button. Fires on click/Enter and stops propagation, so it won't also trigger the chip's `onClick`. |
+| `removeLabel` | `string` | `"Remove"` | Accessible label for the ✕ button. |
+| `onClick` | `MouseEventHandler` | — | When set, the whole chip becomes a button-like filter: `role="button"`, `tabIndex=0`, focus ring, and Enter/Space activation. |
+| `disabled` | `boolean` | `false` | Dims the chip and blocks `onClick` and remove. |
+
+```tsx
+<Chip>design</Chip>                                  // neutral tag
+<Chip tone="danger" dot>failed</Chip>                // status marker
+<Chip round onRemove={() => drop(tag)}>{tag}</Chip>  // removable pill
+<Chip round tone={active ? "primary" : "neutral"} onClick={toggle}>open</Chip>  // filter
+```
+
+The `--chip-accent` custom property is the single knob a tone sets; the dot, hover tint, and remove-button hover all derive from it, so a consumer override is one line.
+
 ## DataTable
 
 `import { DataTable } from "@tarassov-ch/swiss-function/data-table"`

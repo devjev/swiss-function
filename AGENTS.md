@@ -114,6 +114,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 
 | Component                | Use for                                            |
 | ------------------------ | -------------------------------------------------- |
+| `Chip`                   | Compact token — tag, filter, status marker, or removable selection. Sharp (2px) by default; `round` for the pill/badge reading. Neutral unless a `tone` (`primary`/`success`/`warning`/`danger`) makes the colour *mean* something (status/priority) — don't colour chips decoratively. `dot` adds a leading status marker; `onRemove` renders a keyboard-reachable ✕; pass `onClick` to make the whole chip an accessible filter button. `size` `sm`/`md`. Not a Button (that's for actions) and not a toggle set (that's `ToggleGroup`/`Selector`). |
 | `DataTable`              | Tabular data — sorting, selection, virtualization, Column resize (on by default; `resizableColumns={false}` or per-column `resizable: false` to lock; double-click a header edge to auto-fit). Tracks are `minmax(minWidth, preferred)`: when the columns don't fit they shrink toward their minimum (no scroll); only when even the minimums don't fit does the table scroll horizontally. The last column's preferred is `1fr` (fills slack) and it has no handle. Dragging a trailing edge sets preferred widths, cascading the opposite change through the columns to its right (nearest first, skipping locked ones). Set `width` / `minWidth` per column in `--sf-unit` multiples, plus opt-in `scrollSnap` and `edgeFade`. `frozenColumns={n}` freezes the first n columns (pinned left while the rest scroll — the horizontal analogue of the sticky header; frozen columns keep a fixed width). The serious one. |
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
@@ -268,6 +269,7 @@ Common requests and the right component:
 | "file upload" / "drop files here" / "drag-and-drop files" / "attach files" | `Dropzone` |
 | "an app menu bar" / "File/Edit/View menus" / "toolbar of controls" | `MenuBar` (no dedicated Cmd-K palette exists — use `Dialog` + `Picker`/`Selector` for a quick switcher) |
 | "show a keyboard shortcut" / "render a hotkey / keycap" | `Kbd` (OS-aware; `mod` → ⌘/Ctrl)             |
+| "a tag" / "a badge" / "a status pill" / "a filter chip" / "a removable token" | `Chip` (`tone` for status, `round` for the pill/badge reading, `onRemove` to dismiss, `onClick` for a filter) |
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a window manager / tiling windows / multi-window workspace / scrollable strip of panels" | `WindowArray` (`Dialog draggable` for a single floating window) |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |

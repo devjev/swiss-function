@@ -13,6 +13,7 @@ const componentNames = [
   "CandlestickChart",
   "Chat",
   "ChatDrawer",
+  "Chip",
   "Explorer",
   "Field",
   "Fullscreen",
