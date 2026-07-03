@@ -266,6 +266,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.2",
     "graphology": "^0.26.0",
+    "graphology-types": "^0.24.0",
     "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
     "maplibre-gl": "^5.24.0",
