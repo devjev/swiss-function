@@ -124,10 +124,10 @@
 }
 
 /* Tall bars whose label would overflow the plot top flip it inside the bar.
-   Use white against the colored fill — Plan/Actual/etc. bars are all dark
-   enough that white reads cleanly. */
+   Sits on the saturated bar fill, so it uses the "foreground on a colored fill"
+   token (white in both themes) rather than a hard-coded literal. */
 .valueLabelInside {
-  fill: #ffffff;
+  fill: var(--sf-color-primary-fg);
 }
 
 .bar:hover,

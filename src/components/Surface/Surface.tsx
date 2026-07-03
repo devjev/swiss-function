@@ -15,6 +15,7 @@ import { useOrbit } from "../../lib/chart3d/useOrbit";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { token } from "../../lib/token";
+import { useThemeEpoch } from "../../lib/useThemeEpoch";
 import styles from "./Surface.module.css";
 
 export interface SurfaceDatum {
@@ -83,6 +84,8 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
   const { camera, dragging, handlers } = useOrbit();
   const hoverVertsRef = useRef<HoverVertex[]>([]);
   const [hover, setHover] = useState<{ datum: SurfaceDatum; rect: DOMRect } | null>(null);
+  // Canvas bakes its token colors into pixels, so repaint on a live theme switch.
+  const themeEpoch = useThemeEpoch(rootRef);
 
   const xDomain = useMemo(() => extent(data.x), [data.x]);
   const yDomain = useMemo(() => extent(data.y), [data.y]);
@@ -240,7 +243,19 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
     for (const t of axisTicks(zDom)) text(t.label, project(-0.5, 0.5, t.n, camera, fit), -14, 0);
     if (xLabel) text(xLabel, project(0, 0.5, -0.5, camera, fit), 0, 26);
     if (yLabel) text(yLabel, project(0.5, 0, -0.5, camera, fit), 30, 0);
-  }, [data, size, camera, zDom, xDomain, yDomain, wireframe, colorScale, xLabel, yLabel]);
+  }, [
+    data,
+    size,
+    camera,
+    zDom,
+    xDomain,
+    yDomain,
+    wireframe,
+    colorScale,
+    xLabel,
+    yLabel,
+    themeEpoch,
+  ]);
 
   const onMove = (e: ReactPointerEvent) => {
     handlers.onPointerMove(e);
