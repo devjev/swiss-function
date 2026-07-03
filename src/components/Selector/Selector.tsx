@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
 import styles from "./Selector.module.css";
 
@@ -33,6 +34,10 @@ export interface SelectorProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   disabled?: boolean;
   /** Shown in the dropdown when the filter matches nothing. */
   emptyMessage?: ReactNode;
+  /** Resting depth of the search field — same `--sf-elevation-N` scale as Box.
+   *  Omitted leaves the field flat (its default); set it to raise the control.
+   *  Applies to the field in every `layout`. */
+  elevation?: BoxElevation;
   /** Heading for the bucket panel (only used by `layout="panel"`). */
   bucketLabel?: ReactNode;
   /** Wording for the count in `layout="compact"`, given the number selected.
@@ -60,6 +65,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
     layout = "panel",
     disabled,
     emptyMessage = "No results",
+    elevation,
     bucketLabel = "Selected",
     compactLabel = (count) => `${count} item${count === 1 ? "" : "s"}`,
     className,
@@ -150,7 +156,11 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       >
         {layout === "inline" ? (
           <>
-            <Combobox.InputGroup data-size={size} className={styles.inlineGroup}>
+            <Combobox.InputGroup
+              data-size={size}
+              data-elevation={elevation}
+              className={styles.inlineGroup}
+            >
               <Combobox.Chips ref={chipsRef} className={styles.inlineChips}>
                 {renderChips()}
               </Combobox.Chips>
@@ -166,7 +176,11 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
           </>
         ) : layout === "compact" ? (
           <>
-            <Combobox.InputGroup data-size={size} className={styles.compactGroup}>
+            <Combobox.InputGroup
+              data-size={size}
+              data-elevation={elevation}
+              className={styles.compactGroup}
+            >
               {selected.length > 0 && (
                 <span className={styles.compactCount}>{compactLabel(selected.length)}</span>
               )}
@@ -180,7 +194,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
           </>
         ) : (
           <>
-            <Combobox.Input placeholder={placeholder} data-size={size} />
+            <Combobox.Input placeholder={placeholder} data-size={size} data-elevation={elevation} />
             {dropdown}
             <div className={styles.bucket}>
               <div className={styles.bucketHeader}>

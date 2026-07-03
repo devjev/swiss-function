@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useMemo, useState } from "react";
 import { cx } from "../../lib/cx";
+import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
 import styles from "./Picker.module.css";
 
@@ -27,6 +28,9 @@ export interface PickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCha
   clearable?: boolean;
   /** Shown in the dropdown when the filter matches nothing. */
   emptyMessage?: ReactNode;
+  /** Resting depth of the search field — same `--sf-elevation-N` scale as Box.
+   *  Omitted leaves the field flat (its default); set it to raise the control. */
+  elevation?: BoxElevation;
 }
 
 function normalize(item: PickerItem): PickerOption {
@@ -50,6 +54,7 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
     disabled,
     clearable = true,
     emptyMessage = "No results",
+    elevation,
     className,
     ...rest
   },
@@ -81,7 +86,7 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
         onValueChange={(next: PickerOption | null) => setSelected(next?.value ?? "")}
         disabled={disabled}
       >
-        <Combobox.InputGroup data-size={size} className={styles.group}>
+        <Combobox.InputGroup data-size={size} data-elevation={elevation} className={styles.group}>
           <Combobox.Input placeholder={placeholder} />
           {clearable && selected && <Combobox.Clear aria-label="Clear">×</Combobox.Clear>}
         </Combobox.InputGroup>

@@ -799,6 +799,7 @@ Search a list and choose exactly one — the single-selection sibling of [Select
 | `disabled` | `boolean` | — | Disable the control. |
 | `clearable` | `boolean` | `true` | Show a clear button once selected. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | — | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flat (its default); set it to raise the control. |
 
 ## PointCloud
 
@@ -923,6 +924,7 @@ Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLA
 | `layout` | `"panel" \| "inline" \| "compact"` | `"panel"` | See below. |
 | `disabled` | `boolean` | — | Disable the control. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | — | Resting depth of the search field (`--sf-elevation-N`, same scale as Box); applies in every `layout`. Omitted leaves the field flat; set it to raise the control. |
 | `bucketLabel` | `ReactNode` | `"Selected"` | Bucket heading — `panel` only. |
 | `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording — `compact` only. |
 
