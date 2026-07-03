@@ -15,6 +15,7 @@ import { useOrbit } from "../../lib/chart3d/useOrbit";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { token } from "../../lib/token";
+import { useThemeEpoch } from "../../lib/useThemeEpoch";
 import styles from "./PointCloud.module.css";
 
 export type PointCloudDatum = Point3 & { series: string };
@@ -80,6 +81,8 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
   const { camera, dragging, handlers } = useOrbit();
   const pointsRef = useRef<ScreenPoint[]>([]);
   const [hover, setHover] = useState<{ datum: PointCloudDatum; rect: DOMRect } | null>(null);
+  // Canvas bakes its token colors into pixels, so repaint on a live theme switch.
+  const themeEpoch = useThemeEpoch(rootRef);
 
   const xDom = useMemo(
     () => xDomain ?? extentOf(series.flatMap((s) => s.data.map((d) => d.x))),
@@ -158,7 +161,7 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
     }
 
     drawFrameFront(ctx, frame);
-  }, [series, size, camera, xDom, yDom, zDom, pointRadius, xLabel, yLabel]);
+  }, [series, size, camera, xDom, yDom, zDom, pointRadius, xLabel, yLabel, themeEpoch]);
 
   const onMove = (e: ReactPointerEvent) => {
     handlers.onPointerMove(e);

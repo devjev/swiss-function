@@ -109,8 +109,10 @@
   pointer-events: none;
 }
 
+/* On the saturated bar fill — use the "foreground on a colored fill" token
+   (white in both themes) instead of a hard-coded literal. */
 .valueLabelInside {
-  fill: #ffffff;
+  fill: var(--sf-color-primary-fg);
 }
 
 .bar:hover,

@@ -94,7 +94,6 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   // "Tufte-styled" idle look (no nice-tick chrome, per-bar value labels) covers
   // both minimal and hover modes. Full mode replaces it with the v0.1 chrome.
   const isTufte = scaffolding !== "full";
-  const isHoverMode = scaffolding === "hover";
   const plotRef = useRef<HTMLDivElement>(null);
   const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
     width: 0,

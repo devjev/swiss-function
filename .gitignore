@@ -1,6 +1,7 @@
 node_modules
 dist
 build
+storybook-static
 .ladle/build
 coverage
 test-results
@@ -21,3 +22,7 @@ playwright/.cache
 
 *.tgz
 perf/results
+
+# CI security-scan artifacts (generated at the repo root; never committed or linted)
+snyk_results.html
+.snyk

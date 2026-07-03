@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -95,6 +95,10 @@
     "./checkbox": {
       "types": "./dist/components/Checkbox/index.d.ts",
       "import": "./dist/components/Checkbox/index.js"
+    },
+    "./chip": {
+      "types": "./dist/components/Chip/index.d.ts",
+      "import": "./dist/components/Chip/index.js"
     },
     "./switch": {
       "types": "./dist/components/Switch/index.d.ts",
@@ -238,6 +242,7 @@
     "dev": "ladle serve",
     "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs",
     "build:stories": "ladle build",
+    "build-storybook": "ladle build -o storybook-static",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ct": "playwright test -c playwright-ct.config.ts",
@@ -246,7 +251,7 @@
     "perf:update": "node scripts/perf/run.mjs --update",
     "size": "node scripts/perf/size.mjs",
     "size:update": "node scripts/perf/size.mjs --update",
-    "audit": "npm audit --audit-level=high",
+    "audit": "npm audit --omit=dev --audit-level=high",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",
@@ -266,6 +271,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.2",
     "graphology": "^0.26.0",
+    "graphology-types": "^0.24.0",
     "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
     "maplibre-gl": "^5.24.0",

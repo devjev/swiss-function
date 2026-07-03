@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { Selector } from "./Selector";
 import { SelectorHarness } from "./Selector.harness";
 
 test("typing filters the dropdown and clicking an item adds a chip", async ({ mount, page }) => {
@@ -81,6 +82,26 @@ test("size presets change the inline control height", async ({ mount }) => {
   const lb = await large.locator('[data-size="lg"]').first().boundingBox();
   if (!sb || !lb) throw new Error("missing bounding box");
   expect(lb.height).toBeGreaterThan(sb.height);
+});
+
+test("elevation raises the field; omitted stays flat", async ({ mount }) => {
+  // Applies in every layout — check the default panel field and an inline group.
+  const raised = await mount(<Selector items={["Apple", "Banana"]} elevation={2} />);
+  const field = raised.locator('[data-elevation="2"]');
+  await expect(field).toBeVisible();
+  const shadow = await field.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).not.toBe("none");
+  await raised.unmount();
+
+  const inline = await mount(
+    <Selector items={["Apple", "Banana"]} layout="inline" elevation={3} />,
+  );
+  await expect(inline.locator('[data-elevation="3"]')).toBeVisible();
+  await inline.unmount();
+
+  // No elevation prop → no elevation attribute, so the field keeps its flat default.
+  const flat = await mount(<Selector items={["Apple", "Banana"]} />);
+  await expect(flat.locator("[data-elevation]")).toHaveCount(0);
 });
 
 test("inline overflow: stays one row with an ellipsis, even when focused", async ({ mount }) => {

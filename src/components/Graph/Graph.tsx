@@ -29,6 +29,7 @@ import {
 } from "../../lib/graph/build";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { useFullscreen } from "../../lib/useFullscreen";
+import { useThemeEpoch } from "../../lib/useThemeEpoch";
 import { FullscreenToggle } from "../Fullscreen";
 import { Menu } from "../Menu";
 import { GraphControlsBar } from "./Controls";
@@ -436,6 +437,11 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const [epoch, setEpoch] = useState(0);
   const bumpEpoch = useCallback(() => setEpoch((e) => e + 1), []);
 
+  // Sigma paints to WebGL, so — unlike a pure-CSS component — it can't auto-
+  // respond to a `[data-theme]` change; the token colors were baked in at
+  // construction. Observe the theme and re-tint in place (effect below).
+  const themeEpoch = useThemeEpoch(surfaceRef);
+
   // Accessibility: a screen reader can't traverse a WebGL canvas, so the surface
   // carries a text summary (counts + active layout + key hints) via
   // `aria-describedby`, and a polite live region announces layout changes.
@@ -747,6 +753,33 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     );
     renderer.refresh();
   }, [renderNode, renderEdge, editable]);
+
+  // Re-theme on a live light↔dark switch. Node/edge fills re-tint via
+  // applyVisuals; the label + default-node colors were captured into Sigma
+  // settings at construction, so update those explicitly. Skip the initial
+  // value — the mount effect already themed against the current tokens.
+  useEffect(() => {
+    if (themeEpoch === 0) return;
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    const container = surfaceRef.current;
+    if (!g || !renderer) return;
+    applyVisuals(
+      g,
+      dataRef.current,
+      renderHooksRef.current,
+      container,
+      editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+    );
+    selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
+    renderer.setSetting("defaultNodeColor", nodeColor("primary", container));
+    renderer.setSetting("labelColor", { color: token("--sf-color-fg", "#0a0a0a", container) });
+    renderer.setSetting("edgeLabelColor", {
+      color: token("--sf-color-fg-subtle", "#737373", container),
+    });
+    renderer.refresh();
+    bumpEpoch();
+  }, [themeEpoch, bumpEpoch]);
 
   // Keep edge-event hit-testing in sync when `editable`/`onEdgeClick` toggle at
   // runtime (the renderer is built once), and force Connect mode off whenever

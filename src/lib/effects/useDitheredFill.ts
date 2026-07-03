@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useThemeEpoch } from "../useThemeEpoch";
 import type { EffectName, EffectOptions } from "./effects";
 import { createWebglFill, type WebglFill } from "./webglFill";
 
@@ -60,6 +61,10 @@ export function useDitheredFill({
   const rootRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fillRef = useRef<WebglFill | null>(null);
+  // The fill bakes its token color into WebGL, so a live theme switch won't
+  // re-tint it the way CSS would — repaint when the resolved theme changes.
+  // Only meaningful when there's a canvas (an `effect` is set).
+  const themeEpoch = useThemeEpoch(canvasRef, Boolean(effect));
   const [dims, setDims] = useState<Dims>({
     cols: 0,
     rows: 0,
@@ -152,7 +157,7 @@ export function useDitheredFill({
       io.disconnect();
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [dims, effect, speed, density, effectOptions, color, opacity]);
+  }, [dims, effect, speed, density, effectOptions, color, opacity, themeEpoch]);
 
   useEffect(() => () => fillRef.current?.destroy(), []);
 

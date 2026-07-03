@@ -1,0 +1,151 @@
+/* A compact token — tag, filter, status marker, or a removable selection.
+   Sharp by default (`--sf-radius-default`); `data-round` opts into the pill
+   form AESTHETICS sanctions for badges. `--chip-accent` is the single knob a
+   tone sets; the dot, hover tint, and focus ring all derive from it, so a new
+   tone is one rule. */
+.root {
+  --chip-accent: var(--sf-color-muted);
+  --chip-radius: var(--sf-radius-default);
+
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  box-sizing: border-box;
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding-inline: calc(var(--sf-unit) / 2);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--chip-radius);
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+}
+
+/* Sizes. md (the .root default above) lands on 1.25u; sm drops to a clean 1u so
+   a chip aligns with a small Button in a dense toolbar. Font tracks the height. */
+.sizeSm {
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 3);
+  gap: calc(var(--sf-unit) / 6);
+  font-size: calc(var(--sf-font-size-sm) * 0.86);
+}
+
+/* Pill form. The extra inline padding keeps the label off the rounded ends so
+   it doesn't crowd the curve. The sm override comes last so it wins the
+   specificity tie with the md pill padding above. */
+.root[data-round] {
+  --chip-radius: var(--sf-radius-full);
+  padding-inline: calc(var(--sf-unit) * 0.6);
+}
+.sizeSm[data-round] {
+  padding-inline: calc(var(--sf-unit) * 0.45);
+}
+
+/* --- Tones. Neutral is the resting default above; the semantic tones tint the
+   surface, rim, and text from their accent so the colour *is* the signal (never
+   decorative — see AESTHETICS "no rainbow tag systems"). color-mix keeps them
+   theme-aware: the same rules re-resolve against dark tokens. --- */
+.root[data-tone="primary"] {
+  --chip-accent: var(--sf-color-primary);
+}
+.root[data-tone="success"] {
+  --chip-accent: var(--sf-color-success);
+}
+.root[data-tone="warning"] {
+  --chip-accent: var(--sf-color-warning);
+}
+.root[data-tone="danger"] {
+  --chip-accent: var(--sf-color-danger);
+}
+
+.root[data-tone="primary"],
+.root[data-tone="success"],
+.root[data-tone="warning"],
+.root[data-tone="danger"] {
+  background-color: color-mix(in srgb, var(--chip-accent) 10%, var(--sf-color-bg));
+  border-color: color-mix(in srgb, var(--chip-accent) 34%, var(--sf-color-bg));
+  /* Text stays high-contrast: the accent carries the meaning, but it's pulled
+     toward the foreground so it reads as strongly as body text, not as the
+     washed-out coloured text AESTHETICS warns against. */
+  color: color-mix(in srgb, var(--chip-accent) 68%, var(--sf-color-fg));
+}
+
+/* Leading status marker — a small filled square (Bauhaus over a round bullet),
+   or a dot when the chip itself is round, so the mark echoes the chip's corner. */
+.dot {
+  flex: none;
+  inline-size: calc(var(--sf-unit) / 3);
+  block-size: calc(var(--sf-unit) / 3);
+  border-radius: var(--chip-radius);
+  background-color: var(--chip-accent);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Interactive (a clickable filter/toggle chip). Opt-in: set only when the
+   consumer passes onClick. Colour-only feedback, no transform. --- */
+.root[data-interactive] {
+  cursor: pointer;
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.root[data-interactive]:hover:not([data-disabled]) {
+  background-color: color-mix(in srgb, var(--chip-accent) 16%, var(--sf-color-bg));
+  border-color: color-mix(in srgb, var(--chip-accent) 46%, var(--sf-color-bg));
+}
+.root[data-interactive]:focus-visible {
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.root[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dismiss affordance — a real <button> so it's keyboard-reachable and has its
+   own focus ring. The ✕ is a line drawing (never an emoji glyph); square caps
+   keep it on-posture. Sized in em so it tracks the chip's font-size. */
+.remove {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.25em;
+  block-size: 1.25em;
+  margin-inline: calc(var(--sf-unit) / -6) calc(var(--sf-unit) / -4);
+  padding: 0;
+  border: 0;
+  border-radius: var(--chip-radius);
+  background-color: transparent;
+  color: inherit;
+  opacity: 0.65;
+  cursor: pointer;
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-out),
+    background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.remove:hover {
+  opacity: 1;
+  background-color: color-mix(in srgb, var(--chip-accent) 24%, transparent);
+}
+.remove:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+.remove svg {
+  inline-size: 0.8em;
+  block-size: 0.8em;
+}
+.root[data-disabled] .remove {
+  pointer-events: none;
+}
