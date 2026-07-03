@@ -246,7 +246,7 @@
     "perf:update": "node scripts/perf/run.mjs --update",
     "size": "node scripts/perf/size.mjs",
     "size:update": "node scripts/perf/size.mjs --update",
-    "audit": "npm audit --audit-level=high",
+    "audit": "npm audit --omit=dev --audit-level=high",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",

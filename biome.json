@@ -13,7 +13,8 @@
       "!**/.ladle/build",
       "!**/playwright-report",
       "!**/test-results",
-      "!**/playwright/.cache"
+      "!**/playwright/.cache",
+      "!**/snyk_results.html"
     ]
   },
   "formatter": {
@@ -56,6 +57,16 @@
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
+    {
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["src/components/DataTable/**", "src/lib/filter/**"],
       "linter": {

@@ -21,3 +21,7 @@ playwright/.cache
 
 *.tgz
 perf/results
+
+# CI security-scan artifacts (generated at the repo root; never committed or linted)
+snyk_results.html
+.snyk
