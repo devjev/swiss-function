@@ -7,8 +7,8 @@ import type {
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip } from "../../lib/chart/Tooltip";
 import { drawFrameBack, drawFrameFront } from "../../lib/chart3d/frame";
-import { nearestHit, prepareCanvas } from "../../lib/chart3d/paint";
-import { computeFit, normalize, project } from "../../lib/chart3d/projection";
+import { nearestHitOrdered, prepareCanvas } from "../../lib/chart3d/paint";
+import { computeFit, normalize, projectInto } from "../../lib/chart3d/projection";
 import { resolveRgb } from "../../lib/chart3d/shading";
 import type { Domain, Point3, PointSeries } from "../../lib/chart3d/types";
 import { useOrbit } from "../../lib/chart3d/useOrbit";
@@ -48,12 +48,17 @@ function extentOf(values: number[]): Domain {
   return min <= max ? [min, max] : [0, 1];
 }
 
-interface ScreenPoint {
-  x: number;
-  y: number;
-  depth: number;
-  color: string;
-  datum: PointCloudDatum;
+/** Reusable per-frame screen buffers: the redraw runs once per pointermove
+ *  during orbit, so it must not allocate per point (20k fresh objects + a full
+ *  object sort per frame were the GC-stall source — issue #23). */
+interface ScreenBuffers {
+  x: Float32Array;
+  y: Float32Array;
+  depth: Float32Array;
+  /** Painter's order (far → near). Persists across frames so consecutive
+   *  orbit frames hand the sort nearly-sorted input. */
+  order: Uint32Array;
+  count: number;
 }
 
 export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function PointCloud(
@@ -79,7 +84,13 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const { camera, dragging, handlers } = useOrbit();
-  const pointsRef = useRef<ScreenPoint[]>([]);
+  const screenRef = useRef<ScreenBuffers>({
+    x: new Float32Array(0),
+    y: new Float32Array(0),
+    depth: new Float32Array(0),
+    order: new Uint32Array(0),
+    count: 0,
+  });
   const [hover, setHover] = useState<{ datum: PointCloudDatum; rect: DOMRect } | null>(null);
   // Canvas bakes its token colors into pixels, so repaint on a live theme switch.
   const themeEpoch = useThemeEpoch(rootRef);
@@ -96,6 +107,32 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
     () => zDomain ?? extentOf(series.flatMap((s) => s.data.map((d) => d.z))),
     [zDomain, series],
   );
+
+  // Normalized coordinates flattened once per data/domain change; the per-frame
+  // orbit path only projects + sorts indices over these.
+  const flat = useMemo(() => {
+    let count = 0;
+    for (const s of series) count += s.data.length;
+    const nx = new Float32Array(count);
+    const ny = new Float32Array(count);
+    const nz = new Float32Array(count);
+    const seriesIdx = new Uint32Array(count);
+    const datums: Point3[] = new Array(count);
+    let i = 0;
+    let si = 0;
+    for (const s of series) {
+      for (const d of s.data) {
+        nx[i] = normalize(d.x, xDom);
+        ny[i] = normalize(d.y, yDom);
+        nz[i] = normalize(d.z, zDom);
+        seriesIdx[i] = si;
+        datums[i] = d;
+        i += 1;
+      }
+      si += 1;
+    }
+    return { count, nx, ny, nz, seriesIdx, datums };
+  }, [series, xDom, yDom, zDom]);
 
   useLayoutEffect(() => {
     const el = rootRef.current;
@@ -129,39 +166,45 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
     drawFrameBack(ctx, frame);
 
     const bg = token("--sf-color-bg", "#ffffff", host);
-    const pts: ScreenPoint[] = [];
-    for (const s of series) {
+    const colors = series.map((s) => {
       const rgb = resolveRgb(s.color ?? "var(--sf-color-primary)", host);
-      const color = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-      for (const d of s.data) {
-        const p = project(
-          normalize(d.x, xDom),
-          normalize(d.y, yDom),
-          normalize(d.z, zDom),
-          camera,
-          fit,
-        );
-        pts.push({ x: p.x, y: p.y, depth: p.depth, color, datum: { ...d, series: s.name } });
-      }
-    }
-    pts.sort((a, b) => a.depth - b.depth); // far → near
-    pointsRef.current = pts;
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    });
 
-    for (const p of pts) {
+    const buf = screenRef.current;
+    if (buf.order.length !== flat.count) {
+      buf.x = new Float32Array(flat.count);
+      buf.y = new Float32Array(flat.count);
+      buf.depth = new Float32Array(flat.count);
+      buf.order = new Uint32Array(flat.count);
+      for (let i = 0; i < flat.count; i++) buf.order[i] = i;
+    }
+    buf.count = flat.count;
+    projectInto(flat.nx, flat.ny, flat.nz, flat.count, camera, fit, buf.x, buf.y, buf.depth);
+    const { x: sx, y: sy, depth, order } = buf;
+    order.sort((a, b) => (depth[a] as number) - (depth[b] as number)); // far → near
+
+    ctx.lineWidth = 0.75;
+    ctx.strokeStyle = bg;
+    let fillColor = "";
+    for (let k = 0; k < flat.count; k++) {
+      const i = order[k] as number;
       // Subtle depth cue: nearer dots a touch larger (not perspective — a legibility aid).
-      const t = (p.depth + 0.87) / 1.74;
+      const t = ((depth[i] as number) + 0.87) / 1.74;
       const r = pointRadius * (0.75 + 0.4 * t);
+      const color = colors[flat.seriesIdx[i] as number] as string;
+      if (color !== fillColor) {
+        ctx.fillStyle = color;
+        fillColor = color;
+      }
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
+      ctx.arc(sx[i] as number, sy[i] as number, r, 0, Math.PI * 2);
       ctx.fill();
-      ctx.lineWidth = 0.75;
-      ctx.strokeStyle = bg;
       ctx.stroke();
     }
 
     drawFrameFront(ctx, frame);
-  }, [series, size, camera, xDom, yDom, zDom, pointRadius, xLabel, yLabel, themeEpoch]);
+  }, [series, flat, size, camera, xDom, yDom, zDom, pointRadius, xLabel, yLabel, themeEpoch]);
 
   const onMove = (e: ReactPointerEvent) => {
     handlers.onPointerMove(e);
@@ -172,11 +215,31 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const pts = pointsRef.current;
-    const idx = nearestHit(pts, e.clientX - rect.left, e.clientY - rect.top, 12);
-    const p = idx >= 0 ? pts[idx] : undefined;
+    const buf = screenRef.current;
+    const idx = nearestHitOrdered(
+      buf.x,
+      buf.y,
+      buf.order,
+      buf.count,
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      12,
+    );
+    const d = idx >= 0 ? flat.datums[idx] : undefined;
+    const s = d ? series[flat.seriesIdx[idx] as number] : undefined;
     setHover(
-      p ? { datum: p.datum, rect: new DOMRect(rect.left + p.x, rect.top + p.y, 0, 0) } : null,
+      d && s
+        ? {
+            // Built lazily at hover time — the per-frame redraw must not allocate a datum per point.
+            datum: { ...d, series: s.name },
+            rect: new DOMRect(
+              rect.left + (buf.x[idx] as number),
+              rect.top + (buf.y[idx] as number),
+              0,
+              0,
+            ),
+          }
+        : null,
     );
   };
 

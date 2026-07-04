@@ -1,5 +1,5 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Axis,
   type AxisTick,
@@ -73,6 +73,79 @@ interface HoverState {
 function isDateValue(x: ScatterX): x is Date {
   return x instanceof Date;
 }
+
+// The point layer is a memo component per series with one delegated
+// pointer/focus handler pair (circles carry data-idx), so a hover re-render
+// bails out at a single fiber instead of re-reconciling ~2 fibers per point —
+// same class as Heatmap's grid layers. Delegation must resolve via
+// closest("[data-idx]"): events can target a circle's <title> child, and
+// React's onFocus/onBlur (focusin/focusout) need the same lookup. The memo
+// only holds while every prop is identity-stable across hover renders — the
+// scales are useMemo'd and the callbacks useCallback'd in the root.
+const ScatterPointsLayer = memo(function ScatterPointsLayer({
+  series,
+  xPx,
+  yScale,
+  onPointHover,
+  onPointLeave,
+}: {
+  series: ScatterSeries;
+  xPx: (x: ScatterX) => number;
+  yScale: (y: number) => number;
+  onPointHover: (hover: HoverState) => void;
+  onPointLeave: () => void;
+}) {
+  const resolvePoint = (target: EventTarget | null): HoverState | null => {
+    const el = target instanceof Element ? target.closest("[data-idx]") : null;
+    const datum = el ? series.data[Number(el.getAttribute("data-idx"))] : undefined;
+    if (!el || !datum) return null;
+    return {
+      datum,
+      series: series.name,
+      rect: el.getBoundingClientRect(),
+      cx: xPx(datum.x),
+      cy: yScale(datum.y),
+    };
+  };
+  const handleEnter = (e: { target: EventTarget | null }) => {
+    const hover = resolvePoint(e.target);
+    if (hover) onPointHover(hover);
+  };
+  const handleLeave = (e: { target: EventTarget | null }) => {
+    if (e.target instanceof Element && e.target.closest("[data-idx]")) onPointLeave();
+  };
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pure event delegation — the interactive/focusable surface is each point's circle (role="button", tabIndex) below; the group only hosts the shared listeners (issue #14).
+    <g
+      onPointerOver={handleEnter}
+      onPointerOut={handleLeave}
+      onFocus={handleEnter}
+      onBlur={handleLeave}
+    >
+      {series.data.map((d, i) => {
+        const px = xPx(d.x);
+        const py = yScale(d.y);
+        return (
+          // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
+          <circle
+            key={`${series.name}-${String(d.x)}-${d.y}`}
+            data-idx={i}
+            cx={px}
+            cy={py}
+            r={4}
+            className={styles.point}
+            style={{ fill: series.color ?? "var(--sf-color-primary)" }}
+            role="button"
+            tabIndex={0}
+            aria-label={d.label ?? `${series.name}: ${d.y}`}
+          >
+            <title>{d.label ?? `${series.name}: ${d.y}`}</title>
+          </circle>
+        );
+      })}
+    </g>
+  );
+});
 
 function toNumber(x: ScatterX): number {
   return isDateValue(x) ? x.getTime() : x;
@@ -299,19 +372,13 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   }, [resolvedYDomain, scaffolding]);
 
   // --- Plot geometry ---
-  const xPx = (x: ScatterX): number => (isDateValue(x) ? xScaleDate(x) : xScaleNum(x));
+  const xPx = useCallback(
+    (x: ScatterX): number => (isDateValue(x) ? xScaleDate(x) : xScaleNum(x)),
+    [xScaleDate, xScaleNum],
+  );
 
-  const handlePointEnter = (
-    e: React.PointerEvent<SVGCircleElement>,
-    datum: ScatterDatum,
-    seriesName: string,
-    cx_: number,
-    cy_: number,
-  ) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setHover({ datum, series: seriesName, rect, cx: cx_, cy: cy_ });
-  };
-  const handlePointLeave = () => setHover(null);
+  const handlePointHover = useCallback((hover: HoverState) => setHover(hover), []);
+  const handlePointLeave = useCallback(() => setHover(null), []);
 
   const wrapperStyle: CSSProperties = {
     ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
@@ -376,41 +443,20 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
               );
             })}
 
-            {/* Points. */}
-            {series.map((s) => {
-              if (s.showPoints === false) return null;
-              return (
-                <g key={`points-${s.name}`}>
-                  {s.data.map((d) => {
-                    const px = xPx(d.x);
-                    const py = yScale(d.y);
-                    return (
-                      // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
-                      <circle
-                        key={`${s.name}-${String(d.x)}-${d.y}`}
-                        cx={px}
-                        cy={py}
-                        r={4}
-                        className={styles.point}
-                        style={{ fill: s.color ?? "var(--sf-color-primary)" }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={d.label ?? `${s.name}: ${d.y}`}
-                        onPointerEnter={(e) => handlePointEnter(e, d, s.name, px, py)}
-                        onPointerLeave={handlePointLeave}
-                        onFocus={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setHover({ datum: d, series: s.name, rect, cx: px, cy: py });
-                        }}
-                        onBlur={handlePointLeave}
-                      >
-                        <title>{d.label ?? `${s.name}: ${d.y}`}</title>
-                      </circle>
-                    );
-                  })}
-                </g>
-              );
-            })}
+            {/* Points — memo'd per series so hover re-renders bail out at one
+                fiber. The polylines above stay inline (one fiber each, cheap). */}
+            {series.map((s) =>
+              s.showPoints === false ? null : (
+                <ScatterPointsLayer
+                  key={`points-${s.name}`}
+                  series={s}
+                  xPx={xPx}
+                  yScale={yScale}
+                  onPointHover={handlePointHover}
+                  onPointLeave={handlePointLeave}
+                />
+              ),
+            )}
 
             {isTufte && hover ? (
               <Crosshair

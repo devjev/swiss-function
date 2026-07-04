@@ -51,6 +51,7 @@ import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
 import { computeRowOrder, getCellValue } from "./rowOrder";
+import { buildTreeMeta } from "./treeRows";
 import type {
   AdvanceHint,
   Cell,
@@ -202,6 +203,11 @@ const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
   if (!allowed || allowed.length === 0) return true;
   return allowed.includes(String(row.getValue(columnId)));
 };
+
+/** Shared collator for the funnel's option sort. The default (non-numeric)
+ *  collator matches bare `a.localeCompare(b)` ordering exactly — do NOT swap
+ *  in Explorer's numeric naturalCompare, which changes option order (#17). */
+const optionCollator = new Intl.Collator();
 
 /** Numeric range filter: keep rows within [min, max]; a blank bound is open. */
 const rangeFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
@@ -560,11 +566,40 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // straight from `data` in computeRowOrder's display order. Accepted drift:
   // stock TanStack sniffs the first *filtered* row, so with an active filter
   // that excludes row 0 on a mixed-type column the first toggle direction can
-  // differ. Tree tables keep the full row-model path untouched.
+  // differ. Tree tables keep the row-model path, pruned to the visible tree.
   const flatMode = !getSubRows;
   const sniffData = useMemo(() => data.slice(0, 1), [data]);
+
+  // --- Tree mode: prune collapsed subtrees before TanStack sees them ---
+  // TanStack materializes a Row (~2.6KB) for EVERY node getSubRows exposes —
+  // 50k collapsed nodes cost ~132MB while only the roots can render (#18).
+  // buildTreeMeta withholds children of collapsed rows so hidden subtrees are
+  // never materialized. The core row model memoizes on data identity alone,
+  // so hand TanStack a fresh array whenever the visible tree changes (an
+  // O(roots) copy). `expanded === true` prunes nothing — skip the walk and
+  // keep the raw inputs (which also keeps toggleExpanded's true→record
+  // conversion over rowsById complete). Accepted drift (cf. the flat-mode
+  // note above): sorting/filtering only ever see visible rows, so the
+  // auto-sort type sniff can pick a different fn while the type-revealing
+  // rows sit in a collapsed subtree. Inline getSubRows lambdas change
+  // identity every parent render; the walk depends only on its behaviour, so
+  // it's read through a ref to keep the memo keyed on data + expansion.
+  const getSubRowsRef = useRef(getSubRows);
+  getSubRowsRef.current = getSubRows;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: getSubRows is read through a ref (see above)
+  const treeMeta = useMemo(() => {
+    const getSub = getSubRowsRef.current;
+    if (flatMode || !getSub) return null;
+    if (expandedState === true) {
+      return { info: null, data, getSubRows: (row: T) => getSub(row) ?? undefined };
+    }
+    const { info, getSubRows: pruned } = buildTreeMeta(data, getSub, expandedState);
+    return { info, data: data.slice(), getSubRows: pruned };
+  }, [flatMode, data, expandedState]);
+  const treeInfo = treeMeta?.info ?? null;
+
   const table = useReactTable({
-    data: flatMode ? sniffData : data,
+    data: treeMeta ? treeMeta.data : sniffData,
     columns: tsColumns,
     state: { sorting, expanded: expandedState, columnOrder, columnFilters },
     manualSorting: flatMode,
@@ -584,7 +619,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    ...(getSubRows ? { getSubRows: (row: T) => getSubRows(row) ?? undefined } : {}),
+    ...(treeMeta ? { getSubRows: treeMeta.getSubRows } : {}),
   });
   const rows = table.getRowModel().rows;
 
@@ -1216,7 +1251,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
             }}
           >
             <TreeChevron
-              visible={row.getCanExpand()}
+              // A collapsed row's subRows are withheld from TanStack (pruned —
+              // see buildTreeMeta), so getCanExpand() is wrong there; the walk
+              // records hasChildren for every reachable node instead.
+              visible={
+                treeInfo ? (treeInfo.get(row.original)?.hasChildren ?? false) : row.getCanExpand()
+              }
               expanded={row.getIsExpanded()}
               onToggle={() => row.toggleExpanded()}
               ariaLabel={row.getIsExpanded() ? "Collapse row" : "Expand row"}
@@ -1276,9 +1316,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Column filters (filterableColumns) ---
   // Per-column filter kind + selectable values: number → range; select uses its
-  // defined options; boolean → true/false; text/other → distinct values from data.
+  // defined options; boolean → true/false; text/other → distinct values from
+  // data, computed lazily on funnel open (`options: null` here). The distinct
+  // scan+sort used to run eagerly in this memo — ~7ms per data identity change
+  // at 10k rows even with every funnel closed (#17).
   const filterMeta = useMemo(() => {
-    const map = new Map<string, { kind: "checklist" | "range"; options: FilterOption[] }>();
+    const map = new Map<string, { kind: "checklist" | "range"; options: FilterOption[] | null }>();
     if (!filterableColumns) return map;
     for (const leaf of visibleLeaves) {
       if (leaf.filterable === false) continue;
@@ -1287,7 +1330,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         map.set(leaf.id, { kind: "range", options: [] });
         continue;
       }
-      let options: FilterOption[];
+      let options: FilterOption[] | null;
       if (type === "boolean") {
         options = [
           { value: "true", label: "True" },
@@ -1296,19 +1339,39 @@ export function DataTable<T>(props: DataTableProps<T>) {
       } else if (leaf.edit?.type === "select") {
         options = leaf.edit.options;
       } else {
-        const seen = new Set<string>();
-        for (const row of data) {
-          const v = getCellValue(row, leaf.accessor);
-          seen.add(v == null ? "" : String(v));
-        }
-        options = [...seen]
-          .sort((a, b) => a.localeCompare(b))
-          .map((s) => ({ value: s, label: s === "" ? "(empty)" : s }));
+        options = null; // distinct values — resolved on demand below
       }
       map.set(leaf.id, { kind: "checklist", options });
     }
     return map;
-  }, [filterableColumns, visibleLeaves, data]);
+  }, [filterableColumns, visibleLeaves]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: identity-keyed cache — swaps (and so empties) whenever the scanned inputs change
+  const distinctOptionsCache = useMemo(
+    () => new Map<string, FilterOption[]>(),
+    [data, visibleLeaves],
+  );
+  /** Distinct values of a text column as checklist options, computed on first
+   *  funnel open and cached until `data`/columns change. */
+  const getDistinctOptions = useCallback(
+    (columnId: string): FilterOption[] => {
+      const hit = distinctOptionsCache.get(columnId);
+      if (hit) return hit;
+      const leaf = visibleLeaves.find((l) => l.id === columnId);
+      if (!leaf) return [];
+      const seen = new Set<string>();
+      for (const row of data) {
+        const v = getCellValue(row, leaf.accessor);
+        seen.add(v == null ? "" : String(v));
+      }
+      const options = [...seen]
+        .sort(optionCollator.compare)
+        .map((s) => ({ value: s, label: s === "" ? "(empty)" : s }));
+      distinctOptionsCache.set(columnId, options);
+      return options;
+    },
+    [distinctOptionsCache, data, visibleLeaves],
+  );
 
   // --- Column drag-to-reorder (reorderableColumns) ---
   const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
@@ -1450,7 +1513,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               <ColumnFilter
                 label={typeof def.header === "string" ? def.header : header.column.id}
                 kind={fmeta.kind}
-                options={fmeta.options}
+                options={fmeta.options ?? (() => getDistinctOptions(header.column.id))}
                 value={filterValue}
                 active={isFiltered}
                 onChange={(v) => header.column.setFilterValue(v)}

@@ -14,3 +14,23 @@
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
 }
+
+/* Virtualized option list: the List itself is the scroll container (the
+   virtualizer needs its scroll element inside this component's subtree), so
+   the popup's own max-height never engages. Height mirrors the popup's cap
+   minus its padding and its 1px borders — consumers ship `border-box`, where
+   the borders eat inner space; without the -2px the popup grows a nested
+   second scrollbar. */
+.virtualList {
+  max-height: calc(16rem - 2 * var(--sf-space-1) - 2px);
+  overflow: auto;
+}
+
+/* Rows are absolutely positioned by measured offset (translateY), the same
+   windowing idiom as Selector/DataTable/Explorer. */
+.virtualItem {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}

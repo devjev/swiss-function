@@ -6,4 +6,6 @@
 export * from "./effects";
 export * from "./spinners";
 export * from "./useDitheredFill";
-export * from "./webglFill";
+// Type-only: a runtime re-export would put the ~6KB gz engine back into the
+// static import graph of every consumer; useDitheredFill loads it lazily.
+export type { FillFrame, WebglFill } from "./webglFill";

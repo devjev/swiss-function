@@ -205,3 +205,20 @@ export function GroupsHarness({ defaultCollapsed }: { defaultCollapsed?: boolean
   ];
   return <DataTable<AddrRow> data={data} columns={columns} height={300} />;
 }
+
+// --- High-cardinality filter harness ---
+
+// One filterable text column with `count` distinct values (V0000, V0001, …) so
+// the funnel checklist's windowing + search can be exercised (issue #17).
+export function ManyValuesHarness({ count = 500 }: { count?: number }) {
+  const data: Row[] = Array.from({ length: count }, (_, i) => ({
+    name: `V${String(i).padStart(4, "0")}`,
+    age: i % 60,
+    active: i % 2 === 0,
+  }));
+  const columns: ColumnDef<Row>[] = [
+    { id: "name", header: "name", accessor: "name" },
+    { id: "age", header: "age", accessor: "age", align: "end" },
+  ];
+  return <DataTable<Row> data={data} columns={columns} height={300} filterableColumns />;
+}

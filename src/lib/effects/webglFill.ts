@@ -1,7 +1,16 @@
 /** WebGL fragment-shader dithered fill. The GPU computes the effect intensity
  *  + Bayer ordered-dither per pixel; the CPU only updates uniforms and issues
  *  one draw call per frame (benchmarked ~0.05ms/frame, flat with grid size).
- *  Shared by the shipped component and the perf-regression rig. */
+ *  Shared by the shipped component and the perf-regression rig.
+ *
+ *  Context budget: ALL fills render through ONE module-level offscreen WebGL
+ *  canvas; each instance's visible canvas is a plain 2D blit target
+ *  (drawImage), which doesn't count toward the browser's ~16-active-WebGL-
+ *  context cap. One-per-fill contexts evicted the oldest fills (and any live
+ *  Map/Graph) past that cap. The shared context is grown to the largest active
+ *  fill and survives instance churn; on `webglcontextlost` instances are told
+ *  to stop drawing, on `webglcontextrestored` the pipeline is rebuilt and they
+ *  resume. */
 
 import type { EffectName, EffectOptions } from "./effects";
 
@@ -264,17 +273,49 @@ export interface FillFrame extends EffectOptions {
 export interface WebglFill {
   /** Resize the backing store to CSS size × dpr. */
   resize(wCss: number, hCss: number): void;
-  /** Render one frame. */
+  /** Render one frame. Silently skipped while the shared GL context is lost. */
   draw(f: FillFrame): void;
-  /** Release the GL context. */
+  /** Release per-instance resources (the shared GL context stays alive). */
   destroy(): void;
 }
 
-/** Create a WebGL fill bound to `canvas`, or null if WebGL is unavailable. */
-export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
-  const gl = canvas.getContext("webgl", { alpha: true, antialias: false });
-  if (!gl) return null;
+interface Pipeline {
+  prog: WebGLProgram;
+  buf: WebGLBuffer;
+  loc: number;
+  U: Record<
+    | "res"
+    | "cell"
+    | "grid"
+    | "t"
+    | "effect"
+    | "speed"
+    | "wavelength"
+    | "gain"
+    | "seed"
+    | "color"
+    | "alpha"
+    | "lifeState",
+    WebGLUniformLocation | null
+  >;
+  simProg: WebGLProgram | null;
+  simLoc: number;
+  simU: { state: WebGLUniformLocation | null; size: WebGLUniformLocation | null } | null;
+}
 
+interface Engine {
+  canvas: HTMLCanvasElement;
+  gl: WebGLRenderingContext;
+  /** Null while the context is lost (or a rebuild failed). */
+  pipeline: Pipeline | null;
+  lost: boolean;
+  /** Bumped on restore — GL resources minted before it died with the old context. */
+  generation: number;
+}
+
+/** Compile shaders / link programs / bind the fullscreen triangle on `gl`.
+ *  Also run again after `webglcontextrestored` (all prior resources are gone). */
+function buildPipeline(gl: WebGLRenderingContext): Pipeline | null {
   const compile = (type: number, src: string): WebGLShader | null => {
     const sh = gl.createShader(type);
     if (!sh) return null;
@@ -293,6 +334,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
   gl.useProgram(prog);
 
   const buf = gl.createBuffer();
+  if (!buf) return null;
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   const loc = gl.getAttribLocation(prog, "p");
@@ -302,7 +344,7 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // straight alpha
 
   const u = (name: string) => gl.getUniformLocation(prog, name);
-  const U = {
+  const U: Pipeline["U"] = {
     res: u("u_res"),
     cell: u("u_cell"),
     grid: u("u_grid"),
@@ -317,12 +359,12 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     lifeState: u("u_lifeState"),
   };
 
-  // --- Game of Life feedback pipeline (built lazily, only when effect="life") ---
+  // --- Game of Life feedback pipeline (used only when effect="life") ---
   const simFs = compile(gl.FRAGMENT_SHADER, SIM);
-  const simProg = gl.createProgram();
+  let simProg: WebGLProgram | null = gl.createProgram();
   let simLoc = -1;
-  let simU: { state: WebGLUniformLocation | null; size: WebGLUniformLocation | null } | null = null;
-  if (vs && simFs && simProg) {
+  let simU: Pipeline["simU"] = null;
+  if (simFs && simProg) {
     gl.attachShader(simProg, vs);
     gl.attachShader(simProg, simFs);
     gl.linkProgram(simProg);
@@ -331,7 +373,74 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       state: gl.getUniformLocation(simProg, "u_state"),
       size: gl.getUniformLocation(simProg, "u_size"),
     };
+  } else {
+    simProg = null;
   }
+
+  return { prog, buf, loc, U, simProg, simLoc, simU };
+}
+
+/** Fired on shared-context loss (`true`) and restore (`false`). */
+const contextListeners = new Set<(lost: boolean) => void>();
+
+let engine: Engine | null = null;
+
+/** The shared engine, created on first use. Returns null when WebGL is
+ *  unavailable (retried on the next call — creation can fail transiently
+ *  under context pressure). */
+function getEngine(): Engine | null {
+  if (engine) return engine;
+  if (typeof document === "undefined") return null;
+  const canvas = document.createElement("canvas");
+  const gl = canvas.getContext("webgl", { alpha: true, antialias: false });
+  if (!gl) return null;
+  const pipeline = buildPipeline(gl);
+  if (!pipeline) {
+    // Free the context slot — a half-built engine would pin it for nothing.
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return null;
+  }
+  const eng: Engine = { canvas, gl, pipeline, lost: false, generation: 0 };
+  canvas.addEventListener("webglcontextlost", (e) => {
+    e.preventDefault(); // required for webglcontextrestored to fire
+    eng.lost = true;
+    eng.pipeline = null;
+    for (const listener of contextListeners) listener(true);
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    eng.pipeline = buildPipeline(gl);
+    eng.lost = false;
+    eng.generation++;
+    for (const listener of contextListeners) listener(false);
+  });
+  engine = eng;
+  return eng;
+}
+
+/** Create a dithered fill bound to `canvas`, or null when no renderer is
+ *  available. `canvas` becomes a plain 2D blit target — every fill renders
+ *  through the one shared offscreen WebGL context, so N fills cost one context
+ *  slot total instead of N. `onContextChange` fires with `true` when that
+ *  shared context is lost (stop scheduling draws) and `false` once restored. */
+export function createWebglFill(
+  canvas: HTMLCanvasElement,
+  onContextChange?: (lost: boolean) => void,
+): WebglFill | null {
+  const eng = getEngine();
+  if (!eng) return null;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  if (onContextChange) {
+    contextListeners.add(onContextChange);
+    // A fill can mount mid-outage — report the current state so the caller
+    // doesn't schedule draws until the restore notification.
+    if (eng.lost) onContextChange(true);
+  }
+
+  let dpr = 1;
+  // Device-pixel size of this instance, set by resize().
+  let w = 0;
+  let h = 0;
 
   type Life = {
     front: WebGLTexture;
@@ -343,8 +452,10 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     lastGen: number;
   };
   let life: Life | null = null;
+  let lifeGeneration = eng.generation;
 
-  const makeCellTex = (w: number, h: number, data: Uint8Array | null): WebGLTexture | null => {
+  const makeCellTex = (tw: number, th: number, data: Uint8Array | null): WebGLTexture | null => {
+    const { gl } = eng;
     const t = gl.createTexture();
     if (!t) return null;
     gl.bindTexture(gl.TEXTURE_2D, t);
@@ -352,32 +463,38 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, tw, th, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     return t;
   };
 
   const destroyLife = () => {
     if (!life) return;
-    gl.deleteTexture(life.front);
-    gl.deleteTexture(life.back);
-    gl.deleteFramebuffer(life.fboFront);
-    gl.deleteFramebuffer(life.fboBack);
+    // Resources minted before a context loss died with the old context —
+    // deleting those stale handles on the restored context is an error.
+    if (!eng.lost && lifeGeneration === eng.generation) {
+      const { gl } = eng;
+      gl.deleteTexture(life.front);
+      gl.deleteTexture(life.back);
+      gl.deleteFramebuffer(life.fboFront);
+      gl.deleteFramebuffer(life.fboBack);
+    }
     life = null;
   };
 
   // Seed both buffers with a random board sized to the cell grid.
-  const ensureLife = (w: number, h: number) => {
-    if (life && life.w === w && life.h === h) return;
+  const ensureLife = (lw: number, lh: number) => {
+    if (life && life.w === lw && life.h === lh) return;
     destroyLife();
-    if (!simProg || w < 1 || h < 1) return;
-    const seed = new Uint8Array(w * h * 4);
-    for (let i = 0; i < w * h; i++) {
+    const { gl, pipeline } = eng;
+    if (!pipeline?.simProg || lw < 1 || lh < 1) return;
+    const seed = new Uint8Array(lw * lh * 4);
+    for (let i = 0; i < lw * lh; i++) {
       const v = Math.random() < 0.32 ? 255 : 0;
       seed[i * 4] = v;
       seed[i * 4 + 3] = 255;
     }
-    const front = makeCellTex(w, h, seed);
-    const back = makeCellTex(w, h, null);
+    const front = makeCellTex(lw, lh, seed);
+    const back = makeCellTex(lw, lh, null);
     const fboFront = gl.createFramebuffer();
     const fboBack = gl.createFramebuffer();
     if (!front || !back || !fboFront || !fboBack) return;
@@ -388,27 +505,28 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     if (!ok) return; // FBO render targets unsupported → life renders nothing
-    life = { front, back, fboFront, fboBack, w, h, lastGen: -1e9 };
+    life = { front, back, fboFront, fboBack, w: lw, h: lh, lastGen: -1e9 };
   };
 
   // Advance one generation into the back buffer, then swap. Throttled so the board
   // ticks visibly (not once per animation frame).
   const stepLife = (t: number, speed: number) => {
-    if (!life || !simProg || !simU) return;
+    const { gl, pipeline } = eng;
+    if (!life || !pipeline?.simProg || !pipeline.simU) return;
     const interval = 0.11 / Math.max(speed, 0.05);
     if (t - life.lastGen < interval) return;
     life.lastGen = t;
     // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
-    gl.useProgram(simProg);
+    gl.useProgram(pipeline.simProg);
     gl.bindFramebuffer(gl.FRAMEBUFFER, life.fboBack);
     gl.viewport(0, 0, life.w, life.h);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.enableVertexAttribArray(simLoc);
-    gl.vertexAttribPointer(simLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.buf);
+    gl.enableVertexAttribArray(pipeline.simLoc);
+    gl.vertexAttribPointer(pipeline.simLoc, 2, gl.FLOAT, false, 0, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, life.front);
-    gl.uniform1i(simU.state, 0);
-    gl.uniform2f(simU.size, life.w, life.h);
+    gl.uniform1i(pipeline.simU.state, 0);
+    gl.uniform2f(pipeline.simU.size, life.w, life.h);
     gl.disable(gl.BLEND);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     gl.enable(gl.BLEND);
@@ -422,19 +540,29 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
     life.fboBack = ff;
     // Restore the display program's vertex attrib.
     // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
-    gl.useProgram(prog);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.useProgram(pipeline.prog);
+    gl.vertexAttribPointer(pipeline.loc, 2, gl.FLOAT, false, 0, 0);
   };
-
-  let dpr = 1;
 
   return {
     resize(wCss, hCss) {
       dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.ceil(wCss * dpr));
-      canvas.height = Math.max(1, Math.ceil(hCss * dpr));
+      w = Math.max(1, Math.ceil(wCss * dpr));
+      h = Math.max(1, Math.ceil(hCss * dpr));
+      canvas.width = w;
+      canvas.height = h;
     },
     draw(f) {
+      const { gl, pipeline } = eng;
+      if (eng.lost || !pipeline || w === 0 || h === 0) return;
+      // Grow-only: the shared canvas fits the largest active fill; each draw
+      // uses its own viewport within it.
+      if (eng.canvas.width < w) eng.canvas.width = w;
+      if (eng.canvas.height < h) eng.canvas.height = h;
+      if (lifeGeneration !== eng.generation) {
+        life = null; // old-context handles — nothing left to delete
+        lifeGeneration = eng.generation;
+      }
       const effect = f.effect ?? "ripple";
       const [r, g, b] = f.color ?? [0.42, 0.447, 0.502];
       const alpha = f.alpha ?? 1;
@@ -450,9 +578,10 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
         destroyLife();
       }
       // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL call, not a React hook
-      gl.useProgram(prog);
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.uniform2f(U.res, canvas.width, canvas.height);
+      gl.useProgram(pipeline.prog);
+      gl.viewport(0, 0, w, h);
+      const { U } = pipeline;
+      gl.uniform2f(U.res, w, h);
       gl.uniform2f(U.cell, f.cellW * dpr, f.cellH * dpr);
       gl.uniform2f(U.grid, f.cols, f.rows);
       gl.uniform1f(U.t, f.t);
@@ -471,10 +600,17 @@ export function createWebglFill(canvas: HTMLCanvasElement): WebglFill | null {
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
+      // Blit synchronously — the GL buffer is only guaranteed until this task
+      // yields. The viewport is GL bottom-left, i.e. the bottom rows in 2D
+      // source coordinates.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(eng.canvas, 0, eng.canvas.height - h, w, h, 0, 0, w, h);
     },
     destroy() {
       destroyLife();
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      if (onContextChange) contextListeners.delete(onContextChange);
+      // The shared context stays alive for the next fill — one persistent
+      // context total is the design point.
     },
   };
 }

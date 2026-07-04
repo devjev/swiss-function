@@ -47,6 +47,17 @@ test("clicking a node fires onNodeClick with its id", async ({ mount }) => {
   await expect(c.getByTestId("last-event")).toHaveText("click:hub");
 });
 
+test("small graphs mark ready and settled together (synchronous layout path)", async ({
+  mount,
+}) => {
+  // Below the worker-settle threshold the deferred initial layout is computed
+  // synchronously, so the seed-paint (`ready`) and layout-at-rest (`settled`)
+  // signals land in the same frame.
+  const c = await mount(<GraphHarness />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await expect(c.locator("[data-graph-settled]")).toHaveCount(1);
+});
+
 test("exposes role, label, and a node/edge-count summary via aria-describedby", async ({
   mount,
 }) => {

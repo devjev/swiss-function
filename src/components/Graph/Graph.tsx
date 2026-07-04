@@ -1,6 +1,7 @@
 import type Graphology from "graphology";
 import { circlepack, circular } from "graphology-layout";
 import forceAtlas2 from "graphology-layout-forceatlas2";
+import FA2Layout from "graphology-layout-forceatlas2/worker";
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import {
   Fragment,
@@ -13,7 +14,7 @@ import {
   useState,
 } from "react";
 import Sigma from "sigma";
-import { drawDiscNodeLabel, type NodeHoverDrawingFunction } from "sigma/rendering";
+import { drawDiscNodeLabel, EdgeLineProgram, type NodeHoverDrawingFunction } from "sigma/rendering";
 import type { NodeDisplayData, PartialButFor } from "sigma/types";
 import { animateNodes } from "sigma/utils";
 import { cx } from "../../lib/cx";
@@ -28,6 +29,12 @@ import {
   reconcile,
   token,
 } from "../../lib/graph/build";
+import {
+  applyPositions,
+  detachForLayout,
+  FORCE_ASYNC_MIN_ORDER,
+  forceIterations,
+} from "../../lib/graph/forceLayout";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { useThemeEpoch } from "../../lib/useThemeEpoch";
@@ -314,11 +321,11 @@ function computeLayout(g: Graphology, layout: LayoutKind): LayoutMapping {
       });
       forceAtlas2.assign(g, {
         // Iterations time-box the SYNCHRONOUS main-thread FA2 block (~30ms per
-        // iteration at 10k nodes in Node, roughly double in dev-mode Chromium;
-        // 80 iterations froze first paint + interactivity for ~5s). Applies to
-        // the layout-switch effect too (switching back to "force"), not just
-        // the initial layout.
-        iterations: g.order > 5000 ? 30 : g.order > 2000 ? 80 : 200,
+        // iteration at 10k nodes in Node, roughly double in dev-mode Chromium).
+        // Graphs above FORCE_ASYNC_MIN_ORDER normally settle in the worker
+        // instead (startForceSettle, mount + layout-switch); this block serves
+        // small graphs and is the fallback when the worker can't spawn.
+        iterations: forceIterations(g.order),
         settings: forceAtlas2.inferSettings(g),
       });
       const after: LayoutMapping = {};
@@ -356,6 +363,14 @@ interface ContextMenuState {
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** True when the force layout should settle in the FA2 worker instead of the
+ *  synchronous block: big enough that the sync block would freeze the main
+ *  thread, and Workers exist (the guard keeps worker-less environments on the
+ *  sync path). */
+function shouldSettleAsync(order: number): boolean {
+  return order > FORCE_ASYNC_MIN_ORDER && typeof Worker !== "undefined";
 }
 
 const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
@@ -409,6 +424,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const appliedLayoutRef = useRef<LayoutKind | null>(null);
   // Cancels an in-flight `animateNodes` transition when a new one starts.
   const cancelAnimationRef = useRef<(() => void) | null>(null);
+  // Cancels the in-flight background force settle (kills the FA2 worker).
+  // Shared by the mount + layout effects; also called from unmount cleanup.
+  const stopForceRef = useRef<(() => void) | null>(null);
   // Latest callbacks, read inside Sigma listeners without re-subscribing.
   const handlersRef = useRef({
     onNodeClick,
@@ -475,6 +493,93 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
 
+  // Background force settle: run FA2 in the dependency's worker supervisor on
+  // a DETACHED copy of the live graph (see `detachForLayout` for why the copy
+  // is load-bearing), streaming positions back at most once per animation
+  // frame. Under reduced motion the settle runs invisibly and snaps once at
+  // the end. `[data-graph-settled]` marks completion (the perf harness's
+  // settle signal); the caller has already marked `[data-graph-ready]` at the
+  // seed-position paint.
+  const startForceSettle = useCallback(
+    (animate: boolean) => {
+      const g = graphRef.current;
+      const renderer = sigmaRef.current;
+      const container = surfaceRef.current;
+      if (!g || !renderer || !container) return;
+      stopForceRef.current?.();
+      container.removeAttribute("data-graph-settled");
+
+      const copy = detachForLayout(g);
+      let supervisor: FA2Layout;
+      try {
+        supervisor = new FA2Layout(copy, { settings: forceAtlas2.inferSettings(copy) });
+      } catch {
+        // Worker creation can be refused (e.g. a CSP without blob: in
+        // worker-src) — fall back to the synchronous block.
+        assignPositions(g, computeLayout(g, "force"));
+        renderer.refresh();
+        container.setAttribute("data-graph-settled", "");
+        bumpEpoch();
+        return;
+      }
+
+      // The supervisor has no stop policy of its own: 1 worker message = 1 FA2
+      // iteration = exactly one batched write onto the copy — count those to
+      // stop at the same budget as the sync path.
+      const budget = forceIterations(g.order);
+      let iterations = 0;
+      let dirty = false;
+      let raf = 0;
+      let done = false;
+
+      const teardown = () => {
+        done = true;
+        cancelAnimationFrame(raf);
+        copy.removeListener("eachNodeAttributesUpdated", onIteration);
+        supervisor.kill();
+        if (stopForceRef.current === cancel) stopForceRef.current = null;
+      };
+      const cancel = () => {
+        if (!done) teardown();
+      };
+      const finish = () => {
+        if (done) return;
+        teardown();
+        if (sigmaRef.current !== renderer) return;
+        applyPositions(copy, g);
+        renderer.refresh();
+        container.setAttribute("data-graph-settled", "");
+        bumpEpoch();
+      };
+      const onIteration = () => {
+        iterations += 1;
+        dirty = true;
+        if (iterations >= budget) {
+          // stop() now, kill() next tick: the supervisor's own message handler
+          // still touches its matrices after this event fires.
+          supervisor.stop();
+          setTimeout(finish, 0);
+        }
+      };
+      const tick = () => {
+        // One batched x/y apply per frame at most; Sigma coalesces it into a
+        // single scheduled render, so settle progress paints without flooding
+        // slow (software-GL) frames with per-iteration full-scene renders.
+        if (dirty) {
+          dirty = false;
+          applyPositions(copy, g);
+        }
+        raf = requestAnimationFrame(tick);
+      };
+
+      copy.on("eachNodeAttributesUpdated", onIteration);
+      if (animate) raf = requestAnimationFrame(tick);
+      stopForceRef.current = cancel;
+      supervisor.start();
+    },
+    [bumpEpoch],
+  );
+
   // Build the graph + Sigma renderer and wire every listener ONCE, on mount
   // (`bumpEpoch` is stable; `data`/`layout` and all callbacks are read through
   // refs). `data` changes flow through the reconcile effect below — applied in
@@ -501,15 +606,21 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // Show edge labels only when at least one edge carries one — otherwise the
     // renderer pays for label layout it would never draw.
     const hasEdgeLabels = g.someEdge((_e, attr) => attr.label != null);
+    const edgesInteractive = editableRef.current || handlersRef.current.onEdgeClick != null;
     const renderer = new Sigma(g, container, {
       defaultNodeColor: nodeColor("primary", container),
       // Directed arrowheads — until the graph is big enough that arrowheads
-      // are sub-pixel and their extra GL program only burns raster time; then
-      // plain edges. No edge carries its own `type`, so this default governs
-      // them all. (Sigma's "line" is still EdgeRectangleProgram — thickness-
-      // preserving quads, not 1px GL_LINES; registering EdgeLineProgram would
-      // be the next, lossier lever.)
-      defaultEdgeType: edgeTypeFor(g.size),
+      // are sub-pixel and their extra GL program only burns raster time. Above
+      // that: thickness-preserving quads ("line" = EdgeRectangleProgram) while
+      // edges are interactive (drawn pixels ARE the hit target), else 1-device-
+      // pixel GL_LINES ("thinline" below — ~45% cheaper full-scene raster under
+      // software GL). No edge carries its own `type`, so this default governs
+      // them all; retyped on reconcile + interactivity toggles (see
+      // edgeTypeFor).
+      defaultEdgeType: edgeTypeFor(g.size, edgesInteractive),
+      // The GL_LINES program behind "thinline" for big read-only graphs;
+      // "arrow"/"line" are Sigma built-ins (merged, not replaced, by this).
+      edgeProgramClasses: { thinline: EdgeLineProgram },
       labelColor: { color: token("--sf-color-fg", "#0a0a0a", container) },
       labelFont: token("--sf-font-sans", "system-ui", container),
       // Theme-aware hover box; Sigma's default hard-codes a white background that
@@ -522,7 +633,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       hideEdgesOnMove: g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES,
       // Edge events (click/right-click/hover) only fire when enabled; needed for
       // edge selection + the edge context menu. Off for big read-only graphs.
-      enableEdgeEvents: editableRef.current || handlersRef.current.onEdgeClick != null,
+      enableEdgeEvents: edgesInteractive,
       // Sigma hit-tests edges by color-picking their RENDERED pixels, so the
       // clickable area equals the drawn thickness. The 1.7px default is fiddly to
       // hit; give editable graphs a thicker floor so edges are easy to select /
@@ -689,18 +800,27 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     bumpEpoch();
 
     // Defer the initial layout behind the first paint. Sigma has already painted
-    // the seed positions, so the layout (a multi-second forceAtlas2 on LARGE)
-    // runs across the next frames instead of freezing first paint. Snap to it (no
-    // animation from the random seed — subsequent layout *switches* animate via
-    // the layout effect). `data-graph-ready` is set only once the stable layout
-    // has painted: the harness's "first stable layout paint" signal.
+    // the seed positions, so the layout runs after first paint instead of
+    // blocking it. Small graphs (and non-force layouts) compute synchronously
+    // and snap; `data-graph-ready` + `data-graph-settled` land together. Big
+    // force graphs hand off to the worker settle: `data-graph-ready` fires at
+    // the seed-position paint (the graph is already interactive) and
+    // `data-graph-settled` when the background settle finishes — the harness's
+    // two readiness signals.
     container.removeAttribute("data-graph-ready");
+    container.removeAttribute("data-graph-settled");
     let initialRaf = requestAnimationFrame(() => {
       initialRaf = requestAnimationFrame(() => {
         if (sigmaRef.current !== renderer) return;
+        if (initialLayout === "force" && shouldSettleAsync(g.order)) {
+          container.setAttribute("data-graph-ready", "");
+          startForceSettle(!prefersReducedMotion());
+          return;
+        }
         assignPositions(g, computeLayout(g, initialLayout));
         renderer.refresh();
         container.setAttribute("data-graph-ready", "");
+        container.setAttribute("data-graph-settled", "");
         bumpEpoch();
       });
     });
@@ -712,8 +832,11 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       document.removeEventListener("pointerup", onDocPointerUp);
       document.removeEventListener("keydown", onDocKeyDown);
       container.removeAttribute("data-graph-ready");
+      container.removeAttribute("data-graph-settled");
       cancelAnimationRef.current?.();
       cancelAnimationRef.current = null;
+      // Kill any in-flight worker settle with the renderer it was feeding.
+      stopForceRef.current?.();
       renderer.kill();
       sigmaRef.current = null;
       graphRef.current = null;
@@ -723,7 +846,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       setContextMenu(null);
       setConnectLine(null);
     };
-  }, [bumpEpoch]);
+  }, [bumpEpoch, startForceSettle]);
 
   // Reconcile the live graph IN PLACE when `data` changes: add/remove nodes &
   // edges and refresh attributes without rebuilding the renderer, so the camera
@@ -755,7 +878,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // `defaultEdgeType` is atomic: no edge carries its own `type`, and the
     // refresh below re-applies the default to every edge.
     renderer.setSetting("hideEdgesOnMove", g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES);
-    renderer.setSetting("defaultEdgeType", edgeTypeFor(g.size));
+    renderer.setSetting(
+      "defaultEdgeType",
+      edgeTypeFor(g.size, editable || handlersRef.current.onEdgeClick != null),
+    );
     renderer.refresh();
     if (changed) bumpEpoch();
   }, [data, editable, bumpEpoch]);
@@ -809,13 +935,23 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // editing is disabled so a stale toggle can't keep drawing edges.
   useEffect(() => {
     const renderer = sigmaRef.current;
-    renderer?.setSetting("enableEdgeEvents", editable || onEdgeClick != null);
+    const g = graphRef.current;
+    const edgesInteractive = editable || onEdgeClick != null;
+    renderer?.setSetting("enableEdgeEvents", edgesInteractive);
     renderer?.setSetting("minEdgeThickness", editable ? EDITABLE_MIN_EDGE_THICKNESS : 1.7);
+    // Interactivity also picks the >ARROW_MAX_EDGES edge program: quads keep a
+    // grabbable thickness, GL_LINES are ~1px and unclickable — retype when the
+    // flag flips at runtime (`setSetting` schedules the repaint).
+    if (renderer && g) {
+      renderer.setSetting("defaultEdgeType", edgeTypeFor(g.size, edgesInteractive));
+    }
     if (!editable && connectMode) setConnectMode(false);
   }, [editable, onEdgeClick, connectMode]);
 
-  // Re-position on layout switch. Compute the target coordinates, then either
-  // snap (prefers-reduced-motion) or animate smoothly to them.
+  // Re-position on layout switch. Big force graphs re-settle in the worker
+  // (the per-frame position stream is the transition); everything else
+  // computes the target coordinates, then either snaps (prefers-reduced-motion)
+  // or animates smoothly to them.
   useEffect(() => {
     const g = graphRef.current;
     const renderer = sigmaRef.current;
@@ -823,17 +959,27 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     if (appliedLayoutRef.current === layout) return;
     appliedLayoutRef.current = layout;
 
-    const targets = computeLayout(g, layout);
     cancelAnimationRef.current?.();
     cancelAnimationRef.current = null;
+    stopForceRef.current?.();
+
+    if (layout === "force" && shouldSettleAsync(g.order)) {
+      startForceSettle(!prefersReducedMotion());
+      return;
+    }
+
+    const targets = computeLayout(g, layout);
+    const surface = surfaceRef.current;
 
     if (prefersReducedMotion()) {
       assignPositions(g, targets);
       renderer.refresh();
+      surface?.setAttribute("data-graph-settled", "");
       bumpEpoch();
       return;
     }
 
+    surface?.removeAttribute("data-graph-settled");
     cancelAnimationRef.current = animateNodes(
       g,
       targets,
@@ -841,10 +987,11 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       () => {
         cancelAnimationRef.current = null;
         // Layout settled — refresh the minimap's cached node geometry.
+        surfaceRef.current?.setAttribute("data-graph-settled", "");
         bumpEpoch();
       },
     );
-  }, [layout, bumpEpoch]);
+  }, [layout, bumpEpoch, startForceSettle]);
 
   // Camera controls. All animate, but collapse to an instant snap (duration 0)
   // under prefers-reduced-motion. Each is a no-op until Sigma has mounted.

@@ -10,7 +10,10 @@ export const scenarios = [
       const metrics = {};
       const input = frame.getByRole("combobox").first();
 
-      // Open → full list painted.
+      // Open → full list painted. Valid only while the list stays virtualized:
+      // a non-virtualized popup mounts in a later flush than the click's own
+      // paint, so the double-rAF would close early and silently read
+      // floor-level (issue #16; picker.mjs uses measureInteractionUntil).
       metrics.openMs = await measureInteraction(frame, () => input.click());
       await page.waitForTimeout(150);
 

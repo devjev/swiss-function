@@ -2,6 +2,15 @@
 // story (a port of scripts/probe-graph.mjs's continuous phase; the Graph
 // component emits [data-graph-surface] / [data-graph-ready] itself).
 //
+// READINESS SEMANTICS (issue #21): at LargeStress scale the force layout now
+// settles in the FA2 worker, so [data-graph-ready] means "seed positions
+// painted, graph interactive" — no longer "stable layout painted". readyMs
+// therefore dropped by the old ~1.4s synchronous forceAtlas2 block; baselines
+// must be re-recorded deliberately. The background settle marks
+// [data-graph-settled] when its iteration budget completes (measured by the
+// graph-settle scenario) and may still be streaming position frames during
+// this scenario's pan/zoom window.
+//
 // NOTE: headless Chromium runs WebGL on SwiftShader (software rasterization) —
 // verified unescapable on this setup: vulkan / gl-egl / ignore-blocklist flag
 // variants all fall back to SwiftShader despite live /dev/dri render nodes. A

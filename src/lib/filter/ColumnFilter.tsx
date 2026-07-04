@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "../../components/Button";
 import { Checkbox } from "../../components/Checkbox";
 import { Input } from "../../components/Input";
@@ -13,8 +14,10 @@ interface ColumnFilterProps {
   /** Column header text, for the trigger's accessible label. */
   label: string;
   kind: ColumnFilterKind;
-  /** Selectable values for the checklist (ignored for `range`). */
-  options: FilterOption[];
+  /** Selectable values for the checklist (ignored for `range`). A function is
+   *  a lazy getter, called on first open — high-cardinality columns defer the
+   *  distinct-value scan until the funnel is actually used (#17). */
+  options: FilterOption[] | (() => FilterOption[]);
   /** Current filter value: `string[]` (checklist) or `[min?, max?]` (range), or
    *  `undefined` when the column is unfiltered. */
   value: unknown;
@@ -23,6 +26,11 @@ interface ColumnFilterProps {
   /** Set the filter value; pass `undefined` to clear the column's filter. */
   onChange: (value: unknown) => void;
 }
+
+/** Fixed checklist row height (px) — the virtualizer's window unit. */
+const OPTION_ROW_PX = 24;
+
+const NO_OPTIONS: FilterOption[] = [];
 
 function FunnelIcon({ filled }: { filled: boolean }) {
   return (
@@ -47,14 +55,32 @@ function Checklist({
   value: unknown;
   onChange: (value: unknown) => void;
 }) {
-  const allValues = options.map((o) => o.value);
+  const allValues = useMemo(() => options.map((o) => o.value), [options]);
   // Unfiltered (value undefined) reads as "everything checked", mirroring Excel.
-  const allowed = Array.isArray(value) ? new Set(value as string[]) : new Set(allValues);
+  const allowed = useMemo(
+    () => (Array.isArray(value) ? new Set(value as string[]) : new Set(allValues)),
+    [value, allValues],
+  );
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  const shown = useMemo(
+    () => (q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options),
+    [options, q],
+  );
   const allChecked = allValues.every((v) => allowed.has(v));
   const noneChecked = allValues.every((v) => !allowed.has(v));
+
+  // Window the option rows — a 10k-distinct column otherwise mounts 10k
+  // checkbox components per open/keystroke (seconds-long lock, #17). Same
+  // useVirtualizer idiom as Selector/DataTable; rows are plain divs, so
+  // windowing has no composite-registration constraints.
+  const listRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: shown.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => OPTION_ROW_PX,
+    overscan: 8,
+  });
 
   // Selecting everything clears the filter (no-op); any subset becomes the filter.
   const commit = (next: Set<string>) => {
@@ -90,18 +116,37 @@ function Checklist({
         />
         <span>Select all</span>
       </div>
-      <div className={styles.options} role="group">
-        {shown.map((o) => (
-          <div key={o.value} className={styles.row}>
-            <Checkbox
-              checked={allowed.has(o.value)}
-              onCheckedChange={(checked) => toggle(o.value, checked)}
-              aria-label={o.label}
-            />
-            <span className={styles.optionLabel}>{o.label}</span>
+      <div ref={listRef} className={styles.options} role="group">
+        {shown.length === 0 ? (
+          <div className={styles.noMatch}>No matches</div>
+        ) : (
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualizer.getVirtualItems().map((vr) => {
+              const o = shown[vr.index] as FilterOption;
+              return (
+                <div
+                  key={o.value}
+                  className={styles.row}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: vr.size,
+                    transform: `translateY(${vr.start}px)`,
+                  }}
+                >
+                  <Checkbox
+                    checked={allowed.has(o.value)}
+                    onCheckedChange={(checked) => toggle(o.value, checked)}
+                    aria-label={o.label}
+                  />
+                  <span className={styles.optionLabel}>{o.label}</span>
+                </div>
+              );
+            })}
           </div>
-        ))}
-        {shown.length === 0 ? <div className={styles.noMatch}>No matches</div> : null}
+        )}
       </div>
     </div>
   );
@@ -143,8 +188,21 @@ function RangeFilter({ value, onChange }: { value: unknown; onChange: (value: un
 /** Funnel trigger + anchored popover with a value checklist or a numeric range,
  *  applied live. Rendered inside a header cell by the DataTable. */
 export function ColumnFilter({ label, kind, options, value, active, onChange }: ColumnFilterProps) {
+  // Open is tracked so lazy `options` getters resolve only while the popover
+  // is up — closed funnels never pay for a distinct-value scan (#17). Cached
+  // upstream, so re-resolving per open/table render is a map hit.
+  const [open, setOpen] = useState(false);
+  const resolved = useMemo(
+    () =>
+      open && kind === "checklist"
+        ? typeof options === "function"
+          ? options()
+          : options
+        : NO_OPTIONS,
+    [open, kind, options],
+  );
   return (
-    <Popover.Root>
+    <Popover.Root open={open} onOpenChange={setOpen}>
       {/* Stop the funnel from toggling header sort or starting a column reorder. */}
       <Popover.Trigger
         className={cx(styles.button, active && styles.buttonActive)}
@@ -164,7 +222,7 @@ export function ColumnFilter({ label, kind, options, value, active, onChange }: 
             className={styles.popup}
             style={{
               paddingBlock:
-                kind === "range" || options.length > 6
+                kind === "range" || resolved.length > 6
                   ? "calc(var(--sf-unit) * 3 / 8)"
                   : "calc(var(--sf-unit) * 3 / 16)",
               paddingInline: "calc(var(--sf-unit) * 3 / 16)",
@@ -173,7 +231,7 @@ export function ColumnFilter({ label, kind, options, value, active, onChange }: 
             {kind === "range" ? (
               <RangeFilter value={value} onChange={onChange} />
             ) : (
-              <Checklist options={options} value={value} onChange={onChange} />
+              <Checklist options={resolved} value={value} onChange={onChange} />
             )}
             <div className={styles.footer}>
               <Button size="sm" variant="ghost" tight onClick={() => onChange(undefined)}>

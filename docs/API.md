@@ -511,8 +511,14 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 | `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
 
 **Scale gates** (automatic, from the live graph size): node/edge labels render
-only up to 300 nodes; above 5,000 edges, edges are hidden while the camera is
-moving (they reappear at rest) and arrowheads render as plain edges.
+only up to 300 nodes. Above 5,000 edges, edges are hidden while the camera is
+moving (they reappear at rest) and arrowheads are dropped — edges render as
+thickness-preserving quads when interactive (`editable` or `onEdgeClick`), else
+as 1-device-pixel GL lines: thickness then ignores per-edge `size` *and* zoom,
+and hover/selection emphasis degrades to color-only. Above 2,000 nodes the
+`force` layout settles in a background worker — the graph is interactive at its
+seed positions immediately and the layout streams in (one final snap instead
+under `prefers-reduced-motion`).
 
 **Elements / Parts:** `Graph.Controls` (zoom/fit/reset/layout/Connect toolbar),
 `Graph.Minimap` (viewport overlay).

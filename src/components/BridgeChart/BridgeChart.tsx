@@ -130,6 +130,11 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     width: 0,
     height: 0,
   });
+  // Hover state at the root re-renders the whole chart per enter/leave. That
+  // pattern was extracted into memo layers for Scatterplot/CandlestickChart
+  // (issue #14) but is deliberately EXEMPT here: a bridge chart's realistic N
+  // is dozens of bars, measured at the harness floor (BarChart@100 equivalent,
+  // 2026-07-04). Revisit only if a use case pushes N into the hundreds.
   const [hover, setHover] = useState<HoverState | null>(null);
 
   useLayoutEffect(() => {

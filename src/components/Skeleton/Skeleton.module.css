@@ -46,6 +46,12 @@
   content: none;
 }
 
+/* GL outage (context lost / WebGL unavailable — flagged by useDitheredFill):
+   the fill can't render, so bring the shimmer back. */
+.root[data-effect][data-effect-degraded]::after {
+  content: "";
+}
+
 .fill {
   position: absolute;
   inset: 0;

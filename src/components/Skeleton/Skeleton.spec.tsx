@@ -69,3 +69,23 @@ test("effect renders a dithered-fill canvas and flags the root", async ({ mount 
   await expect(c).toHaveAttribute("data-effect", "");
   expect(await c.locator("canvas").count()).toBe(1);
 });
+
+test("dithered fill paints through the lazily-loaded shared engine", async ({ mount, page }) => {
+  const hasGl = await page.evaluate(() => !!document.createElement("canvas").getContext("webgl"));
+  test.skip(!hasGl, "WebGL unavailable in this environment");
+  const c = await mount(<Skeleton effect="noise" height={4} />);
+  const canvas = c.locator("canvas");
+  // The engine arrives via dynamic import, so poll for the first blitted frame.
+  await expect
+    .poll(() =>
+      canvas.evaluate((el: HTMLCanvasElement) => {
+        const ctx = el.getContext("2d");
+        if (!ctx || el.width === 0) return 0;
+        const data = ctx.getImageData(0, 0, el.width, el.height).data;
+        let opaque = 0;
+        for (let i = 3; i < data.length; i += 4) if ((data[i] as number) > 0) opaque++;
+        return opaque;
+      }),
+    )
+    .toBeGreaterThan(0);
+});

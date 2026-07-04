@@ -55,3 +55,39 @@ export const PerfGrid: Story = () => {
     </div>
   );
 };
+
+interface TreeNode extends Row {
+  children?: TreeNode[];
+}
+
+// 2,500 roots × 19 children = 50k nodes, all collapsed — the tree-mode heap
+// probe (issue #18: a TanStack Row per hidden node cost ~2.6KB each).
+function seedTree(roots: number, childrenPer: number): TreeNode[] {
+  const rand = mulberry32(11);
+  const node = (label: string): TreeNode => ({
+    name: `${label} ${Math.floor(rand() * 1e6).toString(36)}`,
+    team: TEAMS[Math.floor(rand() * TEAMS.length)] as string,
+    score: Math.floor(rand() * 10_000),
+    active: rand() > 0.5,
+  });
+  return Array.from({ length: roots }, (_, i) => ({
+    ...node(`Root ${i}`),
+    children: Array.from({ length: childrenPer }, (_, j) => node(`Child ${i}.${j}`)),
+  }));
+}
+
+const treeColumns: ColumnDef<TreeNode>[] = [
+  { id: "name", header: "Name", accessor: "name", sortable: true },
+  { id: "team", header: "Team", accessor: "team", sortable: true },
+  { id: "score", header: "Score", accessor: "score", align: "end", sortable: true },
+];
+
+/** 50k-node collapsed tree — heap + expand-toggle probe target. */
+export const PerfTree: Story = () => {
+  const [data] = useState<TreeNode[]>(() => seedTree(2_500, 19));
+  return (
+    <div data-perf-ready="">
+      <DataTable data={data} columns={treeColumns} getSubRows={(r) => r.children} height={480} />
+    </div>
+  );
+};

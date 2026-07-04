@@ -120,6 +120,42 @@ export async function measureInteraction(frame, dispatch) {
   return ms == null ? null : Math.round(ms * 100) / 100;
 }
 
+/** Like `measureInteraction`, but for interactions whose visible result lands
+ *  after the input's own paint (popup opens: Base UI mounts the portal content
+ *  in a later flush, so the double-rAF closes on the click's trivial paint and
+ *  under-reports — issue #16). Polls rAF until the in-page `predicate`
+ *  (self-contained source, serialized into the page) holds, then stamps the
+ *  next paint. Same load-bearing 300ms cold-clock settle as
+ *  `measureInteraction` (see the comment there) and the same 2s
+ *  timeout-with-null semantics, so numbers stay comparable. */
+export async function measureInteractionUntil(frame, dispatch, predicate) {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await frame.evaluate(`void (window.__interactionPredicate = (${predicate}))`);
+  await frame.evaluate(() => {
+    window.__interactionStart = performance.now();
+    window.__interactionPaintMs = null;
+    const poll = () => {
+      // In-page deadline mirrors the waitForFunction timeout below, so a
+      // never-true predicate can't leave a stale loop stamping a later run.
+      if (performance.now() - window.__interactionStart > 2000) return;
+      if (window.__interactionPredicate()) {
+        requestAnimationFrame(() => {
+          window.__interactionPaintMs = performance.now() - window.__interactionStart;
+        });
+        return;
+      }
+      requestAnimationFrame(poll);
+    };
+    requestAnimationFrame(poll);
+  });
+  await dispatch();
+  await frame
+    .waitForFunction(() => window.__interactionPaintMs != null, undefined, { timeout: 2000 })
+    .catch(() => {});
+  const ms = await frame.evaluate(() => window.__interactionPaintMs);
+  return ms == null ? null : Math.round(ms * 100) / 100;
+}
+
 export function readHeapMB(frame) {
   return frame.evaluate(() => {
     const mem = performance.memory;

@@ -187,17 +187,25 @@ describe("reconcile attribute updates", () => {
 });
 
 describe("edge arrowhead size gate", () => {
-  it("gates edgeTypeFor at ARROW_MAX_EDGES: at most the threshold → arrow, above → line", () => {
-    expect(edgeTypeFor(0)).toBe("arrow");
-    expect(edgeTypeFor(ARROW_MAX_EDGES)).toBe("arrow");
-    expect(edgeTypeFor(ARROW_MAX_EDGES + 1)).toBe("line");
+  it("gates edgeTypeFor at ARROW_MAX_EDGES: at most the threshold → arrow, above → line/thinline", () => {
+    expect(edgeTypeFor(0, false)).toBe("arrow");
+    expect(edgeTypeFor(ARROW_MAX_EDGES, false)).toBe("arrow");
+    expect(edgeTypeFor(ARROW_MAX_EDGES + 1, false)).toBe("thinline");
+    expect(edgeTypeFor(ARROW_MAX_EDGES + 1, true)).toBe("line");
+  });
+
+  it("keeps arrowheads below the gate regardless of interactivity", () => {
+    // Interactivity only picks between quads and GL_LINES ABOVE the gate;
+    // small graphs always render directed arrowheads.
+    expect(edgeTypeFor(1, true)).toBe("arrow");
+    expect(edgeTypeFor(ARROW_MAX_EDGES, true)).toBe("arrow");
   });
 
   it("stamps no per-edge type below the threshold (Sigma's defaultEdgeType governs)", () => {
     const data: GraphData = { ...base(), edges: [{ id: "e1", source: "a", target: "b" }] };
     const g = buildGraph(data, hooks);
     expect(g.getEdgeAttribute("e1", "type")).toBeUndefined();
-    expect(edgeTypeFor(g.size)).toBe("arrow");
+    expect(edgeTypeFor(g.size, false)).toBe("arrow");
 
     reconcile(
       g,
@@ -218,7 +226,8 @@ describe("edge arrowhead size gate", () => {
     }));
     const g = buildGraph({ nodes, edges }, hooks);
     expect(g.size).toBe(ARROW_MAX_EDGES + 1);
-    expect(edgeTypeFor(g.size)).toBe("line");
+    expect(edgeTypeFor(g.size, true)).toBe("line");
+    expect(edgeTypeFor(g.size, false)).toBe("thinline");
     expect(g.getEdgeAttribute(`e${ARROW_MAX_EDGES}`, "type")).toBeUndefined();
 
     reconcile(g, { nodes, edges: [...edges, { id: "extra", source: "n0", target: "n2" }] }, hooks);

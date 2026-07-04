@@ -106,19 +106,26 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/** Cached probe result — WebGL availability cannot change within a page session. */
+let webglSupport: boolean | undefined;
+
 /** Whether WebGL (which MapLibre requires) is available in this environment. */
 function webglAvailable(): boolean {
+  if (webglSupport !== undefined) return webglSupport;
   if (typeof document === "undefined") return false;
   try {
     const canvas = document.createElement("canvas");
-    return Boolean(
-      canvas.getContext("webgl2") ||
-        canvas.getContext("webgl") ||
-        canvas.getContext("experimental-webgl"),
-    );
+    const gl = (canvas.getContext("webgl2") ||
+      canvas.getContext("webgl") ||
+      canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
+    // Release the probe context immediately: non-lost contexts count against
+    // the browser's ~16-active-context cap until GC, evicting live maps.
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+    webglSupport = Boolean(gl);
   } catch {
-    return false;
+    webglSupport = false;
   }
+  return webglSupport;
 }
 
 const toSize = (h: number | string): string => (typeof h === "number" ? `${h}px` : h);

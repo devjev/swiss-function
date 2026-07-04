@@ -3,6 +3,7 @@ import {
   DataTableHarness,
   FrozenHarness,
   GroupsHarness,
+  ManyValuesHarness,
   MergeHarness,
   TreeHarness,
 } from "./DataTable.harness";
@@ -143,6 +144,20 @@ test("tree: clicking row chevron toggles expansion", async ({ mount }) => {
   await component.getByRole("button", { name: "Collapse row" }).first().click();
   await expect(component.getByRole("gridcell").filter({ hasText: "Alice" })).toHaveCount(0);
   await expect(component.getByRole("gridcell").filter({ hasText: "Bob" })).toHaveCount(0);
+});
+
+test("tree: a collapsed parent keeps its expand chevron and expands (pruned subtrees, #18)", async ({
+  mount,
+}) => {
+  // No defaultExpanded: children are pruned from the row model entirely, so
+  // the chevron's visibility must come from the tree walk, not getCanExpand().
+  const component = await mount(<TreeHarness data={TREE} />);
+  await expect(component.getByRole("gridcell").filter({ hasText: "Alice" })).toHaveCount(0);
+  const chevrons = component.getByRole("button", { name: "Expand row" });
+  await expect(chevrons).toHaveCount(1); // Engineering only — Sales has no children
+  await chevrons.click();
+  await expect(component.getByRole("gridcell").filter({ hasText: "Alice" })).toBeVisible();
+  await expect(component.getByRole("gridcell").filter({ hasText: "Bob" })).toBeVisible();
 });
 
 test("tree: collapsing clears the active cell", async ({ mount, page }) => {
@@ -295,6 +310,30 @@ test("filterableColumns: unchecking a value in a column filter narrows the rows"
   // Only the inactive row (Bob) survives.
   await expect(c.getByRole("gridcell").filter({ hasText: "Bob" })).toBeVisible();
   await expect(c.getByRole("gridcell").filter({ hasText: "Alice" })).toHaveCount(0);
+});
+
+test("filter funnel windows a high-cardinality checklist and still filters via search", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ManyValuesHarness count={500} />);
+  await c.getByRole("button", { name: "Filter name" }).click();
+
+  // 500 distinct values, but only the virtualized window of option rows is
+  // mounted (+ the select-all checkbox) — not one checkbox per value (#17).
+  await expect(page.getByRole("textbox", { name: "Search values" })).toBeVisible();
+  await expect(page.getByRole("checkbox").nth(1)).toBeVisible();
+  expect(await page.getByRole("checkbox").count()).toBeLessThan(100);
+
+  // Search narrows across the FULL value set (not just the mounted window)…
+  await page.getByRole("textbox", { name: "Search values" }).fill("V0499");
+  await expect(page.getByRole("checkbox", { name: "V0499" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Search values" }).fill("V0000");
+
+  // …and unchecking a match commits against the full set: only V0000 hidden.
+  await page.getByRole("checkbox", { name: "V0000" }).click();
+  await expect(c.getByRole("gridcell").filter({ hasText: "V0001" })).toBeVisible();
+  await expect(c.getByRole("gridcell").filter({ hasText: "V0000" })).toHaveCount(0);
 });
 
 test("reorderableColumns: dragging a header past its neighbour reorders the columns", async ({

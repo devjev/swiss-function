@@ -90,11 +90,21 @@ export function edgeColorToken(el?: Element | null): string {
 export const ARROW_MAX_EDGES = 5000;
 
 /** Sigma edge type for a graph with `edgeCount` edges (see `ARROW_MAX_EDGES`).
- *  Fed to Sigma's `defaultEdgeType` rather than stamped on each edge, so a
- *  reconcile that crosses the threshold retypes every edge atomically on the
- *  next refresh — no mixed arrow/line states. */
-export function edgeTypeFor(edgeCount: number): "arrow" | "line" {
-  return edgeCount > ARROW_MAX_EDGES ? "line" : "arrow";
+ *  Three-way: directed arrowheads up to the gate; above it, thickness-
+ *  preserving quads (`"line"` = Sigma's EdgeRectangleProgram) when edges are
+ *  interactive — Sigma hit-tests edges by their DRAWN pixels, so thickness IS
+ *  the click target and the selection emphasis doubles it — else 1-device-pixel
+ *  GL_LINES (`"thinline"` = EdgeLineProgram, registered by the Graph component;
+ *  ~45% cheaper full-scene raster under software GL). Fed to Sigma's
+ *  `defaultEdgeType` rather than stamped on each edge, so a reconcile or an
+ *  interactivity toggle that crosses the gate retypes every edge atomically on
+ *  the next refresh — no mixed states. */
+export function edgeTypeFor(
+  edgeCount: number,
+  edgesInteractive: boolean,
+): "arrow" | "line" | "thinline" {
+  if (edgeCount <= ARROW_MAX_EDGES) return "arrow";
+  return edgesInteractive ? "line" : "thinline";
 }
 
 /** (Re)apply node/edge VISUAL attributes (label / size / color) from the render
@@ -148,7 +158,7 @@ function canAddEdge(g: Graphology, id: string, source: string, target: string): 
  *  directed edges), seed positions (pre-computed `x`/`y` honored, else
  *  random — a layout pass assigns final coordinates), and `payload`. Visual
  *  attributes are layered on by `applyVisuals`. Edges carry no per-edge `type`:
- *  arrow-vs-line rendering is the renderer's size-gated `defaultEdgeType`
+ *  arrow/line/thinline rendering is the renderer's size-gated `defaultEdgeType`
  *  (see `edgeTypeFor`). */
 export function buildGraph(
   data: GraphData,

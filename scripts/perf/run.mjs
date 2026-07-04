@@ -46,7 +46,22 @@ for (let i = 0; i < args.length; i++) {
   positional.push(a);
 }
 
-const ALL = ["datatable", "explorer", "graph", "windowarray", "selector", "heatmap", "chat"];
+const ALL = [
+  "datatable",
+  "datatable-funnel",
+  "datatable-tree",
+  "explorer",
+  "graph",
+  "graph-settle",
+  "windowarray",
+  "selector",
+  "picker",
+  "heatmap",
+  "charts",
+  "pointcloud",
+  "skeleton",
+  "chat",
+];
 const names = positional.length > 0 ? positional : ALL;
 const out = process.stdout.write.bind(process.stdout);
 

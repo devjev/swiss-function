@@ -43,3 +43,31 @@ export function nearestHit(
   }
   return best;
 }
+
+/** `nearestHit` over flat coordinate buffers walked in `order`: returns the
+ *  entry index (a value from `order`) nearest to (px, py) within `maxDist`, or
+ *  -1. Later `order` entries win exact-distance ties — with painter's order
+ *  (far → near) that keeps the visible nearer point, matching `nearestHit`
+ *  over depth-sorted points. Buffer-based so the orbit hot path can reuse
+ *  typed arrays instead of allocating a point object per frame (PointCloud). */
+export function nearestHitOrdered(
+  xs: ArrayLike<number>,
+  ys: ArrayLike<number>,
+  order: ArrayLike<number>,
+  count: number,
+  px: number,
+  py: number,
+  maxDist: number,
+): number {
+  let best = -1;
+  let bestD2 = maxDist * maxDist;
+  for (let k = 0; k < count; k++) {
+    const i = order[k] as number;
+    const d2 = ((xs[i] as number) - px) ** 2 + ((ys[i] as number) - py) ** 2;
+    if (d2 <= bestD2) {
+      bestD2 = d2;
+      best = i;
+    }
+  }
+  return best;
+}

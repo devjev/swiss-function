@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-04T16:11:51.292Z"
+    "date": "2026-07-04T17:44:19.678Z"
   },
-  "totalGzip": 501029,
+  "totalGzip": 470939,
   "entries": {
     ".": {
-      "files": 180,
-      "jsRaw": 574196,
-      "jsGzip": 178584,
+      "files": 181,
+      "jsRaw": 571593,
+      "jsGzip": 177350,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 178584,
+      "gzip": 177350,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -38,6 +38,7 @@
         "graphology",
         "graphology-layout",
         "graphology-layout-forceatlas2",
+        "graphology-layout-forceatlas2/worker",
         "maplibre-gl",
         "react",
         "react-markdown",
@@ -82,7 +83,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1281,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./bar-chart": {
       "files": 12,
@@ -91,7 +95,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 6933,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./box": {
       "files": 4,
@@ -100,7 +107,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 906,
-      "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/use-render",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./bridge-chart": {
       "files": 12,
@@ -109,7 +120,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 7047,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./button-group": {
       "files": 5,
@@ -118,16 +132,22 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 912,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./candlestick-chart": {
       "files": 12,
-      "jsRaw": 19079,
-      "jsGzip": 7029,
+      "jsRaw": 19924,
+      "jsGzip": 7403,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7029,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 7403,
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./chat": {
       "files": 24,
@@ -136,15 +156,20 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 14151,
-      "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
+      "externals": [
+        "react",
+        "react-markdown",
+        "react/jsx-runtime",
+        "remark-gfm"
+      ]
     },
     "./chat-drawer": {
-      "files": 37,
-      "jsRaw": 82095,
-      "jsGzip": 29827,
+      "files": 36,
+      "jsRaw": 65367,
+      "jsGzip": 24181,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 29827,
+      "gzip": 24181,
       "externals": [
         "@base-ui/react/tabs",
         "react",
@@ -154,12 +179,12 @@
       ]
     },
     "./explorer": {
-      "files": 33,
-      "jsRaw": 91973,
-      "jsGzip": 29709,
+      "files": 32,
+      "jsRaw": 76421,
+      "jsGzip": 24493,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 29709,
+      "gzip": 24493,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -181,7 +206,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 995,
-      "externals": ["@base-ui/react/field", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/field",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./fullscreen": {
       "files": 5,
@@ -190,15 +219,18 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1905,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./graph": {
-      "files": 21,
-      "jsRaw": 57374,
-      "jsGzip": 17767,
+      "files": 22,
+      "jsRaw": 62155,
+      "jsGzip": 18996,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 17767,
+      "gzip": 18996,
       "externals": [
         "@base-ui/react/menu",
         "@base-ui/react/toggle",
@@ -206,6 +238,7 @@
         "graphology",
         "graphology-layout",
         "graphology-layout-forceatlas2",
+        "graphology-layout-forceatlas2/worker",
         "react",
         "react/jsx-runtime",
         "sigma",
@@ -220,7 +253,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 4840,
-      "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/use-render",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./heatmap": {
       "files": 8,
@@ -229,7 +266,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 5351,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./input": {
       "files": 4,
@@ -238,7 +278,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 852,
-      "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/input",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./kbd": {
       "files": 4,
@@ -247,7 +291,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1604,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./checkbox": {
       "files": 4,
@@ -256,7 +303,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1078,
-      "externals": ["@base-ui/react/checkbox", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/checkbox",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./chip": {
       "files": 4,
@@ -265,7 +316,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1556,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./switch": {
       "files": 4,
@@ -274,7 +328,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 809,
-      "externals": ["@base-ui/react/switch", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/switch",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./radio": {
       "files": 4,
@@ -292,12 +350,15 @@
     },
     "./scatterplot": {
       "files": 13,
-      "jsRaw": 24884,
-      "jsGzip": 8546,
+      "jsRaw": 25762,
+      "jsGzip": 8932,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 8546,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 8932,
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./dialog": {
       "files": 6,
@@ -306,7 +367,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 4542,
-      "externals": ["@base-ui/react/dialog", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/dialog",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./drawer": {
       "files": 4,
@@ -315,7 +380,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1239,
-      "externals": ["@base-ui/react/drawer", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/drawer",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./dropzone": {
       "files": 4,
@@ -324,7 +393,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 2090,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./window-array": {
       "files": 6,
@@ -333,7 +405,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 10371,
-      "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
+      "externals": [
+        "@dnd-kit/core",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./popover": {
       "files": 6,
@@ -365,12 +441,12 @@
       ]
     },
     "./map": {
-      "files": 25,
-      "jsRaw": 69046,
-      "jsGzip": 23958,
+      "files": 24,
+      "jsRaw": 52493,
+      "jsGzip": 18366,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 23958,
+      "gzip": 18366,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -386,16 +462,24 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 2110,
-      "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
+      "externals": [
+        "react",
+        "react-markdown",
+        "react/jsx-runtime",
+        "remark-gfm"
+      ]
     },
     "./non-ideal-state": {
-      "files": 7,
-      "jsRaw": 26200,
-      "jsGzip": 9431,
+      "files": 6,
+      "jsRaw": 9472,
+      "jsGzip": 3785,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9431,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 3785,
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./outliner": {
       "files": 13,
@@ -404,7 +488,12 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 8750,
-      "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
+      "externals": [
+        "react",
+        "react-markdown",
+        "react/jsx-runtime",
+        "remark-gfm"
+      ]
     },
     "./pane": {
       "files": 4,
@@ -413,25 +502,36 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 813,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./picker": {
       "files": 6,
-      "jsRaw": 6892,
-      "jsGzip": 2382,
+      "jsRaw": 8743,
+      "jsGzip": 3032,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 2382,
-      "externals": ["@base-ui/react/combobox", "react", "react/jsx-runtime"]
+      "gzip": 3032,
+      "externals": [
+        "@base-ui/react/combobox",
+        "@tanstack/react-virtual",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./point-cloud": {
       "files": 16,
-      "jsRaw": 21398,
-      "jsGzip": 9074,
+      "jsRaw": 23817,
+      "jsGzip": 9686,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9074,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 9686,
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./menu": {
       "files": 4,
@@ -440,7 +540,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 1015,
-      "externals": ["@base-ui/react/menu", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/menu",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./menu-bar": {
       "files": 13,
@@ -474,13 +578,17 @@
       ]
     },
     "./skeleton": {
-      "files": 7,
-      "jsRaw": 25326,
-      "jsGzip": 9199,
+      "files": 6,
+      "jsRaw": 8598,
+      "jsGzip": 3553,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9199,
-      "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
+      "gzip": 3553,
+      "externals": [
+        "@base-ui/react/use-render",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./spinner": {
       "files": 5,
@@ -489,7 +597,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 2403,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./split-pane": {
       "files": 5,
@@ -498,7 +609,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 2975,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./streaming-terminal-text": {
       "files": 8,
@@ -507,24 +621,32 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 4165,
-      "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
+      "externals": [
+        "react",
+        "react-markdown",
+        "react/jsx-runtime",
+        "remark-gfm"
+      ]
     },
     "./surface": {
       "files": 15,
-      "jsRaw": 21623,
-      "jsGzip": 8996,
+      "jsRaw": 22499,
+      "jsGzip": 9174,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 8996,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 9174,
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./data-table": {
       "files": 38,
-      "jsRaw": 115386,
-      "jsGzip": 36679,
+      "jsRaw": 101834,
+      "jsGzip": 32140,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 36679,
+      "gzip": 32140,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -546,7 +668,11 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 934,
-      "externals": ["@base-ui/react/tabs", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/tabs",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./text-edit": {
       "files": 4,
@@ -555,7 +681,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 715,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./timeline": {
       "files": 6,
@@ -564,7 +693,10 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 6223,
-      "externals": ["react", "react/jsx-runtime"]
+      "externals": [
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./toggle-group": {
       "files": 5,
@@ -601,7 +733,12 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 4078,
-      "externals": ["@base-ui/react/accordion", "@base-ui/react/tabs", "react", "react/jsx-runtime"]
+      "externals": [
+        "@base-ui/react/accordion",
+        "@base-ui/react/tabs",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./lib/use-collapse": {
       "files": 1,
@@ -610,7 +747,9 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 709,
-      "externals": ["react"]
+      "externals": [
+        "react"
+      ]
     },
     "./lib/use-overflow": {
       "files": 1,
@@ -619,7 +758,9 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 800,
-      "externals": ["react"]
+      "externals": [
+        "react"
+      ]
     }
   }
 }

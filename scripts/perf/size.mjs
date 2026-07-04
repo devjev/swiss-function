@@ -33,7 +33,10 @@ const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 // --- ESM import-graph walk -----------------------------------------------------
 // Vite's preserveModules output uses static import/export statements only, so a
-// regex scan is sufficient and dependency-free.
+// regex scan is sufficient and dependency-free. Dynamic import() chunks are
+// deliberately NOT walked: they are pay-on-use, not part of an entry's static
+// cost (e.g. lib/effects/webglFill.js since issue #24 — lazily loaded by
+// useDitheredFill, attributed to no entry).
 const SPECIFIER_RE =
   /(?:^|\n)\s*(?:import|export)\s+(?:[\s\S]*?from\s+)?["']([^"']+)["'];?|(?:^|\n)\s*import\s+["']([^"']+)["'];?/g;
 

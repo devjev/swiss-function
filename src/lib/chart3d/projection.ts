@@ -104,3 +104,35 @@ export function project(nx: number, ny: number, nz: number, cam: Camera, fit: Fi
   const p = rotate(nx, ny, nz, cam);
   return { x: fit.ox + p.x * fit.scale, y: fit.oy - p.y * fit.scale, depth: p.depth };
 }
+
+/** Batch `project` into caller-provided parallel arrays (indices 0..count-1).
+ *  The orbit hot path re-projects every point per pointermove; this form hoists
+ *  the camera trig out of the loop and avoids one `Projected` allocation per
+ *  point per frame. Element-wise semantics match `project` — keep the math in
+ *  sync with `rotate`. */
+export function projectInto(
+  nx: ArrayLike<number>,
+  ny: ArrayLike<number>,
+  nz: ArrayLike<number>,
+  count: number,
+  cam: Camera,
+  fit: Fit,
+  outX: Float32Array,
+  outY: Float32Array,
+  outDepth: Float32Array,
+): void {
+  const ca = Math.cos(cam.azimuth);
+  const sa = Math.sin(cam.azimuth);
+  const ce = Math.cos(cam.elevation);
+  const se = Math.sin(cam.elevation);
+  for (let i = 0; i < count; i++) {
+    const x = nx[i] as number;
+    const y = ny[i] as number;
+    const z = nz[i] as number;
+    const x1 = x * ca - y * sa;
+    const y1 = x * sa + y * ca;
+    outX[i] = fit.ox + x1 * fit.scale;
+    outY[i] = fit.oy - (z * ce - y1 * se) * fit.scale;
+    outDepth[i] = y1 * ce + z * se;
+  }
+}

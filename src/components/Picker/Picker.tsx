@@ -1,5 +1,6 @@
-import type { HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useMemo, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { HTMLAttributes, ReactNode, RefObject } from "react";
+import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
@@ -35,6 +36,63 @@ export interface PickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCha
 
 function normalize(item: PickerItem): PickerOption {
   return typeof item === "string" ? { value: item, label: item } : item;
+}
+
+/** Windowed option list: renders only the visible slice of the filtered items
+ *  (same `useVirtualizer` idiom as Selector/DataTable/Explorer — issue #15).
+ *  Base UI keeps keyboard navigation over the full filtered list
+ *  (`virtualized` on the Root); we scroll the active index into view via
+ *  `scrollToIndexRef`. */
+function VirtualOptions({
+  scrollToIndexRef,
+}: {
+  scrollToIndexRef: RefObject<((index: number) => void) | null>;
+}) {
+  const filtered = Combobox.useFilteredItems<PickerOption>();
+  const listRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 40,
+    overscan: 8,
+  });
+  // Layout effect (not render) for render purity; child layout effects run
+  // before ancestors', so the ref is set before Base UI's open-time
+  // onItemHighlighted needs it.
+  useLayoutEffect(() => {
+    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(index);
+    return () => {
+      scrollToIndexRef.current = null;
+    };
+  }, [scrollToIndexRef, virtualizer]);
+  return (
+    <Combobox.List ref={listRef} className={styles.virtualList}>
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          const option = filtered[row.index] as PickerOption;
+          return (
+            // aria-setsize/posinset: Base UI emits neither, and without them
+            // screen readers announce only the mounted window as the whole
+            // list (WAI-ARIA APG requirement for partially rendered listboxes).
+            <Combobox.Item
+              key={option.value}
+              value={option}
+              index={row.index}
+              ref={virtualizer.measureElement}
+              data-index={row.index}
+              aria-setsize={filtered.length}
+              aria-posinset={row.index + 1}
+              className={styles.virtualItem}
+              style={{ transform: `translateY(${row.start}px)` }}
+            >
+              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
+              {option.label}
+            </Combobox.Item>
+          );
+        })}
+      </div>
+    </Combobox.List>
+  );
 }
 
 /**
@@ -78,6 +136,8 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
   // so the field shows the right label and the list highlights the right row.
   const selectedOption = selected ? (byValue.get(selected) ?? null) : null;
 
+  const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
+
   return (
     <div {...rest} ref={ref} className={cx(styles.root, className)}>
       <Combobox.Root
@@ -85,6 +145,10 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
         value={selectedOption}
         onValueChange={(next: PickerOption | null) => setSelected(next?.value ?? "")}
         disabled={disabled}
+        virtualized
+        onItemHighlighted={(_item, details) => {
+          if (details.index >= 0) scrollToIndexRef.current?.(details.index);
+        }}
       >
         <Combobox.InputGroup data-size={size} data-elevation={elevation} className={styles.group}>
           <Combobox.Input placeholder={placeholder} />
@@ -96,14 +160,7 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
               <Combobox.Empty>
                 <div className={styles.empty}>{emptyMessage}</div>
               </Combobox.Empty>
-              <Combobox.List>
-                {(option: PickerOption) => (
-                  <Combobox.Item key={option.value} value={option}>
-                    <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
-                    {option.label}
-                  </Combobox.Item>
-                )}
-              </Combobox.List>
+              <VirtualOptions scrollToIndexRef={scrollToIndexRef} />
             </Combobox.Popup>
           </Combobox.Positioner>
         </Combobox.Portal>

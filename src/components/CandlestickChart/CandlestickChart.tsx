@@ -1,8 +1,9 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Axis,
   type AxisTick,
+  type BandScale,
   bandScale,
   Crosshair,
   formatNumber,
@@ -92,6 +93,104 @@ function defaultTooltip(c: Candle): ReactNode {
   );
 }
 
+// The candle layer is a memo component with one delegated pointer/focus
+// handler pair (candle groups carry data-idx), so a hover re-render bails out
+// at a single fiber instead of re-reconciling 4 fibers per candle — same class
+// as Heatmap's grid layers. Delegation must resolve via closest("[data-idx]"):
+// pointer events target the inner wick/body/hit nodes, never the <g> itself,
+// and React's onFocus/onBlur (focusin/focusout) need the same lookup. The memo
+// only holds while every prop is identity-stable across hover renders — the
+// scales are useMemo'd and the callbacks useCallback'd in the root.
+// (BridgeChart keeps the inline per-bar handlers: its realistic N is dozens of
+// bars, measured at the frame floor — see issue #14.)
+const CandlesLayer = memo(function CandlesLayer({
+  candles,
+  keys,
+  xBand,
+  yScale,
+  plotHeight,
+  onCandleHover,
+  onCandleLeave,
+}: {
+  candles: Candle[];
+  keys: string[];
+  xBand: BandScale;
+  yScale: (value: number) => number;
+  plotHeight: number;
+  onCandleHover: (hover: HoverState) => void;
+  onCandleLeave: () => void;
+}) {
+  const resolveCandle = (target: EventTarget | null): HoverState | null => {
+    const el = target instanceof Element ? target.closest("[data-idx]") : null;
+    if (!el) return null;
+    const i = Number(el.getAttribute("data-idx"));
+    const candle = candles[i];
+    const left = xBand.position(keys[i] ?? "");
+    if (!candle || left == null) return null;
+    return {
+      candle,
+      rect: el.getBoundingClientRect(),
+      cx: left + xBand.bandwidth / 2,
+      cy: yScale(candle.close),
+    };
+  };
+  const handleEnter = (e: { target: EventTarget | null }) => {
+    const hover = resolveCandle(e.target);
+    if (hover) onCandleHover(hover);
+  };
+  const handleLeave = (e: { target: EventTarget | null }) => {
+    if (e.target instanceof Element && e.target.closest("[data-idx]")) onCandleLeave();
+  };
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: pure event delegation — the interactive/focusable surface is each candle's hit rect (role="button", tabIndex) below; the group only hosts the shared listeners (issue #14).
+    <g
+      onPointerOver={handleEnter}
+      onPointerOut={handleLeave}
+      onFocus={handleEnter}
+      onBlur={handleLeave}
+    >
+      {candles.map((c, i) => {
+        const left = xBand.position(keys[i] ?? "");
+        if (left == null) return null;
+        const center = left + xBand.bandwidth / 2;
+        const up = c.close >= c.open;
+        const yHigh = yScale(c.high);
+        const yLow = yScale(c.low);
+        const bodyTop = Math.min(yScale(c.open), yScale(c.close));
+        const bodyH = Math.max(1, Math.abs(yScale(c.close) - yScale(c.open)));
+        return (
+          // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
+          <g
+            key={keys[i]}
+            data-idx={i}
+            className={cx(styles.candle, up ? styles.up : styles.down)}
+            role="button"
+            tabIndex={0}
+            aria-label={`${formatX(c.x)}: open ${c.open}, high ${c.high}, low ${c.low}, close ${c.close}`}
+          >
+            <line x1={center} x2={center} y1={yHigh} y2={yLow} className={styles.wick} />
+            <rect
+              x={left}
+              y={bodyTop}
+              width={xBand.bandwidth}
+              height={bodyH}
+              className={styles.body}
+            />
+            {/* Transparent full-height hit target so the thin candle is easy to hover. */}
+            <rect
+              x={left}
+              y={0}
+              width={xBand.bandwidth}
+              height={plotHeight}
+              className={styles.hit}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
 export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps>(
   function CandlestickChart(
     {
@@ -168,15 +267,8 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       return out;
     }, [candles, keys, xBand, plotSize.width]);
 
-    const handleEnter = (
-      e: React.PointerEvent<SVGGElement>,
-      candle: Candle,
-      cx_: number,
-      cy_: number,
-    ) => {
-      setHover({ candle, rect: e.currentTarget.getBoundingClientRect(), cx: cx_, cy: cy_ });
-    };
-    const handleLeave = () => setHover(null);
+    const handleCandleHover = useCallback((hover: HoverState) => setHover(hover), []);
+    const handleLeave = useCallback(() => setHover(null), []);
 
     const wrapperStyle: CSSProperties = {
       ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
@@ -221,54 +313,16 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
                   })
                 : null}
 
-              {candles.map((c, i) => {
-                const left = xBand.position(keys[i] ?? "");
-                if (left == null) return null;
-                const center = left + xBand.bandwidth / 2;
-                const up = c.close >= c.open;
-                const yHigh = yScale(c.high);
-                const yLow = yScale(c.low);
-                const bodyTop = Math.min(yScale(c.open), yScale(c.close));
-                const bodyH = Math.max(1, Math.abs(yScale(c.close) - yScale(c.open)));
-                return (
-                  // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
-                  <g
-                    key={keys[i]}
-                    className={cx(styles.candle, up ? styles.up : styles.down)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${formatX(c.x)}: open ${c.open}, high ${c.high}, low ${c.low}, close ${c.close}`}
-                    onPointerEnter={(e) => handleEnter(e, c, center, yScale(c.close))}
-                    onPointerLeave={handleLeave}
-                    onFocus={(e) =>
-                      setHover({
-                        candle: c,
-                        rect: e.currentTarget.getBoundingClientRect(),
-                        cx: center,
-                        cy: yScale(c.close),
-                      })
-                    }
-                    onBlur={handleLeave}
-                  >
-                    <line x1={center} x2={center} y1={yHigh} y2={yLow} className={styles.wick} />
-                    <rect
-                      x={left}
-                      y={bodyTop}
-                      width={xBand.bandwidth}
-                      height={bodyH}
-                      className={styles.body}
-                    />
-                    {/* Transparent full-height hit target so the thin candle is easy to hover. */}
-                    <rect
-                      x={left}
-                      y={0}
-                      width={xBand.bandwidth}
-                      height={plotSize.height}
-                      className={styles.hit}
-                    />
-                  </g>
-                );
-              })}
+              {/* Candles — memo'd layer so hover re-renders bail out at one fiber. */}
+              <CandlesLayer
+                candles={candles}
+                keys={keys}
+                xBand={xBand}
+                yScale={yScale}
+                plotHeight={plotSize.height}
+                onCandleHover={handleCandleHover}
+                onCandleLeave={handleLeave}
+              />
 
               {isTufte && hover ? (
                 <Crosshair
