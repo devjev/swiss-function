@@ -1,6 +1,11 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import { Scatterplot, type ScatterplotProps, type ScatterSeries } from "./Scatterplot";
+import {
+  type ChartAnnotation,
+  Scatterplot,
+  type ScatterplotProps,
+  type ScatterSeries,
+} from "./Scatterplot";
 
 export default { title: "Chart/Scatterplot" };
 
@@ -271,6 +276,45 @@ export const DrillDown: Story = () => {
         xLabel={year != null ? `Months of ${year}` : "Year"}
         yLabel="Revenue (k)"
         onPointActivate={year == null ? (d) => setYear(Number(d.x)) : undefined}
+      />
+    </div>
+  );
+};
+
+/**
+ * The full chart window (issue #27 M3): `controls` renders the toolbar —
+ * zoom in/out/reset plus, because `onAnnotationsChange` is wired, the
+ * annotation tools. Arm a tool and drag to draw a trend line, region or
+ * measure; click to place h/v lines; the text tool opens an inline note
+ * input. Click a drawing to select it (drag its handles or body; Delete
+ * removes it). `frame` gives the chart its panel border and `fullscreen`
+ * the maximize toggle. The annotations array round-trips through state —
+ * persist it as-is.
+ */
+export const ChartWindow: Story = () => {
+  const rand = seededRandom(11);
+  const data: { x: Date; y: number }[] = [];
+  let level = 100;
+  const start = new Date(2025, 6, 1).getTime();
+  for (let i = 0; i < 365; i++) {
+    level += (rand() - 0.47) * 3;
+    data.push({ x: new Date(start + i * 86_400_000), y: Number(level.toFixed(2)) });
+  }
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
+    { type: "hline", y: 100, label: "Baseline", id: "baseline" },
+  ]);
+  return (
+    <div style={{ width: "min(52rem, 100%)" }}>
+      <Scatterplot
+        series={[{ name: "Index", data, showLine: true, showPoints: false }]}
+        scaffolding="full"
+        zoomable
+        controls
+        fullscreen
+        frame
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
+        yLabel="Level"
       />
     </div>
   );

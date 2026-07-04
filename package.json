@@ -120,6 +120,10 @@
       "types": "./dist/components/DigitInput/index.d.ts",
       "import": "./dist/components/DigitInput/index.js"
     },
+    "./date-picker": {
+      "types": "./dist/components/DatePicker/index.d.ts",
+      "import": "./dist/components/DatePicker/index.js"
+    },
     "./drawer": {
       "types": "./dist/components/Drawer/index.d.ts",
       "import": "./dist/components/Drawer/index.js"

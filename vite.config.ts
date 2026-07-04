@@ -32,6 +32,7 @@ const componentNames = [
   "Checkbox",
   "Switch",
   "Radio",
+  "DatePicker",
   "Dialog",
   "DigitInput",
   "Drawer",

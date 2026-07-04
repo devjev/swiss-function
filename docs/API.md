@@ -37,7 +37,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · DataTable · Dialog · DigitInput · Dropzone ·
+ButtonGroup · Chat · Checkbox · DataTable · DatePicker · Dialog · DigitInput · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -142,6 +142,10 @@ danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
 | `visibleRange` | `[number, number]` | uncontrolled | Controlled window as fractional candle indices; pair with `onVisibleRangeChange`. |
 | `onVisibleRangeChange` | `(range: [number, number] \| null) => void` | — | Fires on every viewport change (`null` = reset). Lazy-history hook: prepend older candles when the window nears index 0. |
 | `annotations` | `ChartAnnotation[]` | — | Data-anchored overlay (see Scatterplot); `x` anchors are timestamps, mapped onto the gap-free bar axis. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing (same interactions as Scatterplot). Drawn `x` anchors are interpolated timestamps (`Date`s when the candles carry Dates). |
+| `controls` | `boolean` | `false` | On-chart toolbar: zoom-to-region mode (drag a band, bar-index space), step zoom out, Reset + annotation tools. Absorbs the corner Reset button. |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `onPointActivate` | `(candle: Candle, index: number) => void` | — | Click/Enter on a candle — drill-down hook. |
 | `renderTooltip` | `(c: Candle) => ReactNode` | mono O/H/L/C | Hover tooltip body. |
 
@@ -348,6 +352,28 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 <DataTable data={rows} columns={columns} scrollSnap="rows"
            edgeFade={{ rows: 4, density: 0.6 }} />
 ```
+
+## DatePicker
+
+`import { DatePicker } from "@tarassov-ch/swiss-function/date-picker"`
+
+Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control — typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th–19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `Date \| null` | — | Selected date (controlled; pair with `onChange`). |
+| `defaultValue` | `Date \| null` | — | Initial selection (uncontrolled). |
+| `onChange` | `(date: Date \| null) => void` | — | Fires on commit or clear. |
+| `placeholder` | `string` | `"YYYY-MM-DD"` | Field placeholder. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Field size, mirrors `Input`. |
+| `disabled` | `boolean` | `false` | Disable the control. |
+| `clearable` | `boolean` | `true` | × button once a date is selected. |
+| `minDate` / `maxDate` | `Date` | — | Inclusive selectable range (day granularity). |
+| `isDateDisabled` | `(date: Date) => boolean` | — | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. |
+| `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. |
+| `formatValue` | `(date: Date) => string` | ISO `YYYY-MM-DD` | Custom display format for the committed value; parsing still accepts ISO and day-first fragments. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | flat | Resting depth of the field (`--sf-elevation-N`). |
+| `aria-label` | `string` | — | Accessible name when not wrapped in a `Field`. |
 
 ## Dialog
 
@@ -960,8 +986,14 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column — spikes survive). |
 | `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | — | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
 | `annotations` | `ChartAnnotation[]` | — | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document — persist it as-is. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation **editing** — see below. Fires with the complete next array. |
+| `controls` | `boolean` | `false` | On-chart toolbar overlay: zoom-to-region mode (arm, then drag the band to zoom to — Escape disarms), step zoom out, Reset (when `zoomable`) + the annotation tool palette (when `onAnnotationsChange` is set). Absorbs the corner Reset button. |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle in the corner; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding — the chart reads as a panel. |
 | `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | — | Click/Enter on a point — drill-down hook. |
 | `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
+
+**Annotation editing** (`controls` + `onAnnotationsChange`): arm a tool in the toolbar — trend line, region and measure draw by drag (a stray click under 4px creates nothing), horizontal/vertical lines place on click, the text tool opens an inline note input (Enter commits, Escape cancels). After each draw the tool snaps back to *select* and the new annotation (with a generated `id`) is selected. In select mode, click an annotation to select it (endpoint drag handles appear; drag the body to move; drags commit once on pointerup), Delete removes, Escape cancels/disarms/deselects in that order, double-click a text note to re-edit it. While a tool is armed, drag-pan and double-click-reset are suspended (wheel zoom stays live); while editing is enabled, the wide hit strokes around annotations take hover precedence over nearby data points.
 
 ## Selector
 

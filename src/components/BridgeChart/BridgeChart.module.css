@@ -18,7 +18,7 @@
   display: grid;
   align-items: center;
   justify-items: center;
-  padding-inline-end: calc(var(--sf-unit) / 3);
+  padding-inline-end: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   writing-mode: vertical-rl;

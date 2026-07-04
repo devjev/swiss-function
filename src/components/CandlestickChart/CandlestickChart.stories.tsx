@@ -1,5 +1,11 @@
 import type { Story } from "@ladle/react";
-import { type Candle, CandlestickChart, type CandlestickChartProps } from "./CandlestickChart";
+import { useState } from "react";
+import {
+  type Candle,
+  CandlestickChart,
+  type CandlestickChartProps,
+  type ChartAnnotation,
+} from "./CandlestickChart";
 
 export default { title: "Chart/CandlestickChart" };
 
@@ -112,6 +118,40 @@ export const Zoomable: Story = () => {
             y2: candles[360]?.close ?? 0,
           },
         ]}
+      />
+    </div>
+  );
+};
+
+/**
+ * The trading-terminal chart window: toolbar zoom, drawing tools (trend
+ * line, levels, regions, notes, measure), selection with drag handles,
+ * Delete/Escape — everything flows through `onAnnotationsChange`, so the
+ * drawings are plain serializable JSON anchored at timestamps and prices.
+ */
+export const ChartWindow: Story = () => {
+  const candles = makeCandles(365);
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
+    {
+      type: "hline",
+      y: candles[candles.length - 1]?.close ?? 100,
+      label: "Last",
+      color: "var(--sf-color-primary)",
+      id: "last",
+    },
+  ]);
+  return (
+    <div style={{ width: "min(52rem, 100%)" }}>
+      <CandlestickChart
+        candles={candles}
+        scaffolding="full"
+        zoomable
+        controls
+        fullscreen
+        frame
+        yLabel="USD"
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
       />
     </div>
   );

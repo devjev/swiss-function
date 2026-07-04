@@ -1,4 +1,9 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type {
+  CSSProperties,
+  HTMLAttributes,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+} from "react";
 import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AnnotationsLayer,
@@ -7,10 +12,13 @@ import {
   type AxisTick,
   type BandScale,
   type ChartAnnotation,
+  ChartControls,
   Crosshair,
   formatDateDelta,
   formatNumber,
   formatTimeTick,
+  indexToX,
+  invertLinear,
   linearScale,
   niceTicks,
   pickTimeUnit,
@@ -18,9 +26,13 @@ import {
   type TimeUnit,
   Tooltip,
   unitRank,
+  useAnnotationEditor,
   useViewport,
+  xToIndex,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { useFullscreen } from "../../lib/useFullscreen";
+import { FullscreenToggle } from "../Fullscreen";
 import styles from "./CandlestickChart.module.css";
 
 export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
@@ -69,6 +81,19 @@ export interface CandlestickChartProps extends Omit<HTMLAttributes<HTMLDivElemen
   /** Data-anchored annotations; `x` values are candle timestamps (mapped
    *  onto the gap-free bar axis), `y` values are prices. */
   annotations?: ChartAnnotation[];
+  /** Enables annotation EDITING with `controls` (issue #27 M3): drawing
+   *  tools in the toolbar, click-select with drag handles, Delete/Escape.
+   *  Drawn x anchors are interpolated timestamps (Dates when the candles
+   *  carry Dates). Fires with the complete next array. */
+  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void;
+  /** On-chart toolbar (zoom when `zoomable`; annotation tools when
+   *  `onAnnotationsChange` is set). Replaces the corner Reset button.
+   *  Default false. */
+  controls?: boolean;
+  /** Maximize-to-viewport toggle (Escape exits). Default false. */
+  fullscreen?: boolean;
+  /** 1px structural border + breathing room around the chart. Default false. */
+  frame?: boolean;
   /** Click/Enter on a candle — the drill-down hook (e.g. swap `candles` for
    *  a finer granularity around the activated one). */
   onPointActivate?: (candle: Candle, index: number) => void;
@@ -141,26 +166,6 @@ function aggregateCandles(
     sourceIndex.push(g);
   }
   return { candles: out, sourceIndex };
-}
-
-/** Map a data-x (timestamp or number) to a fractional bar index, interpolating
- *  between neighbors — so annotations anchored at real times land correctly on
- *  the gap-free bar axis. */
-function xToIndex(candles: readonly Candle[], x: AnnotationX): number {
-  const t = Number(x);
-  let lo = 0;
-  let hi = candles.length - 1;
-  if (hi < 0) return 0;
-  const at = (i: number) => Number((candles[i] as Candle).x);
-  if (t <= at(0)) return 0;
-  if (t >= at(hi)) return hi;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (at(mid) <= t) lo = mid;
-    else hi = mid;
-  }
-  const span = at(hi) - at(lo);
-  return span > 0 ? lo + (t - at(lo)) / span : lo;
 }
 
 function defaultTooltip(c: Candle): ReactNode {
@@ -308,6 +313,10 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       visibleRange,
       onVisibleRangeChange,
       annotations,
+      onAnnotationsChange,
+      controls = false,
+      fullscreen = false,
+      frame = false,
       onPointActivate,
       renderTooltip = defaultTooltip,
       className,
@@ -346,6 +355,25 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       [candles],
     );
 
+    // Annotation editor — called before useViewport (fresh `toolArmed` for
+    // pointer precedence); px→data converters are handler-time only and read
+    // a ref filled below once the resolved domains are known.
+    const invertRef = useRef<{
+      xFromPx: (px: number) => AnnotationX;
+      yFromPx: (px: number) => number;
+    }>({ xFromPx: (px) => px, yFromPx: (px) => px });
+    const editingEnabled = controls && !!onAnnotationsChange;
+    const editor = useAnnotationEditor({
+      annotations: annotations ?? [],
+      onAnnotationsChange,
+      enabled: editingEnabled,
+      xFromPx: (px) => invertRef.current.xFromPx(px),
+      yFromPx: (px) => invertRef.current.yFromPx(px),
+      plotRef,
+    });
+
+    const { expanded, toggle: toggleExpanded } = useFullscreen({});
+
     const viewport = useViewport({
       extent,
       domain: zoomable && visibleRange ? visibleRange : undefined,
@@ -353,6 +381,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       minSpan: Math.min(4, Math.max(1, n)),
       plotRef,
       enabled: zoomable,
+      suspended: editor.toolArmed,
       formatValue: formatIndexValue,
     });
     const [d0, d1] = zoomable ? viewport.domain : extent;
@@ -410,6 +439,19 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       [resolvedYDomain, plotSize.height],
     );
 
+    // px → data inverses for the annotation editor: px → fractional bar index
+    // (exact inverse of annotationXPx's center-of-candle +0.5) → interpolated
+    // timestamp; price via the inverted y scale.
+    const yInvert = invertLinear(resolvedYDomain, [plotSize.height, 0]);
+    invertRef.current = {
+      xFromPx: (px) => {
+        const span = d1 - d0;
+        const idx = span > 0 && plotSize.width > 0 ? d0 + (px / plotSize.width) * span - 0.5 : 0;
+        return indexToX(candles, idx);
+      },
+      yFromPx: yInvert,
+    };
+
     const yAxisTicks: AxisTick[] = useMemo(() => {
       if (scaffolding === "minimal") return [];
       const [yMin, yMax] = resolvedYDomain;
@@ -465,11 +507,19 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
             // Fine-grained bars can cross a boundary every candle — thin the
             // minor ticks, keep every promoted one.
             const maxTicks = Math.max(2, Math.floor(plotSize.width / 70));
-            if (out.length > maxTicks) {
-              const k = Math.ceil(out.length / maxTicks);
-              return out.filter((t, idx) => t.major || idx % k === 0);
+            let ticks = out;
+            if (ticks.length > maxTicks) {
+              const k = Math.ceil(ticks.length / maxTicks);
+              ticks = ticks.filter((t, idx) => t.major || idx % k === 0);
             }
-            return out;
+            // A kept minor can still crowd a promoted neighbor ("Jun 28"
+            // against "Jul") — drop minors within a label's width of a major.
+            const minGap = plotSize.width > 0 ? 48 / plotSize.width : 0;
+            return ticks.filter(
+              (t) =>
+                t.major ||
+                !ticks.some((m) => m.major && Math.abs(m.position - t.position) < minGap),
+            );
           }
         }
       }
@@ -509,19 +559,34 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     const handleLeave = useCallback(() => setHover(null), []);
 
     const wrapperStyle: CSSProperties = {
-      ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
+      // The inline height would beat the fullscreen class; drop it while
+      // expanded.
+      ...(height != null && !expanded
+        ? { height: typeof height === "number" ? `${height}px` : height }
+        : {}),
       ...style,
     };
 
+    // Editor keys before the viewport's zoom/pan keys.
+    const handleRootKeyDown = (e: ReactKeyboardEvent) => {
+      if (editingEnabled && editor.handleKeyDown(e)) return;
+      if (zoomable) viewport.rootProps.onKeyDown(e);
+    };
+
     return (
+      // biome-ignore lint/a11y/noStaticElementInteractions: the root is the chart's keyboard surface — it gets tabIndex 0 exactly when the zoom/annotation shortcuts are active; pointer interaction lives on the focusable points/candles inside.
       <div
         {...rest}
         {...(zoomable ? viewport.rootProps : null)}
+        onKeyDown={zoomable || editingEnabled ? handleRootKeyDown : undefined}
+        tabIndex={zoomable || editingEnabled ? 0 : undefined}
         ref={ref}
-        className={cx(styles.root, className)}
+        className={cx(styles.root, expanded && styles.expanded, frame && styles.frame, className)}
         style={wrapperStyle}
         data-scaffolding={scaffolding}
         data-zoomable={zoomable || undefined}
+        data-tool={editor.toolArmed || viewport.marqueeArmed || undefined}
+        data-expanded={expanded || undefined}
         data-hovered={hover != null ? "true" : undefined}
       >
         {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -536,6 +601,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
               role="img"
               aria-label={yLabel ? `${yLabel} candlestick chart` : "Candlestick chart"}
               onMouseLeave={handleLeave}
+              {...editor.surfaceProps}
             >
               {scaffolding !== "minimal"
                 ? yAxisTicks.map((tick) => {
@@ -565,15 +631,26 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
                 onCandleActivate={onPointActivate}
               />
 
-              {annotations && annotations.length > 0 ? (
+              {editingEnabled || (annotations && annotations.length > 0) ? (
                 <AnnotationsLayer
-                  annotations={annotations}
+                  annotations={editingEnabled ? editor.displayAnnotations : (annotations ?? [])}
                   xPx={annotationXPx}
                   yPx={yScale}
                   width={plotSize.width}
                   height={plotSize.height}
                   formatXDelta={formatXDelta}
                   formatY={formatNumber}
+                  editing={editor.layerEditing}
+                />
+              ) : null}
+
+              {viewport.marquee ? (
+                <rect
+                  x={Math.min(viewport.marquee[0], viewport.marquee[1]) * plotSize.width}
+                  y={0}
+                  width={Math.abs(viewport.marquee[1] - viewport.marquee[0]) * plotSize.width}
+                  height={plotSize.height}
+                  className={styles.zoomMarquee}
                 />
               ) : null}
 
@@ -589,12 +666,51 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
               ) : null}
             </svg>
           ) : null}
-          {zoomable && viewport.isZoomed ? (
+          {zoomable && viewport.isZoomed && !controls ? (
             <button type="button" className={styles.resetButton} onClick={viewport.reset}>
               Reset
             </button>
           ) : null}
+          {controls ? (
+            <ChartControls
+              viewport={zoomable ? viewport : undefined}
+              editor={editingEnabled ? editor : undefined}
+            />
+          ) : null}
+          {editor.textEdit ? (
+            <div
+              className={styles.textEditWrap}
+              style={{
+                left: annotationXPx(editor.textEdit.anchor.x),
+                top: yScale(editor.textEdit.anchor.y),
+              }}
+              data-annotation=""
+            >
+              <input
+                // Focus on mount: the input exists because the user just
+                // clicked with the text tool — focusing it IS the interaction.
+                ref={(el) => el?.focus()}
+                className={styles.textEditInput}
+                value={editor.textEdit.value}
+                placeholder="Note…"
+                aria-label="Annotation text"
+                onChange={(e) => editor.textEdit?.onChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    editor.textEdit?.commit();
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    editor.textEdit?.cancel();
+                  }
+                }}
+                onBlur={() => editor.textEdit?.commit()}
+              />
+            </div>
+          ) : null}
         </div>
+        {fullscreen ? <FullscreenToggle expanded={expanded} onToggle={toggleExpanded} /> : null}
         <Axis orientation="x" ticks={xAxisTicks} className={styles.xAxis} />
         {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
 

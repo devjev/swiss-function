@@ -1,4 +1,9 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type {
+  CSSProperties,
+  HTMLAttributes,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+} from "react";
 import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AnnotationsLayer,
@@ -6,9 +11,11 @@ import {
   type AxisTick,
   adaptiveTicks,
   type ChartAnnotation,
+  ChartControls,
   Crosshair,
   formatDateDelta,
   formatNumber,
+  invertLinear,
   linearScale,
   minMaxDownsample,
   niceDomain,
@@ -17,9 +24,12 @@ import {
   Tooltip,
   timeScale,
   timeTicks,
+  useAnnotationEditor,
   useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { useFullscreen } from "../../lib/useFullscreen";
+import { FullscreenToggle } from "../Fullscreen";
 import styles from "./Scatterplot.module.css";
 
 export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
@@ -68,6 +78,23 @@ export interface ScatterplotProps extends Omit<HTMLAttributes<HTMLDivElement>, "
    *  serializable JSON; anchors are data values, so drawings survive
    *  zoom/pan/resize. */
   annotations?: ChartAnnotation[];
+  /** Enables annotation EDITING with `controls` (issue #27 M3): the toolbar
+   *  gains a tool palette — drag draws trend lines/regions/measures, click
+   *  places hlines/vlines, the text tool opens an inline note input. Click
+   *  selects (drag handles; drag body to move), Delete removes, Escape
+   *  deselects/disarms. Fires with the complete next array; drags commit
+   *  once on pointerup. Drawn annotations get a generated `id`. */
+  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void;
+  /** On-chart toolbar (zoom in/out/reset when `zoomable`; annotation tools
+   *  when `onAnnotationsChange` is set). Replaces the corner Reset button.
+   *  Default false. */
+  controls?: boolean;
+  /** Maximize-to-viewport toggle in the top-right corner (Escape exits).
+   *  Default false. */
+  fullscreen?: boolean;
+  /** 1px structural border + breathing room around the chart, so it reads
+   *  as a panel when not already inside one. Default false. */
+  frame?: boolean;
   /** Click/Enter on a point — the drill-down hook. The consumer swaps
    *  `series` for finer-grained data (and renders its own breadcrumb). */
   onPointActivate?: (datum: ScatterDatum & { series: string }) => void;
@@ -264,6 +291,10 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     zoomable = false,
     onXDomainChange,
     annotations,
+    onAnnotationsChange,
+    controls = false,
+    fullscreen = false,
+    frame = false,
     onPointActivate,
     renderTooltip = defaultTooltip,
     className,
@@ -351,6 +382,27 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     [onXDomainChange, isDateAxis],
   );
 
+  // --- Annotation editor ---
+  // Called BEFORE useViewport (which needs a fresh `toolArmed` for pointer
+  // precedence) and before the domains exist — its px→data converters are
+  // only invoked inside pointer handlers, so they read a ref that the render
+  // fills once the resolved (possibly zoomed) domains are known below.
+  const invertRef = useRef<{
+    xFromPx: (px: number) => ScatterX;
+    yFromPx: (px: number) => number;
+  }>({ xFromPx: (px) => px, yFromPx: (px) => px });
+  const editingEnabled = controls && !!onAnnotationsChange;
+  const editor = useAnnotationEditor({
+    annotations: annotations ?? [],
+    onAnnotationsChange,
+    enabled: editingEnabled,
+    xFromPx: (px) => invertRef.current.xFromPx(px),
+    yFromPx: (px) => invertRef.current.yFromPx(px),
+    plotRef,
+  });
+
+  const { expanded, toggle: toggleExpanded } = useFullscreen({});
+
   const viewport = useViewport({
     extent: dataXExtent,
     // With `zoomable`, an explicit xDomain is the controlled visible window.
@@ -360,6 +412,8 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     minSpan: ((dataXExtent[1] - dataXExtent[0]) * 4) / Math.max(4, maxSeriesLength),
     plotRef,
     enabled: zoomable,
+    // An armed draw tool owns the pointer: pan/pinch/dblclick off, wheel on.
+    suspended: editor.toolArmed,
     formatValue: formatDomainValue,
   });
 
@@ -441,6 +495,15 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     () => linearScale(resolvedYDomain, [plotSize.height, 0]),
     [resolvedYDomain, plotSize.height],
   );
+
+  // px → data inverses for the annotation editor (see invertRef above) —
+  // closing over the RESOLVED domains, so y-follows-x zoom is respected.
+  const xInvert = invertLinear(resolvedXDomain, [0, plotSize.width]);
+  const yInvert = invertLinear(resolvedYDomain, [plotSize.height, 0]);
+  invertRef.current = {
+    xFromPx: (px) => (isDateAxis ? new Date(xInvert(px)) : xInvert(px)),
+    yFromPx: yInvert,
+  };
 
   // --- Ticks ---
   // Tufte mode: one tick per unique datum value (dot-dash style). Full mode:
@@ -580,7 +643,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   );
 
   const wrapperStyle: CSSProperties = {
-    ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
+    // The inline height would beat the fullscreen class (inset: 0 must own
+    // the size), so drop it while expanded.
+    ...(height != null && !expanded
+      ? { height: typeof height === "number" ? `${height}px` : height }
+      : {}),
     ...style,
   };
 
@@ -588,17 +655,29 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   const hasYLabel = !!yLabel;
   const hasXLabel = !!xLabel;
 
+  // Editor keys (Delete/Escape/Enter, and everything while the text input is
+  // open) run before the viewport's zoom/pan keys.
+  const handleRootKeyDown = (e: ReactKeyboardEvent) => {
+    if (editingEnabled && editor.handleKeyDown(e)) return;
+    if (zoomable) viewport.rootProps.onKeyDown(e);
+  };
+
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: the root is the chart's keyboard surface — it gets tabIndex 0 exactly when the zoom/annotation shortcuts are active; pointer interaction lives on the focusable points/candles inside.
     <div
       {...rest}
       {...(zoomable ? viewport.rootProps : null)}
+      onKeyDown={zoomable || editingEnabled ? handleRootKeyDown : undefined}
+      tabIndex={zoomable || editingEnabled ? 0 : undefined}
       ref={ref}
-      className={cx(styles.root, className)}
+      className={cx(styles.root, expanded && styles.expanded, frame && styles.frame, className)}
       style={wrapperStyle}
       data-axis-y-label={hasYLabel || undefined}
       data-axis-x-label={hasXLabel || undefined}
       data-scaffolding={scaffolding}
       data-zoomable={zoomable || undefined}
+      data-tool={editor.toolArmed || viewport.marqueeArmed || undefined}
+      data-expanded={expanded || undefined}
       data-hovered={hover != null ? "true" : undefined}
     >
       {hasYLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -613,6 +692,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
             role="img"
             aria-label={[yLabel, xLabel].filter(Boolean).join(" vs ") || "Scatter plot"}
             onMouseLeave={handlePointLeave}
+            {...editor.surfaceProps}
           >
             {/* Gridlines render in both hover and full modes (CSS controls
                 opacity). In hover mode they fade in on point hover. */}
@@ -660,15 +740,26 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
               ),
             )}
 
-            {annotations && annotations.length > 0 ? (
+            {editingEnabled || (annotations && annotations.length > 0) ? (
               <AnnotationsLayer
-                annotations={annotations}
+                annotations={editingEnabled ? editor.displayAnnotations : (annotations ?? [])}
                 xPx={xPx}
                 yPx={yScale}
                 width={plotSize.width}
                 height={plotSize.height}
                 formatXDelta={formatXDelta}
                 formatY={formatNumber}
+                editing={editor.layerEditing}
+              />
+            ) : null}
+
+            {viewport.marquee ? (
+              <rect
+                x={Math.min(viewport.marquee[0], viewport.marquee[1]) * plotSize.width}
+                y={0}
+                width={Math.abs(viewport.marquee[1] - viewport.marquee[0]) * plotSize.width}
+                height={plotSize.height}
+                className={styles.zoomMarquee}
               />
             ) : null}
 
@@ -691,12 +782,50 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
             {xTicks.offsetLabel ? <div>{`x ${xTicks.offsetLabel}`}</div> : null}
           </div>
         ) : null}
-        {zoomable && viewport.isZoomed ? (
+        {zoomable && viewport.isZoomed && !controls ? (
           <button type="button" className={styles.resetButton} onClick={viewport.reset}>
             Reset
           </button>
         ) : null}
+        {controls ? (
+          <ChartControls
+            viewport={zoomable ? viewport : undefined}
+            editor={editingEnabled ? editor : undefined}
+          />
+        ) : null}
+        {editor.textEdit ? (
+          // Inline note editor at the annotation's data anchor. The wrapper's
+          // data-annotation makes the viewport ignore pointerdowns on it.
+          <div
+            className={styles.textEditWrap}
+            style={{ left: xPx(editor.textEdit.anchor.x), top: yScale(editor.textEdit.anchor.y) }}
+            data-annotation=""
+          >
+            <input
+              // Focus on mount: the input exists because the user just
+              // clicked with the text tool — focusing it IS the interaction.
+              ref={(el) => el?.focus()}
+              className={styles.textEditInput}
+              value={editor.textEdit.value}
+              placeholder="Note…"
+              aria-label="Annotation text"
+              onChange={(e) => editor.textEdit?.onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  editor.textEdit?.commit();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  editor.textEdit?.cancel();
+                }
+              }}
+              onBlur={() => editor.textEdit?.commit()}
+            />
+          </div>
+        ) : null}
       </div>
+      {fullscreen ? <FullscreenToggle expanded={expanded} onToggle={toggleExpanded} /> : null}
       <Axis orientation="x" ticks={xAxisTicks} noLine={isTufte} className={styles.xAxis} />
       {hasXLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
       {legendVisible ? (

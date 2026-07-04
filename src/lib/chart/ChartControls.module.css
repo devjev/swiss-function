@@ -1,0 +1,21 @@
+/* Same posture as Graph/Map Controls: a small framed strip overlaid on the
+   plot's top-left corner, above the data but below tooltips. */
+.root {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-start: calc(var(--sf-unit) / 4);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 4);
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+}
+
+.cluster {
+  display: flex;
+  gap: calc(var(--sf-unit) / 4);
+}

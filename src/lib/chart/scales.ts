@@ -11,6 +11,18 @@ export function linearScale(domain: [number, number], range: [number, number]) {
   };
 }
 
+/** Inverse of {@link linearScale}: pixel → data value. Handles inverted
+ *  (y-style `[height, 0]`) ranges. Zero-span ranges return the domain start. */
+export function invertLinear(domain: [number, number], range: [number, number]) {
+  const [d0, d1] = domain;
+  const [r0, r1] = range;
+  const rSpan = r1 - r0;
+  return (px: number): number => {
+    if (rSpan === 0) return d0;
+    return d0 + ((px - r0) / rSpan) * (d1 - d0);
+  };
+}
+
 /** Date analog of linearScale — maps Date → pixel via epoch ms. */
 export function timeScale(domain: [Date, Date], range: [number, number]) {
   const linear = linearScale([domain[0].getTime(), domain[1].getTime()], range);

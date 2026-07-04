@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { Scatterplot } from "./Scatterplot";
+import { type ChartAnnotation, Scatterplot } from "./Scatterplot";
+import { EditableScatterplot } from "./Scatterplot.harness";
 
 // Pins the delegated-hover contract of the memo'd point layer (issue #14):
 // per-point a11y attributes and <title> children stay, and hover/focus resolve
@@ -184,4 +185,229 @@ test("onPointActivate fires on click and Enter", async ({ mount }) => {
   await c.locator("circle[data-idx='3']").focus();
   await c.locator("circle[data-idx='3']").press("Enter");
   await expect.poll(() => activated).toEqual(["S:2", "S:4"]);
+});
+
+// --- Chart window: controls toolbar + annotation editing (issue #27 M3) -----
+
+test("controls: zoom mode drags a region to zoom; corner Reset button is absorbed", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <Scatterplot
+        series={ZOOM_SERIES}
+        height={240}
+        showLegend={false}
+        scaffolding="full"
+        zoomable
+        controls
+      />
+    </div>,
+  );
+  const toolbar = c.getByRole("toolbar", { name: "Chart controls" });
+  await expect(toolbar).toBeVisible();
+  const resetInToolbar = toolbar.getByRole("button", { name: "Reset view" });
+  await expect(resetInToolbar).toBeDisabled();
+
+  // Zoom is a mode: arm, drag the region, release → zoomed to it, disarmed.
+  const zoomIn = toolbar.getByRole("button", { name: "Zoom in" });
+  await zoomIn.click();
+  await expect(zoomIn).toHaveAttribute("aria-pressed", "true");
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.4, { steps: 5 });
+  // The band is visible mid-drag.
+  await expect(c.locator("svg[role='img'] rect").last()).toBeVisible();
+  await page.mouse.up();
+  await expect(c.locator("[aria-live]")).toContainText("Showing 25 to 75");
+  await expect(zoomIn).toHaveAttribute("aria-pressed", "false");
+  await expect(resetInToolbar).toBeEnabled();
+  // The legacy floating corner button must not double up with the toolbar.
+  await expect(c.getByRole("button", { name: /^Reset$/ })).toHaveCount(0);
+
+  await toolbar.getByRole("button", { name: "Zoom out" }).click();
+  await expect(c.locator("[aria-live]")).toHaveText("Showing full range");
+});
+
+test("line tool: drag draws in data space, one change event, tool snaps back", async ({
+  mount,
+  page,
+}) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(<EditableScatterplot onChange={(next) => changes.push(next)} />);
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+
+  const lineTool = c.getByRole("button", { name: "Trend line" });
+  await lineTool.click();
+  await expect(lineTool).toHaveAttribute("aria-pressed", "true");
+
+  // Drag from 25% to 75% across the plot.
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.3, { steps: 5 });
+  await page.mouse.up();
+
+  await expect.poll(() => changes.length).toBe(1);
+  const drawn = changes[0]?.[0];
+  if (!drawn || drawn.type !== "line") throw new Error(`expected a line, got ${drawn?.type}`);
+  // Data-space coords: x domain is [0, 100] across the plot width.
+  expect(Number(drawn.x1)).toBeGreaterThan(15);
+  expect(Number(drawn.x1)).toBeLessThan(35);
+  expect(Number(drawn.x2)).toBeGreaterThan(65);
+  expect(Number(drawn.x2)).toBeLessThan(85);
+  expect(drawn.id).toBeTruthy();
+  // Snap back to select after the draw.
+  await expect(c.getByRole("button", { name: "Select" })).toHaveAttribute("aria-pressed", "true");
+  await expect(lineTool).toHaveAttribute("aria-pressed", "false");
+});
+
+test("hline places on click; a sub-threshold jiggle with the line tool creates nothing", async ({
+  mount,
+  page,
+}) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(<EditableScatterplot onChange={(next) => changes.push(next)} />);
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+
+  await c.getByRole("button", { name: "Trend line" }).click();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.7);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5 + 2, box.y + box.height * 0.7 + 1);
+  await page.mouse.up();
+  expect(changes).toHaveLength(0);
+
+  await c.getByRole("button", { name: "Horizontal line" }).click();
+  // Aim below the toolbar strip that overlays the plot's top edge.
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.75);
+  await expect.poll(() => changes.length).toBe(1);
+  const drawn = changes[0]?.[0];
+  if (!drawn || drawn.type !== "hline") throw new Error("expected an hline");
+  // y domain follows the sine data (~10..90); 75% from the top ≈ lower quarter.
+  expect(drawn.y).toBeLessThan(45);
+});
+
+test("pan is suspended while a tool is armed (drag draws instead)", async ({ mount, page }) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(<EditableScatterplot onChange={(next) => changes.push(next)} />);
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+  const live = c.locator("[aria-live]");
+
+  // Zoom in first (keyboard step zoom) so a pan would change the announcement.
+  await c.locator("[data-zoomable]").focus();
+  await page.keyboard.press("+");
+  const before = await live.textContent();
+
+  await c.getByRole("button", { name: "Region" }).click();
+  // Start below the toolbar strip that overlays the plot's top edge.
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.85, { steps: 5 });
+  await page.mouse.up();
+
+  await expect.poll(() => changes.length).toBe(1);
+  expect(changes[0]?.[0]?.type).toBe("rect");
+  await expect(live).toHaveText(before ?? "");
+});
+
+test("select, handles, body drag (one event), delete, escape", async ({ mount, page }) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(
+    <EditableScatterplot
+      initial={[{ type: "line", x1: 20, y1: 30, x2: 60, y2: 70, id: "trend" }]}
+      onChange={(next) => changes.push(next)}
+    />,
+  );
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+
+  // Click the line's hit stroke mid-way to select.
+  const hit = c.locator("[data-annotation] [data-part='body']").first();
+  await hit.click({ force: true });
+  await expect(c.locator("[data-annotation][data-selected]")).toHaveCount(1);
+  const handles = c.locator("rect[data-part]");
+  await expect(handles).toHaveCount(2); // p1 + p2
+
+  // Body drag: exactly one change with both anchors translated.
+  const hitBox = await hit.boundingBox();
+  if (!hitBox) throw new Error("no hit box");
+  await page.mouse.move(hitBox.x + hitBox.width / 2, hitBox.y + hitBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hitBox.x + hitBox.width / 2 + 60, hitBox.y + hitBox.height / 2, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await expect.poll(() => changes.length).toBe(1);
+  const moved = changes[0]?.[0];
+  if (!moved || moved.type !== "line") throw new Error("expected the line");
+  const dx = Number(moved.x1) - 20;
+  expect(dx).toBeGreaterThan(5);
+  expect(Number(moved.x2) - 60).toBeCloseTo(dx, 1);
+
+  // Escape deselects; Delete removes.
+  await c.locator("[data-zoomable]").focus();
+  await page.keyboard.press("Escape");
+  await expect(c.locator("[data-annotation][data-selected]")).toHaveCount(0);
+  await c.locator("[data-annotation] [data-part='body']").first().click({ force: true });
+  await expect(c.locator("[data-annotation][data-selected]")).toHaveCount(1);
+  await page.keyboard.press("Delete");
+  await expect.poll(() => changes.length).toBe(2);
+  expect(changes[1]).toHaveLength(0);
+});
+
+test("text tool: inline input commits on Enter; typing digits does not zoom-reset", async ({
+  mount,
+  page,
+}) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(<EditableScatterplot onChange={(next) => changes.push(next)} />);
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+  const live = c.locator("[aria-live]");
+
+  await c.locator("[data-zoomable]").focus();
+  await page.keyboard.press("+");
+  const zoomed = await live.textContent();
+
+  await c.getByRole("button", { name: "Text note" }).click();
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  const input = c.getByRole("textbox", { name: "Annotation text" });
+  await expect(input).toBeFocused();
+  await input.fill("peak 0");
+  await input.press("Enter");
+
+  await expect.poll(() => changes.length).toBe(1);
+  const note = changes[0]?.[0];
+  if (!note || note.type !== "text") throw new Error("expected a text note");
+  expect(note.text).toBe("peak 0");
+  // The "0" typed into the note must not have reset the viewport.
+  await expect(live).toHaveText(zoomed ?? "");
+});
+
+test("fullscreen: toggle expands; Escape with a selection deselects without exiting", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <EditableScatterplot fullscreen initial={[{ type: "hline", y: 50, id: "level" }]} />,
+  );
+  await c.getByRole("button", { name: "Enter fullscreen" }).click();
+  await expect(c.locator("[data-expanded]")).toHaveCount(1);
+
+  // Select the hline, then Escape: deselect only.
+  await c.locator("[data-annotation] [data-part='body']").first().click({ force: true });
+  await expect(c.locator("[data-annotation][data-selected]")).toHaveCount(1);
+  await c.locator("[data-zoomable]").focus();
+  await page.keyboard.press("Escape");
+  await expect(c.locator("[data-annotation][data-selected]")).toHaveCount(0);
+  await expect(c.locator("[data-expanded]")).toHaveCount(1);
+
+  // A second Escape (nothing left to cancel) exits fullscreen.
+  await page.keyboard.press("Escape");
+  await expect(c.locator("[data-expanded]")).toHaveCount(0);
 });

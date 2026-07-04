@@ -2,6 +2,8 @@
 
 .root {
   display: grid;
+  /* Positioned so the fullscreen toggle can pin to the chart corner. */
+  position: relative;
   grid-template-columns: auto auto 1fr;
   grid-template-rows: 1fr auto auto;
   block-size: calc(var(--sf-unit) * 12);
@@ -18,7 +20,7 @@
   display: grid;
   align-items: center;
   justify-items: center;
-  padding-inline-end: calc(var(--sf-unit) / 3);
+  padding-inline-end: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   writing-mode: vertical-rl;
@@ -39,6 +41,7 @@
 .xLabel {
   grid-column: 3;
   grid-row: 3;
+  padding-block-start: calc(var(--sf-unit) / 2);
   justify-self: center;
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
@@ -199,4 +202,57 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* --- Chart window chrome (issue #27 M3) --------------------------------- */
+
+/* 1px structural border + breathing room: the chart reads as a panel. */
+.frame {
+  border: 1px solid var(--sf-color-border);
+  background: var(--sf-color-bg);
+  padding: calc(var(--sf-unit) / 2);
+}
+
+/* Maximized to the viewport (same recipe as Graph). */
+.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sf-z-modal);
+  block-size: auto;
+  background: var(--sf-color-bg);
+  padding: var(--sf-unit);
+}
+
+/* An armed draw tool: crosshair instead of the pan grab-hand. */
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+/* Inline annotation note editor, positioned at the data anchor. */
+.textEditWrap {
+  position: absolute;
+  transform: translateY(-100%);
+  z-index: 2;
+}
+
+.textEditInput {
+  inline-size: calc(var(--sf-unit) * 6);
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 4);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  outline: none;
+}
+
+/* Zoom-mode selection band: the region that will become the visible window. */
+.zoomMarquee {
+  fill: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+  stroke: var(--sf-color-primary);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
 }

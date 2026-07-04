@@ -96,6 +96,7 @@
 }
 
 .yLabel {
+  padding-inline-end: calc(var(--sf-unit) / 2);
   grid-column: 1;
   grid-row: 1;
   align-self: center;
@@ -108,6 +109,7 @@
 .xLabel {
   grid-column: 3;
   grid-row: 3;
+  padding-block-start: calc(var(--sf-unit) / 2);
   text-align: center;
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-04T20:55:28.995Z"
+    "date": "2026-07-04T22:51:21.023Z"
   },
-  "totalGzip": 511254,
+  "totalGzip": 549786,
   "entries": {
     ".": {
-      "files": 189,
-      "jsRaw": 628414,
-      "jsGzip": 192990,
+      "files": 197,
+      "jsRaw": 681357,
+      "jsGzip": 206186,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 192990,
+      "gzip": 206186,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -55,9 +55,9 @@
       "files": 1,
       "jsRaw": 0,
       "jsGzip": 0,
-      "cssRaw": 10661,
-      "cssGzip": 4087,
-      "gzip": 4087,
+      "cssRaw": 11156,
+      "cssGzip": 4282,
+      "gzip": 4282,
       "externals": []
     },
     "./reset.css": {
@@ -89,11 +89,11 @@
     },
     "./bar-chart": {
       "files": 12,
-      "jsRaw": 21506,
-      "jsGzip": 7596,
+      "jsRaw": 21744,
+      "jsGzip": 7639,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7596,
+      "gzip": 7639,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./box": {
@@ -107,11 +107,11 @@
     },
     "./bridge-chart": {
       "files": 12,
-      "jsRaw": 21385,
-      "jsGzip": 7596,
+      "jsRaw": 21623,
+      "jsGzip": 7639,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7596,
+      "gzip": 7639,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./button-group": {
@@ -124,13 +124,18 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./candlestick-chart": {
-      "files": 16,
-      "jsRaw": 48487,
-      "jsGzip": 14974,
+      "files": 28,
+      "jsRaw": 83601,
+      "jsGzip": 24593,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 14974,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 24593,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./chat": {
       "files": 24,
@@ -295,13 +300,18 @@
       ]
     },
     "./scatterplot": {
-      "files": 17,
-      "jsRaw": 53174,
-      "jsGzip": 16060,
+      "files": 28,
+      "jsRaw": 87856,
+      "jsGzip": 25406,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 16060,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 25406,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./dialog": {
       "files": 6,
@@ -325,6 +335,15 @@
         "react",
         "react/jsx-runtime"
       ]
+    },
+    "./date-picker": {
+      "files": 6,
+      "jsRaw": 21325,
+      "jsGzip": 6090,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 6090,
+      "externals": ["@base-ui/react/popover", "react", "react/jsx-runtime"]
     },
     "./drawer": {
       "files": 4,

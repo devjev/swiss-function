@@ -70,6 +70,7 @@ Ladle (`npm run dev`).
 | `Field`         | Compound for any form row: `Field` + `Field.Label` + control + `Field.Description` + `Field.Error`. `Field.Help` is space-adaptive help text — beside the control when wide, a "?" tooltip after the label when narrow (`helpAt`). Don't roll your own. |
 | `Input`         | Single-line text input. Monospace by design.              |
 | `DigitInput`    | Fixed-capacity number entry as digit cells (`[0][4][2].[5][0] %`). Two feels via `mode`: `"push"` (default — calculator, digits push from the right, always complete) and `"mask"` (2FA-style per-cell fill, null until complete). `digits`/`decimals`/`unit`; value is `number \| null` (null = untyped mask). Doubles as a numeric PIN input. |
+| `DatePicker`    | Date input + calendar popup, ISO 8601 by default (`YYYY-MM-DD`, Monday-first weeks, optional ISO week numbers). Typing is the fastest path — `2026-07`, `12 jul`, `tomorrow`, `+7` narrow the calendar and Enter commits the echoed candidate; numeric fragments are always day-first, never US month-first. Value is `Date \| null`; `minDate`/`maxDate`/`isDateDisabled` constrain. Never reach for the browser-native `type="date"`. |
 | `Kbd`           | Renders a keyboard shortcut as OS-aware keycaps (`combo="mod+k"` → ⌘K on macOS, Ctrl+K elsewhere). `mod` = primary modifier; never shows ⌘ off-Mac. For labels/menus/tooltips. |
 | `TextEdit`      | Multi-line / auto-growing text input.                     |
 | `Checkbox`      | Binary independent toggles in lists.                      |
@@ -162,6 +163,12 @@ survive zoom/pan (persist the array as-is). Drill-down is an event, not
 behavior: wire `onPointActivate` (all three axis charts) and swap the data
 yourself; `onXDomainChange` / `onVisibleRangeChange` are the hooks for loading
 finer-grained data as the user zooms in.
+
+For an actual chart **window** — visible zoom buttons and drawing tools, the
+trading-terminal look — add `controls` (toolbar overlay — zoom is a mode: arm it, drag the region to zoom to) plus
+`onAnnotationsChange` (arms the tool palette: trend line, h/v lines, region,
+text note, measure; select/drag/Delete editing, all flowing through the
+annotations array) and optionally `fullscreen` and `frame`.
 
 ### Graphs & networks
 
@@ -291,6 +298,7 @@ Common requests and the right component:
 | "fill the rest of the page" / "header + scrollable body" | `Pane` with `Pane.Header` + `Pane.Body`     |
 | "a window manager / tiling windows / multi-window workspace / scrollable strip of panels" | `WindowArray` (`Dialog draggable` for a single floating window) |
 | "a PIN / 2FA code input" / "a fixed-digit amount" / "a percent / price the user types into" / "instrument-panel number entry" | `DigitInput` (`digits`/`decimals`/`unit`; calculator-style push typing) |
+| "a date picker" / "pick a date" / "a calendar input" / "due date field" | `DatePicker` (ISO by default; type `2026-07`, `12 jul`, `tomorrow` — not `type="date"`) |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |
 | "tabs"                                             | `Tabs`                                           |
 | "collapsible sections"                             | No dedicated component — use `Tabs` for peer views, or `Reflow` (collapses to accordion-style sections when narrow) |

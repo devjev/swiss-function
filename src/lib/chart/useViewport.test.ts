@@ -16,6 +16,22 @@ describe("zoomDomain", () => {
   });
 });
 
+describe("step zoom (the toolbar buttons compose zoomDomain + clampDomain)", () => {
+  const extent: [number, number] = [0, 1000];
+
+  it("zoom-in halves the span about the center", () => {
+    const [d0, d1] = clampDomain(zoomDomain([200, 600], 0.5, 2), extent, 10);
+    expect([d0, d1]).toEqual([300, 500]);
+  });
+
+  it("zoom-out doubles the span and clamps at the extent", () => {
+    expect(clampDomain(zoomDomain([200, 600], 0.5, 0.5), extent, 10)).toEqual([0, 800]);
+    // Zooming out from near-full lands exactly on the extent (reported as
+    // reset by apply()).
+    expect(clampDomain(zoomDomain([100, 900], 0.5, 0.5), extent, 10)).toEqual([0, 1000]);
+  });
+});
+
 describe("clampDomain", () => {
   const extent: [number, number] = [0, 1000];
 

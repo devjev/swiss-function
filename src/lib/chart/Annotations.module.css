@@ -1,5 +1,7 @@
 .root {
-  /* Read-only overlay — annotations inform, they don't intercept hover. */
+  /* Read-only overlay — annotations inform, they don't intercept hover.
+     While editing, only the .hit/.hitArea/.handle elements re-enable
+     pointer-events; the visible shapes stay inert. */
   pointer-events: none;
 }
 
@@ -46,4 +48,50 @@
 .note {
   font-family: var(--sf-font-sans);
   font-weight: var(--sf-font-weight-medium);
+}
+
+/* --- Editing affordances (issue #27 M3) --------------------------------- */
+
+/* Wide transparent stroke over line-like shapes so they're grabbable. */
+.hit {
+  stroke: transparent;
+  stroke-width: 9;
+  fill: none;
+  pointer-events: stroke;
+  cursor: move;
+}
+
+/* Region hit for rects. */
+.hitArea {
+  fill: transparent;
+  pointer-events: all;
+  cursor: move;
+}
+
+/* Text notes are their own hit target while editing. */
+.textHit {
+  pointer-events: all;
+  cursor: move;
+}
+
+/* Square drag handles on the selected annotation — sharp, instrument-panel. */
+.handle {
+  fill: var(--sf-color-bg);
+  stroke: var(--sf-color-fg);
+  stroke-width: 1;
+  pointer-events: all;
+  cursor: grab;
+}
+
+/* Selection reads by weight, not decoration. */
+[data-selected] .refLine,
+[data-selected] .trendLine,
+[data-selected] .measureLine {
+  opacity: 1;
+  stroke-width: 2;
+}
+
+/* In-flight draft — visible but clearly provisional. */
+[data-draft] {
+  opacity: 0.6;
 }

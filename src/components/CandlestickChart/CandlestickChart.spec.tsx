@@ -121,3 +121,53 @@ test("annotations anchor at timestamps on the gap-free bar axis", async ({ mount
   // The measure Δx readout uses a compact duration (45 days).
   await expect(overlay.locator("text").filter({ hasText: "45d" })).toBeVisible();
 });
+
+// --- Chart window: controls + editing mirror (issue #27 M3) -----------------
+
+import type { ChartAnnotation } from "./CandlestickChart";
+import { EditableCandlestickChart } from "./CandlestickChart.harness";
+
+test("zoom mode drags a region in bar-index space; frame renders the border", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<EditableCandlestickChart frame />);
+  await expect(c.locator("[data-zoomable]")).toHaveCount(1);
+  const toolbar = c.getByRole("toolbar", { name: "Chart controls" });
+  await toolbar.getByRole("button", { name: "Zoom in" }).click();
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+  // Drag the middle half of the plot → the middle ~30 of 60 candles.
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.4, { steps: 5 });
+  await page.mouse.up();
+  await expect(c.locator("[aria-live]")).toContainText("Showing");
+  const count = await c.locator("g[data-idx]").count();
+  expect(count).toBeGreaterThan(26);
+  expect(count).toBeLessThan(34);
+  await toolbar.getByRole("button", { name: "Reset view" }).click();
+  await expect(c.locator("g[data-idx]")).toHaveCount(60);
+});
+
+test("vline drawn by click lands on an interpolated timestamp between candles", async ({
+  mount,
+  page,
+}) => {
+  const changes: ChartAnnotation[][] = [];
+  const c = await mount(<EditableCandlestickChart onChange={(next) => changes.push(next)} />);
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+
+  await c.getByRole("button", { name: "Vertical line" }).click();
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.7);
+  await expect.poll(() => changes.length).toBe(1);
+  const drawn = changes[0]?.[0];
+  if (!drawn || drawn.type !== "vline") throw new Error("expected a vline");
+  // The harness has 60 daily candles from 2026-01-01: mid-plot ≈ candle 30
+  // (±2), and the anchor must be a real interpolated Date in that window.
+  expect(drawn.x).toBeInstanceOf(Date);
+  const t = (drawn.x as Date).getTime();
+  expect(t).toBeGreaterThan(new Date(2026, 0, 26).getTime());
+  expect(t).toBeLessThan(new Date(2026, 1, 4).getTime());
+});

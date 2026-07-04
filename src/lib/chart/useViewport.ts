@@ -72,6 +72,11 @@ export interface UseViewportOptions {
   plotRef: RefObject<HTMLElement | null>;
   /** When false the hook is inert (no listeners, full extent). */
   enabled: boolean;
+  /** While true, pointer pan/pinch and dblclick-reset are ignored (an
+   *  annotation tool is armed and owns the pointer) — wheel zoom and
+   *  keyboard stay live. The hook deliberately knows nothing else about
+   *  annotation tools. */
+  suspended?: boolean;
   /** Formats a domain value for the aria-live range announcement. */
   formatValue: (value: number) => string;
 }
@@ -81,6 +86,18 @@ export interface Viewport {
   domain: Domain;
   isZoomed: boolean;
   reset: () => void;
+  /** Step zoom about the center (factor 2) — for toolbar buttons. */
+  zoomIn: () => void;
+  zoomOut: () => void;
+  /** Marquee ("zoom to region") mode: while armed, dragging on the plot
+   *  selects a band instead of panning; releasing applies it as the new
+   *  visible window and disarms (one gesture per arming, like the annotation
+   *  tools). Escape cancels/disarms. */
+  marqueeArmed: boolean;
+  setMarqueeArmed: (armed: boolean) => void;
+  /** In-flight selection as 0..1 plot-width fractions, or null — the chart
+   *  renders this as a full-height band. */
+  marquee: [number, number] | null;
   /** Spread onto the chart root: makes it focusable and keyboard-navigable. */
   rootProps: {
     tabIndex: number;
@@ -99,10 +116,13 @@ export function useViewport({
   minSpan,
   plotRef,
   enabled,
+  suspended = false,
   formatValue,
 }: UseViewportOptions): Viewport {
   const [uncontrolled, setUncontrolled] = useState<Domain | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [marqueeArmed, setMarqueeArmed] = useState(false);
+  const [marquee, setMarquee] = useState<[number, number] | null>(null);
 
   const raw = controlledDomain !== undefined ? controlledDomain : uncontrolled;
   const domain = useMemo<Domain>(
@@ -120,6 +140,10 @@ export function useViewport({
   onDomainChangeRef.current = onDomainChange;
   const formatValueRef = useRef(formatValue);
   formatValueRef.current = formatValue;
+  const suspendedRef = useRef(suspended);
+  suspendedRef.current = suspended;
+  const marqueeArmedRef = useRef(marqueeArmed);
+  marqueeArmedRef.current = marqueeArmed;
 
   const apply = useCallback((next: Domain | null) => {
     const { extent: fullExtent, minSpan: span } = extentRef.current;
@@ -147,11 +171,14 @@ export function useViewport({
     let drag: { startX: number; startDomain: Domain; panning: boolean } | null = null;
     let pinchDist = 0;
     let suppressClick = false;
+    /** In-flight marquee: start fraction + px, or null. */
+    let marqueeDrag: { start: number; startPx: number } | null = null;
 
     const fraction = (clientX: number) => {
       const rect = el.getBoundingClientRect();
       return rect.width > 0 ? (clientX - rect.left) / rect.width : 0.5;
     };
+    const clamp01 = (f: number) => Math.min(1, Math.max(0, f));
 
     const onWheel = (e: WheelEvent) => {
       const pinch = e.ctrlKey || e.metaKey;
@@ -161,9 +188,21 @@ export function useViewport({
       apply(zoomDomain(domainRef.current, fraction(e.clientX), 2 ** -delta));
     };
 
+    /** Annotation elements own their pointerdowns (select/drag in the
+     *  editor) — a pan must never start from one. */
+    const onAnnotation = (e: Event) =>
+      e.target instanceof Element && e.target.closest("[data-annotation]") != null;
+
     const onPointerDown = (e: PointerEvent) => {
       armed = true;
+      if (suspendedRef.current || onAnnotation(e)) return;
       if (e.button !== 0) return;
+      if (marqueeArmedRef.current) {
+        marqueeDrag = { start: clamp01(fraction(e.clientX)), startPx: e.clientX };
+        setMarquee(null);
+        el.setPointerCapture(e.pointerId);
+        return;
+      }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -175,6 +214,10 @@ export function useViewport({
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (marqueeDrag) {
+        setMarquee([marqueeDrag.start, clamp01(fraction(e.clientX))]);
+        return;
+      }
       const prev = pointers.get(e.pointerId);
       if (!prev) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -205,6 +248,24 @@ export function useViewport({
     };
 
     const onPointerEnd = (e: PointerEvent) => {
+      if (marqueeDrag) {
+        const from = marqueeDrag.start;
+        const to = clamp01(fraction(e.clientX));
+        // Ignore sub-threshold drags (a stray click must not zoom into
+        // nothing); the mode stays armed for a retry.
+        if (Math.abs(e.clientX - marqueeDrag.startPx) >= 8) {
+          const [d0, d1] = domainRef.current;
+          const span = d1 - d0;
+          const lo = Math.min(from, to);
+          const hi = Math.max(from, to);
+          apply([d0 + lo * span, d0 + hi * span]);
+          setMarqueeArmed(false);
+          suppressClick = true;
+        }
+        marqueeDrag = null;
+        setMarquee(null);
+        return;
+      }
       pointers.delete(e.pointerId);
       pinchDist = 0;
       if (drag?.panning) suppressClick = true;
@@ -225,6 +286,7 @@ export function useViewport({
     };
 
     const onDblClick = (e: MouseEvent) => {
+      if (suspendedRef.current || onAnnotation(e)) return;
       e.preventDefault();
       apply(null);
     };
@@ -274,6 +336,13 @@ export function useViewport({
         case "Home":
           apply(null);
           break;
+        case "Escape":
+          if (!marqueeArmedRef.current) return;
+          setMarqueeArmed(false);
+          setMarquee(null);
+          // Don't let a fullscreen chart also exit on the same keypress.
+          e.stopPropagation();
+          break;
         default:
           return;
       }
@@ -283,11 +352,18 @@ export function useViewport({
   );
 
   const reset = useCallback(() => apply(null), [apply]);
+  const zoomIn = useCallback(() => apply(zoomDomain(domainRef.current, 0.5, 2)), [apply]);
+  const zoomOut = useCallback(() => apply(zoomDomain(domainRef.current, 0.5, 0.5)), [apply]);
 
   return {
     domain,
     isZoomed,
     reset,
+    zoomIn,
+    zoomOut,
+    marqueeArmed: enabled && marqueeArmed,
+    setMarqueeArmed,
+    marquee: enabled && marqueeArmed ? marquee : null,
     rootProps: {
       tabIndex: 0,
       onKeyDown,
