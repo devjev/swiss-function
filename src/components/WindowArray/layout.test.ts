@@ -14,6 +14,7 @@ import {
   slotsEqual,
   subrowCount,
   successor,
+  transposeDir,
 } from "./layout";
 
 // [ col-a: [a1, a2] | col-b: [b1] | col-c: [c1, c2, c3] ]
@@ -250,6 +251,18 @@ describe("slotsEqual", () => {
         { kind: "cell", columnId: "a", index: 2 },
       ),
     ).toBe(false);
+  });
+});
+
+describe("transposeDir", () => {
+  it("swaps the axes both ways (its own inverse)", () => {
+    expect(transposeDir("up")).toBe("left");
+    expect(transposeDir("down")).toBe("right");
+    expect(transposeDir("left")).toBe("up");
+    expect(transposeDir("right")).toBe("down");
+    for (const dir of ["up", "down", "left", "right"] as const) {
+      expect(transposeDir(transposeDir(dir))).toBe(dir);
+    }
   });
 });
 

@@ -49,7 +49,6 @@ const componentNames = [
   "TextEdit",
   "Timeline",
   "ToggleGroup",
-  "Accordion",
   "Selector",
   "Reflow",
   "Picker",

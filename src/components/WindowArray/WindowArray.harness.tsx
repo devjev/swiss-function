@@ -53,6 +53,8 @@ export function WindowArrayHarness({
   snap,
   controls,
   hotkeys,
+  orientation,
+  verticalBelow,
 }: {
   columnCount?: number;
   windowsPerColumn?: number;
@@ -62,6 +64,8 @@ export function WindowArrayHarness({
   snap?: boolean;
   controls?: boolean;
   hotkeys?: boolean;
+  orientation?: "auto" | "horizontal" | "vertical";
+  verticalBelow?: number;
 }) {
   const [columns, setColumns] = useState(() => makeColumns(columnCount, windowsPerColumn));
   const [lastMove, setLastMove] = useState<WindowMove | null>(null);
@@ -76,6 +80,8 @@ export function WindowArrayHarness({
         snap={snap}
         controls={controls}
         hotkeys={hotkeys}
+        orientation={orientation}
+        verticalBelow={verticalBelow}
         onActiveChange={setActiveId}
         onWindowMove={(move) => {
           setLastMove(move);

@@ -46,15 +46,21 @@ import {
   slotsEqual,
   subrowCount,
   successor,
+  transposeDir,
 } from "./layout";
 import styles from "./WindowArray.module.css";
 
 export type { WindowMove } from "./layout";
 
 const DEFAULT_COLUMN_WIDTH = 480;
+/** Default `verticalBelow` breakpoint: narrower than one default column and
+ *  the horizontal strip has no room to breathe. */
+const DEFAULT_VERTICAL_BELOW = 480;
 /** Largest near-fit overflow (px) absorbed by narrowing the last column
  *  instead of growing a horizontal scrollbar. */
 const SQUEEZE_MAX = 8;
+/** Distance (px) from an inline edge within which its paddle fades in. */
+const PADDLE_PROXIMITY = 80;
 
 function toUnit(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
@@ -98,6 +104,18 @@ const ChevronRightIcon = () => (
   // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
   <svg {...ICON_PROPS}>
     <path d="M6 3l5 5-5 5" strokeLinecap="square" />
+  </svg>
+);
+const ChevronUpIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M3 10l5-5 5 5" strokeLinecap="square" />
+  </svg>
+);
+const ChevronDownIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M3 6l5 5 5-5" strokeLinecap="square" />
   </svg>
 );
 
@@ -177,12 +195,20 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
    *  resizing so gestures aren't fought). Default `false`. */
   snap?: boolean;
   /** Floating prev/next paddles at the inline edges that switch the active
-   *  window to the neighbouring column. Default `false`. */
+   *  window to the neighbouring column. Each fades in while the pointer is
+   *  near its edge (always visible on hoverless devices). Default `false`. */
   controls?: boolean;
   /** Alt+ArrowLeft/Right switch columns while focus is anywhere inside the
    *  array (window content included) — scoped to the component, never the
-   *  document. Default `false`. */
+   *  document. Alt+ArrowUp/Down in the vertical orientation. Default `false`. */
   hotkeys?: boolean;
+  /** Layout axis. `"auto"` transposes to a vertical, top-to-bottom strip while
+   *  the container is narrower than `verticalBelow`: columns become full-width
+   *  bands and their windows sit side by side. Default `"auto"`. */
+  orientation?: "auto" | "horizontal" | "vertical";
+  /** Container width (px) below which `orientation="auto"` goes vertical.
+   *  Default `480`. */
+  verticalBelow?: number;
   /** Expect `WindowArray.Column` elements. */
   children?: ReactNode;
 }
@@ -202,10 +228,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     snap = false,
     controls = false,
     hotkeys = false,
+    orientation = "auto",
+    verticalBelow = DEFAULT_VERTICAL_BELOW,
     className,
     style,
     children,
     onKeyDown: onKeyDownProp,
+    onPointerMove: onPointerMoveProp,
+    onPointerLeave: onPointerLeaveProp,
     ...rest
   },
   ref,
@@ -264,17 +294,41 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 
   // --- Element registries ---------------------------------------------------
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
   const columnRefs = useRef(new Map<string, HTMLDivElement>());
   const handleRefs = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocusRef = useRef<string | null>(null);
 
   const setRefs = useCallback(
     (node: HTMLElement | null) => {
+      rootRef.current = node;
       if (typeof ref === "function") ref(node);
       else if (ref) ref.current = node;
     },
     [ref],
   );
+
+  // --- Orientation -----------------------------------------------------------
+  // "auto" watches the ROOT's width (parent-controlled — the scrollbar lives
+  // inside the viewport, so switching orientation can't feed back into the
+  // measurement). Before the first observer tick the strip renders horizontal.
+  const [measuredNarrow, setMeasuredNarrow] = useState(false);
+  useEffect(() => {
+    if (orientation !== "auto") return;
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? root.clientWidth;
+      setMeasuredNarrow(width < verticalBelow);
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [orientation, verticalBelow]);
+  const vertical = orientation === "vertical" || (orientation === "auto" && measuredNarrow);
+  // For stable callbacks (drop projection, squeeze) that must not re-bind
+  // dnd-kit listeners or the ResizeObserver on an orientation flip.
+  const verticalRef = useRef(vertical);
+  verticalRef.current = vertical;
 
   // --- Column resize (in-flow gutters, one shared drag instance) -----------
   const [widthOverrides, setWidthOverrides] = useState<Record<string, number>>({});
@@ -284,6 +338,9 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     start: number;
     min: number;
     controlled: boolean;
+    /** Drag axis captured at press, so an orientation flip mid-drag (container
+     *  resize during the gesture) can't scramble the delta. */
+    vertical: boolean;
     onWidthChange?: (width: number) => void;
   } | null>(null);
 
@@ -303,6 +360,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         start: columnWidth(col.props),
         min: col.props.minWidth ?? columnMinWidth,
         controlled: col.props.width !== undefined,
+        vertical: verticalRef.current,
         onWidthChange: col.props.onWidthChange,
       };
       setResizingId(columnId);
@@ -310,7 +368,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onMove: (delta) => {
       const s = resizeStart.current;
       if (!s) return;
-      const next = clampWidth(s.start + delta.dx, s.min);
+      const next = clampWidth(s.start + (s.vertical ? delta.dy : delta.dx), s.min);
       setWidthOverrides((prev) => ({ ...prev, [s.columnId]: next }));
     },
     onEnd: (delta) => {
@@ -318,7 +376,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       resizeStart.current = null;
       setResizingId(null);
       if (!s) return;
-      const final = clampWidth(s.start + delta.dx, s.min);
+      const final = clampWidth(s.start + (s.vertical ? delta.dy : delta.dx), s.min);
       s.onWidthChange?.(final);
       // Controlled columns take back over from the live override on settle.
       if (s.controlled) {
@@ -331,21 +389,25 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 
   const resizeByKey = useCallback(
     (props: WindowArrayColumnProps, event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      // The gutter follows the layout axis: Left/Right resize a column,
+      // Up/Down resize a band in the vertical orientation.
+      const grow = vertical ? "ArrowDown" : "ArrowRight";
+      const shrink = vertical ? "ArrowUp" : "ArrowLeft";
+      if (event.key !== grow && event.key !== shrink) return;
       // Leave modified arrows alone (Alt+Arrow is the column-switch hotkey).
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       event.preventDefault();
       const step = event.shiftKey ? 24 : 8;
       const min = props.minWidth ?? columnMinWidth;
       const current = columnWidth(props);
-      const next = clampWidth(current + (event.key === "ArrowRight" ? step : -step), min);
+      const next = clampWidth(current + (event.key === grow ? step : -step), min);
       if (next === current) return;
       props.onWidthChange?.(next);
       if (props.width === undefined) {
         setWidthOverrides((prev) => ({ ...prev, [props.id]: next }));
       }
     },
-    [columnMinWidth, columnWidth],
+    [columnMinWidth, columnWidth, vertical],
   );
 
   const resetWidth = useCallback((props: WindowArrayColumnProps) => {
@@ -380,12 +442,17 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         } else {
           const activator = e.activatorEvent as PointerEvent | null;
           if (activator == null) return null;
-          const y = activator.clientY + e.delta.y;
           const rect = e.over.rect;
+          // Insertion side follows the stacking axis: pointer y against the
+          // window's midline, or x when the stack runs sideways (vertical
+          // orientation). Read through the ref so this callback stays stable.
+          const before = verticalRef.current
+            ? activator.clientX + e.delta.x < rect.left + rect.width / 2
+            : activator.clientY + e.delta.y < rect.top + rect.height / 2;
           slot = {
             kind: "cell",
             columnId: data.columnId,
-            index: y < rect.top + rect.height / 2 ? data.row : data.row + 1,
+            index: before ? data.row : data.row + 1,
           };
         }
       }
@@ -447,12 +514,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         ArrowLeft: "left",
         ArrowRight: "right",
       };
-      const dir = dirs[event.key];
-      if (dir) {
+      const visualDir = dirs[event.key];
+      if (visualDir) {
         // Alt/Ctrl/Meta arrows are not ours (Alt+Arrow bubbles to the root
         // hotkey handler; the others are browser/OS combos).
         if (event.altKey || event.ctrlKey || event.metaKey) return;
         event.preventDefault();
+        // The model stays column-major in both orientations; in the vertical
+        // (transposed) layout a visual arrow maps to the axis-swapped model
+        // direction, so navigation and Shift+move follow what's on screen.
+        const dir = vertical ? transposeDir(visualDir) : visualDir;
         if (event.shiftKey) {
           if (!onWindowMove) return;
           const move = moveByKey(modelRef.current, id, dir);
@@ -479,7 +550,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         setFullscreen(null);
       }
     },
-    [onWindowMove, setActive, focusHandle, resolvedFullscreen, setFullscreen],
+    [onWindowMove, setActive, focusHandle, resolvedFullscreen, setFullscreen, vertical],
   );
 
   // Escape exits fullscreen from anywhere (container-scoped — no body scroll
@@ -524,6 +595,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // scrollIntoView would also scroll the page. Smoothness comes from CSS
   // `scroll-behavior`; with `snap` on, both edge positions are exactly the
   // CSS snap positions (start on backdrops, end on windows, gap padding).
+  // Axis follows the orientation (and re-reveals on an orientation flip).
   useEffect(() => {
     if (resolvedActive == null) return;
     const viewport = viewportRef.current;
@@ -535,34 +607,42 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     const columnRect = column.getBoundingClientRect();
     // The backdrop's previous sibling is always its leading gutter — measure
     // it so the gap stays in view at the aligned edge.
-    const gapPx = column.previousElementSibling?.getBoundingClientRect().width ?? 0;
-    const left = columnRect.left - viewportRect.left + viewport.scrollLeft;
-    const startAligned = left - gapPx;
-    const endAligned = left + columnRect.width + gapPx - viewport.clientWidth;
+    const gapRect = column.previousElementSibling?.getBoundingClientRect();
+    const gapPx = (vertical ? gapRect?.height : gapRect?.width) ?? 0;
+    const lead = vertical
+      ? columnRect.top - viewportRect.top + viewport.scrollTop
+      : columnRect.left - viewportRect.left + viewport.scrollLeft;
+    const size = vertical ? columnRect.height : columnRect.width;
+    const client = vertical ? viewport.clientHeight : viewport.clientWidth;
+    const scrollSize = vertical ? viewport.scrollHeight : viewport.scrollWidth;
+    const position = vertical ? viewport.scrollTop : viewport.scrollLeft;
+    const startAligned = lead - gapPx;
+    const endAligned = lead + size + gapPx - client;
     let target: number | null = null;
-    if (viewport.scrollLeft > startAligned) target = startAligned;
-    else if (viewport.scrollLeft < endAligned) target = endAligned;
+    if (position > startAligned) target = startAligned;
+    else if (position < endAligned) target = endAligned;
     if (target == null) return;
-    viewport.scrollTo({
-      left: Math.max(0, Math.min(viewport.scrollWidth - viewport.clientWidth, target)),
-    });
-  }, [resolvedActive]);
+    const clamped = Math.max(0, Math.min(scrollSize - client, target));
+    viewport.scrollTo(vertical ? { top: clamped } : { left: clamped });
+  }, [resolvedActive, vertical]);
 
   // --- Near-fit overflow absorption ------------------------------------------
-  // When the columns' natural width exceeds the viewport by no more than
-  // SQUEEZE_MAX px (an "exactly full" layout off by a rounding hair or a gap),
-  // the rendered width of the LAST column is reduced by the overflow so no
-  // horizontal scrollbar appears. State (widths, aria-valuenow) is untouched.
+  // When the columns' natural extent along the scroll axis exceeds the
+  // viewport by no more than SQUEEZE_MAX px (an "exactly full" layout off by a
+  // rounding hair or a gap), the rendered size of the LAST column is reduced
+  // by the overflow so no scrollbar appears. State (widths, aria-valuenow) is
+  // untouched.
   const [squeeze, setSqueeze] = useState(0);
   const squeezeRef = useRef(0);
   squeezeRef.current = squeeze;
   const measureSqueeze = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    // scrollWidth already reflects the currently applied squeeze — add it
-    // back to recover the natural width, so the fixpoint is stable.
-    const natural = viewport.scrollWidth + squeezeRef.current;
-    const overflow = natural - viewport.clientWidth;
+    // scrollWidth/scrollHeight already reflect the currently applied squeeze —
+    // add it back to recover the natural size, so the fixpoint is stable.
+    const vert = verticalRef.current;
+    const natural = (vert ? viewport.scrollHeight : viewport.scrollWidth) + squeezeRef.current;
+    const overflow = natural - (vert ? viewport.clientHeight : viewport.clientWidth);
     const next = overflow > 0 && overflow <= SQUEEZE_MAX ? overflow : 0;
     setSqueeze((prev) => (prev === next ? prev : next));
   }, []);
@@ -595,15 +675,44 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     if (focus) focusHandle(next);
   };
 
+  // Paddles rest invisible and fade in while the pointer is near their edge
+  // (CSS keeps them always-on where hover doesn't exist). Tracked on the root
+  // so any pointer position inside the array counts — not just hovering the
+  // button's own box.
+  const [nearEdges, setNearEdges] = useState({ start: false, end: false });
+  const handleRootPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    onPointerMoveProp?.(event);
+    if (!controls) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Proximity along the scroll axis: inline edges, or block edges when the
+    // strip is vertical (paddles sit at the top/bottom there).
+    const start = vertical
+      ? event.clientY - rect.top < PADDLE_PROXIMITY
+      : event.clientX - rect.left < PADDLE_PROXIMITY;
+    const end = vertical
+      ? rect.bottom - event.clientY < PADDLE_PROXIMITY
+      : rect.right - event.clientX < PADDLE_PROXIMITY;
+    // Bail on same values so pointer movement doesn't re-render the strip.
+    setNearEdges((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
+  };
+  const handleRootPointerLeave = (event: React.PointerEvent<HTMLElement>) => {
+    onPointerLeaveProp?.(event);
+    setNearEdges((prev) => (prev.start || prev.end ? { start: false, end: false } : prev));
+  };
+
   const handleRootKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     onKeyDownProp?.(event);
     if (!hotkeys || event.defaultPrevented) return;
     if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    // The hotkey pair follows the layout axis: Alt+Left/Right across columns,
+    // Alt+Up/Down across bands in the vertical orientation.
+    const prevKey = vertical ? "ArrowUp" : "ArrowLeft";
+    const nextKey = vertical ? "ArrowDown" : "ArrowRight";
+    if (event.key !== prevKey && event.key !== nextKey) return;
     // Also suppresses the browser's Alt+Arrow history navigation while the
     // strip has focus.
     event.preventDefault();
-    switchColumn(event.key === "ArrowLeft" ? "left" : "right", true);
+    switchColumn(event.key === prevKey ? "left" : "right", true);
   };
 
   // --- Drop-indicator resolution --------------------------------------------
@@ -629,25 +738,43 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // — a rearrange only changes a keyed sibling's placement, so React keeps the
   // window's fiber and its content state survives the move. The dithered
   // "desk" the windows sit on is the strip's ::before (see the CSS).
+  // All placements are computed here (main axis = track, cross axis = full
+  // span or subrow range) and swap grid-column/grid-row when vertical.
+  const gutterPlacement = (index: number): CSSProperties =>
+    vertical
+      ? { gridRow: index * 2 + 1, gridColumn: "1 / -1" }
+      : { gridColumn: index * 2 + 1, gridRow: "1 / -1" };
+  const backPlacement = (ci: number): CSSProperties =>
+    vertical
+      ? { gridRow: ci * 2 + 2, gridColumn: "1 / -1" }
+      : { gridColumn: ci * 2 + 2, gridRow: "1 / -1" };
+  const windowPlacement = (ci: number, track: { start: number; span: number }): CSSProperties =>
+    vertical
+      ? { gridRow: ci * 2 + 2, gridColumn: `${track.start} / span ${track.span}` }
+      : { gridColumn: ci * 2 + 2, gridRow: `${track.start} / span ${track.span}` };
   const subrows = subrowCount(columns.map((c) => c.windows.length));
   const trackWidths = columns.map((c) => columnWidth(c.props));
   if (squeeze > 0 && trackWidths.length > 0) {
     const last = trackWidths.length - 1;
     trackWidths[last] = Math.max(0, (trackWidths[last] ?? 0) - squeeze);
   }
+  // Vertical orientation transposes the same templates: column tracks become
+  // row tracks (a column's width value is its band height) and the fractional
+  // subrows split the width instead of the height.
+  const mainTemplate = `${gapSize} ${trackWidths
+    .map((w) => `${w}px`)
+    .join(` ${gapSize} `)} ${gapSize}`;
+  const crossTemplate = `repeat(${subrows}, minmax(0, 1fr))`;
   const stripStyle: CSSProperties | undefined = lastColumn
-    ? {
-        gridTemplateColumns: `${gapSize} ${trackWidths
-          .map((w) => `${w}px`)
-          .join(` ${gapSize} `)} ${gapSize}`,
-        gridTemplateRows: `repeat(${subrows}, minmax(0, 1fr))`,
-      }
+    ? vertical
+      ? { gridTemplateRows: mainTemplate, gridTemplateColumns: crossTemplate }
+      : { gridTemplateColumns: mainTemplate, gridTemplateRows: crossTemplate }
     : undefined;
 
   return (
     // A <section> with a consumer-supplied aria-label is a named region
     // landmark — document the label in API.md rather than defaulting one.
-    // biome-ignore lint/a11y/noStaticElementInteractions: onKeyDown only observes bubbling Alt+Arrow hotkeys from focusable descendants; the section itself is not interactive.
+    // biome-ignore lint/a11y/noStaticElementInteractions: onKeyDown only observes bubbling Alt+Arrow hotkeys from focusable descendants, and the pointer handlers only track paddle proximity; the section itself is not interactive.
     <section
       {...rest}
       ref={setRefs}
@@ -659,11 +786,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           ...style,
         } as CSSProperties
       }
+      data-orientation={vertical ? "vertical" : "horizontal"}
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
       data-snap={snap ? "" : undefined}
       data-controls={controls ? "" : undefined}
       data-interacting={draggingId != null || resizingId != null ? "" : undefined}
       onKeyDown={handleRootKeyDown}
+      onPointerMove={handleRootPointerMove}
+      onPointerLeave={handleRootPointerLeave}
     >
       <DndContext
         sensors={sensors}
@@ -681,6 +811,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                 <Fragment key={col.props.id}>
                   <GutterView
                     index={ci}
+                    placement={gutterPlacement(ci)}
+                    vertical={vertical}
                     leftColumn={before ? before.props : null}
                     width={before ? columnWidth(before.props) : 0}
                     minWidth={before ? (before.props.minWidth ?? columnMinWidth) : 0}
@@ -693,7 +825,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   <ColumnBackdrop
                     col={col.props}
                     windowCount={col.windows.length}
-                    gridColumn={ci * 2 + 2}
+                    placement={backPlacement(ci)}
                     registerColumn={columnRefs.current}
                   />
                 </Fragment>
@@ -702,6 +834,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             {lastColumn && (
               <GutterView
                 index={columns.length}
+                placement={gutterPlacement(columns.length)}
+                vertical={vertical}
                 leftColumn={lastColumn.props}
                 width={columnWidth(lastColumn.props)}
                 minWidth={lastColumn.props.minWidth ?? columnMinWidth}
@@ -722,8 +856,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   win={win}
                   columnId={col.props.id}
                   row={row}
-                  gridColumn={ci * 2 + 2}
-                  rowTrack={rowTrack(row, col.windows.length, subrows)}
+                  placement={windowPlacement(ci, rowTrack(row, col.windows.length, subrows))}
                   active={resolvedActive === win.id}
                   fullscreen={resolvedFullscreen === win.id}
                   anyFullscreen={resolvedFullscreen != null}
@@ -756,20 +889,22 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             aria-label="Previous column"
             className={styles.pager}
             data-side="start"
+            data-visible={nearEdges.start ? "" : undefined}
             disabled={switchTarget("left") == null}
             onClick={() => switchColumn("left", false)}
           >
-            <ChevronLeftIcon />
+            {vertical ? <ChevronUpIcon /> : <ChevronLeftIcon />}
           </button>
           <button
             type="button"
             aria-label="Next column"
             className={styles.pager}
             data-side="end"
+            data-visible={nearEdges.end ? "" : undefined}
             disabled={switchTarget("right") == null}
             onClick={() => switchColumn("right", false)}
           >
-            <ChevronRightIcon />
+            {vertical ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </button>
         </>
       )}
@@ -782,15 +917,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 interface ColumnBackdropProps {
   col: WindowArrayColumnProps;
   windowCount: number;
-  gridColumn: number;
+  placement: CSSProperties;
   registerColumn: Map<string, HTMLDivElement>;
 }
 
-/** Invisible full-height grid item under a column's windows. It carries the
- *  consumer's Column props, is the measuring target for auto-scroll, and is
- *  the drop target for an empty column (occupied columns defer to their
- *  windows' droppables). The windows themselves are NOT its children. */
-function ColumnBackdrop({ col, windowCount, gridColumn, registerColumn }: ColumnBackdropProps) {
+/** Invisible grid item spanning a column's full track under its windows. It
+ *  carries the consumer's Column props, is the measuring target for
+ *  auto-scroll, and is the drop target for an empty column (occupied columns
+ *  defer to their windows' droppables). The windows themselves are NOT its
+ *  children. */
+function ColumnBackdrop({ col, windowCount, placement, registerColumn }: ColumnBackdropProps) {
   const {
     id,
     width: _width,
@@ -818,15 +954,18 @@ function ColumnBackdrop({ col, windowCount, gridColumn, registerColumn }: Column
       }}
       data-column-id={id}
       className={cx(styles.columnBack, className)}
-      style={{ gridColumn, ...style }}
+      style={{ ...placement, ...style }}
     />
   );
 }
 
 interface GutterViewProps {
   index: number;
-  /** The column this gutter resizes (its left neighbour); null for the leading
-   *  gutter, which is drop-only. */
+  placement: CSSProperties;
+  /** Layout axis — flips the separator's aria-orientation and resize cursor. */
+  vertical: boolean;
+  /** The column this gutter resizes (its leading neighbour); null for the
+   *  leading gutter, which is drop-only. */
   leftColumn: WindowArrayColumnProps | null;
   width: number;
   minWidth: number;
@@ -839,6 +978,8 @@ interface GutterViewProps {
 
 function GutterView({
   index,
+  placement,
+  vertical,
   leftColumn,
   width,
   minWidth,
@@ -850,7 +991,6 @@ function GutterView({
 }: GutterViewProps) {
   const { setNodeRef } = useDroppable({ id: `gap-${index}`, data: { gapIndex: index } });
   const resizable = leftColumn != null && (leftColumn.resizable ?? true);
-  const placement: CSSProperties = { gridColumn: index * 2 + 1 };
   if (!resizable) {
     return (
       <div
@@ -867,7 +1007,9 @@ function GutterView({
     <div
       ref={setNodeRef}
       role="separator"
-      aria-orientation="vertical"
+      // A separator's aria-orientation names the line's own axis: a horizontal
+      // line (vertical strip) is "horizontal", resized with Up/Down.
+      aria-orientation={vertical ? "horizontal" : "vertical"}
       aria-label="Resize column"
       aria-valuenow={Math.round(width)}
       aria-valuemin={minWidth}
@@ -889,8 +1031,7 @@ interface WindowViewProps {
   win: WindowArrayWindowProps;
   columnId: string;
   row: number;
-  gridColumn: number;
-  rowTrack: { start: number; span: number };
+  placement: CSSProperties;
   active: boolean;
   fullscreen: boolean;
   anyFullscreen: boolean;
@@ -908,8 +1049,7 @@ function WindowView({
   win,
   columnId,
   row,
-  gridColumn,
-  rowTrack: track,
+  placement,
   active,
   fullscreen,
   anyFullscreen,
@@ -957,7 +1097,7 @@ function WindowView({
       data-window-id={id}
       data-column-id={columnId}
       className={cx(styles.window, className)}
-      style={{ gridColumn, gridRow: `${track.start} / span ${track.span}`, ...style }}
+      style={{ ...placement, ...style }}
       data-active={active ? "" : undefined}
       data-fullscreen={fullscreen ? "" : undefined}
       data-dragging={dragging ? "" : undefined}

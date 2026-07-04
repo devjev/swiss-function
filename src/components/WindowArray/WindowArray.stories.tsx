@@ -117,8 +117,9 @@ function Demo({
 export const Basic: Story = () => <Demo />;
 
 /** Enough columns to overflow: the strip scrolls horizontally with proximity
- *  column snapping, edge paddles switch columns, and Alt+Arrow works from
- *  anywhere inside the array (keyboard nav auto-scrolls as before). */
+ *  column snapping, edge paddles switch columns (they fade in as the pointer
+ *  nears their edge), and Alt+Arrow works from anywhere inside the array
+ *  (keyboard nav auto-scrolls as before). */
 export const ManyColumns: Story = () => (
   <Demo
     snap
@@ -135,6 +136,26 @@ export const ManyColumns: Story = () => (
       ],
     }))}
   />
+);
+
+/** Below 480px of container width the auto orientation transposes the strip:
+ *  it scrolls top-to-bottom, columns become full-width bands, and stacked
+ *  windows sit side by side. Drag the container's resize corner across the
+ *  breakpoint to watch it flip — arrows, Shift+moves, gutter resizing,
+ *  paddles, and Alt+hotkeys all follow the layout axis. */
+export const NarrowVertical: Story = () => (
+  <div
+    style={{
+      inlineSize: 360,
+      minInlineSize: 240,
+      maxInlineSize: 880,
+      resize: "horizontal",
+      overflow: "auto",
+      padding: "0 0 var(--sf-space-2) 0",
+    }}
+  >
+    <Demo height={520} snap controls hotkeys />
+  </div>
 );
 
 /** `elevation={4}` lifts every window off the dithered desk with a deeper

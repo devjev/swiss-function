@@ -107,7 +107,6 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Accordion`     | Vertically stacked collapsible sections.                 |
 | `Tabs`          | Horizontally peer-level views in the same surface.       |
 
 ### Data display
@@ -274,7 +273,7 @@ Common requests and the right component:
 | "a window manager / tiling windows / multi-window workspace / scrollable strip of panels" | `WindowArray` (`Dialog draggable` for a single floating window) |
 | "a table"                                          | `DataTable` (almost always — it handles a lot)   |
 | "tabs"                                             | `Tabs`                                           |
-| "collapsible sections"                             | `Accordion`                                      |
+| "collapsible sections"                             | No dedicated component — use `Tabs` for peer views, or `Reflow` (collapses to accordion-style sections when narrow) |
 | "a sidebar file tree"                              | `Explorer`                                       |
 | "an outline / nested list editor"                  | `Outliner`                                       |
 | "a timeline with events"                           | `Timeline`                                       |

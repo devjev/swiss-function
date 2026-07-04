@@ -25,7 +25,7 @@ Per-component prop/element reference for every exported component in the library
   their parts forward props to the underlying primitive — see the Base UI docs
   for the full surface.
 
-**Components (A–Z):** Accordion · BarChart · Box · BridgeChart · Button ·
+**Components (A–Z):** BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · DataTable · Dialog · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
@@ -33,16 +33,6 @@ Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalTex
 Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup · WindowArray
 
 ---
-
-## Accordion
-
-`import { Accordion } from "@tarassov-ch/swiss-function/accordion"`
-
-Compound, collapsible sections. Wraps Base UI's Accordion. Extends `HTMLAttributes<HTMLDivElement>`.
-
-**Elements / Parts:** `Accordion.Root` (container), `Accordion.Item` (one section),
-`Accordion.Header` (semantic heading), `Accordion.Trigger` (toggles the panel),
-`Accordion.Panel` (collapsible content).
 
 ## BarChart
 
@@ -1132,6 +1122,8 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 
 A window-manager main area in the style of Niri's scrollable tiling: an infinitely horizontally-scrollable strip of columns, each column a vertical stack of equal-height windows with Dialog-style chrome (title bar, optional ✕ and fullscreen buttons). Declarative: the consumer owns the column/window list and re-renders it; the component reports every rearrangement through `onWindowMove` and never mutates order itself. Fills its parent, so give the parent a height.
 
+When the container is narrower than `verticalBelow` (with the default `orientation="auto"`), the strip transposes: it scrolls top-to-bottom, each column becomes a full-width band whose height is the column's width value, and the column's windows sit side by side inside the band. Arrow keys, Shift+moves, drops, gutter resizing, snap, paddles, and hotkeys all follow the layout axis; the model, ids, and `WindowMove` indices are identical in both orientations.
+
 **Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection).
 
 | Prop (root) | Type | Default | Notes |
@@ -1143,13 +1135,15 @@ A window-manager main area in the style of Niri's scrollable tiling: an infinite
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting shadow depth for the windows (`--sf-elevation-N`); fullscreen windows stay flat. |
 | `snap` | `boolean` | `false` | Proximity scroll-snap: columns settle flush with the nearest viewport edge, gutter in view (free scrolling stays possible; suspended mid-drag/resize so gestures aren't fought). |
-| `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). Also hides the horizontal scrollbar — the strip still scrolls by wheel, keyboard, and drag. |
-| `hotkeys` | `boolean` | `false` | Alt+ArrowLeft/Right switch columns while focus is *anywhere inside the array*, window content included (component-scoped — suppresses the browser's Alt+Arrow history navigation only there). |
+| `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). Each paddle fades in while the pointer is within 80px of its edge (or on keyboard focus); on hoverless devices both stay visible. Also hides the horizontal scrollbar — the strip still scrolls by wheel, keyboard, and drag. |
+| `hotkeys` | `boolean` | `false` | Alt+ArrowLeft/Right switch columns while focus is *anywhere inside the array*, window content included (component-scoped — suppresses the browser's Alt+Arrow history navigation only there). Alt+ArrowUp/Down in the vertical orientation. |
+| `orientation` | `"auto" \| "horizontal" \| "vertical"` | `"auto"` | Layout axis. `"auto"` watches the container's width and goes vertical below `verticalBelow`; the explicit values force a mode. |
+| `verticalBelow` | `number` | `480` | Container width (px) below which `"auto"` transposes to the vertical strip. |
 
 | Prop (Column) | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `id` | `string` | — | Stable identity for move targets and width callbacks. |
-| `width` / `defaultWidth` / `onWidthChange` | `number` | — / `480` | px width, controlled or uncontrolled. The callback fires when a resize settles (drag end, key press, double-click reset — which restores `defaultWidth`). |
+| `width` / `defaultWidth` / `onWidthChange` | `number` | — / `480` | The column's size in px along the scroll axis — its width, or its band height in the vertical orientation (one state for both). Controlled or uncontrolled; the callback fires when a resize settles (drag end, key press, double-click reset — which restores `defaultWidth`). |
 | `minWidth` | `number` | root's `columnMinWidth` | |
 | `resizable` | `boolean` | `true` | `false` removes the column's trailing resize gutter. |
 
@@ -1185,7 +1179,7 @@ const [columns, setColumns] = useState(initial);
 // empty; then splice into to.columnId at to.index (or insert a new column).
 ```
 
-Keyboard (on a focused title bar — each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen. With `hotkeys`, Alt+ArrowLeft/Right additionally switch columns from anywhere inside the array — including focused window content. Focus moves auto-scroll the strip (container-scoped; minimal reveal — the column lands flush with the nearest edge, its gutter kept in view) — smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
+Keyboard (on a focused title bar — each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen. In the vertical orientation arrows follow the transposed layout (up/down switch bands, left/right walk within a band; same for Shift+moves). With `hotkeys`, Alt+ArrowLeft/Right (Alt+ArrowUp/Down when vertical) additionally switch columns from anywhere inside the array — including focused window content. Focus moves auto-scroll the strip (container-scoped; minimal reveal — the column lands flush with the nearest edge, its gutter kept in view) — smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
 
 Notes: windows render as flat, keyed siblings of one strip grid and are placed into columns purely by grid coordinates, so a move (any direction, including across columns) never remounts a window — React state and DOM state (inputs, scroll) survive; an `<iframe>` may still reload when a move reorders the DOM. The window body scrolls internally. Empty columns render as one full-height drop target; removing an emptied column is the consumer's call. The strip's background is the same muted dither as DataTable's `columnFill` (recolor via `--sf-wa-fill-color`) — a stationary "desk" the windows slide over, visible in the gaps and wherever columns don't reach. Near-exact fits are forgiven: up to 8px of natural overflow is absorbed by narrowing the last column's rendered width — the width *state* is untouched — so a layout meant to fill 100% never grows a horizontal scrollbar.
 

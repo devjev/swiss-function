@@ -28,6 +28,23 @@ export type DropSlot =
 
 export type NavDirection = "up" | "down" | "left" | "right";
 
+/** Swap the axes of a visual arrow direction. In the vertical (transposed)
+ *  layout, columns run top-to-bottom and their windows run left-to-right, so a
+ *  visual arrow maps to the model direction with its axes swapped — the model
+ *  itself stays column-major in both orientations. */
+export function transposeDir(dir: NavDirection): NavDirection {
+  switch (dir) {
+    case "up":
+      return "left";
+    case "down":
+      return "right";
+    case "left":
+      return "up";
+    case "right":
+      return "down";
+  }
+}
+
 /** Structural equality for drop slots — used to skip state updates (and the
  *  full-strip re-render they cause) while a drag stays within one slot. */
 export function slotsEqual(a: DropSlot | null, b: DropSlot | null): boolean {

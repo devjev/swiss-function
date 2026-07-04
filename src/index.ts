@@ -1,4 +1,3 @@
-export * from "./components/Accordion";
 export * from "./components/BarChart";
 export * from "./components/Box";
 export * from "./components/BridgeChart";

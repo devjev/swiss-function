@@ -1,5 +1,11 @@
 /* WindowArray — Niri-style horizontally scrolling strip of window columns.
 
+   Orientation: `.root[data-orientation="vertical"]` (narrow container with
+   orientation="auto", or forced) transposes the whole strip — it scrolls
+   top-to-bottom, columns become full-width bands, their windows sit side by
+   side. Every vertical rule below is a per-axis override of its horizontal
+   counterpart; grid placements are inline (set by the component).
+
    LOAD-BEARING INVARIANT: `.root` must stay the ONLY positioned ancestor
    between a window and the component root. A fullscreen window is
    `position: absolute; inset: 0` and covers the root's box precisely because
@@ -32,6 +38,12 @@
      swipe-back navigation at the strip's ends). */
   overscroll-behavior-x: contain;
 }
+.root[data-orientation="vertical"] .viewport {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: auto;
+  overscroll-behavior-y: contain;
+}
 
 /* Optional column snapping (`snap`): proximity, not mandatory, so free
    scrolling stays possible; columns settle flush with a viewport EDGE (their
@@ -48,6 +60,13 @@
 }
 .root[data-snap] .window {
   scroll-snap-align: end;
+}
+/* Same snap policy along the block axis when vertical. Must precede the
+   data-interacting suspension below — equal specificity, order decides. */
+.root[data-snap][data-orientation="vertical"] .viewport {
+  scroll-snap-type: block proximity;
+  scroll-padding-inline: 0;
+  scroll-padding-block: var(--sf-wa-gap, calc(var(--sf-unit) / 2));
 }
 /* Suspend snapping mid-gesture: dnd-kit's auto-scroll and gutter resizing
    move scrollLeft/track widths continuously and re-snapping would fight. */
@@ -68,6 +87,9 @@
 .root[data-has-fullscreen] .viewport {
   overflow-x: hidden;
 }
+.root[data-orientation="vertical"][data-has-fullscreen] .viewport {
+  overflow-y: hidden;
+}
 
 /* One flat grid for the whole strip: alternating gutter/column tracks and
    `subrowCount` fractional rows (both templates set inline). Windows are
@@ -83,13 +105,25 @@
   padding-block: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
   box-sizing: border-box;
 }
-
-/* Invisible full-height item under a column's windows: carries the consumer's
-   Column props, measures for auto-scroll, and catches drops when empty. Must
-   stay un-positioned (see the file header) and unstyled by default. */
-.columnBack {
-  grid-row: 1 / -1;
+/* Transposed: the strip grows downward (row tracks are the columns' px sizes)
+   and fills the viewport's width; the half-gap padding moves to the inline
+   edges because window margins move to margin-inline. */
+.root[data-orientation="vertical"] .strip {
+  block-size: auto;
+  min-block-size: 100%;
+  inline-size: 100%;
   min-inline-size: 0;
+  padding-block: 0;
+  padding-inline: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
+}
+
+/* Invisible full-track item under a column's windows: carries the consumer's
+   Column props, measures for auto-scroll, and catches drops when empty. Must
+   stay un-positioned (see the file header) and unstyled by default. Grid
+   placement (both axes) is inline — set by the component per orientation. */
+.columnBack {
+  min-inline-size: 0;
+  min-block-size: 0;
 }
 
 /* The "desk" the windows sit on: the whole strip background carries the same
@@ -116,15 +150,18 @@
 }
 
 /* In-flow resize gutter between columns (also the "drop here to make a new
-   column" target while dragging). The leading gutter is drop-only. */
+   column" target while dragging). The leading gutter is drop-only. Grid
+   placement is inline, per orientation. */
 .gutter {
   position: relative;
-  grid-row: 1 / -1;
   touch-action: none;
   outline: none;
 }
 .gutter[data-resizable] {
   cursor: col-resize;
+}
+.root[data-orientation="vertical"] .gutter[data-resizable] {
+  cursor: row-resize;
 }
 /* Centered 2px line — invisible at rest, primary on hover/focus/drag and as
    the new-column drop indicator (Grid's gutter affordance). */
@@ -137,6 +174,15 @@
   transform: translateX(-50%);
   background-color: transparent;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+/* Transposed gutter line: horizontal, centered in the gutter's height. */
+.root[data-orientation="vertical"] .gutter::after {
+  inset-block: auto;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  inline-size: auto;
+  block-size: 2px;
+  transform: translateY(-50%);
 }
 .gutter[data-resizable]:hover::after,
 .gutter[data-resizable]:focus-visible::after,
@@ -166,6 +212,13 @@
   box-shadow: var(--sf-wa-elevation, var(--sf-elevation-1));
   overflow: hidden;
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+/* Transposed: windows sit side by side inside a band, so the half-gap moves
+   to the inline edges. :not([data-fullscreen]) keeps this from out-ranking the
+   fullscreen rule's margin: 0 (that rule has lower specificity). */
+.root[data-orientation="vertical"] .window:not([data-fullscreen]) {
+  margin-block: 0;
+  margin-inline: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
 }
 /* Active = state, so the primary border is allowed (never a resting edge). */
 .window[data-active] {
@@ -201,6 +254,21 @@
 }
 .window[data-drop-edge="after"]::after {
   inset-block-end: 0;
+}
+/* Transposed drop indicator: the stack runs sideways, so the insertion line
+   is vertical, at the window's leading/trailing inline edge. */
+.root[data-orientation="vertical"] .window[data-drop-edge="before"]::before,
+.root[data-orientation="vertical"] .window[data-drop-edge="after"]::after {
+  inset-inline: auto;
+  inset-block: 0;
+  block-size: auto;
+  inline-size: 2px;
+}
+.root[data-orientation="vertical"] .window[data-drop-edge="before"]::before {
+  inset-inline-start: 0;
+}
+.root[data-orientation="vertical"] .window[data-drop-edge="after"]::after {
+  inset-inline-end: 0;
 }
 
 .titlebar {
@@ -305,7 +373,10 @@
 /* Optional prev/next paddles (`controls`): floating square buttons at the
    inline edges. They are siblings of the viewport, never window ancestors, so
    the centering transform here does not break the fullscreen containing
-   block. z-index 1 keeps them under a fullscreen window (z-index 2). */
+   block. z-index 1 keeps them under a fullscreen window (z-index 2).
+   Invisible at rest — each fades in while the pointer is near its edge
+   (root-tracked `data-visible`) or while keyboard-focused; hidden paddles
+   drop pointer-events so they never occlude the edge of the strip. */
 .pager {
   position: absolute;
   inset-block-start: 50%;
@@ -323,13 +394,35 @@
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-2);
   cursor: pointer;
-  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-out),
+    background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 .pager[data-side="start"] {
   inset-inline-start: calc(var(--sf-unit) / 4);
 }
 .pager[data-side="end"] {
   inset-inline-end: calc(var(--sf-unit) / 4);
+}
+/* Transposed paddles: horizontally centered at the block edges (up/down). */
+.root[data-orientation="vertical"] .pager {
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+.root[data-orientation="vertical"] .pager[data-side="start"] {
+  inset-block-start: calc(var(--sf-unit) / 4);
+}
+.root[data-orientation="vertical"] .pager[data-side="end"] {
+  inset-inline-end: auto;
+  inset-block-start: auto;
+  inset-block-end: calc(var(--sf-unit) / 4);
+}
+.pager[data-visible],
+.pager:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 .pager:hover:not(:disabled) {
   background-color: var(--sf-color-bg-subtle);
@@ -339,8 +432,21 @@
   outline-offset: 1px;
 }
 .pager:disabled {
-  opacity: 0.4;
   cursor: default;
+}
+.pager[data-visible]:disabled {
+  opacity: 0.4;
+}
+
+/* No hover pointer to approach an edge with: the paddles stay visible. */
+@media (hover: none) {
+  .pager {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .pager:disabled {
+    opacity: 0.4;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

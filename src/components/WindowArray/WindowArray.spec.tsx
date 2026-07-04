@@ -260,13 +260,24 @@ test("clicking a window body activates it", async ({ mount, page }) => {
   await expect(page.locator('[data-window-id="w2a"]')).toHaveAttribute("data-active", "");
 });
 
-test("paddle controls switch the active column and disable at the ends", async ({
+test("paddle controls fade in near their edge, switch the active column and disable at the ends", async ({
   mount,
   page,
 }) => {
   await mount(<WindowArrayHarness controls />);
+  const box = await page.getByTestId("window-array").boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  const midY = box.y + box.height / 2;
   const prev = page.getByRole("button", { name: "Previous column" });
   const next = page.getByRole("button", { name: "Next column" });
+  // At rest both paddles are faded out (opacity 0 → Playwright still counts
+  // them visible, so assert the computed style) and click-through.
+  await expect(prev).toHaveCSS("opacity", "0");
+  await expect(next).toHaveCSS("opacity", "0");
+  // Pointer near the trailing edge reveals only that paddle.
+  await page.mouse.move(box.x + box.width - 10, midY);
+  await expect(next).toHaveCSS("opacity", "1");
+  await expect(prev).toHaveCSS("opacity", "0");
   // Nothing active yet: "next" starts at the strip's first window.
   await next.click();
   await expect(page.getByTestId("active-id")).toHaveText("w1a");
@@ -276,8 +287,15 @@ test("paddle controls switch the active column and disable at the ends", async (
   await next.click();
   await expect(page.getByTestId("active-id")).toHaveText("w3a");
   await expect(next).toBeDisabled();
+  // The other edge reveals (and enables clicking) the "previous" paddle.
+  await page.mouse.move(box.x + 10, midY);
+  await expect(prev).toHaveCSS("opacity", "1");
   await prev.click();
   await expect(page.getByTestId("active-id")).toHaveText("w2a");
+  // Away from both edges everything fades back out.
+  await page.mouse.move(box.x + box.width / 2, midY);
+  await expect(prev).toHaveCSS("opacity", "0");
+  await expect(next).toHaveCSS("opacity", "0");
 });
 
 test("Alt+Arrow hotkeys switch columns from inside window content", async ({ mount, page }) => {
@@ -370,6 +388,116 @@ test("controls hide the horizontal scrollbar", async ({ mount, page }) => {
     (el) => getComputedStyle(el.firstElementChild as HTMLElement).scrollbarWidth,
   );
   expect(scrollbarWidth).toBe("none");
+});
+
+test("a narrow container transposes the strip: bands stack down, windows sit side by side", async ({
+  mount,
+  page,
+}) => {
+  // 360px container < the 480px default breakpoint → auto goes vertical.
+  await mount(<WindowArrayHarness width={360} height={500} />);
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+  const w1a = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const w1b = await page.locator('[data-window-id="w1b"]').boundingBox();
+  const w2a = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!w1a || !w1b || !w2a) throw new Error("missing bounding boxes");
+  // Same band: the column's two windows share a y-range, split side by side.
+  expect(Math.abs(w1b.y - w1a.y)).toBeLessThan(2);
+  expect(w1b.x).toBeGreaterThan(w1a.x + w1a.width - 2);
+  // The next column is the band below.
+  expect(w2a.y).toBeGreaterThan(w1a.y + w1a.height - 2);
+  expect(Math.abs(w2a.x - w1a.x)).toBeLessThan(2);
+  // The gutter separator now reads as a horizontal splitter.
+  await expect(page.getByRole("separator").first()).toHaveAttribute(
+    "aria-orientation",
+    "horizontal",
+  );
+});
+
+test("a wide container stays horizontal; orientation='vertical' forces the transpose", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness orientation="vertical" />);
+  // 640px wide — above the breakpoint, vertical only because it's forced.
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
+  const w1a = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const w1b = await page.locator('[data-window-id="w1b"]').boundingBox();
+  if (!w1a || !w1b) throw new Error("missing bounding boxes");
+  expect(w1b.x).toBeGreaterThan(w1a.x + w1a.width - 2);
+});
+
+test("vertical: arrow keys follow the transposed layout", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness width={360} height={500} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  // Right = along the band (was "down" in the model), Down = next band.
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "Window 1B" })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("button", { name: "Window 2A" })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+  // Shift+Down moves the window into the band below (a model "right" move).
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 0 },
+      to: { type: "cell", columnId: "col-2", index: 0 },
+    }),
+  );
+});
+
+test("vertical: gutter drags and arrows resize the band height", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness width={360} height={500} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
+  const band = page.locator('div[data-column-id="col-1"]');
+  const gutter = page.getByRole("separator").first();
+  const before = await band.boundingBox();
+  const gb = await gutter.boundingBox();
+  if (!before || !gb) throw new Error("missing bounding boxes");
+  expect(Math.round(before.height)).toBe(220);
+  await dragMouse(
+    page,
+    { x: gb.x + gb.width / 2, y: gb.y + gb.height / 2 },
+    { x: gb.x + gb.width / 2, y: gb.y + gb.height / 2 + 60 },
+  );
+  const grown = await band.boundingBox();
+  if (!grown) throw new Error("missing bounding box");
+  expect(Math.round(grown.height)).toBe(280);
+  await expect(gutter).toHaveAttribute("aria-valuenow", "280");
+  // A horizontal separator resizes with Up/Down.
+  await gutter.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(gutter).toHaveAttribute("aria-valuenow", "288");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(gutter).toHaveAttribute("aria-valuenow", "264");
+});
+
+test("vertical: Alt+ArrowUp/Down switch bands, fullscreen still fills the container", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness width={360} height={500} hotkeys />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
+  await page.getByLabel("Note for Window 1A").click();
+  await page.keyboard.press("Alt+ArrowDown");
+  await expect(page.getByTestId("active-id")).toHaveText("w2a");
+  await page.keyboard.press("Alt+ArrowUp");
+  await expect(page.getByTestId("active-id")).toHaveText("w1a");
+  const win = page.locator('[data-window-id="w1a"]');
+  await win.getByRole("button", { name: "Enter fullscreen" }).click();
+  const rootBox = await page.getByTestId("window-array").boundingBox();
+  const fsBox = await win.boundingBox();
+  if (!rootBox || !fsBox) throw new Error("missing bounding boxes");
+  expect(Math.abs(fsBox.width - rootBox.width)).toBeLessThan(4);
+  expect(Math.abs(fsBox.height - rootBox.height)).toBeLessThan(4);
+  await page.keyboard.press("Escape");
+  await expect(win.getByRole("button", { name: "Enter fullscreen" })).toBeVisible();
 });
 
 test("window content state survives a cross-column move", async ({ mount, page }) => {
