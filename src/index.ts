@@ -11,6 +11,7 @@ export * from "./components/Chip";
 export * from "./components/ContextMenu";
 export * from "./components/DataTable";
 export * from "./components/Dialog";
+export * from "./components/DigitInput";
 export * from "./components/Drawer";
 export * from "./components/Dropzone";
 export * from "./components/Explorer";

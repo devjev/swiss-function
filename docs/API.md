@@ -33,7 +33,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · DataTable · Dialog · Dropzone ·
+ButtonGroup · Chat · Checkbox · DataTable · Dialog · DigitInput · Dropzone ·
 Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -365,6 +365,36 @@ and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
 `CloseButton` swallow pointer-down, so placing them in a draggable `Handle` never
 starts a drag. Fullscreen state is internal and resets each time the dialog
 reopens.
+
+## DigitInput
+
+`import { DigitInput } from "@tarassov-ch/swiss-function/digit-input"`
+
+Fixed-capacity numeric input rendered as individual digit cells — `[0][4][2].[5][0] %` — with two typing models. **`mode="push"`** (default, calculator): the whole control is one focus target (a hidden real input overlays the cells), digits push in from the right, always leaving a complete number; no per-cell cursor. **`mode="mask"`** (2FA style, built on Base UI's OTPField): each cell is a focus stop, typing fills left-to-right with auto-advance, Backspace steps back, and the value stays `null` until every cell is filled. Untouched, both show a faded `_` mask and report `null`. With `decimals={0}` and no `unit` it doubles as a numeric PIN/code input. Extends `HTMLAttributes<HTMLSpanElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `digits` | `number` | — | Integer places. The capacity is the input's contract; max value is all-nines. |
+| `decimals` | `number` | `0` | Decimal places. |
+| `mode` | `"push" \| "mask"` | `"push"` | Typing model — calculator vs 2FA-cell (see above). Not meant to change at runtime (a flip remounts the control). |
+| `decimalSeparator` | `ReactNode` | `"."` | Display glyph only — the form/clipboard value always uses `"."`. |
+| `unit` | `ReactNode` | — | Suffix inside the control (e.g. `"%"`). String units join `aria-valuetext`. |
+| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | `null` = pristine mask. Reported values are always complete (untyped positions are 0). Controlled values clamp to capacity + round to `decimals` (dev-warn on clamp). |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cell heights 1u / 1.5u / 2u — Input parity. |
+| `elevation` | `0–5` | `2` | Resting cell depth, cascading to every cell. |
+| `name` | `string` | — | Form participation; submits the canonical string (e.g. `"4.25"`). |
+
+Keyboard (`push`): **0–9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling — deliberate. Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); negatives are unsupported (clamped to 0).
+
+Keyboard (`mask`): OTPField's native model — typing fills the focused cell and advances, Backspace clears and steps back, ArrowLeft/Right move between cells; there is no ulp stepping. Paste is decimal-aware: text containing a separator (`"12.34"`) fills positionally (→ `012.34`), plain digit strings fill left-to-right like typing.
+
+The hidden input is `role="spinbutton"` with `aria-valuemin/max/now/valuetext` (typing is intercepted, so spinbutton value announcements are the reliable screen-reader channel). Works inside `Field` — label and description wire to the hidden input automatically. Focus is indicated by the least-significant cell rendering as an inverse-video block caret — there is deliberately **no** focus ring (an exception to the `--sf-focus-ring-*` convention; the caret is the indicator). The changed cell gets one `--sf-ease-snap` micro-pop per edit; disabled under `prefers-reduced-motion`.
+
+```tsx
+<DigitInput digits={3} decimals={2} unit="%" onValueChange={setPct} />
+<DigitInput digits={4} decimals={2} decimalSeparator="," unit="CHF" />
+<DigitInput digits={6} />  {/* numeric PIN entry */}
+```
 
 ## Drawer
 

@@ -33,6 +33,7 @@ const componentNames = [
   "Switch",
   "Radio",
   "Dialog",
+  "DigitInput",
   "Drawer",
   "Popover",
   "Menu",
