@@ -4,9 +4,13 @@
 }
 
 /* The field hosts the search input plus an optional inline clear button; the
-   border lives on the group (Combobox resets the inner input's own border). */
+   border lives on the group (Combobox resets the inner input's own border).
+   min-inline-size: 0 is load-bearing: the group is a grid item of the Picker
+   root, and its default min-width:auto would floor the whole control at the
+   search input's intrinsic width, overflowing narrow grid cells (issue #25). */
 .root .group {
   inline-size: 100%;
+  min-inline-size: 0;
 }
 
 .empty {

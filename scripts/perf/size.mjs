@@ -12,6 +12,7 @@
 // any entry's total gzip grows by more than max(5%, 2 KB). `--update`
 // rewrites the baseline. Requires a fresh `npm run build`.
 
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -130,6 +131,17 @@ out(`… ${sorted.length} entries, Σ ${kb(totalGzip)} gzip (entries overlap via
 
 if (update) {
   writeFileSync(baselinePath, `${JSON.stringify(report, null, 2)}\n`);
+  // JSON.stringify's output is not biome-formatted (it never collapses short
+  // arrays), and the baseline is a checked-in file — an unformatted rewrite
+  // turns `npm run check` red. Normalize through biome when available (it has
+  // repeatedly slipped through review otherwise).
+  try {
+    execSync(`biome format --write ${JSON.stringify(baselinePath)}`, { stdio: "ignore" });
+  } catch {
+    out(
+      "warning: biome not on PATH — run `biome format --write` on the baseline before committing\n",
+    );
+  }
   out(`baseline updated: ${baselinePath}\n`);
   process.exit(0);
 }

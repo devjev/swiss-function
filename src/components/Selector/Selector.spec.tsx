@@ -239,3 +239,23 @@ test("keyboard highlight survives its row scrolling out of the virtual window", 
   expect(after).toBe(before + 1); // continued from the old highlight
   await expect(highlighted).toBeVisible(); // and was scrolled back into view
 });
+
+test("compact layout clamps to a narrow container instead of underlapping it (issue #25)", async ({
+  mount,
+}) => {
+  // fit-content + a selection ("1 class" badge + 20-char search input) ran
+  // ~300px pre-fix; max-inline-size: 100% (and size=1 on the input) clamp it.
+  const component = await mount(
+    <div style={{ inlineSize: 224 }}>
+      <SelectorHarness
+        layout="compact"
+        initial={["Apple"]}
+        compactLabel={(n: number) => `${n} class`}
+      />
+    </div>,
+  );
+  const group = component.locator('[class*="compactGroup"]').first();
+  const box = await group.boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  expect(box.width).toBeLessThanOrEqual(225);
+});

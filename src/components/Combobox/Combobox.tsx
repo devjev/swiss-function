@@ -16,7 +16,17 @@ const useFilteredItems = BaseCombobox.useFilteredItems;
 const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseCombobox.Input>>(
   function ComboboxInput({ className, ...rest }, ref) {
     return (
-      <BaseCombobox.Input {...rest} ref={ref} className={mergeClassName(styles.input, className)} />
+      // size={1}: an <input> without a size attribute has a 20-character
+      // intrinsic width that leaks into every ancestor's min-content sizing
+      // and floors the whole control at ~237px in narrow grid cells (issue
+      // #25). Visual width is entirely CSS-driven (.input inline-size: 100%),
+      // so this only lowers the intrinsic floor. Overridable via props.
+      <BaseCombobox.Input
+        size={1}
+        {...rest}
+        ref={ref}
+        className={mergeClassName(styles.input, className)}
+      />
     );
   },
 );

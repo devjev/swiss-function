@@ -154,3 +154,19 @@ test("keyboard highlight survives its row scrolling out of the virtual window", 
   expect(after).toBe(before + 1); // continued from the old highlight
   await expect(highlighted).toBeVisible(); // and was scrolled back into view
 });
+
+test("fits inside a grid cell narrower than the input's 20-char default (issue #25)", async ({
+  mount,
+}) => {
+  // Without min-inline-size: 0 on the group (and size=1 on the input), the
+  // control bottoms out at ~237px and overflows the 224px cell.
+  const component = await mount(
+    <div style={{ inlineSize: 224 }}>
+      <Picker items={["Apple", "Banana", "Cherry"]} value="Apple" />
+    </div>,
+  );
+  const group = component.locator('[class*="group"]').first();
+  const box = await group.boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  expect(box.width).toBeLessThanOrEqual(225);
+});

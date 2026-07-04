@@ -101,9 +101,12 @@
 
 /* Compact layout: collapses to just a count + clear so it fits in tight spaces.
    The (still-present, for search) input shrinks to a minimal width; the count
-   sits ahead of it. */
+   sits ahead of it. max-inline-size clamps fit-content inside narrow
+   containers (grid cells) — without it the group keeps its content width and
+   underlaps the neighbouring cell (issue #25). */
 .root .compactGroup {
   inline-size: fit-content;
+  max-inline-size: 100%;
 }
 .root .compactInput {
   flex: 1 1 auto;
