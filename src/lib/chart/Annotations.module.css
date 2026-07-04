@@ -1,0 +1,49 @@
+.root {
+  /* Read-only overlay — annotations inform, they don't intercept hover. */
+  pointer-events: none;
+}
+
+/* Reference lines (hline/vline): dashed like the crosshair so they read as
+   scaffolding, not data. */
+.refLine {
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
+
+/* Trend lines are solid — they assert a reading of the data. */
+.trendLine {
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+
+.region {
+  /* Quiet shaded band; the stroke-free fill stays behind the data visually. */
+  fill-opacity: 0.08;
+}
+
+.measureLine {
+  stroke-width: 1;
+  opacity: 0.8;
+}
+
+.measureDot {
+  opacity: 0.8;
+}
+
+.label {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  /* Opaque halo so labels stay readable on top of data (same trick as the
+     crosshair labels). */
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+}
+
+.note {
+  font-family: var(--sf-font-sans);
+  font-weight: var(--sf-font-weight-medium);
+}

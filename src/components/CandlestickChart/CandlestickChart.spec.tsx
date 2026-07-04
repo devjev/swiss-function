@@ -56,3 +56,68 @@ test("focusing a candle shows its OHLC tooltip; blur hides it", async ({ mount, 
   await candle.blur();
   await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
+
+// --- Interactive viewport (issue #27, bar-index space) ----------------------
+
+const MANY: Candle[] = Array.from({ length: 60 }, (_, i) => {
+  const open = 100 + Math.sin(i / 5) * 10;
+  const close = open + (i % 3 === 0 ? -2 : 2);
+  return {
+    x: new Date(2026, 0, 1 + i),
+    open,
+    close,
+    high: Math.max(open, close) + 2,
+    low: Math.min(open, close) - 2,
+  };
+});
+
+test("wheel zoom (after arming) narrows the window; double-click resets", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <CandlestickChart candles={MANY} height={240} zoomable scaffolding="full" />
+    </div>,
+  );
+  await expect(c.locator("g[data-idx]")).toHaveCount(60);
+  const box = await c.locator("svg").boundingBox();
+  if (!box) throw new Error("no svg box");
+  const cx = box.x + box.width * 0.5;
+  const cy = box.y + box.height * 0.5;
+
+  await page.mouse.click(cx, cy);
+  await page.mouse.wheel(0, -600);
+  await expect(c.getByRole("button", { name: "Reset" })).toBeVisible();
+  // Zoomed in: fewer candles rendered than the full series.
+  const zoomedCount = await c.locator("g[data-idx]").count();
+  expect(zoomedCount).toBeLessThan(60);
+  await expect(c.locator("[aria-live]")).toContainText("Showing");
+
+  await page.mouse.dblclick(cx, cy);
+  await expect(c.getByRole("button", { name: "Reset" })).toHaveCount(0);
+  await expect(c.locator("g[data-idx]")).toHaveCount(60);
+});
+
+test("annotations anchor at timestamps on the gap-free bar axis", async ({ mount }) => {
+  const first = MANY[0] as Candle;
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <CandlestickChart
+        candles={MANY}
+        height={240}
+        scaffolding="full"
+        annotations={[
+          { type: "hline", y: 100, label: "Level" },
+          { type: "vline", x: MANY[30]?.x ?? 0, label: "Event" },
+          { type: "measure", x1: first.x, y1: first.close, x2: MANY[45]?.x ?? 0, y2: 118 },
+        ]}
+      />
+    </div>,
+  );
+  const overlay = c.locator("g[data-annotations]").last();
+  await expect(overlay.locator("line")).toHaveCount(3);
+  await expect(overlay.locator("text").filter({ hasText: "Level" })).toBeVisible();
+  // The measure Δx readout uses a compact duration (45 days).
+  await expect(overlay.locator("text").filter({ hasText: "45d" })).toBeVisible();
+});

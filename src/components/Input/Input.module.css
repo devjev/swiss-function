@@ -6,7 +6,8 @@
      because text fills the width — clearance over weight. */
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
+  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
@@ -26,6 +27,7 @@
     inset 0 1px 0 rgb(255 255 255 / 0.18),
     var(--sf-elevation-2);
   transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
     border-color var(--sf-duration-fast) var(--sf-ease-out),
     box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
@@ -37,6 +39,7 @@
 }
 
 .root:focus {
+  background-color: var(--sf-color-bg);
   border-color: var(--sf-color-primary);
 }
 

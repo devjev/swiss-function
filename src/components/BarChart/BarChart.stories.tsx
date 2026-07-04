@@ -1,4 +1,5 @@
 import type { Story } from "@ladle/react";
+import { useState } from "react";
 import { BarChart, type BarChartProps } from "./BarChart";
 
 export default { title: "Chart/BarChart" };
@@ -118,3 +119,45 @@ export const FullScaffolding: Story = () => (
     />
   </div>
 );
+
+/**
+ * Drill-down is an event, not behavior: `onPointActivate` fires on
+ * click/Enter, the consumer swaps the data for finer granularity and renders
+ * its own breadcrumb (a plain back button here).
+ */
+export const DrillDown: Story = () => {
+  const years: Record<string, number[]> = {
+    "2023": [22, 31, 28, 35],
+    "2024": [30, 26, 38, 41],
+    "2025": [36, 44, 39, 47],
+  };
+  const [year, setYear] = useState<string | null>(null);
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      {year != null ? (
+        <button type="button" onClick={() => setYear(null)} style={{ marginBlockEnd: "0.5rem" }}>
+          ← All years
+        </button>
+      ) : null}
+      {year == null ? (
+        <BarChart
+          categories={Object.keys(years)}
+          series={[
+            {
+              name: "Revenue",
+              values: Object.values(years).map((q) => q.reduce((a, b) => a + b, 0)),
+            },
+          ]}
+          yLabel="Revenue (k)"
+          onPointActivate={(d) => setYear(d.category)}
+        />
+      ) : (
+        <BarChart
+          categories={["Q1", "Q2", "Q3", "Q4"]}
+          series={[{ name: year, values: years[year] ?? [] }]}
+          yLabel={`Revenue ${year} (k)`}
+        />
+      )}
+    </div>
+  );
+};

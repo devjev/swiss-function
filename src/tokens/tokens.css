@@ -15,6 +15,13 @@
     /* Color — semantic */
     --sf-color-bg: #ffffff;
     --sf-color-bg-subtle: #f9fafb;
+    /* Resting fill of text-entry controls (Input, TextEdit, Combobox,
+       DigitInput): one perceptible notch below the page so an empty field
+       reads as a recessed slot, not a bare rectangle. Focus lifts the control
+       back to --sf-color-bg (the active writing surface). Deliberately a
+       separate token from -bg-subtle so input fills can be themed without
+       repainting table headers and hover states. */
+    --sf-color-input-bg: #f3f4f6;
     --sf-color-fg: #0a0a0a;
     --sf-color-fg-subtle: #4b5563;
     --sf-color-muted: #6b7280;
@@ -197,6 +204,7 @@
   [data-theme="dark"] {
     --sf-color-bg: #0a0a0a;
     --sf-color-bg-subtle: #171717;
+    --sf-color-input-bg: #171717;
     --sf-color-fg: #fafafa;
     --sf-color-fg-subtle: #d4d4d4;
     --sf-color-muted: #9ca3af;

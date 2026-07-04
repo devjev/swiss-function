@@ -155,6 +155,12 @@ Depth indicates layer, not personality.
   0.18)` along the top edge, plus their elevation drop shadow. Together
   they read as a slightly raised key on an instrument panel. Buttons,
   inputs, switches all share this signature.
+- **Text-entry surfaces rest one shade below the page**
+  (`--sf-color-input-bg`) and lift to `--sf-color-bg` on focus. An empty
+  field reads as a recessed slot, not a bare rectangle on the page; the
+  moment you type into it, it becomes the page-coloured writing surface
+  with full text contrast. Input, TextEdit, Combobox and DigitInput all
+  share this behavior.
 - **No glassmorphism**, no backdrop blur, no semi-transparent overlays
   pretending to be physical. We are not simulating frosted plastic. We
   are stacking flat planes.

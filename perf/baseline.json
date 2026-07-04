@@ -1,10 +1,10 @@
 {
   "meta": {
-    "date": "2026-07-04T17:58:26.980Z",
+    "date": "2026-07-04T21:00:24.345Z",
     "host": "cascade",
     "cpus": 32,
     "node": "v26.2.0",
-    "commit": "e53d410",
+    "commit": "e136968",
     "runs": 5
   },
   "results": {
@@ -87,16 +87,16 @@
       "heapMB": 21.13
     },
     "scatterplot-hover-5k": {
-      "hoverMoveMs": 12.7,
+      "hoverMoveMs": 12.5,
       "p95SweepFrameMs": 50,
-      "readyMs": 752,
-      "heapMB": 51.34
+      "readyMs": 760,
+      "heapMB": 52.28
     },
     "candlestick-hover-1000": {
-      "hoverMoveMs": 12.1,
+      "hoverMoveMs": 14.2,
       "p95SweepFrameMs": 16.7,
-      "readyMs": 683,
-      "heapMB": 27.97
+      "readyMs": 696,
+      "heapMB": 23.29
     },
     "pointcloud-orbit-20k": {
       "dragMoveMs": 13.3,
@@ -111,6 +111,12 @@
       "glLost": 0,
       "readyMs": 1020,
       "heapMB": 18.15
+    },
+    "scatterplot-zoom-50k": {
+      "zoomStepMs": 4.3,
+      "p95ZoomFrameMs": 16.7,
+      "readyMs": 686,
+      "heapMB": 25.99
     }
   }
 }

@@ -1,18 +1,29 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  AnnotationsLayer,
+  type AnnotationX,
   Axis,
   type AxisTick,
   type BandScale,
-  bandScale,
+  type ChartAnnotation,
   Crosshair,
+  formatDateDelta,
   formatNumber,
+  formatTimeTick,
   linearScale,
   niceTicks,
+  pickTimeUnit,
+  startOfUnit,
+  type TimeUnit,
   Tooltip,
+  unitRank,
+  useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./CandlestickChart.module.css";
+
+export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
 
 export type ChartScaffolding = "minimal" | "hover" | "full";
 export type CandleX = number | Date;
@@ -39,12 +50,36 @@ export interface CandlestickChartProps extends Omit<HTMLAttributes<HTMLDivElemen
    *   - `"hover"` (default): minimal idle + y-axis and gridlines fade in on hover.
    *   - `"full"`: axis + gridlines always visible. */
   scaffolding?: ChartScaffolding;
+  /** Interactive viewport (issue #27), in BAR-INDEX space (the trading-chart
+   *  "logical range" model — candles stay evenly spaced, weekends stay
+   *  collapsed). Wheel zooms at the cursor (click the chart once, or hold
+   *  ctrl/⌘), drag pans, double-click resets; ←/→ +/- 0 on the focused
+   *  chart. While zoomed the price axis follows the visible candles (unless
+   *  `yDomain` fixes it), and far-out views aggregate candles into true OHLC
+   *  groups. Default false. */
+  zoomable?: boolean;
+  /** Controlled visible window as fractional candle indices `[from, to]`
+   *  (0 = first candle, `candles.length` = past the last). Pair with
+   *  `onVisibleRangeChange`. */
+  visibleRange?: [number, number];
+  /** Fires as the visible window changes; `null` = reset to all candles.
+   *  Doubles as the lazy-history / semantic-zoom hook: when the window nears
+   *  index 0, prepend older candles. */
+  onVisibleRangeChange?: (range: [number, number] | null) => void;
+  /** Data-anchored annotations; `x` values are candle timestamps (mapped
+   *  onto the gap-free bar axis), `y` values are prices. */
+  annotations?: ChartAnnotation[];
+  /** Click/Enter on a candle — the drill-down hook (e.g. swap `candles` for
+   *  a finer granularity around the activated one). */
+  onPointActivate?: (candle: Candle, index: number) => void;
   /** Tooltip body for the hovered candle. Default: a monospace O/H/L/C line. */
   renderTooltip?: (candle: Candle) => ReactNode;
 }
 
 interface HoverState {
   candle: Candle;
+  /** Index into the source `candles` array (survives aggregation). */
+  index: number;
   rect: DOMRect;
   cx: number;
   cy: number;
@@ -80,6 +115,54 @@ function priceDomain(candles: Candle[]): [number, number] {
   return [lo - pad, hi + pad];
 }
 
+/** True OHLC aggregation: `groupSize` candles collapse into one (first open,
+ *  last close, extreme high/low) — the far-zoomed-out LOD for candlesticks
+ *  (min/max decimation would break OHLC semantics). */
+function aggregateCandles(
+  candles: readonly Candle[],
+  groupSize: number,
+): { candles: Candle[]; sourceIndex: number[] } {
+  const out: Candle[] = [];
+  const sourceIndex: number[] = [];
+  for (let g = 0; g < candles.length; g += groupSize) {
+    const first = candles[g];
+    if (!first) break;
+    let high = first.high;
+    let low = first.low;
+    let close = first.close;
+    for (let i = g + 1; i < Math.min(g + groupSize, candles.length); i++) {
+      const c = candles[i];
+      if (!c) break;
+      if (c.high > high) high = c.high;
+      if (c.low < low) low = c.low;
+      close = c.close;
+    }
+    out.push({ x: first.x, open: first.open, high, low, close });
+    sourceIndex.push(g);
+  }
+  return { candles: out, sourceIndex };
+}
+
+/** Map a data-x (timestamp or number) to a fractional bar index, interpolating
+ *  between neighbors — so annotations anchored at real times land correctly on
+ *  the gap-free bar axis. */
+function xToIndex(candles: readonly Candle[], x: AnnotationX): number {
+  const t = Number(x);
+  let lo = 0;
+  let hi = candles.length - 1;
+  if (hi < 0) return 0;
+  const at = (i: number) => Number((candles[i] as Candle).x);
+  if (t <= at(0)) return 0;
+  if (t >= at(hi)) return hi;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (at(mid) <= t) lo = mid;
+    else hi = mid;
+  }
+  const span = at(hi) - at(lo);
+  return span > 0 ? lo + (t - at(lo)) / span : lo;
+}
+
 function defaultTooltip(c: Candle): ReactNode {
   return (
     <>
@@ -111,6 +194,7 @@ const CandlesLayer = memo(function CandlesLayer({
   plotHeight,
   onCandleHover,
   onCandleLeave,
+  onCandleActivate,
 }: {
   candles: Candle[];
   keys: string[];
@@ -119,6 +203,7 @@ const CandlesLayer = memo(function CandlesLayer({
   plotHeight: number;
   onCandleHover: (hover: HoverState) => void;
   onCandleLeave: () => void;
+  onCandleActivate?: (candle: Candle, index: number) => void;
 }) {
   const resolveCandle = (target: EventTarget | null): HoverState | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
@@ -129,6 +214,7 @@ const CandlesLayer = memo(function CandlesLayer({
     if (!candle || left == null) return null;
     return {
       candle,
+      index: Number(keys[i]),
       rect: el.getBoundingClientRect(),
       cx: left + xBand.bandwidth / 2,
       cy: yScale(candle.close),
@@ -141,6 +227,22 @@ const CandlesLayer = memo(function CandlesLayer({
   const handleLeave = (e: { target: EventTarget | null }) => {
     if (e.target instanceof Element && e.target.closest("[data-idx]")) onCandleLeave();
   };
+  const handleClick = onCandleActivate
+    ? (e: { target: EventTarget | null }) => {
+        const hit = resolveCandle(e.target);
+        if (hit) onCandleActivate(hit.candle, hit.index);
+      }
+    : undefined;
+  const handleKeyDown = onCandleActivate
+    ? (e: { target: EventTarget | null; key: string; preventDefault: () => void }) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const hit = resolveCandle(e.target);
+        if (hit) {
+          e.preventDefault();
+          onCandleActivate(hit.candle, hit.index);
+        }
+      }
+    : undefined;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: pure event delegation — the interactive/focusable surface is each candle's hit rect (role="button", tabIndex) below; the group only hosts the shared listeners (issue #14).
     <g
@@ -148,6 +250,8 @@ const CandlesLayer = memo(function CandlesLayer({
       onPointerOut={handleLeave}
       onFocus={handleEnter}
       onBlur={handleLeave}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
     >
       {candles.map((c, i) => {
         const left = xBand.position(keys[i] ?? "");
@@ -200,6 +304,11 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       xLabel,
       height,
       scaffolding = "hover",
+      zoomable = false,
+      visibleRange,
+      onVisibleRangeChange,
+      annotations,
+      onPointActivate,
       renderTooltip = defaultTooltip,
       className,
       style,
@@ -225,14 +334,77 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       return () => observer.disconnect();
     }, []);
 
-    const resolvedYDomain: [number, number] = useMemo(
-      () => yDomain ?? priceDomain(candles),
-      [candles, yDomain],
+    // --- Viewport (bar-index space: the "logical range" model) ---
+    const n = candles.length;
+    const extent: [number, number] = useMemo(() => [0, Math.max(1, n)], [n]);
+
+    const formatIndexValue = useCallback(
+      (v: number) => {
+        const c = candles[Math.min(candles.length - 1, Math.max(0, Math.round(v)))];
+        return c ? formatX(c.x) : String(Math.round(v));
+      },
+      [candles],
     );
 
-    // Index-based keys so the band scale spaces candles evenly (no time gaps).
-    const keys = useMemo(() => candles.map((_, i) => String(i)), [candles]);
-    const xBand = useMemo(() => bandScale(keys, [0, plotSize.width], 0.3), [keys, plotSize.width]);
+    const viewport = useViewport({
+      extent,
+      domain: zoomable && visibleRange ? visibleRange : undefined,
+      onDomainChange: onVisibleRangeChange,
+      minSpan: Math.min(4, Math.max(1, n)),
+      plotRef,
+      enabled: zoomable,
+      formatValue: formatIndexValue,
+    });
+    const [d0, d1] = zoomable ? viewport.domain : extent;
+
+    // Visible window + LOD: past ~4 bars per pixel-column budget, candles
+    // aggregate into true OHLC groups (first open, last close, extreme
+    // high/low) — min/max decimation would break OHLC semantics. Keys stay
+    // source indices so hover/activate report real candles.
+    const visible = useMemo(() => {
+      const start = Math.max(0, Math.floor(d0));
+      const end = Math.min(n, Math.ceil(d1));
+      const windowed = start === 0 && end === n ? candles : candles.slice(start, end);
+      const maxBars = Math.max(16, Math.floor(plotSize.width / 4));
+      if (windowed.length <= maxBars) {
+        return {
+          candles: windowed,
+          keys: windowed.map((_, i) => String(start + i)),
+          groupSize: 1,
+        };
+      }
+      const groupSize = Math.ceil(windowed.length / maxBars);
+      const agg = aggregateCandles(windowed, groupSize);
+      return {
+        candles: agg.candles,
+        keys: agg.sourceIndex.map((i) => String(start + i)),
+        groupSize,
+      };
+    }, [candles, n, d0, d1, plotSize.width]);
+
+    const resolvedYDomain: [number, number] = useMemo(
+      () => yDomain ?? priceDomain(visible.candles),
+      [visible.candles, yDomain],
+    );
+
+    // Fractional band scale over bar indices — like bandScale(keys, …, 0.3)
+    // at rest, but the window may start/end mid-candle while panning.
+    const xBand: BandScale = useMemo(() => {
+      const span = d1 - d0;
+      const pxPerIndex = span > 0 ? plotSize.width / span : 0;
+      const step = pxPerIndex * visible.groupSize;
+      const bandwidth = step * 0.7;
+      return {
+        step,
+        bandwidth,
+        position(key: string) {
+          const i = Number(key);
+          if (!Number.isFinite(i)) return null;
+          return (i - d0) * pxPerIndex + (step - bandwidth) / 2;
+        },
+      };
+    }, [d0, d1, plotSize.width, visible.groupSize]);
+
     const yScale = useMemo(
       () => linearScale(resolvedYDomain, [plotSize.height, 0]),
       [resolvedYDomain, plotSize.height],
@@ -249,23 +421,89 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       }));
     }, [resolvedYDomain, scaffolding]);
 
-    // Sample ~6 evenly-spaced candles for x labels so dense series stay readable.
+    // X labels: for dated candles, tick where a calendar unit changes between
+    // neighbors (the TradingView model — the bar axis is gap-free, so ticks
+    // can't come from a regular time grid) with boundary promotion; numeric
+    // candles fall back to even sampling.
     const xAxisTicks: AxisTick[] = useMemo(() => {
-      if (candles.length === 0 || plotSize.width <= 0) return [];
-      const stepN = Math.max(1, Math.ceil(candles.length / 6));
+      const vc = visible.candles;
+      if (vc.length === 0 || plotSize.width <= 0) return [];
+      const center = (i: number) => {
+        const left = xBand.position(visible.keys[i] ?? "") ?? 0;
+        return (left + xBand.bandwidth / 2) / plotSize.width;
+      };
+      const first = vc[0];
+      const last = vc[vc.length - 1];
+      if (first && last && isDateValue(first.x) && vc.length > 1) {
+        const spanMs = Number(last.x) - Number(first.x);
+        if (spanMs > 0) {
+          const unit = pickTimeUnit(spanMs, plotSize.width).unit;
+          const levels: TimeUnit[] = ["year", "month", "week", "day", "hour", "minute"];
+          const out: AxisTick[] = [];
+          for (let i = 1; i < vc.length; i++) {
+            const prev = vc[i - 1];
+            const cur = vc[i];
+            if (!prev || !cur) continue;
+            let level: TimeUnit | null = null;
+            for (const u of levels) {
+              if (unitRank(u) < unitRank(unit)) break;
+              if (
+                startOfUnit(cur.x as Date, u).getTime() !== startOfUnit(prev.x as Date, u).getTime()
+              ) {
+                level = u;
+                break;
+              }
+            }
+            if (level == null) continue;
+            out.push({
+              label: formatTimeTick(cur.x as Date, level),
+              position: center(i),
+              major: unitRank(level) > unitRank(unit),
+            });
+          }
+          if (out.length >= 2) {
+            // Fine-grained bars can cross a boundary every candle — thin the
+            // minor ticks, keep every promoted one.
+            const maxTicks = Math.max(2, Math.floor(plotSize.width / 70));
+            if (out.length > maxTicks) {
+              const k = Math.ceil(out.length / maxTicks);
+              return out.filter((t, idx) => t.major || idx % k === 0);
+            }
+            return out;
+          }
+        }
+      }
+      const stepN = Math.max(
+        1,
+        Math.ceil(vc.length / Math.max(1, Math.floor(plotSize.width / 100))),
+      );
       const out: AxisTick[] = [];
-      for (let i = 0; i < candles.length; i += stepN) {
-        const c = candles[i];
+      for (let i = 0; i < vc.length; i += stepN) {
+        const c = vc[i];
         if (!c) continue;
-        const left = xBand.position(keys[i] ?? "") ?? 0;
-        out.push({
-          label: formatX(c.x),
-          position: (left + xBand.bandwidth / 2) / plotSize.width,
-          major: false,
-        });
+        out.push({ label: formatX(c.x), position: center(i), major: false });
       }
       return out;
-    }, [candles, keys, xBand, plotSize.width]);
+    }, [visible, xBand, plotSize.width]);
+
+    // Annotation x-anchors are timestamps; map them onto the gap-free bar
+    // axis by interpolating between neighboring candles.
+    const annotationXPx = useCallback(
+      (x: AnnotationX) => {
+        const span = d1 - d0;
+        const pxPerIndex = span > 0 ? plotSize.width / span : 0;
+        return (xToIndex(candles, x) + 0.5 - d0) * pxPerIndex;
+      },
+      [candles, d0, d1, plotSize.width],
+    );
+
+    const formatXDelta = useCallback(
+      (a: AnnotationX, b: AnnotationX) =>
+        a instanceof Date || b instanceof Date
+          ? formatDateDelta(a, b)
+          : formatNumber(Math.abs(Number(b) - Number(a))),
+      [],
+    );
 
     const handleCandleHover = useCallback((hover: HoverState) => setHover(hover), []);
     const handleLeave = useCallback(() => setHover(null), []);
@@ -278,10 +516,12 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     return (
       <div
         {...rest}
+        {...(zoomable ? viewport.rootProps : null)}
         ref={ref}
         className={cx(styles.root, className)}
         style={wrapperStyle}
         data-scaffolding={scaffolding}
+        data-zoomable={zoomable || undefined}
         data-hovered={hover != null ? "true" : undefined}
       >
         {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -315,14 +555,27 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
 
               {/* Candles — memo'd layer so hover re-renders bail out at one fiber. */}
               <CandlesLayer
-                candles={candles}
-                keys={keys}
+                candles={visible.candles}
+                keys={visible.keys}
                 xBand={xBand}
                 yScale={yScale}
                 plotHeight={plotSize.height}
                 onCandleHover={handleCandleHover}
                 onCandleLeave={handleLeave}
+                onCandleActivate={onPointActivate}
               />
+
+              {annotations && annotations.length > 0 ? (
+                <AnnotationsLayer
+                  annotations={annotations}
+                  xPx={annotationXPx}
+                  yPx={yScale}
+                  width={plotSize.width}
+                  height={plotSize.height}
+                  formatXDelta={formatXDelta}
+                  formatY={formatNumber}
+                />
+              ) : null}
 
               {isTufte && hover ? (
                 <Crosshair
@@ -336,6 +589,11 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
               ) : null}
             </svg>
           ) : null}
+          {zoomable && viewport.isZoomed ? (
+            <button type="button" className={styles.resetButton} onClick={viewport.reset}>
+              Reset
+            </button>
+          ) : null}
         </div>
         <Axis orientation="x" ticks={xAxisTicks} className={styles.xAxis} />
         {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
@@ -343,6 +601,12 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
         <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
           {hover ? renderTooltip(hover.candle) : null}
         </Tooltip>
+
+        {zoomable ? (
+          <div className={styles.srOnly} aria-live="polite">
+            {viewport.announcement}
+          </div>
+        ) : null}
       </div>
     );
   },

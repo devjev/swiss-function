@@ -19,6 +19,10 @@ Per-component prop/element reference for every exported component in the library
 - "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
   JS. Dark mode is `[data-theme="dark"]` on any ancestor.
+- Text-entry controls (Input, TextEdit, Combobox, DigitInput) rest on
+  `--sf-color-input-bg` (a shade below the page) and lift to `--sf-color-bg` on
+  focus. Override `--sf-color-input-bg` on any ancestor to retint or flatten
+  them (`--sf-color-input-bg: var(--sf-color-bg)` restores the old look).
 - Focus rings are tunable everywhere: every `:focus-visible` rule draws
   `var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring)` with
   `outline-offset: var(--sf-focus-ring-offset, <per-rule default>)`. Set the
@@ -56,6 +60,7 @@ Responsive bar chart with Tufte/hover/full scaffolding modes. Extends `HTMLAttri
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `onPointActivate` | `(datum: BarTooltipDatum) => void` | — | Click/Enter on a bar — drill-down hook; swap the data yourself and render your own breadcrumb. |
 | `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. |
 
 ## Box
@@ -129,10 +134,15 @@ danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `candles` | `Candle[]` | — | OHLC bars, chronological. |
-| `yDomain` | `[number, number]` | auto-fit | Price range; auto-fit is padded and **not** zero-anchored. |
+| `yDomain` | `[number, number]` | auto-fit | Price range; auto-fit is padded and **not** zero-anchored. While zoomed, auto-fit follows the visible candles. |
 | `yLabel` / `xLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis/gridline posture (same as the other charts). |
+| `zoomable` | `boolean` | `false` | Interactive viewport in **bar-index space** (weekends stay collapsed): wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Far out, candles aggregate into true OHLC groups. Dated candles get calendar-boundary ticks with promoted (bolder) month/year labels. |
+| `visibleRange` | `[number, number]` | uncontrolled | Controlled window as fractional candle indices; pair with `onVisibleRangeChange`. |
+| `onVisibleRangeChange` | `(range: [number, number] \| null) => void` | — | Fires on every viewport change (`null` = reset). Lazy-history hook: prepend older candles when the window nears index 0. |
+| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlay (see Scatterplot); `x` anchors are timestamps, mapped onto the gap-free bar axis. |
+| `onPointActivate` | `(candle: Candle, index: number) => void` | — | Click/Enter on a candle — drill-down hook. |
 | `renderTooltip` | `(c: Candle) => ReactNode` | mono O/H/L/C | Hover tooltip body. |
 
 ## Chat
@@ -941,12 +951,16 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `series` | `ScatterSeries[]` | — | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints? }`. |
-| `xDomain` | `[number, number] \| [Date, Date]` | auto-fit | Detects date vs numeric. |
-| `yDomain` | `[number, number]` | auto-fit | Y range. |
+| `xDomain` | `[number, number] \| [Date, Date]` | auto-fit | Detects date vs numeric. With `zoomable`, this is the controlled visible window (pair with `onXDomainChange`). |
+| `yDomain` | `[number, number]` | auto-fit | Y range. While zoomed, auto-fit follows the visible window (padded, not zero-anchored). |
 | `xLabel` / `yLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
-| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. In full mode, axes are adaptive: tick step/precision recompute from the domain and pixel density; date axes walk a calendar ladder (5 min → hour → day → month → year) with promoted (bolder) boundary ticks; tiny-span-at-large-magnitude windows factor a shared offset into a corner readout. |
+| `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column — spikes survive). |
+| `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | — | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
+| `annotations` | `ChartAnnotation[]` | — | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document — persist it as-is. |
+| `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | — | Click/Enter on a point — drill-down hook. |
 | `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
 
 ## Selector

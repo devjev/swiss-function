@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-04T20:18:18.135Z"
+    "date": "2026-07-04T20:55:28.995Z"
   },
-  "totalGzip": 483780,
+  "totalGzip": 511254,
   "entries": {
     ".": {
-      "files": 184,
-      "jsRaw": 590507,
-      "jsGzip": 183074,
+      "files": 189,
+      "jsRaw": 628414,
+      "jsGzip": 192990,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 183074,
+      "gzip": 192990,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -89,11 +89,11 @@
     },
     "./bar-chart": {
       "files": 12,
-      "jsRaw": 18923,
-      "jsGzip": 6933,
+      "jsRaw": 21506,
+      "jsGzip": 7596,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 6933,
+      "gzip": 7596,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./box": {
@@ -107,11 +107,11 @@
     },
     "./bridge-chart": {
       "files": 12,
-      "jsRaw": 19352,
-      "jsGzip": 7047,
+      "jsRaw": 21385,
+      "jsGzip": 7596,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7047,
+      "gzip": 7596,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./button-group": {
@@ -124,12 +124,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./candlestick-chart": {
-      "files": 12,
-      "jsRaw": 19924,
-      "jsGzip": 7403,
+      "files": 16,
+      "jsRaw": 48487,
+      "jsGzip": 14974,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7403,
+      "gzip": 14974,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./chat": {
@@ -228,11 +228,11 @@
     },
     "./heatmap": {
       "files": 8,
-      "jsRaw": 13990,
-      "jsGzip": 5351,
+      "jsRaw": 16023,
+      "jsGzip": 5900,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 5351,
+      "gzip": 5900,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./input": {
@@ -295,12 +295,12 @@
       ]
     },
     "./scatterplot": {
-      "files": 13,
-      "jsRaw": 25762,
-      "jsGzip": 8932,
+      "files": 17,
+      "jsRaw": 53174,
+      "jsGzip": 16060,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 8932,
+      "gzip": 16060,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./dialog": {
@@ -449,11 +449,11 @@
     },
     "./point-cloud": {
       "files": 16,
-      "jsRaw": 23817,
-      "jsGzip": 9686,
+      "jsRaw": 25850,
+      "jsGzip": 10235,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9686,
+      "gzip": 10235,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./menu": {
@@ -534,11 +534,11 @@
     },
     "./surface": {
       "files": 15,
-      "jsRaw": 22499,
-      "jsGzip": 9174,
+      "jsRaw": 24532,
+      "jsGzip": 9723,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9174,
+      "gzip": 9723,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {

@@ -1,21 +1,28 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  AnnotationsLayer,
   Axis,
   type AxisTick,
+  adaptiveTicks,
+  type ChartAnnotation,
   Crosshair,
+  formatDateDelta,
   formatNumber,
   linearScale,
+  minMaxDownsample,
   niceDomain,
   niceTicks,
+  sliceRange,
   Tooltip,
   timeScale,
+  timeTicks,
+  useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
-import { computeTicks as computeDateTicks } from "../Timeline/ticks";
 import styles from "./Scatterplot.module.css";
 
-const MS_DAY = 24 * 60 * 60 * 1000;
+export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
 
 export type ScatterX = number | Date;
 export type ChartScaffolding = "minimal" | "hover" | "full";
@@ -40,8 +47,30 @@ export interface ScatterSeries {
 
 export interface ScatterplotProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   series: ScatterSeries[];
+  /** Fixes the x range. With `zoomable`, this is the *controlled visible
+   *  window* — pair it with `onXDomainChange` (standard controlled pattern;
+   *  without the handler the viewport is frozen). */
   xDomain?: [number, number] | [Date, Date];
   yDomain?: [number, number];
+  /** Interactive viewport (issue #27): wheel zooms anchored at the cursor
+   *  (plain wheel after the chart is clicked; ctrl/⌘+wheel and pinch always),
+   *  drag pans, double-click resets. Keyboard on the focused chart: ←/→ pan
+   *  (Shift: faster), +/- zoom, 0/Home reset. While zoomed, the y-axis
+   *  follows the visible data (unless `yDomain` fixes it), series beyond
+   *  ~4 points/px are decimated (min/max per column — spikes survive), and a
+   *  Reset button appears. Default false. */
+  zoomable?: boolean;
+  /** Fires as the visible x-window changes ([Date, Date] on date axes);
+   *  `null` = reset to the full extent. Doubles as the semantic-zoom hook:
+   *  load finer-grained data when the window narrows, swap `series`. */
+  onXDomainChange?: (domain: [number, number] | [Date, Date] | null) => void;
+  /** Data-anchored annotations (hline/vline/line/rect/text/measure) — plain
+   *  serializable JSON; anchors are data values, so drawings survive
+   *  zoom/pan/resize. */
+  annotations?: ChartAnnotation[];
+  /** Click/Enter on a point — the drill-down hook. The consumer swaps
+   *  `series` for finer-grained data (and renders its own breadcrumb). */
+  onPointActivate?: (datum: ScatterDatum & { series: string }) => void;
   xLabel?: string;
   yLabel?: string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
@@ -88,12 +117,14 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   yScale,
   onPointHover,
   onPointLeave,
+  onPointActivate,
 }: {
   series: ScatterSeries;
   xPx: (x: ScatterX) => number;
   yScale: (y: number) => number;
   onPointHover: (hover: HoverState) => void;
   onPointLeave: () => void;
+  onPointActivate?: (hover: HoverState) => void;
 }) {
   const resolvePoint = (target: EventTarget | null): HoverState | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
@@ -114,6 +145,22 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   const handleLeave = (e: { target: EventTarget | null }) => {
     if (e.target instanceof Element && e.target.closest("[data-idx]")) onPointLeave();
   };
+  const handleClick = onPointActivate
+    ? (e: { target: EventTarget | null }) => {
+        const hit = resolvePoint(e.target);
+        if (hit) onPointActivate(hit);
+      }
+    : undefined;
+  const handleKeyDown = onPointActivate
+    ? (e: { target: EventTarget | null; key: string; preventDefault: () => void }) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const hit = resolvePoint(e.target);
+        if (hit) {
+          e.preventDefault();
+          onPointActivate(hit);
+        }
+      }
+    : undefined;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: pure event delegation — the interactive/focusable surface is each point's circle (role="button", tabIndex) below; the group only hosts the shared listeners (issue #14).
     <g
@@ -121,6 +168,9 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
       onPointerOut={handleLeave}
       onFocus={handleEnter}
       onBlur={handleLeave}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      data-activatable={onPointActivate ? "" : undefined}
     >
       {series.data.map((d, i) => {
         const px = xPx(d.x);
@@ -149,6 +199,14 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
 
 function toNumber(x: ScatterX): number {
   return isDateValue(x) ? x.getTime() : x;
+}
+
+function getXNumber(d: ScatterDatum): number {
+  return toNumber(d.x);
+}
+
+function getY(d: ScatterDatum): number {
+  return d.y;
 }
 
 function defaultTooltip(d: ScatterDatum & { series: string }): ReactNode {
@@ -203,6 +261,10 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     height,
     showLegend,
     scaffolding = "hover",
+    zoomable = false,
+    onXDomainChange,
+    annotations,
+    onPointActivate,
     renderTooltip = defaultTooltip,
     className,
     style,
@@ -241,8 +303,9 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   }, [series]);
 
   // --- Domains (auto-fit when not supplied) ---
-  const resolvedXDomain: [number, number] = useMemo(() => {
-    if (xDomain) return [toNumber(xDomain[0]), toNumber(xDomain[1])];
+  // Full data extent — the zoom-out floor when `zoomable`, the resolved
+  // domain otherwise.
+  const dataXExtent: [number, number] = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
     let isDate = false;
@@ -256,20 +319,112 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
     if (min === max) return [min - 1, max + 1];
-    // Date x: leave raw — Timeline's date ticks handle their own alignment.
+    // Date x: leave raw — the calendar ticks handle their own alignment.
     // Numeric x: snap to nice-tick boundaries so axis labels land at edges.
     if (isDate) return [min, max];
     return niceDomain([min, max], 5);
-  }, [series, xDomain]);
+  }, [series]);
+
+  const staticXDomain: [number, number] = useMemo(
+    () => (xDomain ? [toNumber(xDomain[0]), toNumber(xDomain[1])] : dataXExtent),
+    [xDomain, dataXExtent],
+  );
+
+  const maxSeriesLength = useMemo(() => {
+    let n = 0;
+    for (const s of series) n = Math.max(n, s.data.length);
+    return n;
+  }, [series]);
+
+  const formatDomainValue = useCallback(
+    (v: number) => (isDateAxis ? new Date(v).toLocaleDateString() : formatNumber(v)),
+    [isDateAxis],
+  );
+
+  const handleDomainChange = useCallback(
+    (domain: [number, number] | null) => {
+      if (!onXDomainChange) return;
+      if (domain === null) onXDomainChange(null);
+      else if (isDateAxis) onXDomainChange([new Date(domain[0]), new Date(domain[1])]);
+      else onXDomainChange(domain);
+    },
+    [onXDomainChange, isDateAxis],
+  );
+
+  const viewport = useViewport({
+    extent: dataXExtent,
+    // With `zoomable`, an explicit xDomain is the controlled visible window.
+    domain: zoomable && xDomain ? staticXDomain : undefined,
+    onDomainChange: handleDomainChange,
+    // Zoom-in ceiling ≈ 4 data points across the plot.
+    minSpan: ((dataXExtent[1] - dataXExtent[0]) * 4) / Math.max(4, maxSeriesLength),
+    plotRef,
+    enabled: zoomable,
+    formatValue: formatDomainValue,
+  });
+
+  const resolvedXDomain: [number, number] = zoomable ? viewport.domain : staticXDomain;
+
+  // Visible, decimated data: slice each sorted series to the x-window
+  // (widened by one point so lines run off-plot), then min/max-decimate to
+  // ~4 points per pixel column so SVG element counts stay bounded no matter
+  // how far out the viewport zooms. Unsorted series only get filtered.
+  const visibleSeries: ScatterSeries[] = useMemo(() => {
+    if (!zoomable) return series;
+    const [x0, x1] = resolvedXDomain;
+    const buckets = Math.max(16, Math.floor(plotSize.width / 4));
+    return series.map((s) => {
+      let sorted = true;
+      for (let i = 1; i < s.data.length; i++) {
+        const prev = s.data[i - 1];
+        const cur = s.data[i];
+        if (prev && cur && toNumber(cur.x) < toNumber(prev.x)) {
+          sorted = false;
+          break;
+        }
+      }
+      let windowed: readonly ScatterDatum[] = s.data;
+      if (sorted) {
+        const [start, end] = sliceRange(s.data, getXNumber, x0, x1);
+        if (start !== 0 || end !== s.data.length) windowed = s.data.slice(start, end);
+        windowed = minMaxDownsample(windowed, getXNumber, getY, buckets);
+      } else if (viewport.isZoomed) {
+        windowed = s.data.filter((d) => {
+          const v = toNumber(d.x);
+          return v >= x0 && v <= x1;
+        });
+      }
+      return windowed === s.data ? s : { ...s, data: windowed as ScatterDatum[] };
+    });
+  }, [series, zoomable, resolvedXDomain, plotSize.width, viewport.isZoomed]);
 
   const resolvedYDomain: [number, number] = useMemo(() => {
     if (yDomain) return yDomain;
+    if (zoomable && viewport.isZoomed) {
+      // Y follows the visible x-window — padded, NOT zero-anchored (zoomed
+      // into y ∈ [1234.1, 1234.9], a zero-anchored axis would flatline).
+      const [x0, x1] = resolvedXDomain;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (const s of visibleSeries) {
+        for (const d of s.data) {
+          const v = toNumber(d.x);
+          if (v < x0 || v > x1) continue;
+          if (d.y < lo) lo = d.y;
+          if (d.y > hi) hi = d.y;
+        }
+      }
+      if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [0, 1];
+      if (lo === hi) return [lo - 1, hi + 1];
+      const pad = (hi - lo) * 0.04;
+      return [lo - pad, hi + pad];
+    }
     const all: number[] = [];
     for (const s of series) for (const d of s.data) all.push(d.y);
     // niceDomain snaps to nice-tick boundaries so axis labels land exactly
     // at the plot edges (no clipping, no clamped collisions).
     return niceDomain(all, 5);
-  }, [series, yDomain]);
+  }, [series, visibleSeries, yDomain, zoomable, viewport.isZoomed, resolvedXDomain]);
 
   // --- Scales ---
   const xScaleNum = useMemo(
@@ -289,14 +444,15 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
 
   // --- Ticks ---
   // Tufte mode: one tick per unique datum value (dot-dash style). Full mode:
-  // nice-tick axis with proportional steps.
-  const xAxisTicks: AxisTick[] = useMemo(() => {
+  // adaptive ticks — step, precision and promotion recompute from the
+  // (possibly zoomed) domain and pixel density.
+  const xTicks: { ticks: AxisTick[]; offsetLabel: string } = useMemo(() => {
     const [xMin, xMax] = resolvedXDomain;
-    if (xMax <= xMin) return [];
+    if (xMax <= xMin) return { ticks: [], offsetLabel: "" };
     if (isTufte) {
       const seen = new Set<number>();
       const ticks: AxisTick[] = [];
-      for (const s of series) {
+      for (const s of visibleSeries) {
         for (const d of s.data) {
           const v = toNumber(d.x);
           if (seen.has(v)) continue;
@@ -310,32 +466,36 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       }
       // Drop labels that would crowd; reserve ~48px per x-axis label.
       const minDelta = plotSize.width > 0 ? 48 / plotSize.width : 0;
-      return pruneClose(ticks, minDelta);
+      return { ticks: pruneClose(ticks, minDelta), offsetLabel: "" };
     }
     if (isDateAxis) {
-      const totalDays = (xMax - xMin) / MS_DAY;
-      const pxPerDay = plotSize.width > 0 ? plotSize.width / totalDays : 4;
-      const dt = computeDateTicks(new Date(xMin), new Date(xMax), pxPerDay);
-      return dt.map((t) => ({
-        label: t.label,
-        position: (t.date.getTime() - xMin) / (xMax - xMin),
-        major: t.major,
-      }));
+      return {
+        ticks: timeTicks(xMin, xMax, plotSize.width).map((t) => ({
+          label: t.label,
+          position: (t.date.getTime() - xMin) / (xMax - xMin),
+          major: t.major,
+        })),
+        offsetLabel: "",
+      };
     }
-    return niceTicks(xMin, xMax).map((t) => ({
-      label: t.label,
-      position: (t.value - xMin) / (xMax - xMin),
-      major: t.major,
-    }));
-  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, series]);
+    const adaptive = adaptiveTicks(xMin, xMax, plotSize.width);
+    return {
+      ticks: adaptive.ticks.map((t) => ({
+        label: t.label,
+        position: (t.value - xMin) / (xMax - xMin),
+        major: t.major,
+      })),
+      offsetLabel: adaptive.offsetLabel,
+    };
+  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries]);
 
-  const yAxisTicks: AxisTick[] = useMemo(() => {
+  const yTicks: { ticks: AxisTick[]; offsetLabel: string } = useMemo(() => {
     const [yMin, yMax] = resolvedYDomain;
-    if (yMax <= yMin) return [];
+    if (yMax <= yMin) return { ticks: [], offsetLabel: "" };
     if (isTufte) {
       const seen = new Set<number>();
       const ticks: AxisTick[] = [];
-      for (const s of series) {
+      for (const s of visibleSeries) {
         for (const d of s.data) {
           if (seen.has(d.y)) continue;
           seen.add(d.y);
@@ -348,28 +508,54 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       }
       // Drop labels that would crowd; ~16px per y-axis label (one line height).
       const minDelta = plotSize.height > 0 ? 16 / plotSize.height : 0;
-      return pruneClose(ticks, minDelta);
+      return { ticks: pruneClose(ticks, minDelta), offsetLabel: "" };
+    }
+    // While zoomed the y-domain is padded raw data (not nice-snapped), so the
+    // axis needs in-domain adaptive ticks; at rest keep the nice-tick set
+    // aligned with the snapped domain.
+    if (zoomable && viewport.isZoomed) {
+      const adaptive = adaptiveTicks(yMin, yMax, plotSize.height, 50);
+      return {
+        ticks: adaptive.ticks.map((t) => ({
+          label: t.label,
+          position: (t.value - yMin) / (yMax - yMin),
+          major: t.major,
+        })),
+        offsetLabel: adaptive.offsetLabel,
+      };
+    }
+    return {
+      ticks: niceTicks(yMin, yMax, 5).map((t) => ({
+        label: t.label,
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      })),
+      offsetLabel: "",
+    };
+  }, [resolvedYDomain, isTufte, visibleSeries, plotSize.height, zoomable, viewport.isZoomed]);
+
+  const xAxisTicks = xTicks.ticks;
+  const yAxisTicks = yTicks.ticks;
+
+  // Gridline positions — mirror the full-mode y ticks (readable values like
+  // 5/10/15/20) even when the axis itself shows per-datum dot-dash marks.
+  const gridlineTicks: AxisTick[] = useMemo(() => {
+    if (scaffolding === "minimal") return [];
+    const [yMin, yMax] = resolvedYDomain;
+    if (yMax <= yMin) return [];
+    if (zoomable && viewport.isZoomed) {
+      return adaptiveTicks(yMin, yMax, plotSize.height, 50).ticks.map((t) => ({
+        label: t.label,
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      }));
     }
     return niceTicks(yMin, yMax, 5).map((t) => ({
       label: t.label,
       position: (t.value - yMin) / (yMax - yMin),
       major: t.major,
     }));
-  }, [resolvedYDomain, isTufte, series, plotSize.height]);
-
-  // Gridline positions — always niceY ticks (regardless of axis ticks), so the
-  // hover-revealed gridlines snap to readable values like 5/10/15/20 even when
-  // the axis itself shows per-datum dot-dash marks.
-  const gridlineTicks: AxisTick[] = useMemo(() => {
-    if (scaffolding === "minimal") return [];
-    const [yMin, yMax] = resolvedYDomain;
-    if (yMax <= yMin) return [];
-    return niceTicks(yMin, yMax, 5).map((t) => ({
-      label: t.label,
-      position: (t.value - yMin) / (yMax - yMin),
-      major: t.major,
-    }));
-  }, [resolvedYDomain, scaffolding]);
+  }, [resolvedYDomain, scaffolding, zoomable, viewport.isZoomed, plotSize.height]);
 
   // --- Plot geometry ---
   const xPx = useCallback(
@@ -379,6 +565,19 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
 
   const handlePointHover = useCallback((hover: HoverState) => setHover(hover), []);
   const handlePointLeave = useCallback(() => setHover(null), []);
+  const handlePointActivate = useMemo(
+    () =>
+      onPointActivate
+        ? (hit: HoverState) => onPointActivate({ ...hit.datum, series: hit.series })
+        : undefined,
+    [onPointActivate],
+  );
+
+  const formatXDelta = useCallback(
+    (a: ScatterX, b: ScatterX) =>
+      isDateAxis ? formatDateDelta(a, b) : formatNumber(Math.abs(toNumber(b) - toNumber(a))),
+    [isDateAxis],
+  );
 
   const wrapperStyle: CSSProperties = {
     ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
@@ -392,12 +591,14 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   return (
     <div
       {...rest}
+      {...(zoomable ? viewport.rootProps : null)}
       ref={ref}
       className={cx(styles.root, className)}
       style={wrapperStyle}
       data-axis-y-label={hasYLabel || undefined}
       data-axis-x-label={hasXLabel || undefined}
       data-scaffolding={scaffolding}
+      data-zoomable={zoomable || undefined}
       data-hovered={hover != null ? "true" : undefined}
     >
       {hasYLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -430,7 +631,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
             })}
 
             {/* Lines (rendered first so points sit on top). */}
-            {series.map((s) => {
+            {visibleSeries.map((s) => {
               if (!s.showLine || s.data.length < 2) return null;
               const points = s.data.map((d) => `${xPx(d.x)},${yScale(d.y)}`).join(" ");
               return (
@@ -445,7 +646,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
 
             {/* Points — memo'd per series so hover re-renders bail out at one
                 fiber. The polylines above stay inline (one fiber each, cheap). */}
-            {series.map((s) =>
+            {visibleSeries.map((s) =>
               s.showPoints === false ? null : (
                 <ScatterPointsLayer
                   key={`points-${s.name}`}
@@ -454,9 +655,22 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                   yScale={yScale}
                   onPointHover={handlePointHover}
                   onPointLeave={handlePointLeave}
+                  onPointActivate={handlePointActivate}
                 />
               ),
             )}
+
+            {annotations && annotations.length > 0 ? (
+              <AnnotationsLayer
+                annotations={annotations}
+                xPx={xPx}
+                yPx={yScale}
+                width={plotSize.width}
+                height={plotSize.height}
+                formatXDelta={formatXDelta}
+                formatY={formatNumber}
+              />
+            ) : null}
 
             {isTufte && hover ? (
               <Crosshair
@@ -468,6 +682,19 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
               />
             ) : null}
           </svg>
+        ) : null}
+        {(xTicks.offsetLabel || yTicks.offsetLabel) && !isTufte ? (
+          // Shared-magnitude readout: tick labels show only the varying part,
+          // this corner shows the factored-out offset once.
+          <div className={styles.offsetReadout} aria-hidden="true">
+            {yTicks.offsetLabel ? <div>{`y ${yTicks.offsetLabel}`}</div> : null}
+            {xTicks.offsetLabel ? <div>{`x ${xTicks.offsetLabel}`}</div> : null}
+          </div>
+        ) : null}
+        {zoomable && viewport.isZoomed ? (
+          <button type="button" className={styles.resetButton} onClick={viewport.reset}>
+            Reset
+          </button>
         ) : null}
       </div>
       <Axis orientation="x" ticks={xAxisTicks} noLine={isTufte} className={styles.xAxis} />
@@ -490,6 +717,12 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover ? renderTooltip({ ...hover.datum, series: hover.series }) : null}
       </Tooltip>
+
+      {zoomable ? (
+        <div className={styles.srOnly} aria-live="polite">
+          {viewport.announcement}
+        </div>
+      ) : null}
     </div>
   );
 });

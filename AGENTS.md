@@ -151,6 +151,18 @@ they're for intrinsically-3D data. **There are no 3D bars/pies/ribbons** (they
 distort comparison) — for a 2-variable field reach for `Heatmap`, and for
 categorical magnitudes a 2D `BarChart`.
 
+When the user asks for interactive/explorable charts ("zoom into this",
+"Bloomberg-style", "drill down"): `Scatterplot` and `CandlestickChart` take
+`zoomable` (wheel zooms at the cursor, drag pans, double-click resets,
+keyboard ←/→ `+` `-` `0`; axes re-tick adaptively — calendar ladder on dates,
+step-derived precision on numbers; large series decimate automatically, so
+tens of thousands of points are fine). Both take `annotations` — serializable,
+data-anchored `hline`/`vline`/`line`/`rect`/`text`/`measure` overlays that
+survive zoom/pan (persist the array as-is). Drill-down is an event, not
+behavior: wire `onPointActivate` (all three axis charts) and swap the data
+yourself; `onXDomainChange` / `onVisibleRangeChange` are the hooks for loading
+finer-grained data as the user zooms in.
+
 ### Graphs & networks
 
 | Component | Use for                                                        |

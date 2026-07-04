@@ -4,7 +4,8 @@
   /* Same harmonic sizing as Input. */
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
+  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
@@ -15,7 +16,13 @@
   /* DOS-style chunky caret in primary. */
   caret-shape: block;
   caret-color: var(--sf-color-primary);
-  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.input:focus {
+  background-color: var(--sf-color-bg);
 }
 
 /* Size presets, mirroring Input's sm/md/lg (md is the unmarked default). */
@@ -159,11 +166,22 @@
   inline-size: 100%;
   min-block-size: calc(var(--sf-unit) * 1.5);
   padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
+  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
-  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* The multi-select group's inner .input sits inside the framed group — it must
+   stay transparent so the group reads as ONE surface (the group carries the
+   fill and does the focus lift below). */
+.inputGroup .input,
+.inputGroup .input:focus {
+  background-color: transparent;
 }
 
 /* Size presets — mirror `.input`'s sm/md/lg via the same `data-size` attr.
@@ -194,6 +212,7 @@
 }
 
 .inputGroup:focus-within {
+  background-color: var(--sf-color-bg);
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, 1px);
 }
@@ -295,6 +314,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .input,
   .inputGroup,
   .chipRemove,
   .clear {

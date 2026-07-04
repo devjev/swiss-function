@@ -78,3 +78,41 @@ export const NumericAxis: Story = () => (
     <CandlestickChart candles={makeCandles(24, false)} yLabel="Price" xLabel="Session" />
   </div>
 );
+
+/**
+ * `zoomable`: two years of daily candles. Wheel zooms at the cursor (click
+ * the chart once, or hold ctrl/⌘), drag pans, double-click resets; ←/→ +/- 0
+ * work on the focused chart. Zooming happens in bar-index space (weekends
+ * stay collapsed, like a trading terminal); zoomed far out, candles aggregate
+ * into true OHLC groups. Annotations are anchored at timestamps/prices and
+ * ride along. The `hline` is a "last close"-style level.
+ */
+export const Zoomable: Story = () => {
+  const candles = makeCandles(730);
+  const last = candles[candles.length - 1] as Candle;
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <CandlestickChart
+        candles={candles}
+        zoomable
+        scaffolding="full"
+        yLabel="USD"
+        annotations={[
+          {
+            type: "hline",
+            y: last.close,
+            label: `Last ${last.close.toFixed(1)}`,
+            color: "var(--sf-color-primary)",
+          },
+          {
+            type: "measure",
+            x1: candles[120]?.x ?? 0,
+            y1: candles[120]?.close ?? 0,
+            x2: candles[360]?.x ?? 0,
+            y2: candles[360]?.close ?? 0,
+          },
+        ]}
+      />
+    </div>
+  );
+};

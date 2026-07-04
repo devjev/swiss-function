@@ -112,6 +112,11 @@
   transition: filter var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* Activatable bars (onPointActivate) advertise the click. */
+.bar[data-activatable] {
+  cursor: pointer;
+}
+
 /* --- Tufte value labels above each bar -------------------------------- */
 
 .valueLabel {

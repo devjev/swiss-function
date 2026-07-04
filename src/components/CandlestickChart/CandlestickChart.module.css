@@ -146,3 +146,57 @@
     transition: none;
   }
 }
+
+/* --- Interactive viewport (zoomable) ----------------------------------- */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+.root[data-zoomable] .plot {
+  /* The chart owns its gestures: no browser pan/pinch on the plot. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+.resetButton {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 3);
+  border: 1px solid var(--sf-color-border);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  border-color: var(--sf-color-border-strong);
+}
+
+.resetButton:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+/* Visually-hidden live region announcing the visible range. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

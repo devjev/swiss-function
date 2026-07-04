@@ -5,7 +5,8 @@
      single-line TextEdit matches Button md and Input md heights exactly.
      The `-1px` compensates for the 1px border on each side. */
   padding: calc(var(--sf-unit) / 4 - 1px) calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
+  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
@@ -17,7 +18,9 @@
   caret-shape: block;
   caret-color: var(--sf-color-primary);
   resize: vertical;
-  transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .root::placeholder {
@@ -28,6 +31,10 @@
   border-color: var(--sf-color-primary-hover);
 }
 
+.root:focus {
+  background-color: var(--sf-color-bg);
+}
+
 .root:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, 1px);
@@ -36,4 +43,10 @@
 .root:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
 }

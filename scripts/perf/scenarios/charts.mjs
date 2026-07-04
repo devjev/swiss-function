@@ -43,6 +43,44 @@ function hoverRun(hoverTarget) {
   };
 }
 
+// Viewport interaction (issue #27): input→paint for one wheel-zoom step, then
+// frame p95 during a zoom burst + drag-pan sweep. Every event recomputes the
+// x-domain, re-slices + re-decimates the 50k series, and re-renders the plot —
+// the decimation budget (~plot-width elements) is what keeps this in frame.
+function zoomRun() {
+  return async ({ page, frame }) => {
+    const box = await boundsOf(frame, "svg");
+    const cx = box.x + box.width * 0.6;
+    const cy = box.y + box.height * 0.5;
+    const metrics = {};
+
+    // Plain wheel is gated behind a click (page-scroll protection) — arm first.
+    await page.mouse.click(cx, cy);
+    metrics.zoomStepMs = await measureInteraction(frame, () => page.mouse.wheel(0, -240));
+
+    await startFrameSampler(frame);
+    const deadline = Date.now() + 2000;
+    let i = 0;
+    while (Date.now() < deadline) {
+      await page.mouse.wheel(0, i % 24 < 12 ? -180 : 180);
+      i += 1;
+      await page.waitForTimeout(30);
+    }
+    // Zoom in, then sweep-pan across the window.
+    for (let k = 0; k < 8; k++) await page.mouse.wheel(0, -240);
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    for (let s = 0; s < 30; s++) {
+      await page.mouse.move(cx + Math.sin(s / 3) * box.width * 0.3, cy, { steps: 2 });
+      await page.waitForTimeout(16);
+    }
+    await page.mouse.up();
+    const deltas = await stopFrameSampler(frame);
+    metrics.p95ZoomFrameMs = p95(deltas);
+    return metrics;
+  };
+}
+
 export const scenarios = [
   {
     name: "scatterplot-hover-5k",
@@ -55,5 +93,11 @@ export const scenarios = [
     story: "perf--candlestickchart--perf-candles",
     ready: "[data-perf-ready]",
     run: hoverRun(null),
+  },
+  {
+    name: "scatterplot-zoom-50k",
+    story: "perf--scatterplot--perf-zoom",
+    ready: "[data-perf-ready]",
+    run: zoomRun(),
   },
 ];

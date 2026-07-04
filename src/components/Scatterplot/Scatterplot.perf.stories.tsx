@@ -42,3 +42,29 @@ export const PerfPoints: Story = () => (
     />
   </div>
 );
+
+// Lazy — allocated only when PerfZoom mounts, so the 50k series doesn't
+// inflate the heap measurement of the other stories in this module.
+let zoomData: ScatterDatum[] | null = null;
+
+/** 50k-point zoomable line — the viewport perf probe (scripts/perf/scenarios/
+ *  charts.mjs `scatterplot-zoom-50k`). Every wheel/drag event recomputes the
+ *  domain, re-slices and re-decimates the window (min/max per pixel column),
+ *  and re-renders the plot; the decimation must keep the rendered element
+ *  count ~plot-width regardless of zoom level. */
+export const PerfZoom: Story = () => {
+  zoomData ??= makePoints(50_000);
+  return (
+    <div style={{ width: 960 }} data-perf-ready="">
+      <Scatterplot
+        series={[{ name: "Probe", data: zoomData, showLine: true, showPoints: false }]}
+        xLabel="Index"
+        yLabel="Value"
+        height={480}
+        showLegend={false}
+        scaffolding="full"
+        zoomable
+      />
+    </div>
+  );
+};

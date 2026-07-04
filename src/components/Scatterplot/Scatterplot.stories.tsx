@@ -1,7 +1,19 @@
 import type { Story } from "@ladle/react";
-import { Scatterplot, type ScatterplotProps } from "./Scatterplot";
+import { useState } from "react";
+import { Scatterplot, type ScatterplotProps, type ScatterSeries } from "./Scatterplot";
 
 export default { title: "Chart/Scatterplot" };
+
+/** Deterministic PRNG — story data must be stable across reloads. */
+function seededRandom(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 const samplePoints = [
   { x: 1, y: 12 },
@@ -143,3 +155,123 @@ export const FullScaffolding: Story = () => (
     />
   </div>
 );
+
+/**
+ * `zoomable`: wheel zooms at the cursor (click the chart once, or hold
+ * ctrl/⌘), drag pans, double-click resets. Keyboard when focused: ←/→ pan,
+ * +/- zoom, 0 resets. Two years of daily data — zoom in and watch the time
+ * axis morph from months to days, and the decimated line progressively reveal
+ * raw points. The y-axis follows the visible window.
+ */
+export const Zoomable: Story = () => {
+  const rand = seededRandom(42);
+  const data: { x: Date; y: number }[] = [];
+  let level = 120;
+  const start = new Date(2024, 0, 1).getTime();
+  for (let i = 0; i < 730; i++) {
+    level += (rand() - 0.48) * 4;
+    data.push({ x: new Date(start + i * 86_400_000), y: Number(level.toFixed(2)) });
+  }
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <Scatterplot
+        series={[{ name: "Sensor", data, showLine: true, showPoints: false }]}
+        scaffolding="full"
+        zoomable
+        xLabel="Date"
+        yLabel="Reading"
+      />
+    </div>
+  );
+};
+
+/**
+ * Annotations are plain JSON anchored in data space, so they stay glued to
+ * their values through zoom and pan (this chart is also `zoomable`).
+ */
+export const Annotations: Story = () => {
+  const rand = seededRandom(7);
+  const data: { x: Date; y: number }[] = [];
+  let level = 80;
+  const start = new Date(2025, 0, 6).getTime();
+  for (let i = 0; i < 240; i++) {
+    level += (rand() - 0.46) * 2;
+    data.push({ x: new Date(start + i * 86_400_000), y: Number(level.toFixed(2)) });
+  }
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <Scatterplot
+        series={[{ name: "Price", data, showLine: true, showPoints: false }]}
+        scaffolding="full"
+        zoomable
+        xLabel="Date"
+        yLabel="Price"
+        annotations={[
+          { type: "hline", y: 80, label: "Entry", color: "var(--sf-color-success)" },
+          { type: "vline", x: new Date(2025, 3, 1), label: "Q2" },
+          {
+            type: "rect",
+            x1: new Date(2025, 5, 1),
+            x2: new Date(2025, 6, 1),
+            label: "Freeze",
+            color: "var(--sf-color-warning)",
+          },
+          {
+            type: "measure",
+            x1: new Date(2025, 1, 3),
+            y1: 80,
+            x2: new Date(2025, 4, 15),
+            y2: 88,
+          },
+        ]}
+      />
+    </div>
+  );
+};
+
+/**
+ * Drill-down is an event, not behavior: `onPointActivate` fires on
+ * click/Enter, the consumer swaps `series` for finer-grained data and renders
+ * its own breadcrumb. `onXDomainChange` is the matching hook for loading
+ * finer data when the user zooms in (semantic zoom).
+ */
+export const DrillDown: Story = () => {
+  const years = [
+    { x: 2021, y: 84 },
+    { x: 2022, y: 132 },
+    { x: 2023, y: 118 },
+    { x: 2024, y: 176 },
+    { x: 2025, y: 205 },
+  ];
+  const monthsFor = (year: number): ScatterSeries => {
+    const rand = seededRandom(year);
+    return {
+      name: `${year} by month`,
+      data: Array.from({ length: 12 }, (_, m) => ({
+        x: m + 1,
+        y: Math.round(5 + rand() * 20),
+        label: new Date(year, m, 1).toLocaleString(undefined, { month: "short" }),
+      })),
+      showLine: true,
+    };
+  };
+  const [year, setYear] = useState<number | null>(null);
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      {year != null ? (
+        <button type="button" onClick={() => setYear(null)} style={{ marginBlockEnd: "0.5rem" }}>
+          ← All years
+        </button>
+      ) : null}
+      <Scatterplot
+        series={
+          year != null ? [monthsFor(year)] : [{ name: "Revenue", data: years, showLine: true }]
+        }
+        scaffolding="full"
+        xLabel={year != null ? `Months of ${year}` : "Year"}
+        yLabel="Revenue (k)"
+        onPointActivate={year == null ? (d) => setYear(Number(d.x)) : undefined}
+      />
+    </div>
+  );
+};

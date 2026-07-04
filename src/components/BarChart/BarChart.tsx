@@ -50,6 +50,10 @@ export interface BarChartProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    *   - `"full"`: nice-tick y-axis with gridlines visible at all times, no
    *     inline value labels — the previous v0.1 behavior. */
   scaffolding?: ChartScaffolding;
+  /** Click/Enter on a bar — the drill-down hook (issue #27). The consumer
+   *  swaps `categories`/`series` for finer-grained data (year → months) and
+   *  renders its own breadcrumb / back affordance. */
+  onPointActivate?: (datum: BarTooltipDatum) => void;
   renderTooltip?: (datum: BarTooltipDatum) => ReactNode;
 }
 
@@ -84,6 +88,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     height,
     showLegend,
     scaffolding = "hover",
+    onPointActivate,
     renderTooltip = defaultTooltip,
     className,
     style,
@@ -246,6 +251,22 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                       aria-label={`${c} ${s.name}: ${v}`}
                       onPointerEnter={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
                       onPointerLeave={handleLeave}
+                      onClick={
+                        onPointActivate
+                          ? () => onPointActivate({ category: c, series: s.name, value: v })
+                          : undefined
+                      }
+                      onKeyDown={
+                        onPointActivate
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onPointActivate({ category: c, series: s.name, value: v });
+                              }
+                            }
+                          : undefined
+                      }
+                      data-activatable={onPointActivate ? "" : undefined}
                       onFocus={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setHover({
