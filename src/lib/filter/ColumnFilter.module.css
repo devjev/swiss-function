@@ -81,7 +81,9 @@
 
 .noMatch {
   padding-block: calc(var(--sf-unit) / 4);
-  color: var(--sf-color-muted);
+  /* Full fg — an empty-state message is copy the user reads; body text is
+     never grey (AESTHETICS.md; NonIdealState is the reference). */
+  color: var(--sf-color-fg);
 }
 
 .range {

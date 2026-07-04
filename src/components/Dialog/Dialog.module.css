@@ -210,6 +210,8 @@
 
 .description {
   margin: 0 0 var(--sf-space-4) 0;
-  color: var(--sf-color-muted);
+  /* Full fg — a dialog description is prose the user is meant to read;
+     body text is never grey (AESTHETICS.md). */
+  color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
 }

@@ -16,7 +16,9 @@
 .empty {
   padding: var(--sf-space-2) var(--sf-space-3);
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
+  /* Full fg — an empty-state message is copy the user reads; body text is
+     never grey (AESTHETICS.md; NonIdealState is the reference). */
+  color: var(--sf-color-fg);
 }
 
 /* Virtualized option list: the List itself is the scroll container (the

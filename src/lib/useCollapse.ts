@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export interface UseCollapseOptions {
   /**
@@ -64,22 +64,28 @@ export function useCollapse<E extends HTMLElement = HTMLElement>({
     setCollapsed(el.getBoundingClientRect().width < cache.px);
   }, [collapseAt]);
 
+  // The observer lives in the ref callback, NOT a mount effect: consumers may
+  // attach the ref conditionally or late (Field only observes once a Help
+  // child registers), and a mount-time effect would then install nothing —
+  // the initial measure would be right but real container resizes would never
+  // fire again. React detaches (null) and reattaches on unmount and whenever
+  // the callback identity changes (collapseAt change → new `measure`), so
+  // disconnect/observe here covers the whole lifecycle.
+  const roRef = useRef<ResizeObserver | null>(null);
   const ref = useCallback(
     (node: E | null) => {
+      roRef.current?.disconnect();
+      roRef.current = null;
       elRef.current = node;
-      if (node && typeof ResizeObserver !== "undefined") measure();
+      if (node && typeof ResizeObserver !== "undefined") {
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(node);
+        roRef.current = ro;
+      }
     },
     [measure],
   );
-
-  useLayoutEffect(() => {
-    const el = elRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [measure]);
 
   return { ref, collapsed };
 }

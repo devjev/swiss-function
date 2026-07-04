@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-04T18:56:34.062Z"
+    "date": "2026-07-04T20:18:18.135Z"
   },
-  "totalGzip": 480486,
+  "totalGzip": 483780,
   "entries": {
     ".": {
       "files": 184,
-      "jsRaw": 586722,
-      "jsGzip": 181849,
+      "jsRaw": 590507,
+      "jsGzip": 183074,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 181849,
+      "gzip": 183074,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -30,6 +30,7 @@
         "@base-ui/react/tabs",
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
+        "@base-ui/react/tooltip",
         "@base-ui/react/use-render",
         "@dnd-kit/core",
         "@dnd-kit/sortable",
@@ -177,13 +178,13 @@
       ]
     },
     "./field": {
-      "files": 4,
-      "jsRaw": 2133,
-      "jsGzip": 995,
+      "files": 6,
+      "jsRaw": 7467,
+      "jsGzip": 3050,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 995,
-      "externals": ["@base-ui/react/field", "react", "react/jsx-runtime"]
+      "gzip": 3050,
+      "externals": ["@base-ui/react/field", "@base-ui/react/tooltip", "react", "react/jsx-runtime"]
     },
     "./fullscreen": {
       "files": 5,
@@ -345,11 +346,11 @@
     },
     "./window-array": {
       "files": 6,
-      "jsRaw": 40278,
-      "jsGzip": 10371,
+      "jsRaw": 40589,
+      "jsGzip": 10433,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 10371,
+      "gzip": 10433,
       "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
     },
     "./popover": {
@@ -466,11 +467,11 @@
     },
     "./menu-bar": {
       "files": 13,
-      "jsRaw": 21076,
-      "jsGzip": 7204,
+      "jsRaw": 21024,
+      "jsGzip": 7188,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7204,
+      "gzip": 7188,
       "externals": [
         "@base-ui/react/input",
         "@base-ui/react/menu",
@@ -618,20 +619,20 @@
     },
     "./reflow": {
       "files": 9,
-      "jsRaw": 10767,
-      "jsGzip": 4078,
+      "jsRaw": 10715,
+      "jsGzip": 4062,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4078,
+      "gzip": 4062,
       "externals": ["@base-ui/react/accordion", "@base-ui/react/tabs", "react", "react/jsx-runtime"]
     },
     "./lib/use-collapse": {
       "files": 1,
-      "jsRaw": 1586,
-      "jsGzip": 709,
+      "jsRaw": 1534,
+      "jsGzip": 693,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 709,
+      "gzip": 693,
       "externals": ["react"]
     },
     "./lib/use-overflow": {

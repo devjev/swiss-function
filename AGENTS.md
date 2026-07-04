@@ -67,7 +67,7 @@ Ladle (`npm run dev`).
 | --------------- | -------------------------------------------------------- |
 | `Button`        | Any clickable action. Variants: primary, secondary, ghost, danger. Sizes: sm, md, lg. |
 | `ButtonGroup`   | A row of related buttons sharing a cascading size.        |
-| `Field`         | Compound for any form row: `Field.Root` + `Field.Label` + control + `Field.Description` + `Field.Error`. Don't roll your own. |
+| `Field`         | Compound for any form row: `Field` + `Field.Label` + control + `Field.Description` + `Field.Error`. `Field.Help` is space-adaptive help text — beside the control when wide, a "?" tooltip after the label when narrow (`helpAt`). Don't roll your own. |
 | `Input`         | Single-line text input. Monospace by design.              |
 | `DigitInput`    | Fixed-capacity number entry as digit cells (`[0][4][2].[5][0] %`). Two feels via `mode`: `"push"` (default — calculator, digits push from the right, always complete) and `"mask"` (2FA-style per-cell fill, null until complete). `digits`/`decimals`/`unit`; value is `number \| null` (null = untyped mask). Doubles as a numeric PIN input. |
 | `Kbd`           | Renders a keyboard shortcut as OS-aware keycaps (`combo="mod+k"` → ⌘K on macOS, Ctrl+K elsewhere). `mod` = primary modifier; never shows ⌘ off-Mac. For labels/menus/tooltips. |

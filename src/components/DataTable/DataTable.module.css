@@ -489,7 +489,9 @@
   display: grid;
   place-items: center;
   padding: var(--sf-unit);
-  color: var(--sf-color-muted);
+  /* Full fg — an empty-state message is copy the user reads; body text is
+     never grey (AESTHETICS.md; NonIdealState is the reference). */
+  color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
 }
 
