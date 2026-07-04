@@ -10,6 +10,8 @@ const Empty = BaseCombobox.Empty;
 const List = BaseCombobox.List;
 // Renders no element of its own — pass-through.
 const Value = BaseCombobox.Value;
+// Hook: the internally filtered items (for externally virtualized lists).
+const useFilteredItems = BaseCombobox.useFilteredItems;
 
 const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseCombobox.Input>>(
   function ComboboxInput({ className, ...rest }, ref) {
@@ -137,4 +139,5 @@ export const Combobox = {
   Chip,
   ChipRemove,
   Clear,
+  useFilteredItems,
 };

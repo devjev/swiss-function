@@ -6,6 +6,7 @@ import {
   MergeHarness,
   TreeHarness,
 } from "./DataTable.harness";
+import { SortHarness } from "./DataTable.sortHarness";
 
 const COLUMNS = ["name", "age", "active"];
 const DATA = [
@@ -543,4 +544,79 @@ test("frozen columns stay pinned while the rest scroll horizontally", async ({ m
 test("frozenColumns=0 leaves no frozen cells", async ({ mount }) => {
   const c = await mount(<FrozenHarness width={360} frozenColumns={0} />);
   await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+});
+
+// --- Sorting (flat mode renders body rows from computeRowOrder) ---
+// SortHarness data order starts at "Row 7"; asc-first is "Row 1", desc-first
+// is "Row 12", so every state of the cycle is distinguishable.
+
+test("clicking a sortable header cycles asc → desc → cleared", async ({ mount }) => {
+  const c = await mount(<SortHarness />);
+  const header = c.getByRole("columnheader", { name: "name" });
+  // First gridcell of each body row = the name column, in display order.
+  const nameCells = c.locator('[role="gridcell"]:first-child');
+  await expect(nameCells.first()).toHaveText("Row 7"); // unsorted = data order
+
+  await header.click(); // strings toggle asc first (getAutoSortDir sniff)
+  await expect(nameCells.first()).toHaveText("Row 1");
+  // Alphanumeric, not lexicographic: Row 2 sorts before Row 10.
+  const names = await nameCells.allTextContents();
+  expect(names.indexOf("Row 2")).toBeLessThan(names.indexOf("Row 10"));
+
+  await header.click(); // desc
+  await expect(nameCells.first()).toHaveText("Row 12");
+
+  await header.click(); // third click clears the sort
+  await expect(nameCells.first()).toHaveText("Row 7");
+});
+
+test("sorting composes with a column filter", async ({ mount, page }) => {
+  const c = await mount(<SortHarness filterable />);
+  // Keep only kind=alpha (the odd rows: 1, 3, 5, 7, 9, 11).
+  await c.getByRole("button", { name: "Filter kind" }).click();
+  await page.getByRole("checkbox", { name: "beta" }).click();
+  await page.keyboard.press("Escape"); // close the popover so it can't cover the header
+  const nameCells = c.locator('[role="gridcell"]:first-child');
+  await expect(nameCells).toHaveCount(6);
+
+  await c.getByRole("columnheader", { name: "name" }).click(); // asc
+  await expect(nameCells.first()).toHaveText("Row 1");
+  await expect(nameCells).toHaveCount(6);
+  await expect(c.getByRole("gridcell").filter({ hasText: "Row 12" })).toHaveCount(0);
+});
+
+test("custom cell renderer keeps rowIndex = original data index after sorting", async ({
+  mount,
+}) => {
+  const c = await mount(<SortHarness customCell />);
+  const nameCells = c.locator('[role="gridcell"]:first-child');
+  await expect(nameCells.first()).toHaveText("Row 7#0");
+
+  await c.getByRole("columnheader", { name: "name" }).click(); // asc
+  // "Row 1" sits at data index 3 — rowIndex stays the ORIGINAL index, not the
+  // display index (parity with TanStack's row.index).
+  await expect(nameCells.first()).toHaveText("Row 1#3");
+});
+
+test("editing after sorting fires CellChange with the display row index", async ({
+  mount,
+  page,
+}) => {
+  let lastChanges: unknown = null;
+  const c = await mount(
+    <SortHarness
+      editable
+      onCellChange={(changes) => {
+        lastChanges = changes;
+      }}
+    />,
+  );
+  await c.getByRole("columnheader", { name: "name" }).click(); // asc → "Row 1" first
+  const first = c.locator('[role="gridcell"]:first-child').first();
+  await expect(first).toHaveText("Row 1");
+  await first.dblclick();
+  await page.keyboard.insertText("X");
+  await page.keyboard.press("Enter");
+  // rowIndex is the DISPLAY index (0 = top visible row), not the data index.
+  expect(lastChanges).toEqual([{ rowIndex: 0, columnId: "name", value: "Row 1X" }]);
 });

@@ -510,6 +510,10 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 | `fill` | `boolean` | `false` | Fill parent height (parent must set height). |
 | `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
 
+**Scale gates** (automatic, from the live graph size): node/edge labels render
+only up to 300 nodes; above 5,000 edges, edges are hidden while the camera is
+moving (they reappear at rest) and arrowheads render as plain edges.
+
 **Elements / Parts:** `Graph.Controls` (zoom/fit/reset/layout/Connect toolbar),
 `Graph.Minimap` (viewport overlay).
 

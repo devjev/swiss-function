@@ -13,6 +13,14 @@ export function readCellValue<M>(col: ExplorerColumn<M>, node: ExplorerNode<M>):
 
 // --- Sorting ---------------------------------------------------------------
 
+/** Shared natural-order string comparator ("file2" before "file10"). A single
+ *  Intl.Collator resolves locale data once; per-call `localeCompare` with an
+ *  options bag re-resolves it on every comparison (~30-50x slower over large
+ *  sorts) while producing the identical ordering. */
+export const naturalCompare: (a: string, b: string) => number = new Intl.Collator(undefined, {
+  numeric: true,
+}).compare;
+
 function toTime(v: unknown): number {
   if (v instanceof Date) return v.getTime();
   const t = new Date(v as string | number).getTime();
@@ -22,13 +30,12 @@ function toTime(v: unknown): number {
 function baseCompare(av: unknown, bv: unknown, sortType?: "string" | "number" | "date"): number {
   if (sortType === "number") return Number(av) - Number(bv);
   if (sortType === "date") return toTime(av) - toTime(bv);
-  if (sortType === "string")
-    return String(av).localeCompare(String(bv), undefined, { numeric: true });
+  if (sortType === "string") return naturalCompare(String(av), String(bv));
   // Inference: numbers compare numerically, Dates by time, everything else as
   // natural-ordered strings ("file2" before "file10").
   if (typeof av === "number" && typeof bv === "number") return av - bv;
   if (av instanceof Date && bv instanceof Date) return av.getTime() - bv.getTime();
-  return String(av).localeCompare(String(bv), undefined, { numeric: true });
+  return naturalCompare(String(av), String(bv));
 }
 
 /** Build an ascending/descending comparator from a value reader. Nullish values

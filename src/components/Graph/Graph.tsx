@@ -21,6 +21,7 @@ import {
   applyVisuals,
   buildGraph,
   type EdgeVisual,
+  edgeTypeFor,
   type NodeVisual,
   nodeColor,
   type RenderHooks,
@@ -151,6 +152,11 @@ const EDITABLE_MIN_EDGE_THICKNESS = 5;
  *  visually weightier than the thicker editable edges. Consumer `renderNode`
  *  sizes are unaffected. */
 const EDITABLE_NODE_SIZE_BOOST = 4;
+/** Above this many edges, skip edge rasterization while the camera is moving
+ *  (Sigma's `hideEdgesOnMove`) — the same size-gating idiom as the ≤300-node
+ *  `renderLabels` threshold. Pan/zoom repaints the full scene every frame and
+ *  edges dominate that cost; they reappear the moment the camera rests. */
+const HIDE_EDGES_ON_MOVE_MIN_EDGES = 5000;
 
 /** Fallback unique id for an edge drawn via Connect mode, when the consumer
  *  doesn't supply `generateEdgeId`. Prefers `crypto.randomUUID`, else a counter. */
@@ -307,7 +313,12 @@ function computeLayout(g: Graphology, layout: LayoutKind): LayoutMapping {
         before[n] = { x: attr.x as number, y: attr.y as number };
       });
       forceAtlas2.assign(g, {
-        iterations: g.order > 2000 ? 80 : 200,
+        // Iterations time-box the SYNCHRONOUS main-thread FA2 block (~30ms per
+        // iteration at 10k nodes in Node, roughly double in dev-mode Chromium;
+        // 80 iterations froze first paint + interactivity for ~5s). Applies to
+        // the layout-switch effect too (switching back to "force"), not just
+        // the initial layout.
+        iterations: g.order > 5000 ? 30 : g.order > 2000 ? 80 : 200,
         settings: forceAtlas2.inferSettings(g),
       });
       const after: LayoutMapping = {};
@@ -492,8 +503,13 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const hasEdgeLabels = g.someEdge((_e, attr) => attr.label != null);
     const renderer = new Sigma(g, container, {
       defaultNodeColor: nodeColor("primary", container),
-      // Directed arrowheads for every edge unless an edge sets its own `type`.
-      defaultEdgeType: "arrow",
+      // Directed arrowheads — until the graph is big enough that arrowheads
+      // are sub-pixel and their extra GL program only burns raster time; then
+      // plain edges. No edge carries its own `type`, so this default governs
+      // them all. (Sigma's "line" is still EdgeRectangleProgram — thickness-
+      // preserving quads, not 1px GL_LINES; registering EdgeLineProgram would
+      // be the next, lossier lever.)
+      defaultEdgeType: edgeTypeFor(g.size),
       labelColor: { color: token("--sf-color-fg", "#0a0a0a", container) },
       labelFont: token("--sf-font-sans", "system-ui", container),
       // Theme-aware hover box; Sigma's default hard-codes a white background that
@@ -503,6 +519,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       edgeLabelFont: token("--sf-font-sans", "system-ui", container),
       renderLabels: g.order <= 300,
       renderEdgeLabels: hasEdgeLabels && g.order <= 300,
+      hideEdgesOnMove: g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES,
       // Edge events (click/right-click/hover) only fire when enabled; needed for
       // edge selection + the edge context menu. Off for big read-only graphs.
       enableEdgeEvents: editableRef.current || handlersRef.current.onEdgeClick != null,
@@ -615,7 +632,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       if (live === null || source === null || target === null || source === target) return;
       if (live.hasEdge(source, target)) return; // non-multi: no parallel edge
       const id = (generateEdgeIdRef.current ?? defaultEdgeId)();
-      live.addEdgeWithKey(id, source, target, { type: "arrow" });
+      live.addEdgeWithKey(id, source, target);
       applyVisuals(
         live,
         { nodes: [], edges: [{ id, source, target }] },
@@ -733,6 +750,12 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       "renderEdgeLabels",
       g.someEdge((_e, attr) => attr.label != null) && g.order <= 300,
     );
+    // The edge-count gates track threshold crossings too (the renderer is built
+    // once; a `data` update can grow or shrink past them). Retyping through
+    // `defaultEdgeType` is atomic: no edge carries its own `type`, and the
+    // refresh below re-applies the default to every edge.
+    renderer.setSetting("hideEdgesOnMove", g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES);
+    renderer.setSetting("defaultEdgeType", edgeTypeFor(g.size));
     renderer.refresh();
     if (changed) bumpEpoch();
   }, [data, editable, bumpEpoch]);

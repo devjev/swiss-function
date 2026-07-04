@@ -29,7 +29,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
@@ -39,7 +39,7 @@ import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import { computeMergeMap } from "./cellSpans";
+import { computeMergeMap, type MergeMap } from "./cellSpans";
 import {
   buildColumnTemplate,
   COLUMN_MIN_UNITS,
@@ -50,10 +50,12 @@ import {
 import styles from "./DataTable.module.css";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
+import { computeRowOrder, getCellValue } from "./rowOrder";
 import type {
   AdvanceHint,
   Cell,
   CellChange,
+  CellRange,
   CellSpanFn,
   ColumnDef,
   ExpandedState,
@@ -193,11 +195,6 @@ function measureCssWidth(parent: HTMLElement, value: string): number {
   return w;
 }
 
-function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknown {
-  if (typeof accessor === "function") return accessor(row);
-  return (row as Record<string, unknown>)[accessor as string];
-}
-
 /** Checklist filter: keep rows whose stringified value is in the allowed set.
  *  Only runs when a filter entry exists, so an empty set is treated as "keep". */
 const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
@@ -306,6 +303,158 @@ function SortableHeaderCell({ id, render }: { id: string; render: (dnd: HeaderDn
   });
 }
 
+/** Mirror of useTableSelection's editing shape (not exported there). */
+interface RowEditingState {
+  cell: Cell;
+  initialText?: string;
+}
+
+function cellInRange(row: number, col: number, range: CellRange | null): boolean {
+  if (!range) return false;
+  return (
+    row >= range.start.row && row <= range.end.row && col >= range.start.col && col <= range.end.col
+  );
+}
+
+interface DataTableRowProps<T> {
+  original: T;
+  /** Original data index — row key + custom-cell `rowIndex` (parity with
+   *  TanStack's `row.index`, which is the pre-sort/-filter position). */
+  dataIdx: number;
+  /** Display row index — the selection/edit/merge coordinate space. */
+  displayIndex: number;
+  height: number;
+  /** Virtualized translateY offset; undefined in the paginated (flow) branch. */
+  start?: number;
+  visibleLeaves: LeafColumnDef<T>[];
+  frozenCount: number;
+  /** null when nothing is frozen, so unfrozen rows bail out during a resize
+   *  (the offsets recompute from columnWidths on every step). */
+  frozenLefts: string[] | null;
+  resizableColumns: boolean;
+  mergeMap: MergeMap | null;
+  editing: RowEditingState | null;
+  selectionActive: Cell | null;
+  selectionRange: CellRange | null;
+  registerCell: (row: number, col: number, el: HTMLDivElement | null) => void;
+  onCellPointerDown: (cell: Cell, ev: { shiftKey: boolean }) => void;
+  onCellPointerEnter: (cell: Cell) => void;
+  isColumnEditable: (col: number) => boolean;
+  startEdit: (cell: Cell, initialText?: string) => void;
+  getValueAt: (rowIdx: number, colIdx: number) => unknown;
+  commitEdit: (value: unknown, advance?: AdvanceHint) => void;
+  cancelEdit: () => void;
+}
+
+/** One flat-mode body row, rendered straight from the raw data row (no
+ *  TanStack Row object — see computeRowOrder). Every prop is stable-or-
+ *  primitive so the memo bails out when only the column template changes
+ *  (a resize step then re-renders the header alone). Tree tables keep the
+ *  unmemoized TanStack path: expanded state lives inside the Row objects,
+ *  which a memo here would render stale. */
+function DataTableRowInner<T>({
+  original,
+  dataIdx,
+  displayIndex,
+  height,
+  start,
+  visibleLeaves,
+  frozenCount,
+  frozenLefts,
+  resizableColumns,
+  mergeMap,
+  editing,
+  selectionActive,
+  selectionRange,
+  registerCell,
+  onCellPointerDown,
+  onCellPointerEnter,
+  isColumnEditable,
+  startEdit,
+  getValueAt,
+  commitEdit,
+  cancelEdit,
+}: DataTableRowProps<T>) {
+  return (
+    <div
+      role="row"
+      className={styles.row}
+      style={
+        start !== undefined
+          ? {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height,
+              transform: `translateY(${start}px)`,
+            }
+          : { height }
+      }
+    >
+      {visibleLeaves.map((colDef, colIndex) => {
+        const cell: Cell = { row: displayIndex, col: colIndex };
+        const active = selectionActive?.row === displayIndex && selectionActive?.col === colIndex;
+        const inRange = cellInRange(displayIndex, colIndex, selectionRange);
+        const isEditing = editing?.cell.row === displayIndex && editing?.cell.col === colIndex;
+        const align = colDef.align ?? "start";
+        const isFrozen = colIndex < frozenCount;
+        const isLocked = resizableColumns && colDef.resizable === false;
+
+        const key = `${displayIndex}:${colIndex}`;
+        const isCovered = mergeMap?.covered.has(key) ?? false;
+        const mergeRight = mergeMap?.suppressRight.has(key) || undefined;
+        const mergeBottom = mergeMap?.suppressBottom.has(key) || undefined;
+
+        const value = getCellValue(original, colDef.accessor);
+
+        return (
+          <div
+            key={colDef.id}
+            ref={(el) => registerCell(displayIndex, colIndex, el)}
+            role="gridcell"
+            tabIndex={active ? 0 : -1}
+            data-active={active || undefined}
+            data-in-range={inRange || undefined}
+            data-align={align}
+            data-locked={isLocked || undefined}
+            data-frozen={isFrozen || undefined}
+            data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
+            data-merge-right={mergeRight}
+            data-merge-bottom={mergeBottom}
+            className={styles.cell}
+            style={isFrozen && frozenLefts ? { left: frozenLefts[colIndex] } : undefined}
+            onPointerDown={(e) => onCellPointerDown(cell, { shiftKey: e.shiftKey })}
+            onPointerEnter={() => onCellPointerEnter(cell)}
+            onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
+          >
+            {/* Covered cells render blank — the lead cell carries the content. */}
+            {isCovered ? null : isEditing && colDef.edit ? (
+              <CellEditor
+                value={getValueAt(displayIndex, colIndex)}
+                config={colDef.edit}
+                initialText={editing?.initialText}
+                onCommit={commitEdit}
+                onCancel={cancelEdit}
+              />
+            ) : (
+              <span className={styles.cellBody}>
+                {colDef.cell
+                  ? colDef.cell({ value, row: original, rowIndex: dataIdx })
+                  : value == null
+                    ? ""
+                    : String(value)}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const DataTableRow = memo(DataTableRowInner) as typeof DataTableRowInner;
+
 export function DataTable<T>(props: DataTableProps<T>) {
   const {
     data,
@@ -403,10 +552,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Flat tables (no getSubRows) never materialize TanStack Row objects — at
+  // ~3KB per Row that's the 100k-row heap cost of issue #11. TanStack then
+  // only powers headers, sort toggles and filter funnels: it gets a single
+  // sniff row (manualSorting/manualFiltering on) so getAutoSortDir still sees
+  // data[0] and keeps asc-first-for-strings toggling, while the body renders
+  // straight from `data` in computeRowOrder's display order. Accepted drift:
+  // stock TanStack sniffs the first *filtered* row, so with an active filter
+  // that excludes row 0 on a mixed-type column the first toggle direction can
+  // differ. Tree tables keep the full row-model path untouched.
+  const flatMode = !getSubRows;
+  const sniffData = useMemo(() => data.slice(0, 1), [data]);
   const table = useReactTable({
-    data,
+    data: flatMode ? sniffData : data,
     columns: tsColumns,
     state: { sorting, expanded: expandedState, columnOrder, columnFilters },
+    manualSorting: flatMode,
+    manualFiltering: flatMode,
     onSortingChange: setSorting,
     onColumnOrderChange: (updater) =>
       setColumnOrder((typeof updater === "function" ? updater(columnOrder) : updater) as string[]),
@@ -426,6 +588,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   });
   const rows = table.getRowModel().rows;
 
+  // Flat mode: display-order → original-data-index permutation, computed on
+  // the raw data with table-core sorting/filtering parity (see rowOrder.ts).
+  // Null on tree tables, which render from the TanStack row model.
+  const order = useMemo(
+    () => (getSubRows ? null : computeRowOrder(data, visibleLeaves, sorting, columnFilters)),
+    [getSubRows, data, visibleLeaves, sorting, columnFilters],
+  );
+  const totalRowCount = order ? order.length : rows.length;
+
   // --- Pagination state ---
   const [internalPageIndex, setInternalPageIndex] = useState(0);
   const pageIndex = paginate?.pageIndex ?? internalPageIndex;
@@ -436,17 +607,32 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [paginate],
   );
   const pageCount = paginate
-    ? Math.max(1, Math.ceil((paginate.totalRows ?? rows.length) / paginate.pageSize))
+    ? Math.max(1, Math.ceil((paginate.totalRows ?? totalRowCount) / paginate.pageSize))
     : 1;
   const pageRows = paginate
     ? rows.slice(pageIndex * paginate.pageSize, (pageIndex + 1) * paginate.pageSize)
     : rows;
+  // Flat mode's visible window of `order`: the current page when paginated,
+  // the whole permutation otherwise. Row/display indices below are relative
+  // to this window (matching pageRows semantics).
+  const pageSize = paginate?.pageSize;
+  const displayOrder = useMemo(
+    () =>
+      order && pageSize != null
+        ? order.subarray(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+        : order,
+    [order, pageSize, pageIndex],
+  );
 
   // --- Virtualization ---
   const containerRef = useRef<HTMLDivElement>(null);
-  const visibleRowCount = paginate ? pageRows.length : rows.length;
+  const visibleRowCount = displayOrder
+    ? displayOrder.length
+    : paginate
+      ? pageRows.length
+      : rows.length;
   const rowVirtualizer = useVirtualizer({
-    count: paginate ? 0 : rows.length,
+    count: paginate ? 0 : totalRowCount,
     getScrollElement: () => containerRef.current,
     estimateSize: () => rowHeight,
     overscan: 8,
@@ -548,12 +734,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const visibleRows = paginate ? pageRows : rows;
   const getValueAt = useCallback(
     (rowIdx: number, colIdx: number): unknown => {
-      const tsRow = visibleRows[rowIdx];
       const col = visibleLeaves[colIdx];
-      if (!tsRow || !col) return null;
+      if (!col) return null;
+      if (displayOrder) {
+        const dataIdx = displayOrder[rowIdx];
+        return dataIdx === undefined ? null : getCellValue(data[dataIdx] as T, col.accessor);
+      }
+      const tsRow = visibleRows[rowIdx];
+      if (!tsRow) return null;
       return getCellValue(tsRow.original, col.accessor);
     },
-    [visibleRows, visibleLeaves],
+    [displayOrder, data, visibleRows, visibleLeaves],
   );
   const { handleCopy, handlePaste } = useTableClipboard({
     editable,
@@ -577,6 +768,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // --- Cell focus management (programmatic) ---
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const cellKey = (r: number, c: number) => `${r}:${c}`;
+  // Stable ref-registration callback so memoized flat rows keep their identity.
+  const registerCell = useCallback((row: number, col: number, el: HTMLDivElement | null) => {
+    if (el) cellRefs.current.set(`${row}:${col}`, el);
+    else cellRefs.current.delete(`${row}:${col}`);
+  }, []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: cellKey is a pure helper
   useEffect(() => {
     if (!selection.active || editing) return;
@@ -842,7 +1038,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
   });
 
   // Keyboard resize on a focused handle: arrows nudge the boundary (Shift =
-  // larger step), cascading through the same logic as a drag.
+  // larger step), cascading through the same logic as a drag. The col-min
+  // token can't change mid-burst, so it's measured once per handle focus
+  // (the probe forces a layout per keystroke otherwise) — the handle's
+  // onBlur drops the cache.
+  const keyResizeMinPx = useRef<number | null>(null);
   const resizeColumnByKey = useCallback(
     (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
       if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
@@ -850,7 +1050,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const startWidths = measureLeafWidths(headerCell);
       const idx = resolveResizeIdx(columnId);
       if (!startWidths || idx < 0) return;
-      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      const minPx = (keyResizeMinPx.current ??= measureCssWidth(
+        headerCell,
+        "var(--sf-datatable-col-min)",
+      ));
       const dx = (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 24 : 8);
       applyResize(idx, startWidths, dx, minPx);
     },
@@ -932,16 +1135,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const mergeMap = useMemo(() => {
     if (!getCellSpan) return null;
     return computeMergeMap({
-      rowCount: visibleRows.length,
+      rowCount: visibleRowCount,
       colCount,
       getSpan: (r, c) => {
-        const vr = visibleRows[r];
         const col = visibleLeaves[c];
-        if (!vr || !col) return undefined;
-        return getCellSpan({ rowIndex: r, colIndex: c, row: vr.original, column: col });
+        if (!col) return undefined;
+        let rowData: T | undefined;
+        if (displayOrder) {
+          const dataIdx = displayOrder[r];
+          rowData = dataIdx === undefined ? undefined : data[dataIdx];
+        } else {
+          rowData = visibleRows[r]?.original;
+        }
+        if (rowData === undefined) return undefined;
+        return getCellSpan({ rowIndex: r, colIndex: c, row: rowData, column: col });
       },
     });
-  }, [getCellSpan, visibleRows, colCount, visibleLeaves]);
+  }, [getCellSpan, displayOrder, data, visibleRows, visibleRowCount, colCount, visibleLeaves]);
 
   // --- Tree column index (where the chevron + indent live) ---
   const treeColIdx = useMemo(() => {
@@ -949,6 +1159,28 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (treeColumn) return visibleLeaves.findIndex((c) => c.id === treeColumn);
     return 0;
   }, [getSubRows, treeColumn, visibleLeaves]);
+
+  // Props shared by every flat-mode row. Each one is identity-stable across a
+  // resize step (only the viewport's --sf-datatable-template changes), so the
+  // memoized rows bail out and a step re-renders the header alone.
+  const flatRowProps = {
+    visibleLeaves,
+    frozenCount,
+    frozenLefts: frozenCount > 0 ? frozenLefts : null,
+    resizableColumns,
+    mergeMap,
+    editing,
+    selectionActive: selection.active,
+    selectionRange: selection.range,
+    registerCell,
+    onCellPointerDown: handleCellPointerDown,
+    onCellPointerEnter: handleCellPointerEnter,
+    isColumnEditable,
+    startEdit,
+    getValueAt,
+    commitEdit,
+    cancelEdit,
+  };
 
   // --- Cell renderer ---
   const renderCell = (row: (typeof visibleRows)[number], rowIndex: number, colIndex: number) => {
@@ -1040,7 +1272,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // --- Render ---
   const headerGroups = table.getHeaderGroups();
   // Empty when there's no data OR filters narrowed everything away.
-  const showEmpty = rows.length === 0;
+  const showEmpty = totalRowCount === 0;
 
   // --- Column filters (filterableColumns) ---
   // Per-column filter kind + selectable values: number → range; select uses its
@@ -1251,6 +1483,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
             onKeyDown={(e) =>
               resizeColumnByKey(header.column.id, e.currentTarget.parentElement as HTMLElement, e)
             }
+            onBlur={() => {
+              keyResizeMinPx.current = null;
+            }}
           />
         )}
         {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
@@ -1270,6 +1505,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
             maxHeight: height,
             "--sf-row-height": `${rowHeight}px`,
             "--sf-header-rows": headerGroups.length,
+            // INTERNAL variable (like --sf-columns-width above), not a consumer
+            // token: the single writer for every row's grid-template-columns,
+            // so a resize step mutates one element instead of every row.
+            "--sf-datatable-template": gridTemplateColumns,
             ...(frozenCount > 0 ? { scrollPaddingInlineStart: frozenWidth } : {}),
           } as CSSProperties
         }
@@ -1289,7 +1528,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
               key={hg.id}
               ref={hgIndex === 0 ? headerRowRef : undefined}
               className={styles.headerRow}
-              style={{ gridTemplateColumns }}
               role="row"
             >
               {hg.headers.map((header) => {
@@ -1335,16 +1573,24 @@ export function DataTable<T>(props: DataTableProps<T>) {
           <div className={styles.empty}>{empty ?? "No data"}</div>
         ) : paginate ? (
           <div className={styles.body}>
-            {pageRows.map((row, rowIndex) => (
-              <div
-                key={row.id}
-                role="row"
-                className={styles.row}
-                style={{ gridTemplateColumns, height: rowHeight }}
-              >
-                {row.getVisibleCells().map((_, colIndex) => renderCell(row, rowIndex, colIndex))}
-              </div>
-            ))}
+            {displayOrder
+              ? Array.from(displayOrder, (dataIdx, rowIndex) => (
+                  <DataTableRow
+                    key={dataIdx}
+                    {...flatRowProps}
+                    original={data[dataIdx] as T}
+                    dataIdx={dataIdx}
+                    displayIndex={rowIndex}
+                    height={rowHeight}
+                  />
+                ))
+              : pageRows.map((row, rowIndex) => (
+                  <div key={row.id} role="row" className={styles.row} style={{ height: rowHeight }}>
+                    {row
+                      .getVisibleCells()
+                      .map((_, colIndex) => renderCell(row, rowIndex, colIndex))}
+                  </div>
+                ))}
           </div>
         ) : (
           <div
@@ -1364,6 +1610,21 @@ export function DataTable<T>(props: DataTableProps<T>) {
             }}
           >
             {virtualRows.map((vr) => {
+              if (order) {
+                const dataIdx = order[vr.index];
+                if (dataIdx === undefined) return null;
+                return (
+                  <DataTableRow
+                    key={dataIdx}
+                    {...flatRowProps}
+                    original={data[dataIdx] as T}
+                    dataIdx={dataIdx}
+                    displayIndex={vr.index}
+                    height={vr.size}
+                    start={vr.start}
+                  />
+                );
+              }
               const row = rows[vr.index];
               if (!row) return null;
               return (
@@ -1372,7 +1633,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   role="row"
                   className={styles.row}
                   style={{
-                    gridTemplateColumns,
                     position: "absolute",
                     top: 0,
                     left: 0,

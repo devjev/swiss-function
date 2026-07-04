@@ -5,6 +5,7 @@ import {
   collectKeptFolderIds,
   filterTree,
   makeComparator,
+  naturalCompare,
   rangeTest,
   readCellValue,
   sortTree,
@@ -89,6 +90,29 @@ describe("sortTree", () => {
     const desc = sortTree(nodes, makeComparator(bySize, "desc"), false).map((n) => n.id);
     expect(asc).toEqual(["c", "a", "b"]); // 2, 5, null
     expect(desc).toEqual(["a", "c", "b"]); // 5, 2, null (null still last)
+  });
+});
+
+describe("naturalCompare", () => {
+  // Pins the checklist-option ordering Explorer's filter funnels show (the
+  // distinct-values sort uses naturalCompare directly).
+  it("sorts checklist options in natural order", () => {
+    const options = ["file10", "readme.md", "file2", "a.ts", "file1", "b.ts"];
+    expect([...options].sort(naturalCompare)).toEqual([
+      "a.ts",
+      "b.ts",
+      "file1",
+      "file2",
+      "file10",
+      "readme.md",
+    ]);
+  });
+
+  it("orders exactly like per-call localeCompare with { numeric: true }", () => {
+    const names = ["node-n-1-x2", "node-n-0-9", "file10.ts", "file2.ts", "img.png", "a", "10", "2"];
+    expect([...names].sort(naturalCompare)).toEqual(
+      [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    );
   });
 });
 

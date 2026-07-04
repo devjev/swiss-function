@@ -4,7 +4,7 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { forwardRef, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useMemo, useRef, useState } from "react";
 import { contourLevels, marchingSquares } from "../../lib/chart/contours";
 import { formatNumber, niceTicks } from "../../lib/chart/numericTicks";
 import { Tooltip } from "../../lib/chart/Tooltip";
@@ -48,6 +48,79 @@ function extent(values: number[]): Domain {
   }
   return min <= max ? [min, max] : [0, 1];
 }
+
+// The grid layers are memo components (not useMemo'd element arrays) so a
+// hover re-render bails out at a single fiber instead of re-reconciling the
+// full keyed array — on a dense grid that's 10k+ elements per pointermove.
+const HeatmapCells = memo(function HeatmapCells({
+  cells,
+}: {
+  cells: { x: number; y: number; fill: string }[];
+}) {
+  return (
+    <>
+      {cells.map((c) => (
+        <rect
+          key={`${c.x}-${c.y}`}
+          x={c.x}
+          y={c.y}
+          width={1.02}
+          height={1.02}
+          style={{ fill: c.fill }}
+        />
+      ))}
+    </>
+  );
+});
+
+const HeatmapContours = memo(function HeatmapContours({
+  lines,
+}: {
+  lines: { x1: number; y1: number; x2: number; y2: number }[];
+}) {
+  return (
+    <>
+      {lines.map((l, k) => (
+        <line
+          // biome-ignore lint/suspicious/noArrayIndexKey: positional iso-line segments
+          key={k}
+          x1={l.x1}
+          y1={l.y1}
+          x2={l.x2}
+          y2={l.y2}
+          className={styles.contour}
+        />
+      ))}
+    </>
+  );
+});
+
+const HeatmapValues = memo(function HeatmapValues({
+  cells,
+  nx,
+  ny,
+}: {
+  cells: { key: string; text: string }[];
+  nx: number;
+  ny: number;
+}) {
+  return (
+    <div
+      className={styles.values}
+      aria-hidden="true"
+      style={{
+        gridTemplateColumns: `repeat(${nx}, 1fr)`,
+        gridTemplateRows: `repeat(${ny}, 1fr)`,
+      }}
+    >
+      {cells.map((c) => (
+        <span key={c.key} className={styles.value}>
+          {c.text}
+        </span>
+      ))}
+    </div>
+  );
+});
 
 export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap(
   {
@@ -187,44 +260,10 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
           onPointerMove={onMove}
           onPointerLeave={() => setHover(null)}
         >
-          {cells.map((c) => (
-            <rect
-              key={`${c.x}-${c.y}`}
-              x={c.x}
-              y={c.y}
-              width={1.02}
-              height={1.02}
-              style={{ fill: c.fill }}
-            />
-          ))}
-          {isoLines.map((l, k) => (
-            <line
-              // biome-ignore lint/suspicious/noArrayIndexKey: positional iso-line segments
-              key={k}
-              x1={l.x1}
-              y1={l.y1}
-              x2={l.x2}
-              y2={l.y2}
-              className={styles.contour}
-            />
-          ))}
+          <HeatmapCells cells={cells} />
+          <HeatmapContours lines={isoLines} />
         </svg>
-        {valueCells.length > 0 ? (
-          <div
-            className={styles.values}
-            aria-hidden="true"
-            style={{
-              gridTemplateColumns: `repeat(${nx}, 1fr)`,
-              gridTemplateRows: `repeat(${ny}, 1fr)`,
-            }}
-          >
-            {valueCells.map((c) => (
-              <span key={c.key} className={styles.value}>
-                {c.text}
-              </span>
-            ))}
-          </div>
-        ) : null}
+        {valueCells.length > 0 ? <HeatmapValues cells={valueCells} nx={nx} ny={ny} /> : null}
         <div className={styles.xAxis}>
           {xTicks.map((t) => (
             <span

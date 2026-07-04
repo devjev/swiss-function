@@ -93,6 +93,16 @@ export async function stopFrameSampler(frame) {
  *  timer, run `dispatch()` (Playwright input), read the delta back. Returns
  *  milliseconds, or null if nothing painted within 2s. */
 export async function measureInteraction(frame, dispatch) {
+  // Load-bearing settle: while headless Chromium's frame clock is "hot" (a
+  // recent measurement or animation keeps vsync-aligned BeginFrames coming),
+  // both armed rAFs wait for 60Hz ticks and the metric absorbs a full extra
+  // vsync (~+16.7ms) regardless of app cost — a chained measurement reads
+  // ~30ms for ~3ms of real work. After ~250ms of frame idleness the scheduler
+  // issues immediate on-demand BeginFrames and the double-rAF closes right
+  // after the interaction's actual paint (~13ms floor). Verified with a no-op
+  // dispatch in the hoverMove slot: hot 30.1ms vs cold ~13.5ms (2026-07-04,
+  // issues #8/#9 residual investigation).
+  await new Promise((resolve) => setTimeout(resolve, 300));
   await frame.evaluate(() => {
     window.__interactionStart = performance.now();
     window.__interactionPaintMs = null;

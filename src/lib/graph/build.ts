@@ -84,6 +84,19 @@ export function edgeColorToken(el?: Element | null): string {
   return token("--sf-color-muted", "#6b7280", el);
 }
 
+/** Above this many edges, arrowheads render as plain edges: at that density
+ *  they are sub-pixel, and the extra instanced-arrowhead GL program costs
+ *  roughly +50% raster time on every full-scene frame. */
+export const ARROW_MAX_EDGES = 5000;
+
+/** Sigma edge type for a graph with `edgeCount` edges (see `ARROW_MAX_EDGES`).
+ *  Fed to Sigma's `defaultEdgeType` rather than stamped on each edge, so a
+ *  reconcile that crosses the threshold retypes every edge atomically on the
+ *  next refresh — no mixed arrow/line states. */
+export function edgeTypeFor(edgeCount: number): "arrow" | "line" {
+  return edgeCount > ARROW_MAX_EDGES ? "line" : "arrow";
+}
+
 /** (Re)apply node/edge VISUAL attributes (label / size / color) from the render
  *  hooks onto an already-built graph, layering over the color-by-`kind` defaults.
  *  Kept separate from structure so changing `renderNode`/`renderEdge` re-themes in
@@ -131,10 +144,12 @@ function canAddEdge(g: Graphology, id: string, source: string, target: string): 
   return true;
 }
 
-/** Build a graphology graph from the shared data model: structure (nodes, edges,
- *  directed arrowheads), seed positions (pre-computed `x`/`y` honored, else
+/** Build a graphology graph from the shared data model: structure (nodes,
+ *  directed edges), seed positions (pre-computed `x`/`y` honored, else
  *  random — a layout pass assigns final coordinates), and `payload`. Visual
- *  attributes are layered on by `applyVisuals`. */
+ *  attributes are layered on by `applyVisuals`. Edges carry no per-edge `type`:
+ *  arrow-vs-line rendering is the renderer's size-gated `defaultEdgeType`
+ *  (see `edgeTypeFor`). */
 export function buildGraph(
   data: GraphData,
   hooks: RenderHooks,
@@ -152,8 +167,7 @@ export function buildGraph(
   }
   for (const e of data.edges) {
     if (canAddEdge(g, e.id, e.source, e.target)) {
-      // Directed: render an arrowhead toward the target.
-      g.addEdgeWithKey(e.id, e.source, e.target, { type: "arrow", payload: e.data });
+      g.addEdgeWithKey(e.id, e.source, e.target, { payload: e.data });
     }
   }
   applyVisuals(g, data, hooks, el, nodeSizeBoost);
@@ -232,7 +246,7 @@ export function reconcile(
   for (const e of data.edges) {
     if (g.hasEdge(e.id)) continue;
     if (canAddEdge(g, e.id, e.source, e.target)) {
-      g.addEdgeWithKey(e.id, e.source, e.target, { type: "arrow", payload: e.data });
+      g.addEdgeWithKey(e.id, e.source, e.target, { payload: e.data });
       structureChanged = true;
     }
   }

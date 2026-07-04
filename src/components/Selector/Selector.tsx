@@ -1,4 +1,5 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import type { HTMLAttributes, ReactNode, RefObject } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import type { BoxElevation } from "../Box";
@@ -47,6 +48,62 @@ export interface SelectorProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
 
 function normalize(item: SelectorItem): SelectorOption {
   return typeof item === "string" ? { value: item, label: item } : item;
+}
+
+/** Windowed option list: renders only the visible slice of the filtered items
+ *  (same `useVirtualizer` idiom as DataTable/Explorer). Base UI keeps keyboard
+ *  navigation over the full filtered list (`virtualized` on the Root); we
+ *  scroll the active index into view via `scrollToIndexRef`. */
+function VirtualOptions({
+  scrollToIndexRef,
+}: {
+  scrollToIndexRef: RefObject<((index: number) => void) | null>;
+}) {
+  const filtered = Combobox.useFilteredItems<SelectorOption>();
+  const listRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 40,
+    overscan: 8,
+  });
+  // Layout effect (not render) for render purity; child layout effects run
+  // before ancestors', so the ref is set before Base UI's open-time
+  // onItemHighlighted needs it.
+  useLayoutEffect(() => {
+    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(index);
+    return () => {
+      scrollToIndexRef.current = null;
+    };
+  }, [scrollToIndexRef, virtualizer]);
+  return (
+    <Combobox.List ref={listRef} className={styles.virtualList}>
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          const option = filtered[row.index] as SelectorOption;
+          return (
+            // aria-setsize/posinset: Base UI emits neither, and without them
+            // screen readers announce only the mounted window as the whole
+            // list (WAI-ARIA APG requirement for partially rendered listboxes).
+            <Combobox.Item
+              key={option.value}
+              value={option}
+              index={row.index}
+              ref={virtualizer.measureElement}
+              data-index={row.index}
+              aria-setsize={filtered.length}
+              aria-posinset={row.index + 1}
+              className={styles.virtualItem}
+              style={{ transform: `translateY(${row.start}px)` }}
+            >
+              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
+              {option.label}
+            </Combobox.Item>
+          );
+        })}
+      </div>
+    </Combobox.List>
+  );
 }
 
 /**
@@ -125,6 +182,8 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       );
     });
 
+  const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
+
   const dropdown = (
     <Combobox.Portal>
       <Combobox.Positioner sideOffset={4}>
@@ -132,14 +191,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
           <Combobox.Empty>
             <div className={styles.empty}>{emptyMessage}</div>
           </Combobox.Empty>
-          <Combobox.List>
-            {(option: SelectorOption) => (
-              <Combobox.Item key={option.value} value={option}>
-                <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
-                {option.label}
-              </Combobox.Item>
-            )}
-          </Combobox.List>
+          <VirtualOptions scrollToIndexRef={scrollToIndexRef} />
         </Combobox.Popup>
       </Combobox.Positioner>
     </Combobox.Portal>
@@ -153,6 +205,10 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
         value={selectedOptions}
         onValueChange={(next: SelectorOption[]) => setSelected(next.map((o) => o.value))}
         disabled={disabled}
+        virtualized
+        onItemHighlighted={(_item, details) => {
+          if (details.index >= 0) scrollToIndexRef.current?.(details.index);
+        }}
       >
         {layout === "inline" ? (
           <>

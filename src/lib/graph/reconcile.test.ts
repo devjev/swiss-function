@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGraph, reconcile } from "./build";
+import { ARROW_MAX_EDGES, buildGraph, edgeTypeFor, reconcile } from "./build";
 import type { GraphData, GraphNode } from "./types";
 
 const hooks = {};
@@ -183,5 +183,46 @@ describe("reconcile attribute updates", () => {
 
     expect(g.getEdgeAttribute("e1", "label")).toBe("hooked");
     expect(g.getEdgeAttribute("e1", "size")).toBe(9);
+  });
+});
+
+describe("edge arrowhead size gate", () => {
+  it("gates edgeTypeFor at ARROW_MAX_EDGES: at most the threshold → arrow, above → line", () => {
+    expect(edgeTypeFor(0)).toBe("arrow");
+    expect(edgeTypeFor(ARROW_MAX_EDGES)).toBe("arrow");
+    expect(edgeTypeFor(ARROW_MAX_EDGES + 1)).toBe("line");
+  });
+
+  it("stamps no per-edge type below the threshold (Sigma's defaultEdgeType governs)", () => {
+    const data: GraphData = { ...base(), edges: [{ id: "e1", source: "a", target: "b" }] };
+    const g = buildGraph(data, hooks);
+    expect(g.getEdgeAttribute("e1", "type")).toBeUndefined();
+    expect(edgeTypeFor(g.size)).toBe("arrow");
+
+    reconcile(
+      g,
+      { ...data, edges: [...data.edges, { id: "e2", source: "b", target: "a" }] },
+      hooks,
+    );
+
+    expect(g.getEdgeAttribute("e2", "type")).toBeUndefined();
+  });
+
+  it("stamps no per-edge type above the threshold either — retyping stays atomic", () => {
+    // A path graph one edge over the gate: n0 → n1 → … → n{ARROW_MAX_EDGES+1}.
+    const nodes = Array.from({ length: ARROW_MAX_EDGES + 2 }, (_, i) => ({ id: `n${i}` }));
+    const edges = Array.from({ length: ARROW_MAX_EDGES + 1 }, (_, i) => ({
+      id: `e${i}`,
+      source: `n${i}`,
+      target: `n${i + 1}`,
+    }));
+    const g = buildGraph({ nodes, edges }, hooks);
+    expect(g.size).toBe(ARROW_MAX_EDGES + 1);
+    expect(edgeTypeFor(g.size)).toBe("line");
+    expect(g.getEdgeAttribute(`e${ARROW_MAX_EDGES}`, "type")).toBeUndefined();
+
+    reconcile(g, { nodes, edges: [...edges, { id: "extra", source: "n0", target: "n2" }] }, hooks);
+
+    expect(g.getEdgeAttribute("extra", "type")).toBeUndefined();
   });
 });

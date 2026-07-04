@@ -86,6 +86,11 @@
    across every column instead of clipping at the viewport edge. */
 .headerRow {
   display: grid;
+  /* Column tracks come from --sf-datatable-template, set inline on the viewport
+     (an INTERNAL variable, like --sf-columns-width — not a consumer token).
+     One writer instead of a per-row inline style: a column resize then mutates
+     a single element and the memoized body rows bail out of re-rendering. */
+  grid-template-columns: var(--sf-datatable-template);
   width: 100%;
   min-width: min-content;
   position: sticky;
@@ -347,6 +352,8 @@
 
 .row {
   display: grid;
+  /* Tracks from the viewport's --sf-datatable-template (see .headerRow). */
+  grid-template-columns: var(--sf-datatable-template);
   min-width: min-content;
   /* Own stacking context so a frozen cell's z-index stays scoped to its row and
      always paints below the sticky header — in both virtualized (transform

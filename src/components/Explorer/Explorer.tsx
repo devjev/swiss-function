@@ -23,7 +23,7 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { resizeBoundary } from "../../lib/columns/resizeBoundary";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -47,6 +47,7 @@ import {
   collectKeptFolderIds,
   filterTree,
   makeComparator,
+  naturalCompare,
   rangeTest,
   sortTree,
 } from "./transform";
@@ -266,30 +267,78 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     [filterableColumns, orderedColumns],
   );
 
+  // Per-column identity cache: consumers commonly pass an inline `columns`
+  // array, so keying the memo on array identity alone would re-walk every node
+  // on each parent render. Each column's inferred meta is reused while the node
+  // forest and the column's accessor/filter identities are unchanged — exactly
+  // the cases where the current inference could not produce different output.
+  const filterMetaCache = useRef<{
+    nodes: ExplorerNode<M>[];
+    entries: Map<
+      string,
+      {
+        accessor: ExplorerColumn<M>["accessor"];
+        filter: ExplorerColumn<M>["filter"];
+        isTree: boolean;
+        meta: FilterMeta;
+      }
+    >;
+    result: Map<string, FilterMeta>;
+  } | null>(null);
+
   const filterMeta = useMemo(() => {
+    let cache = filterMetaCache.current;
+    if (!cache || cache.nodes !== nodes) {
+      cache = { nodes, entries: new Map(), result: new Map() };
+      filterMetaCache.current = cache;
+    }
     const map = new Map<string, FilterMeta>();
+    let allHits = true;
     for (const col of filterCols) {
-      const read = makeRead(col, col.id === treeColId);
-      if (col.filter) {
-        map.set(col.id, { kind: col.filter.kind, options: col.filter.options ?? [] });
+      const isTree = col.id === treeColId;
+      const hit = cache.entries.get(col.id);
+      if (
+        hit &&
+        hit.accessor === col.accessor &&
+        hit.filter === col.filter &&
+        hit.isTree === isTree
+      ) {
+        map.set(col.id, hit.meta);
         continue;
       }
-      const values: unknown[] = [];
-      forEachNode(nodes, (n) => values.push(read(n)));
-      const present = values.filter((v) => v != null);
-      const allNumeric = present.length > 0 && present.every((v) => typeof v === "number");
-      if (allNumeric) {
-        map.set(col.id, { kind: "range", options: [] });
+      allHits = false;
+      let meta: FilterMeta;
+      if (col.filter) {
+        meta = { kind: col.filter.kind, options: col.filter.options ?? [] };
       } else {
-        const distinct = [...new Set(present.map((v) => String(v)))].sort((a, b) =>
-          a.localeCompare(b, undefined, { numeric: true }),
-        );
-        map.set(col.id, {
-          kind: "checklist",
-          options: distinct.map((v) => ({ value: v, label: v })),
-        });
+        const read = makeRead(col, isTree);
+        const values: unknown[] = [];
+        forEachNode(nodes, (n) => values.push(read(n)));
+        const present = values.filter((v) => v != null);
+        const allNumeric = present.length > 0 && present.every((v) => typeof v === "number");
+        if (allNumeric) {
+          meta = { kind: "range", options: [] };
+        } else {
+          const distinct = [...new Set(present.map((v) => String(v)))].sort(naturalCompare);
+          meta = { kind: "checklist", options: distinct.map((v) => ({ value: v, label: v })) };
+        }
       }
+      cache.entries.set(col.id, { accessor: col.accessor, filter: col.filter, isTree, meta });
+      map.set(col.id, meta);
     }
+    // When nothing changed, return the previous Map instance so downstream
+    // memos (activeFilters → filtered → filterTree) stay stable.
+    if (allHits && cache.result.size === map.size) {
+      let same = true;
+      for (const [id, meta] of map) {
+        if (cache.result.get(id) !== meta) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return cache.result;
+    }
+    cache.result = map;
     return map;
   }, [filterCols, nodes, treeColId]);
 
@@ -349,6 +398,37 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   }, [flatRows]);
   const showEmpty = flatRows.length === 0;
 
+  // Latest values for the stable row handlers below (created once so memoized
+  // rows don't re-render when a handler's inputs change). Assigned in
+  // useLayoutEffect — not during render — so a discarded concurrent render
+  // can't leak values, and it still runs before any event can fire.
+  const latest = useRef({
+    anchorId,
+    selectedIds,
+    expandedIds,
+    flatRows,
+    indexById,
+    editable,
+    onSelectionChange,
+    onExpandedChange,
+    onEditingChange,
+    onRename,
+  });
+  useLayoutEffect(() => {
+    latest.current = {
+      anchorId,
+      selectedIds,
+      expandedIds,
+      flatRows,
+      indexById,
+      editable,
+      onSelectionChange,
+      onExpandedChange,
+      onEditingChange,
+      onRename,
+    };
+  });
+
   // --- Virtualization -----------------------------------------------------
   const viewportRef = useRef<HTMLDivElement>(null);
   const headerRowRef = useRef<HTMLDivElement>(null);
@@ -361,17 +441,17 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
 
   // --- State setters that always go through the controlled callbacks -----
   const setSelection = (ids: Set<string>) => onSelectionChange?.(ids);
-  const setExpanded = (ids: Set<string>) => onExpandedChange?.(ids);
   const setEditing = (id: string | null) => onEditingChange?.(id);
 
-  const toggleExpand = (id: string) => {
+  const toggleExpand = useCallback((id: string) => {
     // Toggle against the raw controlled set (not the filter-effective one), so
     // user collapses persist and are restored when the filter clears.
+    const { expandedIds, onExpandedChange } = latest.current;
     const next = new Set(expandedIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
-    setExpanded(next);
-  };
+    onExpandedChange?.(next);
+  }, []);
 
   // --- Column resizing ------------------------------------------------------
   const measureHeaderWidths = (): number[] | null => {
@@ -486,9 +566,12 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   });
 
   // --- Selection --------------------------------------------------------
-  const handleRowPointerDown = (e: MouseEvent, row: FlatRow<M>) => {
+  // Row handlers read state through `latest` so their identity never changes —
+  // a requirement for the row memo below to hold.
+  const handleRowPointerDown = useCallback((e: MouseEvent, row: FlatRow<M>) => {
     // Right-click is handled in onContextMenu; don't disturb selection here for it.
     if (e.button === 2) return;
+    const { anchorId, selectedIds, flatRows, indexById, onSelectionChange } = latest.current;
     const id = row.node.id;
     if (e.shiftKey && anchorId) {
       const a = indexById.get(anchorId);
@@ -500,37 +583,49 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
           const r = flatRows[i];
           if (r) next.add(r.node.id);
         }
-        setSelection(next);
+        onSelectionChange?.(next);
       }
     } else if (e.metaKey || e.ctrlKey) {
       const next = new Set(selectedIds);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      setSelection(next);
+      onSelectionChange?.(next);
       setAnchorId(id);
     } else {
-      setSelection(new Set([id]));
+      onSelectionChange?.(new Set([id]));
       setAnchorId(id);
     }
     setFocusedId(id);
-  };
+  }, []);
 
-  const handleRowDoubleClick = (row: FlatRow<M>) => {
+  const handleRowDoubleClick = useCallback((row: FlatRow<M>) => {
+    const { editable, onEditingChange } = latest.current;
     if (!editable) return;
-    setEditing(row.node.id);
-  };
+    onEditingChange?.(row.node.id);
+  }, []);
 
-  const handleRowContextMenu = (e: MouseEvent, row: FlatRow<M>) => {
+  const handleRowContextMenu = useCallback((e: MouseEvent, row: FlatRow<M>) => {
+    const { editable, selectedIds, onSelectionChange } = latest.current;
     if (!editable) return;
     e.preventDefault();
     e.stopPropagation();
     if (!selectedIds.has(row.node.id)) {
-      setSelection(new Set([row.node.id]));
+      onSelectionChange?.(new Set([row.node.id]));
       setAnchorId(row.node.id);
     }
     setFocusedId(row.node.id);
     setCtx({ x: e.clientX, y: e.clientY, targetId: row.node.id });
-  };
+  }, []);
+
+  const handleRenameCommit = useCallback((id: string, name: string) => {
+    const { onRename, onEditingChange } = latest.current;
+    onRename?.(id, name);
+    onEditingChange?.(null);
+  }, []);
+
+  const handleRenameCancel = useCallback(() => {
+    latest.current.onEditingChange?.(null);
+  }, []);
 
   const handleViewportContextMenu = (e: MouseEvent) => {
     if (!editable) return;
@@ -878,8 +973,18 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                 if (!row) return null;
                 const id = row.node.id;
                 const isLast = vRow.index === flatRows.length - 1;
+                // Drop flags resolve to per-row booleans here so a drag-move
+                // re-renders only the rows whose flags actually flipped.
+                const dropInto = dropZone?.kind === "into" && dropZone.folderId === id;
+                const dropBefore = dropZone?.kind === "before" && dropZone.flatIndex === vRow.index;
+                const dropAfterLast =
+                  isLast &&
+                  (dropZone?.kind === "after-all" ||
+                    (dropZone?.kind === "before" && dropZone.flatIndex === vRow.index + 1));
+                // Every non-primitive prop below must be reference-stable or
+                // the row memo silently stops working — no inline closures.
                 return (
-                  <ExplorerRow<M>
+                  <MemoExplorerRow<M>
                     key={id}
                     row={row}
                     rowIndex={vRow.index}
@@ -892,19 +997,17 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                     isExpanded={effectiveExpandedIds.has(id)}
                     isEditing={editingId === id}
                     isDragging={draggingId === id}
-                    dropZone={dropZone}
-                    isLastRow={isLast}
+                    dropInto={dropInto}
+                    dropBefore={dropBefore}
+                    dropAfterLast={dropAfterLast}
                     draggable={editable}
                     icon={icon}
-                    onChevronToggle={() => toggleExpand(id)}
-                    onPointerDown={(e) => handleRowPointerDown(e, row)}
-                    onDoubleClick={() => handleRowDoubleClick(row)}
-                    onContextMenu={(e) => handleRowContextMenu(e, row)}
-                    onRenameCommit={(name) => {
-                      onRename?.(id, name);
-                      setEditing(null);
-                    }}
-                    onRenameCancel={() => setEditing(null)}
+                    onChevronToggle={toggleExpand}
+                    onRowPointerDown={handleRowPointerDown}
+                    onRowDoubleClick={handleRowDoubleClick}
+                    onRowContextMenu={handleRowContextMenu}
+                    onRenameCommit={handleRenameCommit}
+                    onRenameCancel={handleRenameCancel}
                   />
                 );
               })}
@@ -1001,15 +1104,16 @@ interface ExplorerRowProps<M> {
   isExpanded: boolean;
   isEditing: boolean;
   isDragging: boolean;
-  isLastRow: boolean;
-  dropZone: DropZone | null;
+  dropInto: boolean;
+  dropBefore: boolean;
+  dropAfterLast: boolean;
   draggable: boolean;
   icon?: (node: ExplorerNode<M>) => ReactNode;
-  onChevronToggle: () => void;
-  onPointerDown: (e: MouseEvent) => void;
-  onDoubleClick: () => void;
-  onContextMenu: (e: MouseEvent) => void;
-  onRenameCommit: (next: string) => void;
+  onChevronToggle: (id: string) => void;
+  onRowPointerDown: (e: MouseEvent, row: FlatRow<M>) => void;
+  onRowDoubleClick: (row: FlatRow<M>) => void;
+  onRowContextMenu: (e: MouseEvent, row: FlatRow<M>) => void;
+  onRenameCommit: (id: string, next: string) => void;
   onRenameCancel: () => void;
 }
 
@@ -1026,14 +1130,15 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     isExpanded,
     isEditing,
     isDragging,
-    isLastRow,
-    dropZone,
+    dropInto,
+    dropBefore,
+    dropAfterLast,
     draggable,
     icon,
     onChevronToggle,
-    onPointerDown,
-    onDoubleClick,
-    onContextMenu,
+    onRowPointerDown,
+    onRowDoubleClick,
+    onRowContextMenu,
     onRenameCommit,
     onRenameCancel,
   } = props;
@@ -1049,12 +1154,13 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     droppableHook.setNodeRef(el);
   };
 
-  // Drop indicator flags
-  const dropIntoMe = dropZone?.kind === "into" && dropZone.folderId === id;
-  const dropBeforeMe = dropZone?.kind === "before" && dropZone.flatIndex === rowIndex;
-  const dropAfterMeIsLast =
-    isLastRow && dropZone?.kind === "before" && dropZone.flatIndex === rowIndex + 1;
-  const dropAfterAllAndLast = isLastRow && dropZone?.kind === "after-all";
+  // dnd-kit's PointerSensor activator is `listeners.onPointerDown`; the row's
+  // own handler must CALL it rather than sit alongside it in JSX — a later
+  // `onPointerDown` prop would silently replace the spread listener and drags
+  // would never start.
+  const dndPointerDown = draggableHook.listeners?.onPointerDown as
+    | ((e: ReactPointerEvent<HTMLDivElement>) => void)
+    | undefined;
 
   const rowStyle: CSSProperties = {
     top: `${top}px`,
@@ -1066,7 +1172,6 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     // biome-ignore lint/a11y/useSemanticElements: rendering a treegrid row as a div, not a table tr
     <div
       ref={setRef}
-      {...(draggable && !isEditing ? draggableHook.listeners : {})}
       {...(draggable && !isEditing ? draggableHook.attributes : {})}
       role="row"
       tabIndex={-1}
@@ -1077,14 +1182,17 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
       data-selected={isSelected}
       data-focused={isFocused}
       data-dragging={isDragging || undefined}
-      data-drop-into={dropIntoMe || undefined}
-      data-drop-before={dropBeforeMe || undefined}
-      data-drop-after-last={dropAfterMeIsLast || dropAfterAllAndLast || undefined}
+      data-drop-into={dropInto || undefined}
+      data-drop-before={dropBefore || undefined}
+      data-drop-after-last={dropAfterLast || undefined}
       className={styles.row}
       style={rowStyle}
-      onPointerDown={onPointerDown}
-      onDoubleClick={onDoubleClick}
-      onContextMenu={onContextMenu}
+      onPointerDown={(e) => {
+        if (draggable && !isEditing) dndPointerDown?.(e);
+        onRowPointerDown(e, row);
+      }}
+      onDoubleClick={() => onRowDoubleClick(row)}
+      onContextMenu={(e) => onRowContextMenu(e, row)}
     >
       {columns.map((col, colIdx) => {
         const isTreeCol = colIdx === 0;
@@ -1103,8 +1211,8 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
                 expanded={isExpanded}
                 editing={isEditing}
                 icon={icon}
-                onChevronToggle={onChevronToggle}
-                onRenameCommit={onRenameCommit}
+                onChevronToggle={() => onChevronToggle(id)}
+                onRenameCommit={(next) => onRenameCommit(id, next)}
                 onRenameCancel={onRenameCancel}
               />
             ) : (
@@ -1116,6 +1224,30 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     </div>
   );
 }
+
+/** flatten() allocates fresh FlatRow objects on every run, so `row` is compared
+ *  by content (node identity + depth + parentId — everything ExplorerRow
+ *  reads), not reference; all other props compare by Object.is. */
+function explorerRowPropsEqual<M>(
+  prev: Readonly<ExplorerRowProps<M>>,
+  next: Readonly<ExplorerRowProps<M>>,
+): boolean {
+  if (
+    prev.row.node !== next.row.node ||
+    prev.row.depth !== next.row.depth ||
+    prev.row.parentId !== next.row.parentId
+  ) {
+    return false;
+  }
+  for (const key in next) {
+    const k = key as keyof ExplorerRowProps<M>;
+    if (k !== "row" && !Object.is(prev[k], next[k])) return false;
+  }
+  return true;
+}
+
+// Cast preserves the generic call signature memo() would otherwise widen away.
+const MemoExplorerRow = memo(ExplorerRow, explorerRowPropsEqual) as typeof ExplorerRow;
 
 // --- Tree cell content -----------------------------------------------------
 

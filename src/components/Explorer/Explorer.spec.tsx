@@ -150,6 +150,49 @@ test("context menu New file fires onAdd with target's parent", async ({ mount, p
   await expect(c.getByTestId("last-op")).toHaveText("add:root:file");
 });
 
+// --- Row drag & drop (editable) ---------------------------------------------
+
+test("dragging over a folder's middle shows the drop-into indicator and commits the move", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ExplorerHarness editable />);
+  const source = c.locator('[data-row-id="README.md"]');
+  const target = c.locator('[data-row-id="src/components"]');
+  const src = (await source.boundingBox())!;
+  const tgt = (await target.boundingBox())!;
+  await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
+  await page.mouse.down();
+  // Exceed the 4px sensor activation distance before aiming at the target.
+  await page.mouse.move(src.x + src.width / 2 + 10, src.y + src.height / 2, { steps: 2 });
+  // Vertical middle of a folder row → "into" zone on exactly that row.
+  await page.mouse.move(tgt.x + tgt.width / 2, tgt.y + tgt.height / 2, { steps: 8 });
+  await expect(target).toHaveAttribute("data-drop-into", "true");
+  await expect(c.locator("[data-drop-before]")).toHaveCount(0);
+  await page.mouse.up();
+  await expect(c.getByTestId("last-op")).toHaveText("move:README.md:src/components:end");
+});
+
+test("dragging over a row's top quarter shows the drop-before indicator on that row", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ExplorerHarness editable />);
+  const source = c.locator('[data-row-id="package.json"]');
+  const target = c.locator('[data-row-id="README.md"]');
+  const src = (await source.boundingBox())!;
+  const tgt = (await target.boundingBox())!;
+  await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(src.x + src.width / 2 + 10, src.y + src.height / 2, { steps: 2 });
+  // Top quarter of the target row → "before" zone on exactly that row.
+  await page.mouse.move(tgt.x + tgt.width / 2, tgt.y + 3, { steps: 8 });
+  await expect(target).toHaveAttribute("data-drop-before", "true");
+  await expect(c.locator("[data-drop-into]")).toHaveCount(0);
+  await page.mouse.up();
+  await expect(c.getByTestId("last-op")).toHaveText("move:package.json:root:README.md");
+});
+
 // --- Data-grid features (sort / filter / resize / empty) -------------------
 
 test("empty tree shows the empty state", async ({ mount }) => {
