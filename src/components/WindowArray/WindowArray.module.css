@@ -306,8 +306,8 @@
   cursor: grab;
 }
 .handle:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: -2px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
 /* Right-aligned window-chrome button row (Dialog.Actions pattern). */
@@ -339,8 +339,8 @@
   background-color: var(--sf-color-bg);
 }
 .iconButton:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 .body {
@@ -428,8 +428,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .pager:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 .pager:disabled {
   cursor: default;

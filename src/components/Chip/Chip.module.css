@@ -103,8 +103,8 @@
   border-color: color-mix(in srgb, var(--chip-accent) 46%, var(--sf-color-bg));
 }
 .root[data-interactive]:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 .root[data-disabled] {
@@ -139,8 +139,8 @@
 }
 .remove:focus-visible {
   opacity: 1;
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 .remove svg {
   inline-size: 0.8em;

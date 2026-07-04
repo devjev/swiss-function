@@ -70,6 +70,18 @@ typecheck:
 prepublish:
     npm run prepublishOnly
 
+# Pack the npm tarball and attach it to the Gitea release of the current
+# package.json version — releases ship the package, not just source archives.
+# Run from the tag's source, after `tea releases create --tag vX.Y.Z ...`.
+release-package:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(node -p "require('./package.json').version")
+    npm run prepublishOnly
+    tarball=$(npm pack --pack-destination /tmp | tail -1)
+    tea releases assets create "v${version}" "/tmp/${tarball}"
+    tea releases assets list "v${version}"
+
 # Install dependencies
 install:
     npm install

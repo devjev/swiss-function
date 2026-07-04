@@ -19,6 +19,13 @@ Per-component prop/element reference for every exported component in the library
 - "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
   JS. Dark mode is `[data-theme="dark"]` on any ancestor.
+- Focus rings are tunable everywhere: every `:focus-visible` rule draws
+  `var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring)` with
+  `outline-offset: var(--sf-focus-ring-offset, <per-rule default>)`. Set the
+  variables on any ancestor to restyle rings for that subtree, or
+  `--sf-focus-ring-width: 0` to disable them — e.g. inside a container that
+  already communicates focus itself. `--sf-focus-ring-offset` has no global
+  default on purpose; each rule keeps its own fitting offset until you set it.
 - Required props show `—` in the Default column. Props "extend `HTMLAttributes`"
   means native attributes pass through to the root and aren't re-listed.
 - Many compound components are thin wrappers over Base UI (`@base-ui/react`);

@@ -196,6 +196,12 @@ These are not suggestions.
   `--sf-ease-out` or `--sf-ease-in-out`.
 - **Elevation**: `var(--sf-elevation-N)` for surface depth, including
   inside SVG (use `filter: drop-shadow(...)` with equivalent values).
+- **Focus rings**: every component's `:focus-visible` ring reads
+  `--sf-focus-ring-width` (default `2px`) and `--sf-focus-ring-offset`
+  (per-rule default). Set them on any ancestor to restyle a subtree's
+  rings, or `--sf-focus-ring-width: 0` to disable them where a container
+  already communicates focus (an active window frame, a focused pane).
+  Never suppress a ring by out-specificity-ing component CSS.
 
 ### Body text is never grey
 

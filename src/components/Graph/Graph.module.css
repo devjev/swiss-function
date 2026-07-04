@@ -65,8 +65,8 @@
 /* Keyboard focus ring on the pan/zoom surface (inset so it stays inside the
    clipped root). Only on keyboard focus, never on pointer. */
 .surface:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: -2px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
 /* Connect mode: a crosshair cursor signals that a node→node drag draws an edge. */

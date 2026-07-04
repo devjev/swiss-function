@@ -32,8 +32,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .trigger:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: -2px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 .trigger[data-popup-open] {
   background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
@@ -186,8 +186,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .barTrigger:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: -2px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
 /* --- Progressive overflow (collapse="items") --- */

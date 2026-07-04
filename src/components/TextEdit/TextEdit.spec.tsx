@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { CSSProperties } from "react";
 import { TextEdit } from "./TextEdit";
 
 test("renders a <textarea>", async ({ mount }) => {
@@ -41,4 +42,36 @@ test("accepts text input", async ({ mount }) => {
 test("disabled blocks input", async ({ mount }) => {
   const component = await mount(<TextEdit disabled defaultValue="frozen" />);
   await expect(component).toBeDisabled();
+});
+
+// The focus ring reads --sf-focus-ring-width / --sf-focus-ring-offset (library-
+// wide convention), so a container that already communicates focus — a
+// WindowArray.Window frame, an active Pane — can tune or disable the inner
+// ring for its subtree without specificity games.
+test("focus ring obeys the --sf-focus-ring-* custom properties", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <TextEdit aria-label="plain" />
+      <div style={{ "--sf-focus-ring-width": "0" } as CSSProperties}>
+        <TextEdit aria-label="ringless" />
+      </div>
+      <div style={{ "--sf-focus-ring-offset": "4px" } as CSSProperties}>
+        <TextEdit aria-label="offset" />
+      </div>
+    </div>,
+  );
+  const ring = (name: string) =>
+    page.getByLabel(name).evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { width: style.outlineWidth, offset: style.outlineOffset };
+    });
+  // Untouched: the token default (2px) and the rule's own offset fallback.
+  await page.getByLabel("plain").focus();
+  expect(await ring("plain")).toEqual({ width: "2px", offset: "1px" });
+  // Width 0 disables the ring for the subtree.
+  await page.getByLabel("ringless").focus();
+  expect((await ring("ringless")).width).toBe("0px");
+  // The offset hook overrides the per-rule fallback.
+  await page.getByLabel("offset").focus();
+  expect(await ring("offset")).toEqual({ width: "2px", offset: "4px" });
 });

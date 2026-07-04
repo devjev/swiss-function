@@ -42,6 +42,14 @@
     --sf-color-success: #16a34a;
     --sf-color-warning: #d97706;
     --sf-color-focus-ring: #2563eb;
+    /* Focus-ring geometry. Every component :focus-visible rule consumes these,
+       so a container can tune or disable rings for its subtree — e.g. set
+       --sf-focus-ring-width: 0 inside a frame that already communicates focus
+       (a WindowArray.Window, an active Pane). --sf-focus-ring-offset has NO
+       global value on purpose: each rule keeps its own fallback (1px, 2px, or
+       -2px inset, whichever fits its geometry); setting the variable overrides
+       them all uniformly. */
+    --sf-focus-ring-width: 2px;
     --sf-color-overlay: rgb(0 0 0 / 0.4);
 
     /* Spacing */

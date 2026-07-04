@@ -137,7 +137,8 @@
 
 .bar:focus-visible {
   stroke: var(--sf-color-focus-ring);
-  stroke-width: 2;
+  /* SVG counterpart of the outline rings — obeys the same width token. */
+  stroke-width: var(--sf-focus-ring-width, 2px);
 }
 
 @media (prefers-reduced-motion: reduce) {

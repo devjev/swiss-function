@@ -80,8 +80,8 @@
 }
 
 .input:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 .input:disabled {
@@ -192,8 +192,8 @@
 }
 
 .inputGroup:focus-within {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 /* When the input lives inside a group, it sheds its own border/sizing and
@@ -265,8 +265,8 @@
 }
 
 .chipRemove:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 .clear {
@@ -288,8 +288,8 @@
 }
 
 .clear:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 @media (prefers-reduced-motion: reduce) {

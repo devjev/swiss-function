@@ -32,8 +32,8 @@
 }
 
 .zone:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 2px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 2px);
 }
 
 /* Active drag-over: accent border plus a faint accent wash. */

@@ -118,8 +118,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .iconButton:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 /* Resize handles — thin hit targets on every edge + corner. The popup is the

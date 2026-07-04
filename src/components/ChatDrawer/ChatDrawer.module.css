@@ -133,8 +133,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .viewTab:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 .viewTab[data-selected] {
   background-color: var(--sf-color-bg-subtle);
@@ -159,8 +159,8 @@
   background-color: var(--sf-color-bg-subtle);
 }
 .iconButton:focus-visible {
-  outline: 2px solid var(--sf-color-focus-ring);
-  outline-offset: 1px;
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
 /* Fullscreen: pop the panel out to a viewport overlay. The size override comes
