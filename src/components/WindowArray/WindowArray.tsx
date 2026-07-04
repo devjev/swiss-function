@@ -16,6 +16,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import type {
+  ComponentPropsWithoutRef,
   CSSProperties,
   HTMLAttributes,
   KeyboardEvent as ReactKeyboardEvent,
@@ -1159,4 +1160,26 @@ function WindowView({
   );
 }
 
-export const WindowArray = Object.assign(Root, { Column, Window });
+// --- WindowButton -------------------------------------------------------------
+
+export interface WindowArrayWindowButtonProps extends ComponentPropsWithoutRef<"button"> {}
+
+/** A title-bar icon button sharing the window chrome's exact styling (the
+ *  ✕ / fullscreen look) — for the `Window` `actions` slot, so custom actions
+ *  match the built-in pair (issue #26). The actions row already swallows
+ *  pointer-down, so these never start a window drag. Give it an `aria-label`;
+ *  the content should be a 16px line-set icon like the built-ins. */
+const WindowButton = forwardRef<HTMLButtonElement, WindowArrayWindowButtonProps>(
+  function WindowArrayWindowButton({ className, type, ...rest }, ref) {
+    return (
+      <button
+        {...rest}
+        ref={ref}
+        type={type ?? "button"}
+        className={cx(styles.iconButton, className)}
+      />
+    );
+  },
+);
+
+export const WindowArray = Object.assign(Root, { Column, Window, WindowButton });

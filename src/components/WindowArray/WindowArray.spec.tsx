@@ -514,3 +514,63 @@ test("window content state survives a cross-column move", async ({ mount, page }
   // DOM value (v1 nested windows inside column elements and lost it here).
   await expect(input).toHaveValue("draft text");
 });
+
+test("custom WindowButton actions share the chrome, sit before fullscreen/close, and never start a drag (issue #26)", async ({
+  mount,
+  page,
+}) => {
+  let pinClicks = 0;
+  let moves = 0;
+  await mount(
+    <div style={{ inlineSize: 500, blockSize: 300 }}>
+      <WindowArray aria-label="Actions" onWindowMove={() => moves++}>
+        <WindowArray.Column id="a" defaultWidth={300}>
+          <WindowArray.Window
+            id="one"
+            title="Notes"
+            onClose={() => {}}
+            actions={
+              <WindowArray.WindowButton aria-label="Pin" onClick={() => pinClicks++}>
+                ●
+              </WindowArray.WindowButton>
+            }
+          >
+            <p>body</p>
+          </WindowArray.Window>
+        </WindowArray.Column>
+      </WindowArray>
+    </div>,
+  );
+  const group = page.getByRole("group", { name: "Notes" });
+  const buttons = group.getByRole("button");
+  // Title handle first, then the custom action BEFORE the built-in pair.
+  await expect(buttons.nth(0)).toHaveText("Notes");
+  await expect(buttons.nth(1)).toHaveAccessibleName("Pin");
+  await expect(buttons.nth(2)).toHaveAccessibleName("Enter fullscreen");
+  await expect(buttons.nth(3)).toHaveAccessibleName("Close");
+
+  // Chrome parity: identical box to the built-in icon buttons.
+  const pin = group.getByRole("button", { name: "Pin" });
+  const fsBtn = group.getByRole("button", { name: "Enter fullscreen" });
+  const pinBox = await pin.boundingBox();
+  const fsBox = await fsBtn.boundingBox();
+  if (!pinBox || !fsBox) throw new Error("missing bounding boxes");
+  expect(pinBox.width).toBe(fsBox.width);
+  expect(pinBox.height).toBe(fsBox.height);
+
+  // Clicking fires the handler without toggling fullscreen.
+  await pin.click();
+  expect(pinClicks).toBe(1);
+  await expect(group.getByRole("button", { name: "Enter fullscreen" })).toBeVisible();
+
+  // Dragging from the action never starts a window move (the actions row
+  // swallows pointer-down).
+  const pb = await pin.boundingBox();
+  if (!pb) throw new Error("missing bounding box");
+  await page.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(pb.x + 80, pb.y + 60, { steps: 6 });
+  await page.mouse.up();
+  expect(moves).toBe(0);
+  await expect(page.locator("[data-dragging]")).toHaveCount(0);
+});

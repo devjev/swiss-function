@@ -1171,7 +1171,7 @@ A window-manager main area in the style of Niri's scrollable tiling: an infinite
 
 When the container is narrower than `verticalBelow` (with the default `orientation="auto"`), the strip transposes: it scrolls top-to-bottom, each column becomes a full-width band whose height is the column's width value, and the column's windows sit side by side inside the band. Arrow keys, Shift+moves, drops, gutter resizing, snap, paddles, and hotkeys all follow the layout axis; the model, ids, and `WindowMove` indices are identical in both orientations.
 
-**Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection).
+**Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`, `WindowArray.WindowButton`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection). `WindowButton` is a plain `<button>` sharing the ✕/fullscreen chrome exactly — use it inside a Window's `actions` so custom title-bar buttons blend in.
 
 | Prop (root) | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -1201,7 +1201,7 @@ When the container is narrower than `verticalBelow` (with the default `orientati
 | `onClose` | `() => void` | — | Renders the ✕. Closing = removing the element from your state. |
 | `maximizable` | `boolean` | `true` | Shows the fullscreen toggle. |
 | `movable` | `boolean` | `true` | Per-window opt-out of drag/keyboard rearranging. |
-| `actions` | `ReactNode` | — | Extra icon buttons before maximize/close (never start a drag). |
+| `actions` | `ReactNode` | — | Extra icon buttons before maximize/close (never start a drag). Use `WindowArray.WindowButton` for chrome-matching styling; give each an `aria-label` and a 16px line-set icon. |
 
 `WindowMove` is `{ windowId, from: { columnId, index }, to }` where `to` is `{ type: "cell", columnId, index }` (into an existing column) or `{ type: "column", index }` (break out into a new column at that strip position — pointer drops on a gutter, or Shift+Left/Right at the strip's ends). **Index convention:** every `to` index is relative to the state after the window left its source column *and* after an emptied source column was removed — applying a move is two splices, no off-by-one:
 

@@ -1,6 +1,7 @@
 export type {
   WindowArrayColumnProps,
   WindowArrayProps,
+  WindowArrayWindowButtonProps,
   WindowArrayWindowProps,
   WindowMove,
 } from "./WindowArray";
