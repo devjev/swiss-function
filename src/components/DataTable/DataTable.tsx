@@ -1050,10 +1050,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const startWidths = measureLeafWidths(headerCell);
       const idx = resolveResizeIdx(columnId);
       if (!startWidths || idx < 0) return;
-      const minPx = (keyResizeMinPx.current ??= measureCssWidth(
-        headerCell,
-        "var(--sf-datatable-col-min)",
-      ));
+      if (keyResizeMinPx.current == null) {
+        keyResizeMinPx.current = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      }
+      const minPx = keyResizeMinPx.current;
       const dx = (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 24 : 8);
       applyResize(idx, startWidths, dx, minPx);
     },

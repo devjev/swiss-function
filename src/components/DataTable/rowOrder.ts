@@ -1,7 +1,7 @@
 import {
   type ColumnFiltersState,
-  reSplitAlphaNumeric,
   type Row,
+  reSplitAlphaNumeric,
   type SortingFn,
   type SortingState,
   sortingFns,
