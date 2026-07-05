@@ -1,21 +1,28 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  AnnotationsLayer,
+  type AnnotationX,
   Axis,
   type AxisTick,
   bandScale,
+  ChartChrome,
+  type ChartScaffoldingProps,
   Crosshair,
+  FullscreenToggle,
   formatNumber,
   linearScale,
   niceDomain,
   niceTicks,
+  scaffoldStyles,
   Tooltip,
+  useChartScaffold,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./BridgeChart.module.css";
 
 export type BridgeKind = "total" | "delta";
-export type ChartScaffolding = "minimal" | "hover" | "full";
+export type { ChartScaffolding } from "../../lib/chart";
 
 export interface BridgeItem {
   label: string;
@@ -28,20 +35,18 @@ export interface BridgeTooltipDatum extends BridgeItem {
   cumulative: number;
 }
 
-export interface BridgeChartProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface BridgeChartProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartScaffoldingProps {
   items: BridgeItem[];
   yDomain?: [number, number];
-  yLabel?: string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
   height?: number | string;
   /** Dashed connector lines between adjacent bars. Default true. */
   showConnectors?: boolean;
-  /** Visual posture (see BarChart for the full description):
-   *   - `"minimal"`: Tufte idle, no scaffolding ever.
-   *   - `"hover"` (default): minimal idle + nice-tick y-axis and gridlines
-   *     fade in when any bar is hovered.
-   *   - `"full"`: traditional axis + gridlines always, no inline labels. */
-  scaffolding?: ChartScaffolding;
+  /** Fires on every value-axis zoom/pan (`zoomable`); `null` = full range. The
+   *  x axis is categorical, so it's the y (value) axis that windows. */
+  onValueDomainChange?: (domain: [number, number] | null) => void;
   renderTooltip?: (datum: BridgeTooltipDatum) => ReactNode;
 }
 
@@ -113,10 +118,18 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
   {
     items,
     yDomain,
+    xLabel,
     yLabel,
     height,
     showConnectors = true,
     scaffolding = "hover",
+    frame,
+    fullscreen,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    onValueDomainChange,
     renderTooltip = defaultTooltip,
     className,
     style,
@@ -160,25 +173,60 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
   }, [bars, yDomain]);
 
   const categories = useMemo(() => bars.map((b) => b.item.label), [bars]);
+
+  // Shared scaffolding: fullscreen, annotation editor, and value-axis (y) zoom
+  // — the waterfall's x is categorical, so the continuous value axis windows
+  // (issue #35).
+  const scaffold = useChartScaffold({
+    plotRef,
+    scaffolding,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    value: {
+      extent: resolvedYDomain,
+      onDomainChange: onValueDomainChange,
+      minSpan: Math.max((resolvedYDomain[1] - resolvedYDomain[0]) / 100, Number.EPSILON),
+      formatValue: formatNumber,
+      axis: "y",
+    },
+  });
+  const viewYDomain = zoomable ? scaffold.viewport.domain : resolvedYDomain;
+
   const xBand = useMemo(
     () => bandScale(categories, [0, plotSize.width], 0.2),
     [categories, plotSize.width],
   );
   const yScale = useMemo(
-    () => linearScale(resolvedYDomain, [plotSize.height, 0]),
-    [resolvedYDomain, plotSize.height],
+    () => linearScale(viewYDomain, [plotSize.height, 0]),
+    [viewYDomain, plotSize.height],
   );
+
+  // Data→px for annotations: x maps to a fractional bar index [0, n], y to the
+  // (zoomed) value scale; the inverses feed the annotation editor.
+  const nCats = Math.max(1, categories.length);
+  const xToPx = (x: AnnotationX) => (Number(x) / nCats) * plotSize.width;
+  scaffold.invertRef.current = {
+    xFromPx: (px) => (plotSize.width > 0 ? (px / plotSize.width) * nCats : 0),
+    yFromPx: (px) => {
+      const [y0, y1] = viewYDomain;
+      return plotSize.height > 0 ? y1 - (px / plotSize.height) * (y1 - y0) : y0;
+    },
+  };
 
   const yAxisTicks: AxisTick[] = useMemo(() => {
     if (scaffolding === "minimal") return [];
-    const [yMin, yMax] = resolvedYDomain;
+    const [yMin, yMax] = viewYDomain;
     if (yMax <= yMin) return [];
-    return niceTicks(yMin, yMax, 5).map((t) => ({
-      label: t.label,
-      position: (t.value - yMin) / (yMax - yMin),
-      major: t.major,
-    }));
-  }, [resolvedYDomain, scaffolding]);
+    return niceTicks(yMin, yMax, 5)
+      .filter((t) => t.value >= yMin && t.value <= yMax)
+      .map((t) => ({
+        label: t.label,
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      }));
+  }, [viewYDomain, scaffolding]);
 
   const xAxisTicks: AxisTick[] = useMemo(() => {
     if (categories.length === 0 || plotSize.width <= 0) return [];
@@ -201,7 +249,10 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
   const handleLeave = () => setHover(null);
 
   const wrapperStyle: CSSProperties = {
-    ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
+    // Inline height wins over the .expanded class, so drop it while maximized.
+    ...(height != null && !scaffold.expanded
+      ? { height: typeof height === "number" ? `${height}px` : height }
+      : {}),
     ...style,
   };
 
@@ -209,9 +260,15 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     <div
       {...rest}
       ref={ref}
-      className={cx(styles.root, className)}
+      {...scaffold.rootProps}
+      {...scaffold.rootData}
+      className={cx(
+        styles.root,
+        frame && scaffoldStyles.frame,
+        scaffold.expanded && scaffoldStyles.expanded,
+        className,
+      )}
       style={wrapperStyle}
-      data-scaffolding={scaffolding}
       data-hovered={hover != null ? "true" : undefined}
     >
       {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -219,6 +276,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       <div ref={plotRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
+            {...scaffold.editor.surfaceProps}
             width={plotSize.width}
             height={plotSize.height}
             viewBox={`0 0 ${plotSize.width} ${plotSize.height}`}
@@ -334,10 +392,57 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                 yLabel={formatNumber(hover.bar.cumulative)}
               />
             ) : null}
+
+            {/* Data-anchored annotations (issue #35): an hline is the natural
+                reference-level marker on a waterfall. x anchors to a fractional
+                bar index, y to the (zoomed) value scale. */}
+            {scaffold.editingEnabled || (annotations && annotations.length > 0) ? (
+              <AnnotationsLayer
+                annotations={
+                  scaffold.editingEnabled ? scaffold.editor.displayAnnotations : (annotations ?? [])
+                }
+                xPx={xToPx}
+                yPx={yScale}
+                width={plotSize.width}
+                height={plotSize.height}
+                formatXDelta={(a, b) => `${Math.abs(Number(b) - Number(a)).toFixed(1)} step`}
+                formatY={formatNumber}
+                editing={scaffold.editor.layerEditing}
+              />
+            ) : null}
+
+            {/* Value-axis zoom marquee: a full-width band across the y range. */}
+            {scaffold.viewport.marquee
+              ? (() => {
+                  const [f0, f1] = scaffold.viewport.marquee;
+                  const yTop = (1 - Math.max(f0, f1)) * plotSize.height;
+                  const yBot = (1 - Math.min(f0, f1)) * plotSize.height;
+                  return (
+                    <rect
+                      x={0}
+                      y={yTop}
+                      width={plotSize.width}
+                      height={yBot - yTop}
+                      className={scaffoldStyles.marquee}
+                    />
+                  );
+                })()
+              : null}
           </svg>
         ) : null}
+        <ChartChrome
+          scaffold={scaffold}
+          controls={!!controls}
+          xDataToPx={xToPx}
+          yDataToPx={yScale}
+        />
       </div>
       <Axis orientation="x" ticks={xAxisTicks} className={styles.xAxis} />
+      {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
+
+      {fullscreen ? (
+        <FullscreenToggle expanded={scaffold.expanded} onToggle={scaffold.toggleExpanded} />
+      ) : null}
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover ? renderTooltip({ ...hover.bar.item, cumulative: hover.bar.cumulative }) : null}

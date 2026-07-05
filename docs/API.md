@@ -49,17 +49,24 @@ Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup · WindowArray
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
 
-Responsive bar chart with Tufte/hover/full scaffolding modes. Extends `HTMLAttributes<HTMLDivElement>`.
+Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture — the same set as Scatterplot/CandlestickChart, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `categories` | `string[]` | — | x-axis category labels. |
 | `series` | `BarSeries[]` | — | `{ name, values, color? }` per series. |
-| `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). |
+| `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). While zoomed, the value axis follows this extent. |
 | `xLabel` / `yLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the continuous value axis; the toolbar marquee zooms to a y-band; `aria-live` range announcements. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = reset to the full range). |
+| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays (see Scatterplot); `hline` is the natural reference level. `x` anchors to a fractional category index. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing (same interactions as Scatterplot). |
+| `controls` | `boolean` | `false` | On-chart toolbar: zoom cluster (when `zoomable`) + annotation tools (when editable). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `onPointActivate` | `(datum: BarTooltipDatum) => void` | — | Click/Enter on a bar — drill-down hook; swap the data yourself and render your own breadcrumb. |
 | `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. |
 
@@ -80,16 +87,23 @@ Flexible container with elevation, optional texture, and unit-based padding. Ext
 
 `import { BridgeChart } from "@tarassov-ch/swiss-function/bridge-chart"`
 
-Waterfall/bridge chart of cumulative deltas and totals. Extends `HTMLAttributes<HTMLDivElement>`.
+Waterfall/bridge chart of cumulative deltas and totals. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `items` | `BridgeItem[]` | — | `{ label, value, kind: "total" \| "delta" }`. |
-| `yDomain` | `[number, number]` | auto-fit | Y range. |
-| `yLabel` | `string` | — | Axis label. |
+| `yDomain` | `[number, number]` | auto-fit | Y range. While zoomed, the value axis follows this extent. |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showConnectors` | `boolean` | `true` | Dashed connectors between bars. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — the waterfall's x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the value axis; toolbar marquee zooms to a y-band. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays; an `hline` is the natural reference level on a waterfall. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `renderTooltip` | `(datum: BridgeTooltipDatum) => ReactNode` | default formatter | Receives label, value, kind, cumulative. |
 
 ## Button
@@ -650,7 +664,7 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 marching-squares contour overlay. The flat, Swiss-friendly read of a 2-variable
 field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 (`{ x: number[]; y: number[]; z: number[][] }`, `z[j][i]` at `x[i]`,`y[j]`) with
-`Surface`. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+`Surface`. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -662,6 +676,14 @@ field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 | `valueFormat` | `(z: number, d: HeatmapDatum) => string` | `formatNumber(z)` | Format a cell value when `showValues`. |
 | `xLabel` / `yLabel` | `string` | — | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"full"` | Axis posture. Defaults to `"full"` (axes always shown, unlike the line/bar charts' `"hover"`) to preserve the heatmap's always-labelled read; `"minimal"` hides the tick axes, `"hover"` fades them in. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y/row) zoom** — the grid is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window a vertical sub-range of rows (the cell SVG's viewBox clips to the band). |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every row-axis zoom/pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays in a pixel-space layer stacked on the grid; `rect`/`text` fit a heatmap naturally. While editing, the overlay takes the pointer, so cell hover is suppressed. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `renderTooltip` | `(d: HeatmapDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
 ## Input

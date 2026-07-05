@@ -1,4 +1,6 @@
 import type { Story } from "@ladle/react";
+import { useState } from "react";
+import type { ChartAnnotation } from "../../lib/chart";
 import type { Domain, GridData } from "../../lib/chart3d/types";
 import { Heatmap } from "./Heatmap";
 
@@ -122,6 +124,29 @@ export const SensitivityField: Story = () => {
         The near-vertical iso-lines (incl. the break-even contour through 0) confirm the same story
         the matrix tells, continuously.
       </p>
+    </div>
+  );
+};
+
+// Issue #35: shared scaffolding on the grid — frame, fullscreen, controls, a
+// data-anchored region annotation, and value-axis (row) zoom (wheel/drag/±/0
+// window a vertical sub-range of rows).
+export const InteractiveScaffolding: Story = () => {
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([]);
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      <Heatmap
+        data={npvSensitivity(21)}
+        xLabel="Revenue growth Δ (pp)"
+        yLabel="Discount rate Δ (pp)"
+        height={360}
+        frame
+        fullscreen
+        controls
+        zoomable
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
+      />
     </div>
   );
 };

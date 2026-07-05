@@ -52,6 +52,33 @@
   min-block-size: calc(var(--sf-unit) * 4);
 }
 
+/* --- Interactive scaffolding (zoom / annotations, issue #35) ------------ */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+/* The chart owns its gestures: no browser pan/pinch on the plot. The value
+   axis is vertical, so the grab cursor reads as up/down panning. */
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+/* An armed draw tool: crosshair instead of the pan grab-hand. */
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
 .svg {
   display: block;
   inline-size: 100%;

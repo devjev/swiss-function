@@ -1,6 +1,9 @@
 .root {
   inline-size: 100%;
+  /* Positioned so the fullscreen toggle can pin to the chart corner. */
+  position: relative;
   font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
 }
 
 .grid {
@@ -10,9 +13,18 @@
   column-gap: calc(var(--sf-unit) / 2);
 }
 
-.plot {
+/* Measured plot cell: the cell SVG, the value overlay, the annotation overlay
+   and the controls all stack inside it (issue #35). */
+.plotCell {
   grid-column: 3;
   grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.plot {
+  position: absolute;
+  inset: 0;
   display: block;
   inline-size: 100%;
   block-size: 100%;
@@ -20,12 +32,39 @@
   cursor: crosshair;
 }
 
-/* Value labels overlaid on the cells. Same grid cell as the plot, so the nx×ny
-   sub-grid lines up with the SVG rects. Non-interactive — the SVG underneath
-   keeps the hover/tooltip. */
+/* Interactive scaffolding cursors + focus ring. */
+.root[data-zoomable] {
+  outline: none;
+}
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+.root[data-zoomable] .plotCell {
+  touch-action: none;
+}
+.root[data-zoomable] .plot {
+  cursor: grab;
+}
+.root[data-zoomable] .plotCell:active .plot {
+  cursor: grabbing;
+}
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+/* Maximized: fill the fixed overlay, plot row takes the slack. */
+.root[data-expanded] .grid {
+  block-size: 100%;
+  grid-template-rows: 1fr auto auto;
+}
+
+/* Value labels overlaid on the cells. Absolutely fills the plot cell, so the
+   nx×ny sub-grid lines up with the SVG rects. Non-interactive — the SVG
+   underneath keeps the hover/tooltip. */
 .values {
-  grid-column: 3;
-  grid-row: 1;
+  position: absolute;
+  inset: 0;
   display: grid;
   pointer-events: none;
 }
@@ -113,6 +152,28 @@
   text-align: center;
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
+}
+
+/* Axis posture (issue #35). Heatmap defaults to "full" (axes always shown);
+   "minimal" hides the tick axes, "hover" fades them in while hovered. */
+.root[data-scaffolding="minimal"] .yAxis,
+.root[data-scaffolding="minimal"] .xAxis {
+  visibility: hidden;
+}
+.root[data-scaffolding="hover"] .yAxis,
+.root[data-scaffolding="hover"] .xAxis {
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .yAxis,
+.root[data-scaffolding="hover"][data-hovered="true"] .xAxis {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .root[data-scaffolding="hover"] .yAxis,
+  .root[data-scaffolding="hover"] .xAxis {
+    transition: none;
+  }
 }
 
 .tip {

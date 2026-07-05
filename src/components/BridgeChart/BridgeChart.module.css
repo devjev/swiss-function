@@ -35,11 +35,44 @@
   grid-row: 2;
 }
 
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
 .plot {
   grid-column: 3;
   grid-row: 1;
   position: relative;
   min-block-size: calc(var(--sf-unit) * 4);
+}
+
+/* --- Interactive scaffolding (zoom / annotations, issue #35) ------------ */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+.root[data-tool] .plot {
+  cursor: crosshair;
 }
 
 .svg {

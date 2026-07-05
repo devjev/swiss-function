@@ -177,6 +177,17 @@ trading-terminal look — add `controls` (toolbar overlay — zoom is a mode: ar
 text note, measure; select/drag/Delete editing, all flowing through the
 annotations array) and optionally `fullscreen` and `frame`.
 
+This scaffolding is **uniform across every 2D data chart** (issue #35): the same
+`ChartScaffoldingProps` mixin — `frame`, `fullscreen`, `controls`, `zoomable`,
+`annotations`/`onAnnotationsChange`, `xLabel`/`yLabel`, `scaffolding` — is
+accepted by `Scatterplot`, `CandlestickChart`, `BarChart`, `BridgeChart` and
+`Heatmap` alike, so "interactive, framed, annotatable" is a property of any 2D
+chart, not a lucky few. `zoomable` windows whichever axis is continuous: the x
+axis on Scatterplot/Candlestick, and the **value axis** on the categorical
+charts — `BarChart`/`BridgeChart` zoom y (via `onValueDomainChange`), `Heatmap`
+zooms a vertical sub-range of rows. Only `Graph` and the 3D charts (`PointCloud`,
+`Surface`) stay out — they have their own interaction models.
+
 ### Graphs & networks
 
 | Component | Use for                                                        |

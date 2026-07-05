@@ -1,5 +1,7 @@
+import { useState } from "react";
+import type { ChartAnnotation } from "../../lib/chart";
 import type { GridData } from "../../lib/chart3d/types";
-import { Heatmap } from "./Heatmap";
+import { Heatmap, type HeatmapProps } from "./Heatmap";
 
 function grid(n: number): GridData {
   const x: number[] = [];
@@ -19,14 +21,35 @@ export function HeatmapHarness({
   n = 8,
   contours,
   showValues,
+  editable,
+  onChange,
+  annotations: initial,
+  ...props
 }: {
   n?: number;
   contours?: number;
   showValues?: boolean;
-}) {
+  editable?: boolean;
+  onChange?: (next: ChartAnnotation[]) => void;
+} & Omit<HeatmapProps, "data" | "contours" | "showValues" | "onAnnotationsChange">) {
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>(initial ?? []);
   return (
     <div style={{ width: 360 }}>
-      <Heatmap data={grid(n)} contours={contours} showValues={showValues} />
+      <Heatmap
+        {...props}
+        data={grid(n)}
+        contours={contours}
+        showValues={showValues}
+        annotations={editable ? annotations : initial}
+        onAnnotationsChange={
+          editable
+            ? (next) => {
+                setAnnotations(next);
+                onChange?.(next);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

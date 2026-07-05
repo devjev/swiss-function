@@ -29,6 +29,7 @@ export {
   niceDomain,
   niceTicks,
 } from "./numericTicks";
+export type { ChartScaffolding, ChartScaffoldingProps } from "./scaffolding";
 export type { BandScale } from "./scales";
 export { bandScale, invertLinear, linearScale, timeScale } from "./scales";
 export type { TooltipProps } from "./Tooltip";
@@ -55,5 +56,12 @@ export {
   translateAnnotation,
   useAnnotationEditor,
 } from "./useAnnotationEditor";
+export type { ChartInverts, ChartScaffold, UseChartScaffoldOptions } from "./useChartScaffold";
+export {
+  ChartChrome,
+  FullscreenToggle,
+  scaffoldStyles,
+  useChartScaffold,
+} from "./useChartScaffold";
 export type { Domain, UseViewportOptions, Viewport } from "./useViewport";
 export { clampDomain, useViewport, zoomDomain } from "./useViewport";

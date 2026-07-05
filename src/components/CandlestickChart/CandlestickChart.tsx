@@ -11,8 +11,8 @@ import {
   Axis,
   type AxisTick,
   type BandScale,
-  type ChartAnnotation,
   ChartControls,
+  type ChartScaffoldingProps,
   Crosshair,
   formatDateDelta,
   formatNumber,
@@ -35,9 +35,8 @@ import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
 import styles from "./CandlestickChart.module.css";
 
-export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
+export type { AnnotationX, ChartAnnotation, ChartScaffolding } from "../../lib/chart";
 
-export type ChartScaffolding = "minimal" | "hover" | "full";
 export type CandleX = number | Date;
 
 export interface Candle {
@@ -48,52 +47,26 @@ export interface Candle {
   close: number;
 }
 
-export interface CandlestickChartProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface CandlestickChartProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartScaffoldingProps {
   /** OHLC bars in chronological order; spaced evenly (index-based), not by real time. */
   candles: Candle[];
   /** Price range. Auto-fit (padded, not zero-anchored) when omitted. */
   yDomain?: [number, number];
-  yLabel?: string;
-  xLabel?: string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
   height?: number | string;
-  /** Visual posture (mirrors the other charts):
-   *   - `"minimal"`: Tufte idle, no scaffolding; crosshair on hover.
-   *   - `"hover"` (default): minimal idle + y-axis and gridlines fade in on hover.
-   *   - `"full"`: axis + gridlines always visible. */
-  scaffolding?: ChartScaffolding;
-  /** Interactive viewport (issue #27), in BAR-INDEX space (the trading-chart
-   *  "logical range" model — candles stay evenly spaced, weekends stay
-   *  collapsed). Wheel zooms at the cursor (click the chart once, or hold
-   *  ctrl/⌘), drag pans, double-click resets; ←/→ +/- 0 on the focused
-   *  chart. While zoomed the price axis follows the visible candles (unless
-   *  `yDomain` fixes it), and far-out views aggregate candles into true OHLC
-   *  groups. Default false. */
-  zoomable?: boolean;
   /** Controlled visible window as fractional candle indices `[from, to]`
    *  (0 = first candle, `candles.length` = past the last). Pair with
-   *  `onVisibleRangeChange`. */
+   *  `onVisibleRangeChange`. `zoomable` here windows the gap-free BAR-INDEX
+   *  axis (weekends stay collapsed); while zoomed the price axis follows the
+   *  visible candles unless `yDomain` fixes it, and far-out views aggregate
+   *  candles into true OHLC groups. */
   visibleRange?: [number, number];
   /** Fires as the visible window changes; `null` = reset to all candles.
    *  Doubles as the lazy-history / semantic-zoom hook: when the window nears
    *  index 0, prepend older candles. */
   onVisibleRangeChange?: (range: [number, number] | null) => void;
-  /** Data-anchored annotations; `x` values are candle timestamps (mapped
-   *  onto the gap-free bar axis), `y` values are prices. */
-  annotations?: ChartAnnotation[];
-  /** Enables annotation EDITING with `controls` (issue #27 M3): drawing
-   *  tools in the toolbar, click-select with drag handles, Delete/Escape.
-   *  Drawn x anchors are interpolated timestamps (Dates when the candles
-   *  carry Dates). Fires with the complete next array. */
-  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void;
-  /** On-chart toolbar (zoom when `zoomable`; annotation tools when
-   *  `onAnnotationsChange` is set). Replaces the corner Reset button.
-   *  Default false. */
-  controls?: boolean;
-  /** Maximize-to-viewport toggle (Escape exits). Default false. */
-  fullscreen?: boolean;
-  /** 1px structural border + breathing room around the chart. Default false. */
-  frame?: boolean;
   /** Click/Enter on a candle — the drill-down hook (e.g. swap `candles` for
    *  a finer granularity around the activated one). */
   onPointActivate?: (candle: Candle, index: number) => void;

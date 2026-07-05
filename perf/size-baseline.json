@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-05T11:25:34.392Z"
+    "date": "2026-07-05T12:34:24.622Z"
   },
-  "totalGzip": 557315,
+  "totalGzip": 608302,
   "entries": {
     ".": {
-      "files": 201,
-      "jsRaw": 689870,
-      "jsGzip": 208688,
+      "files": 203,
+      "jsRaw": 708954,
+      "jsGzip": 213735,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 208688,
+      "gzip": 213735,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -87,13 +87,18 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./bar-chart": {
-      "files": 12,
-      "jsRaw": 21744,
-      "jsGzip": 7639,
+      "files": 28,
+      "jsRaw": 75953,
+      "jsGzip": 22544,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7639,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 22544,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./box": {
       "files": 4,
@@ -105,13 +110,18 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./bridge-chart": {
-      "files": 12,
-      "jsRaw": 21623,
-      "jsGzip": 7639,
+      "files": 28,
+      "jsRaw": 76028,
+      "jsGzip": 22574,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7639,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 22574,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./button-group": {
       "files": 5,
@@ -124,11 +134,11 @@
     },
     "./candlestick-chart": {
       "files": 28,
-      "jsRaw": 86609,
-      "jsGzip": 25220,
+      "jsRaw": 87201,
+      "jsGzip": 25370,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25220,
+      "gzip": 25370,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -240,13 +250,18 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./heatmap": {
-      "files": 8,
-      "jsRaw": 16023,
-      "jsGzip": 5900,
+      "files": 24,
+      "jsRaw": 72540,
+      "jsGzip": 21352,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 5900,
-      "externals": ["react", "react/jsx-runtime"]
+      "gzip": 21352,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./input": {
       "files": 4,
@@ -309,11 +324,11 @@
     },
     "./scatterplot": {
       "files": 28,
-      "jsRaw": 90703,
-      "jsGzip": 26018,
+      "jsRaw": 91295,
+      "jsGzip": 26168,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26018,
+      "gzip": 26168,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -373,11 +388,11 @@
     },
     "./window-array": {
       "files": 6,
-      "jsRaw": 42385,
-      "jsGzip": 10694,
+      "jsRaw": 43618,
+      "jsGzip": 11042,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 10694,
+      "gzip": 11042,
       "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
     },
     "./popover": {

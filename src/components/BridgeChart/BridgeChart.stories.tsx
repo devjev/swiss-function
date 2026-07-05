@@ -1,4 +1,6 @@
 import type { Story } from "@ladle/react";
+import { useState } from "react";
+import type { ChartAnnotation } from "../../lib/chart";
 import { BridgeChart, type BridgeChartProps } from "./BridgeChart";
 
 export default { title: "Chart/BridgeChart" };
@@ -114,3 +116,34 @@ export const FullScaffolding: Story = () => (
     />
   </div>
 );
+
+// Issue #35: shared scaffolding on the waterfall — frame, fullscreen, controls,
+// value-axis (y) zoom, and an editable hline reference level. The x axis is
+// categorical, so it is the value axis that windows.
+export const InteractiveScaffolding: Story = () => {
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
+    { type: "hline", y: 100, label: "opening" },
+  ]);
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <BridgeChart
+        items={[
+          { label: "Q1", value: 100, kind: "total" },
+          { label: "Subs", value: 45, kind: "delta" },
+          { label: "Redem.", value: -28, kind: "delta" },
+          { label: "Perf.", value: 12, kind: "delta" },
+          { label: "Q2", value: 129, kind: "total" },
+        ]}
+        yLabel="AUM (m)"
+        xLabel="Flow"
+        scaffolding="full"
+        frame
+        fullscreen
+        controls
+        zoomable
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
+      />
+    </div>
+  );
+};

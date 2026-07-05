@@ -1,20 +1,27 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  AnnotationsLayer,
+  type AnnotationX,
   Axis,
   type AxisTick,
   bandScale,
+  ChartChrome,
+  type ChartScaffoldingProps,
   Crosshair,
+  FullscreenToggle,
   formatNumber,
   linearScale,
   niceDomain,
   niceTicks,
+  scaffoldStyles,
   Tooltip,
+  useChartScaffold,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./BarChart.module.css";
 
-export type ChartScaffolding = "minimal" | "hover" | "full";
+export type { ChartScaffolding } from "../../lib/chart";
 
 export interface BarSeries {
   name: string;
@@ -30,26 +37,20 @@ export interface BarTooltipDatum {
   value: number;
 }
 
-export interface BarChartProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface BarChartProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartScaffoldingProps {
   categories: string[];
   series: BarSeries[];
   /** y-axis range. Auto-fit when omitted (zero anchored if all positive). */
   yDomain?: [number, number];
-  xLabel?: string;
-  yLabel?: string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
   height?: number | string;
   /** Render a legend below the x-axis. Default: true when >1 series. */
   showLegend?: boolean;
-  /** Visual posture:
-   *   - `"minimal"` (Tufte): no y-axis chrome, no gridlines at any time. Each
-   *     bar's value is printed directly above it.
-   *   - `"hover"` (default): same minimal idle, but the nice-tick y-axis and
-   *     gridlines fade in when any bar is hovered/focused (the "scale appears
-   *     on demand" UX).
-   *   - `"full"`: nice-tick y-axis with gridlines visible at all times, no
-   *     inline value labels — the previous v0.1 behavior. */
-  scaffolding?: ChartScaffolding;
+  /** Fires on every value-axis zoom/pan (`zoomable`); `null` = full range. The
+   *  x axis is categorical, so it's the y (value) axis that windows. */
+  onValueDomainChange?: (domain: [number, number] | null) => void;
   /** Click/Enter on a bar — the drill-down hook (issue #27). The consumer
    *  swaps `categories`/`series` for finer-grained data (year → months) and
    *  renders its own breadcrumb / back affordance. */
@@ -88,6 +89,13 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     height,
     showLegend,
     scaffolding = "hover",
+    frame,
+    fullscreen,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    onValueDomainChange,
     onPointActivate,
     renderTooltip = defaultTooltip,
     className,
@@ -123,35 +131,71 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     return niceDomain(all);
   }, [series, yDomain]);
 
+  // Shared scaffolding: fullscreen, annotation editor, and the value-axis (y)
+  // zoom viewport — x is categorical, so it's the continuous value axis that
+  // windows (issue #35).
+  const scaffold = useChartScaffold({
+    plotRef,
+    scaffolding,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    value: {
+      extent: resolvedYDomain,
+      onDomainChange: onValueDomainChange,
+      minSpan: Math.max((resolvedYDomain[1] - resolvedYDomain[0]) / 100, Number.EPSILON),
+      formatValue: formatNumber,
+      axis: "y",
+    },
+  });
+  // The visible value domain — the zoomed window when zoomable, else the full
+  // extent. Scales, gridlines and ticks all recompute from it.
+  const viewYDomain = zoomable ? scaffold.viewport.domain : resolvedYDomain;
+
   const xBand = useMemo(
     () => bandScale(categories, [0, plotSize.width], 0.2),
     [categories, plotSize.width],
   );
   const yScale = useMemo(
-    () => linearScale(resolvedYDomain, [plotSize.height, 0]),
-    [resolvedYDomain, plotSize.height],
+    () => linearScale(viewYDomain, [plotSize.height, 0]),
+    [viewYDomain, plotSize.height],
   );
 
   const baselineY = useMemo(() => {
-    const [yMin, yMax] = resolvedYDomain;
+    const [yMin, yMax] = viewYDomain;
     if (yMin >= 0) return plotSize.height;
     if (yMax <= 0) return 0;
     return yScale(0);
-  }, [resolvedYDomain, plotSize.height, yScale]);
+  }, [viewYDomain, plotSize.height, yScale]);
+
+  // Data→px for annotations: x maps to a fractional category index [0, n], y is
+  // the (zoomed) value scale. The px→data inverses feed the annotation editor.
+  const nCats = Math.max(1, categories.length);
+  const xToPx = (x: AnnotationX) => (Number(x) / nCats) * plotSize.width;
+  scaffold.invertRef.current = {
+    xFromPx: (px) => (plotSize.width > 0 ? (px / plotSize.width) * nCats : 0),
+    yFromPx: (px) => {
+      const [y0, y1] = viewYDomain;
+      return plotSize.height > 0 ? y1 - (px / plotSize.height) * (y1 - y0) : y0;
+    },
+  };
 
   // Y-axis nice ticks. In minimal mode they're never shown; in hover and full
   // modes the same data drives them, but CSS controls visibility (hover mode
   // fades them in on bar hover via a data attribute on the chart root).
   const yAxisTicks: AxisTick[] = useMemo(() => {
     if (scaffolding === "minimal") return [];
-    const [yMin, yMax] = resolvedYDomain;
+    const [yMin, yMax] = viewYDomain;
     if (yMax <= yMin) return [];
-    return niceTicks(yMin, yMax, 5).map((t) => ({
-      label: t.label,
-      position: (t.value - yMin) / (yMax - yMin),
-      major: t.major,
-    }));
-  }, [resolvedYDomain, scaffolding]);
+    return niceTicks(yMin, yMax, 5)
+      .filter((t) => t.value >= yMin && t.value <= yMax)
+      .map((t) => ({
+        label: t.label,
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      }));
+  }, [viewYDomain, scaffolding]);
 
   const xAxisTicks: AxisTick[] = useMemo(() => {
     if (categories.length === 0 || plotSize.width <= 0) return [];
@@ -176,7 +220,10 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   const handleLeave = () => setHover(null);
 
   const wrapperStyle: CSSProperties = {
-    ...(height != null ? { height: typeof height === "number" ? `${height}px` : height } : {}),
+    // Inline height wins over the .expanded class, so drop it while maximized.
+    ...(height != null && !scaffold.expanded
+      ? { height: typeof height === "number" ? `${height}px` : height }
+      : {}),
     ...style,
   };
 
@@ -189,9 +236,15 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     <div
       {...rest}
       ref={ref}
-      className={cx(styles.root, className)}
+      {...scaffold.rootProps}
+      {...scaffold.rootData}
+      className={cx(
+        styles.root,
+        frame && scaffoldStyles.frame,
+        scaffold.expanded && scaffoldStyles.expanded,
+        className,
+      )}
       style={wrapperStyle}
-      data-scaffolding={scaffolding}
       data-hovered={hover != null ? "true" : undefined}
     >
       {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
@@ -199,6 +252,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
       <div ref={plotRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
+            {...scaffold.editor.surfaceProps}
             width={plotSize.width}
             height={plotSize.height}
             viewBox={`0 0 ${plotSize.width} ${plotSize.height}`}
@@ -317,8 +371,50 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                 yLabel={formatNumber(hover.value)}
               />
             ) : null}
+
+            {/* Data-anchored annotations (issue #35): rendered in the bars' own
+                pixel-space SVG. x anchors to a fractional category index, y to
+                the (zoomed) value scale. */}
+            {scaffold.editingEnabled || (annotations && annotations.length > 0) ? (
+              <AnnotationsLayer
+                annotations={
+                  scaffold.editingEnabled ? scaffold.editor.displayAnnotations : (annotations ?? [])
+                }
+                xPx={xToPx}
+                yPx={yScale}
+                width={plotSize.width}
+                height={plotSize.height}
+                formatXDelta={(a, b) => `${Math.abs(Number(b) - Number(a)).toFixed(1)} cat`}
+                formatY={formatNumber}
+                editing={scaffold.editor.layerEditing}
+              />
+            ) : null}
+
+            {/* Value-axis zoom marquee: a full-width band across the y range. */}
+            {scaffold.viewport.marquee
+              ? (() => {
+                  const [f0, f1] = scaffold.viewport.marquee;
+                  const yTop = (1 - Math.max(f0, f1)) * plotSize.height;
+                  const yBot = (1 - Math.min(f0, f1)) * plotSize.height;
+                  return (
+                    <rect
+                      x={0}
+                      y={yTop}
+                      width={plotSize.width}
+                      height={yBot - yTop}
+                      className={scaffoldStyles.marquee}
+                    />
+                  );
+                })()
+              : null}
           </svg>
         ) : null}
+        <ChartChrome
+          scaffold={scaffold}
+          controls={!!controls}
+          xDataToPx={xToPx}
+          yDataToPx={yScale}
+        />
       </div>
       <Axis orientation="x" ticks={xAxisTicks} className={styles.xAxis} />
       {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
@@ -335,6 +431,10 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
             </span>
           ))}
         </div>
+      ) : null}
+
+      {fullscreen ? (
+        <FullscreenToggle expanded={scaffold.expanded} onToggle={scaffold.toggleExpanded} />
       ) : null}
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>

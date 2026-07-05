@@ -4,7 +4,16 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { forwardRef, memo, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  AnnotationsLayer,
+  type AnnotationX,
+  ChartChrome,
+  type ChartScaffoldingProps,
+  FullscreenToggle,
+  scaffoldStyles,
+  useChartScaffold,
+} from "../../lib/chart";
 import { contourLevels, marchingSquares } from "../../lib/chart/contours";
 import { formatNumber, niceTicks } from "../../lib/chart/numericTicks";
 import { Tooltip } from "../../lib/chart/Tooltip";
@@ -18,7 +27,9 @@ export interface HeatmapDatum {
   z: number;
 }
 
-export interface HeatmapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface HeatmapProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartScaffoldingProps {
   /** Gridded values: `z[j][i]` at `x[i]`, `y[j]`. */
   data: GridData;
   /** Value (z) domain; defaults to the data's min/max. */
@@ -32,10 +43,12 @@ export interface HeatmapProps extends Omit<HTMLAttributes<HTMLDivElement>, "onCh
   showValues?: boolean;
   /** Format a cell value when `showValues`. Default: `formatNumber(z)`. */
   valueFormat?: (z: number, datum: HeatmapDatum) => string;
-  xLabel?: string;
-  yLabel?: string;
   /** Plot height. Default `calc(var(--sf-unit) * 14)`. */
   height?: number | string;
+  /** Fires on every value-axis zoom/pan (`zoomable`); `null` = full range. The
+   *  grid's x/y are categorical, so `zoomable` windows the vertical (y) axis —
+   *  a sub-range of rows. */
+  onValueDomainChange?: (domain: [number, number] | null) => void;
   renderTooltip?: (datum: HeatmapDatum) => ReactNode;
 }
 
@@ -133,6 +146,16 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     xLabel,
     yLabel,
     height = "calc(var(--sf-unit) * 14)",
+    // Heatmap axes are always drawn today, so its posture defaults to "full"
+    // (unlike the "hover" default of the line/bar charts) to keep behaviour.
+    scaffolding = "full",
+    frame,
+    fullscreen,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    onValueDomainChange,
     renderTooltip,
     className,
     style,
@@ -141,7 +164,22 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   ref,
 ) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
   const [hover, setHover] = useState<{ datum: HeatmapDatum; rect: DOMRect } | null>(null);
+
+  useLayoutEffect(() => {
+    const el = plotRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const nx = data.x.length;
   const ny = data.y.length;
@@ -152,6 +190,53 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   const xDomain = useMemo(() => extent(data.x), [data.x]);
   const yDomain = useMemo(() => extent(data.y), [data.y]);
   const zDom = useMemo(() => zDomain ?? extent(data.z.flat()), [zDomain, data.z]);
+
+  // Shared scaffolding: fullscreen, annotation editing, and value-axis (y) zoom.
+  // The grid is categorical in both directions, so `zoomable` windows the
+  // vertical value axis — a sub-range of rows (issue #35).
+  const scaffold = useChartScaffold({
+    plotRef,
+    scaffolding,
+    controls,
+    zoomable,
+    annotations,
+    onAnnotationsChange,
+    value: {
+      extent: yDomain,
+      onDomainChange: onValueDomainChange,
+      minSpan: Math.max((yDomain[1] - yDomain[0]) / 100, Number.EPSILON),
+      formatValue: formatNumber,
+      axis: "y",
+    },
+  });
+  const viewYDomain = zoomable ? scaffold.viewport.domain : yDomain;
+  // svg-y grows downward while the value grows upward, so the visible band's top
+  // edge is the high value. The cell SVG's viewBox clips to that band.
+  const ySpanFull = yDomain[1] - yDomain[0] || 1;
+  const fracLo = (viewYDomain[0] - yDomain[0]) / ySpanFull;
+  const fracHi = (viewYDomain[1] - yDomain[0]) / ySpanFull;
+  const vbY = ny * (1 - fracHi);
+  const vbH = Math.max(ny * (fracHi - fracLo), Number.EPSILON);
+  const cellViewBox = `0 ${vbY} ${nx} ${vbH}`;
+
+  // Data→px for annotations (x over the full x domain, y over the zoomed value
+  // domain); the inverses feed the annotation editor.
+  const xToPx = (x: AnnotationX) =>
+    xDomain[1] === xDomain[0]
+      ? 0
+      : ((Number(x) - xDomain[0]) / (xDomain[1] - xDomain[0])) * plotSize.width;
+  const yToPx = (y: number) => {
+    const [y0, y1] = viewYDomain;
+    return y1 === y0 ? 0 : (1 - (y - y0) / (y1 - y0)) * plotSize.height;
+  };
+  scaffold.invertRef.current = {
+    xFromPx: (px) =>
+      xDomain[0] + (plotSize.width > 0 ? px / plotSize.width : 0) * (xDomain[1] - xDomain[0]),
+    yFromPx: (px) => {
+      const [y0, y1] = viewYDomain;
+      return y1 - (plotSize.height > 0 ? px / plotSize.height : 0) * (y1 - y0);
+    },
+  };
 
   // Cells: row j drawn at svg-y (ny-1-j) so larger y is up (chart convention).
   const cells = useMemo(() => {
@@ -206,10 +291,10 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   );
   const yTicks = useMemo(
     () =>
-      niceTicks(yDomain[0], yDomain[1]).filter(
-        (t) => t.value >= yDomain[0] && t.value <= yDomain[1],
+      niceTicks(viewYDomain[0], viewYDomain[1]).filter(
+        (t) => t.value >= viewYDomain[0] && t.value <= viewYDomain[1],
       ),
-    [yDomain],
+    [viewYDomain],
   );
   const frac = (v: number, [a, b]: Domain) => (b === a ? 0 : (v - a) / (b - a));
 
@@ -218,17 +303,34 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     if (!svg) return;
     const r = svg.getBoundingClientRect();
     const fx = (e.clientX - r.left) / r.width;
-    const fy = (e.clientY - r.top) / r.height;
+    const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
     const i = Math.min(nx - 1, Math.max(0, Math.floor(fx * nx)));
-    const j = Math.min(ny - 1, Math.max(0, Math.floor((1 - fy) * ny)));
+    // Map through the (possibly zoomed) vertical viewBox to the drawn row.
+    const rowDrawn = Math.min(ny - 1, Math.max(0, Math.floor(vbY + fy * vbH)));
+    const j = ny - 1 - rowDrawn;
     setHover({
       datum: { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z: data.z[j]?.[i] ?? 0 },
       rect: new DOMRect(e.clientX, e.clientY, 0, 0),
     });
   };
 
+  const hasAnnotations = scaffold.editingEnabled || (annotations != null && annotations.length > 0);
+
   return (
-    <div {...rest} ref={ref} className={cx(styles.root, className)} style={style}>
+    <div
+      {...rest}
+      ref={ref}
+      {...scaffold.rootProps}
+      {...scaffold.rootData}
+      className={cx(
+        styles.root,
+        frame && scaffoldStyles.frame,
+        scaffold.expanded && scaffoldStyles.expanded,
+        className,
+      )}
+      style={style}
+      data-hovered={hover != null ? "true" : undefined}
+    >
       <div
         className={styles.grid}
         style={
@@ -241,29 +343,86 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
             <span
               key={t.value}
               className={styles.yTick}
-              style={{ bottom: `${frac(t.value, yDomain) * 100}%` }}
+              style={{ bottom: `${frac(t.value, viewYDomain) * 100}%` }}
             >
               {t.label}
             </span>
           ))}
         </div>
-        <svg
-          ref={svgRef}
-          className={styles.plot}
-          viewBox={`0 0 ${nx} ${ny}`}
-          preserveAspectRatio="none"
-          role="img"
-          aria-label={
-            rest["aria-label"] ??
-            `Heatmap, ${nx}×${ny} grid, values ${formatNumber(zDom[0])} to ${formatNumber(zDom[1])}`
-          }
-          onPointerMove={onMove}
-          onPointerLeave={() => setHover(null)}
-        >
-          <HeatmapCells cells={cells} />
-          <HeatmapContours lines={isoLines} />
-        </svg>
-        {valueCells.length > 0 ? <HeatmapValues cells={valueCells} nx={nx} ny={ny} /> : null}
+        <div ref={plotRef} className={styles.plotCell}>
+          <svg
+            ref={svgRef}
+            className={styles.plot}
+            viewBox={cellViewBox}
+            preserveAspectRatio="none"
+            role="img"
+            aria-label={
+              rest["aria-label"] ??
+              `Heatmap, ${nx}×${ny} grid, values ${formatNumber(zDom[0])} to ${formatNumber(zDom[1])}`
+            }
+            onPointerMove={onMove}
+            onPointerLeave={() => setHover(null)}
+          >
+            <HeatmapCells cells={cells} />
+            <HeatmapContours lines={isoLines} />
+          </svg>
+          {valueCells.length > 0 ? <HeatmapValues cells={valueCells} nx={nx} ny={ny} /> : null}
+
+          {/* Annotations live in their own pixel-space SVG stacked on the cells
+              (the cell SVG is in grid units). Inert to the pointer unless
+              editing, so cell hover keeps working; editing arms it (issue #35). */}
+          {plotSize.width > 0 && plotSize.height > 0 && (hasAnnotations || zoomable) ? (
+            <svg
+              {...scaffold.editor.surfaceProps}
+              className={scaffoldStyles.overlay}
+              data-armed={scaffold.editingEnabled ? "" : undefined}
+              width={plotSize.width}
+              height={plotSize.height}
+              viewBox={`0 0 ${plotSize.width} ${plotSize.height}`}
+              aria-hidden="true"
+            >
+              {hasAnnotations ? (
+                <AnnotationsLayer
+                  annotations={
+                    scaffold.editingEnabled
+                      ? scaffold.editor.displayAnnotations
+                      : (annotations ?? [])
+                  }
+                  xPx={xToPx}
+                  yPx={yToPx}
+                  width={plotSize.width}
+                  height={plotSize.height}
+                  formatXDelta={(a, b) => formatNumber(Math.abs(Number(b) - Number(a)))}
+                  formatY={formatNumber}
+                  editing={scaffold.editor.layerEditing}
+                />
+              ) : null}
+              {scaffold.viewport.marquee
+                ? (() => {
+                    const [f0, f1] = scaffold.viewport.marquee;
+                    const yTop = (1 - Math.max(f0, f1)) * plotSize.height;
+                    const yBot = (1 - Math.min(f0, f1)) * plotSize.height;
+                    return (
+                      <rect
+                        x={0}
+                        y={yTop}
+                        width={plotSize.width}
+                        height={yBot - yTop}
+                        className={scaffoldStyles.marquee}
+                      />
+                    );
+                  })()
+                : null}
+            </svg>
+          ) : null}
+
+          <ChartChrome
+            scaffold={scaffold}
+            controls={!!controls}
+            xDataToPx={xToPx}
+            yDataToPx={yToPx}
+          />
+        </div>
         <div className={styles.xAxis}>
           {xTicks.map((t) => (
             <span
@@ -277,6 +436,9 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
         </div>
         {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
       </div>
+      {fullscreen ? (
+        <FullscreenToggle expanded={scaffold.expanded} onToggle={scaffold.toggleExpanded} />
+      ) : null}
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover
           ? (renderTooltip?.(hover.datum) ?? (

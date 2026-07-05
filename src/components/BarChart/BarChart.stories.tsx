@@ -1,5 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
+import type { ChartAnnotation } from "../../lib/chart";
 import { BarChart, type BarChartProps } from "./BarChart";
 
 export default { title: "Chart/BarChart" };
@@ -158,6 +159,32 @@ export const DrillDown: Story = () => {
           yLabel={`Revenue ${year} (k)`}
         />
       )}
+    </div>
+  );
+};
+
+// Issue #35: the full shared scaffolding on a categorical bar chart — a frame,
+// fullscreen, the controls toolbar, value-axis (y) zoom, and editable
+// annotations. x is categorical, so wheel/drag/±/0 window the value axis.
+export const InteractiveScaffolding: Story = () => {
+  const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
+    { type: "hline", y: 60, label: "target" },
+  ]);
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      <BarChart
+        categories={QUARTERS}
+        series={[{ name: "Revenue", values: [42, 58, 51, 73] }]}
+        yLabel="Revenue (k)"
+        showLegend={false}
+        scaffolding="full"
+        frame
+        fullscreen
+        controls
+        zoomable
+        annotations={annotations}
+        onAnnotationsChange={setAnnotations}
+      />
     </div>
   );
 };

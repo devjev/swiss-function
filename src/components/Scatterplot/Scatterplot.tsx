@@ -10,8 +10,8 @@ import {
   Axis,
   type AxisTick,
   adaptiveTicks,
-  type ChartAnnotation,
   ChartControls,
+  type ChartScaffoldingProps,
   Crosshair,
   formatDateDelta,
   formatNumber,
@@ -32,10 +32,9 @@ import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
 import styles from "./Scatterplot.module.css";
 
-export type { AnnotationX, ChartAnnotation } from "../../lib/chart";
+export type { AnnotationX, ChartAnnotation, ChartScaffolding } from "../../lib/chart";
 
 export type ScatterX = number | Date;
-export type ChartScaffolding = "minimal" | "hover" | "full";
 
 export interface ScatterDatum {
   x: ScatterX;
@@ -55,63 +54,29 @@ export interface ScatterSeries {
   showPoints?: boolean;
 }
 
-export interface ScatterplotProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface ScatterplotProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartScaffoldingProps {
   series: ScatterSeries[];
   /** Fixes the x range. With `zoomable`, this is the *controlled visible
    *  window* — pair it with `onXDomainChange` (standard controlled pattern;
    *  without the handler the viewport is frozen). */
   xDomain?: [number, number] | [Date, Date];
   yDomain?: [number, number];
-  /** Interactive viewport (issue #27): wheel zooms anchored at the cursor
-   *  (plain wheel after the chart is clicked; ctrl/⌘+wheel and pinch always),
-   *  drag pans, double-click resets. Keyboard on the focused chart: ←/→ pan
-   *  (Shift: faster), +/- zoom, 0/Home reset. While zoomed, the y-axis
-   *  follows the visible data (unless `yDomain` fixes it), series beyond
-   *  ~4 points/px are decimated (min/max per column — spikes survive), and a
-   *  Reset button appears. Default false. */
-  zoomable?: boolean;
   /** Fires as the visible x-window changes ([Date, Date] on date axes);
    *  `null` = reset to the full extent. Doubles as the semantic-zoom hook:
-   *  load finer-grained data when the window narrows, swap `series`. */
+   *  load finer-grained data when the window narrows, swap `series`. Here
+   *  `zoomable` windows the (continuous, possibly dated) x axis: while zoomed
+   *  the y-axis follows the visible data unless `yDomain` fixes it, and series
+   *  beyond ~4 points/px are decimated (min/max per column — spikes survive). */
   onXDomainChange?: (domain: [number, number] | [Date, Date] | null) => void;
-  /** Data-anchored annotations (hline/vline/line/rect/text/measure) — plain
-   *  serializable JSON; anchors are data values, so drawings survive
-   *  zoom/pan/resize. */
-  annotations?: ChartAnnotation[];
-  /** Enables annotation EDITING with `controls` (issue #27 M3): the toolbar
-   *  gains a tool palette — drag draws trend lines/regions/measures, click
-   *  places hlines/vlines, the text tool opens an inline note input. Click
-   *  selects (drag handles; drag body to move), Delete removes, Escape
-   *  deselects/disarms. Fires with the complete next array; drags commit
-   *  once on pointerup. Drawn annotations get a generated `id`. */
-  onAnnotationsChange?: (annotations: ChartAnnotation[]) => void;
-  /** On-chart toolbar (zoom in/out/reset when `zoomable`; annotation tools
-   *  when `onAnnotationsChange` is set). Replaces the corner Reset button.
-   *  Default false. */
-  controls?: boolean;
-  /** Maximize-to-viewport toggle in the top-right corner (Escape exits).
-   *  Default false. */
-  fullscreen?: boolean;
-  /** 1px structural border + breathing room around the chart, so it reads
-   *  as a panel when not already inside one. Default false. */
-  frame?: boolean;
   /** Click/Enter on a point — the drill-down hook. The consumer swaps
    *  `series` for finer-grained data (and renders its own breadcrumb). */
   onPointActivate?: (datum: ScatterDatum & { series: string }) => void;
-  xLabel?: string;
-  yLabel?: string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
   height?: number | string;
   /** Render a legend below the x-axis. Default: true when >1 series. */
   showLegend?: boolean;
-  /** Visual posture:
-   *   - `"minimal"` (Tufte/dot-dash): per-datum tick marks on both axes, no
-   *     gridlines. Hover draws a dashed crosshair from the point to the axes.
-   *   - `"hover"` (default): the dot-dash axes stay; nice-tick horizontal
-   *     gridlines additionally fade in when a point is hovered.
-   *   - `"full"`: nice-tick axes + gridlines visible at all times (no
-   *     dot-dash). Useful when the data is too dense for per-datum ticks. */
-  scaffolding?: ChartScaffolding;
   /** Tooltip body. Receives the hovered datum + series name. Default: a
    *  monospace `(x, y)` line. */
   renderTooltip?: (datum: ScatterDatum & { series: string }) => ReactNode;

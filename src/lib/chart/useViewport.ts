@@ -79,6 +79,12 @@ export interface UseViewportOptions {
   suspended?: boolean;
   /** Formats a domain value for the aria-live range announcement. */
   formatValue: (value: number) => string;
+  /** Which screen axis the domain maps to. `"x"` (default) is the horizontal
+   *  finance-chart posture; `"y"` windows a vertical *value* axis instead —
+   *  gestures read the cursor's vertical position and the value grows upward
+   *  (the SVG px axis is inverted), so wheel/drag/marquee all run top-to-bottom.
+   *  The domain semantics are identical; only the pixel mapping flips. */
+  axis?: "x" | "y";
 }
 
 export interface Viewport {
@@ -118,6 +124,7 @@ export function useViewport({
   enabled,
   suspended = false,
   formatValue,
+  axis = "x",
 }: UseViewportOptions): Viewport {
   const [uncontrolled, setUncontrolled] = useState<Domain | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -168,15 +175,25 @@ export function useViewport({
      *  a chart in an article would hijack page scrolling. */
     let armed = false;
     const pointers = new Map<number, { x: number; y: number }>();
-    let drag: { startX: number; startDomain: Domain; panning: boolean } | null = null;
+    let drag: { startClient: number; startDomain: Domain; panning: boolean } | null = null;
     let pinchDist = 0;
     let suppressClick = false;
     /** In-flight marquee: start fraction + px, or null. */
     let marqueeDrag: { start: number; startPx: number } | null = null;
 
-    const fraction = (clientX: number) => {
+    /** The gesture coordinate on the active axis. */
+    const axisClient = (e: { clientX: number; clientY: number }) =>
+      axis === "x" ? e.clientX : e.clientY;
+    /** Cursor position as a 0..1 fraction across the domain (0 = d0). For the
+     *  y axis the pixel direction is inverted (plot top = domain max), so the
+     *  fraction is flipped — a value grows as the cursor moves up. */
+    const fraction = (client: number) => {
       const rect = el.getBoundingClientRect();
-      return rect.width > 0 ? (clientX - rect.left) / rect.width : 0.5;
+      const size = axis === "x" ? rect.width : rect.height;
+      const start = axis === "x" ? rect.left : rect.top;
+      if (size <= 0) return 0.5;
+      const f = (client - start) / size;
+      return axis === "x" ? f : 1 - f;
     };
     const clamp01 = (f: number) => Math.min(1, Math.max(0, f));
 
@@ -188,7 +205,7 @@ export function useViewport({
       if (!armed && !pinch) return;
       e.preventDefault();
       const delta = wheelDeltaPx(e) * (pinch ? 0.01 : 0.002);
-      apply(zoomDomain(domainRef.current, fraction(e.clientX), 2 ** -delta));
+      apply(zoomDomain(domainRef.current, fraction(axisClient(e)), 2 ** -delta));
     };
 
     /** Annotation elements own their pointerdowns (select/drag in the
@@ -204,7 +221,7 @@ export function useViewport({
         // Only the plot background starts a selection — a press on the
         // overlaid toolbar (arming/disarming clicks) must not.
         if (e.target instanceof Element && e.target.closest("button,[role='toolbar']")) return;
-        marqueeDrag = { start: clamp01(fraction(e.clientX)), startPx: e.clientX };
+        marqueeDrag = { start: clamp01(fraction(axisClient(e))), startPx: axisClient(e) };
         setMarquee(null);
         el.setPointerCapture(e.pointerId);
         return;
@@ -215,13 +232,13 @@ export function useViewport({
         if (a && b) pinchDist = Math.hypot(b.x - a.x, b.y - a.y);
         drag = null;
       } else if (pointers.size === 1) {
-        drag = { startX: e.clientX, startDomain: domainRef.current, panning: false };
+        drag = { startClient: axisClient(e), startDomain: domainRef.current, panning: false };
       }
     };
 
     const onPointerMove = (e: PointerEvent) => {
       if (marqueeDrag) {
-        setMarquee([marqueeDrag.start, clamp01(fraction(e.clientX))]);
+        setMarquee([marqueeDrag.start, clamp01(fraction(axisClient(e)))]);
         return;
       }
       const prev = pointers.get(e.pointerId);
@@ -233,23 +250,27 @@ export function useViewport({
         if (!a || !b || pinchDist === 0) return;
         const dist = Math.hypot(b.x - a.x, b.y - a.y);
         if (dist > 0) {
-          apply(zoomDomain(domainRef.current, fraction((a.x + b.x) / 2), dist / pinchDist));
+          const mid = axis === "x" ? (a.x + b.x) / 2 : (a.y + b.y) / 2;
+          apply(zoomDomain(domainRef.current, fraction(mid), dist / pinchDist));
           pinchDist = dist;
         }
         return;
       }
 
       if (!drag) return;
-      const dx = e.clientX - drag.startX;
+      const delta = axisClient(e) - drag.startClient;
       if (!drag.panning) {
-        if (Math.abs(dx) < PAN_THRESHOLD_PX) return;
+        if (Math.abs(delta) < PAN_THRESHOLD_PX) return;
         drag.panning = true;
         el.setPointerCapture(e.pointerId);
       }
       const rect = el.getBoundingClientRect();
-      if (rect.width <= 0) return;
+      const size = axis === "x" ? rect.width : rect.height;
+      if (size <= 0) return;
       const span = drag.startDomain[1] - drag.startDomain[0];
-      const shift = (-dx / rect.width) * span;
+      // x: content follows the cursor (drag right → earlier data shifts in).
+      // y: the pixel axis is inverted, so dragging down reveals higher values.
+      const shift = ((axis === "x" ? -delta : delta) / size) * span;
       apply([drag.startDomain[0] + shift, drag.startDomain[1] + shift]);
     };
 
@@ -263,10 +284,10 @@ export function useViewport({
           return;
         }
         const from = marqueeDrag.start;
-        const to = clamp01(fraction(e.clientX));
+        const to = clamp01(fraction(axisClient(e)));
         // Ignore sub-threshold drags (a stray click must not zoom into
         // nothing); the mode stays armed for a retry.
-        if (Math.abs(e.clientX - marqueeDrag.startPx) >= 8) {
+        if (Math.abs(axisClient(e) - marqueeDrag.startPx) >= 8) {
           const [d0, d1] = domainRef.current;
           const span = d1 - d0;
           const lo = Math.min(from, to);
@@ -323,7 +344,7 @@ export function useViewport({
       el.removeEventListener("dblclick", onDblClick);
       el.removeEventListener("click", onClickCapture, true);
     };
-  }, [enabled, plotRef, apply]);
+  }, [enabled, plotRef, apply, axis]);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -331,11 +352,16 @@ export function useViewport({
       const [d0, d1] = domainRef.current;
       const span = d1 - d0;
       const panStep = span * (e.shiftKey ? 0.5 : 0.1);
+      // On the value (y) axis Up/Down pan the domain (up = higher values); on
+      // the x axis Left/Right do. The off-axis pair is ignored so it can scroll
+      // or move focus normally.
+      const panDown = axis === "y" ? "ArrowDown" : "ArrowLeft";
+      const panUp = axis === "y" ? "ArrowUp" : "ArrowRight";
       switch (e.key) {
-        case "ArrowLeft":
+        case panDown:
           apply([d0 - panStep, d1 - panStep]);
           break;
-        case "ArrowRight":
+        case panUp:
           apply([d0 + panStep, d1 + panStep]);
           break;
         case "+":
@@ -362,7 +388,7 @@ export function useViewport({
       }
       e.preventDefault();
     },
-    [enabled, apply],
+    [enabled, apply, axis],
   );
 
   const reset = useCallback(() => apply(null), [apply]);
@@ -381,7 +407,7 @@ export function useViewport({
     rootProps: {
       tabIndex: 0,
       onKeyDown,
-      "aria-keyshortcuts": "ArrowLeft ArrowRight + - 0",
+      "aria-keyshortcuts": axis === "y" ? "ArrowUp ArrowDown + - 0" : "ArrowLeft ArrowRight + - 0",
     },
     announcement,
   };
