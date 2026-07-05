@@ -181,6 +181,9 @@ export function useViewport({
     const clamp01 = (f: number) => Math.min(1, Math.max(0, f));
 
     const onWheel = (e: WheelEvent) => {
+      // An armed marquee owns the next gesture entirely — residual trackpad
+      // scroll must not zoom underneath the user before they can drag.
+      if (marqueeArmedRef.current) return;
       const pinch = e.ctrlKey || e.metaKey;
       if (!armed && !pinch) return;
       e.preventDefault();
@@ -198,6 +201,9 @@ export function useViewport({
       if (suspendedRef.current || onAnnotation(e)) return;
       if (e.button !== 0) return;
       if (marqueeArmedRef.current) {
+        // Only the plot background starts a selection — a press on the
+        // overlaid toolbar (arming/disarming clicks) must not.
+        if (e.target instanceof Element && e.target.closest("button,[role='toolbar']")) return;
         marqueeDrag = { start: clamp01(fraction(e.clientX)), startPx: e.clientX };
         setMarquee(null);
         el.setPointerCapture(e.pointerId);
@@ -249,6 +255,13 @@ export function useViewport({
 
     const onPointerEnd = (e: PointerEvent) => {
       if (marqueeDrag) {
+        // pointercancel carries no meaningful coordinates (clientX ≈ 0) —
+        // applying from it would zoom to a bogus region instantly.
+        if (e.type === "pointercancel") {
+          marqueeDrag = null;
+          setMarquee(null);
+          return;
+        }
         const from = marqueeDrag.start;
         const to = clamp01(fraction(e.clientX));
         // Ignore sub-threshold drags (a stray click must not zoom into
@@ -286,7 +299,8 @@ export function useViewport({
     };
 
     const onDblClick = (e: MouseEvent) => {
-      if (suspendedRef.current || onAnnotation(e)) return;
+      // Impatient repeat-clicks while aiming a marquee must not reset.
+      if (suspendedRef.current || marqueeArmedRef.current || onAnnotation(e)) return;
       e.preventDefault();
       apply(null);
     };

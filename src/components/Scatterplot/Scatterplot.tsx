@@ -368,7 +368,9 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   }, [series]);
 
   const formatDomainValue = useCallback(
-    (v: number) => (isDateAxis ? new Date(v).toLocaleDateString() : formatNumber(v)),
+    // Marquee/pinch domains are raw floats — cap the announced precision.
+    (v: number) =>
+      isDateAxis ? new Date(v).toLocaleDateString() : formatNumber(Number(v.toPrecision(4))),
     [isDateAxis],
   );
 

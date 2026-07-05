@@ -411,3 +411,37 @@ test("fullscreen: toggle expands; Escape with a selection deselects without exit
   await page.keyboard.press("Escape");
   await expect(c.locator("[data-expanded]")).toHaveCount(0);
 });
+
+test("armed zoom mode owns the gesture: wheel, dblclick and toolbar presses are inert", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<EditableScatterplot />);
+  const live = c.locator("[aria-live]");
+  const zoomIn = c.getByRole("button", { name: "Zoom in" });
+  const box = await c.locator("svg[role='img']").boundingBox();
+  if (!box) throw new Error("no svg box");
+
+  await zoomIn.click();
+  await expect(zoomIn).toHaveAttribute("aria-pressed", "true");
+  // Residual trackpad scroll after arming must not zoom before the drag.
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  await page.mouse.wheel(0, -480);
+  await expect(live).toHaveText("");
+  // Impatient double-click on the plot must not reset/apply anything.
+  await page.mouse.dblclick(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  await expect(live).toHaveText("");
+  // Re-clicking the toolbar button (its press bubbles through the plot)
+  // disarms cleanly without starting a phantom selection.
+  await zoomIn.click();
+  await expect(zoomIn).toHaveAttribute("aria-pressed", "false");
+  await expect(live).toHaveText("");
+
+  // And the actual gesture still works, with readably-rounded announcements.
+  await zoomIn.click();
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.4, { steps: 5 });
+  await page.mouse.up();
+  await expect(live).toContainText("Showing 25 to 75");
+});
