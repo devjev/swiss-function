@@ -38,7 +38,7 @@ Per-component prop/element reference for every exported component in the library
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · DataTable · DatePicker · Dialog · DigitInput · Dropzone ·
-Explorer · Field · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
+Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
 Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup · WindowArray
@@ -540,6 +540,31 @@ a "?" tooltip trigger after the label when narrow).
 | `triggerLabel` | `Help` | `string` | `"Show help"` | Accessible label for the collapsed "?" trigger. |
 
 `Field.Help`: write the help text once, **right after the control it explains** (grid placement, not DOM order, moves it — the layout self-heals around it). The text stays in the control's `aria-describedby` in *both* modes (sr-only when collapsed; the tooltip popup is a visual-only copy), and coexists with `Field.Description`. The tooltip opens on hover (300ms), instantly on keyboard focus, and on click/tap; Escape closes. Phrasing content only — it renders twice. The root carries `data-help="inline" | "trigger"` for styling/tests.
+
+## FieldLayout
+
+`import { FieldLayout } from "@tarassov-ch/swiss-function/field-layout"`
+
+Justified form rows of rigid / flexible / filler fields. A form is Sections; a Section is a `flex-wrap` container whose wrapped lines *are* the rows — each line justifies (fills the left padding to the right padding) because the flexible fields and fillers in it grow, and because it is flex-wrap (not grid auto-flow) fields keep **strict source order** and never migrate between lines. Narrowing the container simply carries fewer fields per line — gradual collapse with no breakpoints, driven by the container, not the viewport. Layout is pure CSS; no ResizeObserver.
+
+**Elements / Parts:** `FieldLayout` (Root — padding + section stacking), `FieldLayout.Section` (a justified `flex-wrap` group; hierarchy comes from the 2u/1u rhythm, no headings), `FieldLayout.Field` (label + control + optional hint), `FieldLayout.Filler` (absorbs slack; optional visible dither).
+
+Compose each intended row with at least one grower (a flexible field, a rigid field *with a hint*, or a `Filler`) so it can always justify.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `padding` | `Root` | `number` | `1` | Padding around the sections, in `--sf-unit` multiples. |
+| `kind` | `Field` | `"flexible" \| "rigid" \| "prose" \| "filler"` | `"flexible"` | `rigid` holds a whole-unit width; `flexible` flexes min 10u / basis 14u / max 36u; `prose` = basis 20u, grow 3, no max; `filler` absorbs slack. |
+| `label` | `Field` | `ReactNode` | — | Rendered above the control and wired to it via `aria-labelledby` (so composite controls like `DatePicker` take the label as their accessible name instead of a placeholder). |
+| `hint` | `Field` | `ReactNode` | — | Text beside the control (below it when narrow). Renders as the row's inner filler — it justifies a rigid control's line and wraps beneath last. |
+| `width` | `Field` | `number` | `8` | Fixed width for `rigid`, in units. |
+| `preferred` / `min` / `max` / `grow` | `Field` | `number` (`max`: `number \| false`) | per-kind | Override the kind's flex-basis / min / max / grow (all in units; `max={false}` = none). |
+| `dither` | `Filler` | `boolean \| EffectName` | `false` | Show a console-style dither instead of blank space; a string picks a specific effect. Reduced motion draws a single static frame. |
+| `min` | `Filler` | `number` | `10` | Min inline size before it wraps away, in units. |
+
+The **36u flexible ceiling** is deliberately above the widest row a field can end up alone in (its basis + gap + the next field's min), so a lone field still justifies instead of leaving dead space at the row's end; the genuinely-sparse case (a lone field on a wide screen) is composed with an explicit `Filler`.
+
+A resizable control inside a `Field` (e.g. `TextEdit`, which paints at a half-unit-off height) is snapped to a whole-unit height on first paint and again after a drag settles.
 
 ## Fullscreen
 

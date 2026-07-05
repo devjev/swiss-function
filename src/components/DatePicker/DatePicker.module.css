@@ -12,6 +12,10 @@
   display: inline-flex;
   align-items: center;
   inline-size: 100%;
+  /* Grid child of .root — without this it floors at its content width (~258px)
+     and overflows any narrower root, the framed row sticking out (issue #25's
+     lesson, one level deeper; issue #33). */
+  min-inline-size: 0;
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
   /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */

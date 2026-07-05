@@ -47,6 +47,10 @@ export interface DatePickerProps
   elevation?: BoxElevation;
   /** Accessible name for the text field (use when not wrapped in a Field). */
   "aria-label"?: string;
+  /** Id(s) of element(s) naming the field — forwarded to the text input so an
+   *  external `<label>` (e.g. FieldLayout.Field) associates instead of the
+   *  input keeping its `YYYY-MM-DD` placeholder as the accessible name. */
+  "aria-labelledby"?: string;
 }
 
 /** Monday-first day-of-week header, localized two-letter forms. */
@@ -85,6 +89,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
     elevation,
     className,
     "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledby,
     ...rest
   },
   ref,
@@ -273,6 +278,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
           className={styles.input}
           type="text"
           role="combobox"
+          aria-labelledby={ariaLabelledby}
           aria-expanded={open}
           aria-controls={gridId}
           aria-haspopup="dialog"

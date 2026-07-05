@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-04T22:51:21.023Z"
+    "date": "2026-07-05T10:54:47.482Z"
   },
-  "totalGzip": 549786,
+  "totalGzip": 560207,
   "entries": {
     ".": {
-      "files": 197,
-      "jsRaw": 681357,
-      "jsGzip": 206186,
+      "files": 201,
+      "jsRaw": 693044,
+      "jsGzip": 209696,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 206186,
+      "gzip": 209696,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -125,11 +125,11 @@
     },
     "./candlestick-chart": {
       "files": 28,
-      "jsRaw": 83601,
-      "jsGzip": 24593,
+      "jsRaw": 86609,
+      "jsGzip": 25220,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24593,
+      "gzip": 25220,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -162,12 +162,12 @@
       ]
     },
     "./explorer": {
-      "files": 32,
-      "jsRaw": 76421,
-      "jsGzip": 24493,
+      "files": 33,
+      "jsRaw": 76688,
+      "jsGzip": 24692,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24493,
+      "gzip": 24692,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -190,6 +190,15 @@
       "cssGzip": 0,
       "gzip": 3050,
       "externals": ["@base-ui/react/field", "@base-ui/react/tooltip", "react", "react/jsx-runtime"]
+    },
+    "./field-layout": {
+      "files": 8,
+      "jsRaw": 12556,
+      "jsGzip": 5018,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 5018,
+      "externals": ["react", "react/jsx-runtime"]
     },
     "./fullscreen": {
       "files": 5,
@@ -301,11 +310,11 @@
     },
     "./scatterplot": {
       "files": 28,
-      "jsRaw": 87856,
-      "jsGzip": 25406,
+      "jsRaw": 90703,
+      "jsGzip": 26018,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25406,
+      "gzip": 26018,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -338,11 +347,11 @@
     },
     "./date-picker": {
       "files": 6,
-      "jsRaw": 21325,
-      "jsGzip": 6090,
+      "jsRaw": 21413,
+      "jsGzip": 6102,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 6090,
+      "gzip": 6102,
       "externals": ["@base-ui/react/popover", "react", "react/jsx-runtime"]
     },
     "./drawer": {
@@ -365,11 +374,11 @@
     },
     "./window-array": {
       "files": 6,
-      "jsRaw": 40589,
-      "jsGzip": 10433,
+      "jsRaw": 42385,
+      "jsGzip": 10694,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 10433,
+      "gzip": 10694,
       "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
     },
     "./popover": {
@@ -561,12 +570,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 38,
-      "jsRaw": 101834,
-      "jsGzip": 32140,
+      "files": 39,
+      "jsRaw": 102066,
+      "jsGzip": 32322,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 32140,
+      "gzip": 32322,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",

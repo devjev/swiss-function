@@ -16,6 +16,7 @@ const componentNames = [
   "Chip",
   "Explorer",
   "Field",
+  "FieldLayout",
   "Fullscreen",
   "Graph",
   "Grid",

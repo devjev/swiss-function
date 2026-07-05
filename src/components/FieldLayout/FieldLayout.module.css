@@ -1,0 +1,91 @@
+/* FieldLayout — see FieldLayout.tsx for the model. Rhythm is on the unit:
+   2u between sections, 1u between fields and wrapped rows, u/4 label-to-control;
+   every width is a whole number of units, driven by --fl-* custom properties. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--sf-unit));
+  padding: calc(var(--fl-pad, 1) * var(--sf-unit));
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+  min-inline-size: 0;
+}
+
+/* A section is one flex-wrap container; its wrapped lines ARE the rows. Every
+   line justifies because the flexible fields and fillers in it grow. Source
+   order is preserved (unlike grid auto-flow) so fields never migrate lines. */
+.section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sf-unit);
+  min-inline-size: 0;
+}
+
+/* --- Field ---------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 4);
+  /* Kind-driven flexing (defaults resolved in TSX, overridable per field). */
+  flex: var(--fl-grow, 1) 1 var(--fl-basis, calc(14 * var(--sf-unit)));
+  min-inline-size: var(--fl-min, calc(10 * var(--sf-unit)));
+  max-inline-size: var(--fl-max, none);
+}
+
+.label {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-fg);
+}
+
+/* Control + hint sit side by side and wrap (the hint beneath the control) when
+   the field narrows — the "inner filler wraps last" behaviour. */
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sf-unit);
+  min-inline-size: 0;
+}
+
+/* Fills the field for flexible/prose; a rigid field pins an explicit width
+   inline. Shrinkable so a text input's ~20ch intrinsic floor (#25) can't wedge
+   it open. */
+.control {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+/* The inner filler: absorbs the rest of the row beside a rigid control, and
+   wraps beneath it once the row can't spare its 10u floor. Field hints read at
+   the small size; never muted-gray (AESTHETICS: no gray body text). */
+.hint {
+  flex: 1 1 0;
+  min-inline-size: calc(10 * var(--sf-unit));
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+
+/* --- Filler --------------------------------------------------------------- */
+
+.filler {
+  position: relative;
+  flex: 1 1 0;
+  min-inline-size: var(--fl-min, calc(10 * var(--sf-unit)));
+  min-block-size: var(--sf-unit);
+  color: var(--sf-color-border);
+}
+
+.ditherCanvas {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  pointer-events: none;
+  /* The engine reads its fill colour from the canvas's computed `color`. Use a
+     mid tone so the marked emptiness reads (it's a decorative placeholder, not
+     body text). */
+  color: var(--sf-color-fg-subtle);
+}

@@ -151,3 +151,33 @@ test("clear button empties the value; blur-out closes and reverts text", async (
   await c.getByRole("button", { name: "Clear date" }).click();
   await expect(input).toHaveValue("");
 });
+
+// --- Issue #33: shrinkability + external label association --------------------
+
+test("the field shrinks to a narrow root without overflowing (issue #33)", async ({ mount }) => {
+  // 176px root is below the ~258px content floor the .field used to enforce.
+  const c = await mount(
+    <div style={{ width: 176 }}>
+      <DatePicker aria-label="Date" defaultValue={new Date(2026, 6, 4)} />
+    </div>,
+  );
+  const root = c.locator("div").first();
+  const field = c.locator("input").locator("xpath=ancestor::div[1]");
+  const [rootBox, fieldBox] = await Promise.all([root.boundingBox(), field.boundingBox()]);
+  if (!rootBox || !fieldBox) throw new Error("no box");
+  // The framed field stays within its 176px root (allow 1px sub-pixel slack).
+  expect(fieldBox.width).toBeLessThanOrEqual(rootBox.width + 1);
+});
+
+test("aria-labelledby overrides the placeholder as the accessible name (issue #33)", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <div>
+      <span id="dp-label">Valid from</span>
+      <DatePicker aria-labelledby="dp-label" />
+    </div>,
+  );
+  // Without the forward, the empty field's accname would be its placeholder.
+  await expect(c.getByRole("combobox", { name: "Valid from" })).toBeVisible();
+});

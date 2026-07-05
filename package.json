@@ -68,6 +68,10 @@
       "types": "./dist/components/Field/index.d.ts",
       "import": "./dist/components/Field/index.js"
     },
+    "./field-layout": {
+      "types": "./dist/components/FieldLayout/index.d.ts",
+      "import": "./dist/components/FieldLayout/index.js"
+    },
     "./fullscreen": {
       "types": "./dist/components/Fullscreen/index.d.ts",
       "import": "./dist/components/Fullscreen/index.js"

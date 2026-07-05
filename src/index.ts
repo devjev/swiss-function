@@ -17,6 +17,7 @@ export * from "./components/Drawer";
 export * from "./components/Dropzone";
 export * from "./components/Explorer";
 export * from "./components/Field";
+export * from "./components/FieldLayout";
 export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";
