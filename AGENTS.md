@@ -1,11 +1,17 @@
 # AGENTS.md
 
 A guide for coding agents (Claude Code, Cursor, Aider, anything else with
-tool use) building UIs with `@tarassov-ch/swiss-function`. Read this
-before you reach for a `<div className="bg-gray-100 p-4 rounded-lg">`.
+tool use) building UIs with `@tarassov-ch/swiss-function` — and, in the
+"for contributors" sections at the end, for agents working on the library
+itself. `CLAUDE.md` is a symlink to this file: every agent reads the same
+guidance. Read this before you reach for a
+`<div className="bg-gray-100 p-4 rounded-lg">`.
 
 Pair this with [AESTHETICS.md](./AESTHETICS.md), which describes *why*
-the library looks the way it does. This file is *what to do*.
+the library looks the way it does, and [docs/API.md](./docs/API.md), the
+per-component prop reference (keep it in sync: when a documented
+prop/default/`--sf-*` variable changes or a component is added, update
+API.md in the same change). This file is *what to do*.
 
 ---
 
@@ -388,29 +394,108 @@ If extending the library itself:
 ```
 src/
 ├── tokens/
-│   ├── tokens.css     # all --sf-* custom properties
+│   ├── tokens.css     # all --sf-* custom properties (the canonical list)
 │   └── reset.css      # base-font + box-model reset
 ├── lib/
 │   ├── cx.ts          # className helper (use this, not clsx)
-│   └── chart/         # internal chart math (scales, ticks, axis, tooltip, crosshair)
+│   ├── chart/         # internal chart math (scales, ticks, viewport, annotations)
+│   ├── graph/         # Graph layout/rendering internals
+│   └── effects/       # animated WebGL "dither" fills (NonIdealState/Skeleton/DataTable)
 └── components/
     └── <Name>/
         ├── <Name>.tsx           # forwardRef component
         ├── <Name>.module.css    # CSS Module with all styles
         ├── <Name>.stories.tsx   # Ladle stories
-        ├── <Name>.spec.tsx      # optional component tests
+        ├── <Name>.spec.tsx      # optional component tests (Playwright CT)
         └── index.ts             # barrel re-export
 ```
 
 When adding a component:
 
-1. Wrap a Base UI primitive when possible.
+1. Wrap a Base UI primitive when possible. Compound components (Dialog,
+   Field, Pane, Graph, …) expose Base UI's compound API as object
+   namespaces (`Dialog.Root`, `Field.Label`, …).
 2. Use forwardRef, accept HTML attributes, spread `...rest` to the root.
 3. Use `cx()` to merge the internal class with consumer `className`.
-4. Tokens for everything stylistic; no literals.
+4. Tokens for everything stylistic; no literals. Dark mode is
+   `[data-theme="dark"]` swapping token values — never branch on theme in JS.
 5. Add stories. Multiple variants. The Playground story uses Ladle args.
-6. Add the export to `src/index.ts` and per-component entry to
-   `package.json`'s `exports` field.
+6. **Register in three places** — a new component is invisible until you:
+   add `export * from "./components/<Name>"` to `src/index.ts`, add
+   `"<Name>"` to the `componentNames` array in `vite.config.ts`, and add
+   the per-component entry to `package.json`'s `exports` field. Miss any
+   one and the barrel, the build, or the deep import
+   (`@tarassov-ch/swiss-function/<name>`) breaks. The `exports` field is
+   the public contract — consumers must never import internal `dist/…`
+   paths.
+
+---
+
+## Environment & commands (for contributors)
+
+Node/npm are not on `PATH` by default (NixOS). The dev shell comes from
+`flake.nix` + direnv (`.envrc`) — if `npm` isn't found, the environment
+hasn't been activated.
+
+`just` lists all recipes; each recipe wraps the matching npm script.
+
+- `npm run dev` — Ladle story server at http://localhost:61000 (primary way to view components)
+- `npm run check` — Biome lint + format check (the lint gate; `npm run format` writes fixes)
+- `npm run typecheck` — `tsc --noEmit`
+- `npm run test` — Vitest, runs **only `*.test.{ts,tsx}`**
+- `npm run test:ct` — Playwright Component Testing, runs **only `*.spec.tsx`**
+- `npm run build` — full library build (see the build chain below)
+
+Run a single test: `npx vitest run path/to/File.test.tsx` (or `-t "name"`
+to filter). Single CT spec:
+`npx playwright test -c playwright-ct.config.ts path/to/File.spec.tsx`.
+Pre-publish gate (`npm run prepublishOnly`): check → typecheck → build.
+
+**The test-file split is load-bearing.** `*.test.tsx` → Vitest;
+`*.spec.tsx` → Playwright CT. The runners match disjoint globs
+(`vitest.config.ts` vs `playwright-ct.config.ts`) — naming a file the
+wrong way means its runner silently ignores it. `*.bench.ts` is a third
+disjoint glob: micro-benchmarks, run only by `npm run bench`.
+
+**Performance gates (three layers, all local-only):**
+
+- `npm run bench` — vitest micro-benchmarks of pure logic (`*.bench.ts`,
+  colocated; shared options + seeded PRNG in `perf/benchOptions.ts` —
+  bench data must never use `Math.random`).
+- `npm run perf` — interaction-latency probes: `scripts/perf/run.mjs`
+  drives `Perf/*` Ladle stories (`*.perf.stories.tsx`, deterministic
+  data, root marks `[data-perf-ready]`) headlessly and reports medians.
+  **Ladle must already be running on :61000.** Compares against
+  `perf/baseline.json` (±20% + 5ms floor); `npm run perf:update`
+  rewrites it — timings are machine-specific, update only deliberately
+  on the baseline machine.
+- `npm run size` — per-entry bundle cost through the dist ESM import
+  graph (gzip bytes). Fails on > max(5%, 2KB) growth vs
+  `perf/size-baseline.json`; `npm run size:update` rewrites. Needs a
+  fresh `npm run build`.
+
+---
+
+## Build architecture (for contributors)
+
+`npm run build` is three steps and the CSS handling is fragile by design:
+
+1. `tsc -p tsconfig.build.json --emitDeclarationOnly` + `vite-plugin-dts`
+   → `.d.ts` files.
+2. `vite build` in library mode with `preserveModules: true` — one JS
+   chunk per source module, not a single bundle. Per-component entries
+   are listed explicitly in `vite.config.ts` (`componentNames`).
+   `libInjectCss` injects side-effect CSS imports so consumer bundlers
+   don't tree-shake the styles away (a real bug at v0.2.0).
+3. `scripts/postbuild.mjs` rewrites `dist/`: renames `*.module.css` →
+   `*.css` and moves the side-effect CSS import from the
+   `.module.css.js` shim into the component's own `.js`, so consumer
+   bundlers don't re-process already-scoped CSS as fresh CSS Modules.
+   Read the header comment in `postbuild.mjs` before touching build
+   output.
+
+Peer/runtime deps (react, `@base-ui/react`, `@dnd-kit/*`, `@tanstack/*`,
+react-markdown, remark-*) are externalized — never bundled.
 
 ---
 
