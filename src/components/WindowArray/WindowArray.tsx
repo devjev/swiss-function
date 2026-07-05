@@ -67,6 +67,23 @@ function toUnit(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
 }
 
+/** Walk up from `target` (exclusive of `stop`) to the first element that can
+ *  scroll vertically — a window body — for the Shift+wheel cross axis. */
+function nearestScrollable(target: EventTarget | null, stop: HTMLElement): HTMLElement | null {
+  let el = target instanceof HTMLElement ? target : null;
+  while (el && el !== stop) {
+    const overflowY = getComputedStyle(el).overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      el.scrollHeight > el.clientHeight
+    ) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 /** Window-chrome icons — shared 16px line set, matching `Dialog`/`ChatDrawer`. */
 const ICON_PROPS = {
   viewBox: "0 0 16 16",
@@ -682,6 +699,44 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     const clamped = Math.max(0, Math.min(scrollSize - client, target));
     viewport.scrollTo(vertical ? { top: clamped } : { left: clamped });
   }, [resolvedActive, vertical]);
+
+  // Directional wheel (issue #37): scrolling follows the layout axis. In the
+  // horizontal strip a plain wheel scrolls sideways through the columns (a
+  // normal mouse can't otherwise reach the horizontal overflow) and Shift+wheel
+  // scrolls the cross axis — the window body under the pointer, vertically
+  // (suppressing the browser's default, which would otherwise swap Shift+wheel
+  // to a horizontal strip scroll). The vertical strip already scrolls with a
+  // plain wheel natively; there its Shift+wheel cross axis (horizontal) has
+  // nothing to move, so it's left alone. Native listener because React
+  // registers `wheel` as passive.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const onWheel = (e: WheelEvent) => {
+      if (verticalRef.current) return; // vertical strip: native handling is correct
+      const raw = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (raw === 0) return;
+      // Normalize line/page delta modes to pixels (Firefox).
+      const delta = raw * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport.clientWidth : 1);
+
+      if (e.shiftKey) {
+        // Cross axis (vertical): scroll the nearest vertically-scrollable
+        // element under the pointer — a window body. Always suppress the
+        // default so it can't scroll the strip sideways instead.
+        e.preventDefault();
+        const target = nearestScrollable(e.target, viewport);
+        if (target) target.scrollTop += delta;
+        return;
+      }
+      // Primary axis (horizontal): scroll the strip, only when it overflows so
+      // a non-overflowing strip lets window bodies scroll natively.
+      if (viewport.scrollWidth <= viewport.clientWidth) return;
+      e.preventDefault();
+      viewport.scrollBy({ left: delta, behavior: "auto" });
+    };
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheel);
+  }, []);
 
   // --- Near-fit overflow absorption ------------------------------------------
   // When the columns' natural extent along the scroll axis exceeds the

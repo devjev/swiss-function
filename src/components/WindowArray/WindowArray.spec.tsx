@@ -630,3 +630,93 @@ test("vertical windows are never taller than the container (issue #31)", async (
   await page.keyboard.press("Shift+ArrowDown");
   await expect(sep).toHaveAttribute("aria-valuenow", String(capped));
 });
+
+// --- Issue #37: directional wheel --------------------------------------------
+
+test("horizontal strip: a plain wheel scrolls sideways", async ({ mount, page }) => {
+  // Many columns in a narrow container → the strip overflows horizontally.
+  const c = await mount(
+    <WindowArrayHarness
+      columnCount={8}
+      columnWidth={220}
+      width={480}
+      height={300}
+      orientation="horizontal"
+    />,
+  );
+  const viewport = c.locator("[data-testid='window-array'] > div").first();
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("no viewport box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+
+  // A plain vertical wheel over the strip scrolls it right (trusted event).
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => viewport.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+});
+
+test("horizontal strip: Shift+wheel drives the cross axis — a window body scrolls, the strip stays put", async ({
+  mount,
+}) => {
+  // A single tall window body inside an overflowing strip. Playwright's trusted
+  // mouse.wheel can't carry a held Shift modifier onto the wheel event, so we
+  // dispatch the wheel synthetically — it still fires the native listener, and
+  // the handler's scrollBy/scrollTop are imperative (trust-independent).
+  const c = await mount(
+    <div style={{ inlineSize: 480, blockSize: 300 }}>
+      <WindowArray aria-label="Cross axis" data-testid="wa" orientation="horizontal">
+        {["a", "b", "c", "d"].map((id) => (
+          <WindowArray.Column key={id} id={id} defaultWidth={220}>
+            <WindowArray.Window id={`w-${id}`} title={`Window ${id}`}>
+              <div data-testid={`tall-${id}`} style={{ blockSize: 1600 }}>
+                tall body {id}
+              </div>
+            </WindowArray.Window>
+          </WindowArray.Column>
+        ))}
+      </WindowArray>
+    </div>,
+  );
+  const viewport = c.locator("[data-testid='wa'] > div").first();
+  const tall = c.getByTestId("tall-a");
+
+  // Shift+wheel over the tall body: the body scrolls down, the strip does not.
+  await tall.evaluate((el) =>
+    el.dispatchEvent(
+      new WheelEvent("wheel", { deltaY: 200, shiftKey: true, bubbles: true, cancelable: true }),
+    ),
+  );
+  // The body (nearest vertically-scrollable ancestor) took the delta.
+  await expect
+    .poll(() =>
+      tall.evaluate((el) => {
+        let node: HTMLElement | null = el.parentElement;
+        while (node && node.scrollTop === 0) node = node.parentElement;
+        return node ? node.scrollTop : 0;
+      }),
+    )
+    .toBeGreaterThan(0);
+  // The horizontal strip never moved.
+  expect(await viewport.evaluate((el) => el.scrollLeft)).toBe(0);
+});
+
+test("vertical strip: a plain wheel is left to native vertical scrolling", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <WindowArrayHarness
+      columnCount={6}
+      columnWidth={220}
+      width={360}
+      height={280}
+      orientation="vertical"
+    />,
+  );
+  const viewport = c.locator("[data-testid='window-array'] > div").first();
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("no viewport box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // The custom handler must NOT hijack horizontal scroll here (scrollLeft stays 0).
+  await page.mouse.wheel(0, 200);
+  await expect.poll(() => viewport.evaluate((el) => el.scrollLeft)).toBe(0);
+});
