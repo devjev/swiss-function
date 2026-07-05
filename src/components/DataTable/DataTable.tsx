@@ -7,13 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  horizontalListSortingStrategy,
-  SortableContext,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import {
   type ColumnFiltersState,
   type FilterFn,
@@ -30,6 +24,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
@@ -285,28 +280,6 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
           return v == null ? "" : String(v);
         },
   };
-}
-
-/** Drag wiring handed to a header cell so it can be both a grid cell and a
- *  sortable item. Supplied by `SortableHeaderCell`, omitted for static headers. */
-interface HeaderDnd {
-  ref: (node: HTMLElement | null) => void;
-  listeners?: Record<string, unknown>;
-  style?: CSSProperties;
-  dragging?: boolean;
-}
-
-/** Calls `useSortable` for one leaf header and hands the drag wiring to `render`
- *  (the table's `renderHeaderCell`). Kept separate so the hook is only invoked
- *  for reorderable leaves. */
-function SortableHeaderCell({ id, render }: { id: string; render: (dnd: HeaderDnd) => ReactNode }) {
-  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id });
-  return render({
-    ref: setNodeRef,
-    listeners: listeners as Record<string, unknown> | undefined,
-    style: { transform: CSS.Transform.toString(transform), transition },
-    dragging: isDragging,
-  });
 }
 
 /** Mirror of useTableSelection's editing shape (not exported there). */

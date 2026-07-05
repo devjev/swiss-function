@@ -248,3 +248,21 @@ test("filter funnel prunes to matches and keeps the ancestor path", async ({ mou
   await expect(c.locator('[data-row-id="README.md"]')).toHaveCount(0);
   await expect(c.locator('[data-row-id="src/index.ts"]')).toHaveCount(0);
 });
+
+// --- Issue #28: spreadsheet grid lines ---------------------------------------
+
+test("gridLines draws per-cell right+bottom edges (spreadsheet look)", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness gridLines />);
+  const cell = c.locator('[data-row-id="README.md"] > div').first();
+  const shadow = await cell.evaluate((el) => getComputedStyle(el).boxShadow);
+  // Two inset hairlines: right and bottom (DataTable's per-cell edge model).
+  expect(shadow).toContain("inset");
+  expect(shadow.split("inset")).toHaveLength(3);
+});
+
+test("without gridLines the body cells stay borderless", async ({ mount }) => {
+  const c = await mount(<ExplorerHarness />);
+  const cell = c.locator('[data-row-id="README.md"] > div').first();
+  const shadow = await cell.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).toBe("none");
+});

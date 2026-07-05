@@ -378,3 +378,13 @@
     transition: none;
   }
 }
+
+/* --- Spreadsheet grid (issue #28) ---------------------------------------
+   Each body cell draws its own right + bottom hairline via the same two
+   erasable custom properties as DataTable's cells, so `gridLines` makes the
+   Explorer visually indistinguishable from a table at the grid level. */
+.wrapper[data-grid-lines] .cell {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
+  box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
+}

@@ -439,3 +439,41 @@ export const LoadingPlaceholder: Story = () => {
     </div>
   );
 };
+
+/**
+ * `gridLines` (issue #28): every body cell draws its own right + bottom
+ * hairline — the same per-cell edge model as DataTable — so a tree can read
+ * as a spreadsheet when the columns carry real data.
+ */
+export const Spreadsheet: Story = () => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src", "src/components"]));
+  return (
+    <div style={{ width: "min(40rem, 100%)", height: 400 }}>
+      <Explorer
+        nodes={seed}
+        gridLines
+        columns={[
+          { id: "name", header: "Name" },
+          {
+            id: "size",
+            header: "Size",
+            align: "end",
+            width: 90,
+            render: (n) => formatSize(n.meta?.size),
+          },
+          {
+            id: "modified",
+            header: "Modified",
+            width: 140,
+            render: (n) => n.meta?.modified ?? "—",
+          },
+        ]}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        expandedIds={expandedIds}
+        onExpandedChange={setExpandedIds}
+      />
+    </div>
+  );
+};

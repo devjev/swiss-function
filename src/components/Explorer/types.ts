@@ -134,6 +134,12 @@ export interface ExplorerProps<M = unknown>
    *  {@link ExplorerColumnFill}. */
   columnFill?: ExplorerColumnFill;
 
+  /** Spreadsheet look (issue #28): every body cell draws its own right +
+   *  bottom hairline — the same per-cell edge model as DataTable, so the two
+   *  are visually indistinguishable at the grid level. Default `false`
+   *  (Explorer's resting look is borderless rows). */
+  gridLines?: boolean;
+
   /** Row height in px. Default 32 (≈ unit * 4/3). */
   rowHeight?: number;
   /** Viewport height. Default `"100%"` — fills the parent (the common case

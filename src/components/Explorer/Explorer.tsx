@@ -8,13 +8,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  horizontalListSortingStrategy,
-  SortableContext,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   CSSProperties,
@@ -25,6 +19,7 @@ import type {
 } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { resizeBoundary } from "../../lib/columns/resizeBoundary";
+import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
@@ -193,6 +188,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     showHeader = true,
     empty = "No data",
     edgeFade = false,
+    gridLines = false,
     columnFill = false,
     rowHeight = 32,
     height = "100%",
@@ -918,6 +914,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       className={cx(styles.wrapper, className)}
       style={style as CSSProperties}
       data-explorer-root=""
+      data-grid-lines={gridLines || undefined}
       {...rest}
     >
       {header}
@@ -1065,29 +1062,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       </DndContext>
     </div>
   );
-}
-
-// --- Sortable header cell (column reorder) --------------------------------
-
-interface HeaderDnd {
-  ref: (node: HTMLElement | null) => void;
-  attributes: Record<string, unknown>;
-  listeners: Record<string, unknown> | undefined;
-  style: CSSProperties;
-  dragging: boolean;
-}
-
-function SortableHeaderCell({ id, render }: { id: string; render: (dnd: HeaderDnd) => ReactNode }) {
-  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
-    id,
-  });
-  return render({
-    ref: setNodeRef,
-    attributes: attributes as unknown as Record<string, unknown>,
-    listeners: listeners as Record<string, unknown> | undefined,
-    style: { transform: CSS.Transform.toString(transform), transition },
-    dragging: isDragging,
-  });
 }
 
 // --- ExplorerRow (internal) -----------------------------------------------

@@ -98,6 +98,8 @@ interface HarnessProps {
   /** Turn on the data-grid features (sortable / filterable / resizable /
    *  reorderable columns) so specs can exercise them. */
   grid?: boolean;
+  /** Spreadsheet-style per-cell borders (issue #28). */
+  gridLines?: boolean;
   /** Render with no nodes, to exercise the empty state. */
   emptyData?: boolean;
 }
@@ -107,6 +109,7 @@ export function ExplorerHarness({
   expanded = ["src", "src/components"],
   showHeader,
   grid,
+  gridLines,
   emptyData,
 }: HarnessProps) {
   const [nodes, setNodes] = useState<ExplorerNode<Meta>[]>(() =>
@@ -121,6 +124,7 @@ export function ExplorerHarness({
     <div>
       <Explorer
         nodes={nodes}
+        gridLines={gridLines}
         resizableColumns={grid}
         reorderableColumns={grid}
         filterableColumns={grid}

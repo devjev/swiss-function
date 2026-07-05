@@ -134,7 +134,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Explorer`      | File-tree-style hierarchical navigation.                 |
+| `Explorer`      | File-tree-style hierarchical navigation: virtualized tree grid with rename-in-place, row drag-to-reorder, and DataTable's column affordances (sort/filter/resize/reorder). `gridLines` gives it full spreadsheet borders. **Explorer vs DataTable**: reach for Explorer when the data is inherently a tree the user *manipulates* (rename/move/reorder rows); reach for DataTable for tabular data at scale (cell selection/editing, column groups, frozen columns, pagination, 100k+ rows). They share their column machinery (`src/lib/columns`, `src/lib/filter`) by design — don't merge them further: the tree-vs-flat data pipelines, row-vs-cell selection and rename-vs-cell-editor models are deliberately separate (issue #28). |
 | `Outliner`      | Outline editor with drag-reordering (dnd-kit underneath). |
 
 ### Charts

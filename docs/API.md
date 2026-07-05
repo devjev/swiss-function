@@ -515,6 +515,7 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `showHeader` | `boolean` | `true` | Column header row. |
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
 | `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
+| `gridLines` | `boolean` | `false` | Spreadsheet look: every body cell draws its own right + bottom hairline (the same per-cell edge model as DataTable). |
 | `columnFill` | `boolean \| { animated?, effect?, color?, density?, speed? }` | `false` | Dither filler right of fixed-width columns; a no-op when the last column already stretches (the default). |
 | `rowHeight` | `number` | `32` | Px (≈ `unit * 4/3`). |
 | `height` | `number \| string` | `"100%"` | Viewport height; number = px, string = CSS. |
