@@ -61,3 +61,32 @@ jobs:
             exit 0
           fi
           npm publish
+
+      # The registry gets the package; the repo Releases page gets the release
+      # entry with the packed tarball attached (the manual `just
+      # release-package` flow, automated). Idempotent like the publish above:
+      # an existing release is reused, an existing asset is skipped.
+      - name: Forgejo release + tarball asset
+        env:
+          TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          API="https://code.tarassov.ch/api/v1/repos/${GITHUB_REPOSITORY}"
+          TAG="${GITHUB_REF_NAME}"
+          AUTH="Authorization: token $TOKEN"
+          RELEASE_ID=$(curl -sf -H "$AUTH" "$API/releases/tags/$TAG" \
+            | node -p "JSON.parse(require('fs').readFileSync(0)).id" 2>/dev/null || true)
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d "{\"tag_name\": \"$TAG\", \"name\": \"Release $TAG\"}" "$API/releases" \
+              | node -p "JSON.parse(require('fs').readFileSync(0)).id")
+          fi
+          TARBALL=$(npm pack --pack-destination /tmp | tail -1)
+          if curl -sf -H "$AUTH" "$API/releases/$RELEASE_ID/assets" \
+            | node -p "JSON.parse(require('fs').readFileSync(0)).some(a => a.name === '$TARBALL')" \
+            | grep -q true; then
+            echo "Asset $TARBALL already attached — skipping."
+          else
+            curl -sf -X POST -H "$AUTH" -F "attachment=@/tmp/$TARBALL" \
+              "$API/releases/$RELEASE_ID/assets?name=$TARBALL" > /dev/null
+            echo "Attached $TARBALL to release $TAG."
+          fi
