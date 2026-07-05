@@ -128,10 +128,10 @@ export const SensitivityField: Story = () => {
   );
 };
 
-// Issue #35: shared scaffolding on the grid — frame, fullscreen, controls, a
-// data-anchored region annotation, and value-axis (row) zoom (wheel/drag/±/0
-// window a vertical sub-range of rows).
-export const InteractiveScaffolding: Story = () => {
+// The full interactive chart window — frame, fullscreen, controls, editable
+// annotations, and value-axis (row) zoom (wheel/drag/±/0 window a vertical
+// sub-range of rows). `zoomOutLimit` allows arbitrary zoom-out.
+export const ChartWindow: Story = () => {
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([]);
   return (
     <div style={{ width: "min(40rem, 100%)" }}>

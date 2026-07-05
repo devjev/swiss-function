@@ -163,10 +163,10 @@ export const DrillDown: Story = () => {
   );
 };
 
-// Issue #35: the full shared scaffolding on a categorical bar chart — a frame,
-// fullscreen, the controls toolbar, value-axis (y) zoom, and editable
-// annotations. x is categorical, so wheel/drag/±/0 window the value axis.
-export const InteractiveScaffolding: Story = () => {
+// The full interactive chart window — frame, fullscreen, the controls toolbar,
+// value-axis (y) zoom (x is categorical, so wheel/drag/±/0 window the value
+// axis) and editable annotations. `zoomOutLimit` allows arbitrary zoom-out.
+export const ChartWindow: Story = () => {
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
     { type: "hline", y: 60, label: "target" },
   ]);

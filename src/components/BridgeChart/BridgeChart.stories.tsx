@@ -117,10 +117,10 @@ export const FullScaffolding: Story = () => (
   </div>
 );
 
-// Issue #35: shared scaffolding on the waterfall — frame, fullscreen, controls,
-// value-axis (y) zoom, and an editable hline reference level. The x axis is
-// categorical, so it is the value axis that windows.
-export const InteractiveScaffolding: Story = () => {
+// The full interactive chart window — frame, fullscreen, controls, value-axis
+// (y) zoom (the waterfall's x is categorical, so the value axis windows) and an
+// editable hline reference level. `zoomOutLimit` allows arbitrary zoom-out.
+export const ChartWindow: Story = () => {
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
     { type: "hline", y: 100, label: "opening" },
   ]);

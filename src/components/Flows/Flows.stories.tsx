@@ -54,11 +54,11 @@ export const FullScaffolding: Story = () => (
 );
 
 /**
- * Issue #36 + #35: the full shared chart scaffolding — a frame, fullscreen, the
- * controls toolbar, value-axis (AUM) zoom, and an editable reference-level
- * annotation. Zoom windows the AUM axis; the x axis is per-period.
+ * The full interactive chart window — a frame, fullscreen, the controls toolbar,
+ * value-axis (AUM) zoom (the x axis is per-period), and an editable
+ * reference-level annotation. `zoomOutLimit` allows arbitrary zoom-out.
  */
-export const InteractiveScaffolding: Story = () => {
+export const ChartWindow: Story = () => {
   const [annotations, setAnnotations] = useState<ChartAnnotation[]>([
     { type: "hline", y: 1000, label: "opening AUM" },
   ]);
