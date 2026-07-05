@@ -25,17 +25,34 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type Domain = [number, number];
 
-/** Clamp a candidate domain to the data extent and minimum span: the span
- *  caps at the extent (zoom-out floor) and floors at `minSpan` (zoom-in
- *  ceiling); panning past an edge shifts the window back inside. */
-export function clampDomain(candidate: Domain, extent: Domain, minSpan: number): Domain {
+/** Clamp a candidate domain to the minimum span (zoom-in ceiling) and a
+ *  zoom-out floor of `maxSpan` (default the data extent). While the window is
+ *  no wider than the data it pans inside the extent; once it's wider (zoomed
+ *  out past the data), the data extent is kept within the window instead, so
+ *  panning slides the data between the margins rather than off-screen. Pass a
+ *  larger `maxSpan` (e.g. `extentSpan * 4`, or `Infinity`) to zoom out into
+ *  empty space around the data. */
+export function clampDomain(
+  candidate: Domain,
+  extent: Domain,
+  minSpan: number,
+  maxSpan?: number,
+): Domain {
   const [e0, e1] = extent;
   const extentSpan = e1 - e0;
+  // Never floor the zoom-out below the data extent, even if a smaller maxSpan
+  // is passed; the extent is the natural "fit" and the reset target.
+  const cap = Math.max(maxSpan ?? extentSpan, extentSpan);
   let span = candidate[1] - candidate[0];
-  span = Math.min(Math.max(span, Math.min(minSpan, extentSpan)), extentSpan);
+  span = Math.min(Math.max(span, Math.min(minSpan, extentSpan)), cap);
   let d0 = candidate[0];
-  if (d0 < e0) d0 = e0;
-  if (d0 + span > e1) d0 = e1 - span;
+  if (span > extentSpan) {
+    // Over-zoomed: the window is wider than the data — keep the data inside it.
+    d0 = Math.min(Math.max(d0, e1 - span), e0);
+  } else {
+    if (d0 < e0) d0 = e0;
+    if (d0 + span > e1) d0 = e1 - span;
+  }
   return [d0, d0 + span];
 }
 
@@ -68,6 +85,10 @@ export interface UseViewportOptions {
   onDomainChange?: (domain: Domain | null) => void;
   /** Smallest visible span (zoom-in ceiling), e.g. ~4 data points. */
   minSpan: number;
+  /** How far the viewport may zoom OUT past the data, as a multiple of the full
+   *  data span. `1` (default) stops zoom-out exactly at the data; larger values
+   *  (e.g. `4`, or `Infinity` for arbitrary) zoom out into empty margin. */
+  zoomOutLimit?: number;
   /** The plot element that owns the gestures. */
   plotRef: RefObject<HTMLElement | null>;
   /** When false the hook is inert (no listeners, full extent). */
@@ -120,6 +141,7 @@ export function useViewport({
   domain: controlledDomain,
   onDomainChange,
   minSpan,
+  zoomOutLimit = 1,
   plotRef,
   enabled,
   suspended = false,
@@ -131,16 +153,19 @@ export function useViewport({
   const [marqueeArmed, setMarqueeArmed] = useState(false);
   const [marquee, setMarquee] = useState<[number, number] | null>(null);
 
+  // Zoom-out floor as an absolute span (≥ the data extent).
+  const maxSpan = Math.max(zoomOutLimit, 1) * (extent[1] - extent[0]);
+
   const raw = controlledDomain !== undefined ? controlledDomain : uncontrolled;
   const domain = useMemo<Domain>(
-    () => (raw && enabled ? clampDomain(raw, extent, minSpan) : extent),
-    [raw, enabled, extent, minSpan],
+    () => (raw && enabled ? clampDomain(raw, extent, minSpan, maxSpan) : extent),
+    [raw, enabled, extent, minSpan, maxSpan],
   );
   const isZoomed = enabled && (domain[0] !== extent[0] || domain[1] !== extent[1]);
 
   // Live values for the natively-attached listeners (mounted once below).
-  const extentRef = useRef({ extent, minSpan });
-  extentRef.current = { extent, minSpan };
+  const extentRef = useRef({ extent, minSpan, maxSpan });
+  extentRef.current = { extent, minSpan, maxSpan };
   const domainRef = useRef(domain);
   domainRef.current = domain;
   const onDomainChangeRef = useRef(onDomainChange);
@@ -153,8 +178,8 @@ export function useViewport({
   marqueeArmedRef.current = marqueeArmed;
 
   const apply = useCallback((next: Domain | null) => {
-    const { extent: fullExtent, minSpan: span } = extentRef.current;
-    const clamped = next ? clampDomain(next, fullExtent, span) : null;
+    const { extent: fullExtent, minSpan: span, maxSpan: cap } = extentRef.current;
+    const clamped = next ? clampDomain(next, fullExtent, span, cap) : null;
     // A zoom-out that lands exactly on the full extent is a reset.
     const isFull = clamped && clamped[0] === fullExtent[0] && clamped[1] === fullExtent[1];
     const result = isFull ? null : clamped;

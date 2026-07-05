@@ -61,6 +61,7 @@ Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the share
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
 | `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the continuous value axis; the toolbar marquee zooms to a y-band; `aria-live` range announcements. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset (`0`/double-click) still returns to the data. |
 | `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = reset to the full range). |
 | `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays (see Scatterplot); `hline` is the natural reference level. `x` anchors to a fractional category index. |
 | `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing (same interactions as Scatterplot). |
@@ -98,6 +99,7 @@ Waterfall/bridge chart of cumulative deltas and totals. Mixes in the shared `Cha
 | `showConnectors` | `boolean` | `true` | Dashed connectors between bars. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
 | `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — the waterfall's x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the value axis; toolbar marquee zooms to a y-band. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset (`0`/double-click) still returns to the data. |
 | `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = full range). |
 | `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays; an `hline` is the natural reference level on a waterfall. |
 | `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
@@ -153,6 +155,7 @@ danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis/gridline posture (same as the other charts). |
 | `zoomable` | `boolean` | `false` | Interactive viewport in **bar-index space** (weekends stay collapsed): wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Far out, candles aggregate into true OHLC groups. Dated candles get calendar-boundary ticks with promoted (bolder) month/year labels. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data (into empty index space to the sides), as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `visibleRange` | `[number, number]` | uncontrolled | Controlled window as fractional candle indices; pair with `onVisibleRangeChange`. |
 | `onVisibleRangeChange` | `(range: [number, number] \| null) => void` | — | Fires on every viewport change (`null` = reset). Lazy-history hook: prepend older candles when the window nears index 0. |
 | `annotations` | `ChartAnnotation[]` | — | Data-anchored overlay (see Scatterplot); `x` anchors are timestamps, mapped onto the gap-free bar axis. |
@@ -600,6 +603,7 @@ Per-period fund-flow ribbon (issue #36): each period is a within-period waterfal
 | `showLegend` | `boolean` | `true` | Legend of the components present. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
 | `zoomable` | `boolean` | `false` | Interactive **value-axis (AUM) zoom** — x is per-period, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the AUM axis; toolbar marquee zooms to a band. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the AUM span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every AUM zoom/pan (`null` = full range). |
 | `annotations` / `onAnnotationsChange` | `ChartAnnotation[]` / `(a) => void` | — | Data-anchored overlays (see Scatterplot); an `hline` is the natural reference level. `x` anchors to a fractional period index. The change handler (with `controls`) enables editing. |
 | `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
@@ -709,6 +713,7 @@ field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 | `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"full"` | Axis posture. Defaults to `"full"` (axes always shown, unlike the line/bar charts' `"hover"`) to preserve the heatmap's always-labelled read; `"minimal"` hides the tick axes, `"hover"` fades them in. |
 | `zoomable` | `boolean` | `false` | Interactive **value-axis (y/row) zoom** — the grid is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window a vertical sub-range of rows (the cell SVG's viewBox clips to the band). |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the rows, as a multiple of the row span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every row-axis zoom/pan (`null` = full range). |
 | `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays in a pixel-space layer stacked on the grid; `rect`/`text` fit a heatmap naturally. While editing, the overlay takes the pointer, so cell hover is suppressed. |
 | `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
@@ -1061,6 +1066,7 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. In full mode, axes are adaptive: tick step/precision recompute from the domain and pixel density; date axes walk a calendar ladder (5 min → hour → day → month → year) with promoted (bolder) boundary ticks; tiny-span-at-large-magnitude windows factor a shared offset into a corner readout. |
 | `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column — spikes survive). |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data (into empty margin to the sides), as a multiple of the x span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | — | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
 | `annotations` | `ChartAnnotation[]` | — | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document — persist it as-is. |
 | `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation **editing** — see below. Fires with the complete next array. |

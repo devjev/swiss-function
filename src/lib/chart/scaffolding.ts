@@ -30,6 +30,12 @@ export interface ChartScaffoldingProps {
    *  the arrow keys pan, `+`/`-` step-zoom, `0` resets; the toolbar adds a
    *  marquee "zoom to region". Default `false`. */
   zoomable?: boolean;
+  /** How far the viewport may zoom OUT past the data, as a multiple of the full
+   *  data span (`zoomable` only). `1` (default) stops zoom-out exactly at the
+   *  data; larger values zoom out into empty margin around it, and `Infinity`
+   *  allows arbitrary zoom-out. Reset (`0` / double-click) still returns to the
+   *  data. */
+  zoomOutLimit?: number;
   /** Data-anchored overlays: `hline`/`vline`/`line`/`rect`/`text`/`measure`.
    *  Read-only unless `onAnnotationsChange` is also given. */
   annotations?: ChartAnnotation[];

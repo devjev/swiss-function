@@ -176,7 +176,11 @@ For an actual chart **window** — visible zoom buttons and drawing tools, the
 trading-terminal look — add `controls` (toolbar overlay — zoom is a mode: arm it, drag the region to zoom to) plus
 `onAnnotationsChange` (arms the tool palette: trend line, h/v lines, region,
 text note, measure; select/drag/Delete editing, all flowing through the
-annotations array) and optionally `fullscreen` and `frame`.
+annotations array) and optionally `fullscreen` and `frame`. By default zoom-out
+stops at the data extent; pass `zoomOutLimit` (a multiple of the data span, or
+`Infinity`) to zoom out into empty margin around the data — the trading-terminal
+"pull back to see context" gesture. Applies to every zoomable chart; reset still
+snaps back to the data.
 
 This scaffolding is **uniform across every 2D data chart** (issue #35): the same
 `ChartScaffoldingProps` mixin — `frame`, `fullscreen`, `controls`, `zoomable`,

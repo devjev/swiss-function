@@ -49,6 +49,9 @@ export interface UseChartScaffoldOptions {
     onDomainChange?: (domain: Domain | null) => void;
     /** Smallest visible span (zoom-in ceiling). */
     minSpan: number;
+    /** Zoom-out floor as a multiple of the data span (`1` = stop at the data,
+     *  `Infinity` = arbitrary). */
+    zoomOutLimit?: number;
     formatValue: (value: number) => string;
     /** Screen axis the value maps to. Default `"y"` (a vertical value axis). */
     axis?: "x" | "y";
@@ -106,6 +109,7 @@ export function useChartScaffold({
     domain: zoomable ? (value.domain ?? undefined) : undefined,
     onDomainChange: value.onDomainChange,
     minSpan: value.minSpan,
+    zoomOutLimit: value.zoomOutLimit,
     plotRef,
     enabled: !!zoomable,
     suspended: editor.toolArmed,

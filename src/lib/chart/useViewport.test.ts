@@ -54,3 +54,35 @@ describe("clampDomain", () => {
     expect(clampDomain([200, 300], [0, 50], 500)).toEqual([0, 50]);
   });
 });
+
+describe("clampDomain zoom-out limit (arbitrary zoom-out)", () => {
+  const extent: [number, number] = [0, 1000];
+
+  it("caps zoom-out at the extent by default", () => {
+    // A window twice the data is pulled back to the extent.
+    expect(clampDomain([-500, 1500], extent, 10)).toEqual([0, 1000]);
+  });
+
+  it("allows zooming out past the data up to maxSpan", () => {
+    // maxSpan 2000 (2× the data) lets a centered 2000-wide window through.
+    expect(clampDomain([-500, 1500], extent, 10, 2000)).toEqual([-500, 1500]);
+  });
+
+  it("keeps the data extent inside an over-zoomed window when panning", () => {
+    // A 2000-wide window can slide, but never past the data's edges.
+    expect(clampDomain([-2000, 0], extent, 10, 2000)).toEqual([-1000, 1000]); // data pinned right
+    expect(clampDomain([1000, 3000], extent, 10, 2000)).toEqual([0, 2000]); // data pinned left
+  });
+
+  it("still floors the cap at the extent even if maxSpan is smaller", () => {
+    expect(clampDomain([-500, 1500], extent, 10, 500)).toEqual([0, 1000]);
+  });
+
+  it("treats Infinity as arbitrary zoom-out", () => {
+    const [d0, d1] = clampDomain([-4500, 5500], extent, 10, Number.POSITIVE_INFINITY);
+    expect(d1 - d0).toBe(10000);
+    // The data stays within the window.
+    expect(d0).toBeLessThanOrEqual(0);
+    expect(d1).toBeGreaterThanOrEqual(1000);
+  });
+});

@@ -109,3 +109,42 @@ test("fullscreen toggles the maximized data attribute", async ({ mount }) => {
   await c.getByRole("button", { name: /fullscreen|maximize|expand/i }).click();
   await expect(root).toHaveAttribute("data-expanded", "");
 });
+
+// Arbitrary zoom-out past the data extent (zoomOutLimit).
+test("zoomOutLimit lets the value axis zoom out past the data", async ({ mount, page }) => {
+  const c = await mount(
+    <BarChartScaffoldHarness
+      categories={CATEGORIES}
+      series={SERIES}
+      yDomain={[0, 100]}
+      height={240}
+      scaffolding="full"
+      zoomable
+      controls
+      zoomOutLimit={Number.POSITIVE_INFINITY}
+    />,
+  );
+  await c.locator("[data-zoomable]").focus();
+  // From the full extent, "-" zooms out into empty margin: [0,100] → [-50,150].
+  await page.keyboard.press("-");
+  await expect(c.locator("[aria-live]")).toContainText("150");
+  await expect(c.getByRole("button", { name: "Reset view" })).toBeEnabled();
+});
+
+test("without zoomOutLimit, zoom-out stops at the data extent", async ({ mount, page }) => {
+  const c = await mount(
+    <BarChartScaffoldHarness
+      categories={CATEGORIES}
+      series={SERIES}
+      yDomain={[0, 100]}
+      height={240}
+      scaffolding="full"
+      zoomable
+      controls
+    />,
+  );
+  await c.locator("[data-zoomable]").focus();
+  // "-" from the full extent is clamped back to the data — reported as a reset.
+  await page.keyboard.press("-");
+  await expect(c.locator("[aria-live]")).toHaveText("Showing full range");
+});

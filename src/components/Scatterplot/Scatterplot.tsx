@@ -254,6 +254,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     showLegend,
     scaffolding = "hover",
     zoomable = false,
+    zoomOutLimit,
     onXDomainChange,
     annotations,
     onAnnotationsChange,
@@ -377,6 +378,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     onDomainChange: handleDomainChange,
     // Zoom-in ceiling ≈ 4 data points across the plot.
     minSpan: ((dataXExtent[1] - dataXExtent[0]) * 4) / Math.max(4, maxSeriesLength),
+    zoomOutLimit,
     plotRef,
     enabled: zoomable,
     // An armed draw tool owns the pointer: pan/pinch/dblclick off, wheel on.

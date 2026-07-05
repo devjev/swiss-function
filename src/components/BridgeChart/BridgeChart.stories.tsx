@@ -141,6 +141,7 @@ export const InteractiveScaffolding: Story = () => {
         fullscreen
         controls
         zoomable
+        zoomOutLimit={Number.POSITIVE_INFINITY}
         annotations={annotations}
         onAnnotationsChange={setAnnotations}
       />
