@@ -526,20 +526,18 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 
 `import { Field } from "@tarassov-ch/swiss-function/field"`
 
-Compound form field with label, description, error, and adaptive help. Wraps Base UI's Field.
+Compound form field with label, description, and error. Wraps Base UI's Field.
 
-**Elements / Parts:** `Root`, `Label` (shows `*` when `required`), `Description`,
-`Error`, `Help` (adaptive: a side column beside the control when the field is wide,
-a "?" tooltip trigger after the label when narrow).
+**Elements / Parts:** `Root`, `Label` (shows `*` when `required`), `Description`
+(supplementary copy below the control — full-strength `--sf-color-fg`, never grey),
+`Error` (in the danger colour; Base UI renders nothing when valid).
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `orientation` | `Root` | `"vertical" \| "horizontal"` | `"vertical"` | Stack vs side-by-side. |
 | `required` | `Root` | `boolean` | `false` | Visual `*` on Label; add `required` to the control for HTML validation. |
-| `helpAt` | `Root` | `number \| string` | `24` | Field width below which `Help` collapses to the tooltip trigger. `number` = `--sf-unit` multiples, `string` = CSS length (`useCollapse` semantics). Inert without a `Help` child. |
-| `triggerLabel` | `Help` | `string` | `"Show help"` | Accessible label for the collapsed "?" trigger. |
 
-`Field.Help`: write the help text once, **right after the control it explains** (grid placement, not DOM order, moves it — the layout self-heals around it). The text stays in the control's `aria-describedby` in *both* modes (sr-only when collapsed; the tooltip popup is a visual-only copy), and coexists with `Field.Description`. The tooltip opens on hover (300ms), instantly on keyboard focus, and on click/tap; Escape closes. Phrasing content only — it renders twice. The root carries `data-help="inline" | "trigger"` for styling/tests.
+`Field.Description` and `Field.Error` wire to the control via `aria-describedby`. Write the description **right after the control it explains**.
 
 ## FieldLayout
 

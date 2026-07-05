@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-05T10:54:47.482Z"
+    "date": "2026-07-05T11:25:34.392Z"
   },
-  "totalGzip": 560207,
+  "totalGzip": 557315,
   "entries": {
     ".": {
       "files": 201,
-      "jsRaw": 693044,
-      "jsGzip": 209696,
+      "jsRaw": 689870,
+      "jsGzip": 208688,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 209696,
+      "gzip": 208688,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -30,7 +30,6 @@
         "@base-ui/react/tabs",
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
-        "@base-ui/react/tooltip",
         "@base-ui/react/use-render",
         "@dnd-kit/core",
         "@dnd-kit/sortable",
@@ -183,21 +182,21 @@
       ]
     },
     "./field": {
-      "files": 6,
-      "jsRaw": 7467,
-      "jsGzip": 3050,
+      "files": 4,
+      "jsRaw": 2133,
+      "jsGzip": 995,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 3050,
-      "externals": ["@base-ui/react/field", "@base-ui/react/tooltip", "react", "react/jsx-runtime"]
+      "gzip": 995,
+      "externals": ["@base-ui/react/field", "react", "react/jsx-runtime"]
     },
     "./field-layout": {
       "files": 8,
-      "jsRaw": 12556,
-      "jsGzip": 5018,
+      "jsRaw": 12908,
+      "jsGzip": 5189,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 5018,
+      "gzip": 5189,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./fullscreen": {
