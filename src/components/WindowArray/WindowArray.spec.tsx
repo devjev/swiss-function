@@ -574,3 +574,59 @@ test("custom WindowButton actions share the chrome, sit before fullscreen/close,
   expect(moves).toBe(0);
   await expect(page.locator("[data-dragging]")).toHaveCount(0);
 });
+
+// --- Issue #31: vertical band sizing must not corrupt or overflow -----------
+
+test("collapse → resize band → expand retains the column widths (issue #31)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness width={640} narrowWidth={360} height={400} columnWidth={220} />);
+  const root = page.getByTestId("window-array");
+  const sep = page.getByRole("separator").first();
+
+  // Horizontal: grow column 1 to 244px.
+  await sep.focus();
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(sep).toHaveAttribute("aria-valuenow", "244");
+
+  // Collapse to vertical; the band seeds its height from the width.
+  await page.getByRole("button", { name: "Toggle width" }).click();
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+  await expect(sep).toHaveAttribute("aria-valuenow", "244");
+
+  // Resize the BAND (a height, not a width).
+  await sep.focus();
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(sep).toHaveAttribute("aria-valuenow", "268");
+
+  // Expand: the width the user set before collapsing is intact.
+  await page.getByRole("button", { name: "Toggle width" }).click();
+  await expect(root).toHaveAttribute("data-orientation", "horizontal");
+  await expect(sep).toHaveAttribute("aria-valuenow", "244");
+});
+
+test("vertical windows are never taller than the container (issue #31)", async ({
+  mount,
+  page,
+}) => {
+  // 480px default column width in a 400px-tall container: without the cap the
+  // first band alone would overflow the WindowArray.
+  await mount(<WindowArrayHarness width={360} height={400} columnWidth={480} />);
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+
+  const box = await page.locator('[data-window-id="w1a"]').boundingBox();
+  if (!box) throw new Error("no window box");
+  expect(box.height).toBeLessThanOrEqual(400);
+
+  // The band is capped at the container's content height (borders excluded),
+  // and keyboard resize can't push past the cap.
+  const sep = page.getByRole("separator").first();
+  const capped = Number(await sep.getAttribute("aria-valuenow"));
+  expect(capped).toBeLessThanOrEqual(400);
+  expect(capped).toBeGreaterThan(390);
+  await sep.focus();
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(sep).toHaveAttribute("aria-valuenow", String(capped));
+});

@@ -332,7 +332,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   verticalRef.current = vertical;
 
   // --- Column resize (in-flow gutters, one shared drag instance) -----------
+  // Two per-axis stores (issue #31): widths belong to the horizontal layout,
+  // band heights to the vertical one. Resizing a band while collapsed must
+  // not clobber the column widths the user set before collapsing.
   const [widthOverrides, setWidthOverrides] = useState<Record<string, number>>({});
+  const [heightOverrides, setHeightOverrides] = useState<Record<string, number>>({});
   const [resizingId, setResizingId] = useState<string | null>(null);
   const resizeStart = useRef<{
     columnId: string;
@@ -345,10 +349,35 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onWidthChange?: (width: number) => void;
   } | null>(null);
 
+  // Vertical band heights are capped to the root's height (issue #31): a
+  // window must never be taller than the WindowArray itself.
+  const [rootHeight, setRootHeight] = useState(0);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver((entries) => {
+      setRootHeight(entries[0]?.contentRect.height ?? root.clientHeight);
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+  const maxBandHeight = rootHeight > 0 ? rootHeight : Number.POSITIVE_INFINITY;
+  const maxBandHeightRef = useRef(maxBandHeight);
+  maxBandHeightRef.current = maxBandHeight;
+
   const columnWidth = useCallback(
     (props: WindowArrayColumnProps) =>
       widthOverrides[props.id] ?? props.width ?? props.defaultWidth ?? DEFAULT_COLUMN_WIDTH,
     [widthOverrides],
+  );
+
+  /** Vertical main-axis size of a band: its own resized height when set,
+   *  otherwise the column's width value (keeps bands proportionate to their
+   *  horizontal sizes) — always capped to the container. */
+  const bandHeight = useCallback(
+    (props: WindowArrayColumnProps) =>
+      Math.min(heightOverrides[props.id] ?? columnWidth(props), maxBandHeight),
+    [heightOverrides, columnWidth, maxBandHeight],
   );
 
   const { onPointerDown: onGutterPointerDown } = usePointerDrag({
@@ -358,7 +387,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       if (!columnId || !col) return;
       resizeStart.current = {
         columnId,
-        start: columnWidth(col.props),
+        start: verticalRef.current ? bandHeight(col.props) : columnWidth(col.props),
         min: col.props.minWidth ?? columnMinWidth,
         controlled: col.props.width !== undefined,
         vertical: verticalRef.current,
@@ -369,7 +398,12 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onMove: (delta) => {
       const s = resizeStart.current;
       if (!s) return;
-      const next = clampWidth(s.start + (s.vertical ? delta.dy : delta.dx), s.min);
+      if (s.vertical) {
+        const next = Math.min(maxBandHeightRef.current, clampWidth(s.start + delta.dy, s.min));
+        setHeightOverrides((prev) => ({ ...prev, [s.columnId]: next }));
+        return;
+      }
+      const next = clampWidth(s.start + delta.dx, s.min);
       setWidthOverrides((prev) => ({ ...prev, [s.columnId]: next }));
     },
     onEnd: (delta) => {
@@ -377,7 +411,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       resizeStart.current = null;
       setResizingId(null);
       if (!s) return;
-      const final = clampWidth(s.start + (s.vertical ? delta.dy : delta.dx), s.min);
+      if (s.vertical) {
+        // A band height is NOT a column width: don't fire onWidthChange and
+        // don't touch the width store — expanding back restores the widths.
+        const final = Math.min(maxBandHeightRef.current, clampWidth(s.start + delta.dy, s.min));
+        setHeightOverrides((prev) => ({ ...prev, [s.columnId]: final }));
+        return;
+      }
+      const final = clampWidth(s.start + delta.dx, s.min);
       s.onWidthChange?.(final);
       // Controlled columns take back over from the live override on settle.
       if (s.controlled) {
@@ -400,6 +441,17 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       event.preventDefault();
       const step = event.shiftKey ? 24 : 8;
       const min = props.minWidth ?? columnMinWidth;
+      if (vertical) {
+        // Band heights live in their own store, capped to the container.
+        const current = bandHeight(props);
+        const next = Math.min(
+          maxBandHeight,
+          clampWidth(current + (event.key === grow ? step : -step), min),
+        );
+        if (next === current) return;
+        setHeightOverrides((prev) => ({ ...prev, [props.id]: next }));
+        return;
+      }
       const current = columnWidth(props);
       const next = clampWidth(current + (event.key === grow ? step : -step), min);
       if (next === current) return;
@@ -408,10 +460,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         setWidthOverrides((prev) => ({ ...prev, [props.id]: next }));
       }
     },
-    [columnMinWidth, columnWidth, vertical],
+    [columnMinWidth, columnWidth, bandHeight, maxBandHeight, vertical],
   );
 
   const resetWidth = useCallback((props: WindowArrayColumnProps) => {
+    if (verticalRef.current) {
+      setHeightOverrides(({ [props.id]: _drop, ...rest }) => rest);
+      return;
+    }
     setWidthOverrides(({ [props.id]: _drop, ...rest }) => rest);
     props.onWidthChange?.(props.defaultWidth ?? DEFAULT_COLUMN_WIDTH);
   }, []);
@@ -754,14 +810,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       ? { gridRow: ci * 2 + 2, gridColumn: `${track.start} / span ${track.span}` }
       : { gridColumn: ci * 2 + 2, gridRow: `${track.start} / span ${track.span}` };
   const subrows = subrowCount(columns.map((c) => c.windows.length));
-  const trackWidths = columns.map((c) => columnWidth(c.props));
+  // Vertical band heights come from their own store (seeded from the width,
+  // capped to the container — issue #31); widths stay untouched while
+  // collapsed so expanding back restores them.
+  const trackWidths = columns.map((c) => (vertical ? bandHeight(c.props) : columnWidth(c.props)));
   if (squeeze > 0 && trackWidths.length > 0) {
     const last = trackWidths.length - 1;
     trackWidths[last] = Math.max(0, (trackWidths[last] ?? 0) - squeeze);
   }
-  // Vertical orientation transposes the same templates: column tracks become
-  // row tracks (a column's width value is its band height) and the fractional
-  // subrows split the width instead of the height.
+  // Vertical orientation transposes the templates: column tracks become row
+  // tracks and the fractional subrows split the width instead of the height.
   const mainTemplate = `${gapSize} ${trackWidths
     .map((w) => `${w}px`)
     .join(` ${gapSize} `)} ${gapSize}`;
@@ -815,7 +873,9 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     placement={gutterPlacement(ci)}
                     vertical={vertical}
                     leftColumn={before ? before.props : null}
-                    width={before ? columnWidth(before.props) : 0}
+                    width={
+                      before ? (vertical ? bandHeight(before.props) : columnWidth(before.props)) : 0
+                    }
                     minWidth={before ? (before.props.minWidth ?? columnMinWidth) : 0}
                     resizing={before != null && resizingId === before.props.id}
                     dropActive={dropSlot?.kind === "column" && dropSlot.index === ci}
@@ -838,7 +898,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                 placement={gutterPlacement(columns.length)}
                 vertical={vertical}
                 leftColumn={lastColumn.props}
-                width={columnWidth(lastColumn.props)}
+                width={vertical ? bandHeight(lastColumn.props) : columnWidth(lastColumn.props)}
                 minWidth={lastColumn.props.minWidth ?? columnMinWidth}
                 resizing={resizingId === lastColumn.props.id}
                 dropActive={dropSlot?.kind === "column" && dropSlot.index === columns.length}

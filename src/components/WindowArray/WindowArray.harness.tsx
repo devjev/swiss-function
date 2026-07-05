@@ -55,6 +55,7 @@ export function WindowArrayHarness({
   hotkeys,
   orientation,
   verticalBelow,
+  narrowWidth,
 }: {
   columnCount?: number;
   windowsPerColumn?: number;
@@ -66,13 +67,18 @@ export function WindowArrayHarness({
   hotkeys?: boolean;
   orientation?: "auto" | "horizontal" | "vertical";
   verticalBelow?: number;
+  /** When set, a "Toggle width" button flips the container between `width`
+   *  and this — for collapse→expand round-trip specs (issue #31). */
+  narrowWidth?: number;
 }) {
   const [columns, setColumns] = useState(() => makeColumns(columnCount, windowsPerColumn));
   const [lastMove, setLastMove] = useState<WindowMove | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  const effectiveWidth = narrow && narrowWidth != null ? narrowWidth : width;
 
   return (
-    <div style={{ inlineSize: width, blockSize: height }}>
+    <div style={{ inlineSize: effectiveWidth, blockSize: height }}>
       <WindowArray
         aria-label="Harness workspace"
         data-testid="window-array"
@@ -114,6 +120,11 @@ export function WindowArrayHarness({
       </WindowArray>
       <div data-testid="last-move">{lastMove ? JSON.stringify(lastMove) : ""}</div>
       <div data-testid="active-id">{activeId ?? ""}</div>
+      {narrowWidth != null ? (
+        <button type="button" onClick={() => setNarrow((n) => !n)}>
+          Toggle width
+        </button>
+      ) : null}
     </div>
   );
 }
