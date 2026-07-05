@@ -1,0 +1,75 @@
+# Automatic release: pushing a v* tag runs the full gate and publishes the
+# package to this Forgejo instance's npm registry.
+#
+# The release flow is:
+#   just release            # patch bump; or: just release minor
+# which runs `npm version <bump>` (creating the vX.Y.Z tag) and pushes with
+# --follow-tags; this workflow does the rest.
+#
+# Requirements (one-time):
+#   - a Forgejo Actions runner registered for this repo/instance with the
+#     `docker` label
+#   - the `REGISTRY_TOKEN` actions secret: a token with package:write scope
+#     (repo settings → Actions → Secrets)
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: docker
+    container:
+      # Playwright CT needs a debian-ish base for `install --with-deps`.
+      image: node:22-bookworm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint + format check
+        run: npm run check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Component tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:ct
+
+      - name: Verify tag matches package.json version
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        # prepublishOnly re-runs check → typecheck → build before the upload.
+        run: |
+          echo "//code.tarassov.ch/api/packages/ux/npm/:_authToken=${{ secrets.REGISTRY_TOKEN }}" > ~/.npmrc
+          npm publish
+
+      - name: Forgejo release + tarball asset
+        # House convention: every release also ships the packed tarball as a
+        # release asset, not just source archives (see justfile
+        # release-package, which this automates).
+        run: |
+          API="https://code.tarassov.ch/api/v1/repos/ux/swiss-function"
+          AUTH="Authorization: token ${{ secrets.REGISTRY_TOKEN }}"
+          TARBALL=$(npm pack --pack-destination /tmp | tail -1)
+          RELEASE_ID=$(curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"$GITHUB_REF_NAME\", \"name\": \"Release $GITHUB_REF_NAME\"}" \
+            "$API/releases" | node -p "JSON.parse(require('fs').readFileSync(0)).id")
+          curl -sf -X POST -H "$AUTH" \
+            -F "attachment=@/tmp/$TARBALL" \
+            "$API/releases/$RELEASE_ID/assets?name=$TARBALL" > /dev/null
+          echo "Released $GITHUB_REF_NAME with $TARBALL"

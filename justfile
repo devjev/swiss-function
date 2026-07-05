@@ -89,3 +89,9 @@ install:
 # Clean build artifacts
 clean:
     rm -rf dist .ladle/build test-results playwright-report coverage perf/results
+
+# Cut a release: bump version (patch/minor/major), push with the tag —
+# CI (.forgejo/workflows/release.yml) runs the gates and publishes.
+release bump="patch":
+    npm version {{bump}}
+    git push --follow-tags
