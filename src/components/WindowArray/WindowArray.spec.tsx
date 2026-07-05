@@ -298,9 +298,15 @@ test("paddle controls fade in near their edge, switch the active column and disa
   await expect(next).toHaveCSS("opacity", "0");
 });
 
-test("Alt+Arrow hotkeys switch columns from inside window content", async ({ mount, page }) => {
-  await mount(<WindowArrayHarness hotkeys />);
-  // Focus deep inside a window body — not on a title bar.
+test("apiRef.switchColumn drives column switching from a consumer's hotkey (issue #32)", async ({
+  mount,
+  page,
+}) => {
+  // The harness plays the consumer: it wires Alt+Arrow on its wrapper to
+  // apiRef.switchColumn. WindowArray itself binds no shortcut.
+  await mount(<WindowArrayHarness apiHotkeys />);
+  // Focus deep inside a window body — not on a title bar. The consumer's
+  // handler still catches it (the event bubbles to the wrapper).
   await page.getByLabel("Note for Window 1A").click();
   await page.keyboard.press("Alt+ArrowRight");
   await expect(page.getByTestId("active-id")).toHaveText("w2a");
@@ -308,6 +314,18 @@ test("Alt+Arrow hotkeys switch columns from inside window content", async ({ mou
   await page.keyboard.press("Alt+ArrowLeft");
   await expect(page.getByTestId("active-id")).toHaveText("w1a");
   await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+});
+
+test("WindowArray binds no column-switch hotkey of its own (issue #32)", async ({
+  mount,
+  page,
+}) => {
+  // Without the consumer wiring (no apiHotkeys), Alt+Arrow does nothing — the
+  // component no longer owns the shortcut.
+  await mount(<WindowArrayHarness />);
+  await page.getByLabel("Note for Window 1A").click();
+  await page.keyboard.press("Alt+ArrowRight");
+  await expect(page.getByTestId("active-id")).not.toHaveText("w2a");
 });
 
 test("snap turns on proximity column snapping, suspended while resizing", async ({
@@ -478,11 +496,11 @@ test("vertical: gutter drags and arrows resize the band height", async ({ mount,
   await expect(gutter).toHaveAttribute("aria-valuenow", "264");
 });
 
-test("vertical: Alt+ArrowUp/Down switch bands, fullscreen still fills the container", async ({
+test("vertical: apiRef switches bands (Alt+Up/Down), fullscreen still fills the container", async ({
   mount,
   page,
 }) => {
-  await mount(<WindowArrayHarness width={360} height={500} hotkeys />);
+  await mount(<WindowArrayHarness width={360} height={500} apiHotkeys />);
   await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
   await page.getByLabel("Note for Window 1A").click();
   await page.keyboard.press("Alt+ArrowDown");

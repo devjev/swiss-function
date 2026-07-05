@@ -6,6 +6,18 @@
   display: grid;
   row-gap: calc(var(--sf-unit) / 4);
   font-family: var(--sf-font-sans);
+  /* Anchor for the optional jump-to-field hotkey badge. */
+  position: relative;
+}
+
+/* Jump-to-field shortcut badge (issue #32): sits in the top-right corner,
+   aligned with the label row. Decorative — the consumer's hotkey system owns
+   the actual keypress. */
+.hotkey {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  pointer-events: none;
 }
 
 .root[data-orientation="horizontal"] {

@@ -1,6 +1,6 @@
 import type { Story } from "@ladle/react";
-import { useState } from "react";
-import type { WindowArrayElevation, WindowMove } from "./WindowArray";
+import { useEffect, useRef, useState } from "react";
+import type { WindowArrayElevation, WindowArrayHandle, WindowMove } from "./WindowArray";
 import { WindowArray } from "./WindowArray";
 import { applyWindowMove } from "./WindowArray.harness";
 
@@ -71,10 +71,12 @@ function Demo({
   longBodies?: boolean;
   snap?: boolean;
   controls?: boolean;
+  /** Wires Alt+Arrow to `apiRef.switchColumn` — the consumer's job now (#32). */
   hotkeys?: boolean;
   elevation?: WindowArrayElevation;
 }) {
   const [columns, setColumns] = useState(initial);
+  const api = useRef<WindowArrayHandle>(null);
   const close = (id: string) =>
     setColumns((cols) =>
       cols
@@ -82,6 +84,22 @@ function Demo({
         .filter((c) => c.windows.length > 0),
     );
   const move = (m: WindowMove) => setColumns((cols) => applyWindowMove(cols, m));
+  // The consumer owns the shortcut: a document-level Alt+Arrow → switchColumn.
+  useEffect(() => {
+    if (!hotkeys) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        api.current?.switchColumn("prev");
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        api.current?.switchColumn("next");
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hotkeys]);
   return (
     <div style={{ blockSize: height }}>
       <WindowArray
@@ -90,7 +108,7 @@ function Demo({
         defaultActiveId="editor"
         snap={snap}
         controls={controls}
-        hotkeys={hotkeys}
+        apiRef={api}
         elevation={elevation}
       >
         {columns.map((col) => (

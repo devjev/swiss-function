@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { Checkbox } from "../Checkbox";
 import { Input } from "../Input";
 import { Field } from "./Field";
+import { FieldHotkeyHarness } from "./Field.harness";
 
 test("Label is associated with the control via htmlFor", async ({ mount }) => {
   const c = await mount(
@@ -77,4 +78,28 @@ test('orientation="horizontal" lays out as a row', async ({ mount }) => {
   await expect(c).toHaveAttribute("data-orientation", "horizontal");
   const direction = await c.evaluate((el) => getComputedStyle(el).flexDirection);
   expect(direction).toBe("row");
+});
+
+// --- Issue #32: jump-to-field hotkey ----------------------------------------
+
+test("hotkey shows a Kbd badge and tags the field with data-hotkey", async ({ mount }) => {
+  const c = await mount(
+    <Field hotkey="mod+u">
+      <Field.Label>Username</Field.Label>
+      <Input />
+    </Field>,
+  );
+  await expect(c).toHaveAttribute("data-hotkey", "mod+u");
+  // The Kbd badge renders the chord as keycaps (mod + u).
+  await expect(c.locator("kbd")).toHaveCount(2);
+});
+
+test("focusFieldHotkey jumps focus into the matching field's control", async ({ mount }) => {
+  // The button plays the consumer's central hotkey handler: it calls the
+  // library helper, which runs in the browser against the live document. The
+  // result is surfaced to the DOM so we assert both the return value and focus.
+  const c = await mount(<FieldHotkeyHarness />);
+  await c.getByRole("button", { name: "jump" }).click();
+  await expect(c.getByTestId("result")).toHaveText("true");
+  await expect(c.getByLabel("Password")).toBeFocused();
 });

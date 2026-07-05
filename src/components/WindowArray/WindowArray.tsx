@@ -21,6 +21,7 @@ import type {
   HTMLAttributes,
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
+  Ref,
 } from "react";
 import {
   Fragment,
@@ -28,6 +29,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -188,6 +190,20 @@ function Window(_props: WindowArrayWindowProps): null {
 /** Resting shadow depth for the strip's windows (`--sf-elevation-N`). */
 export type WindowArrayElevation = 0 | 1 | 2 | 3 | 4 | 5;
 
+/** Imperative controls exposed through `apiRef` — the seam for the consumer's
+ *  own hotkey system to drive the strip centrally (issue #32). WindowArray no
+ *  longer binds any global shortcut itself; the client wires the keys and calls
+ *  these. */
+export interface WindowArrayHandle {
+  /** Move the active window to the previous / next column — or band, in the
+   *  vertical orientation — and focus it. `prev` = left/up, `next` = right/down.
+   *  A no-op at the strip's ends. */
+  switchColumn: (direction: "prev" | "next") => void;
+  /** Focus the active window's title-bar handle (the first window when none is
+   *  active). */
+  focusActive: () => void;
+}
+
 export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Controlled active (focused) window id. */
   activeId?: string | null;
@@ -216,10 +232,11 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
    *  window to the neighbouring column. Each fades in while the pointer is
    *  near its edge (always visible on hoverless devices). Default `false`. */
   controls?: boolean;
-  /** Alt+ArrowLeft/Right switch columns while focus is anywhere inside the
-   *  array (window content included) — scoped to the component, never the
-   *  document. Alt+ArrowUp/Down in the vertical orientation. Default `false`. */
-  hotkeys?: boolean;
+  /** Imperative handle for column switching / focus, so a consumer's central
+   *  hotkey system can drive the strip (issue #32). WindowArray binds no global
+   *  shortcut itself — wire your keys and call `switchColumn`/`focusActive`.
+   *  (Replaces the removed `hotkeys` prop.) */
+  apiRef?: Ref<WindowArrayHandle>;
   /** Layout axis. `"auto"` transposes to a vertical, top-to-bottom strip while
    *  the container is narrower than `verticalBelow`: columns become full-width
    *  bands and their windows sit side by side. Default `"auto"`. */
@@ -245,7 +262,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     elevation = 1,
     snap = false,
     controls = false,
-    hotkeys = false,
+    apiRef,
     orientation = "auto",
     verticalBelow = DEFAULT_VERTICAL_BELOW,
     className,
@@ -787,6 +804,17 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     if (focus) focusHandle(next);
   };
 
+  // The component binds no global shortcut of its own (issue #32) — it exposes
+  // column switching and focus imperatively so the consumer's central hotkey
+  // system drives it. Recreated each render to close over the live model.
+  useImperativeHandle(apiRef, () => ({
+    switchColumn: (direction) => switchColumn(direction === "prev" ? "left" : "right", true),
+    focusActive: () => {
+      const target = resolvedActive ?? edgeWindow(model, "first");
+      if (target) focusHandle(target);
+    },
+  }));
+
   // Paddles rest invisible and fade in while the pointer is near their edge
   // (CSS keeps them always-on where hover doesn't exist). Tracked on the root
   // so any pointer position inside the array counts — not just hovering the
@@ -810,21 +838,6 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const handleRootPointerLeave = (event: React.PointerEvent<HTMLElement>) => {
     onPointerLeaveProp?.(event);
     setNearEdges((prev) => (prev.start || prev.end ? { start: false, end: false } : prev));
-  };
-
-  const handleRootKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-    onKeyDownProp?.(event);
-    if (!hotkeys || event.defaultPrevented) return;
-    if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    // The hotkey pair follows the layout axis: Alt+Left/Right across columns,
-    // Alt+Up/Down across bands in the vertical orientation.
-    const prevKey = vertical ? "ArrowUp" : "ArrowLeft";
-    const nextKey = vertical ? "ArrowDown" : "ArrowRight";
-    if (event.key !== prevKey && event.key !== nextKey) return;
-    // Also suppresses the browser's Alt+Arrow history navigation while the
-    // strip has focus.
-    event.preventDefault();
-    switchColumn(event.key === prevKey ? "left" : "right", true);
   };
 
   // --- Drop-indicator resolution --------------------------------------------
@@ -888,7 +901,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   return (
     // A <section> with a consumer-supplied aria-label is a named region
     // landmark — document the label in API.md rather than defaulting one.
-    // biome-ignore lint/a11y/noStaticElementInteractions: onKeyDown only observes bubbling Alt+Arrow hotkeys from focusable descendants, and the pointer handlers only track paddle proximity; the section itself is not interactive.
+    // biome-ignore lint/a11y/noStaticElementInteractions: onKeyDown only forwards the consumer's handler and the pointer handlers only track paddle proximity; the section itself is not interactive.
     <section
       {...rest}
       ref={setRefs}
@@ -905,7 +918,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       data-snap={snap ? "" : undefined}
       data-controls={controls ? "" : undefined}
       data-interacting={draggingId != null || resizingId != null ? "" : undefined}
-      onKeyDown={handleRootKeyDown}
+      onKeyDown={onKeyDownProp}
       onPointerMove={handleRootPointerMove}
       onPointerLeave={handleRootPointerLeave}
     >

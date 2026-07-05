@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { WindowMove } from "./WindowArray";
+import { useRef, useState } from "react";
+import type { WindowArrayHandle, WindowMove } from "./WindowArray";
 import { WindowArray } from "./WindowArray";
 
 interface HarnessColumn {
@@ -52,7 +52,7 @@ export function WindowArrayHarness({
   height = 360,
   snap,
   controls,
-  hotkeys,
+  apiHotkeys,
   orientation,
   verticalBelow,
   narrowWidth,
@@ -64,7 +64,10 @@ export function WindowArrayHarness({
   height?: number;
   snap?: boolean;
   controls?: boolean;
-  hotkeys?: boolean;
+  /** Simulates the consumer's central hotkey system: wires Alt+Arrow on the
+   *  wrapping div to `apiRef.switchColumn` (WindowArray binds nothing itself
+   *  now — issue #32). */
+  apiHotkeys?: boolean;
   orientation?: "auto" | "horizontal" | "vertical";
   verticalBelow?: number;
   /** When set, a "Toggle width" button flips the container between `width`
@@ -76,16 +79,34 @@ export function WindowArrayHarness({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [narrow, setNarrow] = useState(false);
   const effectiveWidth = narrow && narrowWidth != null ? narrowWidth : width;
+  const api = useRef<WindowArrayHandle>(null);
 
   return (
-    <div style={{ inlineSize: effectiveWidth, blockSize: height }}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: test-only stand-in for a consumer's central hotkey handler.
+    <div
+      style={{ inlineSize: effectiveWidth, blockSize: height }}
+      onKeyDown={
+        apiHotkeys
+          ? (e) => {
+              if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+              if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                e.preventDefault();
+                api.current?.switchColumn("prev");
+              } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                e.preventDefault();
+                api.current?.switchColumn("next");
+              }
+            }
+          : undefined
+      }
+    >
       <WindowArray
         aria-label="Harness workspace"
         data-testid="window-array"
         columnMinWidth={120}
         snap={snap}
         controls={controls}
-        hotkeys={hotkeys}
+        apiRef={api}
         orientation={orientation}
         verticalBelow={verticalBelow}
         onActiveChange={setActiveId}

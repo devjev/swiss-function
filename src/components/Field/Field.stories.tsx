@@ -84,3 +84,21 @@ export const MultipleControls: Story = () => (
     </Field>
   </div>
 );
+
+/**
+ * Issue #32: `hotkey` advertises a "jump to this field" shortcut with a `Kbd`
+ * badge and tags the field with `data-hotkey`. The library binds no key — your
+ * app's central hotkey system handles the press and calls `focusFieldHotkey(combo)`.
+ */
+export const JumpHotkey: Story = () => (
+  <div style={{ width: "min(24rem, 100%)", display: "grid", gap: "var(--sf-unit)" }}>
+    <Field hotkey="g u">
+      <Field.Label>Username</Field.Label>
+      <Input placeholder="jane.doe" />
+    </Field>
+    <Field hotkey="mod+e">
+      <Field.Label>Email</Field.Label>
+      <Input type="email" placeholder="you@example.com" />
+    </Field>
+  </div>
+);
