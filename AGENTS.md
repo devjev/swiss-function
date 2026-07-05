@@ -414,6 +414,44 @@ When adding a component:
 
 ---
 
+## Issue workflow (for contributors: planning → tracking → shipping)
+
+Issues live on the self-hosted Forgejo at `code.tarassov.ch/ux/swiss-function`.
+The `tea` CLI is installed and authenticated (run it from the repo dir):
+`tea issues edit <n> --description "$(cat plan.md)"`, `tea comment <n> "…"`.
+Read raw issue bodies via the public API
+(`curl -s https://code.tarassov.ch/api/v1/repos/ux/swiss-function/issues/<n>`) —
+fetching the HTML page paraphrases the markdown.
+
+1. **Plan in the issue body.** Research first (codebase current-state, prior
+   art, dependency evaluation). Then edit the body: keep the original request
+   verbatim at the top, append `---` and a structured `# Plan` — scope, design
+   sections keyed to the asks, anti-scope, milestones (M1…Mn), testing/gates
+   plan, and open questions each *with a recommendation* (implement the
+   recommendation; don't block on the question).
+2. **Research goes in comments**, numbered ("Research 1/3 — current state",
+   "2/3 — prior art with sources", "3/3 — dependency evaluation with a
+   verdict matrix"). Scope corrections update the body in place plus an
+   addendum comment.
+3. **Track with milestones.** Partially-done issues stay open; post an
+   implementation-report comment per completed chunk: what shipped, test/gate
+   results, deviations from plan, bugs found during visual verification, and
+   which milestones remain.
+4. **Close via commit message** (`closes #N`) only when the issue is complete
+   end-to-end. Commits go straight to `main` (solo repo, no PRs).
+5. **Ship with `just release [patch|minor|major]`** (npm version + push
+   `--follow-tags`). CI — `.gitea/workflows/publish.yml`, note `.gitea/` not
+   `.forgejo/` — guards that the tag is on `main`, publishes to the Forgejo
+   npm registry, and creates the Forgejo Release with the packed tarball
+   attached. Never `npm publish` manually; CI races you.
+6. **Quality bar per issue**: colocated unit tests for pure logic, Playwright
+   CT for interactions, Ladle stories, a visual pass in *both* themes (drive
+   Ladle with Playwright and look at the screenshots — this catches real
+   bugs), API.md/AGENTS.md updated in the same change, and deliberate
+   `size:update`/`perf:update` with the numbers stated.
+
+---
+
 ## Where to look for more
 
 - **Live demos**: `npm run dev` (Ladle). Browse component stories.

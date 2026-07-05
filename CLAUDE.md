@@ -16,6 +16,11 @@ CLAUDE.md covers only the build/test/architecture wiring that isn't obvious from
 
 Node/npm are not on `PATH` by default (NixOS). The dev shell is provided via `flake.nix` + direnv (`.envrc`). If `npm` isn't found, the environment hasn't been activated.
 
+## Issue workflow
+
+See **AGENTS.md → "Issue workflow"** — the planning/tracking/shipping process
+lives there so every coding agent gets it, not just Claude Code.
+
 ## Commands
 
 `just` lists all recipes; each just recipe just wraps the matching npm script.
