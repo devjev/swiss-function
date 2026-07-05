@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-05T12:34:24.622Z"
+    "date": "2026-07-05T16:47:09.490Z"
   },
-  "totalGzip": 608302,
+  "totalGzip": 638631,
   "entries": {
     ".": {
-      "files": 203,
-      "jsRaw": 708954,
-      "jsGzip": 213735,
+      "files": 206,
+      "jsRaw": 726723,
+      "jsGzip": 218966,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 213735,
+      "gzip": 218966,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -89,10 +89,10 @@
     "./bar-chart": {
       "files": 28,
       "jsRaw": 75953,
-      "jsGzip": 22544,
+      "jsGzip": 22545,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22544,
+      "gzip": 22545,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -112,10 +112,10 @@
     "./bridge-chart": {
       "files": 28,
       "jsRaw": 76028,
-      "jsGzip": 22574,
+      "jsGzip": 22575,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22574,
+      "gzip": 22575,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -192,12 +192,12 @@
       ]
     },
     "./field": {
-      "files": 4,
-      "jsRaw": 2133,
-      "jsGzip": 995,
+      "files": 7,
+      "jsRaw": 5885,
+      "jsGzip": 2796,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 995,
+      "gzip": 2796,
       "externals": ["@base-ui/react/field", "react", "react/jsx-runtime"]
     },
     "./field-layout": {
@@ -208,6 +208,20 @@
       "cssGzip": 0,
       "gzip": 5189,
       "externals": ["react", "react/jsx-runtime"]
+    },
+    "./flows": {
+      "files": 28,
+      "jsRaw": 78375,
+      "jsGzip": 23334,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 23334,
+      "externals": [
+        "@base-ui/react/toggle",
+        "@base-ui/react/toggle-group",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./fullscreen": {
       "files": 5,
@@ -252,10 +266,10 @@
     "./heatmap": {
       "files": 24,
       "jsRaw": 72540,
-      "jsGzip": 21352,
+      "jsGzip": 21353,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 21352,
+      "gzip": 21353,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -388,11 +402,11 @@
     },
     "./window-array": {
       "files": 6,
-      "jsRaw": 43618,
-      "jsGzip": 11042,
+      "jsRaw": 43389,
+      "jsGzip": 11002,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 11042,
+      "gzip": 11002,
       "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
     },
     "./popover": {

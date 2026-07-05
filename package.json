@@ -72,6 +72,10 @@
       "types": "./dist/components/FieldLayout/index.d.ts",
       "import": "./dist/components/FieldLayout/index.js"
     },
+    "./flows": {
+      "types": "./dist/components/Flows/index.d.ts",
+      "import": "./dist/components/Flows/index.js"
+    },
     "./fullscreen": {
       "types": "./dist/components/Fullscreen/index.d.ts",
       "import": "./dist/components/Fullscreen/index.js"

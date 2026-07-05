@@ -581,6 +581,34 @@ The **36u flexible ceiling** is deliberately above the widest row a field can en
 
 A resizable control inside a `Field` (e.g. `TextEdit`, which paints at a half-unit-off height) is snapped to a whole-unit height on first paint and again after a drag settles.
 
+## Flows
+
+`import { Flows } from "@tarassov-ch/swiss-function/flows"`
+
+Per-period fund-flow ribbon (issue #36): each period is a within-period waterfall — `open` → subscriptions (up) → redemptions (down) → performance (±) → fxEffect (±) → closing AUM — and the periods connect close→open into one continuous stepped AUM ribbon. The compact, candle-like read of how subscriptions, redemptions, performance and FX move a fund's AUM over time. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
+
+`FlowPeriod = { x: number | string | Date; open: number; subscriptions?; redemptions?; performance?; fxEffect? }`. Subscriptions/redemptions are **magnitudes** (≥0) drawn up/down; performance/fxEffect are **signed**. Closing AUM is derived; omitted components draw no segment.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `periods` | `FlowPeriod[]` | — | One entry per period, chronological. Set each period's `open` to the previous period's closing AUM for a continuous ledger. |
+| `yDomain` | `[number, number]` | auto-fit | AUM range (auto-fits across every open/close/step level). While zoomed, the value axis follows this extent. |
+| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `colors` | `FlowColors` | success/danger/primary/warning | Per-component fill overrides (`{ subscriptions?, redemptions?, performance?, fxEffect? }`). |
+| `showConnectors` | `boolean` | `true` | Dashed ribbon connectors (open marker, step links, close→open). |
+| `showLegend` | `boolean` | `true` | Legend of the components present. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (AUM) zoom** — x is per-period, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the AUM axis; toolbar marquee zooms to a band. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every AUM zoom/pan (`null` = full range). |
+| `annotations` / `onAnnotationsChange` | `ChartAnnotation[]` / `(a) => void` | — | Data-anchored overlays (see Scatterplot); an `hline` is the natural reference level. `x` anchors to a fractional period index. The change handler (with `controls`) enables editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `renderTooltip` | `(datum: FlowTooltipDatum) => ReactNode` | default formatter | Receives the period, component, signed delta and resulting AUM level. |
+
+For a single-total decomposition across categories (not per-period), use `BridgeChart`; for OHLC price bars, `CandlestickChart`.
+
 ## Fullscreen
 
 `import { Fullscreen, FullscreenToggle } from "@tarassov-ch/swiss-function/fullscreen"`

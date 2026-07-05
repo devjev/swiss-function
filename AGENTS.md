@@ -145,6 +145,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | `Scatterplot`      | Points and/or lines on numeric or time axes. Series-based. |
 | `BarChart`         | Categorical bars, single or grouped series.              |
 | `BridgeChart`      | Waterfall / financier's bridge — totals + signed deltas. |
+| `Flows`            | Per-period fund-flow ribbon — each period a within-period waterfall (open → subscriptions → redemptions → performance → fx → close), periods connected close→open. The compact, candle-like read of AUM dynamics over time. |
 | `CandlestickChart` | OHLC financial candles (up = success, down = danger), index-spaced. |
 | `Timeline`         | Horizontal time strip with stacked event labels and a scrubbable playhead. |
 | `Heatmap`          | 2D grid of `z = f(x,y)` as filled cells, with an optional marching-squares `contours` iso-line overlay. The default, Swiss-friendly read of a 2-variable field — reach for this before a 3D surface. |
@@ -325,6 +326,7 @@ Common requests and the right component:
 | "an outline / nested list editor"                  | `Outliner`                                       |
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
+| "fund flows" / "AUM bridge over time" / "subscriptions vs redemptions per period" | `Flows` (per-period waterfall ribbon; `BridgeChart` for a single-total decomposition instead) |
 | "candlestick" / "OHLC" / "stock chart"             | `CandlestickChart`                                        |
 | "a heatmap" / "contour plot" / "z = f(x,y) field"  | `Heatmap` (filled cells + optional `contours`)   |
 | "a 3D surface" / "response/optimization surface" / "terrain" | `Surface` (orthographic, drag-to-rotate) |
