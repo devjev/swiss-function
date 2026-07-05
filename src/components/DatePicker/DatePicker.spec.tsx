@@ -152,21 +152,34 @@ test("clear button empties the value; blur-out closes and reverts text", async (
   await expect(input).toHaveValue("");
 });
 
-// --- Issue #33: shrinkability + external label association --------------------
+// --- Issues #33 / #34: shrinkability + external label association -------------
 
-test("the field shrinks to a narrow root without overflowing (issue #33)", async ({ mount }) => {
-  // 176px root is below the ~258px content floor the .field used to enforce.
+test("the field shrinks to a narrow root without overflowing (issues #33/#34)", async ({
+  mount,
+}) => {
+  // The exact reported case: a 168px cap, below the ~258px content floor the
+  // .field used to enforce (root honoured the width, the framed row stuck out
+  // ~90px onto the neighbouring column). The .field grid item now carries
+  // min-inline-size:0, one level deeper than the root's own #25 fix.
   const c = await mount(
-    <div style={{ width: 176 }}>
+    <div style={{ width: 168 }}>
       <DatePicker aria-label="Date" defaultValue={new Date(2026, 6, 4)} />
     </div>,
   );
   const root = c.locator("div").first();
-  const field = c.locator("input").locator("xpath=ancestor::div[1]");
+  const input = c.locator("input");
+  const field = input.locator("xpath=ancestor::div[1]");
   const [rootBox, fieldBox] = await Promise.all([root.boundingBox(), field.boundingBox()]);
   if (!rootBox || !fieldBox) throw new Error("no box");
-  // The framed field stays within its 176px root (allow 1px sub-pixel slack).
+  // The framed field stays within its 168px root (allow 1px sub-pixel slack).
   expect(fieldBox.width).toBeLessThanOrEqual(rootBox.width + 1);
+  // …and the ISO value still renders untruncated (no horizontal clip inside
+  // the input) — 168px is comfortably above the value + clear button's floor.
+  await expect(input).toHaveValue("2026-07-04");
+  const clipped = await input.evaluate(
+    (el: HTMLInputElement) => el.scrollWidth > el.clientWidth + 1,
+  );
+  expect(clipped).toBe(false);
 });
 
 test("aria-labelledby overrides the placeholder as the accessible name (issue #33)", async ({
