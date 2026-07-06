@@ -88,8 +88,10 @@
 
     /* Typography */
     --sf-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    /* "JetBrains Mono" is preferred — consumers should load it themselves
-       (e.g. via Google Fonts or @fontsource). Falls back to system mono. */
+    /* "JetBrains Mono" is preferred. The library ships it as an optional
+       webfont: `import "@tarassov-ch/swiss-function/fonts.css"` at app root
+       loads it (via the optional @fontsource/jetbrains-mono dependency).
+       Without that import it falls back to the system monospace stack. */
     --sf-font-mono:
       "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
     /* Monospace reads optically larger than the sans at the same font-size
