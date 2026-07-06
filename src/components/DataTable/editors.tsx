@@ -1,8 +1,8 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { useCallback, useEffect, useRef } from "react";
-import { Checkbox } from "../Checkbox";
 import { DatePicker } from "../DatePicker";
 import { DigitInputMicro } from "../DigitInputMicro";
+import { Picker } from "../Picker";
 import { TextEditInline } from "../TextEditInline";
 import styles from "./DataTable.module.css";
 import type { AdvanceHint, EditConfig, SelectOption } from "./types";
@@ -194,19 +194,40 @@ function DateEditor({
   );
 }
 
-// --- Boolean: immediate toggle (unchanged) ---------------------------------
+// --- Boolean: a two-option Picker (True / False) ---------------------------
+
+const BOOLEAN_ITEMS: SelectOption[] = [
+  { value: "true", label: "True" },
+  { value: "false", label: "False" },
+];
 
 function BooleanEditor({ value, onCommit, onCancel }: Omit<EditorProps, "config">) {
-  // Boolean cells toggle immediately on edit-mode entry — no separate commit.
-  // Intentionally fires once on mount; consumers re-render with the new value.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot intent
-  useEffect(() => {
-    onCommit(!value);
-  }, []);
-  return <Checkbox checked={!value} onClick={onCancel} />;
+  const rootRef = useFocusInner();
+
+  const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  return (
+    <Picker
+      ref={rootRef}
+      className={styles.editor}
+      items={BOOLEAN_ITEMS}
+      value={value ? "true" : "false"}
+      clearable={false}
+      placeholder=""
+      onChange={(v) => {
+        if (v) onCommit(v === "true", "down");
+      }}
+      onKeyDown={handleKey}
+    />
+  );
 }
 
-// --- Select: native dropdown (unchanged) -----------------------------------
+// --- Select: a searchable single-choice Picker -----------------------------
 
 function SelectEditor({
   value,
@@ -214,32 +235,28 @@ function SelectEditor({
   onCommit,
   onCancel,
 }: Omit<EditorProps, "config"> & { options: SelectOption[] }) {
-  const ref = useRef<HTMLSelectElement>(null);
+  const rootRef = useFocusInner();
 
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
 
   return (
-    <select
-      ref={ref}
-      className={styles.selectEditor}
-      defaultValue={value == null ? "" : String(value)}
-      onChange={(e) => onCommit(e.target.value)}
-      onBlur={() => onCancel()}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onCancel();
-        }
+    <Picker
+      ref={rootRef}
+      className={styles.editor}
+      items={options}
+      value={value == null ? "" : String(value)}
+      clearable={false}
+      placeholder=""
+      onChange={(v) => {
+        if (v) onCommit(v, "down");
       }}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      onKeyDown={handleKey}
+    />
   );
 }
 

@@ -159,7 +159,8 @@ test("editOn='single': a shift-click does NOT open an editor (selection gesture)
   await expect(cell.locator("input, textarea")).toHaveCount(0);
 });
 
-// --- Rich cell editors (text → TextEditInline, number → DigitInputMicro, date → DatePicker) ---
+// --- Rich cell editors (text → TextEditInline, number → DigitInputMicro,
+//     date → DatePicker, boolean/select → Picker) ---
 
 test("number cell edits with a DigitInputMicro and commits a parsed number", async ({
   mount,
@@ -202,6 +203,33 @@ test("text cell allows a newline via Shift+Enter and commits on Enter", async ({
   await page.keyboard.type("y");
   await page.keyboard.press("Enter");
   expect((changes as { value: unknown }[] | null)?.[0]?.value).toBe("Alice x\ny");
+});
+
+test("boolean cell edits with a Picker and commits a boolean", async ({ mount, page }) => {
+  let changes: unknown = null;
+  const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
+  // Columns: name(0) score(1) joined(2) active(3) role(4).
+  await component.getByRole("gridcell").nth(3).dblclick();
+  await component.getByRole("gridcell").nth(3).locator("input").first().click();
+  await page.getByRole("option", { name: "False", exact: true }).click();
+  expect((changes as { value: unknown }[] | null)?.[0]).toEqual({
+    rowIndex: 0,
+    columnId: "active",
+    value: false,
+  });
+});
+
+test("select cell edits with a Picker and commits the chosen value", async ({ mount, page }) => {
+  let changes: unknown = null;
+  const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
+  await component.getByRole("gridcell").nth(4).dblclick();
+  await component.getByRole("gridcell").nth(4).locator("input").first().click();
+  await page.getByRole("option", { name: "Guest", exact: true }).click();
+  expect((changes as { value: unknown }[] | null)?.[0]).toEqual({
+    rowIndex: 0,
+    columnId: "role",
+    value: "guest",
+  });
 });
 
 // --- Tree rows ---

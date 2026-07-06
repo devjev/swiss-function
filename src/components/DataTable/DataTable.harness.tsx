@@ -93,11 +93,19 @@ export function DataTableHarness({
   return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
 }
 
-// --- Rich cell-editors harness (text / number / date) ---
+// --- Rich cell-editors harness (text / number / date / boolean / select) ---
 
-type EditRow = { name: string; score: number; joined: Date };
+type EditRow = { name: string; score: number; joined: Date; active: boolean; role: string };
 
-const EDIT_DATA: EditRow[] = [{ name: "Alice", score: 40, joined: new Date(2022, 2, 3) }];
+const EDIT_ROLES = [
+  { value: "admin", label: "Admin" },
+  { value: "user", label: "User" },
+  { value: "guest", label: "Guest" },
+];
+
+const EDIT_DATA: EditRow[] = [
+  { name: "Alice", score: 40, joined: new Date(2022, 2, 3), active: true, role: "user" },
+];
 
 export function EditorsHarness({ onCellChange }: { onCellChange?: (c: CellChange[]) => void }) {
   const columns: ColumnDef<EditRow>[] = [
@@ -116,6 +124,14 @@ export function EditorsHarness({ onCellChange }: { onCellChange?: (c: CellChange
       accessor: "joined",
       edit: { type: "date" },
       cell: ({ value }) => (value instanceof Date ? value.toISOString().slice(0, 10) : ""),
+      width: 10,
+    },
+    { id: "active", header: "Active", accessor: "active", edit: { type: "boolean" }, width: 8 },
+    {
+      id: "role",
+      header: "Role",
+      accessor: "role",
+      edit: { type: "select", options: EDIT_ROLES },
       width: 10,
     },
   ];

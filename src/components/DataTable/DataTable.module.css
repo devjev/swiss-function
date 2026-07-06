@@ -515,10 +515,12 @@
   z-index: 2;
 }
 
-/* Controls that carry their frame on an inner wrapper (DatePicker's `.field`,
-   the only direct <div> child) — flatten and fill it too. The extra `> div`
-   (0,2,1) clears the wrapper's `[data-elevation]`/`:focus-within` rules (0,2,0). */
-.cell .editor > div {
+/* Controls that carry their frame on an inner wrapper — DatePicker's `.field`
+   (direct <div> child) and Picker's `InputGroup` (a `[data-size]` field, one or
+   two levels down) — flatten and fill it too. `[data-size]` (0,3,0) clears the
+   wrapper's `[data-elevation]`/`:focus-within` rules (0,2,0). */
+.cell .editor > div,
+.cell .editor [data-size] {
   inline-size: 100%;
   block-size: 100%;
   border: 0;
@@ -552,20 +554,6 @@
 .row:has([data-editing]) {
   position: relative;
   z-index: 5;
-}
-
-.selectEditor {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  block-size: 100%;
-  padding: 0 calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
-  color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border);
-  border-radius: 0;
-  font-family: var(--sf-font-sans);
-  font-size: var(--sf-font-size-sm);
 }
 
 /* Pagination strip lives below the viewport. */

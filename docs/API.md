@@ -389,8 +389,8 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
     Enter commits, Shift+Enter inserts a newline).
   - `{ type: "number"; decimals?; slots?; unit? }` — a `DigitInputMicro`; the extra
     fields are forwarded to it. Commits a `number | null`.
-  - `{ type: "boolean" }` — a `Checkbox` (toggles on entry).
-  - `{ type: "select"; options: { value; label }[] }` — a native dropdown.
+  - `{ type: "boolean" }` — a two-option `Picker` (True / False); commits a `boolean`.
+  - `{ type: "select"; options: { value; label }[] }` — a searchable single-choice `Picker`.
   - `{ type: "date"; minDate?; maxDate? }` — a `DatePicker`; commits a `Date`.
     Render the read view via the column's `cell` (e.g. ISO). Its header filter
     falls back to a value checklist over the stringified dates.
