@@ -45,6 +45,17 @@ import "@tarassov-ch/swiss-function/reset.css";
 `tokens.css` defines every `--sf-*` custom property and the dark theme.
 `reset.css` is a minimal box-model and base-font reset.
 
+To get the intended monospace aesthetics, optionally load the bundled
+JetBrains Mono webfont (the family `--sf-font-mono` prefers) at app root too:
+
+```ts
+import "@tarassov-ch/swiss-function/fonts.css"; // optional
+```
+
+It resolves from the optional `@fontsource/jetbrains-mono` dependency (latin
+subset, weights 400–700). Skip it and `--sf-font-mono` falls back to the
+system monospace stack — nothing breaks.
+
 Then import components either from the barrel or per-component:
 
 ```ts
@@ -414,7 +425,8 @@ If extending the library itself:
 src/
 ├── tokens/
 │   ├── tokens.css     # all --sf-* custom properties (the canonical list)
-│   └── reset.css      # base-font + box-model reset
+│   ├── reset.css      # base-font + box-model reset
+│   └── fonts.css      # optional JetBrains Mono webfont glue
 ├── lib/
 │   ├── cx.ts          # className helper (use this, not clsx)
 │   ├── chart/         # internal chart math (scales, ticks, viewport, annotations)

@@ -1,0 +1,22 @@
+/* Optional JetBrains Mono webfont for `--sf-font-mono`.
+ *
+ * The mono token prefers "JetBrains Mono" but the library never forces you to
+ * load it — without it, `--sf-font-mono` falls back to the system monospace
+ * stack. Import this file once at your app root to load the font and get the
+ * intended aesthetics:
+ *
+ *     import "@tarassov-ch/swiss-function/fonts.css";
+ *
+ * This resolves the woff2 files from `@fontsource/jetbrains-mono`, which ships
+ * as an optional dependency and so installs by default. If you opt out of it
+ * (`npm install --no-optional`, or a registry that doesn't carry it), simply
+ * don't import this file — `--sf-font-mono` falls back to the system mono
+ * stack. Importing it without the dependency present fails to resolve.
+ *
+ * Latin subset only (400/500/600/700 — matching the `--sf-font-weight-*`
+ * tokens). This file is copied verbatim into dist by scripts/postbuild.mjs, so
+ * the bare specifiers stay intact for the consumer's bundler to resolve. */
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+@import "@fontsource/jetbrains-mono/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-700.css";

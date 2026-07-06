@@ -13,9 +13,12 @@ Then, **once at app root**, import the tokens (required) and the reset (optional
 ```ts
 import "@tarassov-ch/swiss-function/tokens.css";
 import "@tarassov-ch/swiss-function/reset.css"; // optional
+import "@tarassov-ch/swiss-function/fonts.css"; // optional — bundled JetBrains Mono
 ```
 
 If you skip the tokens import, components will render unstyled — every CSS rule references a `--sf-*` custom property.
+
+`fonts.css` loads the JetBrains Mono webfont that `--sf-font-mono` prefers, via the optional `@fontsource/jetbrains-mono` dependency. Skip it and monospace text falls back to the system mono stack.
 
 ## Usage
 
@@ -85,7 +88,7 @@ npm run build      # Type declarations + Vite library build
 
 ```
 src/
-├── tokens/                         # tokens.css, reset.css
+├── tokens/                         # tokens.css, reset.css, fonts.css
 ├── lib/cx.ts                       # tiny clsx replacement
 ├── components/<Name>/
 │   ├── <Name>.tsx

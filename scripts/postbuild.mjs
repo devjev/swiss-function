@@ -33,6 +33,15 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
+const src = path.resolve(here, "../src");
+
+// fonts.css is the optional JetBrains Mono webfont glue. It is deliberately
+// NOT a vite input: it `@import`s bare `@fontsource/jetbrains-mono/*`
+// specifiers that must reach the consumer's bundler untouched — routing it
+// through vite would try to resolve/inline them at build time against a
+// dependency that is only optional. So we copy it verbatim into dist.
+await fs.mkdir(path.join(dist, "tokens"), { recursive: true });
+await fs.copyFile(path.join(src, "tokens/fonts.css"), path.join(dist, "tokens/fonts.css"));
 
 async function walk(dir) {
   const out = [];
@@ -98,7 +107,7 @@ for (const cssJsFile of files) {
 }
 
 console.log(
-  `postbuild: renamed ${renamed} CSS files, stripped ${stripped} module imports, injected ${injected} component imports`,
+  `postbuild: renamed ${renamed} CSS files, stripped ${stripped} module imports, injected ${injected} component imports, copied fonts.css`,
 );
 if (skippedNoSibling.length > 0) {
   console.log(`  (no sibling .js for: ${skippedNoSibling.join(", ")} — left untouched)`);

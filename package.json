@@ -24,6 +24,7 @@
     },
     "./tokens.css": "./dist/tokens/tokens.css",
     "./reset.css": "./dist/tokens/reset.css",
+    "./fonts.css": "./dist/tokens/fonts.css",
     "./lib/cx": {
       "types": "./dist/lib/cx.d.ts",
       "import": "./dist/lib/cx.js"
@@ -274,6 +275,9 @@
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "optionalDependencies": {
+    "@fontsource/jetbrains-mono": "^5.2.8"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
