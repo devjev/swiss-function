@@ -495,22 +495,42 @@
   font-size: var(--sf-font-size-sm);
 }
 
-/* In-cell editor sits absolutely on top of the cell so it lines up with the
-   2px active outline. Used by the DigitInputMicro (number) and DatePicker (date)
-   editors — both fill the cell box. */
-.editor {
+/* In-cell editors (DigitInputMicro number, DatePicker date) fill the cell flush
+   and drop their own frame — the cell's active outline is the single frame, so
+   the editor reads as the cell itself, not a box floating inside it.
+
+   Scoped under `.cell` (0,2,0) so this positioning beats the wrapped control's
+   own `.root` rules (`position`/`display`/`size`), which otherwise tie on
+   specificity and win or lose by CSS bundle order (issue: DatePicker's grid
+   `.root` overrode the absolute fill, leaving the field inset with a gap). */
+.cell .editor {
   position: absolute;
   inset: 0;
-  width: 100%;
+  inline-size: 100%;
   block-size: 100%;
+  border: 0;
   border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   z-index: 2;
 }
 
-/* The inline text editor (TextEditInline) needs to grow *downwards* past the
-   cell when expanded, so it's pinned to the top edge only and floats above
-   siblings. The editing cell drops its overflow clip (below) to let it show. */
-.textEditor {
+/* Controls that carry their frame on an inner wrapper (DatePicker's `.field`,
+   the only direct <div> child) — flatten and fill it too. The extra `> div`
+   (0,2,1) clears the wrapper's `[data-elevation]`/`:focus-within` rules (0,2,0). */
+.cell .editor > div {
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The inline text editor (TextEditInline) keeps its frame: it grows *downwards*
+   and floats over the rows below on focus (elevation-3), so it's pinned to the
+   top edge only. The editing cell drops its overflow clip (below) to reveal it. */
+.cell .textEditor {
   position: absolute;
   inset-inline: 0;
   inset-block-start: 0;
