@@ -496,7 +496,7 @@
 }
 
 /* In-cell editor sits absolutely on top of the cell so it lines up with the
-   2px active outline. Used by the DigitField (number) and DatePicker (date)
+   2px active outline. Used by the DigitInputMicro (number) and DatePicker (date)
    editors — both fill the cell box. */
 .editor {
   position: absolute;

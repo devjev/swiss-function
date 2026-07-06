@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-06T21:05:07.508Z"
+    "date": "2026-07-06T21:43:15.736Z"
   },
-  "totalGzip": 667736,
+  "totalGzip": 667855,
   "entries": {
     ".": {
       "files": 215,
-      "jsRaw": 751845,
-      "jsGzip": 227248,
+      "jsRaw": 752162,
+      "jsGzip": 227288,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 227248,
+      "gzip": 227288,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -396,15 +396,6 @@
       "gzip": 4542,
       "externals": ["@base-ui/react/dialog", "react", "react/jsx-runtime"]
     },
-    "./digit-field": {
-      "files": 5,
-      "jsRaw": 5412,
-      "jsGzip": 2271,
-      "cssRaw": 0,
-      "cssGzip": 0,
-      "gzip": 2271,
-      "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
-    },
     "./digit-input": {
       "files": 5,
       "jsRaw": 15010,
@@ -418,6 +409,15 @@
         "react",
         "react/jsx-runtime"
       ]
+    },
+    "./digit-input-micro": {
+      "files": 5,
+      "jsRaw": 5704,
+      "jsGzip": 2312,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 2312,
+      "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
     },
     "./date-picker": {
       "files": 6,
@@ -645,11 +645,11 @@
     },
     "./data-table": {
       "files": 50,
-      "jsRaw": 136399,
-      "jsGzip": 42731,
+      "jsRaw": 136696,
+      "jsGzip": 42769,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 42731,
+      "gzip": 42769,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",

@@ -159,9 +159,12 @@ test("editOn='single': a shift-click does NOT open an editor (selection gesture)
   await expect(cell.locator("input, textarea")).toHaveCount(0);
 });
 
-// --- Rich cell editors (text → TextEditInline, number → DigitField, date → DatePicker) ---
+// --- Rich cell editors (text → TextEditInline, number → DigitInputMicro, date → DatePicker) ---
 
-test("number cell edits with a DigitField and commits a parsed number", async ({ mount, page }) => {
+test("number cell edits with a DigitInputMicro and commits a parsed number", async ({
+  mount,
+  page,
+}) => {
   let changes: unknown = null;
   const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
   // Columns: name(0) score(1) joined(2). Score is the number cell.

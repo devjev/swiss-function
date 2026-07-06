@@ -37,7 +37,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitField · DigitInput · Dropzone ·
+ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitInput · DigitInputMicro · Dropzone ·
 Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -387,7 +387,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 - `EditConfig` — the cell editor, keyed by `type`:
   - `{ type: "text" }` — a `TextEditInline` (the floating expand-on-focus editor;
     Enter commits, Shift+Enter inserts a newline).
-  - `{ type: "number"; decimals?; slots?; unit? }` — a `DigitField`; the extra
+  - `{ type: "number"; decimals?; slots?; unit? }` — a `DigitInputMicro`; the extra
     fields are forwarded to it. Commits a `number | null`.
   - `{ type: "boolean" }` — a `Checkbox` (toggles on entry).
   - `{ type: "select"; options: { value; label }[] }` — a native dropdown.
@@ -458,44 +458,6 @@ and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
 starts a drag. Fullscreen state is internal and resets each time the dialog
 reopens.
 
-## DigitField
-
-`import { DigitField } from "@tarassov-ch/swiss-function/digit-field"`
-
-A regular, **variable-length** numeric input that shows a few faded placeholder
-digit slots at rest and fills them left-to-right as you type (the "mask" hint) —
-but never caps length: type past the slots and the number just grows. Unlike
-`DigitInput` (a fixed-capacity grid of digit cells), this is a single, ordinary
-text input, so caret, selection, backspace and paste are all native. Value is
-`number | null` (`null` while empty or holding an incomplete number like a lone
-`-` or `.`). Reach for this for numeric cells/fields where the width is a hint,
-not a contract; reach for `DigitInput` when the capacity IS the contract (PINs,
-fixed-width amounts). Extends `HTMLAttributes<HTMLSpanElement>`.
-
-| Prop | Type | Default | Notes |
-| --- | --- | --- | --- |
-| `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint — the field is variable-length. |
-| `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
-| `unit` | `ReactNode` | — | Suffix rendered inside the control after the digits (e.g. `"%"`). |
-| `placeholderChar` | `string` | `"_"` | Glyph used for the empty slots. |
-| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
-| `min` / `max` | `number` | — | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u — Input parity. |
-| `elevation` | `0–5` | `2` | Resting depth. |
-| `name` | `string` | — | Form participation; submits the canonical numeric string. |
-
-Non-numeric characters are rejected; a second decimal point and extra decimal
-places are dropped. Focus is shown by the frame highlighting (border → primary),
-mirroring `Input` — the same input-family convention. Works inside `Field`. The
-placeholder slots use `Input`'s `::placeholder` strength; block caret via
-`caret-shape: block`. `prefers-reduced-motion` disables the frame transition.
-
-```tsx
-<DigitField slots={4} onValueChange={setQty} />       {/* integer */}
-<DigitField slots={4} decimals={2} unit="%" />        {/* percentage */}
-<DigitField slots={3} min={0} max={100} />            {/* bounded */}
-```
-
 ## DigitInput
 
 `import { DigitInput } from "@tarassov-ch/swiss-function/digit-input"`
@@ -524,6 +486,44 @@ The hidden input is `role="spinbutton"` with `aria-valuemin/max/now/valuetext` (
 <DigitInput digits={3} decimals={2} unit="%" onValueChange={setPct} />
 <DigitInput digits={4} decimals={2} decimalSeparator="," unit="CHF" />
 <DigitInput digits={6} />  {/* numeric PIN entry */}
+```
+
+## DigitInputMicro
+
+`import { DigitInputMicro } from "@tarassov-ch/swiss-function/digit-input-micro"`
+
+A regular, **variable-length** numeric input that shows a few faded placeholder
+digit slots at rest and fills them left-to-right as you type (the "mask" hint) —
+but never caps length: type past the slots and the number just grows. The lighter
+sibling of `DigitInput` (a fixed-capacity grid of digit cells): this is a single,
+ordinary text input, so caret, selection, backspace and paste are all native.
+Value is `number | null` (`null` while empty or holding an incomplete number like
+a lone `-` or `.`). Reach for this for numeric cells/fields where the width is a
+hint, not a contract; reach for `DigitInput` when the capacity IS the contract
+(PINs, fixed-width amounts). Extends `HTMLAttributes<HTMLSpanElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint — the field is variable-length. |
+| `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
+| `unit` | `ReactNode` | — | Suffix rendered inside the control after the digits (e.g. `"%"`). |
+| `placeholderChar` | `string` | `"░"` | Glyph used for the empty slots — a dithered shade block by default (matches the library's dither vocabulary). |
+| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
+| `min` / `max` | `number` | — | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u — Input parity. |
+| `elevation` | `0–5` | `2` | Resting depth. |
+| `name` | `string` | — | Form participation; submits the canonical numeric string. |
+
+Non-numeric characters are rejected; a second decimal point and extra decimal
+places are dropped. Focus is shown by the frame highlighting (border → primary),
+mirroring `Input` — the same input-family convention. Works inside `Field`. The
+placeholder slots use `Input`'s `::placeholder` strength; block caret via
+`caret-shape: block`. `prefers-reduced-motion` disables the frame transition.
+
+```tsx
+<DigitInputMicro slots={4} onValueChange={setQty} />       {/* integer */}
+<DigitInputMicro slots={4} decimals={2} unit="%" />        {/* percentage */}
+<DigitInputMicro slots={3} min={0} max={100} />            {/* bounded */}
 ```
 
 ## Drawer

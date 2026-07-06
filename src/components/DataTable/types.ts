@@ -15,7 +15,7 @@ export type SelectOption = { value: string; label: string };
 
 export type EditConfig =
   | { type: "text" }
-  /** Numeric cell edited with a `DigitField`. `decimals`/`slots`/`unit` are
+  /** Numeric cell edited with a `DigitInputMicro`. `decimals`/`slots`/`unit` are
    *  forwarded to it; omit them for a plain integer field. */
   | { type: "number"; decimals?: number; slots?: number; unit?: ReactNode }
   | { type: "boolean" }

@@ -1,4 +1,4 @@
-/* DigitField — a variable-length numeric input. Carries Input's exact visual
+/* DigitInputMicro — a variable-length numeric input. Carries Input's exact visual
    signature (mono, subtle border, inset highlight + elevation, block caret) as
    the outer frame; a ghost layer behind the real input paints the faded
    placeholder slots that recede as you type. */

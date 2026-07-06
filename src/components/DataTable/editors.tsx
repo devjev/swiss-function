@@ -2,7 +2,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { Checkbox } from "../Checkbox";
 import { DatePicker } from "../DatePicker";
-import { DigitField } from "../DigitField";
+import { DigitInputMicro } from "../DigitInputMicro";
 import { TextEditInline } from "../TextEditInline";
 import styles from "./DataTable.module.css";
 import type { AdvanceHint, EditConfig, SelectOption } from "./types";
@@ -61,7 +61,7 @@ export function CellEditor({
 
 /** Callback ref that focuses the first native input/textarea inside a mounted
  *  editor root and puts the caret at the end — used by editors whose ref points
- *  at a wrapper element (DigitField, DatePicker), not the input itself. */
+ *  at a wrapper element (DigitInputMicro, DatePicker), not the input itself. */
 function useFocusInner() {
   return useCallback((node: HTMLElement | null) => {
     if (!node) return;
@@ -115,7 +115,7 @@ function TextEditor({ value, onCommit, onCancel, initialText }: Omit<EditorProps
   );
 }
 
-// --- Number: the variable-length DigitField --------------------------------
+// --- Number: the variable-length DigitInputMicro ---------------------------
 
 function NumberEditor({
   value,
@@ -146,7 +146,7 @@ function NumberEditor({
   };
 
   return (
-    <DigitField
+    <DigitInputMicro
       ref={rootRef}
       className={styles.editor}
       defaultValue={draft.current}

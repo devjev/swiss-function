@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clamp, formatValue, parseDraft, sanitizeDraft } from "./digitFieldFormat";
+import { clamp, formatValue, parseDraft, sanitizeDraft } from "./digitInputMicroFormat";
 
 const int = { decimals: 0, allowNegative: false };
 const money = { decimals: 2, allowNegative: false };

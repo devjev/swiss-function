@@ -178,7 +178,7 @@ export const ResizableColumns: Story = () => {
 };
 
 /** Columns showing all four rich cell editors: text → TextEditInline,
- *  number → DigitField, date → DatePicker, boolean → Checkbox, select. */
+ *  number → DigitInputMicro, date → DatePicker, boolean → Checkbox, select. */
 const richColumns: ColumnDef<Person>[] = [
   { id: "name", header: "Name", accessor: "name", sortable: true, edit: { type: "text" } },
   {
@@ -227,7 +227,7 @@ export const Editable: Story = () => {
     <div>
       <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
         Double-click, F2, or Enter on a focused cell to edit. Enter / Tab commits, Esc cancels. Text
-        uses the inline text editor, numbers a DigitField, dates a DatePicker.
+        uses the inline text editor, numbers a DigitInputMicro, dates a DatePicker.
       </p>
       <DataTable
         data={data}

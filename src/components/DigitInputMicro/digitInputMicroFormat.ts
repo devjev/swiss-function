@@ -1,4 +1,4 @@
-/** Pure value/text helpers for DigitField. Kept separate so the parsing,
+/** Pure value/text helpers for DigitInputMicro. Kept separate so the parsing,
  *  sanitising and clamping logic can be unit-tested without a DOM. */
 
 export interface SanitizeOptions {
