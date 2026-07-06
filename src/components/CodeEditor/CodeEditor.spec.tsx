@@ -39,6 +39,28 @@ test("uses the monospace font for content", async ({ mount }) => {
   expect(family).toContain("JetBrains Mono");
 });
 
+test("renders a block caret (wider than a thin line) when focused", async ({ mount }) => {
+  const component = await mount(<CodeEditor defaultValue="abc" />);
+  await component.locator(".cm-content").click();
+  const caret = component.locator(".cm-cursor").first();
+  const width = await caret.evaluate((el) => Number.parseFloat(getComputedStyle(el).width));
+  // A default CodeMirror caret is a ~1.2px border; the block spans a whole cell.
+  expect(width).toBeGreaterThan(3);
+});
+
+test("accepts a non-default theme and stays editable", async ({ mount, page }) => {
+  const component = await mount(<CodeEditor defaultValue="" theme="minimal" />);
+  await expect(component.locator(".cm-editor")).toHaveCount(1);
+  await component.locator(".cm-content").click();
+  await page.keyboard.type("ok");
+  await expect(component.locator(".cm-content")).toContainText("ok");
+});
+
+test("elevation prop maps to data-elevation", async ({ mount }) => {
+  const component = await mount(<CodeEditor defaultValue="x" elevation={4} />);
+  await expect(component).toHaveAttribute("data-elevation", "4");
+});
+
 test("vim mode interprets keys as commands, not literal input", async ({ mount, page }) => {
   const component = await mount(<CodeEditor defaultValue="hello" vim />);
   const content = component.locator(".cm-content");

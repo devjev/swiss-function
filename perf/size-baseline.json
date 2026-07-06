@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-06T14:09:50.478Z"
+    "date": "2026-07-06T14:35:22.143Z"
   },
-  "totalGzip": 651176,
+  "totalGzip": 651807,
   "entries": {
     ".": {
       "files": 211,
-      "jsRaw": 742633,
-      "jsGzip": 223955,
+      "jsRaw": 743176,
+      "jsGzip": 224337,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 223955,
+      "gzip": 224337,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -62,9 +62,9 @@
       "files": 1,
       "jsRaw": 0,
       "jsGzip": 0,
-      "cssRaw": 13014,
-      "cssGzip": 4812,
-      "gzip": 4812,
+      "cssRaw": 12395,
+      "cssGzip": 4679,
+      "gzip": 4679,
       "externals": []
     },
     "./reset.css": {
@@ -189,11 +189,11 @@
     },
     "./code-editor": {
       "files": 6,
-      "jsRaw": 10837,
-      "jsGzip": 3536,
+      "jsRaw": 11380,
+      "jsGzip": 3918,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 3536,
+      "gzip": 3918,
       "externals": [
         "@codemirror/autocomplete",
         "@codemirror/commands",

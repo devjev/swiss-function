@@ -32,8 +32,9 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useEffect, useRef } from "react";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
+import type { BoxElevation } from "../Box";
 import styles from "./CodeEditor.module.css";
-import { sfCodeTheme } from "./theme";
+import { type CodeTheme, codeChrome, codeHighlight } from "./theme";
 
 export interface CodeEditorProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange" | "defaultValue"> {
@@ -47,6 +48,10 @@ export interface CodeEditorProps
    *  `@codemirror/lang-javascript`). Memoize this — a new array each render
    *  reconfigures the editor. */
   extensions?: Extension[];
+  /** Syntax theme (all restrained — no rainbow). `minimal` dims comments only,
+   *  `bold` adds weight/slant, `primary` adds the brand accent. Default
+   *  `"primary"`. */
+  theme?: CodeTheme;
   /** Enable Vim keybindings. Default `false`. */
   vim?: boolean;
   /** Read-only document (still selectable/focusable). */
@@ -63,6 +68,8 @@ export interface CodeEditorProps
   tabSize?: number;
   /** Focus the editor on mount. */
   autoFocus?: boolean;
+  /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
+  elevation?: BoxElevation;
   /** Receive the underlying CodeMirror `EditorView` once created. */
   onCreateEditor?: (view: EditorView) => void;
 }
@@ -92,10 +99,11 @@ const baseSetup: Extension = [
     ...completionKeymap,
     indentWithTab,
   ]),
-  sfCodeTheme,
+  codeChrome,
 ];
 
 interface DynamicOpts {
+  theme: CodeTheme;
   lineNumbers: boolean;
   lineWrapping: boolean;
   readOnly: boolean;
@@ -109,6 +117,7 @@ interface DynamicOpts {
 // in through the dynamic compartment.
 function buildDynamic(o: DynamicOpts): Extension {
   return [
+    codeHighlight(o.theme),
     o.lineNumbers ? [lineNumbers(), highlightActiveLineGutter(), foldGutter()] : [],
     highlightActiveLine(),
     o.lineWrapping ? EditorView.lineWrapping : [],
@@ -135,6 +144,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
     defaultValue,
     onChange,
     extensions = [],
+    theme = "primary",
     vim: vimMode = false,
     readOnly = false,
     editable = true,
@@ -143,6 +153,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
     lineWrapping = false,
     tabSize = 2,
     autoFocus = false,
+    elevation,
     onCreateEditor,
     className,
     ...rest
@@ -158,7 +169,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
 
   // The mount effect reads live props from here, keeping its dep array empty
   // (and free of exhaustive-deps churn) while still seeing current values.
-  const props = { extensions, readOnly, editable, tabSize, placeholder };
+  const props = { theme, extensions, readOnly, editable, tabSize, placeholder };
   const initRef = useRef({ value, defaultValue, vimMode, showLineNumbers, lineWrapping, ...props });
   initRef.current = { value, defaultValue, vimMode, showLineNumbers, lineWrapping, ...props };
   const onChangeRef = useRef(onChange);
@@ -189,6 +200,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
         baseSetup,
         dynC.of(
           buildDynamic({
+            theme: p.theme,
             lineNumbers: p.showLineNumbers,
             lineWrapping: p.lineWrapping,
             readOnly: p.readOnly,
@@ -232,6 +244,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
     view.dispatch({
       effects: c.reconfigure(
         buildDynamic({
+          theme,
           lineNumbers: showLineNumbers,
           lineWrapping,
           readOnly,
@@ -242,7 +255,7 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
         }),
       ),
     });
-  }, [showLineNumbers, lineWrapping, readOnly, editable, tabSize, placeholder, extensions]);
+  }, [theme, showLineNumbers, lineWrapping, readOnly, editable, tabSize, placeholder, extensions]);
 
   // Sync a controlled `value` that changed outside the editor.
   useEffect(() => {
@@ -255,5 +268,12 @@ export const CodeEditor = forwardRef<HTMLDivElement, CodeEditorProps>(function C
     settingExternal.current = false;
   }, [value]);
 
-  return <div {...rest} ref={setRefs} className={cx(styles.root, className)} />;
+  return (
+    <div
+      {...rest}
+      ref={setRefs}
+      data-elevation={elevation}
+      className={cx(styles.root, className)}
+    />
+  );
 });

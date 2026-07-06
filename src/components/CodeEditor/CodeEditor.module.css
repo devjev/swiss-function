@@ -10,12 +10,39 @@
   border-radius: var(--sf-radius-default);
   overflow: hidden;
   background-color: var(--sf-color-code-bg);
+  /* Same depth vocabulary as Input — default elevation-2, overridable via the
+     `elevation` prop (data-elevation) below. */
+  box-shadow: var(--sf-elevation-2);
+  transition: box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .root:focus-within {
   border-color: var(--sf-color-primary);
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+/* --- Elevation overrides (default is elevation-2 on .root) --- */
+.root[data-elevation="0"] {
+  box-shadow: none;
+}
+.root[data-elevation="1"] {
+  box-shadow: var(--sf-elevation-1);
+}
+.root[data-elevation="3"] {
+  box-shadow: var(--sf-elevation-3);
+}
+.root[data-elevation="4"] {
+  box-shadow: var(--sf-elevation-4);
+}
+.root[data-elevation="5"] {
+  box-shadow: var(--sf-elevation-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
 }
 
 .root :global(.cm-editor) {

@@ -1,2 +1,2 @@
 export * from "./CodeEditor";
-export { sfCodeTheme } from "./theme";
+export { type CodeTheme, sfCodeTheme } from "./theme";

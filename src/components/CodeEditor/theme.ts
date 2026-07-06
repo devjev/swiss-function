@@ -1,14 +1,25 @@
 /** CodeEditor's CodeMirror theme, expressed entirely in `--sf-color-code-*`
  *  custom properties. Because every colour is a `var(--sf-*)`, dark mode is the
  *  usual `[data-theme="dark"]` token swap — the editor never branches on theme
- *  in JS (AGENTS.md: dark mode is a token swap, not a code path). */
+ *  in JS (AGENTS.md: dark mode is a token swap, not a code path).
+ *
+ *  Three restrained syntax themes (no rainbow, per AESTHETICS.md):
+ *    - `minimal` — only comments are dimmed; code is plain fg.
+ *    - `bold`    — separates by WEIGHT (bold) and SLANT (italic) only, no hue.
+ *    - `primary` — `bold` plus the single brand accent on keywords/tags/links.
+ *  The chrome (gutters, selection, tooltips) and the full-cell block caret are
+ *  shared across all three. */
 
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { tags as t } from "@lezer/highlight";
+import { type Tag, tags as t } from "@lezer/highlight";
 
-// Chrome (gutters, cursor, selection, tooltips, panels) — all token-driven.
+export type CodeTheme = "minimal" | "bold" | "primary";
+
+const BOLD = "var(--sf-font-weight-bold)";
+
+// Chrome (gutters, block caret, selection, tooltips, panels) — shared, token-driven.
 const uiTheme = EditorView.theme({
   "&": {
     color: "var(--sf-color-code-fg)",
@@ -18,10 +29,20 @@ const uiTheme = EditorView.theme({
   ".cm-content": {
     fontFamily: "var(--sf-font-mono)",
     fontSizeAdjust: "var(--sf-font-mono-adjust)",
-    caretColor: "var(--sf-color-code-cursor)",
+    caretColor: "transparent",
     padding: "calc(var(--sf-unit) / 2) 0",
   },
-  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--sf-color-code-cursor)" },
+  // Block caret: a full character cell, tinted so the glyph reads through it.
+  ".cm-cursor, .cm-cursor-primary, .cm-cursor-secondary": {
+    borderLeft: "none",
+    width: "1ch",
+    backgroundColor: "var(--sf-color-code-cursor)",
+    opacity: "0.4",
+  },
+  ".cm-dropCursor": { borderLeftColor: "var(--sf-color-code-cursor)" },
+  "@media (prefers-reduced-motion: reduce)": {
+    ".cm-cursorLayer": { animation: "none" },
+  },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
     { backgroundColor: "var(--sf-color-code-selection)" },
   ".cm-activeLine": { backgroundColor: "var(--sf-color-code-active-line)" },
@@ -62,69 +83,96 @@ const uiTheme = EditorView.theme({
   ".cm-placeholder": { color: "var(--sf-color-muted)" },
 });
 
-// Lezer highlight tags → token colours. Grouped by role; each role is one token.
-const highlightStyle = HighlightStyle.define([
-  {
-    tag: [t.comment, t.lineComment, t.blockComment, t.docComment],
-    color: "var(--sf-color-code-comment)",
-    fontStyle: "italic",
-  },
-  {
-    tag: [
-      t.keyword,
-      t.modifier,
-      t.controlKeyword,
-      t.operatorKeyword,
-      t.definitionKeyword,
-      t.moduleKeyword,
-      t.self,
-      t.null,
-    ],
-    color: "var(--sf-color-code-keyword)",
-  },
-  {
-    tag: [t.string, t.special(t.string), t.regexp, t.attributeValue],
-    color: "var(--sf-color-code-string)",
-  },
-  { tag: [t.number, t.integer, t.float, t.bool, t.atom], color: "var(--sf-color-code-number)" },
-  {
-    tag: [t.function(t.variableName), t.function(t.propertyName), t.labelName],
-    color: "var(--sf-color-code-name)",
-  },
-  { tag: [t.typeName, t.className, t.namespace], color: "var(--sf-color-code-type)" },
-  {
-    tag: [t.constant(t.variableName), t.standard(t.variableName), t.constant(t.name)],
-    color: "var(--sf-color-code-constant)",
-  },
-  { tag: [t.variableName, t.propertyName], color: "var(--sf-color-code-fg)" },
-  {
-    tag: [
-      t.operator,
-      t.compareOperator,
-      t.logicOperator,
-      t.arithmeticOperator,
-      t.definitionOperator,
-    ],
-    color: "var(--sf-color-code-operator)",
-  },
-  {
-    tag: [t.punctuation, t.separator, t.bracket, t.brace, t.paren, t.squareBracket, t.angleBracket],
-    color: "var(--sf-color-code-punctuation)",
-  },
-  { tag: [t.tagName], color: "var(--sf-color-code-tag)" },
-  { tag: [t.attributeName], color: "var(--sf-color-code-attribute)" },
-  { tag: [t.link, t.url], color: "var(--sf-color-code-link)", textDecoration: "underline" },
-  {
-    tag: [t.heading],
-    color: "var(--sf-color-code-name)",
-    fontWeight: "var(--sf-font-weight-bold)",
-  },
-  { tag: t.strong, fontWeight: "var(--sf-font-weight-bold)" },
+// Shared tag groups.
+const COMMENTS: readonly Tag[] = [
+  t.comment,
+  t.lineComment,
+  t.blockComment,
+  t.docComment,
+  t.meta,
+  t.processingInstruction,
+];
+const KEYWORDS: readonly Tag[] = [
+  t.keyword,
+  t.controlKeyword,
+  t.operatorKeyword,
+  t.definitionKeyword,
+  t.moduleKeyword,
+  t.modifier,
+  t.self,
+  t.null,
+  t.tagName,
+];
+const DEFINITIONS: readonly Tag[] = [
+  t.typeName,
+  t.className,
+  t.namespace,
+  t.function(t.variableName),
+  t.function(t.propertyName),
+  t.definition(t.variableName),
+  t.labelName,
+  t.attributeName,
+];
+const STRINGS: readonly Tag[] = [t.string, t.special(t.string), t.regexp, t.attributeValue];
+const PUNCTUATION: readonly Tag[] = [
+  t.operator,
+  t.compareOperator,
+  t.logicOperator,
+  t.arithmeticOperator,
+  t.definitionOperator,
+  t.punctuation,
+  t.separator,
+  t.bracket,
+  t.brace,
+  t.paren,
+  t.squareBracket,
+  t.angleBracket,
+];
+
+// Rules every theme shares: dimmed comments, Markdown structure, error signal.
+const shared = [
+  { tag: COMMENTS, color: "var(--sf-color-code-comment)", fontStyle: "italic" },
+  { tag: t.heading, fontWeight: BOLD },
+  { tag: t.strong, fontWeight: BOLD },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strikethrough, textDecoration: "line-through" },
-  { tag: [t.meta, t.processingInstruction], color: "var(--sf-color-code-comment)" },
   { tag: t.invalid, color: "var(--sf-color-danger)" },
-]);
+];
 
-/** The complete token-bound theme: chrome + syntax highlighting. */
-export const sfCodeTheme: Extension = [uiTheme, syntaxHighlighting(highlightStyle)];
+// Weight/slant that `bold` and `primary` share (code stays fg; no hue).
+const structural = [
+  { tag: DEFINITIONS, fontWeight: BOLD },
+  { tag: STRINGS, fontStyle: "italic" },
+  { tag: PUNCTUATION, color: "var(--sf-color-code-punctuation)" },
+];
+
+const STYLES: Record<CodeTheme, HighlightStyle> = {
+  // Only comments dimmed; all code is plain fg.
+  minimal: HighlightStyle.define(shared),
+  // Add weight/slant; keywords lean on bold instead of a colour.
+  bold: HighlightStyle.define([
+    ...shared,
+    ...structural,
+    { tag: KEYWORDS, fontWeight: BOLD },
+    { tag: [t.link, t.url], textDecoration: "underline" },
+  ]),
+  // Add the single brand accent on keywords/tags/links.
+  primary: HighlightStyle.define([
+    ...shared,
+    ...structural,
+    { tag: KEYWORDS, color: "var(--sf-color-code-accent)" },
+    { tag: [t.link, t.url], color: "var(--sf-color-code-accent)", textDecoration: "underline" },
+  ]),
+};
+
+/** Shared chrome + block caret (theme-independent). */
+export const codeChrome: Extension = uiTheme;
+
+/** The syntax-highlighting extension for a given theme. */
+export function codeHighlight(theme: CodeTheme): Extension {
+  return syntaxHighlighting(STYLES[theme]);
+}
+
+/** The complete default (`primary`) theme: chrome + syntax highlighting.
+ *  Kept for advanced composition; the `CodeEditor` `theme` prop is the usual path. */
+export const sfCodeTheme: Extension = [codeChrome, codeHighlight("primary")];

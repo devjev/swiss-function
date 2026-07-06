@@ -311,7 +311,7 @@ The `--chip-accent` custom property is the single knob a tone sets; the dot, hov
 
 `import { CodeEditor } from "@tarassov-ch/swiss-function/code-editor"`
 
-A code editor — a thin wrapper over **CodeMirror 6**, themed entirely through `--sf-color-code-*` tokens (light/dark is the usual `[data-theme]` swap, never a JS branch), with opt-in Vim mode. Bring your own language via `extensions` (e.g. `javascript()` from `@codemirror/lang-javascript` — language packages are peer/consumer-installed, none are bundled). The `EditorView` is created once and reconfigured in place via compartments, so undo history and cursor survive prop changes. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`/`defaultValue`).
+A code editor — a thin wrapper over **CodeMirror 6**, themed entirely through `--sf-color-code-*` tokens (light/dark is the usual `[data-theme]` swap, never a JS branch), with opt-in Vim mode. All syntax themes are deliberately restrained (**no rainbow**) — pick via `theme`: `minimal` (comments dimmed only), `bold` (weight/slant, no hue), or `primary` (adds the single brand accent on keywords/tags/links). The caret is a full-cell **block**. Bring your own language via `extensions` (e.g. `javascript()` from `@codemirror/lang-javascript` — language packages are peer/consumer-installed, none are bundled). The `EditorView` is created once and reconfigured in place via compartments, so undo history and cursor survive prop changes. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`/`defaultValue`).
 
 Auto-grows with content by default; give the root a `height` (via `style`/`className`) to fix its size and let it scroll. `CodeEditor` requires the `@codemirror/*` + `@replit/codemirror-vim` packages (declared dependencies, externalized like `react-markdown`); `sfCodeTheme` is also exported for advanced composition.
 
@@ -321,6 +321,7 @@ Auto-grows with content by default; give the root a `height` (via `style`/`class
 | `defaultValue` | `string` | `""` | Initial text when uncontrolled. |
 | `onChange` | `(value: string) => void` | — | Fires with the full document on every edit. |
 | `extensions` | `Extension[]` | `[]` | Language / feature extensions. **Memoize** — a new array each render reconfigures the editor. |
+| `theme` | `"minimal" \| "bold" \| "primary"` | `"primary"` | Syntax theme (all restrained). `minimal` dims comments only; `bold` adds weight/slant; `primary` adds the brand accent. |
 | `vim` | `boolean` | `false` | Enable Vim keybindings (`@replit/codemirror-vim`). |
 | `readOnly` | `boolean` | `false` | Read-only (still selectable/focusable). |
 | `editable` | `boolean` | `true` | Whether content is editable. |
@@ -329,9 +330,10 @@ Auto-grows with content by default; give the root a `height` (via `style`/`class
 | `lineWrapping` | `boolean` | `false` | Soft-wrap instead of horizontal scroll. |
 | `tabSize` | `number` | `2` | Spaces per indent level. |
 | `autoFocus` | `boolean` | `false` | Focus on mount. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth — same `--sf-elevation-N` scale as `Box`/`Input`. |
 | `onCreateEditor` | `(view: EditorView) => void` | — | Receive the underlying CodeMirror `EditorView`. |
 
-The syntax palette lives in tokens: `--sf-color-code-{bg,fg,comment,keyword,string,number,name,type,constant,operator,punctuation,tag,attribute,link,cursor,gutter-fg,selection,active-line,matched-bracket}`. Most reuse a semantic token (so they follow the theme); only the keyword and type hues carry a dark override.
+The palette lives in tokens: `--sf-color-code-{bg,fg,comment,accent,punctuation,cursor,gutter-fg,selection,active-line,matched-bracket}` — monochrome, so only `accent`/`cursor` carry the brand hue; every value rides a semantic token or `color-mix`, so dark mode needs no override.
 
 ## DataTable
 
