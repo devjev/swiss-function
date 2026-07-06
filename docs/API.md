@@ -37,7 +37,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitInput · Dropzone ·
+ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitField · DigitInput · Dropzone ·
 Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -346,6 +346,8 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `data` | `T[]` | — | Rows. |
 | `columns` | `ColumnDef<T>[]` | — | Column tree (leaves + groups). |
 | `editable` | `boolean` | `false` | Click-to-edit + paste-to-update. Per-column via `edit`. |
+| `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter; `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
+| `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | — | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
 | `onCellChange` | `(changes: CellChange[]) => void` | — | Edit/paste committed; consumer updates `data`. |
 | `onSelectionChange` | `(selection: Selection) => void` | — | Active cell / range changed. |
 | `paginate` | `PaginateConfig` | — | Opt into pagination instead of virtualization. |
@@ -359,7 +361,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
 | `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. |
-| `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
+| `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean/date → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
 | `columnFilters` | `ColumnFiltersState` | — | Controlled filters (TanStack), with `onColumnFiltersChange`. |
 | `defaultColumnFilters` | `ColumnFiltersState` | — | Uncontrolled initial filters. |
 | `onColumnFiltersChange` | `(filters: ColumnFiltersState) => void` | — | Fired on each filter change — persist to save it. |
@@ -379,10 +381,19 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 **ColumnDef** — `LeafColumnDef<T> | GroupColumnDef<T>`:
 - Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
   `width?` (u), `minWidth?` (u, default 3), `resizable?`, `align?`
-  (`start|center|end`), `edit?` (`EditConfig`), `sortable?`, `filterable?`.
+  (`start|center|end`), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
+  overrides the table's `editOn`), `sortable?`, `filterable?`.
 - Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`.
-- `EditConfig`: `{ type: "text" | "number" | "boolean" }` or
-  `{ type: "select"; options: { value; label }[] }`.
+- `EditConfig` — the cell editor, keyed by `type`:
+  - `{ type: "text" }` — a `TextEditInline` (the floating expand-on-focus editor;
+    Enter commits, Shift+Enter inserts a newline).
+  - `{ type: "number"; decimals?; slots?; unit? }` — a `DigitField`; the extra
+    fields are forwarded to it. Commits a `number | null`.
+  - `{ type: "boolean" }` — a `Checkbox` (toggles on entry).
+  - `{ type: "select"; options: { value; label }[] }` — a native dropdown.
+  - `{ type: "date"; minDate?; maxDate? }` — a `DatePicker`; commits a `Date`.
+    Render the read view via the column's `cell` (e.g. ISO). Its header filter
+    falls back to a value checklist over the stringified dates.
 
 **Keyboard / selection:**
 - With a selected cell, arrows move the active cell one cell and scroll it into
@@ -446,6 +457,44 @@ and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
 `CloseButton` swallow pointer-down, so placing them in a draggable `Handle` never
 starts a drag. Fullscreen state is internal and resets each time the dialog
 reopens.
+
+## DigitField
+
+`import { DigitField } from "@tarassov-ch/swiss-function/digit-field"`
+
+A regular, **variable-length** numeric input that shows a few faded placeholder
+digit slots at rest and fills them left-to-right as you type (the "mask" hint) —
+but never caps length: type past the slots and the number just grows. Unlike
+`DigitInput` (a fixed-capacity grid of digit cells), this is a single, ordinary
+text input, so caret, selection, backspace and paste are all native. Value is
+`number | null` (`null` while empty or holding an incomplete number like a lone
+`-` or `.`). Reach for this for numeric cells/fields where the width is a hint,
+not a contract; reach for `DigitInput` when the capacity IS the contract (PINs,
+fixed-width amounts). Extends `HTMLAttributes<HTMLSpanElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint — the field is variable-length. |
+| `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
+| `unit` | `ReactNode` | — | Suffix rendered inside the control after the digits (e.g. `"%"`). |
+| `placeholderChar` | `string` | `"_"` | Glyph used for the empty slots. |
+| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
+| `min` / `max` | `number` | — | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u — Input parity. |
+| `elevation` | `0–5` | `2` | Resting depth. |
+| `name` | `string` | — | Form participation; submits the canonical numeric string. |
+
+Non-numeric characters are rejected; a second decimal point and extra decimal
+places are dropped. Focus is shown by the frame highlighting (border → primary),
+mirroring `Input` — the same input-family convention. Works inside `Field`. The
+placeholder slots use `Input`'s `::placeholder` strength; block caret via
+`caret-shape: block`. `prefers-reduced-motion` disables the frame transition.
+
+```tsx
+<DigitField slots={4} onValueChange={setQty} />       {/* integer */}
+<DigitField slots={4} decimals={2} unit="%" />        {/* percentage */}
+<DigitField slots={3} min={0} max={100} />            {/* bounded */}
+```
 
 ## DigitInput
 

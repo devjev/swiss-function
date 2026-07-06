@@ -36,6 +36,7 @@ const componentNames = [
   "Radio",
   "DatePicker",
   "Dialog",
+  "DigitField",
   "DigitInput",
   "Drawer",
   "Popover",

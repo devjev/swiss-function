@@ -1,5 +1,5 @@
 import { DataTable, type DataTableProps } from "./DataTable";
-import type { CellChange, ColumnDef, PaginateConfig } from "./types";
+import type { CellChange, ColumnDef, EditActivation, PaginateConfig } from "./types";
 
 type Row = { name: string; age: number; active: boolean };
 
@@ -21,6 +21,10 @@ interface HarnessProps {
   reorderableColumns?: boolean;
   filterableColumns?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
+  /** Table-level edit trigger. */
+  editOn?: EditActivation;
+  /** Column ids that opt into single-click editing (`editOn: "single"`). */
+  singleClickCols?: string[];
 }
 
 // Playwright CT mounts must be top-level component invocations (no inline closures),
@@ -40,12 +44,23 @@ export function DataTableHarness({
   reorderableColumns,
   filterableColumns,
   onCellChange,
+  editOn,
+  singleClickCols,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
     const locked = lockedCols?.includes(id) ? { resizable: false as const } : null;
     const width = widths?.[id] != null ? { width: widths[id] } : null;
+    const colEditOn = singleClickCols?.includes(id) ? { editOn: "single" as const } : null;
     if (id === "age")
-      return { id, header: id, accessor: "age", edit: { type: "number" }, ...locked, ...width };
+      return {
+        id,
+        header: id,
+        accessor: "age",
+        edit: { type: "number" },
+        ...colEditOn,
+        ...locked,
+        ...width,
+      };
     if (id === "active")
       return { id, header: id, accessor: "active", edit: { type: "boolean" }, ...locked, ...width };
     return {
@@ -53,6 +68,7 @@ export function DataTableHarness({
       header: id,
       accessor: id as keyof Row,
       edit: { type: "text" },
+      ...colEditOn,
       ...locked,
       ...width,
     };
@@ -69,11 +85,49 @@ export function DataTableHarness({
       columnFill={columnFill}
       reorderableColumns={reorderableColumns}
       filterableColumns={filterableColumns}
+      editOn={editOn}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />
   );
   return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
+}
+
+// --- Rich cell-editors harness (text / number / date) ---
+
+type EditRow = { name: string; score: number; joined: Date };
+
+const EDIT_DATA: EditRow[] = [{ name: "Alice", score: 40, joined: new Date(2022, 2, 3) }];
+
+export function EditorsHarness({ onCellChange }: { onCellChange?: (c: CellChange[]) => void }) {
+  const columns: ColumnDef<EditRow>[] = [
+    { id: "name", header: "Name", accessor: "name", edit: { type: "text" } },
+    {
+      id: "score",
+      header: "Score",
+      accessor: "score",
+      align: "end",
+      edit: { type: "number", decimals: 1, unit: "%" },
+      width: 8,
+    },
+    {
+      id: "joined",
+      header: "Joined",
+      accessor: "joined",
+      edit: { type: "date" },
+      cell: ({ value }) => (value instanceof Date ? value.toISOString().slice(0, 10) : ""),
+      width: 10,
+    },
+  ];
+  return (
+    <DataTable<EditRow>
+      data={EDIT_DATA}
+      columns={columns}
+      editable
+      height={200}
+      onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
+    />
+  );
 }
 
 // --- Frozen-columns harness ---

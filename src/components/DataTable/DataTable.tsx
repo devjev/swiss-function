@@ -43,6 +43,7 @@ import {
   resizeBoundary,
 } from "./columnWidths";
 import styles from "./DataTable.module.css";
+import { resolveEditActivation } from "./editActivation";
 import { CellEditor } from "./editors";
 import { Pagination } from "./Pagination";
 import { computeRowOrder, getCellValue } from "./rowOrder";
@@ -54,6 +55,7 @@ import type {
   CellRange,
   CellSpanFn,
   ColumnDef,
+  EditActivation,
   ExpandedState,
   LeafColumnDef,
   PaginateConfig,
@@ -72,6 +74,18 @@ export interface DataTableProps<T>
   columns: ColumnDef<T>[];
   /** Turn on click-to-edit + paste-to-update. Default false (read-only). */
   editable?: boolean;
+  /** How editing starts on an editable cell. `"double"` (default) opens the
+   *  editor on double-click (F2 / Enter also work); `"single"` also opens it on
+   *  a single click. Override per column via `LeafColumnDef.editOn`, or per cell
+   *  via `getEditActivation`. */
+  editOn?: EditActivation;
+  /** Per-cell override for the edit trigger — wins over the column and table
+   *  settings. Return `undefined` to fall through to them. */
+  getEditActivation?: (ctx: {
+    rowIndex: number;
+    columnId: string;
+    row: T;
+  }) => EditActivation | undefined;
   /** Called when cell values change (edit or paste). Consumer mutates/replaces data. */
   onCellChange?: (changes: CellChange[]) => void;
   /** Called when active cell / range selection changes. */
@@ -320,6 +334,12 @@ interface DataTableRowProps<T> {
   onCellPointerEnter: (cell: Cell) => void;
   isColumnEditable: (col: number) => boolean;
   startEdit: (cell: Cell, initialText?: string) => void;
+  resolveActivation: (
+    rowIndex: number,
+    columnId: string,
+    row: T,
+    columnEditOn?: EditActivation,
+  ) => EditActivation;
   getValueAt: (rowIdx: number, colIdx: number) => unknown;
   commitEdit: (value: unknown, advance?: AdvanceHint) => void;
   cancelEdit: () => void;
@@ -350,6 +370,7 @@ function DataTableRowInner<T>({
   onCellPointerEnter,
   isColumnEditable,
   startEdit,
+  resolveActivation,
   getValueAt,
   commitEdit,
   cancelEdit,
@@ -394,6 +415,7 @@ function DataTableRowInner<T>({
             role="gridcell"
             tabIndex={active ? 0 : -1}
             data-active={active || undefined}
+            data-editing={isEditing || undefined}
             data-in-range={inRange || undefined}
             data-align={align}
             data-locked={isLocked || undefined}
@@ -405,6 +427,16 @@ function DataTableRowInner<T>({
             style={isFrozen && frozenLefts ? { left: frozenLefts[colIndex] } : undefined}
             onPointerDown={(e) => onCellPointerDown(cell, { shiftKey: e.shiftKey })}
             onPointerEnter={() => onCellPointerEnter(cell)}
+            onClick={(e) => {
+              // Single-click activation. A cross-cell drag doesn't fire `click`
+              // (down + up must land on the same element), so range-drag can't
+              // trip this; modifier clicks are selection gestures.
+              if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+              if (isEditing || !isColumnEditable(colIndex)) return;
+              if (resolveActivation(dataIdx, colDef.id, original, colDef.editOn) === "single") {
+                startEdit(cell);
+              }
+            }}
             onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
           >
             {/* Covered cells render blank — the lead cell carries the content. */}
@@ -439,6 +471,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     data,
     columns,
     editable = false,
+    editOn = "double",
+    getEditActivation,
     onCellChange,
     onSelectionChange,
     paginate,
@@ -736,6 +770,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (advance) advanceCell(advance);
     },
     [rawCommitEdit, advanceCell],
+  );
+
+  // Effective edit trigger for a cell: cell fn → column → table → "double".
+  const resolveActivation = useCallback(
+    (rowIndex: number, columnId: string, row: T, columnEditOn?: EditActivation): EditActivation =>
+      resolveEditActivation({
+        cell: getEditActivation?.({ rowIndex, columnId, row }),
+        column: columnEditOn,
+        table: editOn,
+      }),
+    [getEditActivation, editOn],
   );
 
   // --- Clipboard ---
@@ -1185,6 +1230,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onCellPointerEnter: handleCellPointerEnter,
     isColumnEditable,
     startEdit,
+    resolveActivation,
     getValueAt,
     commitEdit,
     cancelEdit,
@@ -1252,6 +1298,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         role="gridcell"
         tabIndex={active ? 0 : -1}
         data-active={active || undefined}
+        data-editing={isEditing || undefined}
         data-in-range={inRange || undefined}
         data-align={align}
         data-tree-cell={isTreeCell || undefined}
@@ -1264,6 +1311,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
         style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
         onPointerEnter={() => handleCellPointerEnter(cell)}
+        onClick={(e) => {
+          if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+          if (isEditing || !isColumnEditable(colIndex)) return;
+          if (
+            resolveActivation(row.index, colDef.id, row.original as T, colDef.editOn) === "single"
+          ) {
+            startEdit(cell);
+          }
+        }}
         onDoubleClick={() => isColumnEditable(colIndex) && startEdit(cell)}
       >
         {/* Covered cells render blank — the lead cell carries the content. */}

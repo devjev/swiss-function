@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-06T14:57:48.215Z"
+    "date": "2026-07-06T21:05:07.508Z"
   },
-  "totalGzip": 652271,
+  "totalGzip": 667736,
   "entries": {
     ".": {
-      "files": 211,
-      "jsRaw": 743462,
-      "jsGzip": 224463,
+      "files": 215,
+      "jsRaw": 751845,
+      "jsGzip": 227248,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 224463,
+      "gzip": 227248,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -396,6 +396,15 @@
       "gzip": 4542,
       "externals": ["@base-ui/react/dialog", "react", "react/jsx-runtime"]
     },
+    "./digit-field": {
+      "files": 5,
+      "jsRaw": 5412,
+      "jsGzip": 2271,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 2271,
+      "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
+    },
     "./digit-input": {
       "files": 5,
       "jsRaw": 15010,
@@ -635,12 +644,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 39,
-      "jsRaw": 102066,
-      "jsGzip": 32322,
+      "files": 50,
+      "jsRaw": 136399,
+      "jsGzip": 42731,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 32322,
+      "gzip": 42731,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",

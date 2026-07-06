@@ -9,7 +9,12 @@ type Person = {
   age: number;
   active: boolean;
   role: string;
+  score: number;
+  joined: Date;
 };
+
+/** ISO date for the read view of a date column. */
+const iso = (d: Date | null | undefined) => (d instanceof Date ? d.toISOString().slice(0, 10) : "");
 
 const ROLES = [
   { value: "admin", label: "Admin" },
@@ -55,6 +60,8 @@ function seed(n: number): Person[] {
       age: 20 + (i % 40),
       active: i % 3 !== 0,
       role: ROLES[i % ROLES.length]?.value ?? "user",
+      score: Math.round((40 + ((i * 37) % 600) / 10) * 10) / 10,
+      joined: new Date(2022, i % 12, 1 + (i % 27)),
     });
   }
   return out;
@@ -170,6 +177,46 @@ export const ResizableColumns: Story = () => {
   return <DataTable data={seed(50)} columns={columns} height={360} />;
 };
 
+/** Columns showing all four rich cell editors: text → TextEditInline,
+ *  number → DigitField, date → DatePicker, boolean → Checkbox, select. */
+const richColumns: ColumnDef<Person>[] = [
+  { id: "name", header: "Name", accessor: "name", sortable: true, edit: { type: "text" } },
+  {
+    id: "score",
+    header: "Score",
+    accessor: "score",
+    align: "end",
+    sortable: true,
+    edit: { type: "number", decimals: 1, slots: 4, unit: "%" },
+    cell: ({ value }) => (typeof value === "number" ? `${value}%` : ""),
+    width: 8,
+  },
+  {
+    id: "joined",
+    header: "Joined",
+    accessor: "joined",
+    sortable: true,
+    edit: { type: "date" },
+    cell: ({ value }) => iso(value as Date),
+    width: 10,
+  },
+  {
+    id: "active",
+    header: "Active",
+    accessor: "active",
+    align: "center",
+    edit: { type: "boolean" },
+    width: 6,
+  },
+  {
+    id: "role",
+    header: "Role",
+    accessor: "role",
+    edit: { type: "select", options: ROLES },
+    width: 10,
+  },
+];
+
 export const Editable: Story = () => {
   const [data, setData] = useState<Person[]>(() => seed(20));
   const onCellChange = useCallback(
@@ -179,12 +226,64 @@ export const Editable: Story = () => {
   return (
     <div>
       <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
-        Double-click, F2, or Enter on a focused cell to edit. Enter / Tab commits, Esc cancels.
+        Double-click, F2, or Enter on a focused cell to edit. Enter / Tab commits, Esc cancels. Text
+        uses the inline text editor, numbers a DigitField, dates a DatePicker.
       </p>
       <DataTable
         data={data}
-        columns={baseColumns}
+        columns={richColumns}
         editable
+        height={360}
+        onCellChange={onCellChange}
+      />
+    </div>
+  );
+};
+
+/** `editOn="single"` opens the editor on a single click (double-click / F2 /
+ *  Enter still work). Set it per column with `editOn` on the column, or per cell
+ *  with `getEditActivation`. */
+export const SingleClickEdit: Story = () => {
+  const [data, setData] = useState<Person[]>(() => seed(20));
+  const onCellChange = useCallback(
+    (changes: CellChange[]) => setData((d) => applyChanges(d, changes)),
+    [],
+  );
+  return (
+    <div>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
+        Single click opens the editor (<code>editOn="single"</code>).
+      </p>
+      <DataTable
+        data={data}
+        columns={richColumns}
+        editable
+        editOn="single"
+        height={360}
+        onCellChange={onCellChange}
+      />
+    </div>
+  );
+};
+
+/** Per-cell control via `getEditActivation`: only active rows edit on a single
+ *  click; inactive rows keep the double-click default. */
+export const PerCellEditActivation: Story = () => {
+  const [data, setData] = useState<Person[]>(() => seed(20));
+  const onCellChange = useCallback(
+    (changes: CellChange[]) => setData((d) => applyChanges(d, changes)),
+    [],
+  );
+  return (
+    <div>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
+        Active rows edit on a single click; inactive rows still need a double click.
+      </p>
+      <DataTable
+        data={data}
+        columns={richColumns}
+        editable
+        getEditActivation={({ row }) => (row.active ? "single" : "double")}
         height={360}
         onCellChange={onCellChange}
       />

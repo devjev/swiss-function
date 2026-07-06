@@ -1,0 +1,149 @@
+/* DigitField — a variable-length numeric input. Carries Input's exact visual
+   signature (mono, subtle border, inset highlight + elevation, block caret) as
+   the outer frame; a ghost layer behind the real input paints the faded
+   placeholder slots that recede as you type. */
+
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  /* Same baseline-grid heights + padding as Input. */
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-input-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-line-height-tight);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-2);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Border highlight on focus, mirroring Input (no separate ring — the frame
+   change is the focus indicator, consistent with the input family). */
+.root:focus-within {
+  background-color: var(--sf-color-bg);
+  border-color: var(--sf-color-primary);
+}
+
+.root[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* The real, interactive input. Transparent so the ghost slots show through in
+   the empty region; sits above the ghost (z-index) so typed digits paint on
+   top. Width is set inline in `ch` and grows with content. */
+.input {
+  position: relative;
+  z-index: 1;
+  min-inline-size: 0;
+  background: transparent;
+  color: var(--sf-color-fg);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-size-adjust: inherit;
+  line-height: inherit;
+  /* Same DOS-style block caret as Input. */
+  caret-shape: block;
+  caret-color: var(--sf-color-primary);
+}
+
+.root[data-disabled] .input {
+  cursor: not-allowed;
+}
+
+/* Ghost layer: aligns to the input's text via identical font + padding. The
+   typed copy is invisible and only serves to offset the muted slots to the
+   caret position. */
+.ghost {
+  position: absolute;
+  inset: 0;
+  padding-inline: calc(var(--sf-unit) / 2);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.ghostTyped {
+  visibility: hidden;
+  white-space: pre;
+}
+
+.ghostSlots {
+  /* Placeholder strength, same as Input's ::placeholder. */
+  color: color-mix(in srgb, var(--sf-color-fg), transparent 70%);
+  white-space: pre;
+}
+
+.unit {
+  position: relative;
+  z-index: 1;
+  margin-inline-start: calc(var(--sf-unit) / 6);
+  color: var(--sf-color-fg-subtle);
+}
+
+/* --- Elevation overrides (default is elevation-2 on .root) --- */
+.root[data-elevation="0"] {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.root[data-elevation="1"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-1);
+}
+.root[data-elevation="3"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-3);
+}
+.root[data-elevation="4"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-4);
+}
+.root[data-elevation="5"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}
+
+/* --- Sizes (Input parity: 1u / 1.5u / 2u heights) --- */
+.sizeSm {
+  block-size: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+}
+.sizeSm .ghost {
+  padding-inline: calc(var(--sf-unit) / 3);
+}
+
+.sizeLg {
+  block-size: calc(var(--sf-unit) * 2);
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
+  font-size: var(--sf-font-size-lg);
+}
+.sizeLg .ghost {
+  padding-inline: calc(var(--sf-unit) * 2 / 3);
+}

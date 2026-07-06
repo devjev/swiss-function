@@ -13,6 +13,7 @@ export * from "./components/ContextMenu";
 export * from "./components/DataTable";
 export * from "./components/DatePicker";
 export * from "./components/Dialog";
+export * from "./components/DigitField";
 export * from "./components/DigitInput";
 export * from "./components/Drawer";
 export * from "./components/Dropzone";

@@ -496,13 +496,42 @@
 }
 
 /* In-cell editor sits absolutely on top of the cell so it lines up with the
-   2px active outline. */
+   2px active outline. Used by the DigitField (number) and DatePicker (date)
+   editors — both fill the cell box. */
 .editor {
   position: absolute;
   inset: 0;
   width: 100%;
   block-size: 100%;
   border-radius: 0;
+  z-index: 2;
+}
+
+/* The inline text editor (TextEditInline) needs to grow *downwards* past the
+   cell when expanded, so it's pinned to the top edge only and floats above
+   siblings. The editing cell drops its overflow clip (below) to let it show. */
+.textEditor {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  z-index: 3;
+}
+
+/* While a cell is editing, let a growing/floating editor (TextEditInline
+   overlay, DatePicker calendar shadow) escape the cell's overflow clip. */
+.cell[data-editing] {
+  overflow: visible;
+  z-index: 3;
+}
+
+/* Each row is its own stacking context (`isolation: isolate`), so a downward-
+   growing overlay would otherwise be painted over by the rows below it. Lift
+   the whole editing row above its siblings. `position: relative` covers the
+   flow (paginated) mode; in virtualized mode the inline `position: absolute`
+   wins and still honours the z-index. */
+.row:has([data-editing]) {
+  position: relative;
+  z-index: 5;
 }
 
 .selectEditor {

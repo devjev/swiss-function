@@ -9,21 +9,31 @@ export type Selection = {
   range: CellRange | null;
 };
 
-export type EditorType = "text" | "number" | "boolean" | "select";
+export type EditorType = "text" | "number" | "boolean" | "select" | "date";
 
 export type SelectOption = { value: string; label: string };
 
 export type EditConfig =
   | { type: "text" }
-  | { type: "number" }
+  /** Numeric cell edited with a `DigitField`. `decimals`/`slots`/`unit` are
+   *  forwarded to it; omit them for a plain integer field. */
+  | { type: "number"; decimals?: number; slots?: number; unit?: ReactNode }
   | { type: "boolean" }
-  | { type: "select"; options: SelectOption[] };
+  | { type: "select"; options: SelectOption[] }
+  /** Date cell edited with a `DatePicker`. The committed value is a `Date`.
+   *  Render the read view via the column's `cell` (e.g. ISO). */
+  | { type: "date"; minDate?: Date; maxDate?: Date };
 
 export type CellRenderProps<T> = {
   value: unknown;
   row: T;
   rowIndex: number;
 };
+
+/** How editing is triggered on an editable cell. `"double"` (the default) opens
+ *  the editor on double-click (F2 / Enter still work); `"single"` also opens it
+ *  on a single click. */
+export type EditActivation = "single" | "double";
 
 /** A regular column that owns data. */
 export interface LeafColumnDef<T> {
@@ -43,11 +53,15 @@ export interface LeafColumnDef<T> {
   align?: "start" | "center" | "end";
   /** Per-column edit config. Omit to make column read-only even when table.editable. */
   edit?: EditConfig;
+  /** How editing starts on this column's cells. Overrides the table's `editOn`;
+   *  a per-cell `getEditActivation` overrides this. Default follows the table. */
+  editOn?: EditActivation;
   /** Click header to sort. Default false. */
   sortable?: boolean;
   /** Show a header filter for this column when the table's `filterableColumns` is
    *  on. Set false to exclude this column. Default true. The control type follows
-   *  `edit.type` (text/select/boolean → value checklist; number → min/max range). */
+   *  `edit.type` (text/select/boolean/date → value checklist; number → min/max
+   *  range). */
   filterable?: boolean;
 }
 

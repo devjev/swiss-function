@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   DataTableHarness,
+  EditorsHarness,
   FrozenHarness,
   GroupsHarness,
   ManyValuesHarness,
@@ -87,9 +88,10 @@ test("shift+arrow extends the range", async ({ mount, page }) => {
 test("double-click on editable cell opens an editor", async ({ mount }) => {
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} editable />);
   // Anchor by index — after edit opens, the cell's text content becomes an
-  // input value, so filter({ hasText }) stops matching.
+  // editor value, so filter({ hasText }) stops matching. The text editor is a
+  // TextEditInline (a <textarea>).
   await component.getByRole("gridcell").first().dblclick();
-  await expect(component.locator("input").first()).toBeFocused();
+  await expect(component.locator("textarea").first()).toBeFocused();
 });
 
 test("Enter commits the edit and fires onCellChange", async ({ mount, page }) => {
@@ -115,6 +117,88 @@ test("editable=false: double-click does NOT open an editor", async ({ mount }) =
   const cell = component.getByRole("gridcell").filter({ hasText: "Alice" });
   await cell.dblclick();
   await expect(cell.locator("input")).toHaveCount(0);
+});
+
+// --- Edit activation (single vs double click) ---
+
+test("editOn='single': a single click opens the editor", async ({ mount }) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} editable editOn="single" />,
+  );
+  await component.getByRole("gridcell").first().click();
+  await expect(component.locator("textarea").first()).toBeFocused();
+});
+
+test("default (double): a single click does NOT open the editor", async ({ mount }) => {
+  const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} editable />);
+  const cell = component.getByRole("gridcell").first();
+  await cell.click();
+  await expect(cell.locator("input, textarea")).toHaveCount(0);
+});
+
+test("column editOn='single' overrides a double-click table default", async ({ mount }) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} editable singleClickCols={["name"]} />,
+  );
+  const cells = component.getByRole("gridcell");
+  // name (col 0) is single-click; age (col 1) stays double-click.
+  await cells.nth(1).click();
+  await expect(cells.nth(1).locator("input")).toHaveCount(0);
+  await cells.nth(0).click();
+  await expect(component.locator("textarea").first()).toBeFocused();
+});
+
+test("editOn='single': a shift-click does NOT open an editor (selection gesture)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} editable editOn="single" />,
+  );
+  const cell = component.getByRole("gridcell").first();
+  await cell.click({ modifiers: ["Shift"] });
+  await expect(cell.locator("input, textarea")).toHaveCount(0);
+});
+
+// --- Rich cell editors (text → TextEditInline, number → DigitField, date → DatePicker) ---
+
+test("number cell edits with a DigitField and commits a parsed number", async ({ mount, page }) => {
+  let changes: unknown = null;
+  const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
+  // Columns: name(0) score(1) joined(2). Score is the number cell.
+  await component.getByRole("gridcell").nth(1).dblclick();
+  await expect(component.locator("input").first()).toBeFocused();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("7");
+  await page.keyboard.press("Enter");
+  expect(changes).toEqual([{ rowIndex: 0, columnId: "score", value: 7 }]);
+});
+
+test("date cell edits with a DatePicker and commits a Date", async ({ mount, page }) => {
+  let changes: unknown = null;
+  const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
+  await component.getByRole("gridcell").nth(2).dblclick();
+  await expect(component.locator("input").first()).toBeFocused();
+  await page.keyboard.press("Control+a");
+  await page.keyboard.type("2023-05-15");
+  await page.keyboard.press("Enter");
+  const value = (changes as { value: unknown }[] | null)?.[0]?.value;
+  expect(value).toBeInstanceOf(Date);
+  const d = value as Date;
+  // Compare local components — the value is local midnight, so toISOString (UTC)
+  // can roll to the previous day depending on the runner's timezone.
+  expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2023, 4, 15]);
+});
+
+test("text cell allows a newline via Shift+Enter and commits on Enter", async ({ mount, page }) => {
+  let changes: unknown = null;
+  const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);
+  await component.getByRole("gridcell").nth(0).dblclick();
+  await expect(component.locator("textarea").first()).toBeFocused();
+  await page.keyboard.type(" x");
+  await page.keyboard.press("Shift+Enter");
+  await page.keyboard.type("y");
+  await page.keyboard.press("Enter");
+  expect((changes as { value: unknown }[] | null)?.[0]?.value).toBe("Alice x\ny");
 });
 
 // --- Tree rows ---

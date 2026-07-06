@@ -129,6 +129,10 @@
       "types": "./dist/components/Dialog/index.d.ts",
       "import": "./dist/components/Dialog/index.js"
     },
+    "./digit-field": {
+      "types": "./dist/components/DigitField/index.d.ts",
+      "import": "./dist/components/DigitField/index.js"
+    },
     "./digit-input": {
       "types": "./dist/components/DigitInput/index.d.ts",
       "import": "./dist/components/DigitInput/index.js"

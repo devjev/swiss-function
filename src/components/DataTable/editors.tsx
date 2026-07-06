@@ -1,7 +1,9 @@
 import type { KeyboardEvent, ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Checkbox } from "../Checkbox";
-import { Input } from "../Input";
+import { DatePicker } from "../DatePicker";
+import { DigitField } from "../DigitField";
+import { TextEditInline } from "../TextEditInline";
 import styles from "./DataTable.module.css";
 import type { AdvanceHint, EditConfig, SelectOption } from "./types";
 
@@ -35,6 +37,7 @@ export function CellEditor({
       return (
         <NumberEditor
           value={value}
+          config={config}
           onCommit={onCommit}
           onCancel={onCancel}
           initialText={initialText}
@@ -51,27 +54,47 @@ export function CellEditor({
           onCancel={onCancel}
         />
       );
+    case "date":
+      return <DateEditor value={value} config={config} onCommit={onCommit} onCancel={onCancel} />;
   }
 }
 
+/** Callback ref that focuses the first native input/textarea inside a mounted
+ *  editor root and puts the caret at the end — used by editors whose ref points
+ *  at a wrapper element (DigitField, DatePicker), not the input itself. */
+function useFocusInner() {
+  return useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const el = node.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange?.(len, len);
+  }, []);
+}
+
+// --- Text: the floating inline text editor ---------------------------------
+
 function TextEditor({ value, onCommit, onCancel, initialText }: Omit<EditorProps, "config">) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState<string>(initialText ?? (value == null ? "" : String(value)));
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const draft = useRef<string>(initialText ?? (value == null ? "" : String(value)));
 
   useEffect(() => {
-    // Spreadsheet convention: focus places caret at end of existing value
-    // (typing appends). Type-to-edit replaces because the editor mounts with
-    // draft = initialText, not the prior value.
-    inputRef.current?.focus();
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
   }, []);
 
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  const handleKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      // Enter commits; Shift+Enter falls through to insert a newline.
       e.preventDefault();
-      onCommit(draft, e.shiftKey ? "up" : "down");
+      onCommit(draft.current, "down");
     } else if (e.key === "Tab") {
       e.preventDefault();
-      onCommit(draft, e.shiftKey ? "leftWrap" : "rightWrap");
+      onCommit(draft.current, e.shiftKey ? "leftWrap" : "rightWrap");
     } else if (e.key === "Escape") {
       e.preventDefault();
       onCancel();
@@ -79,40 +102,43 @@ function TextEditor({ value, onCommit, onCancel, initialText }: Omit<EditorProps
   };
 
   return (
-    <Input
-      ref={inputRef}
-      className={styles.editor}
-      value={draft}
-      onChange={(e) => setDraft((e.target as HTMLInputElement).value)}
-      onBlur={() => onCommit(draft)}
+    <TextEditInline
+      ref={ref}
+      className={styles.textEditor}
+      defaultValue={draft.current}
+      onChange={(e) => {
+        draft.current = e.target.value;
+      }}
+      onBlur={() => onCommit(draft.current)}
       onKeyDown={handleKey}
     />
   );
 }
 
-function NumberEditor({ value, onCommit, onCancel, initialText }: Omit<EditorProps, "config">) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [draft, setDraft] = useState<string>(initialText ?? (value == null ? "" : String(value)));
+// --- Number: the variable-length DigitField --------------------------------
 
-  useEffect(() => {
-    // Spreadsheet convention: focus places caret at end of existing value
-    // (typing appends). Type-to-edit replaces because the editor mounts with
-    // draft = initialText, not the prior value.
-    inputRef.current?.focus();
-  }, []);
+function NumberEditor({
+  value,
+  config,
+  onCommit,
+  onCancel,
+  initialText,
+}: Pick<EditorProps, "value" | "config" | "onCommit" | "onCancel" | "initialText">) {
+  const rootRef = useFocusInner();
+  const seed = initialText != null && initialText !== "" ? Number(initialText) : toNumber(value);
+  const draft = useRef<number | null>(Number.isNaN(seed as number) ? null : seed);
 
-  const commit = (advance?: AdvanceHint) => {
-    const parsed = Number(draft);
-    onCommit(Number.isNaN(parsed) ? null : parsed, advance);
-  };
+  const decimals = config.type === "number" ? (config.decimals ?? 0) : 0;
+  const slots = config.type === "number" ? (config.slots ?? 4) : 4;
+  const unit = config.type === "number" ? config.unit : undefined;
 
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKey = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      commit(e.shiftKey ? "up" : "down");
+      onCommit(draft.current, e.shiftKey ? "up" : "down");
     } else if (e.key === "Tab") {
       e.preventDefault();
-      commit(e.shiftKey ? "leftWrap" : "rightWrap");
+      onCommit(draft.current, e.shiftKey ? "leftWrap" : "rightWrap");
     } else if (e.key === "Escape") {
       e.preventDefault();
       onCancel();
@@ -120,17 +146,55 @@ function NumberEditor({ value, onCommit, onCancel, initialText }: Omit<EditorPro
   };
 
   return (
-    <Input
-      ref={inputRef}
-      type="number"
+    <DigitField
+      ref={rootRef}
       className={styles.editor}
-      value={draft}
-      onChange={(e) => setDraft((e.target as HTMLInputElement).value)}
-      onBlur={() => commit()}
+      defaultValue={draft.current}
+      slots={slots}
+      decimals={decimals}
+      unit={unit}
+      onValueChange={(v) => {
+        draft.current = v;
+      }}
+      onBlur={() => onCommit(draft.current)}
       onKeyDown={handleKey}
     />
   );
 }
+
+// --- Date: the DatePicker --------------------------------------------------
+
+function DateEditor({
+  value,
+  config,
+  onCommit,
+  onCancel,
+}: Pick<EditorProps, "value" | "config" | "onCommit" | "onCancel">) {
+  const rootRef = useFocusInner();
+  const initial = toDate(value);
+  const minDate = config.type === "date" ? config.minDate : undefined;
+  const maxDate = config.type === "date" ? config.maxDate : undefined;
+
+  const handleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    // DatePicker consumes Escape to close its popup; when the popup is already
+    // closed the key reaches here and cancels the edit.
+    if (e.key === "Escape") onCancel();
+  };
+
+  return (
+    <DatePicker
+      ref={rootRef}
+      className={styles.editor}
+      defaultValue={initial}
+      minDate={minDate}
+      maxDate={maxDate}
+      onChange={(date) => onCommit(date, "down")}
+      onKeyDown={handleKey}
+    />
+  );
+}
+
+// --- Boolean: immediate toggle (unchanged) ---------------------------------
 
 function BooleanEditor({ value, onCommit, onCancel }: Omit<EditorProps, "config">) {
   // Boolean cells toggle immediately on edit-mode entry — no separate commit.
@@ -141,6 +205,8 @@ function BooleanEditor({ value, onCommit, onCancel }: Omit<EditorProps, "config"
   }, []);
   return <Checkbox checked={!value} onClick={onCancel} />;
 }
+
+// --- Select: native dropdown (unchanged) -----------------------------------
 
 function SelectEditor({
   value,
@@ -175,4 +241,19 @@ function SelectEditor({
       ))}
     </select>
   );
+}
+
+// --- coercion helpers ------------------------------------------------------
+
+function toNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
+
+function toDate(value: unknown): Date | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) return value;
+  const d = new Date(value as string | number);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
