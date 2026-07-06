@@ -1,7 +1,5 @@
 import { Input as BaseInput } from "@base-ui/react/input";
-// OTPField ships as a preview export in Base UI 1.5 — revisit the alias when
-// it stabilizes.
-import { OTPFieldPreview as OTPField } from "@base-ui/react/otp-field";
+import * as OTPFieldNS from "@base-ui/react/otp-field";
 import type {
   ComponentPropsWithoutRef,
   ClipboardEvent as ReactClipboardEvent,
@@ -30,6 +28,17 @@ import {
   ulpsToValue,
   valueToUlps,
 } from "./digitMath";
+
+// Base UI ships the OTP field as the preview export `OTPFieldPreview` in 1.5,
+// then promotes it to `OTPField` in later 1.x. Our peer range (`^1.5.0`) spans
+// that rename, so a *named* import breaks on whichever version doesn't match
+// (issue #42). Resolve it from the namespace at runtime and pick whichever
+// exists — a namespace import never fails on an absent name, so the module
+// always loads (push mode keeps working even if the OTP field is ever gone) and
+// only the mask path touches the resolved compound.
+const OTPField = ((OTPFieldNS as Record<string, unknown>).OTPField ??
+  (OTPFieldNS as Record<string, unknown>)
+    .OTPFieldPreview) as typeof import("@base-ui/react/otp-field").OTPFieldPreview;
 
 export type DigitInputSize = "sm" | "md" | "lg";
 export type DigitInputMode = "push" | "mask";
