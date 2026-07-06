@@ -91,6 +91,7 @@ Ladle (`npm run dev`).
 | `DatePicker`    | Date input + calendar popup, ISO 8601 by default (`YYYY-MM-DD`, Monday-first weeks, optional ISO week numbers). Typing is the fastest path — `2026-07`, `12 jul`, `tomorrow`, `+7` narrow the calendar and Enter commits the echoed candidate; numeric fragments are always day-first, never US month-first. Value is `Date \| null`; `minDate`/`maxDate`/`isDateDisabled` constrain. Never reach for the browser-native `type="date"`. |
 | `Kbd`           | Renders a keyboard shortcut as OS-aware keycaps (`combo="mod+k"` → ⌘K on macOS, Ctrl+K elsewhere). `mod` = primary modifier; never shows ⌘ off-Mac. For labels/menus/tooltips. |
 | `TextEdit`      | Multi-line / auto-growing text input.                     |
+| `TextEditInline`| Single line at rest, expands to a multi-line editor on hover/focus — the overlay *floats over* the content below (`elevation-3`) instead of pushing it down, auto-grows with content and is vertically resizable while active; collapses back to one ellipsized line on blur. `size` (`sm`/`md`/`lg`, matches Input heights), `maxRows`. Reach for this in dense rows/tables where a note is usually short but occasionally long. |
 | `Checkbox`      | Binary independent toggles in lists.                      |
 | `Radio`         | Single-choice within a group.                             |
 | `Switch`        | Binary on/off for a setting, with an immediate effect.    |

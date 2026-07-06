@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -224,6 +224,10 @@
     "./text-edit": {
       "types": "./dist/components/TextEdit/index.d.ts",
       "import": "./dist/components/TextEdit/index.js"
+    },
+    "./text-edit-inline": {
+      "types": "./dist/components/TextEditInline/index.d.ts",
+      "import": "./dist/components/TextEditInline/index.js"
     },
     "./timeline": {
       "types": "./dist/components/Timeline/index.d.ts",

@@ -51,6 +51,7 @@ const componentNames = [
   "DataTable",
   "Tabs",
   "TextEdit",
+  "TextEditInline",
   "Timeline",
   "ToggleGroup",
   "Selector",

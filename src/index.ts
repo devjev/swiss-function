@@ -48,6 +48,7 @@ export * from "./components/Surface";
 export * from "./components/Switch";
 export * from "./components/Tabs";
 export * from "./components/TextEdit";
+export * from "./components/TextEditInline";
 export * from "./components/Timeline";
 export * from "./components/ToggleGroup";
 export * from "./components/WindowArray";

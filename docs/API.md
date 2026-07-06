@@ -41,7 +41,7 @@ ButtonGroup · Chat · Checkbox · DataTable · DatePicker · Dialog · DigitInp
 Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
-Surface · Switch · Tabs · TextEdit · Timeline · ToggleGroup · WindowArray
+Surface · Switch · Tabs · TextEdit · TextEditInline · Timeline · ToggleGroup · WindowArray
 
 ---
 
@@ -1247,6 +1247,19 @@ Styled `<textarea>`. Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `rows` | `number` | `3` | Initial textarea rows. |
+
+## TextEditInline
+
+`import { TextEditInline } from "@tarassov-ch/swiss-function/text-edit-inline"`
+
+A `<textarea>` that rests as a single line and expands to a multi-line editor on hover or focus. The expanded editor is absolutely positioned, so it *overlays* the content below (lifted to `--sf-elevation-3`) instead of pushing it down; leaving (blur + pointer-out) collapses it back to one line, ellipsized (`…`) when the value overflows. While expanded it auto-grows with its content and is **vertically resizable** by the drag handle — once dragged, the manual height stands (auto-grow yields). Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`. `TextEditInlineSize = "sm" | "md" | "lg"`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `size` | `TextEditInlineSize` | `"md"` | Resting single-line height, matching `Input`: `sm` 1u / `md` 1.5u / `lg` 2u. |
+| `maxRows` | `number` | `8` | Lines the expanded overlay grows to before it scrolls. |
+
+While expanded the root carries `data-expanded="true"` (hook for container styling). The collapsed preview is an `aria-hidden` decorative line; the real `<textarea>` stays focusable behind it.
 
 ## Timeline
 

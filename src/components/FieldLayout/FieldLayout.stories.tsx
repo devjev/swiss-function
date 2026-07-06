@@ -101,7 +101,7 @@ export const DitherFiller: Story = () => (
   <Frame>
     <FieldLayout>
       <FieldLayout.Section>
-        <FieldLayout.Field label="Valid from" kind="rigid" width={8} hint="Effective date.">
+        <FieldLayout.Field label="Valid from" kind="rigid" width={8}>
           <DatePicker defaultValue={new Date(2026, 6, 1)} />
         </FieldLayout.Field>
         <FieldLayout.Filler dither />

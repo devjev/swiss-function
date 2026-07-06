@@ -1,0 +1,126 @@
+/* TextEditInline — single line at rest, expands to a multi-line overlay on
+   hover/focus. See TextEditInline.tsx for the model. Per-size metrics ride
+   --tei-* custom properties; md is the base, sm/lg override below. */
+
+.root {
+  --tei-fs: var(--sf-font-size-md);
+  --tei-lh: var(--sf-leading-base);
+  /* padding-block × 2 + line (1u) + border (2px) = 1.5u, matching Input md. */
+  --tei-py: calc(var(--sf-unit) / 4 - 1px);
+  --tei-px: calc(var(--sf-unit) / 2);
+
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  /* Resting footprint: one line. The control is absolutely positioned, so the
+     expanded overlay grows past this box without reflowing the content below. */
+  block-size: calc(var(--sf-unit) * 1.5);
+  min-inline-size: 0;
+}
+
+/* Lift the whole control (and its overlay) above following flow content while
+   expanded — the overlay hovers over, never pushes. */
+.root[data-expanded] {
+  z-index: 10;
+}
+
+/* Shared box for the textarea and its collapsed preview so the first line lands
+   in the same place across the swap. */
+.area,
+.preview {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--tei-py) var(--tei-px);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-input-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--tei-fs);
+  line-height: var(--tei-lh);
+}
+
+/* The real editor. Rests filling the one-line footprint (its overflow clipped
+   and masked by the preview); expands to auto height when the root is active. */
+.area {
+  block-size: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  resize: none;
+  caret-shape: block;
+  caret-color: var(--sf-color-primary);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.area::placeholder {
+  color: var(--sf-color-muted);
+}
+
+.root[data-expanded] .area {
+  block-size: auto;
+  min-block-size: 100%;
+  /* Draggable while active; JS auto-grows it until the user takes over. */
+  resize: vertical;
+  /* Lift to the page colour + elevation-3, the "active writing surface" cue. */
+  background-color: var(--sf-color-bg);
+  border-color: var(--sf-color-primary);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-3);
+}
+
+.area:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+.area:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Decorative collapsed view: the value on one ellipsized line. Pointer-through
+   so hover/click reach the textarea underneath. */
+.preview {
+  block-size: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.preview.placeholder {
+  color: var(--sf-color-muted);
+}
+
+/* --- Sizes (sm/lg override the md base) ----------------------------------- */
+
+.sizeSm {
+  --tei-fs: var(--sf-font-size-sm);
+  --tei-lh: calc(1.25 * var(--sf-font-size-sm));
+  --tei-py: calc((var(--sf-unit) - 2px - 1.25 * var(--sf-font-size-sm)) / 2);
+  --tei-px: calc(var(--sf-unit) / 3);
+  block-size: var(--sf-unit);
+}
+
+.sizeLg {
+  --tei-fs: var(--sf-font-size-lg);
+  --tei-lh: var(--sf-leading-base);
+  --tei-py: calc((var(--sf-unit) * 2 - 2px - var(--sf-leading-base)) / 2);
+  --tei-px: calc(var(--sf-unit) * 2 / 3);
+  block-size: calc(var(--sf-unit) * 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .area {
+    transition: none;
+  }
+}
