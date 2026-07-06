@@ -1261,10 +1261,9 @@ Toggle switch (Base UI Switch.Root + Thumb). Forwards Base UI Switch props (`che
 
 `import { Tabs } from "@tarassov-ch/swiss-function/tabs"`
 
-Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props.
+Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props. The active tab reads as the primary colour + **bold** caption + the underline `Indicator`; the bold width is reserved (a hidden bold copy of the label), so selecting a tab never reflows the row (issue #41). The active state is keyed off `aria-selected`.
 
-**Elements / Parts:** `Root`, `List`, `Tab`, `Indicator` (active underline),
-`Panel` (paired by index).
+**Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve — pass plain-text labels to get it), `Indicator` (active underline), `Panel` (paired by index).
 
 ## TextEdit
 

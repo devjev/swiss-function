@@ -25,6 +25,29 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* The label reserves its own bold width: a flex column stacks the visible
+   caption over a zero-height hidden bold copy, so the column is always as wide
+   as the bold text and selecting (which bolds) never reflows the row (#41).
+   Kept on the label — not .tab — so consumers that restyle .tab (e.g.
+   ChatDrawer's icon tabs) keep their own display. */
+.label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Present only when the label is plain text (data-text); reserves the bold
+   width without adding height or accessibility noise. */
+.label[data-text]::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: var(--sf-font-weight-bold);
+  pointer-events: none;
+  user-select: none;
+}
+
 .tab:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, -2px);
@@ -35,8 +58,14 @@
   background-color: var(--sf-color-bg-subtle);
 }
 
-.tab[data-selected] {
+/* Base UI marks the active tab with aria-selected (the older data-selected
+   attribute it once emitted is gone — that stale selector meant the active tab
+   wasn't even getting its primary colour). */
+.tab[aria-selected="true"] {
   color: var(--sf-color-primary);
+  /* Bold reads as the active caption; the width is already reserved above, so
+     this no longer moves neighbouring tabs. */
+  font-weight: var(--sf-font-weight-bold);
 }
 
 .indicator {

@@ -136,7 +136,7 @@
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, 1px);
 }
-.viewTab[data-selected] {
+.viewTab[aria-selected="true"] {
   background-color: var(--sf-color-bg-subtle);
   color: var(--sf-color-primary);
 }

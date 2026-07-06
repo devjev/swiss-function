@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-06T14:35:22.143Z"
+    "date": "2026-07-06T14:50:37.640Z"
   },
-  "totalGzip": 651807,
+  "totalGzip": 652231,
   "entries": {
     ".": {
       "files": 211,
-      "jsRaw": 743176,
-      "jsGzip": 224337,
+      "jsRaw": 743412,
+      "jsGzip": 224443,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 224337,
+      "gzip": 224443,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -174,11 +174,11 @@
     },
     "./chat-drawer": {
       "files": 36,
-      "jsRaw": 65367,
-      "jsGzip": 24181,
+      "jsRaw": 65603,
+      "jsGzip": 24287,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24181,
+      "gzip": 24287,
       "externals": [
         "@base-ui/react/tabs",
         "react",
@@ -657,11 +657,11 @@
     },
     "./tabs": {
       "files": 4,
-      "jsRaw": 2166,
-      "jsGzip": 934,
+      "jsRaw": 2402,
+      "jsGzip": 1040,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 934,
+      "gzip": 1040,
       "externals": ["@base-ui/react/tabs", "react", "react/jsx-runtime"]
     },
     "./text-edit": {
@@ -721,11 +721,11 @@
     },
     "./reflow": {
       "files": 9,
-      "jsRaw": 10715,
-      "jsGzip": 4062,
+      "jsRaw": 10951,
+      "jsGzip": 4168,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4062,
+      "gzip": 4168,
       "externals": ["@base-ui/react/accordion", "@base-ui/react/tabs", "react", "react/jsx-runtime"]
     },
     "./lib/use-collapse": {

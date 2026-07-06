@@ -17,8 +17,19 @@ const List = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseTabs
 );
 
 const Tab = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof BaseTabs.Tab>>(
-  function TabsTab({ className, ...rest }, ref) {
-    return <BaseTabs.Tab {...rest} ref={ref} className={mergeClassName(styles.tab, className)} />;
+  function TabsTab({ className, children, ...rest }, ref) {
+    // Selecting a tab bolds its caption; bold text is wider, so without a width
+    // reserve the whole row reflows (issue #41). When the label is plain text we
+    // stash it in `data-text` and let CSS paint a hidden bold copy underneath —
+    // the tab always sizes to its bold width, so weight can change with no jump.
+    const label = typeof children === "string" ? children : undefined;
+    return (
+      <BaseTabs.Tab {...rest} ref={ref} className={mergeClassName(styles.tab, className)}>
+        <span className={styles.label} data-text={label}>
+          {children}
+        </span>
+      </BaseTabs.Tab>
+    );
   },
 );
 
