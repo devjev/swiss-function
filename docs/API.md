@@ -37,7 +37,7 @@ Per-component prop/element reference for every exported component in the library
   for the full surface.
 
 **Components (A–Z):** BarChart · Box · BridgeChart · Button ·
-ButtonGroup · Chat · Checkbox · DataTable · DatePicker · Dialog · DigitInput · Dropzone ·
+ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitInput · Dropzone ·
 Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
@@ -306,6 +306,32 @@ A compact token — tag, filter, status marker, or removable selection. Renders 
 ```
 
 The `--chip-accent` custom property is the single knob a tone sets; the dot, hover tint, and remove-button hover all derive from it, so a consumer override is one line.
+
+## CodeEditor
+
+`import { CodeEditor } from "@tarassov-ch/swiss-function/code-editor"`
+
+A code editor — a thin wrapper over **CodeMirror 6**, themed entirely through `--sf-color-code-*` tokens (light/dark is the usual `[data-theme]` swap, never a JS branch), with opt-in Vim mode. Bring your own language via `extensions` (e.g. `javascript()` from `@codemirror/lang-javascript` — language packages are peer/consumer-installed, none are bundled). The `EditorView` is created once and reconfigured in place via compartments, so undo history and cursor survive prop changes. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`/`defaultValue`).
+
+Auto-grows with content by default; give the root a `height` (via `style`/`className`) to fix its size and let it scroll. `CodeEditor` requires the `@codemirror/*` + `@replit/codemirror-vim` packages (declared dependencies, externalized like `react-markdown`); `sfCodeTheme` is also exported for advanced composition.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `string` | — | Controlled document text. |
+| `defaultValue` | `string` | `""` | Initial text when uncontrolled. |
+| `onChange` | `(value: string) => void` | — | Fires with the full document on every edit. |
+| `extensions` | `Extension[]` | `[]` | Language / feature extensions. **Memoize** — a new array each render reconfigures the editor. |
+| `vim` | `boolean` | `false` | Enable Vim keybindings (`@replit/codemirror-vim`). |
+| `readOnly` | `boolean` | `false` | Read-only (still selectable/focusable). |
+| `editable` | `boolean` | `true` | Whether content is editable. |
+| `placeholder` | `string` | — | Shown when empty. |
+| `lineNumbers` | `boolean` | `true` | Line-number + fold gutter. |
+| `lineWrapping` | `boolean` | `false` | Soft-wrap instead of horizontal scroll. |
+| `tabSize` | `number` | `2` | Spaces per indent level. |
+| `autoFocus` | `boolean` | `false` | Focus on mount. |
+| `onCreateEditor` | `(view: EditorView) => void` | — | Receive the underlying CodeMirror `EditorView`. |
+
+The syntax palette lives in tokens: `--sf-color-code-{bg,fg,comment,keyword,string,number,name,type,constant,operator,punctuation,tag,attribute,link,cursor,gutter-fg,selection,active-line,matched-bracket}`. Most reuse a semantic token (so they follow the theme); only the keyword and type hues carry a dark override.
 
 ## DataTable
 

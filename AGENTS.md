@@ -92,6 +92,7 @@ Ladle (`npm run dev`).
 | `Kbd`           | Renders a keyboard shortcut as OS-aware keycaps (`combo="mod+k"` → ⌘K on macOS, Ctrl+K elsewhere). `mod` = primary modifier; never shows ⌘ off-Mac. For labels/menus/tooltips. |
 | `TextEdit`      | Multi-line / auto-growing text input.                     |
 | `TextEditInline`| Single line at rest, expands to a multi-line editor on hover/focus — the overlay *floats over* the content below (`elevation-3`) instead of pushing it down, auto-grows with content and is vertically resizable while active; collapses back to one ellipsized line on blur. `size` (`sm`/`md`/`lg`, matches Input heights), `maxRows`. Reach for this in dense rows/tables where a note is usually short but occasionally long. |
+| `CodeEditor`    | Editing source / config / structured text (JS, JSON, SQL, YAML…). A thin CodeMirror 6 wrapper, themed to `--sf-color-code-*` tokens (dark/light via `[data-theme]`), with opt-in `vim`. Bring the language via `extensions` (e.g. `javascript()` — install the `@codemirror/lang-*` package; none are bundled). `value`/`onChange`, `readOnly`, `lineNumbers`, `lineWrapping`, `tabSize`. Auto-grows; set a root `height` to fix + scroll. Not for prose — that's `TextEdit`/`Markdown`. |
 | `Checkbox`      | Binary independent toggles in lists.                      |
 | `Radio`         | Single-choice within a group.                             |
 | `Switch`        | Binary on/off for a setting, with an immediate effect.    |
@@ -355,6 +356,7 @@ Common requests and the right component:
 | "empty state" / "no results" / "error state"       | `NonIdealState` (variant per case)               |
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
+| "a code / config editor" / "syntax highlighting" / "JSON/SQL/JS editor" / "vim mode" | `CodeEditor` (CodeMirror 6; language via `extensions`, opt-in `vim`) |
 | "chat UI"                                          | `Chat`                                           |
 | "a chat in a drawer / assistant side panel / chat that shows it's thinking" | `ChatDrawer` (`thinking` + `onThinkingStart`/`End`) |
 | "in-chat choice menu / decision tree / custom block in a chat reply" | `Chat` `parts` (+ `renderPart` for custom) + `onAction` |

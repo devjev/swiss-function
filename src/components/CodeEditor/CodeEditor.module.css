@@ -1,0 +1,30 @@
+/* CodeEditor — the frame; all interior colour comes from the token-bound
+   CodeMirror theme in theme.ts. Flex column so the editor auto-grows with
+   content by default, yet fills (and scrolls) when the root is given a height. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+  background-color: var(--sf-color-code-bg);
+}
+
+.root:focus-within {
+  border-color: var(--sf-color-primary);
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+.root :global(.cm-editor) {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+/* The container already carries focus affordance (border + ring); drop
+   CodeMirror's own focus outline to avoid a double ring. */
+.root :global(.cm-editor.cm-focused) {
+  outline: none;
+}

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-05T16:47:09.490Z"
+    "date": "2026-07-06T14:09:50.478Z"
   },
-  "totalGzip": 638631,
+  "totalGzip": 651176,
   "entries": {
     ".": {
-      "files": 206,
-      "jsRaw": 726723,
-      "jsGzip": 218966,
+      "files": 211,
+      "jsRaw": 742633,
+      "jsGzip": 223955,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 218966,
+      "gzip": 223955,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -31,9 +31,17 @@
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
         "@base-ui/react/use-render",
+        "@codemirror/autocomplete",
+        "@codemirror/commands",
+        "@codemirror/language",
+        "@codemirror/search",
+        "@codemirror/state",
+        "@codemirror/view",
         "@dnd-kit/core",
         "@dnd-kit/sortable",
         "@dnd-kit/utilities",
+        "@lezer/highlight",
+        "@replit/codemirror-vim",
         "@tanstack/react-table",
         "@tanstack/react-virtual",
         "graphology",
@@ -54,9 +62,9 @@
       "files": 1,
       "jsRaw": 0,
       "jsGzip": 0,
-      "cssRaw": 11156,
-      "cssGzip": 4282,
-      "gzip": 4282,
+      "cssRaw": 13014,
+      "cssGzip": 4812,
+      "gzip": 4812,
       "externals": []
     },
     "./reset.css": {
@@ -66,6 +74,15 @@
       "cssRaw": 837,
       "cssGzip": 373,
       "gzip": 373,
+      "externals": []
+    },
+    "./fonts.css": {
+      "files": 1,
+      "jsRaw": 0,
+      "jsGzip": 0,
+      "cssRaw": 1210,
+      "cssGzip": 590,
+      "gzip": 590,
       "externals": []
     },
     "./lib/cx": {
@@ -88,11 +105,11 @@
     },
     "./bar-chart": {
       "files": 28,
-      "jsRaw": 75953,
-      "jsGzip": 22545,
+      "jsRaw": 76328,
+      "jsGzip": 22664,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22545,
+      "gzip": 22664,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -111,11 +128,11 @@
     },
     "./bridge-chart": {
       "files": 28,
-      "jsRaw": 76028,
-      "jsGzip": 22575,
+      "jsRaw": 76403,
+      "jsGzip": 22695,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22575,
+      "gzip": 22695,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -134,11 +151,11 @@
     },
     "./candlestick-chart": {
       "files": 28,
-      "jsRaw": 87201,
-      "jsGzip": 25370,
+      "jsRaw": 87540,
+      "jsGzip": 25473,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25370,
+      "gzip": 25473,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -168,6 +185,26 @@
         "react-markdown",
         "react/jsx-runtime",
         "remark-gfm"
+      ]
+    },
+    "./code-editor": {
+      "files": 6,
+      "jsRaw": 10837,
+      "jsGzip": 3536,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 3536,
+      "externals": [
+        "@codemirror/autocomplete",
+        "@codemirror/commands",
+        "@codemirror/language",
+        "@codemirror/search",
+        "@codemirror/state",
+        "@codemirror/view",
+        "@lezer/highlight",
+        "@replit/codemirror-vim",
+        "react",
+        "react/jsx-runtime"
       ]
     },
     "./explorer": {
@@ -211,11 +248,11 @@
     },
     "./flows": {
       "files": 28,
-      "jsRaw": 78375,
-      "jsGzip": 23334,
+      "jsRaw": 78995,
+      "jsGzip": 23527,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 23334,
+      "gzip": 23527,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -265,11 +302,11 @@
     },
     "./heatmap": {
       "files": 24,
-      "jsRaw": 72540,
-      "jsGzip": 21353,
+      "jsRaw": 72915,
+      "jsGzip": 21473,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 21353,
+      "gzip": 21473,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -338,11 +375,11 @@
     },
     "./scatterplot": {
       "files": 28,
-      "jsRaw": 91295,
-      "jsGzip": 26168,
+      "jsRaw": 91630,
+      "jsGzip": 26273,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26168,
+      "gzip": 26273,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -634,6 +671,15 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 715,
+      "externals": ["react", "react/jsx-runtime"]
+    },
+    "./text-edit-inline": {
+      "files": 5,
+      "jsRaw": 5405,
+      "jsGzip": 2140,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 2140,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./timeline": {

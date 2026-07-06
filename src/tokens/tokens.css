@@ -59,6 +59,31 @@
     --sf-focus-ring-width: 2px;
     --sf-color-overlay: rgb(0 0 0 / 0.4);
 
+    /* Color — code syntax (CodeEditor). Restrained, brand-aligned: most roles
+       reuse a semantic token (so they follow the theme automatically), and only
+       the keyword violet + type cyan carry their own hue — those two get a dark
+       override below. Structural bits (selection, active line, matched bracket)
+       are color-mixed off existing tokens, so they adapt with no dark override. */
+    --sf-color-code-bg: var(--sf-color-bg-subtle);
+    --sf-color-code-fg: var(--sf-color-fg);
+    --sf-color-code-comment: var(--sf-color-muted);
+    --sf-color-code-keyword: #7c3aed;
+    --sf-color-code-string: var(--sf-color-success);
+    --sf-color-code-number: var(--sf-color-warning);
+    --sf-color-code-name: var(--sf-color-primary);
+    --sf-color-code-type: #0891b2;
+    --sf-color-code-constant: var(--sf-color-danger);
+    --sf-color-code-operator: var(--sf-color-fg-subtle);
+    --sf-color-code-punctuation: var(--sf-color-fg-subtle);
+    --sf-color-code-tag: var(--sf-color-primary);
+    --sf-color-code-attribute: var(--sf-color-warning);
+    --sf-color-code-link: var(--sf-color-primary);
+    --sf-color-code-cursor: var(--sf-color-primary);
+    --sf-color-code-gutter-fg: var(--sf-color-muted);
+    --sf-color-code-selection: color-mix(in srgb, var(--sf-color-primary), transparent 78%);
+    --sf-color-code-active-line: color-mix(in srgb, var(--sf-color-fg), transparent 96%);
+    --sf-color-code-matched-bracket: color-mix(in srgb, var(--sf-color-primary), transparent 65%);
+
     /* Spacing */
     --sf-space-0: 0;
     --sf-space-1: 0.25rem;
@@ -223,5 +248,9 @@
     --sf-color-warning: #f59e0b;
     --sf-color-focus-ring: #60a5fa;
     --sf-color-overlay: rgb(0 0 0 / 0.6);
+    /* Only the two own-hue code roles need a dark lift; the rest ride semantic
+       tokens or color-mix and adapt on their own. */
+    --sf-color-code-keyword: #a78bfa;
+    --sf-color-code-type: #22d3ee;
   }
 }

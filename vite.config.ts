@@ -50,6 +50,7 @@ const componentNames = [
   "Surface",
   "DataTable",
   "Tabs",
+  "CodeEditor",
   "TextEdit",
   "TextEditInline",
   "Timeline",
@@ -127,6 +128,13 @@ export default defineConfig({
         // their importers are external.
         /^graphology/,
         /^sigma/,
+        // CodeEditor's engine — same treatment as the above: in `dependencies`,
+        // resolved by the consumer's bundler, never pre-bundled. Transitive deps
+        // (style-mod, crelt, w3c-keyname, @lezer/common) vanish once their
+        // @codemirror/@lezer importers are external, so they stay off this list.
+        /^@codemirror\//,
+        /^@lezer\//,
+        /^@replit\/codemirror-vim/,
       ],
       input: {
         index: resolve(__dirname, "src/index.ts"),
