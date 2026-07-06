@@ -63,30 +63,58 @@ jobs:
           npm publish
 
       # The registry gets the package; the repo Releases page gets the release
-      # entry with the packed tarball attached (the manual `just
-      # release-package` flow, automated). Idempotent like the publish above:
-      # an existing release is reused, an existing asset is skipped.
+      # entry with the packed tarball attached (the manual `just release-package`
+      # flow, automated). Idempotent: an existing release is reused (create races
+      # to 409 → re-fetch), an already-attached asset is skipped.
+      #
+      # Every API call captures the HTTP status and body separately and parses
+      # JSON only on a success status. Do NOT pipe `curl -f` straight into
+      # `JSON.parse` — on any non-2xx, curl emits an empty body, the pipe runs
+      # node anyway, and `JSON.parse("")` dies with "Unexpected end of JSON
+      # input" (and under `-o pipefail`, `-f` aborts even a benign 409).
       - name: Forgejo release + tarball asset
         env:
           TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         run: |
+          set -euo pipefail
           API="https://code.tarassov.ch/api/v1/repos/${GITHUB_REPOSITORY}"
           TAG="${GITHUB_REF_NAME}"
           AUTH="Authorization: token $TOKEN"
-          RELEASE_ID=$(curl -sf -H "$AUTH" "$API/releases/tags/$TAG" \
-            | node -p "JSON.parse(require('fs').readFileSync(0)).id" 2>/dev/null || true)
-          if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
-              -d "{\"tag_name\": \"$TAG\", \"name\": \"Release $TAG\"}" "$API/releases" \
-              | node -p "JSON.parse(require('fs').readFileSync(0)).id")
+          BODY="$(mktemp)"
+
+          # req METHOD URL [curl-args...] — writes body to $BODY, echoes HTTP status.
+          # No -f: we inspect the status ourselves instead of aborting the pipe.
+          req() {
+            local method="$1" url="$2"; shift 2
+            curl -sS -o "$BODY" -w '%{http_code}' -X "$method" -H "$AUTH" "$@" "$url"
+          }
+          json_id() { node -p "JSON.parse(require('fs').readFileSync('$BODY','utf8')).id"; }
+
+          code=$(req GET "$API/releases/tags/$TAG")
+          if [ "$code" = 200 ]; then
+            RELEASE_ID=$(json_id)
+          else
+            code=$(req POST "$API/releases" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\"}")
+            if [ "$code" = 201 ]; then
+              RELEASE_ID=$(json_id)
+            elif [ "$code" = 409 ]; then
+              # Concurrent job (or the tag push itself) already made the release.
+              code=$(req GET "$API/releases/tags/$TAG")
+              [ "$code" = 200 ] || { echo "::error::release lookup after 409 failed (HTTP $code)"; cat "$BODY"; exit 1; }
+              RELEASE_ID=$(json_id)
+            else
+              echo "::error::creating release for $TAG failed (HTTP $code)"; cat "$BODY"; exit 1
+            fi
           fi
+
           TARBALL=$(npm pack --pack-destination /tmp | tail -1)
-          if curl -sf -H "$AUTH" "$API/releases/$RELEASE_ID/assets" \
-            | node -p "JSON.parse(require('fs').readFileSync(0)).some(a => a.name === '$TARBALL')" \
-            | grep -q true; then
+          code=$(req GET "$API/releases/$RELEASE_ID/assets")
+          if [ "$code" = 200 ] && node -e "process.exit(JSON.parse(require('fs').readFileSync('$BODY','utf8')).some(a => a.name === '$TARBALL') ? 0 : 1)"; then
             echo "Asset $TARBALL already attached — skipping."
           else
-            curl -sf -X POST -H "$AUTH" -F "attachment=@/tmp/$TARBALL" \
-              "$API/releases/$RELEASE_ID/assets?name=$TARBALL" > /dev/null
+            code=$(req POST "$API/releases/$RELEASE_ID/assets?name=$TARBALL" -F "attachment=@/tmp/$TARBALL")
+            [ "$code" = 201 ] || { echo "::error::asset upload of $TARBALL failed (HTTP $code)"; cat "$BODY"; exit 1; }
             echo "Attached $TARBALL to release $TAG."
           fi
