@@ -177,6 +177,20 @@ test("number cell edits with a DigitInputMicro and commits a parsed number", asy
   expect(changes).toEqual([{ rowIndex: 0, columnId: "score", value: 7 }]);
 });
 
+test("number editor's font-size matches the cell (no size jump on edit)", async ({ mount }) => {
+  // Regression: DigitInputMicro defaults to --sf-font-size-md (16px) while the
+  // body cell is --sf-font-size-sm (14px); the DataTable editor wrapper pins the
+  // editor to the cell size so entering edit mode doesn't grow the row.
+  const component = await mount(<EditorsHarness />);
+  const scoreCell = component.getByRole("gridcell").nth(1);
+  const cellSize = await scoreCell.evaluate((el) => getComputedStyle(el).fontSize);
+  await scoreCell.dblclick();
+  const input = scoreCell.locator("input").first();
+  await expect(input).toBeFocused();
+  const inputSize = await input.evaluate((el) => getComputedStyle(el).fontSize);
+  expect(inputSize).toBe(cellSize);
+});
+
 test("date cell edits with a DatePicker and commits a Date", async ({ mount, page }) => {
   let changes: unknown = null;
   const component = await mount(<EditorsHarness onCellChange={(c) => (changes = c)} />);

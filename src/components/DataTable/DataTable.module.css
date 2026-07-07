@@ -513,6 +513,18 @@
   background: transparent;
   box-shadow: none;
   z-index: 2;
+  /* Match the cell's text size (see `.cell`) so entering edit mode doesn't grow
+     the row. The editors default to `--sf-font-size-md` (16px); the body cell is
+     `sm` (14px). DigitInputMicro's input inherits this; DatePicker's `.input`
+     sets its own size, normalized below. */
+  font-size: var(--sf-font-size-sm);
+}
+
+/* Editors whose inner native input carries an explicit `font-size` (DatePicker's
+   `.input`, at `md` by default) — pin them to the cell size too. */
+.cell .editor input,
+.cell .editor textarea {
+  font-size: var(--sf-font-size-sm);
 }
 
 /* Controls that carry their frame on an inner wrapper — DatePicker's `.field`
