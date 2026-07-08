@@ -1,0 +1,192 @@
+/* ThemeBuilder — live token editor + preview + export (issue #50). Container-
+   responsive (JS-free): a single column when narrow, controls beside preview
+   when wide, with the export bar spanning the full width beneath. */
+/* .root establishes the containment context; the responsive grid lives on the
+   inner .layout so the query can react to .root's width (an element can't
+   respond to its own container-type). */
+.root {
+  container-type: inline-size;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.layout {
+  display: grid;
+  gap: var(--sf-unit);
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "controls"
+    "preview"
+    "export";
+}
+
+@container (min-width: 44rem) {
+  .layout {
+    grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    grid-template-areas:
+      "controls preview"
+      "export export";
+  }
+}
+
+/* --- Controls --- */
+.controls {
+  grid-area: controls;
+  display: grid;
+  gap: var(--sf-unit);
+  align-content: start;
+}
+
+.themeToggle,
+.formatToggle,
+.exportActions {
+  display: flex;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.group {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  margin: 0;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 3 / 4) calc(var(--sf-unit) * 3 / 4);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  min-inline-size: 0;
+}
+
+.legend {
+  padding-inline: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+}
+
+.row {
+  display: grid;
+  gap: calc(var(--sf-unit) / 4);
+  min-inline-size: 0;
+}
+
+.label {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-fg);
+}
+
+/* Metadata note — legitimately secondary, so muted is allowed here. */
+.agnostic {
+  font-weight: var(--sf-font-weight-regular);
+  color: var(--sf-color-muted);
+}
+
+.editor {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 3);
+  min-inline-size: 0;
+}
+.editor > :last-child {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+/* The native colour input, sized onto the grid. Cross-browser it keeps a small
+   inner swatch; we strip its chrome and round it to the system radius. */
+.swatch {
+  flex: none;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background: none;
+  cursor: pointer;
+}
+.swatch::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+.swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 1px;
+}
+.swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 1px;
+}
+.swatch:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+/* --- Preview --- */
+.previewPane {
+  grid-area: preview;
+  display: grid;
+  gap: calc(var(--sf-unit) / 4);
+  align-content: start;
+  min-inline-size: 0;
+}
+
+.previewLabel {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+/* The themed scope: it reads the (possibly overridden) tokens, so the sample
+   inside re-themes live. Painted from the tokens so its own surface follows. */
+.preview {
+  padding: var(--sf-unit);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+}
+
+.gallery {
+  display: grid;
+  gap: var(--sf-unit);
+}
+.galleryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+.galleryText {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+
+/* --- Export --- */
+.export {
+  grid-area: export;
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+}
+.exportBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.output {
+  max-block-size: calc(var(--sf-unit) * 10);
+  overflow: auto;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 3 / 4);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg-subtle);
+  color: var(--sf-color-fg);
+}
+
+.pre {
+  margin: 0;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-tight);
+  white-space: pre;
+  tab-size: 2;
+}

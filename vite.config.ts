@@ -55,6 +55,7 @@ const componentNames = [
   "CodeEditor",
   "TextEdit",
   "TextEditInline",
+  "ThemeBuilder",
   "Timeline",
   "ToggleGroup",
   "Selector",

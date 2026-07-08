@@ -25,6 +25,12 @@
     "./tokens.css": "./dist/tokens/tokens.css",
     "./reset.css": "./dist/tokens/reset.css",
     "./fonts.css": "./dist/tokens/fonts.css",
+    "./tokens.json": "./dist/tokens/tokens.json",
+    "./tokens.style-dictionary.json": "./dist/tokens/tokens.style-dictionary.json",
+    "./tokens.js": {
+      "types": "./dist/tokens/tokens.d.ts",
+      "import": "./dist/tokens/tokens.js"
+    },
     "./lib/cx": {
       "types": "./dist/lib/cx.d.ts",
       "import": "./dist/lib/cx.js"
@@ -241,6 +247,10 @@
       "types": "./dist/components/TextEditInline/index.d.ts",
       "import": "./dist/components/TextEditInline/index.js"
     },
+    "./theme-builder": {
+      "types": "./dist/components/ThemeBuilder/index.d.ts",
+      "import": "./dist/components/ThemeBuilder/index.js"
+    },
     "./timeline": {
       "types": "./dist/components/Timeline/index.d.ts",
       "import": "./dist/components/Timeline/index.js"
@@ -269,7 +279,7 @@
   },
   "scripts": {
     "dev": "ladle serve",
-    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs",
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs && node scripts/tokens/build.mjs",
     "build:stories": "ladle build",
     "build-storybook": "ladle build -o storybook-static",
     "test": "vitest run",
@@ -283,6 +293,7 @@
     "vrt": "playwright test -c playwright-vrt.config.ts",
     "vrt:update": "playwright test -c playwright-vrt.config.ts --update-snapshots",
     "vrt:list": "node scripts/vrt/list-stories.mjs",
+    "tokens:build": "node scripts/tokens/build.mjs",
     "changeset": "node scripts/changes/changes.mjs add",
     "changes:status": "node scripts/changes/changes.mjs status",
     "changes:version": "node scripts/changes/changes.mjs version",

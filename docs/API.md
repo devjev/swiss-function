@@ -1383,6 +1383,29 @@ A `<textarea>` that rests as a single line and expands to a multi-line editor on
 
 While expanded the root carries `data-expanded="true"` (hook for container styling). The collapsed preview is an `aria-hidden` decorative line; the real `<textarea>` stays focusable behind it.
 
+## ThemeBuilder
+
+`import { ThemeBuilder } from "@tarassov-ch/swiss-function/theme-builder"`
+
+Live editor for the `--sf-*` tokens (issue #50): tweak the curated palette / unit / radius / typography / motion and watch a component sample **retheme instantly** (overrides are applied as inline custom properties on the preview scope), then copy the result as a **CSS theme** or **JSON**. `tokens.css` stays the canonical source — this only makes *overriding* it ergonomic (anti-scope: it does not change the default palette). Container-responsive (JS-free): controls beside the preview when wide, stacked when narrow.
+
+Colours are edited **per theme** (a Light/Dark toggle) and export under `:root` / `[data-theme="dark"]`; dimension/typography/motion tokens are theme-agnostic and export to `:root`. Only *changed* tokens appear in the output.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `defaultTheme` | `"light" \| "dark"` | `"light"` | Which theme the colour controls edit first. |
+| `tokens` | `ThemeToken[]` | curated set | Override the authorable token list. |
+| `onChange` | `(overrides: ThemeOverrides) => void` | — | Fires with the full changed-only override map (`{ base, light, dark }`). |
+| `children` | `ReactNode` | sample gallery | Preview content rendered under the live theme. |
+
+Also exports the pure serialisers `themeToCss(overrides)` / `themeToJson(overrides)` and the `ThemeToken` / `ThemeOverrides` types.
+
+**Token pipeline** — the same canonical `tokens.css` is emitted to other targets at build (`scripts/tokens/build.mjs`, run as the tail of `npm run build`; standalone `npm run tokens:build`):
+
+- `@tarassov-ch/swiss-function/tokens.json` — `{ light, dark }` declared values.
+- `@tarassov-ch/swiss-function/tokens.js` — `values` + `vars` (camelCased `var()` accessors, e.g. `vars.colorFg === "var(--sf-color-fg)"`) for JS/canvas-land.
+- `@tarassov-ch/swiss-function/tokens.style-dictionary.json` — a Style-Dictionary-format tree, so the tokens can be fed into Style Dictionary downstream for further targets. (A lightweight in-repo pipeline is used rather than the `style-dictionary` package, which would want a JSON source as canonical.)
+
 ## Timeline
 
 `import { Timeline } from "@tarassov-ch/swiss-function/timeline"`
