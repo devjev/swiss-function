@@ -103,9 +103,31 @@ install:
 clean:
     rm -rf dist .ladle/build test-results playwright-report coverage perf/results
 
-# Cut a release: bump version (patch/minor/major), push with the tag —
-# CI (.gitea/workflows/publish.yml) publishes the package and creates the
-# Forgejo release with the tarball attached. Tag only after merging to main.
-release bump="patch":
-    npm version {{bump}}
+# Declare a changeset for the current change (issue #48): intent + note.
+# e.g. `just changeset minor "Add the Form primitives"`. Aggregated at release.
+changeset bump note:
+    node scripts/changes/changes.mjs add {{bump}} "{{note}}"
+
+# Show pending changesets and the version bump they'd produce
+changes-status:
+    node scripts/changes/changes.mjs status
+
+# Cut a release: aggregate the pending changesets into a single bump, generate
+# the CHANGELOG section, bump the version, then commit + tag + push — CI
+# (.gitea/workflows/publish.yml) publishes the package and creates the Forgejo
+# release with the tarball attached and the generated notes as its body. Pass an
+# explicit bump (patch/minor/major) to force one with no changesets (hotfix).
+# Tag only after merging to main.
+release bump="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "{{bump}}" ]; then
+        node scripts/changes/changes.mjs version --bump "{{bump}}"
+    else
+        node scripts/changes/changes.mjs version
+    fi
+    version=$(node -p "require('./package.json').version")
+    git add -A
+    git commit -m "${version}"
+    git tag "v${version}"
     git push --follow-tags

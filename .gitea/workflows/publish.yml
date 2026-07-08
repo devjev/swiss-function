@@ -90,13 +90,29 @@ jobs:
           }
           json_id() { node -p "JSON.parse(require('fs').readFileSync('$BODY','utf8')).id"; }
 
+          # Release notes come from the changeset-generated CHANGELOG section for
+          # this version (issue #48) — no hand-written blurb. A missing section
+          # yields an empty body (the helper exits 0). The payload is built with
+          # node so the multi-line markdown body is safely JSON-encoded.
+          VERSION="${TAG#v}"
+          NOTES="$(node scripts/changes/changelog-section.mjs "$VERSION" || true)"
+          PAYLOAD="$(mktemp)"
+          TAG="$TAG" NOTES="$NOTES" PAYLOAD_OUT="$PAYLOAD" node -e '
+            const fs = require("fs");
+            fs.writeFileSync(process.env.PAYLOAD_OUT, JSON.stringify({
+              tag_name: process.env.TAG,
+              name: "Release " + process.env.TAG,
+              body: process.env.NOTES || "",
+            }));
+          '
+
           code=$(req GET "$API/releases/tags/$TAG")
           if [ "$code" = 200 ]; then
             RELEASE_ID=$(json_id)
           else
             code=$(req POST "$API/releases" \
               -H "Content-Type: application/json" \
-              -d "{\"tag_name\":\"$TAG\",\"name\":\"Release $TAG\"}")
+              -d @"$PAYLOAD")
             if [ "$code" = 201 ]; then
               RELEASE_ID=$(json_id)
             elif [ "$code" = 409 ]; then
@@ -108,6 +124,13 @@ jobs:
               echo "::error::creating release for $TAG failed (HTTP $code)"; cat "$BODY"; exit 1
             fi
           fi
+
+          # Set the name + generated notes even if the release pre-existed (a tag
+          # push can auto-create a bodyless one). Best-effort — a failed body
+          # update must not fail the publish.
+          code=$(req PATCH "$API/releases/$RELEASE_ID" \
+            -H "Content-Type: application/json" -d @"$PAYLOAD")
+          [ "$code" = 200 ] || echo "::warning::could not update release body (HTTP $code)"
 
           TARBALL=$(npm pack --pack-destination /tmp | tail -1)
           code=$(req GET "$API/releases/$RELEASE_ID/assets")

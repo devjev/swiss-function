@@ -574,12 +574,20 @@ fetching the HTML page paraphrases the markdown.
    results, deviations from plan, bugs found during visual verification, and
    which milestones remain.
 4. **Close via commit message** (`closes #N`) only when the issue is complete
-   end-to-end. Commits go straight to `main` (solo repo, no PRs).
-5. **Ship with `just release [patch|minor|major]`** (npm version + push
-   `--follow-tags`). CI — `.gitea/workflows/publish.yml`, note `.gitea/` not
-   `.forgejo/` — guards that the tag is on `main`, publishes to the Forgejo
-   npm registry, and creates the Forgejo Release with the packed tarball
-   attached. Never `npm publish` manually; CI races you.
+   end-to-end. Commits go straight to `main` (solo repo, no PRs). Land a
+   **changeset** with the change (issue #48): `just changeset <bump> "<note>"`
+   writes `.changes/<slug>.md` declaring the version bump + release note. See
+   `.changes/README.md`.
+5. **Ship with `just release`** (issue #48): it aggregates the pending
+   `.changes/` entries into a single bump (highest wins), prepends the generated
+   notes to `CHANGELOG.md`, runs `npm version`, deletes the consumed changesets,
+   then commits + tags + pushes `--follow-tags`. Pass an explicit bump
+   (`just release patch`) to force one with no changesets. CI —
+   `.gitea/workflows/publish.yml`, note `.gitea/` not `.forgejo/` — guards that
+   the tag is on `main`, publishes to the Forgejo npm registry, and creates the
+   Forgejo Release with the packed tarball attached **and the CHANGELOG section
+   as its body** (no hand-written notes). Never `npm publish` manually; CI races
+   you. `just changes-status` shows what a release would ship.
 6. **Quality bar per issue**: colocated unit tests for pure logic, Playwright
    CT for interactions, Ladle stories, a visual pass in *both* themes (drive
    Ladle with Playwright and look at the screenshots — this catches real
