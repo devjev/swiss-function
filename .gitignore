@@ -23,6 +23,14 @@ playwright/.cache
 *.tgz
 perf/results
 
+# Visual-regression baselines & output — machine/font-specific pixel data,
+# seeded locally with `npm run vrt:update` (see vrt/README.md). Like the perf
+# and size baselines, these are not portable across machines, so the images
+# are kept out of git; the harness + committed story manifest are versioned.
+vrt/__screenshots__
+vrt/results
+vrt/test-results
+
 # CI security-scan artifacts (generated at the repo root; never committed or linted)
 snyk_results.html
 .snyk

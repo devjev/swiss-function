@@ -50,6 +50,19 @@ size:
 size-update:
     npm run size:update
 
+# Visual regression: pixel-diff every story in both themes vs baseline
+# (needs Ladle — `just dev` — or it will start one). Local gate.
+vrt:
+    npm run vrt
+
+# Seed / rewrite the visual-regression baselines (baseline machine only)
+vrt-update:
+    npm run vrt:update
+
+# Refresh vrt/stories.json from the running Ladle's story list
+vrt-list:
+    npm run vrt:list
+
 # Biome lint
 lint:
     npm run lint

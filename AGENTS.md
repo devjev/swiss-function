@@ -512,6 +512,19 @@ disjoint glob: micro-benchmarks, run only by `npm run bench`.
   `perf/size-baseline.json`; `npm run size:update` rewrites. Needs a
   fresh `npm run build`.
 
+**Visual regression gate (issue #47, also local-only):**
+
+- `npm run vrt` — self-hosted pixel-diff over the Ladle stories
+  (`playwright-vrt.config.ts`, test glob `vrt/*.vrt.ts` — disjoint from CT's
+  `*.spec.tsx`). Renders every story in `vrt/stories.json` in **both themes**
+  with reduced motion and diffs against a baseline via Playwright's
+  `toHaveScreenshot`. `npm run vrt:update` seeds/refreshes baselines;
+  `npm run vrt:list` refreshes the story manifest. Like the perf/size
+  baselines, the reference images are machine-specific and **not committed**
+  (git-ignored); the harness + manifest are versioned. Canvas/WebGL stories
+  are non-deterministic — drop them with `VRT_EXCLUDE`. See `vrt/README.md`.
+  This is the automated form of the manual "visual pass in both themes" below.
+
 ---
 
 ## Build architecture (for contributors)

@@ -1,0 +1,30 @@
+/* Stabilises stories for pixel-diffing. Injected via Playwright's
+   `toHaveScreenshot({ stylePath })`. Playwright already fast-forwards CSS
+   animations/transitions to their end state (`animations: "disabled"`); this
+   belt-and-braces halts anything that slips through and removes incidental
+   motion (carets, scrollbars) so a baseline stays stable across runs.
+
+   Note: <canvas>/WebGL surfaces (charts, Graph, Map, NonIdealState/Skeleton
+   dither, Spinner) are NOT frozen here — their frames aren't deterministic
+   across machines. Exclude those groups from the gate with VRT_EXCLUDE, or
+   accept them under the configured maxDiffPixelRatio. */
+
+*,
+*::before,
+*::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-play-state: paused !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  caret-color: transparent !important;
+  scroll-behavior: auto !important;
+}
+
+/* Hide scrollbars — their presence flickers with sub-pixel content height. */
+* {
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  display: none !important;
+}
