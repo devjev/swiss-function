@@ -1,0 +1,8 @@
+/* The icon primitive. currentColor + no fill live on the SVG element itself;
+   this only handles flow: an inline glyph that sits on the text baseline and
+   never shrinks in a flex row (beside a label, inside a Button). */
+.root {
+  display: inline-block;
+  flex: none;
+  vertical-align: text-bottom;
+}

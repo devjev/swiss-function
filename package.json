@@ -107,6 +107,10 @@
       "types": "./dist/components/Heatmap/index.d.ts",
       "import": "./dist/components/Heatmap/index.js"
     },
+    "./icon": {
+      "types": "./dist/components/Icon/index.d.ts",
+      "import": "./dist/components/Icon/index.js"
+    },
     "./input": {
       "types": "./dist/components/Input/index.d.ts",
       "import": "./dist/components/Input/index.js"

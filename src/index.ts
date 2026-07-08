@@ -26,6 +26,7 @@ export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";
 export * from "./components/Heatmap";
+export * from "./components/Icon";
 export * from "./components/Input";
 export * from "./components/Kbd";
 export * from "./components/Map";

@@ -845,6 +845,27 @@ field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `renderTooltip` | `(d: HeatmapDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
+## Icon
+
+`import { Icon, Check, ChevronDown /* … */ } from "@tarassov-ch/swiss-function/icon"`
+
+A consistent, tree-shakeable icon set matched to the library's aesthetic (issue #51): a `16×16`, `currentColor`, **square-capped line** glyph on the `--sf-unit` grid — the Swiss/monospace posture, no fills, no colour, no emoji or mascot art. Each bundled icon is its **own named export** (`<Check />`, `<Search />`, …), so a consumer's bundler drops the ones they don't import.
+
+**Open question resolved toward a bundled set** (not a wrapper over an external icon library): keeps the posture aligned and the dependency footprint zero, while `Icon` still renders any custom `16×16` path you pass as `children`.
+
+`Icon` (the primitive) and every bundled icon accept:
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `size` | `number \| string` | `"1em"` | A **number** is a multiple of `--sf-unit` (on the grid); a string is any CSS length. The `1em` default makes an icon track the surrounding text — it lines up inside a `Button` or beside a label with no extra sizing. |
+| `label` | `string` | — | Accessible name for a **standalone, meaningful** icon (`role="img"` + `<title>`). **Omit** it for a **decorative** icon next to text — it then renders `aria-hidden` (the default). |
+| `strokeWidth` | `number` | `1.5` | Stroke weight in viewBox units (the library's glyph weight). |
+| `children` | `ReactNode` | — | Path content for a **custom** icon on the `Icon` primitive; the bundled icons supply it. |
+
+Plus any `SVGProps` (e.g. `color`, `className`) spread to the `<svg>`.
+
+Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
+
 ## Input
 
 `import { Input } from "@tarassov-ch/swiss-function/input"`

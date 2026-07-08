@@ -23,6 +23,7 @@ const componentNames = [
   "Graph",
   "Grid",
   "Heatmap",
+  "Icon",
   "Input",
   "Kbd",
   "Map",
