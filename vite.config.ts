@@ -18,6 +18,7 @@ const componentNames = [
   "Field",
   "FieldLayout",
   "Flows",
+  "Form",
   "Fullscreen",
   "Graph",
   "Grid",

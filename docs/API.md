@@ -690,6 +690,52 @@ Per-period fund-flow ribbon (issue #36): each period is a within-period waterfal
 
 For a single-total decomposition across categories (not per-period), use `BridgeChart`; for OHLC price bars, `CandlestickChart`.
 
+## Form
+
+`import { Form, FormField, FormError } from "@tarassov-ch/swiss-function/form"`
+
+The layer above `Field` / `FieldLayout` (issue #49): form-level submit + validation wiring and error surfacing. Wraps Base UI's Form (consolidated per-field errors, native constraint validation) and our `Field`. **Headless about the validation library** — bring your own `resolver` (adapt Zod / Valibot / react-hook-form into the `(values) => errors` shape). Renders a `<form>`.
+
+**Elements / Parts:** `Form` (Root — orchestration + vertical rhythm), `FormField` (binds one control to a named field; renders label + control + description + live error), `FormError` (a form-level message — a submit error not tied to any single field).
+
+Validation runs in two tiers, and both feed the same error display:
+
+- **Per-field** — `FormField`'s `validate` (and the browser's native constraints, e.g. `type="email"`, `required`) run per `validationMode`. Native constraint failures block submit *before* the resolver runs.
+- **Whole-form** — `Form`'s `resolver` runs on submit once per-field validation passes; it's the place for cross-field checks (password confirmation, "at least one of…"). It gates `onSubmit`.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `onSubmit` | `Form` | `(values) => void \| Promise<void>` | — | Called with the collected values (keyed by field `name`) only when per-field validation **and** the `resolver` pass. |
+| `resolver` | `Form` | `(values) => FormValidationResult \| null \| Promise<…>` | — | Whole-form validation. Return `{ fields?, form? }` to block the submit (`fields` keyed by `name`, `form` = a form-level message), or a falsy value to let it through. Sync or async. |
+| `errors` | `Form` | `Record<string, string \| string[]>` | — | Per-field errors supplied from outside (e.g. a server response), keyed by `name`. Merged with resolver output; each clears when its field changes. |
+| `error` | `Form` | `ReactNode` | — | A controlled form-level message surfaced by `FormError`; takes precedence over the resolver's `form`. |
+| `validationMode` | `Form` | `"onSubmit" \| "onBlur" \| "onChange"` | `"onSubmit"` | When per-field `validate` runs (Base UI passthrough; a `FormField`'s own `validationMode` overrides). |
+| `name` | `FormField` | `string` | — | **Required.** Identifies the field on submit and keys its error. |
+| `label` / `description` | `FormField` | `ReactNode` | — | Label above (or beside) the control; supplementary copy below it (full-strength `--sf-color-fg`). |
+| `validate` | `FormField` | `(value, formValues) => string \| string[] \| null \| Promise<…>` | — | Per-field validation (Base UI Field signature). |
+| `orientation` | `FormField` | `"vertical" \| "horizontal"` | `"vertical"` | Stack label above, or beside (for a `Switch` / `Checkbox` row). |
+| `children` | `FormField` | `ReactNode` | — | The control — an `Input`, `DigitInput`, `DatePicker`, `Checkbox`, … |
+| `children` | `FormError` | `ReactNode` | — | Overrides the message; omit to show the form-level message from the enclosing `Form`. Renders nothing when there's no message; carries `role="alert"`. |
+
+**Composes with `FieldLayout`** for justified multi-column forms: wrap each `FormField` in a `FieldLayout.Field` cell — the layout owns the sizing, the `FormField` owns the label / control / error and the form binding.
+
+```tsx
+<Form
+  resolver={(v) => (v.password === v.confirm ? null : { fields: { confirm: "Passwords don't match." } })}
+  onSubmit={(values) => save(values)}
+>
+  <FormError />
+  <FormField name="email" label="Email" validate={(v) => (String(v).includes("@") ? null : "Invalid email.")}>
+    <Input />
+  </FormField>
+  <FormField name="password" label="Password"><Input type="password" /></FormField>
+  <FormField name="confirm" label="Confirm"><Input type="password" /></FormField>
+  <Button type="submit">Create account</Button>
+</Form>
+```
+
+For a single labelled row without form-level orchestration, drop to `Field`; for the justified whole-form layout primitive, see `FieldLayout`.
+
 ## Fullscreen
 
 `import { Fullscreen, FullscreenToggle } from "@tarassov-ch/swiss-function/fullscreen"`

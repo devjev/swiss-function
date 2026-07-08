@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-06T22:08:46.045Z"
+    "date": "2026-07-08T15:59:10.476Z"
   },
-  "totalGzip": 670807,
+  "totalGzip": 675639,
   "entries": {
     ".": {
-      "files": 215,
-      "jsRaw": 752404,
-      "jsGzip": 227266,
+      "files": 217,
+      "jsRaw": 755629,
+      "jsGzip": 228467,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 227266,
+      "gzip": 228467,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -19,6 +19,7 @@
         "@base-ui/react/dialog",
         "@base-ui/react/drawer",
         "@base-ui/react/field",
+        "@base-ui/react/form",
         "@base-ui/react/input",
         "@base-ui/react/menu",
         "@base-ui/react/menubar",
@@ -245,6 +246,15 @@
       "cssGzip": 0,
       "gzip": 5189,
       "externals": ["react", "react/jsx-runtime"]
+    },
+    "./form": {
+      "files": 8,
+      "jsRaw": 8452,
+      "jsGzip": 3631,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 3631,
+      "externals": ["@base-ui/react/field", "@base-ui/react/form", "react", "react/jsx-runtime"]
     },
     "./flows": {
       "files": 28,

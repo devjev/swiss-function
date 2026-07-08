@@ -86,6 +86,7 @@ Ladle (`npm run dev`).
 | `ButtonGroup`   | A row of related buttons sharing a cascading size.        |
 | `Field`         | Compound for any form row: `Field` + `Field.Label` + control + `Field.Description` (supplementary copy, full-strength fg) + `Field.Error`. Don't roll your own. |
 | `FieldLayout`   | Whole-form layout: justified rows of rigid / flexible / filler fields. Sections of `FieldLayout.Field`s in a `flex-wrap` container — each row fills left-to-right (flexible fields and `FieldLayout.Filler`s grow), strict source order (fields never migrate lines), gradual container-driven collapse with no breakpoints. `kind="rigid"` (fixed width, e.g. a DatePicker at 8u) / `"flexible"` (default, 10–36u) / `"prose"` (wide text) / `"filler"`. Rhythm on the unit: 2u between sections, 1u between fields/rows. Reach for this to lay out a form (Fields alone still work for a single row). |
+| `Form`          | The layer above `Field`/`FieldLayout`: form-level submit + validation wiring. `Form` (orchestration; **bring-your-own `resolver`** — headless about Zod/Valibot/RHF), `FormField` (binds one control to a named field: label + control + description + live error), `FormError` (a form-level message, `role="alert"`). Two tiers: per-field `validate`/native constraints, then a whole-form `resolver` on submit that gates `onSubmit(values)`. Consolidated `errors` prop for server errors. Composes with `FieldLayout` (wrap each `FormField` in a `FieldLayout.Field`). Reach for this for a whole form with state/validation; use bare `Field` for a single labelled row. |
 | `Input`         | Single-line text input. Monospace by design.              |
 | `DigitInput`    | Fixed-capacity number entry as digit cells (`[0][4][2].[5][0] %`). Two feels via `mode`: `"push"` (default — calculator, digits push from the right, always complete) and `"mask"` (2FA-style per-cell fill, null until complete). `digits`/`decimals`/`unit`; value is `number \| null` (null = untyped mask). Doubles as a numeric PIN input. |
 | `DigitInputMicro` | Variable-length numeric input: a regular text input that shows a few faded, dithered placeholder digit slots (`░░ ░░`) at rest and fills them left-to-right (the "mask" hint), but grows past them as you type. `slots`/`decimals`/`unit`/`min`/`max`/`placeholderChar`; value is `number \| null`. The lighter sibling of `DigitInput` — reach for it when the width is a hint, not a fixed capacity. Native caret/selection/paste. |
@@ -319,7 +320,8 @@ Common requests and the right component:
 | User says                                          | Use                                              |
 | -------------------------------------------------- | ------------------------------------------------ |
 | "a button" / "an action"                           | `Button` (variant chosen by destructiveness)     |
-| "a form"                                           | `Field.Root` per row + the right control inside  |
+| "a form" (single row / static)                     | `Field.Root` per row + the right control inside  |
+| "a form with validation / submit handling / form state / errors" | `Form` + `FormField` per row + `FormError` (bring-your-own `resolver`; `errors` prop for server errors) |
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
 | "a drawer" / "sheet" / "overlay panel"             | `Drawer`                                          |
 | "a resizable split / panel that pushes content / IDE-style side panel" | `SplitPane` |

@@ -21,6 +21,7 @@ export * from "./components/Explorer";
 export * from "./components/Field";
 export * from "./components/FieldLayout";
 export * from "./components/Flows";
+export * from "./components/Form";
 export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";

@@ -77,6 +77,10 @@
       "types": "./dist/components/FieldLayout/index.d.ts",
       "import": "./dist/components/FieldLayout/index.js"
     },
+    "./form": {
+      "types": "./dist/components/Form/index.d.ts",
+      "import": "./dist/components/Form/index.js"
+    },
     "./flows": {
       "types": "./dist/components/Flows/index.d.ts",
       "import": "./dist/components/Flows/index.js"
