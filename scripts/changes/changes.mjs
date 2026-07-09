@@ -195,10 +195,15 @@ function cmdVersion(args) {
   // release` owns the commit + tag + push.
   execFileSync("npm", ["version", bump, "--no-git-tag-version"], { cwd: root, stdio: "inherit" });
 
+  // Insert the new section just above the newest existing release (the first
+  // `## ` heading), preserving the title + any intro prose above it.
   const prev = existsSync(changelogPath) ? readFileSync(changelogPath, "utf8") : "# Changelog\n";
-  const header = "# Changelog\n";
-  const body = prev.startsWith(header) ? prev.slice(header.length).replace(/^\n+/, "") : prev;
-  writeFileSync(changelogPath, `${header}\n${section}\n${body}`.replace(/\n{3,}/g, "\n\n"));
+  const firstEntry = prev.search(/^## /m);
+  const updated =
+    firstEntry === -1
+      ? `${prev.trimEnd()}\n\n${section}\n`
+      : `${prev.slice(0, firstEntry).trimEnd()}\n\n${section}\n${prev.slice(firstEntry)}`;
+  writeFileSync(changelogPath, updated.replace(/\n{3,}/g, "\n\n"));
 
   for (const s of sets) rmSync(join(changesDir, s.file));
   console.log(`\nReleased ${next}. CHANGELOG updated; ${sets.length} changeset(s) consumed.`);

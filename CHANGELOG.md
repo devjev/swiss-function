@@ -1,7 +1,400 @@
 # Changelog
 
-## v1.15.2
+Notable changes per release. Entries up to and including **v1.15.2** were
+reconstructed from the git history (`scripts/changes/backfill.mjs`) — the
+project predates the changeset flow. From **v1.16.0** on, entries are generated
+from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
+parenthesised tag on each heading is the semver bump.
 
-Prior releases predate the changeset flow (issue #48); see the Forgejo
-Releases page and git history for their notes. New releases are generated
-from the changesets in `.changes/`.
+## v1.15.2 — 2026-07-07 (patch)
+
+- DataTable: inline cell editors inherit the cell font-size (14px)
+
+## v1.15.1 — 2026-07-07 (patch)
+
+- DataTable: in-cell editors fill flush (drop the double frame)
+- DataTable: boolean & select cells edit with Picker
+
+## v1.15.0 — 2026-07-06 (minor)
+
+- Rename DigitField -> DigitInputMicro; dithered placeholder glyph
+
+## v1.14.0 — 2026-07-06 (minor)
+
+- DataTable edit experience: DigitField + rich cell editors + edit-activation
+
+## v1.13.2 — 2026-07-06 (patch)
+
+- DigitInput: resolve Base UI OTP field across the export rename
+
+## v1.13.1 — 2026-07-06 (patch)
+
+- Tabs: stop the row reflowing when the bold active tab is selected
+
+## v1.13.0 — 2026-07-06 (minor)
+
+- CodeEditor: monochrome themes (minimal/bold/primary), block caret, elevation
+
+## v1.12.0 — 2026-07-06 (minor)
+
+- Add CodeEditor (CodeMirror 6, token theme, opt-in vim)
+
+## v1.11.0 — 2026-07-06 (minor)
+
+- Add TextEditInline; fix FieldLayout dither story
+
+## v1.10.1 — 2026-07-06 (patch)
+
+- ci(publish): harden Forgejo release + tarball asset step
+- feat(tokens): ship JetBrains Mono as an optional webfont
+
+## v1.10.0 — 2026-07-06 (minor)
+
+- Charts: zoomOutLimit — allow zooming out past the data extent
+- Chart stories: name the full interactive widget "ChartWindow" everywhere
+
+## v1.9.0 — 2026-07-05 (minor)
+
+- CI: automatic release on v* tags (Forgejo Actions)
+- ci(publish): create the Forgejo release + tarball asset after publishing
+- docs: record the issue workflow in AGENTS.md (planning, milestones, shipping)
+- docs: align AGENTS.md and CLAUDE.md — one guide, symlinked
+- WindowArray: per-axis size state + vertical band cap (closes #31)
+- Explorer/DataTable: audit the overlap, extract the last shared piece, add Explorer gridLines (closes #28)
+- FieldLayout: justified form rows of rigid/flexible/filler fields (closes #33)
+- Field: remove Field.Help — Field.Description is enough
+- test(DatePicker): pin the 168px field-overflow scenario (closes #34)
+- WindowArray: directional wheel — plain wheel follows the strip axis, Shift crosses it (closes #37)
+- Charts: uniform interactive scaffolding across all 2D charts (closes #35)
+- Hotkeys: expose primitives for a consumer-owned central shortcut layer (closes #32)
+- Flows: per-period fund-flow ribbon chart (closes #36)
+
+## v1.8.1 — 2026-07-05 (patch)
+
+- Marquee zoom: own the gesture fully while armed (fixes premature zooms)
+
+## v1.8.0 — 2026-07-05 (minor)
+
+- Interactive charts: zoom/pan viewport, adaptive axes, annotations, drill-down (#27); recessed input fills (closes #29)
+- Chart window: controls toolbar, marquee zoom, annotation editing, fullscreen/frame (closes #27); DatePicker (closes #30)
+
+## v1.7.0 — 2026-07-04 (minor)
+
+- WindowArray: export WindowButton for chrome-matching custom actions (closes #26)
+- Field.Help: space-adaptive help text; useCollapse observer fix; no gray copy
+
+## v1.6.0 — 2026-07-04 (minor)
+
+- Add DigitInput
+- Fix lint errors that slipped past a piped check before v1.5.0
+- Perf milestone 2 (closes #14, closes #15, closes #16, closes #17, closes #18, closes #19, closes #20, closes #21, closes #22, closes #23, closes #24)
+- Picker/compact Selector: stop the hidden search input flooring control width (closes #25)
+
+## v1.5.0 — 2026-07-04 (minor)
+
+- performance milestone 1
+- Perf: fix all five milestone-5 issues (closes #7, closes #8, closes #9, closes #10, closes #11)
+
+## v1.4.0 — 2026-07-04 (minor)
+
+- tunable focus rings
+- Make focus rings tunable via --sf-focus-ring-width/-offset (closes #13)
+
+## v1.3.0 — 2026-07-04 (minor)
+
+- WindowArray vertical orientation + fading paddles; Accordion goes internal
+
+## v1.2.5 — 2026-07-03 (patch)
+
+- theme-reactive canvas fills + Picker/Selector elevation
+
+## v1.2.3 — 2026-07-02 (patch)
+
+- WindowArray window elevation prop
+- Add three-layer local performance testing: bench, perf probes, size
+- Fix re-render hot paths surfaced by the perf probes
+- Add MIT license
+- CI: add audit/test:ci scripts, biome devDep; rename LICENCE.md to LICENSE
+
+## v1.2.2 — 2026-07-02 (patch)
+
+- ChatDrawer cellSize prop for the thinking-effect grain
+
+## v1.2.1 — 2026-07-02 (patch)
+
+- WindowArray dithered desk background + scrollbar refinements
+
+## v1.2.0 — 2026-07-02 (minor)
+
+- add WindowArray (Niri-style scrollable window strip)
+
+## v1.1.2 — 2026-07-01 (patch)
+
+- align sm control height across Picker/Selector
+
+## v1.1.1 — 2026-07-01 (patch)
+
+- remove debug console.logs from stories
+
+## v1.1.0 — 2026-07-01 (minor)
+
+- Explorer data-grid parity; drop public Combobox
+
+## v1.0.0 — 2026-06-30 (major)
+
+- add Picker (single-select) + Dropzone (file upload)
+- Add ContextMenu (right-click menu)
+- Add Map: geographic map chart (MapLibre GL JS)
+- Refine Map basemap styling and fix color-mix resolution
+
+## v0.38.0 — 2026-06-30 (minor)
+
+- Heatmap cell values + sensitivity-analysis stories
+
+## v0.37.2 — 2026-06-30 (patch)
+
+- frameless thinking block, dimmed text, stable chevron
+
+## v0.37.1 — 2026-06-29 (patch)
+
+- soften structural border to a subtle hairline
+- test: exclude .direnv from vitest so the flake snapshot isn't double-run
+
+## v0.37.0 — 2026-06-29 (minor)
+
+- Dialog window chrome (maximize/close) + initial size
+- ci(publish): guard tag must be on main + idempotent publish
+- Chat thinking state, neutral chat chrome, unified borders, full-resize Dialog
+
+## v0.36.0 — 2026-06-29 (minor)
+
+- integrated 3D charts + visual effects
+- Feat/chatdrawer views icon bar
+- datatable frozen columns and popover zindex
+- 3d charts
+- extract effects
+
+## v0.31.0 — 2026-06-26 (minor)
+
+- Reflow + Toolbar responsive layout helpers, customizable scrollbars
+
+## v0.30.4 — 2026-06-25 (patch)
+
+- subtler Kbd keycaps in dark mode
+
+## v0.30.3 — 2026-06-24 (patch)
+
+- richer 3D Kbd keycaps (raised top face + lip)
+
+## v0.30.2 — 2026-06-24 (patch)
+
+- Kbd skeuomorphic 3D keycaps + AESTHETICS exception
+
+## v0.30.1 — 2026-06-24 (patch)
+
+- dial down Kbd keycap font size
+
+## v0.30.0 — 2026-06-24 (minor)
+
+- Kbd (OS-aware shortcut keycaps) + fix v0.29.0 publish
+
+## v0.29.0 — 2026-06-24 (minor)
+
+- SplitPane (and ChatDrawer) gain a "top" side
+
+## v0.28.0 — 2026-06-24 (minor)
+
+- --sf-recess-* token scale + recessed ChatDrawer panel
+
+## v0.27.0 — 2026-06-24 (minor)
+
+- ChatDrawer panel header (caption + fullscreen + close)
+
+## v0.26.4 — 2026-06-24 (patch)
+
+- customizable ChatDrawer wash
+
+## v0.26.3 — 2026-06-24 (patch)
+
+- Chat send-button bottom-align + ChatDrawer persistent wash
+
+## v0.26.2 — 2026-06-24 (patch)
+
+- ChatDrawer static full-pane thinking wash
+
+## v0.26.1 — 2026-06-24 (patch)
+
+- SplitPane divider straddles the seam (no white gap)
+
+## v0.26.0 — 2026-06-24 (minor)
+
+- SplitPane (resizable push panel); rebuild ChatDrawer on it
+
+## v0.25.1 — 2026-06-23 (patch)
+
+- fix DataTable columnFill body collapse when viewport < columns
+
+## v0.25.0 — 2026-06-23 (minor)
+
+- ChatDrawer composite (chat in a drawer with thinking background)
+
+## v0.24.0 — 2026-06-23 (minor)
+
+- Chat blocks redone as TUI + auto-scroll follow
+
+## v0.23.0 — 2026-06-23 (minor)
+
+- Chat rich message parts (text/choices/tree/custom)
+
+## v0.22.0 — 2026-06-23 (minor)
+
+- Drawer + Chat streaming reveal fix
+- Drawer: edge panels (left/right/bottom) via Base UI Drawer
+
+## v0.21.0 — 2026-06-23 (minor)
+
+- CandlestickChart, DataTable column reorder + filtering
+- Add CandlestickChart (OHLC financial chart)
+- DataTable: drag-and-drop column reordering
+
+## v0.20.0 — 2026-06-23 (minor)
+
+- Game of Life + subtle toggling-dot NonIdealState effects
+
+## v0.19.1 — 2026-06-23 (patch)
+
+- DataTable columnFill animation speed
+
+## v0.19.0 — 2026-06-23 (minor)
+
+- DataTable columnFill + persisted widths, Timeline rangeOpacity + tactile value labels, snap easing
+- docs: expand API.md to cover all 35 components
+
+## v0.18.0 — 2026-06-23 (minor)
+
+- Selector compact layout, Timeline tickSpacing, Button tight fix, API docs
+
+## v0.17.0 — 2026-06-23 (minor)
+
+- Button tight variant
+- DataTable: avoid assign-in-expression in getColumnEdges (lint gate)
+
+## v0.16.0 — 2026-06-23 (minor)
+
+- Timeline color prop + DataTable arrow scroll/fade/selection fixes
+
+## v0.15.0 — 2026-06-23 (minor)
+
+- Selector dithered chips + DataTable snap fix + Timeline tweaks
+
+## v0.14.0 — 2026-06-23 (minor)
+
+- Timeline size classes + Selector fixed-height strip
+- Selector: lock the inline strip to a fixed per-size height
+- Timeline: sm/md/lg size classes for the control strip
+
+## v0.13.0 — 2026-06-23 (minor)
+
+- DataTable merged cells + Timeline value labels/elevation + menu z-index fix
+- Timeline: compact strip is one unit tall; no text selection on drag
+- Timeline: compact labels float above the box + bordered option
+- Timeline: floating scrub-value labels + elevation on bordered strip
+- CommandBar/Menu: lift dropdown z-index to the Positioner
+- DataTable: visually merged (spanning) cells & headers
+
+## v0.12.1 — 2026-06-23 (patch)
+
+- Combobox/Selector Clear button uses sans
+- Combobox: render the Clear button in sans, not mono
+
+## v0.12.0 — 2026-06-23 (minor)
+
+- Selector/Timeline/Skeleton/DataTable features + fixes
+- DataTable: constant-width cascading column resize + locked-column hint
+- Combobox: fix dropdown rendering behind sticky content (issue #2)
+- Selector: size presets (sm/md/lg), mirroring Input
+- Selector: inline chip overflow expands as an elevated overlay
+- Typography: optically match monospace to sans via font-size-adjust
+- Timeline: compact variant — labels on hover/scrub only
+- Timeline: range selection variant (two handles + draggable band)
+- Skeleton: optional NonIdealState-style dithered effects
+- DataTable: elastic scroll-snap + dithered bottom edge-fade
+- Selector: inline layout stays one row (no vertical growth)
+- DataTable: minmax layout engine — shrink-to-fit before scroll + overflow fix
+
+## v0.11.0 — 2026-06-22 (minor)
+
+- Selector component + Combobox multi-select
+
+## v0.10.0 — 2026-06-19 (minor)
+
+- Grid flexible-track resize + Graph fill/frame/auto-fit (issue #1)
+
+## v0.9.0 — 2026-06-18 (minor)
+
+- Graph relationship editing + dark-mode fixes
+
+## v0.8.1 — 2026-06-14 (patch)
+
+- Graph fullscreen toggle + inspector anchor fix
+
+## v0.8.0 — 2026-06-14 (minor)
+
+- ErrorState story uses glitch effect
+- Fullscreen container component
+
+## v0.7.0 — 2026-06-14 (minor)
+
+- NonIdealState component (dithered fills)
+
+## v0.6.0 — 2026-06-14 (minor)
+
+- drag-resize for Grid, DataTable, Dialog
+
+## v0.5.0 — 2026-06-14 (minor)
+
+- Graph component + build/doc fixes
+
+## v0.4.1 — 2026-06-09 (patch)
+
+- Fix probe-virtualization.mjs lint: blank line after imports
+
+## v0.4.0 — 2026-06-09 (minor)
+
+- Maintenance release (no code changes).
+
+## v0.3.1 — 2026-06-06 (patch)
+
+- Maintenance release (no code changes).
+
+## v0.3.0 — 2026-06-05 (minor)
+
+- Maintenance release (no code changes).
+
+## v0.2.2 — 2026-06-05 (patch)
+
+- Maintenance release (no code changes).
+
+## v0.2.1 — 2026-06-05 (patch)
+
+- Add top-level CODING-AGENT and AESTHETICS docs
+- Replace CODING-AGENT.md with AGENTS.md
+
+## v0.2.0 — 2026-06-04 (minor)
+
+- Maintenance release (no code changes).
+
+## v0.1.0 — 2026-06-04 (initial)
+
+- Initial commit
+- Update: flake
+- Establish design aesthetic and add Grid + Skeleton
+- Add DataTable, refine aesthetics, drop Tooltip + Select
+- Add TextEdit, Markdown, Outliner; share TreeChevron in src/lib
+- Add Box and CommandBar; refactor Popover to use Box; aesthetic tweaks
+- Add Explorer; CommandBar Logo/Search; DataTable drag-select fix; Accordion refresh
+- Add ButtonGroup (visual) + ToggleGroup (segmented control)
+- Add Field + Timeline; unify control elevations; subtle Input border
+- Timeline: add snap="events"|"ticks" scrub modes
+- Add StreamingTerminalText + Chat; align TextEdit single-line to 1.5u
+- Wire up Gitea npm publishing
