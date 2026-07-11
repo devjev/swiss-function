@@ -129,5 +129,8 @@ release bump="":
     version=$(node -p "require('./package.json').version")
     git add -A
     git commit -m "${version}"
-    git tag "v${version}"
-    git push --follow-tags
+    # Annotated, and pushed by name: --follow-tags alone skips lightweight
+    # tags, which silently strands the tag locally and never triggers CI
+    # (bit the v2.0.0 release).
+    git tag -a "v${version}" -m "${version}"
+    git push origin main "v${version}"
