@@ -117,6 +117,27 @@ export const FullScaffolding: Story = () => (
   </div>
 );
 
+// Narrow-container stress: long step names in 320px. The measured fitting
+// ladder ellipsizes (full text in the title attr) and, when bands get too
+// narrow, thins to a stride keeping first + last; the y column is sized to
+// the widest measured label. Deterministic data — this is a VRT surface.
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <BridgeChart
+      items={[
+        { label: "Opening balance", value: 1_250_000, kind: "total" },
+        { label: "Gross subscriptions", value: 340_000, kind: "delta" },
+        { label: "Client redemptions", value: -215_000, kind: "delta" },
+        { label: "Investment performance", value: 128_000, kind: "delta" },
+        { label: "Currency translation", value: -43_000, kind: "delta" },
+        { label: "Closing balance", value: 1_460_000, kind: "total" },
+      ]}
+      yLabel="AUM"
+      scaffolding="full"
+    />
+  </div>
+);
+
 // The full interactive chart window — frame, fullscreen, controls, value-axis
 // (y) zoom (the waterfall's x is categorical, so the value axis windows) and an
 // editable hline reference level. `zoomOutLimit` allows arbitrary zoom-out.

@@ -26,6 +26,40 @@ function monthlyFlows(): FlowPeriod[] {
   return periods;
 }
 
+// A full year of monthly periods with YYYY-MM labels — a continuous ledger
+// like `monthlyFlows`, deterministic, no RNG.
+function yearlyFlows(): FlowPeriod[] {
+  const rows: [number, number, number, number][] = [
+    // [subscriptions, redemptions, performance, fxEffect]
+    [120, 60, 34, -8],
+    [90, 110, -22, 5],
+    [150, 70, 41, -12],
+    [80, 95, 18, 3],
+    [200, 60, -30, -6],
+    [110, 130, 52, 9],
+    [95, 85, 27, -4],
+    [140, 100, -18, 7],
+    [70, 120, 45, -10],
+    [160, 75, 12, 6],
+    [105, 90, -25, -3],
+    [130, 65, 38, 11],
+  ];
+  const periods: FlowPeriod[] = [];
+  let open = 1000;
+  rows.forEach(([subscriptions, redemptions, performance, fxEffect], i) => {
+    periods.push({
+      x: `2025-${String(i + 1).padStart(2, "0")}`,
+      open,
+      subscriptions,
+      redemptions,
+      performance,
+      fxEffect,
+    });
+    open = open + subscriptions - redemptions + performance + fxEffect;
+  });
+  return periods;
+}
+
 export const Playground: Story<FlowsProps> = (args) => (
   <div style={{ width: "min(48rem, 100%)" }}>
     <Flows {...args} />
@@ -50,6 +84,16 @@ export const Compact: Story = () => (
 export const FullScaffolding: Story = () => (
   <div style={{ width: "min(48rem, 100%)" }}>
     <Flows periods={monthlyFlows()} yLabel="AUM (m)" xLabel="Month" scaffolding="full" />
+  </div>
+);
+
+// Narrow-container stress: 12 monthly YYYY-MM periods in 320px. The measured
+// fitting ladder can't usefully ellipsize YYYY-MM, so it thins the period
+// axis to a stride keeping first + last; the y column is sized to the widest
+// measured AUM label. Deterministic data — this is a VRT surface.
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <Flows periods={yearlyFlows()} yLabel="AUM (m)" scaffolding="full" showLegend={false} />
   </div>
 );
 

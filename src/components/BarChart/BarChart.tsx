@@ -1,22 +1,30 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
   Axis,
   type AxisTick,
+  anchorRectFromPoint,
   bandScale,
   ChartChrome,
   type ChartScaffoldingProps,
   Crosshair,
   FullscreenToggle,
+  fitBandTicks,
   formatNumber,
+  getTextMeasurer,
   linearScale,
+  maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveTickFont,
   scaffoldStyles,
+  snapFraction,
+  snapHairline,
   Tooltip,
   useChartScaffold,
+  useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./BarChart.module.css";
@@ -108,22 +116,9 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   // "Tufte-styled" idle look (no nice-tick chrome, per-bar value labels) covers
   // both minimal and hover modes. Full mode replaces it with the v0.1 chrome.
   const isTufte = scaffolding !== "full";
-  const plotRef = useRef<HTMLDivElement>(null);
-  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   const [hover, setHover] = useState<HoverState | null>(null);
-
-  useLayoutEffect(() => {
-    const el = plotRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const resolvedYDomain: [number, number] = useMemo(() => {
     if (yDomain) return yDomain;
@@ -199,29 +194,53 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
       }));
   }, [viewYDomain, scaffolding]);
 
+  // Categorical labels through the measured fitting ladder: full text when
+  // every label fits its band, ellipsized (full text in title) when close,
+  // thinned to a stride keeping first + last when bands get too narrow.
   const xAxisTicks: AxisTick[] = useMemo(() => {
     if (categories.length === 0 || plotSize.width <= 0) return [];
-    return categories.map((c) => {
+    const centers = categories.map((c) => {
       const left = xBand.position(c) ?? 0;
-      const center = left + xBand.bandwidth / 2;
-      return { label: c, position: center / plotSize.width, major: false };
+      return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-  }, [categories, xBand, plotSize.width]);
+    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+      label: t.label,
+      title: t.title,
+      position: t.position,
+      major: false,
+    }));
+  }, [categories, xBand, plotSize.width, measure]);
 
+  // Measured y-axis column: the widest tick label sets --sf-axis-label-width
+  // (8px-quantized so the resize feedback loop cannot oscillate).
+  const yAxisWidth = useMemo(
+    () =>
+      maxLabelWidth(
+        yAxisTicks.map((t) => t.label),
+        measure,
+      ),
+    [yAxisTicks, measure],
+  );
+
+  // One anchor source: tooltip and crosshair both derive from the bar's
+  // top-center in plot space, so they can never disagree.
   const handleEnter = (
-    e: React.PointerEvent<SVGRectElement>,
+    _e: React.PointerEvent<SVGRectElement> | React.FocusEvent<SVGRectElement>,
     category: string,
     seriesName: string,
     value: number,
     cx_: number,
     cy_: number,
   ) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const plotEl = plotRef.current;
+    if (!plotEl) return;
+    const rect = anchorRectFromPoint(plotEl, cx_, cy_);
     setHover({ category, series: seriesName, value, rect, cx: cx_, cy: cy_ });
   };
   const handleLeave = () => setHover(null);
 
   const wrapperStyle: CSSProperties = {
+    ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
     // Inline height wins over the .expanded class, so drop it while maximized.
     ...(height != null && !scaffold.expanded
       ? { height: typeof height === "number" ? `${height}px` : height }
@@ -251,7 +270,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     >
       {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
       <Axis orientation="y" ticks={yAxisTicks} noLine={isTufte} className={styles.yAxis} />
-      <div ref={plotRef} className={styles.plot}>
+      <div ref={plotAreaRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
             {...scaffold.editor.surfaceProps}
@@ -268,7 +287,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                 when the chart root carries [data-hovered]. */}
             {scaffolding !== "minimal"
               ? yAxisTicks.map((tick) => {
-                  const y = plotSize.height * (1 - tick.position);
+                  const y = snapHairline(plotSize.height * (1 - tick.position));
                   return (
                     <line
                       key={`grid-${tick.label}-${tick.position}`}
@@ -323,17 +342,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                           : undefined
                       }
                       data-activatable={onPointActivate ? "" : undefined}
-                      onFocus={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHover({
-                          category: c,
-                          series: s.name,
-                          value: v,
-                          rect,
-                          cx: cx_,
-                          cy: cy_,
-                        });
-                      }}
+                      onFocus={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
                       onBlur={handleLeave}
                     >
                       <title>
@@ -342,7 +351,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                     </rect>
                     {/* Tufte mode: value label sits just above the bar's top.
                         Flips inside the bar when it would clip the plot top. */}
-                    {isTufte
+                    {isTufte && measure(formatNumber(v)) <= innerStep
                       ? (() => {
                           const flip = yVal < 14;
                           return (

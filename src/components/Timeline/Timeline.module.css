@@ -54,8 +54,9 @@
   overflow: visible;
 }
 
-/* The track holds the axis + ticks + events. Width is set inline based on
-   (end − start) × pxPerDay so horizontal scroll has a defined extent. */
+/* The track holds the axis + ticks + events. It fills the viewport; with the
+   `pxPerDay` prop, JS sets an inline min-inline-size of (end − start in days)
+   × pxPerDay so the viewport's overflow-x: auto has a real scroll extent. */
 .track {
   position: relative;
   block-size: 100%;
@@ -106,6 +107,7 @@
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
   color: var(--sf-color-fg);
   white-space: nowrap;
 }
@@ -163,6 +165,7 @@
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
   line-height: var(--sf-line-height-tight);
   white-space: nowrap;
   pointer-events: none;
@@ -410,6 +413,27 @@
   outline-offset: var(--sf-focus-ring-offset, 2px);
 }
 
+/* Overflowed labels (flagged by lane assignment: no collision-free slot within
+   maxLanes) reuse the compact-strip reveal — label + its connector hidden at
+   rest, shown on hover/focus. The diamond marker always stays visible. */
+.event[data-overflow] .eventLabel,
+.event[data-overflow] .eventConnector {
+  opacity: 0;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+/* Lift the revealed label above neighbours' opaque label tags (events are
+   z-index 1) so it reads instead of interleaving with them. */
+.event[data-overflow]:hover,
+.event[data-overflow]:focus-within {
+  z-index: 2;
+}
+.event[data-overflow]:hover .eventLabel,
+.event[data-overflow]:focus-within .eventLabel,
+.event[data-overflow]:hover .eventConnector,
+.event[data-overflow]:focus-within .eventConnector {
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eventMarker {
     transition: none;
@@ -424,5 +448,9 @@
   .scrubValue {
     scale: 1;
     transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+  }
+  .event[data-overflow] .eventLabel,
+  .event[data-overflow] .eventConnector {
+    transition: none;
   }
 }

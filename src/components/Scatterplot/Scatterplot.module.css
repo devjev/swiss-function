@@ -126,10 +126,11 @@
 
 .point {
   cursor: default;
-  /* Match Button/Input's "tactile" depth — points read as physical markers
-     sitting on the plot, not flat decals. SVG can't use box-shadow on
-     elements, so we use the filter equivalent of --sf-elevation-1. */
-  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.18));
+  /* Background-colored halo ring: separates overlapping points and lifts them
+     off gridlines/lines in both themes, without the per-point raster pass a
+     drop-shadow filter costs. The :focus-visible ring below overrides it. */
+  stroke: var(--sf-color-bg);
+  stroke-width: 1.5;
   transition: r var(--sf-duration-fast) var(--sf-ease-out);
   outline: none;
 }

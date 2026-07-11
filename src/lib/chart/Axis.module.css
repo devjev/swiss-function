@@ -2,11 +2,15 @@
    The axis itself takes its size from its grid cell; tick positions are
    percentages along the axis (so the chart's scale logic stays in JS). */
 
+/* Invariant: tick positions are NEVER transitioned — during a live resize
+   the axis must track the plot 1:1; animated reflow reads as smoothing, not
+   instrumentation. Only opacity may transition (hover scaffolding reveal). */
 .axis {
   position: relative;
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
   color: var(--sf-color-fg);
   pointer-events: none;
 }
@@ -19,9 +23,16 @@
 }
 
 .yAxis {
-  /* Sits LEFT of the plot. Width sized to the widest label (ch-based, since
-     labels are monospace). */
-  inline-size: calc(var(--sf-unit) * 2);
+  /* Sits LEFT of the plot. Charts set --sf-axis-label-width to the measured
+     widest label (quantized, see labelLayout.maxLabelWidth); the fallback
+     reproduces the historical fixed 2u column exactly (1.25u label + 0.75u
+     mark/gap), so uninstrumented usage does not move. Consumers may pin the
+     var to align stacked charts. */
+  inline-size: calc(
+    var(--sf-axis-label-width, calc(var(--sf-unit) * 1.25)) +
+    var(--sf-unit) *
+    0.75
+  );
 }
 
 /* --- Baseline hairline ------------------------------------------------- */

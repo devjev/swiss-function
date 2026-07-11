@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ChartAnnotation } from "../../lib/chart";
+import { BarChart } from "./BarChart";
 import { BarChartScaffoldHarness } from "./BarChart.harness";
 
 // Issue #35: the shared chart scaffolding wired into BarChart — a controls
@@ -147,4 +148,137 @@ test("without zoomOutLimit, zoom-out stops at the data extent", async ({ mount, 
   // "-" from the full extent is clamped back to the data — reported as a reset.
   await page.keyboard.press("-");
   await expect(c.locator("[aria-live]")).toHaveText("Showing full range");
+});
+
+// --- Chart-polish invariants (issue #63) -----------------------------------
+
+const LONG_CATEGORIES = [
+  "Northern Territories",
+  "Eastern Seaboard",
+  "Central Plains",
+  "Mountain West",
+  "Pacific Rim",
+  "Gulf Coast",
+];
+const LONG_SERIES = [
+  { name: "V", values: [1_234_567, 890_123, 456_789, 234_567, 1_876_543, 654_321] },
+];
+
+test("narrow container: labels ellipsize with full text in title, none overlap", async ({
+  mount,
+  page,
+}) => {
+  const chart = await mount(
+    <div style={{ width: 320 }}>
+      <BarChart
+        categories={LONG_CATEGORIES}
+        series={LONG_SERIES}
+        scaffolding="full"
+        showLegend={false}
+      />
+    </div>,
+  );
+  await expect.poll(async () => chart.locator("[data-tick]").count()).toBeGreaterThan(1);
+  // Every rendered x label either fits or is ellipsized with a title.
+  const labels = await chart
+    .locator('[data-orientation="x"] [data-tick] span[title]')
+    .evaluateAll((els) =>
+      els.map((el) => ({ text: el.textContent ?? "", title: el.getAttribute("title") ?? "" })),
+    );
+  for (const l of labels) {
+    expect(l.text.endsWith("…")).toBe(true);
+    expect(l.title.length).toBeGreaterThan(l.text.length - 1);
+  }
+  // No two x tick labels overlap horizontally.
+  const boxes = await chart
+    .locator('[data-orientation="x"] [data-tick]')
+    .evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect()).map((r) => ({ left: r.left, right: r.right })),
+    );
+  const sorted = [...boxes].sort((a, b) => a.left - b.left);
+  for (let i = 1; i < sorted.length; i++) {
+    expect((sorted[i] as { left: number }).left).toBeGreaterThanOrEqual(
+      (sorted[i - 1] as { right: number }).right - 1,
+    );
+  }
+  await page.close();
+});
+
+test("resize keeps the SVG present and re-fits labels without overlap", async ({ mount }) => {
+  const chart = await mount(
+    <div id="rw" style={{ width: 640 }}>
+      <BarChart
+        categories={LONG_CATEGORIES}
+        series={LONG_SERIES}
+        scaffolding="full"
+        showLegend={false}
+      />
+    </div>,
+  );
+  await expect.poll(async () => chart.locator("svg").count()).toBe(1);
+  await chart.evaluate((el) => {
+    (el as HTMLElement).style.width = "280px";
+  });
+  // SVG never disappears and the tick set settles without overlap.
+  await expect.poll(async () => chart.locator("svg").count()).toBe(1);
+  await expect
+    .poll(async () => {
+      const svg = chart.locator("svg").first();
+      const w = await svg.getAttribute("width");
+      return w ? Number(w) < 300 : false;
+    })
+    .toBe(true);
+  const boxes = await chart
+    .locator('[data-orientation="x"] [data-tick]')
+    .evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect()).map((r) => ({ left: r.left, right: r.right })),
+    );
+  const sorted = [...boxes].sort((a, b) => a.left - b.left);
+  for (let i = 1; i < sorted.length; i++) {
+    expect((sorted[i] as { left: number }).left).toBeGreaterThanOrEqual(
+      (sorted[i - 1] as { right: number }).right - 1,
+    );
+  }
+});
+
+test("y-axis column widens for wide domains (measured labels)", async ({ mount }) => {
+  const small = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart
+        categories={["a", "b"]}
+        series={[{ name: "V", values: [1, 7] }]}
+        yDomain={[0, 8]}
+        scaffolding="full"
+        showLegend={false}
+      />
+    </div>,
+  );
+  await expect
+    .poll(async () => small.locator('[data-orientation="y"] [data-tick]').count())
+    .toBeGreaterThan(0);
+  const smallWidth = await small
+    .locator('[data-orientation="y"]')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  await small.unmount();
+
+  const wide = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart
+        categories={["a", "b"]}
+        series={[{ name: "V", values: [1_234_510, 1_234_570] }]}
+        yDomain={[1_234_500, 1_234_580]}
+        scaffolding="full"
+        showLegend={false}
+      />
+    </div>,
+  );
+  await expect
+    .poll(async () => wide.locator('[data-orientation="y"] [data-tick]').count())
+    .toBeGreaterThan(0);
+  const wideWidth = await wide
+    .locator('[data-orientation="y"]')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(wideWidth).toBeGreaterThan(smallWidth);
 });

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-11T10:32:40.434Z"
+    "date": "2026-07-11T13:30:14.481Z"
   },
-  "totalGzip": 771799,
+  "totalGzip": 804863,
   "entries": {
     ".": {
-      "files": 230,
-      "jsRaw": 806146,
-      "jsGzip": 244066,
+      "files": 235,
+      "jsRaw": 823267,
+      "jsGzip": 249663,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 244066,
+      "gzip": 249663,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -141,12 +141,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./bar-chart": {
-      "files": 28,
-      "jsRaw": 76328,
-      "jsGzip": 22664,
+      "files": 33,
+      "jsRaw": 86304,
+      "jsGzip": 26500,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22664,
+      "gzip": 26500,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -164,12 +164,12 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./bridge-chart": {
-      "files": 28,
-      "jsRaw": 76403,
-      "jsGzip": 22695,
+      "files": 33,
+      "jsRaw": 86635,
+      "jsGzip": 26558,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 22695,
+      "gzip": 26558,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -187,12 +187,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./candlestick-chart": {
-      "files": 28,
-      "jsRaw": 87540,
-      "jsGzip": 25473,
+      "files": 34,
+      "jsRaw": 99102,
+      "jsGzip": 29862,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25473,
+      "gzip": 29862,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -293,12 +293,12 @@
       "externals": ["@base-ui/react/field", "@base-ui/react/form", "react", "react/jsx-runtime"]
     },
     "./flows": {
-      "files": 28,
-      "jsRaw": 78995,
-      "jsGzip": 23527,
+      "files": 33,
+      "jsRaw": 89439,
+      "jsGzip": 27431,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 23527,
+      "gzip": 27431,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -347,12 +347,12 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./heatmap": {
-      "files": 24,
-      "jsRaw": 72915,
-      "jsGzip": 21473,
+      "files": 29,
+      "jsRaw": 85891,
+      "jsGzip": 26072,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 21473,
+      "gzip": 26072,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -429,12 +429,12 @@
       ]
     },
     "./scatterplot": {
-      "files": 28,
-      "jsRaw": 91630,
-      "jsGzip": 26273,
+      "files": 34,
+      "jsRaw": 103138,
+      "jsGzip": 30616,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26273,
+      "gzip": 30616,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -638,11 +638,11 @@
     },
     "./point-cloud": {
       "files": 16,
-      "jsRaw": 25850,
-      "jsGzip": 10235,
+      "jsRaw": 26285,
+      "jsGzip": 10385,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 10235,
+      "gzip": 10385,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./menu": {
@@ -723,11 +723,11 @@
     },
     "./surface": {
       "files": 15,
-      "jsRaw": 24532,
-      "jsGzip": 9723,
+      "jsRaw": 24967,
+      "jsGzip": 9873,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9723,
+      "gzip": 9873,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
@@ -795,12 +795,12 @@
       ]
     },
     "./timeline": {
-      "files": 6,
-      "jsRaw": 22340,
-      "jsGzip": 6223,
+      "files": 9,
+      "jsRaw": 28068,
+      "jsGzip": 8456,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 6223,
+      "gzip": 8456,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./toggle-group": {

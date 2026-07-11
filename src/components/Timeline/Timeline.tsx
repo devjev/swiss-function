@@ -6,11 +6,11 @@ import {
   forwardRef,
   isValidElement,
   useContext,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { getTextMeasurer, resolveTickFont, useMeasuredPlot } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import { assignLanes, type LaneInput } from "./lanes";
 import styles from "./Timeline.module.css";
@@ -62,6 +62,13 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   showNow?: boolean;
   /** Maximum stacking lanes for label collision avoidance. Default 3. */
   maxLanes?: number;
+  /** Minimum horizontal density in px per day. When set, the track gets a
+   *  minimum inline size of `(end − start in days) × pxPerDay` px, so a range
+   *  too wide for the container scrolls horizontally (the viewport already has
+   *  `overflow-x: auto`) instead of compressing further. Lane collision math
+   *  uses the effective density `max(fitted, pxPerDay)`. Unset (default) keeps
+   *  fit-to-container: the track is exactly as wide as the viewport. */
+  pxPerDay?: number;
   /** Target minimum pixel spacing between adjacent axis ticks; the tick unit
    *  (year/month/week/day/hour) is chosen so neighbours sit at least this far
    *  apart. Larger = sparser ticks. Default: the tuned ~80–200px heuristic. */
@@ -106,6 +113,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     height,
     showNow = true,
     maxLanes = 3,
+    pxPerDay,
     tickSpacing,
     compact = false,
     size,
@@ -122,33 +130,31 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   },
   _forwardedRef,
 ) {
-  const viewportRef = useRef<HTMLDivElement>(null);
+  // Viewport width via the shared measured-plot hook (sync first measure,
+  // rAF-coalesced observer) — used for lane collision math and tick density.
+  // Visual positions are pure percentages so they don't depend on this.
+  const {
+    ref: viewportMeasureRef,
+    plotRef: viewportRef,
+    size: viewportSize,
+  } = useMeasuredPlot<HTMLDivElement>();
   const trackRef = useRef<HTMLDivElement>(null);
-  // Set forwardRef while keeping internal ref for measurement.
+  // Set forwardRef while keeping the internal measured ref.
   const setRef = (node: HTMLDivElement | null) => {
-    viewportRef.current = node;
+    viewportMeasureRef(node);
     if (typeof _forwardedRef === "function") _forwardedRef(node);
     else if (_forwardedRef) _forwardedRef.current = node;
   };
 
   const totalDays = (end.getTime() - start.getTime()) / MS_DAY;
 
-  // Measure track width via ResizeObserver — used for lane collision math.
-  // Visual positions are pure percentages so they don't depend on this.
-  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = viewportRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setMeasuredWidth(el.clientWidth);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Pixel density estimate for lane-collision detection only. Before first
-  // measurement, use a sensible heuristic so first paint isn't blank.
-  const layoutPxPerDay = measuredWidth != null && totalDays > 0 ? measuredWidth / totalDays : 4;
+  // Pixel density for lane-collision detection and tick-unit choice. Before
+  // the first measure, a sensible heuristic so first paint isn't blank. An
+  // explicit `pxPerDay` acts as a floor: the track then grows past the
+  // viewport (min-inline-size below) and the effective density is pxPerDay.
+  const fittedPxPerDay =
+    viewportSize.width > 0 && totalDays > 0 ? viewportSize.width / totalDays : 4;
+  const layoutPxPerDay = pxPerDay != null ? Math.max(fittedPxPerDay, pxPerDay) : fittedPxPerDay;
 
   const ticks = useMemo(
     () => computeTicks(start, end, layoutPxPerDay, tickSpacing),
@@ -328,9 +334,25 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   // Compact strips collapse to a single lane (labels are transient, so they
   // don't need collision-avoidance stacking).
   const effectiveMaxLanes = stripMode ? 1 : maxLanes;
+
+  // Measured label widths for lane collision math — event labels render in the
+  // sans face (inherited from the viewport). `labelFont` is a cached string, so
+  // the memo below stays effective across renders; null element (first render)
+  // falls back to documentElement's tokens.
+  const labelFont = resolveTickFont(viewportRef.current, "sans");
+  const measureLabel = useMemo(() => {
+    const measureText = getTextMeasurer(labelFont);
+    return (label: unknown) => measureText(String(label));
+  }, [labelFont]);
+
   const laneResult = useMemo(
-    () => assignLanes(eventInputs, start, layoutPxPerDay, { maxLanes: effectiveMaxLanes }),
-    [eventInputs, start, layoutPxPerDay, effectiveMaxLanes],
+    () =>
+      assignLanes(eventInputs, start, layoutPxPerDay, {
+        maxLanes: effectiveMaxLanes,
+        measure: measureLabel,
+        trackWidthPx: totalDays > 0 ? totalDays * layoutPxPerDay : undefined,
+      }),
+    [eventInputs, start, layoutPxPerDay, effectiveMaxLanes, measureLabel, totalDays],
   );
 
   // While scrubbing a compact timeline, reveal the label of the event nearest
@@ -349,7 +371,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     return best;
   }, [stripMode, scrubbing, value, eventInputs]);
 
-  // Decorate each Event child with its assigned lane index (+ active flag).
+  // Decorate each Event child with its assigned lane index (+ active/overflow flags).
   const decoratedChildren = useMemo(() => {
     let i = 0;
     return Children.map(children, (child) => {
@@ -361,6 +383,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
       return cloneElement(child as ReactElement<TimelineEventProps>, {
         lane,
         active: idx === activeEventIdx,
+        overflow: laneResult.overflow[idx] ?? false,
       });
     });
   }, [children, laneResult, activeEventIdx]);
@@ -400,6 +423,11 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
         <div
           ref={trackRef}
           className={styles.track}
+          style={
+            pxPerDay != null && totalDays > 0
+              ? { minInlineSize: `${totalDays * pxPerDay}px` }
+              : undefined
+          }
           data-scrubbable={isScrubbable || undefined}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -524,10 +552,13 @@ export interface TimelineEventProps extends Omit<HTMLAttributes<HTMLDivElement>,
   lane?: number;
   /** @internal — set by <Timeline> to reveal this label while scrubbing. */
   active?: boolean;
+  /** @internal — set by <Timeline> when the label couldn't be placed
+   *  collision-free within maxLanes (hidden at rest, revealed on hover/focus). */
+  overflow?: boolean;
 }
 
 const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEvent(
-  { date, onClick, className, children, lane = 0, active, ...rest },
+  { date, onClick, className, children, lane = 0, active, overflow, ...rest },
   ref,
 ) {
   const { start, end } = useTimelineContext();
@@ -553,6 +584,7 @@ const Event = forwardRef<HTMLDivElement, TimelineEventProps>(function TimelineEv
       data-event=""
       data-lane={lane}
       data-active={active || undefined}
+      data-overflow={overflow || undefined}
       onPointerDown={stopScrub}
       onMouseDown={stopScrub}
     >

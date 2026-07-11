@@ -13,22 +13,24 @@
   column-gap: calc(var(--sf-unit) / 2);
 }
 
-/* Measured plot cell: the cell SVG, the value overlay, the annotation overlay
-   and the controls all stack inside it (issue #35). */
+/* Measured plot cell: the pixel-space SVG, the value overlay and the controls
+   all stack inside it (issue #35). The frame border lives here (not on the
+   SVG) so the SVG's CSS box, its width/height attributes and the measured
+   clientWidth/Height all agree — pixel-snapped cell edges depend on that. */
 .plotCell {
   grid-column: 3;
   grid-row: 1;
   position: relative;
   min-block-size: calc(var(--sf-unit) * 4);
+  border: 1px solid var(--sf-color-gridline);
 }
 
-.plot {
+.svg {
   position: absolute;
   inset: 0;
   display: block;
   inline-size: 100%;
   block-size: 100%;
-  border: 1px solid var(--sf-color-gridline);
   cursor: crosshair;
 }
 
@@ -43,13 +45,13 @@
 .root[data-zoomable] .plotCell {
   touch-action: none;
 }
-.root[data-zoomable] .plot {
+.root[data-zoomable] .svg {
   cursor: grab;
 }
-.root[data-zoomable] .plotCell:active .plot {
+.root[data-zoomable] .plotCell:active .svg {
   cursor: grabbing;
 }
-.root[data-tool] .plot {
+.root[data-tool] .svg {
   cursor: crosshair;
 }
 
@@ -96,15 +98,20 @@
   stroke-opacity: 0.55;
   stroke-width: 1;
   fill: none;
-  /* viewBox is scaled to fill — keep the line a crisp 1px regardless. */
-  vector-effect: non-scaling-stroke;
 }
 
 .yAxis {
   grid-column: 2;
   grid-row: 1;
   position: relative;
-  min-inline-size: calc(var(--sf-unit) * 2);
+  /* The chart sets --sf-axis-label-width to the widest kept tick label
+     (quantized — see labelLayout.maxLabelWidth); the fallback reproduces the
+     historical fixed 2u column exactly (1.5u label + 0.5u gap). */
+  min-inline-size: calc(
+    var(--sf-axis-label-width, calc(var(--sf-unit) * 1.5)) +
+    var(--sf-unit) /
+    2
+  );
 }
 .yTick {
   position: absolute;

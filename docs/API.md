@@ -51,6 +51,8 @@ Surface · Switch · Tabs · TextEdit · TextEditInline · Timeline · ToggleGro
 
 Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture — the same set as Scatterplot/CandlestickChart, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
 
+All 2D charts share the measured-label behavior (chart-polish milestone): tick and category labels are measured with real text metrics, thinned until nothing collides (first and last always survive), and long categorical labels are ellipsized with the full text in a `title` — never rotated. The y-axis column auto-sizes to the widest measured label via `--sf-axis-label-width` on the chart root; set that variable yourself on a container to pin several stacked charts to one column width. Hairline chrome (gridlines, ticks, wicks, cell edges) is device-pixel-snapped; numerals are tabular; resize tracks 1:1 with coalesced recomputes and stable label sets (step hysteresis).
+
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `categories` | `string[]` | — | x-axis category labels. |
@@ -1476,7 +1478,8 @@ Horizontal time axis with ticks, event markers, optional scrubbing/range selecti
 | `snap` | `TimelineSnap` | `"none"` | Snap scrubbing to events or ticks. |
 | `height` | `number \| string` | auto | Defaults to fit the lane count. |
 | `showNow` | `boolean` | `true` | Faint line at the current time. |
-| `maxLanes` | `number` | `3` | Max label-stacking lanes. |
+| `maxLanes` | `number` | `3` | Max label-stacking lanes. Labels that can't be placed collision-free within them are hidden at rest and revealed on hover/focus (markers stay visible). |
+| `pxPerDay` | `number` | — | Minimum px per day: the track gets a min inline size of `days × pxPerDay`, so a too-wide range scrolls horizontally instead of compressing. Unset = fit-to-container. |
 | `tickSpacing` | `number` | tuned (~80–200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. |
 | `compact` | `boolean` | `false` | Condensed strip — labels hidden at rest. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Strip height; implies the strip. `sm` value label shrinks to 75%. |

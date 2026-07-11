@@ -4,29 +4,40 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
 } from "react";
-import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
   Axis,
   type AxisTick,
+  anchorRectFromPoint,
   type BandScale,
   ChartControls,
   type ChartScaffoldingProps,
   Crosshair,
+  domainKeyOf,
   formatDateDelta,
   formatNumber,
   formatTimeTick,
+  getTextMeasurer,
   indexToX,
   invertLinear,
+  type LabelBox,
   linearScale,
+  maxLabelWidth,
   niceTicks,
   pickTimeUnit,
+  resolveTickFont,
+  type StepSession,
+  snapHairline,
+  stableValue,
   startOfUnit,
   type TimeUnit,
   Tooltip,
+  thinLabels,
   unitRank,
   useAnnotationEditor,
+  useMeasuredPlot,
   useViewport,
   xToIndex,
 } from "../../lib/chart";
@@ -74,13 +85,18 @@ export interface CandlestickChartProps
   renderTooltip?: (candle: Candle) => ReactNode;
 }
 
-interface HoverState {
+/** What the delegated candle layer reports: the datum + its plot-space anchor
+ *  (candle center, close price). The root turns it into a HoverState. */
+interface CandleHit {
   candle: Candle;
   /** Index into the source `candles` array (survives aggregation). */
   index: number;
-  rect: DOMRect;
   cx: number;
   cy: number;
+}
+
+interface HoverState extends CandleHit {
+  rect: DOMRect;
 }
 
 function isDateValue(x: CandleX): x is Date {
@@ -179,11 +195,11 @@ const CandlesLayer = memo(function CandlesLayer({
   xBand: BandScale;
   yScale: (value: number) => number;
   plotHeight: number;
-  onCandleHover: (hover: HoverState) => void;
+  onCandleHover: (hit: CandleHit) => void;
   onCandleLeave: () => void;
   onCandleActivate?: (candle: Candle, index: number) => void;
 }) {
-  const resolveCandle = (target: EventTarget | null): HoverState | null => {
+  const resolveCandle = (target: EventTarget | null): CandleHit | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
     if (!el) return null;
     const i = Number(el.getAttribute("data-idx"));
@@ -193,7 +209,6 @@ const CandlesLayer = memo(function CandlesLayer({
     return {
       candle,
       index: Number(keys[i]),
-      rect: el.getBoundingClientRect(),
       cx: left + xBand.bandwidth / 2,
       cy: yScale(candle.close),
     };
@@ -235,6 +250,10 @@ const CandlesLayer = memo(function CandlesLayer({
         const left = xBand.position(keys[i] ?? "");
         if (left == null) return null;
         const center = left + xBand.bandwidth / 2;
+        // The wick is a 1px hairline — snap it onto the pixel grid (chrome-grade,
+        // like gridlines). The body rect and hover anchor stay unsnapped: they're
+        // data marks, and snapping those jitters under zoom/pan.
+        const wickX = snapHairline(center);
         const up = c.close >= c.open;
         const yHigh = yScale(c.high);
         const yLow = yScale(c.low);
@@ -250,7 +269,7 @@ const CandlesLayer = memo(function CandlesLayer({
             tabIndex={0}
             aria-label={`${formatX(c.x)}: open ${c.open}, high ${c.high}, low ${c.low}, close ${c.close}`}
           >
-            <line x1={center} x2={center} y1={yHigh} y2={yLow} className={styles.wick} />
+            <line x1={wickX} x2={wickX} y1={yHigh} y2={yLow} className={styles.wick} />
             <rect
               x={left}
               y={bodyTop}
@@ -300,22 +319,9 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     ref,
   ) {
     const isTufte = scaffolding !== "full";
-    const plotRef = useRef<HTMLDivElement>(null);
-    const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-      width: 0,
-      height: 0,
-    });
+    const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
     const [hover, setHover] = useState<HoverState | null>(null);
-
-    useLayoutEffect(() => {
-      const el = plotRef.current;
-      if (!el || typeof ResizeObserver === "undefined") return;
-      const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-      update();
-      const observer = new ResizeObserver(update);
-      observer.observe(el);
-      return () => observer.disconnect();
-    }, []);
+    const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
     // --- Viewport (bar-index space: the "logical range" model) ---
     const n = candles.length;
@@ -364,12 +370,24 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     // Visible window + LOD: past ~4 bars per pixel-column budget, candles
     // aggregate into true OHLC groups (first open, last close, extreme
     // high/low) — min/max decimation would break OHLC semantics. Keys stay
-    // source indices so hover/activate report real candles.
+    // source indices so hover/activate report real candles. The bar budget
+    // sits behind a hysteresis band (stableValue): during a live resize the
+    // kept budget survives while its per-bar width stays near the 4px target,
+    // so grouping doesn't flap between adjacent group sizes; a domain change
+    // (zoom/pan) re-derives immediately.
+    const lodSession = useRef<StepSession<number>>({});
     const visible = useMemo(() => {
       const start = Math.max(0, Math.floor(d0));
       const end = Math.min(n, Math.ceil(d1));
       const windowed = start === 0 && end === n ? candles : candles.slice(start, end);
-      const maxBars = Math.max(16, Math.floor(plotSize.width / 4));
+      const keptMaxBars = lodSession.current.value;
+      const maxBars = stableValue(
+        lodSession.current,
+        Math.max(16, Math.floor(plotSize.width / 4)),
+        keptMaxBars !== undefined ? plotSize.width / keptMaxBars : undefined,
+        4,
+        domainKeyOf([d0, d1]),
+      );
       if (windowed.length <= maxBars) {
         return {
           candles: windowed,
@@ -438,16 +456,41 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       }));
     }, [resolvedYDomain, scaffolding]);
 
+    // Survivor bias for the x ticks: last frame's kept labels win ties this
+    // frame, so live resize/zoom doesn't flicker between equal alternatives.
+    const prevXTickKeysRef = useRef<ReadonlySet<string>>(new Set());
+
     // X labels: for dated candles, tick where a calendar unit changes between
     // neighbors (the TradingView model — the bar axis is gap-free, so ticks
     // can't come from a regular time grid) with boundary promotion; numeric
-    // candles fall back to even sampling.
+    // candles fall back to one candidate per candle. Either set then goes
+    // through a single measured collision pass (thinLabels): endpoints always
+    // survive, promoted boundaries outrank plain ones, survivors are sticky.
     const xAxisTicks: AxisTick[] = useMemo(() => {
       const vc = visible.candles;
       if (vc.length === 0 || plotSize.width <= 0) return [];
       const center = (i: number) => {
         const left = xBand.position(visible.keys[i] ?? "") ?? 0;
         return (left + xBand.bandwidth / 2) / plotSize.width;
+      };
+      const thin = (ticks: AxisTick[], keys: string[]): AxisTick[] => {
+        const boxes: LabelBox[] = ticks.map((t, i) => ({
+          center: t.position * plotSize.width,
+          size: measure(t.label),
+          priority: i === 0 || i === ticks.length - 1 ? 2 : t.major ? 1 : 0,
+          key: keys[i],
+        }));
+        const keep = thinLabels(boxes, { previousKeys: prevXTickKeysRef.current });
+        const nextKeys = new Set<string>();
+        const out: AxisTick[] = [];
+        ticks.forEach((t, i) => {
+          if (!keep[i]) return;
+          const key = keys[i];
+          if (key !== undefined) nextKeys.add(key);
+          out.push(t);
+        });
+        prevXTickKeysRef.current = nextKeys;
+        return out;
       };
       const first = vc[0];
       const last = vc[vc.length - 1];
@@ -457,6 +500,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
           const unit = pickTimeUnit(spanMs, plotSize.width).unit;
           const levels: TimeUnit[] = ["year", "month", "week", "day", "hour", "minute"];
           const out: AxisTick[] = [];
+          const keys: string[] = [];
           for (let i = 1; i < vc.length; i++) {
             const prev = vc[i - 1];
             const cur = vc[i];
@@ -477,39 +521,19 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
               position: center(i),
               major: unitRank(level) > unitRank(unit),
             });
+            keys.push(String((cur.x as Date).getTime()));
           }
-          if (out.length >= 2) {
-            // Fine-grained bars can cross a boundary every candle — thin the
-            // minor ticks, keep every promoted one.
-            const maxTicks = Math.max(2, Math.floor(plotSize.width / 70));
-            let ticks = out;
-            if (ticks.length > maxTicks) {
-              const k = Math.ceil(ticks.length / maxTicks);
-              ticks = ticks.filter((t, idx) => t.major || idx % k === 0);
-            }
-            // A kept minor can still crowd a promoted neighbor ("Jun 28"
-            // against "Jul") — drop minors within a label's width of a major.
-            const minGap = plotSize.width > 0 ? 48 / plotSize.width : 0;
-            return ticks.filter(
-              (t) =>
-                t.major ||
-                !ticks.some((m) => m.major && Math.abs(m.position - t.position) < minGap),
-            );
-          }
+          if (out.length >= 2) return thin(out, keys);
         }
       }
-      const stepN = Math.max(
-        1,
-        Math.ceil(vc.length / Math.max(1, Math.floor(plotSize.width / 100))),
-      );
       const out: AxisTick[] = [];
-      for (let i = 0; i < vc.length; i += stepN) {
-        const c = vc[i];
-        if (!c) continue;
+      const keys: string[] = [];
+      vc.forEach((c, i) => {
         out.push({ label: formatX(c.x), position: center(i), major: false });
-      }
-      return out;
-    }, [visible, xBand, plotSize.width]);
+        keys.push(visible.keys[i] ?? String(i));
+      });
+      return thin(out, keys);
+    }, [visible, xBand, plotSize.width, measure]);
 
     // Annotation x-anchors are timestamps; map them onto the gap-free bar
     // axis by interpolating between neighboring candles.
@@ -530,10 +554,31 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       [],
     );
 
-    const handleCandleHover = useCallback((hover: HoverState) => setHover(hover), []);
+    // Measured y-axis column: the widest tick label sets --sf-axis-label-width
+    // (8px-quantized so the resize feedback loop cannot oscillate).
+    const yAxisWidth = useMemo(
+      () =>
+        maxLabelWidth(
+          yAxisTicks.map((t) => t.label),
+          measure,
+        ),
+      [yAxisTicks, measure],
+    );
+
+    // One anchor source: tooltip and crosshair both derive from the candle's
+    // center/close point in plot space, so they can never disagree.
+    const handleCandleHover = useCallback(
+      (hit: CandleHit) => {
+        const plotEl = plotRef.current;
+        if (!plotEl) return;
+        setHover({ ...hit, rect: anchorRectFromPoint(plotEl, hit.cx, hit.cy) });
+      },
+      [plotRef],
+    );
     const handleLeave = useCallback(() => setHover(null), []);
 
     const wrapperStyle: CSSProperties = {
+      ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
       // The inline height would beat the fullscreen class; drop it while
       // expanded.
       ...(height != null && !expanded
@@ -566,7 +611,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       >
         {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
         <Axis orientation="y" ticks={yAxisTicks} noLine={isTufte} className={styles.yAxis} />
-        <div ref={plotRef} className={styles.plot}>
+        <div ref={plotAreaRef} className={styles.plot}>
           {plotSize.width > 0 && plotSize.height > 0 ? (
             <svg
               width={plotSize.width}
@@ -580,7 +625,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
             >
               {scaffolding !== "minimal"
                 ? yAxisTicks.map((tick) => {
-                    const y = plotSize.height * (1 - tick.position);
+                    const y = snapHairline(plotSize.height * (1 - tick.position));
                     return (
                       <line
                         key={`grid-${tick.label}-${tick.position}`}

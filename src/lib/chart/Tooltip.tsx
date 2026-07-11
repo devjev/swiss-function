@@ -53,12 +53,26 @@ export function Tooltip({ open, anchorRect, children }: TooltipProps) {
 
   const style: CSSProperties = pos
     ? { top: `${pos.top}px`, left: `${pos.left}px` }
-    : // Off-screen during the first measurement frame so we never flash at (0,0).
-      { top: "-9999px", left: "-9999px" };
+    : // Invisible during the measurement frame: the layout effect positions it
+      // pre-paint, and visibility (unlike an off-screen park) can neither
+      // flash nor stretch the scrollable area.
+      { top: `${anchorRect.top}px`, left: `${anchorRect.left}px`, visibility: "hidden" };
 
   return (
     <div ref={ref} className={styles.tooltip} style={style} role="tooltip">
       {children}
     </div>
   );
+}
+
+/**
+ * DOMRect for a plot-space point — the single anchor source shared by the
+ * SVG Crosshair (which consumes plot px directly) and this Tooltip (which
+ * needs viewport coords). Charts derive both from the same cx/cy, so the
+ * two can never disagree, and per-hover getBoundingClientRect calls on
+ * individual marks disappear.
+ */
+export function anchorRectFromPoint(plotEl: Element, x: number, y: number, r = 4): DOMRect {
+  const plot = plotEl.getBoundingClientRect();
+  return new DOMRect(plot.left + x - r, plot.top + y - r, r * 2, r * 2);
 }

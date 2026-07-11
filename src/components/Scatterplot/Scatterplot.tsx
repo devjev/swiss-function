@@ -4,27 +4,38 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
 } from "react";
-import { forwardRef, memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   AnnotationsLayer,
   Axis,
   type AxisTick,
   adaptiveTicks,
+  anchorRectFromPoint,
   ChartControls,
   type ChartScaffoldingProps,
   Crosshair,
+  domainKeyOf,
   formatDateDelta,
   formatNumber,
+  getTextMeasurer,
   invertLinear,
+  type LabelBox,
   linearScale,
+  maxLabelWidth,
   minMaxDownsample,
   niceDomain,
   niceTicks,
+  resolveTickFont,
+  type StepSession,
   sliceRange,
+  snapHairline,
+  stableValue,
   Tooltip,
+  thinLabels,
   timeScale,
   timeTicks,
   useAnnotationEditor,
+  useMeasuredPlot,
   useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
@@ -82,13 +93,16 @@ export interface ScatterplotProps
   renderTooltip?: (datum: ScatterDatum & { series: string }) => ReactNode;
 }
 
-interface HoverState {
+interface PointHit {
   datum: ScatterDatum;
   series: string;
-  rect: DOMRect;
-  /** SVG-coords for the hovered point — used to anchor the crosshair. */
+  /** SVG-coords for the hovered point — the shared tooltip/crosshair anchor. */
   cx: number;
   cy: number;
+}
+
+interface HoverState extends PointHit {
+  rect: DOMRect;
 }
 
 function isDateValue(x: ScatterX): x is Date {
@@ -114,18 +128,17 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   series: ScatterSeries;
   xPx: (x: ScatterX) => number;
   yScale: (y: number) => number;
-  onPointHover: (hover: HoverState) => void;
+  onPointHover: (hit: PointHit) => void;
   onPointLeave: () => void;
-  onPointActivate?: (hover: HoverState) => void;
+  onPointActivate?: (hit: PointHit) => void;
 }) {
-  const resolvePoint = (target: EventTarget | null): HoverState | null => {
+  const resolvePoint = (target: EventTarget | null): PointHit | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
     const datum = el ? series.data[Number(el.getAttribute("data-idx"))] : undefined;
     if (!el || !datum) return null;
     return {
       datum,
       series: series.name,
-      rect: el.getBoundingClientRect(),
       cx: xPx(datum.x),
       cy: yScale(datum.y),
     };
@@ -220,29 +233,6 @@ function formatXValue(x: ScatterX): string {
   return formatNumber(x);
 }
 
-/** Drop labels that would crowd their neighbours. Always preserves the first
- *  and last ticks so the visible range is unambiguous. Operates on already-
- *  positioned ticks (`position` in 0..1). */
-function pruneClose(ticks: AxisTick[], minDelta: number): AxisTick[] {
-  if (ticks.length <= 2 || minDelta <= 0) return ticks;
-  const sorted = [...ticks].sort((a, b) => a.position - b.position);
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-  if (!first || !last) return ticks;
-  const out: AxisTick[] = [first];
-  let lastPos = first.position;
-  for (let i = 1; i < sorted.length - 1; i++) {
-    const t = sorted[i];
-    if (!t) continue;
-    if (t.position - lastPos >= minDelta && last.position - t.position >= minDelta) {
-      out.push(t);
-      lastPos = t.position;
-    }
-  }
-  out.push(last);
-  return out;
-}
-
 export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function Scatterplot(
   {
     series,
@@ -272,24 +262,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   // Both minimal and hover modes share the dot-dash idle look; full mode
   // replaces it with nice-tick axes + gridlines.
   const isTufte = scaffolding !== "full";
-  const plotRef = useRef<HTMLDivElement>(null);
-  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  // SVG renders at the plot cell's pixel size so points stay perfectly
+  // circular regardless of container width.
+  const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   const [hover, setHover] = useState<HoverState | null>(null);
-
-  // Measure plot cell — SVG renders at the cell's pixel size so points stay
-  // perfectly circular regardless of container width.
-  useLayoutEffect(() => {
-    const el = plotRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const isDateAxis = useMemo(() => {
     for (const s of series) {
@@ -388,6 +365,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
 
   const resolvedXDomain: [number, number] = zoomable ? viewport.domain : staticXDomain;
 
+  // LOD hysteresis: the bucket count survives a live resize while it still
+  // yields ~4px columns, so decimation doesn't flap frame-to-frame; a domain
+  // change (zoom/pan) re-buckets immediately.
+  const bucketSession = useRef<StepSession<number>>({});
+
   // Visible, decimated data: slice each sorted series to the x-window
   // (widened by one point so lines run off-plot), then min/max-decimate to
   // ~4 points per pixel column so SVG element counts stay bounded no matter
@@ -395,7 +377,14 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   const visibleSeries: ScatterSeries[] = useMemo(() => {
     if (!zoomable) return series;
     const [x0, x1] = resolvedXDomain;
-    const buckets = Math.max(16, Math.floor(plotSize.width / 4));
+    const session = bucketSession.current;
+    const buckets = stableValue(
+      session,
+      Math.max(16, Math.floor(plotSize.width / 4)),
+      session.value !== undefined ? plotSize.width / session.value : undefined,
+      4,
+      domainKeyOf(resolvedXDomain),
+    );
     return series.map((s) => {
       let sorted = true;
       for (let i = 1; i < s.data.length; i++) {
@@ -474,96 +463,112 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     yFromPx: yInvert,
   };
 
+  // Survivor bias for the x labels: keys kept last frame win ties this frame,
+  // so a live pan/zoom/resize doesn't strobe between alternating subsets.
+  const prevXTickKeys = useRef<ReadonlySet<string>>(new Set());
+
   // --- Ticks ---
   // Tufte mode: one tick per unique datum value (dot-dash style). Full mode:
   // adaptive ticks — step, precision and promotion recompute from the
-  // (possibly zoomed) domain and pixel density.
+  // (possibly zoomed) domain and pixel density. Either set can collide (dense
+  // data, zoom), so both pass through measured collision thinning.
   const xTicks: { ticks: AxisTick[]; offsetLabel: string } = useMemo(() => {
     const [xMin, xMax] = resolvedXDomain;
     if (xMax <= xMin) return { ticks: [], offsetLabel: "" };
+    let raw: AxisTick[];
+    let offsetLabel = "";
     if (isTufte) {
       const seen = new Set<number>();
-      const ticks: AxisTick[] = [];
+      raw = [];
       for (const s of visibleSeries) {
         for (const d of s.data) {
           const v = toNumber(d.x);
           if (seen.has(v)) continue;
           seen.add(v);
-          ticks.push({
+          raw.push({
             label: formatXValue(d.x),
             position: (v - xMin) / (xMax - xMin),
             major: false,
           });
         }
       }
-      // Drop labels that would crowd; reserve ~48px per x-axis label.
-      const minDelta = plotSize.width > 0 ? 48 / plotSize.width : 0;
-      return { ticks: pruneClose(ticks, minDelta), offsetLabel: "" };
-    }
-    if (isDateAxis) {
-      return {
-        ticks: timeTicks(xMin, xMax, plotSize.width).map((t) => ({
-          label: t.label,
-          position: (t.date.getTime() - xMin) / (xMax - xMin),
-          major: t.major,
-        })),
-        offsetLabel: "",
-      };
-    }
-    const adaptive = adaptiveTicks(xMin, xMax, plotSize.width);
-    return {
-      ticks: adaptive.ticks.map((t) => ({
+      // Sorted so first/last are the range endpoints (always kept below).
+      raw.sort((a, b) => a.position - b.position);
+    } else if (isDateAxis) {
+      raw = timeTicks(xMin, xMax, plotSize.width).map((t) => ({
+        label: t.label,
+        position: (t.date.getTime() - xMin) / (xMax - xMin),
+        major: t.major,
+      }));
+    } else {
+      const adaptive = adaptiveTicks(xMin, xMax, plotSize.width);
+      raw = adaptive.ticks.map((t) => ({
         label: t.label,
         position: (t.value - xMin) / (xMax - xMin),
         major: t.major,
-      })),
-      offsetLabel: adaptive.offsetLabel,
-    };
-  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries]);
+      }));
+      offsetLabel = adaptive.offsetLabel;
+    }
+    // Per-datum ticks pin the range endpoints; full-mode majors outrank minors.
+    const boxes: LabelBox[] = raw.map((t, i) => ({
+      center: t.position * plotSize.width,
+      size: measure(t.label),
+      priority: isTufte ? (i === 0 || i === raw.length - 1 ? 2 : 0) : t.major ? 1 : 0,
+      key: t.label,
+    }));
+    const keep = thinLabels(boxes, { previousKeys: prevXTickKeys.current });
+    const ticks = raw.filter((_, i) => keep[i]);
+    prevXTickKeys.current = new Set(ticks.map((t) => t.label));
+    return { ticks, offsetLabel };
+  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries, measure]);
 
   const yTicks: { ticks: AxisTick[]; offsetLabel: string } = useMemo(() => {
     const [yMin, yMax] = resolvedYDomain;
     if (yMax <= yMin) return { ticks: [], offsetLabel: "" };
+    let raw: AxisTick[];
+    let offsetLabel = "";
     if (isTufte) {
       const seen = new Set<number>();
-      const ticks: AxisTick[] = [];
+      raw = [];
       for (const s of visibleSeries) {
         for (const d of s.data) {
           if (seen.has(d.y)) continue;
           seen.add(d.y);
-          ticks.push({
+          raw.push({
             label: formatNumber(d.y),
             position: (d.y - yMin) / (yMax - yMin),
             major: false,
           });
         }
       }
-      // Drop labels that would crowd; ~16px per y-axis label (one line height).
-      const minDelta = plotSize.height > 0 ? 16 / plotSize.height : 0;
-      return { ticks: pruneClose(ticks, minDelta), offsetLabel: "" };
-    }
-    // While zoomed the y-domain is padded raw data (not nice-snapped), so the
-    // axis needs in-domain adaptive ticks; at rest keep the nice-tick set
-    // aligned with the snapped domain.
-    if (zoomable && viewport.isZoomed) {
+      raw.sort((a, b) => a.position - b.position);
+    } else if (zoomable && viewport.isZoomed) {
+      // While zoomed the y-domain is padded raw data (not nice-snapped), so
+      // the axis needs in-domain adaptive ticks; at rest keep the nice-tick
+      // set aligned with the snapped domain.
       const adaptive = adaptiveTicks(yMin, yMax, plotSize.height, 50);
-      return {
-        ticks: adaptive.ticks.map((t) => ({
-          label: t.label,
-          position: (t.value - yMin) / (yMax - yMin),
-          major: t.major,
-        })),
-        offsetLabel: adaptive.offsetLabel,
-      };
-    }
-    return {
-      ticks: niceTicks(yMin, yMax, 5).map((t) => ({
+      raw = adaptive.ticks.map((t) => ({
         label: t.label,
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
-      })),
-      offsetLabel: "",
-    };
+      }));
+      offsetLabel = adaptive.offsetLabel;
+    } else {
+      raw = niceTicks(yMin, yMax, 5).map((t) => ({
+        label: t.label,
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      }));
+    }
+    // A y label occupies one line height (~16px) along the axis.
+    const boxes: LabelBox[] = raw.map((t, i) => ({
+      center: t.position * plotSize.height,
+      size: 16,
+      priority: isTufte ? (i === 0 || i === raw.length - 1 ? 2 : 0) : t.major ? 1 : 0,
+      key: t.label,
+    }));
+    const keep = thinLabels(boxes);
+    return { ticks: raw.filter((_, i) => keep[i]), offsetLabel };
   }, [resolvedYDomain, isTufte, visibleSeries, plotSize.height, zoomable, viewport.isZoomed]);
 
   const xAxisTicks = xTicks.ticks;
@@ -595,12 +600,22 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     [xScaleDate, xScaleNum],
   );
 
-  const handlePointHover = useCallback((hover: HoverState) => setHover(hover), []);
+  // One anchor source: tooltip and crosshair both derive from the point's
+  // plot-space center, so they can never disagree (hover and focus route
+  // through the same delegated handler in the points layer).
+  const handlePointHover = useCallback(
+    (hit: PointHit) => {
+      const plotEl = plotRef.current;
+      if (!plotEl) return;
+      setHover({ ...hit, rect: anchorRectFromPoint(plotEl, hit.cx, hit.cy) });
+    },
+    [plotRef],
+  );
   const handlePointLeave = useCallback(() => setHover(null), []);
   const handlePointActivate = useMemo(
     () =>
       onPointActivate
-        ? (hit: HoverState) => onPointActivate({ ...hit.datum, series: hit.series })
+        ? (hit: PointHit) => onPointActivate({ ...hit.datum, series: hit.series })
         : undefined,
     [onPointActivate],
   );
@@ -611,7 +626,19 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     [isDateAxis],
   );
 
+  // Measured y-axis column: the widest tick label sets --sf-axis-label-width
+  // (8px-quantized so the resize feedback loop cannot oscillate).
+  const yAxisWidth = useMemo(
+    () =>
+      maxLabelWidth(
+        yTicks.ticks.map((t) => t.label),
+        measure,
+      ),
+    [yTicks, measure],
+  );
+
   const wrapperStyle: CSSProperties = {
+    ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
     // The inline height would beat the fullscreen class (inset: 0 must own
     // the size), so drop it while expanded.
     ...(height != null && !expanded
@@ -651,7 +678,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     >
       {hasYLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
       <Axis orientation="y" ticks={yAxisTicks} noLine={isTufte} className={styles.yAxis} />
-      <div ref={plotRef} className={styles.plot}>
+      <div ref={plotAreaRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
             width={plotSize.width}
@@ -666,7 +693,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
             {/* Gridlines render in both hover and full modes (CSS controls
                 opacity). In hover mode they fade in on point hover. */}
             {gridlineTicks.map((tick) => {
-              const y = plotSize.height * (1 - tick.position);
+              const y = snapHairline(plotSize.height * (1 - tick.position));
               return (
                 <line
                   key={`grid-${tick.label}-${tick.position}`}
@@ -733,9 +760,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
             ) : null}
 
             {isTufte && hover ? (
+              // Crosshair hairlines snap to the pixel grid; the point marker
+              // itself stays unsnapped (data marks are never quantized).
               <Crosshair
-                x={hover.cx}
-                y={hover.cy}
+                x={snapHairline(hover.cx)}
+                y={snapHairline(hover.cy)}
                 height={plotSize.height}
                 xLabel={formatXValue(hover.datum.x)}
                 yLabel={formatNumber(hover.datum.y)}

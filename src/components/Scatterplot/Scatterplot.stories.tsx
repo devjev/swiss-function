@@ -291,6 +291,36 @@ export const DrillDown: Story = () => {
  * the maximize toggle. The annotations array round-trips through state —
  * persist it as-is.
  */
+// Narrow-container stress: dates on x and 7-digit y values in 320px. The
+// per-datum dot-dash labels go through measured collision thinning (the range
+// endpoints always survive) and the y column is sized to the widest measured
+// label. Deterministic data — this is a VRT surface.
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <Scatterplot
+      series={[
+        {
+          name: "AUM",
+          data: [
+            { x: new Date(2026, 0, 5), y: 1_234_567 },
+            { x: new Date(2026, 0, 19), y: 1_298_402 },
+            { x: new Date(2026, 1, 2), y: 1_190_338 },
+            { x: new Date(2026, 1, 16), y: 1_275_910 },
+            { x: new Date(2026, 2, 2), y: 1_402_664 },
+            { x: new Date(2026, 2, 16), y: 1_366_072 },
+            { x: new Date(2026, 2, 30), y: 1_450_218 },
+            { x: new Date(2026, 3, 13), y: 1_521_884 },
+          ],
+          showLine: true,
+        },
+      ]}
+      xLabel="Date"
+      yLabel="AUM"
+      showLegend={false}
+    />
+  </div>
+);
+
 export const ChartWindow: Story = () => {
   const rand = seededRandom(11);
   const data: { x: Date; y: number }[] = [];

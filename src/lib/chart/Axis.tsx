@@ -11,6 +11,8 @@ export interface AxisTick {
   position: number;
   /** Emphasized tick (e.g., the y=0 line on a signed axis). Default false. */
   major?: boolean;
+  /** Full text when `label` was ellipsized; rendered as the label's title. */
+  title?: string;
 }
 
 export type AxisOrientation = "x" | "y";
@@ -48,7 +50,9 @@ export const Axis = forwardRef<HTMLDivElement, AxisProps>(function Axis(
             data-tick-major={tick.major || undefined}
           >
             <span className={styles.tickMark} aria-hidden="true" />
-            <span className={styles.tickLabel}>{tick.label}</span>
+            <span className={styles.tickLabel} title={tick.title}>
+              {tick.label}
+            </span>
           </div>
         );
       })}

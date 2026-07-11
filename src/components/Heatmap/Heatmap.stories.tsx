@@ -128,6 +128,31 @@ export const SensitivityField: Story = () => {
   );
 };
 
+// Narrow-container stress: a 24×12 grid with 7-digit values in 320px. Ticks
+// are per-cell-center candidates thinned by measured collision (first/last
+// column and row always kept), so labels never overlap however narrow the
+// plot gets; the y column is sized to the widest kept label. Deterministic
+// data — this is a VRT surface.
+export const Narrow: Story = () => {
+  const nx = 24;
+  const ny = 12;
+  const x: number[] = [];
+  const y: number[] = [];
+  const z: number[][] = [];
+  for (let i = 0; i < nx; i++) x.push(1_200_000 + 50_000 * i);
+  for (let j = 0; j < ny; j++) y.push(3_400_000 + 50_000 * j);
+  for (let j = 0; j < ny; j++) {
+    const row: number[] = [];
+    for (let i = 0; i < nx; i++) row.push(1_000_000 + 37_000 * i + 53_000 * j);
+    z.push(row);
+  }
+  return (
+    <div style={{ width: 320 }}>
+      <Heatmap data={{ x, y, z }} xLabel="Notional (USD)" yLabel="Strike (USD)" />
+    </div>
+  );
+};
+
 // The full interactive chart window — frame, fullscreen, controls, editable
 // annotations, and value-axis (row) zoom (wheel/drag/±/0 window a vertical
 // sub-range of rows). `zoomOutLimit` allows arbitrary zoom-out.

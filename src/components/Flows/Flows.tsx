@@ -1,22 +1,30 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
   Axis,
   type AxisTick,
+  anchorRectFromPoint,
   bandScale,
   ChartChrome,
   type ChartScaffoldingProps,
   Crosshair,
   FullscreenToggle,
+  fitBandTicks,
   formatNumber,
+  getTextMeasurer,
   linearScale,
+  maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveTickFont,
   scaffoldStyles,
+  snapFraction,
+  snapHairline,
   Tooltip,
   useChartScaffold,
+  useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./Flows.module.css";
@@ -198,27 +206,14 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
   ref,
 ) {
   const isTufte = scaffolding !== "full";
-  const plotRef = useRef<HTMLDivElement>(null);
-  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   const [hover, setHover] = useState<{
     datum: FlowTooltipDatum;
     rect: DOMRect;
     cx: number;
     cy: number;
   } | null>(null);
-
-  useLayoutEffect(() => {
-    const el = plotRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const resolved = useMemo(() => resolvePeriods(periods, colors), [periods, colors]);
   const categories = useMemo(() => resolved.map((r) => r.label), [resolved]);
@@ -281,17 +276,38 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
       .map((t) => ({ label: t.label, position: (t.value - yMin) / (yMax - yMin), major: t.major }));
   }, [viewYDomain, scaffolding]);
 
+  // Period labels through the measured fitting ladder: full text when every
+  // label fits its band, ellipsized (full text in title) when close, thinned
+  // to a stride keeping first + last when bands get too narrow.
   const xAxisTicks: AxisTick[] = useMemo(() => {
     if (categories.length === 0 || plotSize.width <= 0) return [];
-    return categories.map((c) => {
+    const centers = categories.map((c) => {
       const left = xBand.position(c) ?? 0;
-      return { label: c, position: (left + xBand.bandwidth / 2) / plotSize.width, major: false };
+      return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-  }, [categories, xBand, plotSize.width]);
+    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+      label: t.label,
+      title: t.title,
+      position: t.position,
+      major: false,
+    }));
+  }, [categories, xBand, plotSize.width, measure]);
+
+  // Measured y-axis column: the widest tick label sets --sf-axis-label-width
+  // (8px-quantized so the resize feedback loop cannot oscillate).
+  const yAxisWidth = useMemo(
+    () =>
+      maxLabelWidth(
+        yAxisTicks.map((t) => t.label),
+        measure,
+      ),
+    [yAxisTicks, measure],
+  );
 
   const handleLeave = () => setHover(null);
 
   const wrapperStyle: CSSProperties = {
+    ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
     ...(height != null && !scaffold.expanded
       ? { height: typeof height === "number" ? `${height}px` : height }
       : {}),
@@ -400,7 +416,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
     >
       {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
       <Axis orientation="y" ticks={yAxisTicks} noLine={isTufte} className={styles.yAxis} />
-      <div ref={plotRef} className={styles.plot}>
+      <div ref={plotAreaRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
             {...scaffold.editor.surfaceProps}
@@ -414,7 +430,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
           >
             {scaffolding !== "minimal"
               ? yAxisTicks.map((tick) => {
-                  const y = plotSize.height * (1 - tick.position);
+                  const y = snapHairline(plotSize.height * (1 - tick.position));
                   return (
                     <line
                       key={`grid-${tick.label}-${tick.position}`}
@@ -428,14 +444,17 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
                 })
               : null}
 
-            {/* Ribbon connectors (drawn under the bars). */}
+            {/* Ribbon connectors (drawn under the bars). 1px dashed hairlines:
+                snap the y so the horizontal rules fill whole pixels — the
+                diagonal close→open links get at most a half-pixel nudge that
+                keeps their ends flush with the adjacent snapped rules. */}
             {connectors.map((c) => (
               <line
                 key={c.key}
                 x1={c.x1}
-                y1={c.y1}
+                y1={snapHairline(c.y1)}
                 x2={c.x2}
-                y2={c.y2}
+                y2={snapHairline(c.y2)}
                 className={cx(styles.connector, c.open && styles.markerOpen)}
               />
             ))}
@@ -466,8 +485,15 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
                       delta: s.delta,
                       level: s.to,
                     };
-                    const setHoverHere = (rect: DOMRect) =>
+                    // One anchor source: tooltip and crosshair both derive
+                    // from the segment's top-center in plot space, so they
+                    // can never disagree.
+                    const setHoverHere = () => {
+                      const plotEl = plotRef.current;
+                      if (!plotEl) return;
+                      const rect = anchorRectFromPoint(plotEl, cx_, top);
                       setHover({ datum, rect, cx: cx_, cy: top });
+                    };
                     return (
                       // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
                       <rect
@@ -481,11 +507,9 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
                         role="button"
                         tabIndex={0}
                         aria-label={`${rp.label} ${s.label}: ${s.delta >= 0 ? "+" : "−"}${Math.abs(s.delta)}`}
-                        onPointerEnter={(e) =>
-                          setHoverHere(e.currentTarget.getBoundingClientRect())
-                        }
+                        onPointerEnter={setHoverHere}
                         onPointerLeave={handleLeave}
-                        onFocus={(e) => setHoverHere(e.currentTarget.getBoundingClientRect())}
+                        onFocus={setHoverHere}
                         onBlur={handleLeave}
                       >
                         <title>
