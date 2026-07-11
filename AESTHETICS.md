@@ -151,6 +151,12 @@ Depth indicates layer, not personality.
 
 - **Six elevation steps** (`--sf-elevation-0` through `-5`). Surfaces
   use them sparingly. Most of the page sits at 0 or 1.
+- **Dark mode encodes depth as luminance, not shadow.** There is no
+  luminance below a near-black ground, so in dark the elevation tokens
+  pair a translucent lightening layer (higher = lighter, the way raised
+  surfaces catch light) with strengthened key shadows for grounding.
+  Edges remain the job of the 1px borders elevated surfaces already
+  carry.
 - **Controls get a tactile cue**: `inset 0 1px 0 rgb(255 255 255 /
   0.18)` along the top edge, plus their elevation drop shadow. Together
   they read as a slightly raised key on an instrument panel. Buttons,
