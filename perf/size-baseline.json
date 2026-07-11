@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-08T16:49:18.902Z"
+    "date": "2026-07-11T10:32:40.434Z"
   },
-  "totalGzip": 700199,
+  "totalGzip": 771799,
   "entries": {
     ".": {
-      "files": 223,
-      "jsRaw": 778293,
-      "jsGzip": 235150,
+      "files": 230,
+      "jsRaw": 806146,
+      "jsGzip": 244066,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 235150,
+      "gzip": 244066,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -120,6 +120,15 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 198,
+      "externals": []
+    },
+    "./lib/from-arrow": {
+      "files": 1,
+      "jsRaw": 1648,
+      "jsGzip": 753,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 753,
       "externals": []
     },
     "./button": {
@@ -562,6 +571,38 @@
       "cssGzip": 0,
       "gzip": 3785,
       "externals": ["react", "react/jsx-runtime"]
+    },
+    "./notebook": {
+      "files": 71,
+      "jsRaw": 193127,
+      "jsGzip": 61931,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 61931,
+      "externals": [
+        "@base-ui/react/checkbox",
+        "@base-ui/react/combobox",
+        "@base-ui/react/input",
+        "@base-ui/react/popover",
+        "@base-ui/react/use-render",
+        "@codemirror/autocomplete",
+        "@codemirror/commands",
+        "@codemirror/language",
+        "@codemirror/search",
+        "@codemirror/state",
+        "@codemirror/view",
+        "@dnd-kit/core",
+        "@dnd-kit/sortable",
+        "@dnd-kit/utilities",
+        "@lezer/highlight",
+        "@replit/codemirror-vim",
+        "@tanstack/react-table",
+        "@tanstack/react-virtual",
+        "react",
+        "react-markdown",
+        "react/jsx-runtime",
+        "remark-gfm"
+      ]
     },
     "./outliner": {
       "files": 13,

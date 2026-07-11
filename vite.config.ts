@@ -60,6 +60,7 @@ const componentNames = [
   "Timeline",
   "ToggleGroup",
   "Selector",
+  "Notebook",
   "Reflow",
   "Picker",
   "Dropzone",

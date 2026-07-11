@@ -1062,6 +1062,39 @@ Empty / no-results / error / loading state rendered as a block with a dithered W
 | `opacity` | `number` | `0.85` | Fill opacity 0–1. |
 | `width` / `height` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
 
+## Notebook
+
+`import { Notebook, proseCellType, createSqlCellType } from "@tarassov-ch/swiss-function/notebook"`
+
+A reactive notebook surface: cells form a dependency graph, editing a cell re-runs its dependents, and results render through sf components. Both engines are the consumer's: the data engine is injected as the SQL executor, and further languages plug in through the `CellType` contract. The library ships no execution language and no eval; its reactive scheduler is in-house (spec: `src/lib/notebook/SPEC.md`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `document` | `NotebookDocument` | — | Controlled document: `{version: 1, cells: [{id, type, name?, source}]}`. Plain JSON, host-persisted. |
+| `onDocumentChange` | `(next: NotebookDocument) => void` | — | Fires on every edit/add/move/delete. |
+| `cellTypes` | `readonly CellType[]` | — | The explicit registry; nothing is implicit. Pass `proseCellType` plus the app's engine adapters. |
+| `defaultRenderResult` | `(value: unknown) => ReactNode` | Arrow → DataTable, else code | Fallback renderer when the cell type has none. |
+
+**The `CellType` contract** (the extension point for any language or engine):
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | `string` | Matches `NotebookCell.type`. |
+| `label` | `string` | Add-cell affordance label. |
+| `editorExtensions?` | `() => Extension[]` | CodeMirror language support (consumer-installed packages, per the CodeEditor convention). |
+| `findDependencies?` | `(source, knownNames) => string[]` | Names of referenced cells. Identifier-based languages intersect with `knownNames` (unknown identifiers then fail at run time); explicit-reference languages (SQL's `${name}`) can report unknown names, which show as `unresolved` until defined. |
+| `execute?` | `(ctx: CellRunContext) => unknown \| Promise<unknown>` | Omit for display-only types. `ctx` = `{source, inputs, signal}`; throw/reject → the cell's error state; the signal aborts when the run goes stale. |
+| `renderResult?` | `(value: unknown) => ReactNode` | Successful values; falls back to `defaultRenderResult`. |
+| `renderStatic?` | `(source: string) => ReactNode` | Display-only types render the source instead. |
+
+**Built-ins**: `proseCellType` (markdown, display-only, edit via double-click). `createSqlCellType({executor, extensions?})` — the flagship adapter: `${name}` interpolations reference other cells (scalars, Dates, and arrays inline; table values are not interpolable), dependencies parsed string/comment-aware, results rendered as a DataTable. `executor: (sql, signal) => Promise<unknown>` is the app's engine seam — wire DuckDB-WASM (or anything) there; the library never imports an engine.
+
+**Cell states** (visible as `data-status` on each cell): `idle`, `pending` (spinner in the status rail), `success`, `error`, `upstream-error` (an upstream cell failed; named in the message), `cycle`, `unresolved` (references a name no cell defines), `doc-error` (duplicate/invalid name or unknown type), `static` (display-only). Scheduler guarantees: same-task edits batch into one wave, diamond dependencies re-run a dependent exactly once with consistent inputs, stale runs are aborted and their results discarded.
+
+**Keyboard**: cells are focusable; ArrowUp/Down move between cells, Enter enters the editor, Escape returns to the cell, Mod+Enter commits and runs, Alt+ArrowUp/Down moves the cell.
+
+Also exported: `fromArrow` / `isArrowTableLike` / `ArrowTableLike` (re-exported from `@tarassov-ch/swiss-function/lib/from-arrow`): converts Arrow-shaped results (proxy rows, epoch-ms timestamps, BigInt/HUGEINT values) to plain row arrays with schema-driven `Date` coercion and a documented BigInt policy (`"string"` default, `"number"`, `"throw"`). Importable without the notebook.
+
 ## Outliner
 
 `import { Outliner } from "@tarassov-ch/swiss-function/outliner"`
