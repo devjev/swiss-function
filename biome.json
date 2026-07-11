@@ -14,7 +14,8 @@
       "!**/playwright-report",
       "!**/test-results",
       "!**/playwright/.cache",
-      "!**/snyk_results.html"
+      "!**/snyk_results.html",
+      "!examples/**"
     ]
   },
   "formatter": {
@@ -55,10 +56,18 @@
       }
     }
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
   "overrides": [
     {
-      "includes": ["scripts/**"],
+      "includes": [
+        "scripts/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {
@@ -68,7 +77,10 @@
       }
     },
     {
-      "includes": ["src/components/DataTable/**", "src/lib/filter/**"],
+      "includes": [
+        "src/components/DataTable/**",
+        "src/lib/filter/**"
+      ],
       "linter": {
         "rules": {
           "a11y": {
@@ -80,7 +92,10 @@
       }
     },
     {
-      "includes": ["src/components/Outliner/**", "src/components/Explorer/**"],
+      "includes": [
+        "src/components/Outliner/**",
+        "src/components/Explorer/**"
+      ],
       "linter": {
         "rules": {
           "a11y": {
@@ -94,7 +109,9 @@
       }
     },
     {
-      "includes": ["src/components/Map/**"],
+      "includes": [
+        "src/components/Map/**"
+      ],
       "linter": {
         "rules": {
           "suspicious": {

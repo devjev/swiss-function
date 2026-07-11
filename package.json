@@ -35,6 +35,10 @@
       "types": "./dist/lib/cx.d.ts",
       "import": "./dist/lib/cx.js"
     },
+    "./lib/from-arrow": {
+      "types": "./dist/lib/fromArrow.d.ts",
+      "import": "./dist/lib/fromArrow.js"
+    },
     "./button": {
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
@@ -186,6 +190,10 @@
     "./non-ideal-state": {
       "types": "./dist/components/NonIdealState/index.d.ts",
       "import": "./dist/components/NonIdealState/index.js"
+    },
+    "./notebook": {
+      "types": "./dist/components/Notebook/index.d.ts",
+      "import": "./dist/components/Notebook/index.js"
     },
     "./outliner": {
       "types": "./dist/components/Outliner/index.d.ts",

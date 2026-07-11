@@ -142,6 +142,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | `DataTable`              | Tabular data — sorting, selection, virtualization, Column resize (on by default; `resizableColumns={false}` or per-column `resizable: false` to lock; double-click a header edge to auto-fit). Tracks are `minmax(minWidth, preferred)`: when the columns don't fit they shrink toward their minimum (no scroll); only when even the minimums don't fit does the table scroll horizontally. The last column's preferred is `1fr` (fills slack) and it has no handle. Dragging a trailing edge sets preferred widths, cascading the opposite change through the columns to its right (nearest first, skipping locked ones). Set `width` / `minWidth` per column in `--sf-unit` multiples, plus opt-in `scrollSnap` and `edgeFade`. `frozenColumns={n}` freezes the first n columns (pinned left while the rest scroll — the horizontal analogue of the sticky header; frozen columns keep a fixed width). With `editable`, each column's `edit` config picks a purpose-built cell editor: `text`→`TextEditInline`, `number`→`DigitInputMicro` (`decimals`/`slots`/`unit`), `date`→`DatePicker` (commits a `Date`), `boolean`→a two-option `Picker` (True/False), `select`→a searchable `Picker`. The serious one. |
 | `Markdown`               | Rendering markdown content (uses remark-gfm).      |
 | `Prose`                  | Long-form markdown reading view — virtualized body + auto outline. Compound: `Prose.Root`, `Prose.Body`, `Prose.Outline`. Reach for this over bare `Markdown` for document-length content. |
+| `Notebook`               | Notebook-like analysis inside the app: reactive cells (edit one, dependents re-run) over consumer-provided engines. `document`/`onDocumentChange` (controlled JSON), `cellTypes` registry: `proseCellType` built in, `createSqlCellType({executor})` for SQL over the app's DuckDB-WASM (or any engine), any further language via the public `CellType` contract (`findDependencies`/`execute`/`renderResult`). Results render through DataTable/Markdown; the library ships no engine and no eval. `fromArrow` (also at `/lib/from-arrow`) converts Arrow results (Date coercion, BigInt policy) for DataTable. |
 | `Skeleton`               | Loading placeholder with shimmer (respects reduced-motion). |
 | `Spinner`                | Inline CLI-style animated glyph (`role="status"`) for "busy" feedback. 28 monospace `variant`s (braille/line/blocks/bars/grow/bounce/arrow/quadrant/triangle/circle/corners/pipe/star/toggle/dots/pulse/scanner/arrowDouble/caret/trigram/dqpb/arc/clockface/balloon/weave/boxCorners/quadrantHeavy/static); `color` (any token) + `size`, else inherits; `speed`. Reduced-motion → static frame. The `useSpinnerFrame(variant, speed)` hook embeds the glyph in other components. |
 | `NonIdealState`          | Empty / no-results / error / loading state for a region. A sizable block continuously filled (WebGL, ~0.06ms/frame, pauses offscreen) with console-style dithered shade blocks; message + action in the cleared center. Props: `variant`, `title`, `description`, `action`, `width`/`height`, `effect` (24 animated: ripple/noise/scan/plasma/rain/wave/spiral/radar/tunnel/fire/bars/metaballs/rotozoom/twister/copper/voronoi/grid/kaleidoscope/starfield/swirl/helix/checker/droplets/lissajous; per-variant defaults: empty→plasma, no-results→noise, error→scan, loading→ripple), `effectOptions` (speed/wavelength/amplitude/rate/density/seed), `speed`, `density` (overall coverage), `cellSize` (square shade-block px), `color` + `opacity`. Reduced-motion → static frame. |
@@ -283,12 +284,12 @@ not the layout primitive of the system.
 ### Use the Field compound for form fields
 
 ```tsx
-<Field.Root orientation="vertical" required>
+<Field orientation="vertical" required>
   <Field.Label>Email</Field.Label>
   <Input type="email" />
   <Field.Description>We never share your address.</Field.Description>
   <Field.Error>Please enter a valid email.</Field.Error>
-</Field.Root>
+</Field>
 ```
 
 This is the supported way to lay out, label, describe, and error a
@@ -322,7 +323,7 @@ Common requests and the right component:
 | User says                                          | Use                                              |
 | -------------------------------------------------- | ------------------------------------------------ |
 | "a button" / "an action"                           | `Button` (variant chosen by destructiveness)     |
-| "a form" (single row / static)                     | `Field.Root` per row + the right control inside  |
+| "a form" (single row / static)                     | `Field` per row + the right control inside  |
 | "a form with validation / submit handling / form state / errors" | `Form` + `FormField` per row + `FormError` (bring-your-own `resolver`; `errors` prop for server errors) |
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
 | "a drawer" / "sheet" / "overlay panel"             | `Drawer`                                          |
@@ -365,6 +366,7 @@ Common requests and the right component:
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "a code / config editor" / "syntax highlighting" / "JSON/SQL/JS editor" / "vim mode" | `CodeEditor` (CodeMirror 6; language via `extensions`, opt-in `vim`) |
 | "a theme editor / token playground" / "customize the palette live" / "export a theme" | `ThemeBuilder` (edit `--sf-*` live, copy CSS/JSON; token pipeline emits `tokens.json`/`tokens.js`) |
+| "a notebook" / "notebook-like analysis over my data" / "SQL cells" / "in-app analysis over DuckDB" | `Notebook` (+ `createSqlCellType` wired to the app's engine; `proseCellType` for text cells) |
 | "chat UI"                                          | `Chat`                                           |
 | "a chat in a drawer / assistant side panel / chat that shows it's thinking" | `ChatDrawer` (`thinking` + `onThinkingStart`/`End`) |
 | "in-chat choice menu / decision tree / custom block in a chat reply" | `Chat` `parts` (+ `renderPart` for custom) + `onAction` |

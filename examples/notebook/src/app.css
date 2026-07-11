@@ -1,0 +1,19 @@
+/* Demo page chrome: sf tokens only. */
+.page {
+  max-width: calc(var(--sf-unit) * 100);
+  margin: 0 auto;
+  padding: calc(var(--sf-unit) * 2);
+  display: grid;
+  gap: calc(var(--sf-unit) * 2);
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.page-head h1 {
+  font-size: var(--sf-font-size-lg);
+  font-weight: var(--sf-font-weight-semibold);
+}

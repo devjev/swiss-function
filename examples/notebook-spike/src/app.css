@@ -1,0 +1,126 @@
+/* Spike-grade page styles: sf tokens only, no literals. */
+.page {
+  max-width: calc(var(--sf-unit) * 100);
+  margin: 0 auto;
+  padding: calc(var(--sf-unit) * 2);
+  display: grid;
+  gap: calc(var(--sf-unit) * 2);
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.page-head h1 {
+  font-size: var(--sf-font-size-lg);
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+.notebook {
+  display: grid;
+  gap: var(--sf-unit);
+}
+
+.cell {
+  display: grid;
+  grid-template-columns: calc(var(--sf-unit) * 2) 1fr;
+  gap: var(--sf-unit);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  padding: var(--sf-unit);
+}
+
+.cell[data-status="error"],
+.cell[data-status="upstream-error"],
+.cell[data-status="cycle"] {
+  border-color: var(--sf-color-danger);
+}
+
+.rail {
+  display: inline-flex;
+  justify-content: center;
+  padding-top: calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+}
+
+.rail-error {
+  color: var(--sf-color-danger);
+}
+
+.rail-muted {
+  color: var(--sf-color-muted);
+}
+
+.rail-ok {
+  color: var(--sf-color-success);
+}
+
+.cell-body {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  min-width: 0;
+}
+
+.cell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cell-name {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+}
+
+.cell-type-tag {
+  color: var(--sf-color-muted);
+  margin-left: var(--sf-unit);
+  font-size: var(--sf-font-size-sm);
+}
+
+.cell-actions {
+  display: flex;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.cell-result {
+  overflow-x: auto;
+}
+
+.cell-message {
+  color: var(--sf-color-danger);
+  font-size: var(--sf-font-size-sm);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+}
+
+.cell[data-status="unresolved"] .cell-message {
+  color: var(--sf-color-muted);
+}
+
+.cell-static {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.notebook-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.add-cell {
+  display: flex;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.wave-stats {
+  color: var(--sf-color-muted);
+  font-size: var(--sf-font-size-sm);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+}

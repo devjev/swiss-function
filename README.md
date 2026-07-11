@@ -70,6 +70,10 @@ Dark mode is opt-in via `[data-theme="dark"]` on any ancestor (commonly `<html>`
 
 This is a teaser; see [AGENTS.md](./AGENTS.md) for the full catalogue (charts, `DataTable`, `Graph`, `Prose`, and more).
 
+### Notebook analysis (v2)
+
+`Notebook` (from `@tarassov-ch/swiss-function/notebook`) gives applications an in-app reactive notebook: cells form a dependency graph, editing one re-runs its dependents, and results render through the library's DataTable and Markdown. Both engines are yours: wire DuckDB-WASM (or anything) into `createSqlCellType({executor})`, and add further languages through the public `CellType` contract. The library ships no engine and no eval; see `docs/API.md` and `examples/notebook/`.
+
 Compound components (Dialog, Popover, Menu, Tabs) expose Base UI's compound API as object namespaces, e.g. `Dialog.Root`, `Dialog.Trigger`, `Dialog.Popup`. The structure mirrors Base UI's; see [base-ui.com](https://base-ui.com) for full API docs.
 
 ## Development
