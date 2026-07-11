@@ -1,0 +1,6 @@
+node_modules/
+dist/
+src/.observablehq/cache/
+screenshots/
+src/lib/sf-bundle.js
+src/sf-components.css

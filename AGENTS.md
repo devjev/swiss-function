@@ -283,12 +283,12 @@ not the layout primitive of the system.
 ### Use the Field compound for form fields
 
 ```tsx
-<Field.Root orientation="vertical" required>
+<Field orientation="vertical" required>
   <Field.Label>Email</Field.Label>
   <Input type="email" />
   <Field.Description>We never share your address.</Field.Description>
   <Field.Error>Please enter a valid email.</Field.Error>
-</Field.Root>
+</Field>
 ```
 
 This is the supported way to lay out, label, describe, and error a
@@ -322,7 +322,7 @@ Common requests and the right component:
 | User says                                          | Use                                              |
 | -------------------------------------------------- | ------------------------------------------------ |
 | "a button" / "an action"                           | `Button` (variant chosen by destructiveness)     |
-| "a form" (single row / static)                     | `Field.Root` per row + the right control inside  |
+| "a form" (single row / static)                     | `Field` per row + the right control inside  |
 | "a form with validation / submit handling / form state / errors" | `Form` + `FormField` per row + `FormError` (bring-your-own `resolver`; `errors` prop for server errors) |
 | "a modal" / "a popup" / "confirm dialog"           | `Dialog`                                         |
 | "a drawer" / "sheet" / "overlay panel"             | `Drawer`                                          |

@@ -1,0 +1,8 @@
+/* Experiment 1 (issue #52): a custom stylesheet that keeps Framework's
+   structural base and pulls the swiss-function tokens in from node_modules
+   by relative path. Framework's esbuild inlines both imports at build time. */
+@import url("observablehq:default.css");
+@import url("observablehq:theme-air.css");
+@import url("../node_modules/@tarassov-ch/swiss-function/dist/tokens/tokens.css");
+@import url("../node_modules/@tarassov-ch/swiss-function/dist/tokens/reset.css");
+@import url("./sf-components.css");

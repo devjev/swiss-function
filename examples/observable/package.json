@@ -1,0 +1,17 @@
+{
+  "name": "swiss-function-observable-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build",
+    "clean": "observable clean"
+  },
+  "dependencies": {
+    "@observablehq/framework": "1.13.4",
+    "@tarassov-ch/swiss-function": "^1.15.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}
