@@ -77,6 +77,19 @@ export const Minimal: Story = () => (
 );
 
 /**
+ * Narrow-container stress: a quarter of daily candles in 320px. The LOD bar
+ * budget holds behind a hysteresis band (candles group without flapping on
+ * resize), month-boundary ticks outrank day ticks in one measured collision
+ * pass (no overlapping labels, endpoints always kept), and the price column
+ * is sized to the widest measured label. Deterministic data — a VRT surface.
+ */
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <CandlestickChart candles={makeCandles(90)} yLabel="USD" scaffolding="full" />
+  </div>
+);
+
+/**
  * A plain numeric x-axis (index/session number) instead of dates.
  */
 export const NumericAxis: Story = () => (

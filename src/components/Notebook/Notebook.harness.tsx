@@ -67,7 +67,12 @@ const DOCS: Record<string, NotebookDocument> = {
     cells: [
       { id: "x1", type: "sql", name: "broken", source: "SELECT * FROM no_such_table" },
       // biome-ignore lint/suspicious/noTemplateCurlyInString: SQL cell reference syntax.
-      { id: "x2", type: "sql", name: "child", source: "SELECT count(*) FROM t WHERE q > ${broken}" },
+      {
+        id: "x2",
+        type: "sql",
+        name: "child",
+        source: "SELECT count(*) FROM t WHERE q > ${broken}",
+      },
     ],
   },
 };

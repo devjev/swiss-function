@@ -26,9 +26,12 @@ function niceStep(raw: number): number {
  *  components can label per-datum values with the same convention. */
 export function formatNumber(value: number): string {
   const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${trimZero(value / 1_000_000_000)}B`;
-  if (abs >= 1_000_000) return `${trimZero(value / 1_000_000)}M`;
-  if (abs >= 1_000) return `${trimZero(value / 1_000)}k`;
+  // Suffixed forms cap at 4 significant digits: an at-a-glance axis label
+  // ("1.522M") must not carry float tails ("1.521884M"); exact values belong
+  // to tooltips.
+  if (abs >= 1_000_000_000) return `${trimZero(Number((value / 1_000_000_000).toPrecision(4)))}B`;
+  if (abs >= 1_000_000) return `${trimZero(Number((value / 1_000_000).toPrecision(4)))}M`;
+  if (abs >= 1_000) return `${trimZero(Number((value / 1_000).toPrecision(4)))}k`;
   // Fractional values: cap at 3 sig digits to avoid float-jitter labels.
   if (abs > 0 && abs < 1) return trimZero(Number(value.toPrecision(3)));
   return trimZero(value);

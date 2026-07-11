@@ -181,6 +181,30 @@ export const CustomColor: Story = () => {
   );
 };
 
+// Narrow-container stress: 12 long-label events over 3 months in 320px with
+// maxLanes 2. Labels the measured lane pass can't place collision-free are
+// flagged data-overflow — hidden at rest, revealed on hover/focus while the
+// diamond markers stay visible. Pinned dates + no now-line keep it
+// deterministic — this is a VRT surface.
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <Timeline start={new Date(2026, 0, 1)} end={new Date(2026, 2, 31)} maxLanes={2} showNow={false}>
+      <Timeline.Event date={new Date(2026, 0, 3)}>Kick-off workshop notes</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 0, 9)}>Requirements sign-off</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 0, 16)}>Architecture review board</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 0, 24)}>Prototype demo to stakeholders</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 1, 2)}>Security threat modelling</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 1, 9)}>Data-migration dry run</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 1, 14)}>Accessibility audit findings</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 1, 20)}>Performance baseline captured</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 1, 27)}>Feature freeze announcement</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 2, 6)}>Release-candidate branch cut</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 2, 16)}>Regression suite green</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 2, 25)}>General availability launch</Timeline.Event>
+    </Timeline>
+  </div>
+);
+
 export const MultiYear: Story = () => (
   <div style={{ width: "min(50rem, 100%)" }}>
     <Timeline start={new Date("2020-01-01")} end={new Date("2026-12-31")}>

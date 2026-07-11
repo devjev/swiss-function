@@ -197,7 +197,9 @@ test("narrow container: labels ellipsize with full text in title, none overlap",
     );
   const sorted = [...boxes].sort((a, b) => a.left - b.left);
   for (let i = 1; i < sorted.length; i++) {
-    expect(sorted[i].left).toBeGreaterThanOrEqual(sorted[i - 1].right - 1);
+    expect((sorted[i] as { left: number }).left).toBeGreaterThanOrEqual(
+      (sorted[i - 1] as { right: number }).right - 1,
+    );
   }
   await page.close();
 });
@@ -233,7 +235,9 @@ test("resize keeps the SVG present and re-fits labels without overlap", async ({
     );
   const sorted = [...boxes].sort((a, b) => a.left - b.left);
   for (let i = 1; i < sorted.length; i++) {
-    expect(sorted[i].left).toBeGreaterThanOrEqual(sorted[i - 1].right - 1);
+    expect((sorted[i] as { left: number }).left).toBeGreaterThanOrEqual(
+      (sorted[i - 1] as { right: number }).right - 1,
+    );
   }
 });
 

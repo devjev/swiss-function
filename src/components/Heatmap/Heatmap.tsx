@@ -8,15 +8,25 @@ import { forwardRef, memo, useLayoutEffect, useMemo, useRef, useState } from "re
 import {
   AnnotationsLayer,
   type AnnotationX,
+  anchorRectFromPoint,
   ChartChrome,
   type ChartScaffoldingProps,
   FullscreenToggle,
+  formatNumber,
+  formatTickValue,
+  getTextMeasurer,
+  type LabelBox,
+  maxLabelWidth,
+  resolveTickFont,
   scaffoldStyles,
+  snapEdges,
+  snapFraction,
+  Tooltip,
+  thinLabels,
   useChartScaffold,
+  useMeasuredPlot,
 } from "../../lib/chart";
 import { contourLevels, marchingSquares } from "../../lib/chart/contours";
-import { formatNumber, niceTicks } from "../../lib/chart/numericTicks";
-import { Tooltip } from "../../lib/chart/Tooltip";
 import type { Domain, GridData } from "../../lib/chart3d/types";
 import { cx } from "../../lib/cx";
 import styles from "./Heatmap.module.css";
@@ -62,24 +72,61 @@ function extent(values: number[]): Domain {
   return min <= max ? [min, max] : [0, 1];
 }
 
+/** Smallest adjacent spacing along a grid axis — the precision tick labels
+ *  must resolve (cell centers are raw data values, not nice-step ticks). */
+function minStep(values: number[]): number {
+  let step = Number.POSITIVE_INFINITY;
+  for (let k = 1; k < values.length; k++) {
+    const d = Math.abs((values[k] ?? 0) - (values[k - 1] ?? 0));
+    if (d > 0 && d < step) step = d;
+  }
+  return Number.isFinite(step) ? step : 1;
+}
+
+interface CellRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Column / data-row indices — the React key and the fill lookup. */
+  i: number;
+  j: number;
+}
+
+interface CellTick {
+  key: string;
+  label: string;
+  /** Axis fraction: x → from the left edge, y → from the top edge. */
+  position: number;
+}
+
+/** Collision box height for a y tick: one --sf-font-size-sm text line. */
+const TICK_LINE_PX = 16;
+
 // The grid layers are memo components (not useMemo'd element arrays) so a
 // hover re-render bails out at a single fiber instead of re-reconciling the
 // full keyed array — on a dense grid that's 10k+ elements per pointermove.
+// Geometry (rects) and color (fills) arrive as separately-memoized props, so
+// a resize/zoom re-snap never re-mixes colors and vice versa.
 const HeatmapCells = memo(function HeatmapCells({
-  cells,
+  rects,
+  fills,
+  nx,
 }: {
-  cells: { x: number; y: number; fill: string }[];
+  rects: CellRect[];
+  fills: string[];
+  nx: number;
 }) {
   return (
     <>
-      {cells.map((c) => (
+      {rects.map((c) => (
         <rect
-          key={`${c.x}-${c.y}`}
+          key={`${c.i}-${c.j}`}
           x={c.x}
           y={c.y}
-          width={1.02}
-          height={1.02}
-          style={{ fill: c.fill }}
+          width={c.width}
+          height={c.height}
+          style={{ fill: fills[c.j * nx + c.i] }}
         />
       ))}
     </>
@@ -164,23 +211,14 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   },
   ref,
 ) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const plotRef = useRef<HTMLDivElement>(null);
-  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
-  const [hover, setHover] = useState<{ datum: HeatmapDatum; rect: DOMRect } | null>(null);
-
-  useLayoutEffect(() => {
-    const el = plotRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
+  const [hover, setHover] = useState<{
+    datum: HeatmapDatum;
+    rect: DOMRect;
+    i: number;
+    row: number;
+  } | null>(null);
+  const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const nx = data.x.length;
   const ny = data.y.length;
@@ -191,6 +229,8 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   const xDomain = useMemo(() => extent(data.x), [data.x]);
   const yDomain = useMemo(() => extent(data.y), [data.y]);
   const zDom = useMemo(() => zDomain ?? extent(data.z.flat()), [zDomain, data.z]);
+  const xStep = useMemo(() => minStep(data.x), [data.x]);
+  const yStep = useMemo(() => minStep(data.y), [data.y]);
 
   // Shared scaffolding: fullscreen, annotation editing, and value-axis (y) zoom.
   // The grid is categorical in both directions, so `zoomable` windows the
@@ -212,14 +252,14 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     },
   });
   const viewYDomain = zoomable ? scaffold.viewport.domain : yDomain;
-  // svg-y grows downward while the value grows upward, so the visible band's top
-  // edge is the high value. The cell SVG's viewBox clips to that band.
+  // The zoomed value window expressed as a drawn-row window (grid units,
+  // top-down): drawn row r spans r..r+1 with r = 0 the top row. Screen-y grows
+  // downward while the value grows upward, so the window's top is the high value.
   const ySpanFull = yDomain[1] - yDomain[0] || 1;
   const fracLo = (viewYDomain[0] - yDomain[0]) / ySpanFull;
   const fracHi = (viewYDomain[1] - yDomain[0]) / ySpanFull;
-  const vbY = ny * (1 - fracHi);
-  const vbH = Math.max(ny * (fracHi - fracLo), Number.EPSILON);
-  const cellViewBox = `0 ${vbY} ${nx} ${vbH}`;
+  const rowWinTop = ny * (1 - fracHi);
+  const rowWinSpan = Math.max(ny * (fracHi - fracLo), Number.EPSILON);
 
   // Data→px for annotations (x over the full x domain, y over the zoomed value
   // domain); the inverses feed the annotation editor.
@@ -240,33 +280,73 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     },
   };
 
-  // Cells: row j drawn at svg-y (ny-1-j) so larger y is up (chart convention).
-  const cells = useMemo(() => {
-    const out: { x: number; y: number; fill: string }[] = [];
+  // Cell colors, keyed on data/zDomain only — a resize or row zoom never
+  // re-mixes 10k color strings. Indexed `[j * nx + i]` (data row j).
+  const cellFills = useMemo(() => {
+    const out: string[] = [];
     const span = zDom[1] - zDom[0] || 1;
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < nx; i++) {
         const t = ((data.z[j]?.[i] ?? 0) - zDom[0]) / span;
         const pct = Math.round(Math.max(0, Math.min(1, t)) * 100);
-        out.push({ x: i, y: ny - 1 - j, fill: `color-mix(in srgb, ${hi} ${pct}%, ${lo})` });
+        out.push(`color-mix(in srgb, ${hi} ${pct}%, ${lo})`);
       }
     }
     return out;
   }, [data.z, nx, ny, zDom, lo, hi]);
 
+  // Pixel-space cell geometry, keyed on plot size + the zoomed row window
+  // (deliberately separate from the color memo). Each edge rounds
+  // independently, so adjacent cells share the same integer edge — no seams
+  // and no double-cover (replaces the stretched grid-unit viewBox and its
+  // 1.02-wide anti-seam rects). Row j drawn at r = ny-1-j so larger y is up;
+  // only the visible row window ±1 row materializes.
+  const cellRects = useMemo(() => {
+    if (plotSize.width <= 0 || plotSize.height <= 0) return [];
+    const cols: { x: number; width: number }[] = [];
+    for (let i = 0; i < nx; i++) {
+      const edge = snapEdges((i * plotSize.width) / nx, ((i + 1) * plotSize.width) / nx);
+      cols.push({ x: edge.start, width: edge.end - edge.start });
+    }
+    const rowToPx = (r: number) => ((r - rowWinTop) / rowWinSpan) * plotSize.height;
+    const firstRow = Math.max(0, Math.floor(rowWinTop) - 1);
+    const lastRow = Math.min(ny - 1, Math.ceil(rowWinTop + rowWinSpan));
+    const out: CellRect[] = [];
+    for (let r = firstRow; r <= lastRow; r++) {
+      const edge = snapEdges(rowToPx(r), rowToPx(r + 1));
+      const j = ny - 1 - r;
+      for (let i = 0; i < nx; i++) {
+        const col = cols[i];
+        if (col === undefined) continue;
+        out.push({
+          x: col.x,
+          y: edge.start,
+          width: col.width,
+          height: edge.end - edge.start,
+          i,
+          j,
+        });
+      }
+    }
+    return out;
+  }, [plotSize, rowWinTop, rowWinSpan, nx, ny]);
+
+  // Iso-lines scaled grid→px with the cells' own row-window mapping (y flipped
+  // to match their orientation). Data marks — not pixel-snapped.
   const isoLines = useMemo(() => {
-    if (contours == null) return [];
+    if (contours == null || plotSize.width <= 0 || plotSize.height <= 0) return [];
     const levels = contourLevels(zDom[0], zDom[1], contours);
+    const px = (gx: number) => (gx / nx) * plotSize.width;
+    const py = (gy: number) => ((ny - 1 - gy - rowWinTop) / rowWinSpan) * plotSize.height;
     return levels.flatMap((lvl) =>
-      // Flip y to match the cell orientation.
       marchingSquares(data.z, lvl).map((s) => ({
-        x1: s.x1,
-        y1: ny - 1 - s.y1,
-        x2: s.x2,
-        y2: ny - 1 - s.y2,
+        x1: px(s.x1),
+        y1: py(s.y1),
+        x2: px(s.x2),
+        y2: py(s.y2),
       })),
     );
-  }, [contours, data.z, zDom, ny]);
+  }, [contours, data.z, zDom, nx, ny, rowWinTop, rowWinSpan, plotSize]);
 
   // Cell value labels, emitted top row first (j = ny-1) to match the cells'
   // larger-y-up orientation under CSS grid's left-to-right, top-to-bottom flow.
@@ -284,39 +364,106 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     return out;
   }, [showValues, valueFormat, data, nx, ny]);
 
-  const xTicks = useMemo(
+  // Ticks are per-cell-center candidates thinned by measured collision, so
+  // every kept tick points at an actual cell center (the old niceTicks values
+  // usually fell between cells). Endpoints always survive; the survivor set
+  // biases the greedy layout so a live resize doesn't flicker labels in/out.
+  const prevXKeys = useRef<Set<string>>(new Set());
+  const xTicks = useMemo(() => {
+    if (plotSize.width <= 0) return [];
+    const entries: CellTick[] = data.x.map((v, i) => ({
+      key: `${i}`,
+      label: formatTickValue(v, xStep),
+      position: snapFraction((i + 0.5) / nx, plotSize.width),
+    }));
+    const boxes: LabelBox[] = entries.map((e, i) => ({
+      center: e.position * plotSize.width,
+      size: measure(e.label),
+      priority: i === 0 || i === entries.length - 1 ? 2 : 0,
+      key: e.key,
+    }));
+    const keep = thinLabels(boxes, { previousKeys: prevXKeys.current });
+    return entries.filter((_, i) => keep[i]);
+  }, [data.x, nx, xStep, plotSize.width, measure]);
+
+  const prevYKeys = useRef<Set<string>>(new Set());
+  const yTicks = useMemo(() => {
+    if (plotSize.height <= 0) return [];
+    const entries: CellTick[] = [];
+    for (let r = 0; r < ny; r++) {
+      const centerFraction = (r + 0.5 - rowWinTop) / rowWinSpan;
+      if (centerFraction < 0 || centerFraction > 1) continue; // outside the zoom window
+      const j = ny - 1 - r;
+      entries.push({
+        key: `${j}`,
+        label: formatTickValue(data.y[j] ?? 0, yStep),
+        position: snapFraction(centerFraction, plotSize.height),
+      });
+    }
+    const boxes: LabelBox[] = entries.map((e, i) => ({
+      center: e.position * plotSize.height,
+      size: TICK_LINE_PX,
+      priority: i === 0 || i === entries.length - 1 ? 2 : 0,
+      key: e.key,
+    }));
+    const keep = thinLabels(boxes, { previousKeys: prevYKeys.current });
+    return entries.filter((_, i) => keep[i]);
+  }, [data.y, ny, yStep, plotSize.height, rowWinTop, rowWinSpan]);
+
+  // Survivor bias updates after commit — not inside the memos, which
+  // StrictMode double-invokes.
+  useLayoutEffect(() => {
+    prevXKeys.current = new Set(xTicks.map((t) => t.key));
+    prevYKeys.current = new Set(yTicks.map((t) => t.key));
+  }, [xTicks, yTicks]);
+
+  // Measured y-axis column: the widest row label sets --sf-axis-label-width
+  // (8px-quantized so the resize feedback loop cannot oscillate). Measured
+  // over ALL row labels, not just the kept ticks: that makes it computable
+  // before the plot's first measure and invariant under row zoom, so the plot
+  // cell is sized correctly on the first pass — a late column-width change
+  // re-commits the full cell grid (measured: +135ms ready / +26MB on 100×100).
+  const yAxisWidth = useMemo(
     () =>
-      niceTicks(xDomain[0], xDomain[1]).filter(
-        (t) => t.value >= xDomain[0] && t.value <= xDomain[1],
+      maxLabelWidth(
+        data.y.map((v) => formatTickValue(v, yStep)),
+        measure,
       ),
-    [xDomain],
+    [data.y, yStep, measure],
   );
-  const yTicks = useMemo(
-    () =>
-      niceTicks(viewYDomain[0], viewYDomain[1]).filter(
-        (t) => t.value >= viewYDomain[0] && t.value <= viewYDomain[1],
-      ),
-    [viewYDomain],
-  );
-  const frac = (v: number, [a, b]: Domain) => (b === a ? 0 : (v - a) / (b - a));
 
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const r = svg.getBoundingClientRect();
-    const fx = (e.clientX - r.left) / r.width;
-    const fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const plotEl = plotRef.current;
+    if (!plotEl || plotSize.width <= 0 || plotSize.height <= 0) return;
+    const r = plotEl.getBoundingClientRect();
+    // clientLeft/Top step inside the plot cell's 1px frame border.
+    const fx = (e.clientX - r.left - plotEl.clientLeft) / plotSize.width;
+    const fy = Math.min(1, Math.max(0, (e.clientY - r.top - plotEl.clientTop) / plotSize.height));
     const i = Math.min(nx - 1, Math.max(0, Math.floor(fx * nx)));
-    // Map through the (possibly zoomed) vertical viewBox to the drawn row.
-    const rowDrawn = Math.min(ny - 1, Math.max(0, Math.floor(vbY + fy * vbH)));
-    const j = ny - 1 - rowDrawn;
-    setHover({
-      datum: { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z: data.z[j]?.[i] ?? 0 },
-      rect: new DOMRect(e.clientX, e.clientY, 0, 0),
+    // Map through the zoomed row window to the drawn row, then to the data row.
+    const row = Math.min(ny - 1, Math.max(0, Math.floor(rowWinTop + fy * rowWinSpan)));
+    const j = ny - 1 - row;
+    setHover((prev) => {
+      // Bail per cell: pointermoves inside one cell re-use the same state.
+      if (prev && prev.i === i && prev.row === row) return prev;
+      const anchorX = ((i + 0.5) / nx) * plotSize.width;
+      const anchorY = ((row + 0.5 - rowWinTop) / rowWinSpan) * plotSize.height;
+      return {
+        i,
+        row,
+        datum: { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z: data.z[j]?.[i] ?? 0 },
+        // The hovered cell's center in plot space is the single anchor source.
+        rect: anchorRectFromPoint(plotEl, anchorX, anchorY),
+      };
     });
   };
 
   const hasAnnotations = scaffold.editingEnabled || (annotations != null && annotations.length > 0);
+
+  const rootStyle: CSSProperties = {
+    ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
+    ...style,
+  };
 
   return (
     <div
@@ -330,7 +477,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
         scaffold.expanded && scaffoldStyles.expanded,
         className,
       )}
-      style={style}
+      style={rootStyle}
       data-hovered={hover != null ? "true" : undefined}
     >
       <div
@@ -343,46 +490,39 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
         <div className={styles.yAxis}>
           {yTicks.map((t) => (
             <span
-              key={t.value}
+              key={t.key}
               className={styles.yTick}
-              style={{ bottom: `${frac(t.value, viewYDomain) * 100}%` }}
+              style={{ bottom: `${(1 - t.position) * 100}%` }}
             >
               {t.label}
             </span>
           ))}
         </div>
-        <div ref={plotRef} className={styles.plotCell}>
-          <svg
-            ref={svgRef}
-            className={styles.plot}
-            viewBox={cellViewBox}
-            preserveAspectRatio="none"
-            role="img"
-            aria-label={
-              rest["aria-label"] ??
-              `Heatmap, ${nx}×${ny} grid, values ${formatNumber(zDom[0])} to ${formatNumber(zDom[1])}`
-            }
-            onPointerMove={onMove}
-            onPointerLeave={() => setHover(null)}
-          >
-            <HeatmapCells cells={cells} />
-            <HeatmapContours lines={isoLines} />
-          </svg>
-          {valueCells.length > 0 ? <HeatmapValues cells={valueCells} nx={nx} ny={ny} /> : null}
-
-          {/* Annotations live in their own pixel-space SVG stacked on the cells
-              (the cell SVG is in grid units). Inert to the pointer unless
-              editing, so cell hover keeps working; editing arms it (issue #35). */}
-          {plotSize.width > 0 && plotSize.height > 0 && (hasAnnotations || zoomable) ? (
+        <div ref={plotAreaRef} className={styles.plotCell}>
+          {/* One pixel-space SVG for cells, contours, annotations and the zoom
+              marquee (the old separate grid-unit cell SVG is gone). An armed
+              editor owns the pointer — matching the old overlay, which
+              intercepted cell hover while armed. */}
+          {plotSize.width > 0 && plotSize.height > 0 ? (
             <svg
               {...scaffold.editor.surfaceProps}
-              className={scaffoldStyles.overlay}
-              data-armed={scaffold.editingEnabled ? "" : undefined}
+              className={styles.svg}
               width={plotSize.width}
               height={plotSize.height}
               viewBox={`0 0 ${plotSize.width} ${plotSize.height}`}
-              aria-hidden="true"
+              role="img"
+              aria-label={
+                rest["aria-label"] ??
+                `Heatmap, ${nx}×${ny} grid, values ${formatNumber(zDom[0])} to ${formatNumber(zDom[1])}`
+              }
+              onPointerMove={(e) => {
+                scaffold.editor.surfaceProps.onPointerMove?.(e);
+                if (!scaffold.editingEnabled) onMove(e);
+              }}
+              onPointerLeave={() => setHover(null)}
             >
+              <HeatmapCells rects={cellRects} fills={cellFills} nx={nx} />
+              <HeatmapContours lines={isoLines} />
               {hasAnnotations ? (
                 <AnnotationsLayer
                   annotations={
@@ -417,6 +557,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
                 : null}
             </svg>
           ) : null}
+          {valueCells.length > 0 ? <HeatmapValues cells={valueCells} nx={nx} ny={ny} /> : null}
 
           <ChartChrome
             scaffold={scaffold}
@@ -427,11 +568,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
         </div>
         <div className={styles.xAxis}>
           {xTicks.map((t) => (
-            <span
-              key={t.value}
-              className={styles.xTick}
-              style={{ left: `${frac(t.value, xDomain) * 100}%` }}
-            >
+            <span key={t.key} className={styles.xTick} style={{ left: `${t.position * 100}%` }}>
               {t.label}
             </span>
           ))}

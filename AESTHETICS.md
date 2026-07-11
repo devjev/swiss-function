@@ -223,6 +223,33 @@ delight.
 - **No looping animations** outside loading indicators. Spinners spin.
   Shimmer shimmers. Nothing else pulses, bobs, or breathes.
 
+### Charts are instruments, not illustrations
+
+A chart in this library should feel like a measuring device: it redraws, it
+does not perform. The concrete discipline (established in the chart-polish
+milestone and enforced by the shared `src/lib/chart` layer):
+
+- **Resize tracks 1:1.** Geometry, ticks and labels move in the same commit,
+  coalesced to one recompute per frame. Tick positions are never
+  transitioned — animated reflow reads as smoothing, and smoothing is a lie
+  about the data. Label sets stay stable under live resize (step hysteresis,
+  survivor bias); a one-pixel drag never reshuffles which labels are shown.
+- **Labels are measured, then thinned or ellipsized. Never rotated.** Rotated
+  text is the spreadsheet default we are not. When labels do not fit, fewer
+  legible labels beat many mangled ones; the first and last always survive
+  (the range must be readable), and truncated labels carry their full text
+  in a title.
+- **Chrome is crisp; data is anti-aliased.** Hairlines (gridlines, ticks,
+  wicks, cell edges) snap to the device-pixel grid; marks (points, bars,
+  lines) do not. Numerals are tabular everywhere they can change.
+- **Hover informs instantly.** Crosshair and tooltip share one anchor, appear
+  with at most a fast opacity fade, and never lag, lerp, or spring. A
+  lagging tooltip reads as inertia, and instruments do not have inertia.
+- **Rejected outright:** mount/entrance animations (bars growing, points
+  popping), positional tweening on domain changes, eased or smoothed zoom
+  (zoom tracks the gesture), hover scale effects, glows and added shadows,
+  animated tick reflow. An instrument redraws; it does not animate data.
+
 ---
 
 ## Anti-patterns

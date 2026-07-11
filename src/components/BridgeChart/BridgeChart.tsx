@@ -1,22 +1,30 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
   Axis,
   type AxisTick,
+  anchorRectFromPoint,
   bandScale,
   ChartChrome,
   type ChartScaffoldingProps,
   Crosshair,
   FullscreenToggle,
+  fitBandTicks,
   formatNumber,
+  getTextMeasurer,
   linearScale,
+  maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveTickFont,
   scaffoldStyles,
+  snapFraction,
+  snapHairline,
   Tooltip,
   useChartScaffold,
+  useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import styles from "./BridgeChart.module.css";
@@ -139,27 +147,14 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
   ref,
 ) {
   const isTufte = scaffolding !== "full";
-  const plotRef = useRef<HTMLDivElement>(null);
-  const [plotSize, setPlotSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   // Hover state at the root re-renders the whole chart per enter/leave. That
   // pattern was extracted into memo layers for Scatterplot/CandlestickChart
   // (issue #14) but is deliberately EXEMPT here: a bridge chart's realistic N
   // is dozens of bars, measured at the harness floor (BarChart@100 equivalent,
   // 2026-07-04). Revisit only if a use case pushes N into the hundreds.
   const [hover, setHover] = useState<HoverState | null>(null);
-
-  useLayoutEffect(() => {
-    const el = plotRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setPlotSize({ width: el.clientWidth, height: el.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+  const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const bars = useMemo(() => resolveBars(items), [items]);
 
@@ -230,27 +225,51 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       }));
   }, [viewYDomain, scaffolding]);
 
+  // Step labels through the measured fitting ladder: full text when every
+  // label fits its band, ellipsized (full text in title) when close, thinned
+  // to a stride keeping first + last when bands get too narrow.
   const xAxisTicks: AxisTick[] = useMemo(() => {
     if (categories.length === 0 || plotSize.width <= 0) return [];
-    return categories.map((c) => {
+    const centers = categories.map((c) => {
       const left = xBand.position(c) ?? 0;
-      const center = left + xBand.bandwidth / 2;
-      return { label: c, position: center / plotSize.width, major: false };
+      return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-  }, [categories, xBand, plotSize.width]);
+    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+      label: t.label,
+      title: t.title,
+      position: t.position,
+      major: false,
+    }));
+  }, [categories, xBand, plotSize.width, measure]);
 
+  // Measured y-axis column: the widest tick label sets --sf-axis-label-width
+  // (8px-quantized so the resize feedback loop cannot oscillate).
+  const yAxisWidth = useMemo(
+    () =>
+      maxLabelWidth(
+        yAxisTicks.map((t) => t.label),
+        measure,
+      ),
+    [yAxisTicks, measure],
+  );
+
+  // One anchor source: tooltip and crosshair both derive from the bar's
+  // top-center in plot space, so they can never disagree.
   const handleEnter = (
-    e: React.PointerEvent<SVGRectElement>,
+    _e: React.PointerEvent<SVGRectElement> | React.FocusEvent<SVGRectElement>,
     bar: ResolvedBar,
     cx_: number,
     cy_: number,
   ) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const plotEl = plotRef.current;
+    if (!plotEl) return;
+    const rect = anchorRectFromPoint(plotEl, cx_, cy_);
     setHover({ bar, rect, cx: cx_, cy: cy_ });
   };
   const handleLeave = () => setHover(null);
 
   const wrapperStyle: CSSProperties = {
+    ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
     // Inline height wins over the .expanded class, so drop it while maximized.
     ...(height != null && !scaffold.expanded
       ? { height: typeof height === "number" ? `${height}px` : height }
@@ -275,7 +294,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     >
       {yLabel ? <div className={styles.yLabel}>{yLabel}</div> : null}
       <Axis orientation="y" ticks={yAxisTicks} noLine={isTufte} className={styles.yAxis} />
-      <div ref={plotRef} className={styles.plot}>
+      <div ref={plotAreaRef} className={styles.plot}>
         {plotSize.width > 0 && plotSize.height > 0 ? (
           <svg
             {...scaffold.editor.surfaceProps}
@@ -289,7 +308,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
           >
             {scaffolding !== "minimal"
               ? yAxisTicks.map((tick) => {
-                  const y = plotSize.height * (1 - tick.position);
+                  const y = snapHairline(plotSize.height * (1 - tick.position));
                   return (
                     <line
                       key={`grid-${tick.label}-${tick.position}`}
@@ -332,17 +351,16 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                     aria-label={`${b.item.label}: ${b.item.value}`}
                     onPointerEnter={(e) => handleEnter(e, b, cx_, cy_)}
                     onPointerLeave={handleLeave}
-                    onFocus={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHover({ bar: b, rect, cx: cx_, cy: cy_ });
-                    }}
+                    onFocus={(e) => handleEnter(e, b, cx_, cy_)}
                     onBlur={handleLeave}
                   >
                     <title>
                       {b.item.label}: {b.item.value} (→ {b.cumulative})
                     </title>
                   </rect>
-                  {isTufte
+                  {/* Tufte mode: value label sits just above the bar's top —
+                      skipped when the measured text overflows the band step. */}
+                  {isTufte && measure(formatBarValue(b.item)) <= xBand.step
                     ? (() => {
                         const flip = yTop < 14;
                         return (
@@ -371,7 +389,8 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                   if (curLeft == null || nextLeft == null) return null;
                   const xStart = curLeft + xBand.bandwidth;
                   const xEnd = nextLeft;
-                  const y = yScale(cur.cumulative);
+                  // 1px dashed hairline — snap so it fills whole pixels.
+                  const y = snapHairline(yScale(cur.cumulative));
                   return (
                     <line
                       key={`conn-${cur.item.label}-${next.item.label}`}

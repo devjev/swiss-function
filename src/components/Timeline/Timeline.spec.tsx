@@ -121,6 +121,67 @@ test("crowded events stack into successive lanes", async ({ mount }) => {
   expect(new Set(lanes).size).toBeGreaterThan(1);
 });
 
+test("overflowed labels hide at rest and reveal on hover; markers stay visible", async ({
+  mount,
+}) => {
+  // 600px over 13 days (~46 px/day): two long labels can't share the single
+  // lane, so the second is flagged data-overflow and its label hides at rest.
+  const c = await mount(
+    <div style={{ width: 600 }}>
+      <Timeline
+        start={new Date(2026, 5, 1)}
+        end={new Date(2026, 5, 14)}
+        maxLanes={1}
+        showNow={false}
+      >
+        <Timeline.Event date={new Date(2026, 5, 3)} onClick={() => {}}>
+          Long label one here
+        </Timeline.Event>
+        <Timeline.Event date={new Date(2026, 5, 4)} onClick={() => {}}>
+          Long label two here
+        </Timeline.Event>
+      </Timeline>
+    </div>,
+  );
+  await expect(c.locator('[data-event]:has-text("Long label one here")')).not.toHaveAttribute(
+    "data-overflow",
+    /.*/,
+  );
+  const flagged = c.locator('[data-event]:has-text("Long label two here")');
+  await expect(flagged).toHaveAttribute("data-overflow", "true");
+  const label = c.getByText("Long label two here");
+  await expect(label).toHaveCSS("opacity", "0");
+  // The diamond marker (here the interactive button) is always visible.
+  const marker = c.getByRole("button", { name: "Long label two here" });
+  await expect(marker).toBeVisible();
+  // :hover on the marker bubbles to the event wrapper and reveals the label.
+  await marker.hover();
+  await expect(label).toHaveCSS("opacity", "1");
+});
+
+test("pxPerDay gives the track a scrollable minimum width", async ({ mount }) => {
+  // 100 days × 20 px/day = a 2000px track inside a 600px viewport.
+  const start = new Date(2026, 0, 1);
+  const end = new Date(start.getTime() + 100 * 24 * 60 * 60 * 1000);
+  const c = await mount(
+    <div style={{ width: 600 }}>
+      <Timeline start={start} end={end} pxPerDay={20} showNow={false} />
+    </div>,
+  );
+  const widths = await c.evaluate((el) => {
+    const viewport = el.firstElementChild as HTMLElement;
+    const track = viewport.firstElementChild as HTMLElement;
+    return {
+      viewport: viewport.clientWidth,
+      scroll: viewport.scrollWidth,
+      track: track.clientWidth,
+    };
+  });
+  expect(widths.viewport).toBeLessThanOrEqual(600);
+  expect(widths.track).toBe(2000);
+  expect(widths.scroll).toBeGreaterThanOrEqual(2000);
+});
+
 test("maxLanes={1} forces all events into lane 0", async ({ mount }) => {
   const c = await mount(
     <Timeline start={new Date(2026, 5, 1)} end={new Date(2026, 5, 14)} maxLanes={1}>
