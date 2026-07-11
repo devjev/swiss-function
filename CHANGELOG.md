@@ -6,6 +6,24 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.0.0 — 2026-07-11
+
+### Major
+
+- Notebook analysis feature: the Notebook component (reactive cells over consumer-provided engines via the public CellType contract), createSqlCellType and proseCellType, the in-house reactive scheduler, and fromArrow (Arrow results to plain rows with Date coercion and a BigInt policy) at lib/from-arrow. New entries: ./notebook and ./lib/from-arrow. The engine stays the consumer's: the library ships no execution language, no data engine, and no eval.
+
+### Minor
+
+- Add the Form composition primitives (Form, FormField, FormError) — form-level submit + validation on top of Field, with a bring-your-own resolver. Closes #49.
+- Add the Icon system — an Icon primitive plus a curated, tree-shakeable line-weight set (41 glyphs, 16x16, currentColor, square caps, --sf-unit sizing) matched to the Swiss/monospace posture; createIcon for custom glyphs. Closes #51.
+- Add ThemeBuilder — a live editor for the --sf-* tokens (edit palette/unit/radius/typography/motion, live preview, copy CSS/JSON), plus a token pipeline that emits tokens.json / tokens.js / a Style-Dictionary tree from the canonical tokens.css. Closes #50.
+
+### Patch
+
+- Add a self-hosted visual-regression gate (npm run vrt) — dev tooling, no runtime change. Closes #47.
+- Add changesets-driven release automation (.changes/ + just release). Closes #48.
+- Back-fill CHANGELOG.md with the full release history reconstructed from git (scripts/changes/backfill.mjs); fix the changeset release-notes insertion to preserve the changelog preamble.
+
 ## v1.15.2 — 2026-07-07 (patch)
 
 - DataTable: inline cell editors inherit the cell font-size (14px)
