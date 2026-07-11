@@ -189,3 +189,28 @@ export const ChartWindow: Story = () => {
     </div>
   );
 };
+
+// Narrow-container stress: long category names in 320px. The measured fitting
+// ladder ellipsizes (full text in the title attr) and, when bands get too
+// narrow, thins to a stride keeping first + last; the y column is sized to
+// the widest measured label. Deterministic data — this is a VRT surface.
+export const Narrow: Story = () => (
+  <div style={{ width: 320 }}>
+    <BarChart
+      categories={[
+        "Northern Territories",
+        "Eastern Seaboard",
+        "Central Plains",
+        "Mountain West",
+        "Pacific Rim",
+        "Gulf Coast",
+      ]}
+      series={[
+        { name: "Volume", values: [1_234_567, 890_123, 456_789, 234_567, 1_876_543, 654_321] },
+      ]}
+      yLabel="Volume"
+      showLegend={false}
+      scaffolding="full"
+    />
+  </div>
+);

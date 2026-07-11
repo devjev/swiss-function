@@ -12,6 +12,7 @@
   box-shadow: var(--sf-elevation-3);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
   line-height: var(--sf-line-height-tight);
   color: var(--sf-color-fg);
   /* Tooltip should read as denser than surrounding copy. */

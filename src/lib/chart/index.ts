@@ -21,6 +21,8 @@ export { ChartControls } from "./ChartControls";
 export type { CrosshairProps } from "./Crosshair";
 export { Crosshair } from "./Crosshair";
 export { lttb, minMaxDownsample, sliceRange } from "./downsample";
+export type { FittedBandTick, LabelBox } from "./labelLayout";
+export { ellipsize, fitBandTicks, maxLabelWidth, thinLabels } from "./labelLayout";
 export type { AdaptiveTicks, NumericTick } from "./numericTicks";
 export {
   adaptiveTicks,
@@ -29,11 +31,16 @@ export {
   niceDomain,
   niceTicks,
 } from "./numericTicks";
+export { snapEdges, snapFraction, snapHairline } from "./pixelSnap";
 export type { ChartScaffolding, ChartScaffoldingProps } from "./scaffolding";
 export type { BandScale } from "./scales";
 export { bandScale, invertLinear, linearScale, timeScale } from "./scales";
+export type { StepSession } from "./stableStep";
+export { domainKeyOf, stableValue } from "./stableStep";
 export type { TooltipProps } from "./Tooltip";
-export { Tooltip } from "./Tooltip";
+export { anchorRectFromPoint, Tooltip } from "./Tooltip";
+export type { TextMeasurer } from "./textMeasure";
+export { clearTextMeasureCache, getTextMeasurer, resolveTickFont } from "./textMeasure";
 export type { TimeTick, TimeUnit } from "./timeTicks";
 export {
   formatTimeTick,
@@ -63,5 +70,7 @@ export {
   scaffoldStyles,
   useChartScaffold,
 } from "./useChartScaffold";
+export type { PlotSize } from "./useMeasuredPlot";
+export { useMeasuredPlot } from "./useMeasuredPlot";
 export type { Domain, UseViewportOptions, Viewport } from "./useViewport";
 export { clampDomain, useViewport, zoomDomain } from "./useViewport";
