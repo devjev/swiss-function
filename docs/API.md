@@ -14,7 +14,7 @@ Per-component prop/element reference for every exported component in the library
 
 - Every component is `forwardRef`, spreads unknown props to its root element, and
   merges `className` via `src/lib/cx.ts`.
-- Sizes (`sm`/`md`/`lg`) map to `--sf-unit` multiples — `1` / `1.5` / `2`
+- Sizes (`sm`/`md`/`lg`) map to `--sf-unit` multiples: `1` / `1.5` / `2`
   (24 / 36 / 48px at the default unit).
 - "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
@@ -27,16 +27,16 @@ Per-component prop/element reference for every exported component in the library
   `var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring)` with
   `outline-offset: var(--sf-focus-ring-offset, <per-rule default>)`. Set the
   variables on any ancestor to restyle rings for that subtree, or
-  `--sf-focus-ring-width: 0` to disable them — e.g. inside a container that
+  `--sf-focus-ring-width: 0` to disable them, e.g. inside a container that
   already communicates focus itself. `--sf-focus-ring-offset` has no global
   default on purpose; each rule keeps its own fitting offset until you set it.
-- Required props show `—` in the Default column. Props "extend `HTMLAttributes`"
+- Required props show `n/a` in the Default column. Props "extend `HTMLAttributes`"
   means native attributes pass through to the root and aren't re-listed.
 - Many compound components are thin wrappers over Base UI (`@base-ui/react`);
-  their parts forward props to the underlying primitive — see the Base UI docs
+  their parts forward props to the underlying primitive; see the Base UI docs
   for the full surface.
 
-**Components (A–Z):** BarChart · Box · BridgeChart · Button ·
+**Components (A to Z):** BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitInput · DigitInputMicro · Dropzone ·
 Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · Input · Markdown · Menu ·
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
@@ -49,28 +49,28 @@ Surface · Switch · Tabs · TextEdit · TextEditInline · Timeline · ToggleGro
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
 
-Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture — the same set as Scatterplot/CandlestickChart, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
+Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, the same set as Scatterplot/CandlestickChart, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
 
-All 2D charts share the measured-label behavior (chart-polish milestone): tick and category labels are measured with real text metrics, thinned until nothing collides (first and last always survive), and long categorical labels are ellipsized with the full text in a `title` — never rotated. The y-axis column auto-sizes to the widest measured label via `--sf-axis-label-width` on the chart root; set that variable yourself on a container to pin several stacked charts to one column width. Hairline chrome (gridlines, ticks, wicks, cell edges) is device-pixel-snapped; numerals are tabular; resize tracks 1:1 with coalesced recomputes and stable label sets (step hysteresis).
+All 2D charts share the measured-label behavior (chart-polish milestone): tick and category labels are measured with real text metrics, thinned until nothing collides (first and last always survive), and long categorical labels are ellipsized with the full text in a `title`, never rotated. The y-axis column auto-sizes to the widest measured label via `--sf-axis-label-width` on the chart root; set that variable yourself on a container to pin several stacked charts to one column width. Hairline chrome (gridlines, ticks, wicks, cell edges) is device-pixel-snapped; numerals are tabular; resize tracks 1:1 with coalesced recomputes and stable label sets (step hysteresis).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `categories` | `string[]` | — | x-axis category labels. |
-| `series` | `BarSeries[]` | — | `{ name, values, color? }` per series. |
+| `categories` | `string[]` | n/a | x-axis category labels. |
+| `series` | `BarSeries[]` | n/a | `{ name, values, color? }` per series. |
 | `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). While zoomed, the value axis follows this extent. |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
-| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the continuous value axis; the toolbar marquee zooms to a y-band; `aria-live` range announcements. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom**, x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the continuous value axis; the toolbar marquee zooms to a y-band; `aria-live` range announcements. |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset (`0`/double-click) still returns to the data. |
-| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = reset to the full range). |
-| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays (see Scatterplot); `hline` is the natural reference level. `x` anchors to a fractional category index. |
-| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing (same interactions as Scatterplot). |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every value-axis zoom/pan (`null` = reset to the full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays (see Scatterplot); `hline` is the natural reference level. `x` anchors to a fractional category index. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing (same interactions as Scatterplot). |
 | `controls` | `boolean` | `false` | On-chart toolbar: zoom cluster (when `zoomable`) + annotation tools (when editable). |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
-| `onPointActivate` | `(datum: BarTooltipDatum) => void` | — | Click/Enter on a bar — drill-down hook; swap the data yourself and render your own breadcrumb. |
+| `onPointActivate` | `(datum: BarTooltipDatum) => void` | n/a | Click/Enter on a bar, a drill-down hook; swap the data yourself and render your own breadcrumb. |
 | `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. |
 
 ## Box
@@ -94,17 +94,17 @@ Waterfall/bridge chart of cumulative deltas and totals. Mixes in the shared `Cha
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `items` | `BridgeItem[]` | — | `{ label, value, kind: "total" \| "delta" }`. |
+| `items` | `BridgeItem[]` | n/a | `{ label, value, kind: "total" \| "delta" }`. |
 | `yDomain` | `[number, number]` | auto-fit | Y range. While zoomed, the value axis follows this extent. |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showConnectors` | `boolean` | `true` | Dashed connectors between bars. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
-| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom** — the waterfall's x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the value axis; toolbar marquee zooms to a y-band. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y) zoom**, the waterfall's x is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the value axis; toolbar marquee zooms to a y-band. |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset (`0`/double-click) still returns to the data. |
-| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every value-axis zoom/pan (`null` = full range). |
-| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays; an `hline` is the natural reference level on a waterfall. |
-| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every value-axis zoom/pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays; an `hline` is the natural reference level on a waterfall. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing. |
 | `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
@@ -138,7 +138,7 @@ Container (`role="group"`) that cascades a size to child Buttons. Extends `HTMLA
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `size` | `"sm" \| "md" \| "lg"` | — | Cascades to child Buttons; an explicit Button `size` wins. |
+| `size` | `"sm" \| "md" \| "lg"` | n/a | Cascades to child Buttons; an explicit Button `size` wins. |
 
 ## CandlestickChart
 
@@ -151,21 +151,21 @@ danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `candles` | `Candle[]` | — | OHLC bars, chronological. |
+| `candles` | `Candle[]` | n/a | OHLC bars, chronological. |
 | `yDomain` | `[number, number]` | auto-fit | Price range; auto-fit is padded and **not** zero-anchored. While zoomed, auto-fit follows the visible candles. |
-| `yLabel` / `xLabel` | `string` | — | Axis labels. |
+| `yLabel` / `xLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis/gridline posture (same as the other charts). |
 | `zoomable` | `boolean` | `false` | Interactive viewport in **bar-index space** (weekends stay collapsed): wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Far out, candles aggregate into true OHLC groups. Dated candles get calendar-boundary ticks with promoted (bolder) month/year labels. |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data (into empty index space to the sides), as a multiple of the data span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `visibleRange` | `[number, number]` | uncontrolled | Controlled window as fractional candle indices; pair with `onVisibleRangeChange`. |
-| `onVisibleRangeChange` | `(range: [number, number] \| null) => void` | — | Fires on every viewport change (`null` = reset). Lazy-history hook: prepend older candles when the window nears index 0. |
-| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlay (see Scatterplot); `x` anchors are timestamps, mapped onto the gap-free bar axis. |
-| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing (same interactions as Scatterplot). Drawn `x` anchors are interpolated timestamps (`Date`s when the candles carry Dates). |
+| `onVisibleRangeChange` | `(range: [number, number] \| null) => void` | n/a | Fires on every viewport change (`null` = reset). Lazy-history hook: prepend older candles when the window nears index 0. |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlay (see Scatterplot); `x` anchors are timestamps, mapped onto the gap-free bar axis. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing (same interactions as Scatterplot). Drawn `x` anchors are interpolated timestamps (`Date`s when the candles carry Dates). |
 | `controls` | `boolean` | `false` | On-chart toolbar: zoom-to-region mode (drag a band, bar-index space), step zoom out, Reset + annotation tools. Absorbs the corner Reset button. |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
-| `onPointActivate` | `(candle: Candle, index: number) => void` | — | Click/Enter on a candle — drill-down hook. |
+| `onPointActivate` | `(candle: Candle, index: number) => void` | n/a | Click/Enter on a candle, a drill-down hook. |
 | `renderTooltip` | `(c: Candle) => ReactNode` | mono O/H/L/C | Hover tooltip body. |
 
 ## Chat
@@ -176,16 +176,16 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `messages` | `ChatMessage[]` | — | `{ id, role: "user" \| "assistant", content?, parts?, isStreaming? }`. |
-| `onSubmit` | `(text: string) => void` | — | Enter submits (Shift+Enter = newline); input clears. |
-| `renderPart` | `(part, ctx) => ReactNode` | — | Render a custom (non-built-in) part by `type`. Return null to skip. |
-| `onAction` | `(action: ChatAction) => void` | — | Fired when a user interacts with a choices / tree / custom block. |
+| `messages` | `ChatMessage[]` | n/a | `{ id, role: "user" \| "assistant", content?, parts?, isStreaming? }`. |
+| `onSubmit` | `(text: string) => void` | n/a | Enter submits (Shift+Enter = newline); input clears. |
+| `renderPart` | `(part, ctx) => ReactNode` | n/a | Render a custom (non-built-in) part by `type`. Return null to skip. |
+| `onAction` | `(action: ChatAction) => void` | n/a | Fired when a user interacts with a choices / tree / custom block. |
 | `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. |
 | `sendLabel` | `string` | `"Send"` | Caption for the submit button. |
 | `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
 | `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
-| `disabled` | `boolean` | — | Blocks submit (e.g. while streaming). |
+| `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 
 ### Rich (non-text) responses
 
@@ -195,13 +195,13 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 `ChatPart` is a union:
 
-- `{ type: "text"; text }` — markdown (streams when it's the active block).
-- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }` — a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }` — `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
-- `{ type: "tree"; roots: ChatTreeNode[]; partId? }` — a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node glyph — a live `Spinner` while `running`, `✓`/`✗` when `done`/`error`. Node click → `onAction({ type: "tree", value: nodeId })`.
-- `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }` — an assistant "working on it" block, rendered as quiet de-emphasized text (70% opacity, no frame): a spinner header ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. **Omit `steps` for a bare thinking indicator** (just the spinner + label, no fan-out). Auto-expanded while running, auto-collapsed when `done`; click the header to toggle. Drive it by updating the message over time (like `isStreaming`). Node click → `onAction({ type: "thinking", value: nodeId })`.
-- `{ type: string; partId?; [key]: unknown }` — any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, children }`) to match the built-in TUI frame.
+- `{ type: "text"; text }`: markdown (streams when it's the active block).
+- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }`: a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }`, where `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
+- `{ type: "tree"; roots: ChatTreeNode[]; partId? }`: a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node glyph: a live `Spinner` while `running`, `✓`/`✗` when `done`/`error`. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }`: an assistant "working on it" block, rendered as quiet de-emphasized text (70% opacity, no frame): a spinner header ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. **Omit `steps` for a bare thinking indicator** (just the spinner + label, no fan-out). Auto-expanded while running, auto-collapsed when `done`; click the header to toggle. Drive it by updating the message over time (like `isStreaming`). Node click → `onAction({ type: "thinking", value: nodeId })`.
+- `{ type: string; partId?; [key]: unknown }`: any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, children }`) to match the built-in TUI frame.
 
-`onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless — the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
+`onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless: the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
 
 ```tsx
 <Chat
@@ -224,33 +224,33 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 `import { ChatDrawer } from "@tarassov-ch/swiss-function/chat-drawer"`
 
-A composite: a `Chat` in a **resizable side panel that pushes the main content aside** (built on [SplitPane](#splitpane) — a split, not an overlay). You pass the main app as `children`; the chat lives in the panel. While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` and `open` are controlled by the consumer.
+A composite: a `Chat` in a **resizable side panel that pushes the main content aside** (built on [SplitPane](#splitpane), a split, not an overlay). You pass the main app as `children`; the chat lives in the panel. While the agent is **thinking**, an animated `NonIdealState` effect blooms from the centre outward (starting from zero) and fills the padding gutter around the chat, then clears when thinking ends. `thinking` and `open` are controlled by the consumer.
 
-The panel **header acts as an icon bar**: it always carries the fullscreen toggle and close button, and you can add your own icon buttons via `actions`. For more than a chat, pass `views` — a list of `{ id, icon, label, content }` (the `ChatDrawerView` shape) — and the header renders one icon per view (built on [Tabs](#tabs)) while the body swaps to the active view. Chat is then just one view you supply (`content={<Chat … />}`); `messages`/`onSubmit` are ignored in `views` mode. Inactive views stay mounted, so a chat keeps its state while you're on another view. Give each view's content its own surface (e.g. an elevated `Chat`/`Box`) so it reads against the panel wash.
+The panel **header acts as an icon bar**: it always carries the fullscreen toggle and close button, and you can add your own icon buttons via `actions`. For more than a chat, pass `views`, a list of `{ id, icon, label, content }` (the `ChatDrawerView` shape), and the header renders one icon per view (built on [Tabs](#tabs)) while the body swaps to the active view. Chat is then just one view you supply (`content={<Chat … />}`); `messages`/`onSubmit` are ignored in `views` mode. Inactive views stay mounted, so a chat keeps its state while you're on another view. Give each view's content its own surface (e.g. an elevated `Chat`/`Box`) so it reads against the panel wash.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `children` | `ReactNode` | — | The main app content (gets pushed; render your open/close toggle here). |
+| `children` | `ReactNode` | n/a | The main app content (gets pushed; render your open/close toggle here). |
 | `side` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` | Edge the panel sits on. |
-| `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state. |
-| `title` | `ReactNode` | — | Caption shown at the left of the panel header. The header also carries a fullscreen toggle (pops the panel to a viewport overlay; Escape exits) and a close button (collapses the panel) on the right. |
+| `open` / `defaultOpen` / `onOpenChange` | n/a | n/a | Panel open state. |
+| `title` | `ReactNode` | n/a | Caption shown at the left of the panel header. The header also carries a fullscreen toggle (pops the panel to a viewport overlay; Escape exits) and a close button (collapses the panel) on the right. |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` = fixed panel, no divider. |
 | `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
-| `minSize` / `maxSize` | `number` | — | px clamps. |
-| `onSizeChange` | `(px: number) => void` | — | Fired when a resize settles — persist it. |
+| `minSize` / `maxSize` | `number` | n/a | px clamps. |
+| `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles; persist it. |
 | `padding` | `number \| string` | `1` | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
 | `thinking` | `boolean` | `false` | While true, the effect blooms behind the chat. |
-| `onThinkingStart` / `onThinkingEnd` | `() => void` | — | Fired on the `thinking` false↔true transitions. |
+| `onThinkingStart` / `onThinkingEnd` | `() => void` | n/a | Fired on the `thinking` false↔true transitions. |
 | `effect` | `EffectName` | `"ripple"` | Background effect (any `NonIdealState` effect). |
 | `color` | `string` | `var(--sf-color-primary)` | Effect colour (any CSS colour). |
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
-| `wash` | `string \| false` | — | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` | — | — | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
+| `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
-| `actions` | `ReactNode` | — | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
-| `views` | `ChatDrawerView[]` | — | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
-| `activeView` / `defaultActiveView` / `onActiveViewChange` | — | first view | Active view id (controlled / uncontrolled / change callback). |
+| `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
+| `views` | `ChatDrawerView[]` | n/a | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
+| `activeView` / `defaultActiveView` / `onActiveViewChange` | n/a | first view | Active view id (controlled / uncontrolled / change callback). |
 
 The container must have a height (e.g. `100vh`) so the split fills it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
 
@@ -287,17 +287,17 @@ Wraps Base UI's Checkbox with token styling. Extends `HTMLAttributes<HTMLButtonE
 
 `import { Chip } from "@tarassov-ch/swiss-function/chip"`
 
-A compact token — tag, filter, status marker, or removable selection. Renders a `<span>`; extends `HTMLAttributes<HTMLSpanElement>`. Sharp (2px) by default — reach for `round` only for the tag/badge reading. Neutral unless a `tone` gives the colour meaning.
+A compact token: tag, filter, status marker, or removable selection. Renders a `<span>`; extends `HTMLAttributes<HTMLSpanElement>`. Sharp (2px) by default; reach for `round` only for the tag/badge reading. Neutral unless a `tone` gives the colour meaning.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Semantic colour. Use a tone only when the colour is information (status, priority) — not decoratively. Tints surface, rim, and text from one accent (theme-aware via `color-mix`). |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Semantic colour. Use a tone only when the colour is information (status, priority), not decoratively. Tints surface, rim, and text from one accent (theme-aware via `color-mix`). |
 | `size` | `"sm" \| "md"` | `"md"` | `md` is 1.25u tall; `sm` is 1u (aligns with a small `Button`). |
 | `round` | `boolean` | `false` | Pill form (`--sf-radius-full`) instead of the sharp default. |
-| `dot` | `boolean` | `false` | Leading status marker tinted to the tone — a small square, or a dot when `round`. |
-| `onRemove` | `() => void` | — | Renders a keyboard-reachable ✕ button. Fires on click/Enter and stops propagation, so it won't also trigger the chip's `onClick`. |
+| `dot` | `boolean` | `false` | Leading status marker tinted to the tone: a small square, or a dot when `round`. |
+| `onRemove` | `() => void` | n/a | Renders a keyboard-reachable ✕ button. Fires on click/Enter and stops propagation, so it won't also trigger the chip's `onClick`. |
 | `removeLabel` | `string` | `"Remove"` | Accessible label for the ✕ button. |
-| `onClick` | `MouseEventHandler` | — | When set, the whole chip becomes a button-like filter: `role="button"`, `tabIndex=0`, focus ring, and Enter/Space activation. |
+| `onClick` | `MouseEventHandler` | n/a | When set, the whole chip becomes a button-like filter: `role="button"`, `tabIndex=0`, focus ring, and Enter/Space activation. |
 | `disabled` | `boolean` | `false` | Dims the chip and blocks `onClick` and remove. |
 
 ```tsx
@@ -313,29 +313,29 @@ The `--chip-accent` custom property is the single knob a tone sets; the dot, hov
 
 `import { CodeEditor } from "@tarassov-ch/swiss-function/code-editor"`
 
-A code editor — a thin wrapper over **CodeMirror 6**, themed entirely through `--sf-color-code-*` tokens (light/dark is the usual `[data-theme]` swap, never a JS branch), with opt-in Vim mode. All syntax themes are deliberately restrained (**no rainbow**) — pick via `theme`: `minimal` (comments dimmed only), `bold` (weight/slant, no hue), or `primary` (adds the single brand accent on keywords/tags/links). The caret is a full-cell **block**. Bring your own language via `extensions` (e.g. `javascript()` from `@codemirror/lang-javascript` — language packages are peer/consumer-installed, none are bundled). The `EditorView` is created once and reconfigured in place via compartments, so undo history and cursor survive prop changes. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`/`defaultValue`).
+A code editor, a thin wrapper over **CodeMirror 6**, themed entirely through `--sf-color-code-*` tokens (light/dark is the usual `[data-theme]` swap, never a JS branch), with opt-in Vim mode. All syntax themes are deliberately restrained (**no rainbow**): pick via `theme`: `minimal` (comments dimmed only), `bold` (weight/slant, no hue), or `primary` (adds the single brand accent on keywords/tags/links). The caret is a full-cell **block**. Bring your own language via `extensions` (e.g. `javascript()` from `@codemirror/lang-javascript`; language packages are peer/consumer-installed, none are bundled). The `EditorView` is created once and reconfigured in place via compartments, so undo history and cursor survive prop changes. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`/`defaultValue`).
 
 Auto-grows with content by default; give the root a `height` (via `style`/`className`) to fix its size and let it scroll. `CodeEditor` requires the `@codemirror/*` + `@replit/codemirror-vim` packages (declared dependencies, externalized like `react-markdown`); `sfCodeTheme` is also exported for advanced composition.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `value` | `string` | — | Controlled document text. |
+| `value` | `string` | n/a | Controlled document text. |
 | `defaultValue` | `string` | `""` | Initial text when uncontrolled. |
-| `onChange` | `(value: string) => void` | — | Fires with the full document on every edit. |
-| `extensions` | `Extension[]` | `[]` | Language / feature extensions. **Memoize** — a new array each render reconfigures the editor. |
+| `onChange` | `(value: string) => void` | n/a | Fires with the full document on every edit. |
+| `extensions` | `Extension[]` | `[]` | Language / feature extensions. **Memoize**: a new array each render reconfigures the editor. |
 | `theme` | `"minimal" \| "bold" \| "primary"` | `"primary"` | Syntax theme (all restrained). `minimal` dims comments only; `bold` adds weight/slant; `primary` adds the brand accent. |
 | `vim` | `boolean` | `false` | Enable Vim keybindings (`@replit/codemirror-vim`). |
 | `readOnly` | `boolean` | `false` | Read-only (still selectable/focusable). |
 | `editable` | `boolean` | `true` | Whether content is editable. |
-| `placeholder` | `string` | — | Shown when empty. |
+| `placeholder` | `string` | n/a | Shown when empty. |
 | `lineNumbers` | `boolean` | `true` | Line-number + fold gutter. |
 | `lineWrapping` | `boolean` | `false` | Soft-wrap instead of horizontal scroll. |
 | `tabSize` | `number` | `2` | Spaces per indent level. |
 | `autoFocus` | `boolean` | `false` | Focus on mount. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth — same `--sf-elevation-N` scale as `Box`/`Input`. |
-| `onCreateEditor` | `(view: EditorView) => void` | — | Receive the underlying CodeMirror `EditorView`. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth, same `--sf-elevation-N` scale as `Box`/`Input`. |
+| `onCreateEditor` | `(view: EditorView) => void` | n/a | Receive the underlying CodeMirror `EditorView`. |
 
-The palette lives in tokens: `--sf-color-code-{bg,fg,comment,accent,punctuation,cursor,gutter-fg,selection,active-line,matched-bracket}` — monochrome, so only `accent`/`cursor` carry the brand hue; every value rides a semantic token or `color-mix`, so dark mode needs no override.
+The palette lives in tokens: `--sf-color-code-{bg,fg,comment,accent,punctuation,cursor,gutter-fg,selection,active-line,matched-bracket}`: monochrome, so only `accent`/`cursor` carry the brand hue; every value rides a semantic token or `color-mix`, so dark mode needs no override.
 
 ## DataTable
 
@@ -345,55 +345,55 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `data` | `T[]` | — | Rows. |
-| `columns` | `ColumnDef<T>[]` | — | Column tree (leaves + groups). |
+| `data` | `T[]` | n/a | Rows. |
+| `columns` | `ColumnDef<T>[]` | n/a | Column tree (leaves + groups). |
 | `editable` | `boolean` | `false` | Click-to-edit + paste-to-update. Per-column via `edit`. |
 | `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter; `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
-| `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | — | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
-| `onCellChange` | `(changes: CellChange[]) => void` | — | Edit/paste committed; consumer updates `data`. |
-| `onSelectionChange` | `(selection: Selection) => void` | — | Active cell / range changed. |
-| `paginate` | `PaginateConfig` | — | Opt into pagination instead of virtualization. |
+| `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | n/a | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
+| `onCellChange` | `(changes: CellChange[]) => void` | n/a | Edit/paste committed; consumer updates `data`. |
+| `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. |
+| `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
-| `empty` | `ReactNode` | — | Empty-state slot. |
+| `empty` | `ReactNode` | n/a | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. |
-| `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll — the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
+| `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
-| `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0–1 (1). |
+| `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0 to 1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
 | `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. |
 | `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean/date → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
-| `columnFilters` | `ColumnFiltersState` | — | Controlled filters (TanStack), with `onColumnFiltersChange`. |
-| `defaultColumnFilters` | `ColumnFiltersState` | — | Uncontrolled initial filters. |
-| `onColumnFiltersChange` | `(filters: ColumnFiltersState) => void` | — | Fired on each filter change — persist to save it. |
-| `columnOrder` | `string[]` | — | Controlled column order (leaf ids), with `onColumnOrderChange`. |
-| `defaultColumnOrder` | `string[]` | — | Uncontrolled initial order (e.g. restored from storage). |
-| `onColumnOrderChange` | `(order: string[]) => void` | — | Fired with the full order on each reorder — persist to save it. |
-| `columnWidths` | `Record<string, number>` | — | Controlled px width overrides by column id (with `onColumnWidthsChange`). |
-| `defaultColumnWidths` | `Record<string, number>` | — | Uncontrolled initial px overrides (e.g. restored from storage). |
-| `onColumnWidthsChange` | `(widths: Record<string, number>) => void` | — | Fired on resize/auto-fit — persist it to "save" the user's widths. |
-| `getCellSpan` | `CellSpanFn<T>` | — | Visually merge cells (return `{ rowSpan, colSpan }` at the lead cell). |
-| `getSubRows` | `(row: T) => T[] \| undefined` | — | Tree rows. |
+| `columnFilters` | `ColumnFiltersState` | n/a | Controlled filters (TanStack), with `onColumnFiltersChange`. |
+| `defaultColumnFilters` | `ColumnFiltersState` | n/a | Uncontrolled initial filters. |
+| `onColumnFiltersChange` | `(filters: ColumnFiltersState) => void` | n/a | Fired on each filter change. Persist to save it. |
+| `columnOrder` | `string[]` | n/a | Controlled column order (leaf ids), with `onColumnOrderChange`. |
+| `defaultColumnOrder` | `string[]` | n/a | Uncontrolled initial order (e.g. restored from storage). |
+| `onColumnOrderChange` | `(order: string[]) => void` | n/a | Fired with the full order on each reorder. Persist to save it. |
+| `columnWidths` | `Record<string, number>` | n/a | Controlled px width overrides by column id (with `onColumnWidthsChange`). |
+| `defaultColumnWidths` | `Record<string, number>` | n/a | Uncontrolled initial px overrides (e.g. restored from storage). |
+| `onColumnWidthsChange` | `(widths: Record<string, number>) => void` | n/a | Fired on resize/auto-fit. Persist it to "save" the user's widths. |
+| `getCellSpan` | `CellSpanFn<T>` | n/a | Visually merge cells (return `{ rowSpan, colSpan }` at the lead cell). |
+| `getSubRows` | `(row: T) => T[] \| undefined` | n/a | Tree rows. |
 | `treeColumn` | `string` | first leaf | Column owning the tree chevron + indent. |
-| `defaultExpanded` | `ExpandedState` | — | Initial expansion (`true` = all). |
-| `expanded` / `onExpandedChange` | `Record<string, boolean>` / fn | — | Controlled expansion. |
-| `columnGroupsCollapsed` / `onColumnGroupsCollapsedChange` | `Record<string, boolean>` / fn | — | Controlled column-group collapse. |
+| `defaultExpanded` | `ExpandedState` | n/a | Initial expansion (`true` = all). |
+| `expanded` / `onExpandedChange` | `Record<string, boolean>` / fn | n/a | Controlled expansion. |
+| `columnGroupsCollapsed` / `onColumnGroupsCollapsedChange` | `Record<string, boolean>` / fn | n/a | Controlled column-group collapse. |
 
-**ColumnDef** — `LeafColumnDef<T> | GroupColumnDef<T>`:
+**ColumnDef** is `LeafColumnDef<T> | GroupColumnDef<T>`:
 - Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
   `width?` (u), `minWidth?` (u, default 3), `resizable?`, `align?`
   (`start|center|end`), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
   overrides the table's `editOn`), `sortable?`, `filterable?`.
 - Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`.
-- `EditConfig` — the cell editor, keyed by `type`:
-  - `{ type: "text" }` — a `TextEditInline` (the floating expand-on-focus editor;
+- `EditConfig`, the cell editor, keyed by `type`:
+  - `{ type: "text" }` is a `TextEditInline` (the floating expand-on-focus editor;
     Enter commits, Shift+Enter inserts a newline).
-  - `{ type: "number"; decimals?; slots?; unit? }` — a `DigitInputMicro`; the extra
+  - `{ type: "number"; decimals?; slots?; unit? }` is a `DigitInputMicro`; the extra
     fields are forwarded to it. Commits a `number | null`.
-  - `{ type: "boolean" }` — a two-option `Picker` (True / False); commits a `boolean`.
-  - `{ type: "select"; options: { value; label }[] }` — a searchable single-choice `Picker`.
-  - `{ type: "date"; minDate?; maxDate? }` — a `DatePicker`; commits a `Date`.
+  - `{ type: "boolean" }` is a two-option `Picker` (True / False); commits a `boolean`.
+  - `{ type: "select"; options: { value; label }[] }` is a searchable single-choice `Picker`.
+  - `{ type: "date"; minDate?; maxDate? }` is a `DatePicker`; commits a `Date`.
     Render the read view via the column's `cell` (e.g. ISO). Its header filter
     falls back to a value checklist over the stringified dates.
 
@@ -415,23 +415,23 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 
 `import { DatePicker } from "@tarassov-ch/swiss-function/date-picker"`
 
-Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control — typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th–19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). Extends `HTMLAttributes<HTMLDivElement>`.
+Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control: typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th to 19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). Extends `HTMLAttributes<HTMLDivElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `value` | `Date \| null` | — | Selected date (controlled; pair with `onChange`). |
-| `defaultValue` | `Date \| null` | — | Initial selection (uncontrolled). |
-| `onChange` | `(date: Date \| null) => void` | — | Fires on commit or clear. |
+| `value` | `Date \| null` | n/a | Selected date (controlled; pair with `onChange`). |
+| `defaultValue` | `Date \| null` | n/a | Initial selection (uncontrolled). |
+| `onChange` | `(date: Date \| null) => void` | n/a | Fires on commit or clear. |
 | `placeholder` | `string` | `"YYYY-MM-DD"` | Field placeholder. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Field size, mirrors `Input`. |
 | `disabled` | `boolean` | `false` | Disable the control. |
 | `clearable` | `boolean` | `true` | × button once a date is selected. |
-| `minDate` / `maxDate` | `Date` | — | Inclusive selectable range (day granularity). |
-| `isDateDisabled` | `(date: Date) => boolean` | — | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. |
+| `minDate` / `maxDate` | `Date` | n/a | Inclusive selectable range (day granularity). |
+| `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. |
 | `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. |
 | `formatValue` | `(date: Date) => string` | ISO `YYYY-MM-DD` | Custom display format for the committed value; parsing still accepts ISO and day-first fragments. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | flat | Resting depth of the field (`--sf-elevation-N`). |
-| `aria-label` | `string` | — | Accessible name when not wrapped in a `Field`. |
+| `aria-label` | `string` | n/a | Accessible name when not wrapped in a `Field`. |
 
 ## Dialog
 
@@ -448,10 +448,10 @@ your own button), `CloseButton` (pre-styled icon ✕).
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `draggable` | `Popup` | `boolean` | — | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
-| `resizable` | `Popup` | `boolean` | — | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
-| `defaultWidth` | `Popup` | `number` | — | Initial width in px (else content-driven, capped at 32rem). A resize takes over. |
-| `defaultHeight` | `Popup` | `number` | — | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
+| `draggable` | `Popup` | `boolean` | n/a | Drag by `Handle`; sets `--sf-dialog-x` / `--sf-dialog-y`. |
+| `resizable` | `Popup` | `boolean` | n/a | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
+| `defaultWidth` | `Popup` | `number` | n/a | Initial width in px (else content-driven, capped at 32rem). A resize takes over. |
+| `defaultHeight` | `Popup` | `number` | n/a | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
 
 `Maximize` reads the Popup's fullscreen state from context (so it must live
 inside a `Popup`); while maximized the Popup fills the viewport (`inset: 0`), drag
@@ -464,25 +464,25 @@ reopens.
 
 `import { DigitInput } from "@tarassov-ch/swiss-function/digit-input"`
 
-Fixed-capacity numeric input rendered as individual digit cells — `[0][4][2].[5][0] %` — with two typing models. **`mode="push"`** (default, calculator): the whole control is one focus target (a hidden real input overlays the cells), digits push in from the right, always leaving a complete number; no per-cell cursor. **`mode="mask"`** (2FA style, built on Base UI's OTPField): each cell is a focus stop, typing fills left-to-right with auto-advance, Backspace steps back, and the value stays `null` until every cell is filled. Untouched, both show a faded `_` mask and report `null`. With `decimals={0}` and no `unit` it doubles as a numeric PIN/code input. Extends `HTMLAttributes<HTMLSpanElement>`.
+Fixed-capacity numeric input rendered as individual digit cells (`[0][4][2].[5][0] %`) with two typing models. **`mode="push"`** (default, calculator): the whole control is one focus target (a hidden real input overlays the cells), digits push in from the right, always leaving a complete number; no per-cell cursor. **`mode="mask"`** (2FA style, built on Base UI's OTPField): each cell is a focus stop, typing fills left-to-right with auto-advance, Backspace steps back, and the value stays `null` until every cell is filled. Untouched, both show a faded `_` mask and report `null`. With `decimals={0}` and no `unit` it doubles as a numeric PIN/code input. Extends `HTMLAttributes<HTMLSpanElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `digits` | `number` | — | Integer places. The capacity is the input's contract; max value is all-nines. |
+| `digits` | `number` | n/a | Integer places. The capacity is the input's contract; max value is all-nines. |
 | `decimals` | `number` | `0` | Decimal places. |
-| `mode` | `"push" \| "mask"` | `"push"` | Typing model — calculator vs 2FA-cell (see above). Not meant to change at runtime (a flip remounts the control). |
-| `decimalSeparator` | `ReactNode` | `"."` | Display glyph only — the form/clipboard value always uses `"."`. |
-| `unit` | `ReactNode` | — | Suffix inside the control (e.g. `"%"`). String units join `aria-valuetext`. |
+| `mode` | `"push" \| "mask"` | `"push"` | Typing model: calculator vs 2FA-cell (see above). Not meant to change at runtime (a flip remounts the control). |
+| `decimalSeparator` | `ReactNode` | `"."` | Display glyph only. The form/clipboard value always uses `"."`. |
+| `unit` | `ReactNode` | n/a | Suffix inside the control (e.g. `"%"`). String units join `aria-valuetext`. |
 | `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | `null` = pristine mask. Reported values are always complete (untyped positions are 0). Controlled values clamp to capacity + round to `decimals` (dev-warn on clamp). |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cell heights 1u / 1.5u / 2u — Input parity. |
-| `elevation` | `0–5` | `2` | Resting cell depth, cascading to every cell. |
-| `name` | `string` | — | Form participation; submits the canonical string (e.g. `"4.25"`). |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cell heights 1u / 1.5u / 2u (Input parity). |
+| `elevation` | `0` to `5` | `2` | Resting cell depth, cascading to every cell. |
+| `name` | `string` | n/a | Form participation; submits the canonical string (e.g. `"4.25"`). |
 
-Keyboard (`push`): **0–9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling — deliberate. Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); negatives are unsupported (clamped to 0).
+Keyboard (`push`): **0 to 9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling (deliberate). Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); negatives are unsupported (clamped to 0).
 
-Keyboard (`mask`): OTPField's native model — typing fills the focused cell and advances, Backspace clears and steps back, ArrowLeft/Right move between cells; there is no ulp stepping. Paste is decimal-aware: text containing a separator (`"12.34"`) fills positionally (→ `012.34`), plain digit strings fill left-to-right like typing.
+Keyboard (`mask`): OTPField's native model: typing fills the focused cell and advances, Backspace clears and steps back, ArrowLeft/Right move between cells; there is no ulp stepping. Paste is decimal-aware: text containing a separator (`"12.34"`) fills positionally (→ `012.34`), plain digit strings fill left-to-right like typing.
 
-The hidden input is `role="spinbutton"` with `aria-valuemin/max/now/valuetext` (typing is intercepted, so spinbutton value announcements are the reliable screen-reader channel). Works inside `Field` — label and description wire to the hidden input automatically. Focus is indicated by the least-significant cell rendering as an inverse-video block caret — there is deliberately **no** focus ring (an exception to the `--sf-focus-ring-*` convention; the caret is the indicator). The changed cell gets one `--sf-ease-snap` micro-pop per edit; disabled under `prefers-reduced-motion`.
+The hidden input is `role="spinbutton"` with `aria-valuemin/max/now/valuetext` (typing is intercepted, so spinbutton value announcements are the reliable screen-reader channel). Works inside `Field`: label and description wire to the hidden input automatically. Focus is indicated by the least-significant cell rendering as an inverse-video block caret, and there is deliberately **no** focus ring (an exception to the `--sf-focus-ring-*` convention; the caret is the indicator). The changed cell gets one `--sf-ease-snap` micro-pop per edit; disabled under `prefers-reduced-motion`.
 
 ```tsx
 <DigitInput digits={3} decimals={2} unit="%" onValueChange={setPct} />
@@ -495,7 +495,7 @@ The hidden input is `role="spinbutton"` with `aria-valuemin/max/now/valuetext` (
 `import { DigitInputMicro } from "@tarassov-ch/swiss-function/digit-input-micro"`
 
 A regular, **variable-length** numeric input that shows a few faded placeholder
-digit slots at rest and fills them left-to-right as you type (the "mask" hint) —
+digit slots at rest and fills them left-to-right as you type (the "mask" hint),
 but never caps length: type past the slots and the number just grows. The lighter
 sibling of `DigitInput` (a fixed-capacity grid of digit cells): this is a single,
 ordinary text input, so caret, selection, backspace and paste are all native.
@@ -506,19 +506,19 @@ hint, not a contract; reach for `DigitInput` when the capacity IS the contract
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint — the field is variable-length. |
+| `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint: the field is variable-length. |
 | `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
-| `unit` | `ReactNode` | — | Suffix rendered inside the control after the digits (e.g. `"%"`). |
-| `placeholderChar` | `string` | `"░"` | Glyph used for the empty slots — a dithered shade block by default (matches the library's dither vocabulary). |
+| `unit` | `ReactNode` | n/a | Suffix rendered inside the control after the digits (e.g. `"%"`). |
+| `placeholderChar` | `string` | `"░"` | Glyph used for the empty slots: a dithered shade block by default (matches the library's dither vocabulary). |
 | `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
-| `min` / `max` | `number` | — | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u — Input parity. |
-| `elevation` | `0–5` | `2` | Resting depth. |
-| `name` | `string` | — | Form participation; submits the canonical numeric string. |
+| `min` / `max` | `number` | n/a | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u (Input parity). |
+| `elevation` | `0` to `5` | `2` | Resting depth. |
+| `name` | `string` | n/a | Form participation; submits the canonical numeric string. |
 
 Non-numeric characters are rejected; a second decimal point and extra decimal
 places are dropped. Focus is shown by the frame highlighting (border → primary),
-mirroring `Input` — the same input-family convention. Works inside `Field`. The
+mirroring `Input`, the same input-family convention. Works inside `Field`. The
 placeholder slots use `Input`'s `::placeholder` strength; block caret via
 `caret-shape: block`. `prefers-reduced-motion` disables the frame transition.
 
@@ -543,7 +543,7 @@ stays interactive.
 | --- | --- | --- | --- | --- |
 | `side` | `Root` | `"left" \| "right" \| "bottom"` | `"right"` | Edge to slide from (maps to Base UI `swipeDirection`). |
 | `modal` | `Root` | `boolean \| "trap-focus"` | `false` | `true` adds a backdrop + focus trap. |
-| `open` / `defaultOpen` / `onOpenChange` | `Root` | — | — | Base UI open-state API. |
+| `open` / `defaultOpen` / `onOpenChange` | `Root` | n/a | n/a | Base UI open-state API. |
 
 Render a `Drawer.SwipeArea` (a grab rail pinned to the edge) **outside the
 `Portal`** for an optional persistent handle that stays visible while closed and
@@ -554,21 +554,21 @@ reopens on swipe/drag. Panel size is set on `Drawer.Popup` (default 18u wide /
 
 `import { Dropzone } from "@tarassov-ch/swiss-function/dropzone"`
 
-Drag-and-drop file zone (with click-to-browse) that surfaces chosen files and renders them as a removable list. Presentational only — the actual upload (network, progress) is the consumer's job; feed per-file state back via `fileStatus`. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+Drag-and-drop file zone (with click-to-browse) that surfaces chosen files and renders them as a removable list. Presentational only: the actual upload (network, progress) is the consumer's job; feed per-file state back via `fileStatus`. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `files` | `File[]` | — | Controlled list (pass with `onFilesChange`). |
+| `files` | `File[]` | n/a | Controlled list (pass with `onFilesChange`). |
 | `defaultFiles` | `File[]` | `[]` | Uncontrolled initial list. |
-| `onFilesChange` | `(files: File[]) => void` | — | Fired with the full list after drop / browse / remove. |
-| `accept` | `string` | — | Forwarded to the native input (e.g. `"image/*,.pdf"`). |
+| `onFilesChange` | `(files: File[]) => void` | n/a | Fired with the full list after drop / browse / remove. |
+| `accept` | `string` | n/a | Forwarded to the native input (e.g. `"image/*,.pdf"`). |
 | `multiple` | `boolean` | `true` | When `false`, a new pick replaces the list. |
-| `disabled` | `boolean` | — | Disable the control. |
+| `disabled` | `boolean` | n/a | Disable the control. |
 | `label` | `ReactNode` | `"Drop files here"` | Primary prompt. |
 | `description` | `ReactNode` | `"or click to browse"` | Secondary line. |
 | `icon` | `ReactNode` | `"⤓"` | Glyph above the label. |
 | `showList` | `boolean` | `true` | Render the built-in removable file list. |
-| `fileStatus` | `(file: File, index: number) => ReactNode` | — | Per-file trailing slot (progress/error). |
+| `fileStatus` | `(file: File, index: number) => ReactNode` | n/a | Per-file trailing slot (progress/error). |
 
 Files dedupe by name + size + lastModified. Drag-over and keyboard focus share the accent treatment.
 
@@ -576,38 +576,38 @@ Files dedupe by name + size + lastModified. Drag-over and keyboard focus share t
 
 `import { Explorer } from "@tarassov-ch/swiss-function/explorer"`
 
-Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and a context menu. It also carries the DataTable-style column affordances that fit a tree — **column sorting, filtering, resizing, reordering**, an empty state, and a dithered edge-fade. Fully controlled. Keyboard: arrows, Cmd/Ctrl+A, Delete, F2/Enter to edit.
+Virtualized tree grid (`Explorer<M>`) with drag-to-reorder, rename-in-place, and a context menu. It also carries the DataTable-style column affordances that fit a tree: **column sorting, filtering, resizing, reordering**, an empty state, and a dithered edge-fade. Fully controlled. Keyboard: arrows, Cmd/Ctrl+A, Delete, F2/Enter to edit.
 
 Sorting reorders each folder's children in place (hierarchy preserved, like Finder); filtering keeps the path to every match and auto-expands it. Reorder drag is ignored while a sort is active.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `nodes` | `ExplorerNode<M>[]` | — | Root nodes; a node is a folder iff `children` is defined (even `[]`). |
-| `columns` | `ExplorerColumn<M>[]` | — | First column becomes the tree column (chevron + indent + name). |
+| `nodes` | `ExplorerNode<M>[]` | n/a | Root nodes; a node is a folder iff `children` is defined (even `[]`). |
+| `columns` | `ExplorerColumn<M>[]` | n/a | First column becomes the tree column (chevron + indent + name). |
 | `selectedIds` | `Set<string>` | `new Set()` | Controlled selection. |
-| `onSelectionChange` | `(ids: Set<string>) => void` | — | Click / Shift-range / Ctrl-toggle / Cmd-A. |
+| `onSelectionChange` | `(ids: Set<string>) => void` | n/a | Click / Shift-range / Ctrl-toggle / Cmd-A. |
 | `expandedIds` | `Set<string>` | `new Set()` | Controlled expansion. |
-| `onExpandedChange` | `(ids: Set<string>) => void` | — | Chevron click or Left/Right arrow. |
+| `onExpandedChange` | `(ids: Set<string>) => void` | n/a | Chevron click or Left/Right arrow. |
 | `editingId` | `string \| null` | `null` | Controlled edit mode (one row at a time). |
-| `onEditingChange` | `(id: string \| null) => void` | — | Double-click or F2/Enter. |
+| `onEditingChange` | `(id: string \| null) => void` | n/a | Double-click or F2/Enter. |
 | `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. |
-| `onRename` | `(id, newName) => void` | — | Rename committed. |
-| `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | — | From context menu (null = root). |
-| `onMove` | `(id, newParentId, beforeId?) => void` | — | Drag drop; `beforeId` for order, null = append. |
-| `onDelete` | `(ids: string[]) => void` | — | Context menu or Delete/Backspace. |
+| `onRename` | `(id, newName) => void` | n/a | Rename committed. |
+| `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | n/a | From context menu (null = root). |
+| `onMove` | `(id, newParentId, beforeId?) => void` | n/a | Drag drop; `beforeId` for order, null = append. |
+| `onDelete` | `(ids: string[]) => void` | n/a | Context menu or Delete/Backspace. |
 | `resizableColumns` | `boolean` | `false` | Drag column borders to resize. Widths are **raw px** (unlike DataTable's `--sf-unit` multiples). |
-| `columnWidths` / `defaultColumnWidths` | `Record<string, number>` | — | Controlled / initial px width overrides, keyed by column id. |
-| `onColumnWidthsChange` | `(widths) => void` | — | Fires on resize; persist for sticky widths. |
+| `columnWidths` / `defaultColumnWidths` | `Record<string, number>` | n/a | Controlled / initial px width overrides, keyed by column id. |
+| `onColumnWidthsChange` | `(widths) => void` | n/a | Fires on resize; persist for sticky widths. |
 | `reorderableColumns` | `boolean` | `false` | Drag metadata headers to reorder. The tree column stays pinned at index 0. |
-| `columnOrder` / `defaultColumnOrder` | `string[]` | — | Controlled / initial order — **non-tree column ids only** (the tree id is never included). |
-| `onColumnOrderChange` | `(order) => void` | — | Fires on reorder. |
+| `columnOrder` / `defaultColumnOrder` | `string[]` | n/a | Controlled / initial order, **non-tree column ids only** (the tree id is never included). |
+| `onColumnOrderChange` | `(order) => void` | n/a | Fires on reorder. |
 | `sort` / `defaultSort` | `ExplorerSort \| null` | `null` | `{ columnId, dir: "asc" \| "desc" }`. Header click cycles asc → desc → off. |
-| `onSortChange` | `(sort) => void` | — | Fires on header click. |
+| `onSortChange` | `(sort) => void` | n/a | Fires on header click. |
 | `sortFoldersFirst` | `boolean` | `true` | Keep folders above files within each sibling group when sorting. |
 | `filterableColumns` | `boolean` | `false` | Show per-column filter funnels (checklist or numeric range, inferred from values). |
 | `columnFilters` / `defaultColumnFilters` | `ColumnFiltersState` | `[]` | Controlled / initial filters (`{ id, value }[]`). |
-| `onColumnFiltersChange` | `(filters) => void` | — | Fires on filter change. |
-| `icon` | `(node) => ReactNode` | — | Override the per-node glyph. |
+| `onColumnFiltersChange` | `(filters) => void` | n/a | Fires on filter change. |
+| `icon` | `(node) => ReactNode` | n/a | Override the per-node glyph. |
 | `showHeader` | `boolean` | `true` | Column header row. |
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
 | `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
@@ -625,26 +625,26 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 Compound form field with label, description, and error. Wraps Base UI's Field.
 
 **Elements / Parts:** `Root`, `Label` (shows `*` when `required`), `Description`
-(supplementary copy below the control — full-strength `--sf-color-fg`, never grey),
+(supplementary copy below the control, full-strength `--sf-color-fg`, never grey),
 `Error` (in the danger colour; Base UI renders nothing when valid).
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `orientation` | `Root` | `"vertical" \| "horizontal"` | `"vertical"` | Stack vs side-by-side. |
 | `required` | `Root` | `boolean` | `false` | Visual `*` on Label; add `required` to the control for HTML validation. |
-| `hotkey` | `Root` | `string` | — | "Jump to this field" shortcut (issue #32). Renders a `Kbd` badge in the corner (uses the `Kbd` combo syntax, e.g. `"mod+e"`, `"g u"`) and tags the field with `data-hotkey`. Field binds **no key itself** — your app's central hotkey system handles the press and calls `focusFieldHotkey(combo)` (or focuses the control via your own ref). |
+| `hotkey` | `Root` | `string` | n/a | "Jump to this field" shortcut (issue #32). Renders a `Kbd` badge in the corner (uses the `Kbd` combo syntax, e.g. `"mod+e"`, `"g u"`) and tags the field with `data-hotkey`. Field binds **no key itself**: your app's central hotkey system handles the press and calls `focusFieldHotkey(combo)` (or focuses the control via your own ref). |
 
 `Field.Description` and `Field.Error` wire to the control via `aria-describedby`. Write the description **right after the control it explains**.
 
-`focusFieldHotkey(combo, root = document)` (also exported from the package root) is a pure helper for the "jump" side: it finds the `[data-hotkey="combo"]` field under `root`, focuses its first focusable control, and returns whether it did. Call it from your own shortcut layer — the library owns no keyboard listener.
+`focusFieldHotkey(combo, root = document)` (also exported from the package root) is a pure helper for the "jump" side: it finds the `[data-hotkey="combo"]` field under `root`, focuses its first focusable control, and returns whether it did. Call it from your own shortcut layer. The library owns no keyboard listener.
 
 ## FieldLayout
 
 `import { FieldLayout } from "@tarassov-ch/swiss-function/field-layout"`
 
-Justified form rows of rigid / flexible / filler fields. A form is Sections; a Section is a `flex-wrap` container whose wrapped lines *are* the rows — each line justifies (fills the left padding to the right padding) because the flexible fields and fillers in it grow, and because it is flex-wrap (not grid auto-flow) fields keep **strict source order** and never migrate between lines. Narrowing the container simply carries fewer fields per line — gradual collapse with no breakpoints, driven by the container, not the viewport. Layout is pure CSS; no ResizeObserver.
+Justified form rows of rigid / flexible / filler fields. A form is Sections; a Section is a `flex-wrap` container whose wrapped lines *are* the rows: each line justifies (fills the left padding to the right padding) because the flexible fields and fillers in it grow, and because it is flex-wrap (not grid auto-flow) fields keep **strict source order** and never migrate between lines. Narrowing the container simply carries fewer fields per line, a gradual collapse with no breakpoints, driven by the container, not the viewport. Layout is pure CSS; no ResizeObserver.
 
-**Elements / Parts:** `FieldLayout` (Root — padding + section stacking), `FieldLayout.Section` (a justified `flex-wrap` group; hierarchy comes from the 2u/1u rhythm, no headings), `FieldLayout.Field` (label + control + optional hint), `FieldLayout.Filler` (absorbs slack; optional visible dither).
+**Elements / Parts:** `FieldLayout` (Root: padding + section stacking), `FieldLayout.Section` (a justified `flex-wrap` group; hierarchy comes from the 2u/1u rhythm, no headings), `FieldLayout.Field` (label + control + optional hint), `FieldLayout.Filler` (absorbs slack; optional visible dither).
 
 Compose each intended row with at least one grower (a flexible field, a rigid field *with a hint*, or a `Filler`) so it can always justify.
 
@@ -652,8 +652,8 @@ Compose each intended row with at least one grower (a flexible field, a rigid fi
 | --- | --- | --- | --- | --- |
 | `padding` | `Root` | `number` | `1` | Padding around the sections, in `--sf-unit` multiples. |
 | `kind` | `Field` | `"flexible" \| "rigid" \| "prose" \| "filler"` | `"flexible"` | `rigid` holds a whole-unit width; `flexible` flexes min 10u / basis 14u / max 36u; `prose` = basis 20u, grow 3, no max; `filler` absorbs slack. |
-| `label` | `Field` | `ReactNode` | — | Rendered above the control and wired to it via `aria-labelledby` (so composite controls like `DatePicker` take the label as their accessible name instead of a placeholder). |
-| `hint` | `Field` | `ReactNode` | — | Text beside the control (below it when narrow). Renders as the row's inner filler — it justifies a rigid control's line and wraps beneath last. |
+| `label` | `Field` | `ReactNode` | n/a | Rendered above the control and wired to it via `aria-labelledby` (so composite controls like `DatePicker` take the label as their accessible name instead of a placeholder). |
+| `hint` | `Field` | `ReactNode` | n/a | Text beside the control (below it when narrow). Renders as the row's inner filler: it justifies a rigid control's line and wraps beneath last. |
 | `width` | `Field` | `number` | `8` | Fixed width for `rigid`, in units. |
 | `preferred` / `min` / `max` / `grow` | `Field` | `number` (`max`: `number \| false`) | per-kind | Override the kind's flex-basis / min / max / grow (all in units; `max={false}` = none). |
 | `dither` | `Filler` | `boolean \| EffectName` | `false` | Show a console-style dither instead of blank space; a string picks a specific effect. Reduced motion draws a single static frame. |
@@ -667,24 +667,24 @@ A resizable control inside a `Field` (e.g. `TextEdit`, which paints at a half-un
 
 `import { Flows } from "@tarassov-ch/swiss-function/flows"`
 
-Per-period fund-flow ribbon (issue #36): each period is a within-period waterfall — `open` → subscriptions (up) → redemptions (down) → performance (±) → fxEffect (±) → closing AUM — and the periods connect close→open into one continuous stepped AUM ribbon. The compact, candle-like read of how subscriptions, redemptions, performance and FX move a fund's AUM over time. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
+Per-period fund-flow ribbon (issue #36): each period is a within-period waterfall: `open` → subscriptions (up) → redemptions (down) → performance (±) → fxEffect (±) → closing AUM, and the periods connect close→open into one continuous stepped AUM ribbon. The compact, candle-like read of how subscriptions, redemptions, performance and FX move a fund's AUM over time. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
 
 `FlowPeriod = { x: number | string | Date; open: number; subscriptions?; redemptions?; performance?; fxEffect? }`. Subscriptions/redemptions are **magnitudes** (≥0) drawn up/down; performance/fxEffect are **signed**. Closing AUM is derived; omitted components draw no segment.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `periods` | `FlowPeriod[]` | — | One entry per period, chronological. Set each period's `open` to the previous period's closing AUM for a continuous ledger. |
+| `periods` | `FlowPeriod[]` | n/a | One entry per period, chronological. Set each period's `open` to the previous period's closing AUM for a continuous ledger. |
 | `yDomain` | `[number, number]` | auto-fit | AUM range (auto-fits across every open/close/step level). While zoomed, the value axis follows this extent. |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `colors` | `FlowColors` | success/danger/primary/warning | Per-component fill overrides (`{ subscriptions?, redemptions?, performance?, fxEffect? }`). |
 | `showConnectors` | `boolean` | `true` | Dashed ribbon connectors (open marker, step links, close→open). |
 | `showLegend` | `boolean` | `true` | Legend of the components present. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
-| `zoomable` | `boolean` | `false` | Interactive **value-axis (AUM) zoom** — x is per-period, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the AUM axis; toolbar marquee zooms to a band. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (AUM) zoom**: x is per-period, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window the AUM axis; toolbar marquee zooms to a band. |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data, as a multiple of the AUM span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
-| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every AUM zoom/pan (`null` = full range). |
-| `annotations` / `onAnnotationsChange` | `ChartAnnotation[]` / `(a) => void` | — | Data-anchored overlays (see Scatterplot); an `hline` is the natural reference level. `x` anchors to a fractional period index. The change handler (with `controls`) enables editing. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every AUM zoom/pan (`null` = full range). |
+| `annotations` / `onAnnotationsChange` | `ChartAnnotation[]` / `(a) => void` | n/a | Data-anchored overlays (see Scatterplot); an `hline` is the natural reference level. `x` anchors to a fractional period index. The change handler (with `controls`) enables editing. |
 | `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
@@ -696,30 +696,30 @@ For a single-total decomposition across categories (not per-period), use `Bridge
 
 `import { Form, FormField, FormError } from "@tarassov-ch/swiss-function/form"`
 
-The layer above `Field` / `FieldLayout` (issue #49): form-level submit + validation wiring and error surfacing. Wraps Base UI's Form (consolidated per-field errors, native constraint validation) and our `Field`. **Headless about the validation library** — bring your own `resolver` (adapt Zod / Valibot / react-hook-form into the `(values) => errors` shape). Renders a `<form>`.
+The layer above `Field` / `FieldLayout` (issue #49): form-level submit + validation wiring and error surfacing. Wraps Base UI's Form (consolidated per-field errors, native constraint validation) and our `Field`. **Headless about the validation library**: bring your own `resolver` (adapt Zod / Valibot / react-hook-form into the `(values) => errors` shape). Renders a `<form>`.
 
-**Elements / Parts:** `Form` (Root — orchestration + vertical rhythm), `FormField` (binds one control to a named field; renders label + control + description + live error), `FormError` (a form-level message — a submit error not tied to any single field).
+**Elements / Parts:** `Form` (Root: orchestration + vertical rhythm), `FormField` (binds one control to a named field; renders label + control + description + live error), `FormError` (a form-level message, a submit error not tied to any single field).
 
 Validation runs in two tiers, and both feed the same error display:
 
-- **Per-field** — `FormField`'s `validate` (and the browser's native constraints, e.g. `type="email"`, `required`) run per `validationMode`. Native constraint failures block submit *before* the resolver runs.
-- **Whole-form** — `Form`'s `resolver` runs on submit once per-field validation passes; it's the place for cross-field checks (password confirmation, "at least one of…"). It gates `onSubmit`.
+- **Per-field**: `FormField`'s `validate` (and the browser's native constraints, e.g. `type="email"`, `required`) run per `validationMode`. Native constraint failures block submit *before* the resolver runs.
+- **Whole-form**: `Form`'s `resolver` runs on submit once per-field validation passes; it's the place for cross-field checks (password confirmation, "at least one of…"). It gates `onSubmit`.
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `onSubmit` | `Form` | `(values) => void \| Promise<void>` | — | Called with the collected values (keyed by field `name`) only when per-field validation **and** the `resolver` pass. |
-| `resolver` | `Form` | `(values) => FormValidationResult \| null \| Promise<…>` | — | Whole-form validation. Return `{ fields?, form? }` to block the submit (`fields` keyed by `name`, `form` = a form-level message), or a falsy value to let it through. Sync or async. |
-| `errors` | `Form` | `Record<string, string \| string[]>` | — | Per-field errors supplied from outside (e.g. a server response), keyed by `name`. Merged with resolver output; each clears when its field changes. |
-| `error` | `Form` | `ReactNode` | — | A controlled form-level message surfaced by `FormError`; takes precedence over the resolver's `form`. |
+| `onSubmit` | `Form` | `(values) => void \| Promise<void>` | n/a | Called with the collected values (keyed by field `name`) only when per-field validation **and** the `resolver` pass. |
+| `resolver` | `Form` | `(values) => FormValidationResult \| null \| Promise<…>` | n/a | Whole-form validation. Return `{ fields?, form? }` to block the submit (`fields` keyed by `name`, `form` = a form-level message), or a falsy value to let it through. Sync or async. |
+| `errors` | `Form` | `Record<string, string \| string[]>` | n/a | Per-field errors supplied from outside (e.g. a server response), keyed by `name`. Merged with resolver output; each clears when its field changes. |
+| `error` | `Form` | `ReactNode` | n/a | A controlled form-level message surfaced by `FormError`; takes precedence over the resolver's `form`. |
 | `validationMode` | `Form` | `"onSubmit" \| "onBlur" \| "onChange"` | `"onSubmit"` | When per-field `validate` runs (Base UI passthrough; a `FormField`'s own `validationMode` overrides). |
-| `name` | `FormField` | `string` | — | **Required.** Identifies the field on submit and keys its error. |
-| `label` / `description` | `FormField` | `ReactNode` | — | Label above (or beside) the control; supplementary copy below it (full-strength `--sf-color-fg`). |
-| `validate` | `FormField` | `(value, formValues) => string \| string[] \| null \| Promise<…>` | — | Per-field validation (Base UI Field signature). |
+| `name` | `FormField` | `string` | n/a | **Required.** Identifies the field on submit and keys its error. |
+| `label` / `description` | `FormField` | `ReactNode` | n/a | Label above (or beside) the control; supplementary copy below it (full-strength `--sf-color-fg`). |
+| `validate` | `FormField` | `(value, formValues) => string \| string[] \| null \| Promise<…>` | n/a | Per-field validation (Base UI Field signature). |
 | `orientation` | `FormField` | `"vertical" \| "horizontal"` | `"vertical"` | Stack label above, or beside (for a `Switch` / `Checkbox` row). |
-| `children` | `FormField` | `ReactNode` | — | The control — an `Input`, `DigitInput`, `DatePicker`, `Checkbox`, … |
-| `children` | `FormError` | `ReactNode` | — | Overrides the message; omit to show the form-level message from the enclosing `Form`. Renders nothing when there's no message; carries `role="alert"`. |
+| `children` | `FormField` | `ReactNode` | n/a | The control, an `Input`, `DigitInput`, `DatePicker`, `Checkbox`, … |
+| `children` | `FormError` | `ReactNode` | n/a | Overrides the message; omit to show the form-level message from the enclosing `Form`. Renders nothing when there's no message; carries `role="alert"`. |
 
-**Composes with `FieldLayout`** for justified multi-column forms: wrap each `FormField` in a `FieldLayout.Field` cell — the layout owns the sizing, the `FormField` owns the label / control / error and the form binding.
+**Composes with `FieldLayout`** for justified multi-column forms: wrap each `FormField` in a `FieldLayout.Field` cell: the layout owns the sizing, the `FormField` owns the label / control / error and the form binding.
 
 ```tsx
 <Form
@@ -746,10 +746,10 @@ Container that toggles into a fixed CSS viewport overlay (not OS fullscreen); Es
 
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
-| `expanded` | both | `boolean` | — | Controlled state. |
+| `expanded` | both | `boolean` | n/a | Controlled state. |
 | `defaultExpanded` | `Fullscreen` | `boolean` | `false` | Uncontrolled initial state. |
-| `onExpandedChange` | `Fullscreen` | `(expanded: boolean) => void` | — | Button click or Escape. |
-| `onToggle` | `FullscreenToggle` | `() => void` | — | Button click. |
+| `onExpandedChange` | `Fullscreen` | `(expanded: boolean) => void` | n/a | Button click or Escape. |
+| `onToggle` | `FullscreenToggle` | `() => void` | n/a | Button click. |
 | `buttonPosition` / `position` | `Fullscreen` / `Toggle` | `"top-right" \| "top-left" \| "bottom-right" \| "bottom-left"` | `"top-right"` | Corner. |
 
 ## Graph
@@ -760,32 +760,32 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `data` | `GraphData` | — | `{ nodes, edges }` with arbitrary per-item data. |
-| `layout` | `LayoutKind` | — | Controlled layout (animated transition on change). |
+| `data` | `GraphData` | n/a | `{ nodes, edges }` with arbitrary per-item data. |
+| `layout` | `LayoutKind` | n/a | Controlled layout (animated transition on change). |
 | `defaultLayout` | `"force" \| "tree" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
-| `onLayoutChange` | `(next: LayoutKind) => void` | — | Layout changed (prop/toolbar/keyboard). |
-| `onNodeClick` / `onEdgeClick` | `(id: string) => void` | — | Clicks (edges clickable when `editable` or this is set). |
-| `onSelectionChange` | `(id: string \| null) => void` | — | Selected node id. |
-| `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | — | Override visual attrs; omitted fields use defaults. |
-| `onNodeContextMenu` | `(id, event) => void` | — | Before right-click menu opens. |
-| `contextMenuItems` | `(target: GraphMenuTarget) => GraphMenuItem[]` | — | Custom menu (`[]` suppresses). |
+| `onLayoutChange` | `(next: LayoutKind) => void` | n/a | Layout changed (prop/toolbar/keyboard). |
+| `onNodeClick` / `onEdgeClick` | `(id: string) => void` | n/a | Clicks (edges clickable when `editable` or this is set). |
+| `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id. |
+| `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | n/a | Override visual attrs; omitted fields use defaults. |
+| `onNodeContextMenu` | `(id, event) => void` | n/a | Before right-click menu opens. |
+| `contextMenuItems` | `(target: GraphMenuTarget) => GraphMenuItem[]` | n/a | Custom menu (`[]` suppresses). |
 | `editable` | `boolean` | `false` | Connect-mode edge creation + deletion. |
-| `onEdgeCreate` | `({ id, source, target }) => void` | — | Connect drag completed. |
-| `onEdgeDelete` | `(id: string) => void` | — | Edge deleted (menu/keyboard). |
+| `onEdgeCreate` | `({ id, source, target }) => void` | n/a | Connect drag completed. |
+| `onEdgeDelete` | `(id: string) => void` | n/a | Edge deleted (menu/keyboard). |
 | `generateEdgeId` | `() => string` | `edge-UUID`/counter | Custom edge id. |
 | `fullscreen` | `boolean` | `true` | Corner fullscreen toggle. |
 | `defaultFullscreen` | `boolean` | `false` | Uncontrolled fullscreen. |
-| `onFullscreenChange` | `(expanded) => void` | — | Maximized/restored. |
+| `onFullscreenChange` | `(expanded) => void` | n/a | Maximized/restored. |
 | `fill` | `boolean` | `false` | Fill parent height (parent must set height). |
 | `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
 
 **Scale gates** (automatic, from the live graph size): node/edge labels render
 only up to 300 nodes. Above 5,000 edges, edges are hidden while the camera is
-moving (they reappear at rest) and arrowheads are dropped — edges render as
+moving (they reappear at rest) and arrowheads are dropped, edges render as
 thickness-preserving quads when interactive (`editable` or `onEdgeClick`), else
 as 1-device-pixel GL lines: thickness then ignores per-edge `size` *and* zoom,
 and hover/selection emphasis degrades to color-only. Above 2,000 nodes the
-`force` layout settles in a background worker — the graph is interactive at its
+`force` layout settles in a background worker, the graph is interactive at its
 seed positions immediately and the layout streams in (one final snap instead
 under `prefers-reduced-motion`).
 
@@ -800,20 +800,20 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `columns` | `number \| string \| (number \| string)[]` | — | `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw template; `array` → joined tracks. |
-| `rows` | `number \| string \| (number \| string)[]` | — | Same shape, for rows. |
-| `areas` | `string[]` | — | `grid-template-areas` row strings. |
-| `gap` / `columnGap` / `rowGap` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
-| `flow` | `"row" \| "column" \| "dense" \| "row dense" \| "column dense"` | — | `grid-auto-flow`. |
-| `autoColumns` / `autoRows` | `string` | — | `grid-auto-columns` / `-rows`. |
-| `alignItems` / `justifyItems` / `alignContent` / `justifyContent` | `CSSProperties[...]` | — | Alignment. |
+| `columns` | `number \| string \| (number \| string)[]` | n/a | `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw template; `array` → joined tracks. |
+| `rows` | `number \| string \| (number \| string)[]` | n/a | Same shape, for rows. |
+| `areas` | `string[]` | n/a | `grid-template-areas` row strings. |
+| `gap` / `columnGap` / `rowGap` | `number \| string` | n/a | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `flow` | `"row" \| "column" \| "dense" \| "row dense" \| "column dense"` | n/a | `grid-auto-flow`. |
+| `autoColumns` / `autoRows` | `string` | n/a | `grid-auto-columns` / `-rows`. |
+| `alignItems` / `justifyItems` / `alignContent` / `justifyContent` | `CSSProperties[...]` | n/a | Alignment. |
 | `inline` | `boolean` | `false` | `inline-grid` instead of `grid`. |
 | `resizable` | `boolean \| "columns" \| "rows" \| "both"` | `false` | Draggable track boundaries. |
 | `minTrackSize` | `number` | `48` | Min track px during resize. |
-| `onTrackSizesChange` | `(axis, sizes: number[]) => void` | — | Resize settled (drag end / key / double-click reset). |
+| `onTrackSizesChange` | `(axis, sizes: number[]) => void` | n/a | Resize settled (drag end / key / double-click reset). |
 | `render` | `RenderProp` | `<div />` | Base UI render prop. |
 
-**Elements / Parts:** `Grid.Item` — occupies cells via `area`, `col`/`row`, or
+**Elements / Parts:** `Grid.Item` occupies cells via `area`, `col`/`row`, or
 `colSpan`/`rowSpan`.
 
 ## Heatmap
@@ -822,26 +822,26 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 
 2D heatmap of a gridded field `z = f(x,y)` (SVG filled cells) with an optional
 marching-squares contour overlay. The flat, Swiss-friendly read of a 2-variable
-field — reach for this before a 3D `Surface`. Shares the `GridData` shape
+field; reach for this before a 3D `Surface`. Shares the `GridData` shape
 (`{ x: number[]; y: number[]; z: number[][] }`, `z[j][i]` at `x[i]`,`y[j]`) with
 `Surface`. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `data` | `GridData` | — | The gridded values. |
+| `data` | `GridData` | n/a | The gridded values. |
 | `zDomain` | `[number, number]` | data min/max | Value range for the color ramp. |
 | `colorScale` | `[string, string]` | primary tint → primary | `[low, high]` ramp colors (any CSS color / token). |
-| `contours` | `number \| number[]` | — | Iso-line overlay: a level count, or explicit levels. |
-| `showValues` | `boolean` | — | Print each cell's value on top of its colour (crisp-outlined for legibility). For coarse, table-like grids only — a dense grid is unreadable. |
+| `contours` | `number \| number[]` | n/a | Iso-line overlay: a level count, or explicit levels. |
+| `showValues` | `boolean` | n/a | Print each cell's value on top of its colour (crisp-outlined for legibility). For coarse, table-like grids only; a dense grid is unreadable. |
 | `valueFormat` | `(z: number, d: HeatmapDatum) => string` | `formatNumber(z)` | Format a cell value when `showValues`. |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"full"` | Axis posture. Defaults to `"full"` (axes always shown, unlike the line/bar charts' `"hover"`) to preserve the heatmap's always-labelled read; `"minimal"` hides the tick axes, `"hover"` fades them in. |
-| `zoomable` | `boolean` | `false` | Interactive **value-axis (y/row) zoom** — the grid is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window a vertical sub-range of rows (the cell SVG's viewBox clips to the band). |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis (y/row) zoom**: the grid is categorical, so wheel/drag/`↑`/`↓`/`+`/`-`/`0` window a vertical sub-range of rows (the cell SVG's viewBox clips to the band). |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the rows, as a multiple of the row span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
-| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | — | Fires on every row-axis zoom/pan (`null` = full range). |
-| `annotations` | `ChartAnnotation[]` | — | Data-anchored overlays in a pixel-space layer stacked on the grid; `rect`/`text` fit a heatmap naturally. While editing, the overlay takes the pointer, so cell hover is suppressed. |
-| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation editing. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every row-axis zoom/pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays in a pixel-space layer stacked on the grid; `rect`/`text` fit a heatmap naturally. While editing, the overlay takes the pointer, so cell hover is suppressed. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing. |
 | `controls` | `boolean` | `false` | On-chart toolbar (zoom + annotation tools). |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
@@ -851,7 +851,7 @@ field — reach for this before a 3D `Surface`. Shares the `GridData` shape
 
 `import { Icon, Check, ChevronDown /* … */ } from "@tarassov-ch/swiss-function/icon"`
 
-A consistent, tree-shakeable icon set matched to the library's aesthetic (issue #51): a `16×16`, `currentColor`, **square-capped line** glyph on the `--sf-unit` grid — the Swiss/monospace posture, no fills, no colour, no emoji or mascot art. Each bundled icon is its **own named export** (`<Check />`, `<Search />`, …), so a consumer's bundler drops the ones they don't import.
+A consistent, tree-shakeable icon set matched to the library's aesthetic (issue #51): a `16×16`, `currentColor`, **square-capped line** glyph on the `--sf-unit` grid: the Swiss/monospace posture, no fills, no colour, no emoji or mascot art. Each bundled icon is its **own named export** (`<Check />`, `<Search />`, …), so a consumer's bundler drops the ones they don't import.
 
 **Open question resolved toward a bundled set** (not a wrapper over an external icon library): keeps the posture aligned and the dependency footprint zero, while `Icon` still renders any custom `16×16` path you pass as `children`.
 
@@ -859,10 +859,10 @@ A consistent, tree-shakeable icon set matched to the library's aesthetic (issue 
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `size` | `number \| string` | `"1em"` | A **number** is a multiple of `--sf-unit` (on the grid); a string is any CSS length. The `1em` default makes an icon track the surrounding text — it lines up inside a `Button` or beside a label with no extra sizing. |
-| `label` | `string` | — | Accessible name for a **standalone, meaningful** icon (`role="img"` + `<title>`). **Omit** it for a **decorative** icon next to text — it then renders `aria-hidden` (the default). |
+| `size` | `number \| string` | `"1em"` | A **number** is a multiple of `--sf-unit` (on the grid); a string is any CSS length. The `1em` default makes an icon track the surrounding text: it lines up inside a `Button` or beside a label with no extra sizing. |
+| `label` | `string` | n/a | Accessible name for a **standalone, meaningful** icon (`role="img"` + `<title>`). **Omit** it for a **decorative** icon next to text: it then renders `aria-hidden` (the default). |
 | `strokeWidth` | `number` | `1.5` | Stroke weight in viewBox units (the library's glyph weight). |
-| `children` | `ReactNode` | — | Path content for a **custom** icon on the `Icon` primitive; the bundled icons supply it. |
+| `children` | `ReactNode` | n/a | Path content for a **custom** icon on the `Icon` primitive; the bundled icons supply it. |
 
 Plus any `SVGProps` (e.g. `color`, `className`) spread to the `<svg>`.
 
@@ -883,14 +883,14 @@ Text input wrapping Base UI's Input. Extends `HTMLAttributes<HTMLInputElement>` 
 
 `import { Kbd } from "@tarassov-ch/swiss-function/kbd"`
 
-Renders a keyboard shortcut as OS-aware keycaps — for labels, menus, tooltips. Extends `HTMLAttributes<HTMLSpanElement>`.
+Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Extends `HTMLAttributes<HTMLSpanElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `combo` | `string` | — | `+`-separated combination, e.g. `"mod+shift+k"`, `"alt+enter"`. |
+| `combo` | `string` | n/a | `+`-separated combination, e.g. `"mod+shift+k"`, `"alt+enter"`. |
 | `mac` | `boolean` | auto | Force macOS rendering. Auto-detected from the browser otherwise; pass it for SSR/tests so output is deterministic. |
 
-`mod` is the **primary modifier** — `⌘` on macOS, `Ctrl` elsewhere (its aliases `cmd`/`command`/`meta` follow suit, so a "cmd" shortcut never shows `⌘` off-Mac). Other modifiers: `ctrl` (`⌃`/Ctrl), `alt`/`opt` (`⌥`/Alt), `shift` (`⇧`/Shift). Named keys resolve to glyphs (`enter` → `↵`, `esc` → `Esc`, `tab` → `⇥`, `arrowup` → `↑`, …); single letters uppercase. On macOS the glyphs render adjacent (`⌘⇧K`); elsewhere modifiers join with `+` (`Ctrl + Shift + K`).
+`mod` is the **primary modifier**: `⌘` on macOS, `Ctrl` elsewhere (its aliases `cmd`/`command`/`meta` follow suit, so a "cmd" shortcut never shows `⌘` off-Mac). Other modifiers: `ctrl` (`⌃`/Ctrl), `alt`/`opt` (`⌥`/Alt), `shift` (`⇧`/Shift). Named keys resolve to glyphs (`enter` → `↵`, `esc` → `Esc`, `tab` → `⇥`, `arrowup` → `↑`, …); single letters uppercase. On macOS the glyphs render adjacent (`⌘⇧K`); elsewhere modifiers join with `+` (`Ctrl + Shift + K`).
 
 ```tsx
 <Kbd combo="mod+k" />            // ⌘K on macOS, Ctrl+K elsewhere
@@ -911,42 +911,42 @@ import "@tarassov-ch/swiss-function/tokens.css";
 ```
 
 MapLibre's own stylesheet (`maplibre-gl/dist/maplibre-gl.css`) is **required** for
-the map to lay out — without it the GL canvas escapes its container and grows
+the map to lay out; without it the GL canvas escapes its container and grows
 unbounded. The `Map` module imports it itself (resolved against your installed
 `maplibre-gl` peer dependency), so you don't import it separately.
 
-All coordinates are **GeoJSON `[longitude, latitude]`** — not the spoken "lat,
+All coordinates are **GeoJSON `[longitude, latitude]`**, not the spoken "lat,
 lng". Tile attribution is a license requirement and stays visible.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `center` | `[lng, lat]` | `[0, 20]` | Initial camera center. |
 | `zoom` | `number` | `1` | Initial zoom (0 world … ~22 building). |
-| `bounds` | `[[lng,lat],[lng,lat]]` | — | Fit on mount (wins over center/zoom); re-fits on change. |
-| `basemap` | `"minimal" \| "street" \| "terrain"` | — | Controlled basemap preset. |
+| `bounds` | `[[lng,lat],[lng,lat]]` | n/a | Fit on mount (wins over center/zoom); re-fits on change. |
+| `basemap` | `"minimal" \| "street" \| "terrain"` | n/a | Controlled basemap preset. |
 | `defaultBasemap` | `Basemap` | `"minimal"` | Uncontrolled initial basemap. |
-| `onBasemapChange` | `(next: Basemap) => void` | — | Basemap changed (prop/toolbar/`setBasemap`). |
-| `styleUrl` | `string \| StyleSpecification` | — | Override basemap entirely (self-hosted/keyed tiles). |
-| `points` | `MapPoint[]` | — | Circle markers: `{ at, radius?, color?, label?, data? }`. |
-| `areas` | `MapArea[]` | — | Polygons: `{ polygon, strokeColor?, strokeWidth?, fillOpacity?, … }`. |
-| `vectors` | `MapVector[]` | — | Poly-lines: `{ path, width?, arrow?, dashed?, color?, label? }`. |
-| `geojson` | `FeatureCollection` | — | Power-user path; token-tinted defaults. |
-| `height` | `number \| string` | — | Fixed height (number → px). Ignored when `fill`. |
+| `onBasemapChange` | `(next: Basemap) => void` | n/a | Basemap changed (prop/toolbar/`setBasemap`). |
+| `styleUrl` | `string \| StyleSpecification` | n/a | Override basemap entirely (self-hosted/keyed tiles). |
+| `points` | `MapPoint[]` | n/a | Circle markers: `{ at, radius?, color?, label?, data? }`. |
+| `areas` | `MapArea[]` | n/a | Polygons: `{ polygon, strokeColor?, strokeWidth?, fillOpacity?, … }`. |
+| `vectors` | `MapVector[]` | n/a | Poly-lines: `{ path, width?, arrow?, dashed?, color?, label? }`. |
+| `geojson` | `FeatureCollection` | n/a | Power-user path; token-tinted defaults. |
+| `height` | `number \| string` | n/a | Fixed height (number → px). Ignored when `fill`. |
 | `fill` | `boolean` | `false` | Fill parent height (parent must set one). |
 | `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
 | `fullscreen` | `boolean` | `true` | Corner fullscreen toggle. |
 | `interactive` | `boolean` | `true` | Pan/zoom/rotate; `false` for a static map. |
-| `onFeatureClick` | `(hit: MapFeatureHit) => void` | — | Click on a point/area/vector. |
+| `onFeatureClick` | `(hit: MapFeatureHit) => void` | n/a | Click on a point/area/vector. |
 | `renderTooltip` | `(hit: MapFeatureHit) => ReactNode` | label | Custom hover tooltip (`null` = none). |
 
 Basemap notes: `minimal` (the default) is a restrained vector style colored from
 `--sf-*` tokens and re-tinted on dark-mode switch; `street` and `terrain` are
 richer, intentionally off-aesthetic opt-ins backed by free no-key providers
-(OpenFreeMap, Mapterhorn DEM) — best-effort, no SLA. WebGL is required; without it
+(OpenFreeMap, Mapterhorn DEM), best-effort, no SLA. WebGL is required; without it
 the map renders a `NonIdealState` fallback.
 
 **Elements / Parts:** `Map.Controls` (zoom/fit/reset/basemap toolbar),
-`Map.Minimap` (overview inset — a second WebGL context; use deliberately).
+`Map.Minimap` (overview inset, a second WebGL context; use deliberately).
 
 ## Markdown
 
@@ -956,14 +956,14 @@ Rendered Markdown (react-markdown + GFM) with optional double-click edit mode an
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `value` | `string` | — | Markdown source. |
+| `value` | `string` | n/a | Markdown source. |
 | `editable` | `boolean` | `false` | Double-click to edit. |
-| `onChange` | `(next: string) => void` | — | Commit (blur or Cmd/Ctrl+Enter). |
+| `onChange` | `(next: string) => void` | n/a | Commit (blur or Cmd/Ctrl+Enter). |
 | `placeholder` | `string` | `"Nothing here yet."` | Shown when empty and not editing. |
 | `editRows` | `number` | `4` | Min textarea rows when editing. |
-| `preprocess` | `(source: string) => string` | — | Transform source before parse (render mode only). |
-| `components` | `ReactMarkdown["components"]` | — | Override renderers. |
-| `urlTransform` | `ReactMarkdown["urlTransform"]` | — | Custom URL sanitization. |
+| `preprocess` | `(source: string) => string` | n/a | Transform source before parse (render mode only). |
+| `components` | `ReactMarkdown["components"]` | n/a | Override renderers. |
+| `urlTransform` | `ReactMarkdown["urlTransform"]` | n/a | Custom URL sanitization. |
 | `inline` | `boolean` | `false` | `<span>` wrappers, flattened paragraphs; editing unsupported. |
 | `measured` | `boolean` | `false` | Cap prose to `--sf-measure`. `<Prose>` sets this. |
 
@@ -981,7 +981,7 @@ Dropdown menu wrapping Base UI's Menu. Parts forward all Base UI props.
 `import { ContextMenu } from "@tarassov-ch/swiss-function/context-menu"`
 
 Right-click (context) menu wrapping Base UI's ContextMenu. Reuses every `Menu`
-part and its styling verbatim — only `Root`/`Trigger` differ. `ContextMenu.Trigger`
+part and its styling verbatim; only `Root`/`Trigger` differ. `ContextMenu.Trigger`
 renders the region that opens the menu on right-click (rather than a button that
 opens it on click). Parts forward all Base UI props.
 
@@ -996,8 +996,8 @@ Application menu bar (`role="menubar"`, top or bottom edge) wrapping Base UI's
 Menubar/Menu: menu triggers open dropdowns with shortcuts and nested submenus,
 plus `Logo`/`Search` slots. It can **also** host in-place controls (`Control`).
 Two opt-in responsive modes (both container-width via `ResizeObserver`, so they
-work in sidebars/split panes): `collapse="all"` folds the whole bar — menus and
-controls — behind one hamburger (☰) `Popover` when narrower than `collapseAt`;
+work in sidebars/split panes): `collapse="all"` folds the whole bar (menus and
+controls) behind one hamburger (☰) `Popover` when narrower than `collapseAt`;
 `collapse="items"` folds items **progressively** into a ⋯ overflow menu from the
 trailing edge, keeping as many inline as fit (only `Logo` pinned). Default is no
 collapse. **Not** a Cmd-K command palette.
@@ -1007,7 +1007,7 @@ the collapsed panel), `Content` (portal + Box popup, elevation 3), `Item`,
 `Separator` (a menu separator inside `Content`; a bar rule when placed directly in
 the bar), `Submenu`, `SubmenuTrigger`, `SubmenuContent`, `Logo` (persistent left
 slot), `Search` (right-aligned, wraps `Input` size `sm`), `Control` (generic in-place
-control slot — you supply the `Button`/`Switch`/`Input`/…), `Spacer` (pushes
+control slot, you supply the `Button`/`Switch`/`Input`/…), `Spacer` (pushes
 following row items right; no-op in the panel).
 
 `MenuBar.Root` props (extends Base UI `Menubar` props):
@@ -1017,7 +1017,7 @@ following row items right; no-op in the panel).
 | `position` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
 | `bordered` | `boolean` | `true` | Draw the hairline on the `position` edge. Set `false` when the bar already sits inside a bordered surface. |
 | `collapse` | `"none" \| "all" \| "items"` | `collapseAt ? "all" : "none"` | Responsive mode. `"all"` folds the whole bar behind one ☰ at `collapseAt`; `"items"` folds items progressively into a ⋯ overflow menu from the trailing edge (only `Logo` pinned; `collapseAt`/`menuAlign` ignored). |
-| `collapseAt` | `number \| string` | — | Threshold for `collapse="all"`. `number` → `--sf-unit` multiples; `string` → any CSS length. |
+| `collapseAt` | `number \| string` | n/a | Threshold for `collapse="all"`. `number` → `--sf-unit` multiples; `string` → any CSS length. |
 | `gap` | `number \| string` | `0` | Gap between bar items; `number` → `--sf-unit` multiples. |
 | `menuAlign` | `"start" \| "end"` | `"end"` | (`collapse="all"` only) Side the collapsed ☰ trigger sits on. `"start"` keeps it next to the `Logo`. |
 | `menuLabel` | `string` | `"Menu"` | Accessible name for the icon-only collapsed trigger. |
@@ -1052,17 +1052,17 @@ Empty / no-results / error / loading state rendered as a block with a dithered W
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `variant` | `"empty" \| "no-results" \| "error" \| "loading"` | `"empty"` | Picks default effect/tint/a11y. `error`→`role="alert"`; `loading`→`role="status"` + `aria-busy`. |
-| `title` | `ReactNode` | — | Headline. |
-| `description` | `ReactNode` | — | Secondary line. |
-| `action` | `ReactNode` | — | Action slot (usually a `Button`). |
+| `title` | `ReactNode` | n/a | Headline. |
+| `description` | `ReactNode` | n/a | Secondary line. |
+| `action` | `ReactNode` | n/a | Action slot (usually a `Button`). |
 | `effect` | `EffectName` | per-variant | Override fill effect. The `breathe`/`twinkle`/`interleave`/`rotate`/`blocks`/`shimmer`/`sparkle`/`blink` set are subtle and evenly-covered (toggling dot patterns); `life` is Conway's Game of Life. |
 | `speed` | `number` | `1` | Animation speed multiplier. |
-| `density` | `number` | `0.6` | Fill coverage 0–1. |
-| `effectOptions` | `EffectOptions` | — | Advanced tuning (ripple `wavelength`, `seed`). |
+| `density` | `number` | `0.6` | Fill coverage 0 to 1. |
+| `effectOptions` | `EffectOptions` | n/a | Advanced tuning (ripple `wavelength`, `seed`). |
 | `cellSize` | `number` | `7` | Dither cell px. |
 | `color` | `string` | muted token | Base fill colour; `error` uses danger token. |
-| `opacity` | `number` | `0.85` | Fill opacity 0–1. |
-| `width` / `height` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `opacity` | `number` | `0.85` | Fill opacity 0 to 1. |
+| `width` / `height` | `number \| string` | n/a | `number` → `--sf-unit` multiples; `string` → raw CSS. |
 
 ## Notebook
 
@@ -1072,9 +1072,9 @@ A reactive notebook surface: cells form a dependency graph, editing a cell re-ru
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `document` | `NotebookDocument` | — | Controlled document: `{version: 1, cells: [{id, type, name?, source}]}`. Plain JSON, host-persisted. |
-| `onDocumentChange` | `(next: NotebookDocument) => void` | — | Fires on every edit/add/move/delete. |
-| `cellTypes` | `readonly CellType[]` | — | The explicit registry; nothing is implicit. Pass `proseCellType` plus the app's engine adapters. |
+| `document` | `NotebookDocument` | n/a | Controlled document: `{version: 1, cells: [{id, type, name?, source}]}`. Plain JSON, host-persisted. |
+| `onDocumentChange` | `(next: NotebookDocument) => void` | n/a | Fires on every edit/add/move/delete. |
+| `cellTypes` | `readonly CellType[]` | n/a | The explicit registry; nothing is implicit. Pass `proseCellType` plus the app's engine adapters. |
 | `defaultRenderResult` | `(value: unknown) => ReactNode` | Arrow → DataTable, else code | Fallback renderer when the cell type has none. |
 
 **The `CellType` contract** (the extension point for any language or engine):
@@ -1089,7 +1089,7 @@ A reactive notebook surface: cells form a dependency graph, editing a cell re-ru
 | `renderResult?` | `(value: unknown) => ReactNode` | Successful values; falls back to `defaultRenderResult`. |
 | `renderStatic?` | `(source: string) => ReactNode` | Display-only types render the source instead. |
 
-**Built-ins**: `proseCellType` (markdown, display-only, edit via double-click). `createSqlCellType({executor, extensions?})` — the flagship adapter: `${name}` interpolations reference other cells (scalars, Dates, and arrays inline; table values are not interpolable), dependencies parsed string/comment-aware, results rendered as a DataTable. `executor: (sql, signal) => Promise<unknown>` is the app's engine seam — wire DuckDB-WASM (or anything) there; the library never imports an engine.
+**Built-ins**: `proseCellType` (markdown, display-only, edit via double-click). `createSqlCellType({executor, extensions?})` is the flagship adapter: `${name}` interpolations reference other cells (scalars, Dates, and arrays inline; table values are not interpolable), dependencies parsed string/comment-aware, results rendered as a DataTable. `executor: (sql, signal) => Promise<unknown>` is the app's engine seam; wire DuckDB-WASM (or anything) there, the library never imports an engine.
 
 **Cell states** (visible as `data-status` on each cell): `idle`, `pending` (spinner in the status rail), `success`, `error`, `upstream-error` (an upstream cell failed; named in the message), `cycle`, `unresolved` (references a name no cell defines), `doc-error` (duplicate/invalid name or unknown type), `static` (display-only). Scheduler guarantees: same-task edits batch into one wave, diamond dependencies re-run a dependent exactly once with consistent inputs, stale runs are aborted and their results discarded.
 
@@ -1105,12 +1105,12 @@ Tree outline editor with collapsible bullets, keyboard nav, wiki-links, and bloc
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `value` | `Bullet[]` | — | Tree; each bullet `{ id, content, collapsed?, children[] }`. |
-| `onChange` | `(next: Bullet[]) => void` | — | Any mutation (edit, indent, delete, collapse, reorder). |
+| `value` | `Bullet[]` | n/a | Tree; each bullet `{ id, content, collapsed?, children[] }`. |
+| `onChange` | `(next: Bullet[]) => void` | n/a | Any mutation (edit, indent, delete, collapse, reorder). |
 | `readOnly` | `boolean` | `false` | Navigation/read only. |
 | `generateId` | `() => string` | `crypto.randomUUID()` | New-bullet id factory. |
-| `onWikiLinkClick` | `(name: string) => void` | — | `[[wiki link]]` clicked. |
-| `resolveBlockRef` | `(id: string) => string \| null` | — | Resolve `((block-id))`; null → "missing" placeholder. |
+| `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. |
+| `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
 
 ## Pane
 
@@ -1125,26 +1125,26 @@ scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
 
 `import { Picker } from "@tarassov-ch/swiss-function/picker"`
 
-Search a list and choose exactly one — the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
+Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `items` | `PickerItem[]` | — | Choices. |
-| `value` | `string` | — | Controlled selection; `""` = none (pass with `onChange`). |
+| `items` | `PickerItem[]` | n/a | Choices. |
+| `value` | `string` | n/a | Controlled selection; `""` = none (pass with `onChange`). |
 | `defaultValue` | `string` | `""` | Uncontrolled initial selection. |
-| `onChange` | `(value: string) => void` | — | Fired with the value (or `""` when cleared). |
+| `onChange` | `(value: string) => void` | n/a | Fired with the value (or `""` when cleared). |
 | `placeholder` | `string` | `"Search…"` | Search placeholder. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Mirrors `Input`. |
-| `disabled` | `boolean` | — | Disable the control. |
+| `disabled` | `boolean` | n/a | Disable the control. |
 | `clearable` | `boolean` | `true` | Show a clear button once selected. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | — | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flat (its default); set it to raise the control. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flat (its default); set it to raise the control. |
 
 ## PointCloud
 
 `import { PointCloud } from "@tarassov-ch/swiss-function/point-cloud"`
 
-3D scatter / point cloud — `series` of x/y/z points (clusters, 3-component
+3D scatter / point cloud: `series` of x/y/z points (clusters, 3-component
 embeddings). Canvas2D, **orthographic (axonometric)** projection, **drag-to-rotate
 only** (never auto-spins; the idle view is a fixed angle, so reduced-motion is a
 no-op). Multi-series consumers pass explicit `color`s (one accent by default).
@@ -1152,9 +1152,9 @@ Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `series` | `PointSeries[]` | — | `{ name; data: { x; y; z; label? }[]; color? }`. |
+| `series` | `PointSeries[]` | n/a | `{ name; data: { x; y; z; label? }[]; color? }`. |
 | `xDomain` / `yDomain` / `zDomain` | `[number, number]` | data min/max | Axis ranges. |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `pointRadius` | `number` | `3` | Dot radius (px); nearer dots a touch larger. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 16)` | Plot height. |
 | `showLegend` | `boolean` | when >1 series | Series legend. |
@@ -1177,8 +1177,8 @@ Virtualized Markdown document with an auto-generated heading outline and scroll-
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `source` | `string` | — | Markdown to parse (ignored if `blocks` given). |
-| `blocks` | `ProseBlock[]` | — | Pre-parsed blocks; bypass the parser. |
+| `source` | `string` | n/a | Markdown to parse (ignored if `blocks` given). |
+| `blocks` | `ProseBlock[]` | n/a | Pre-parsed blocks; bypass the parser. |
 | `measured` | `boolean` | `true` | Cap block width to `--sf-measure`. |
 | `split` | `boolean` | `false` | 2-column grid (outline + body). |
 
@@ -1204,7 +1204,7 @@ Responsive multi-column layout. Wide: equal-width columns side by side. When its
 **container** (not the viewport) is narrower than `collapseAt`, it collapses to
 either a vertical accordion or a tab switcher so you move between columns. Detection
 is container-width via `ResizeObserver` (the shared `useCollapse` hook), so it works
-inside sidebars/split layouts — not just full width.
+inside sidebars/split layouts, not just full width.
 
 `Reflow.Root` props (a discriminated union on `collapseMode`; extends `HTMLAttributes<HTMLDivElement>`):
 
@@ -1215,10 +1215,10 @@ inside sidebars/split layouts — not just full width.
 | `gap` | `number \| string` | `1` | Wide column gap; `number` → `--sf-unit` multiples. |
 | `headingLevel` | `2 \| 3 \| 4 \| 5 \| 6` | `3` | Wide-state column heading tag. |
 | `value` / `defaultValue` | `string[]` (accordion) / `string` (tabs) | first column | Open section(s) / active column. Control `value` to persist state across the breakpoint. |
-| `onValueChange` | `(value: string[]) => void` (accordion) / `(value: string) => void` (tabs) | — | Selection callback. |
+| `onValueChange` | `(value: string[]) => void` (accordion) / `(value: string) => void` (tabs) | n/a | Selection callback. |
 | `openMultiple` | `boolean` | `false` | Accordion only: allow several sections open. |
 
-**Elements / Parts:** `Reflow.Column` — `{ title: ReactNode; value?: string }` + `HTMLAttributes`.
+**Elements / Parts:** `Reflow.Column` takes `{ title: ReactNode; value?: string }` + `HTMLAttributes`.
 `title` is the heading / accordion trigger / tab label. Children must be `Reflow.Column`
 (fragments are flattened); pass an explicit `value` when columns are conditionally rendered.
 
@@ -1237,25 +1237,25 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `series` | `ScatterSeries[]` | — | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints? }`. |
+| `series` | `ScatterSeries[]` | n/a | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints? }`. |
 | `xDomain` | `[number, number] \| [Date, Date]` | auto-fit | Detects date vs numeric. With `zoomable`, this is the controlled visible window (pair with `onXDomainChange`). |
 | `yDomain` | `[number, number]` | auto-fit | Y range. While zoomed, auto-fit follows the visible window (padded, not zero-anchored). |
-| `xLabel` / `yLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
 | `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. In full mode, axes are adaptive: tick step/precision recompute from the domain and pixel density; date axes walk a calendar ladder (5 min → hour → day → month → year) with promoted (bolder) boundary ticks; tiny-span-at-large-magnitude windows factor a shared offset into a corner readout. |
-| `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column — spikes survive). |
+| `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column, spikes survive). |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data (into empty margin to the sides), as a multiple of the x span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
-| `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | — | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
-| `annotations` | `ChartAnnotation[]` | — | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document — persist it as-is. |
-| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | — | With `controls`, enables annotation **editing** — see below. Fires with the complete next array. |
-| `controls` | `boolean` | `false` | On-chart toolbar overlay: zoom-to-region mode (arm, then drag the band to zoom to — Escape disarms), step zoom out, Reset (when `zoomable`) + the annotation tool palette (when `onAnnotationsChange` is set). Absorbs the corner Reset button. |
+| `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | n/a | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
+| `annotations` | `ChartAnnotation[]` | n/a | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document, so persist it as-is. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation **editing** (see below). Fires with the complete next array. |
+| `controls` | `boolean` | `false` | On-chart toolbar overlay: zoom-to-region mode (arm, then drag the band to zoom to; Escape disarms), step zoom out, Reset (when `zoomable`) + the annotation tool palette (when `onAnnotationsChange` is set). Absorbs the corner Reset button. |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle in the corner; Escape exits. |
-| `frame` | `boolean` | `false` | 1px structural border + padding — the chart reads as a panel. |
-| `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | — | Click/Enter on a point — drill-down hook. |
+| `frame` | `boolean` | `false` | 1px structural border + padding; the chart reads as a panel. |
+| `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | n/a | Click/Enter on a point, a drill-down hook. |
 | `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
 
-**Annotation editing** (`controls` + `onAnnotationsChange`): arm a tool in the toolbar — trend line, region and measure draw by drag (a stray click under 4px creates nothing), horizontal/vertical lines place on click, the text tool opens an inline note input (Enter commits, Escape cancels). After each draw the tool snaps back to *select* and the new annotation (with a generated `id`) is selected. In select mode, click an annotation to select it (endpoint drag handles appear; drag the body to move; drags commit once on pointerup), Delete removes, Escape cancels/disarms/deselects in that order, double-click a text note to re-edit it. While a tool is armed, drag-pan and double-click-reset are suspended (wheel zoom stays live); while editing is enabled, the wide hit strokes around annotations take hover precedence over nearby data points.
+**Annotation editing** (`controls` + `onAnnotationsChange`): arm a tool in the toolbar: trend line, region and measure draw by drag (a stray click under 4px creates nothing), horizontal/vertical lines place on click, the text tool opens an inline note input (Enter commits, Escape cancels). After each draw the tool snaps back to *select* and the new annotation (with a generated `id`) is selected. In select mode, click an annotation to select it (endpoint drag handles appear; drag the body to move; drags commit once on pointerup), Delete removes, Escape cancels/disarms/deselects in that order, double-click a text note to re-edit it. While a tool is armed, drag-pan and double-click-reset are suspended (wheel zoom stays live); while editing is enabled, the wide hit strokes around annotations take hover precedence over nearby data points.
 
 ## Selector
 
@@ -1265,18 +1265,18 @@ Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLA
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `items` | `SelectorItem[]` | — | Choices. |
-| `value` | `string[]` | — | Controlled selection (pass with `onChange`). |
+| `items` | `SelectorItem[]` | n/a | Choices. |
+| `value` | `string[]` | n/a | Controlled selection (pass with `onChange`). |
 | `defaultValue` | `string[]` | `[]` | Uncontrolled initial selection. |
-| `onChange` | `(value: string[]) => void` | — | Fired with the full selected set. |
+| `onChange` | `(value: string[]) => void` | n/a | Fired with the full selected set. |
 | `placeholder` | `string` | `"Search…"` | Search placeholder. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Mirrors `Input`. |
 | `layout` | `"panel" \| "inline" \| "compact"` | `"panel"` | See below. |
-| `disabled` | `boolean` | — | Disable the control. |
+| `disabled` | `boolean` | n/a | Disable the control. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | — | Resting depth of the search field (`--sf-elevation-N`, same scale as Box); applies in every `layout`. Omitted leaves the field flat; set it to raise the control. |
-| `bucketLabel` | `ReactNode` | `"Selected"` | Bucket heading — `panel` only. |
-| `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording — `compact` only. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box); applies in every `layout`. Omitted leaves the field flat; set it to raise the control. |
+| `bucketLabel` | `ReactNode` | `"Selected"` | Bucket heading, `panel` only. |
+| `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording, `compact` only. |
 
 **Layouts:** `panel` (search + chip bucket below), `inline` (chips inside the
 field, one row, overflow shows a trailing `⋯`), `compact` (collapses to "N items"
@@ -1296,21 +1296,21 @@ Animated loading placeholder (shimmer, or a NonIdealState-style dithered effect)
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `shape` | `"rect" \| "circle" \| "pill"` | `"rect"` | rect is sharp; circle/pill rounded. |
-| `width` / `height` | `number \| string` | — | `number` → `--sf-unit` multiples; `string` → raw CSS. |
-| `size` | `number \| string` | — | Shorthand for `width = height`. |
-| `effect` | `EffectName` | — | Dithered effect instead of shimmer. |
-| `speed` | `number` | — | Effect speed (with `effect`). |
+| `width` / `height` | `number \| string` | n/a | `number` → `--sf-unit` multiples; `string` → raw CSS. |
+| `size` | `number \| string` | n/a | Shorthand for `width = height`. |
+| `effect` | `EffectName` | n/a | Dithered effect instead of shimmer. |
+| `speed` | `number` | n/a | Effect speed (with `effect`). |
 | `density` | `number` | `0.6` | Effect coverage (with `effect`). |
-| `cellSize` | `number` | — | Dither cell px (with `effect`). |
-| `effectOptions` | `EffectOptions` | — | Advanced tuning (with `effect`). |
+| `cellSize` | `number` | n/a | Dither cell px (with `effect`). |
+| `effectOptions` | `EffectOptions` | n/a | Advanced tuning (with `effect`). |
 | `render` | `RenderProp` | `<div />` | Base UI render prop. |
 
 ## Spinner
 
 `import { Spinner } from "@tarassov-ch/swiss-function/spinner"`
 
-An animated monospace glyph spinner (CLI-style) for inline "busy" feedback —
-`role="status"`. Cycles a short frame sequence; honors `prefers-reduced-motion` by
+An animated monospace glyph spinner (CLI-style) for inline "busy" feedback
+(`role="status"`). Cycles a short frame sequence; honors `prefers-reduced-motion` by
 holding one static frame. Inherits `currentColor` and (by default) the surrounding
 font size. Extends `HTMLAttributes<HTMLSpanElement>` (minus `children`).
 
@@ -1320,32 +1320,32 @@ font size. Extends `HTMLAttributes<HTMLSpanElement>` (minus `children`).
 | `speed` | `number` | `1` | Speed multiplier (2 = twice as fast). |
 | `label` | `string` | `"Loading…"` | Accessible name (`aria-label`). |
 | `size` | `"sm" \| "lg"` (or `"md"`) | inherit | Glyph size; omit to inherit the surrounding font size. |
-| `color` | `string` | inherit | Glyph color — any CSS color/token (e.g. `var(--sf-color-primary)`). Omit to inherit `currentColor`. |
+| `color` | `string` | inherit | Glyph color: any CSS color/token (e.g. `var(--sf-color-primary)`). Omit to inherit `currentColor`. |
 
 **Variants (28):** `braille`, `line`, `blocks` (density shades), `bars`, `grow`,
 `bounce`, `arrow`, `quadrant`, `triangle`, `circle`, `corners`, `pipe`, `star`,
 `toggle`, `dots`, `pulse`, `scanner`, `arrowDouble`, `caret`, `trigram`, `dqpb`,
 `arc`, `clockface`, `balloon`, `weave`, `boxCorners`, `quadrantHeavy`, `static`.
 
-Also exported: `useSpinnerFrame(variant?, speed?): string` — the cycling glyph as a
+Also exported: `useSpinnerFrame(variant?, speed?): string`, the cycling glyph as a
 hook, to embed a spinner inline in any component without the wrapper.
 
 ## SplitPane
 
 `import { SplitPane } from "@tarassov-ch/swiss-function/split-pane"`
 
-A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane.Panel` that **pushes** the main content aside (in document flow — not an overlay). Drag the divider to resize; closed → the panel collapses to zero and Main reclaims the space. Fills its parent, so give the parent a height.
+A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane.Panel` that **pushes** the main content aside (in document flow, not an overlay). Drag the divider to resize; closed → the panel collapses to zero and Main reclaims the space. Fills its parent, so give the parent a height.
 
 **Parts:** `SplitPane` (root), `SplitPane.Main`, `SplitPane.Panel`. Also exports a `useSplitPane()` hook (`{ side, open, size, setOpen }`) for a close button inside the panel.
 
 | Prop (root) | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `side` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` | Edge the panel sits on. |
-| `open` / `defaultOpen` / `onOpenChange` | — | — | Panel open state (controlled or uncontrolled). |
+| `open` / `defaultOpen` / `onOpenChange` | n/a | n/a | Panel open state (controlled or uncontrolled). |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` removes it. |
 | `defaultSize` | `number` | `320` | Panel size in px (remembered across open/close). |
-| `minSize` / `maxSize` | `number` | `200` / — | px clamps. `maxSize` is also capped to the container minus a small main minimum. |
-| `onSizeChange` | `(px: number) => void` | — | Fired when a resize settles, or on a keyboard step. |
+| `minSize` / `maxSize` | `number` | `200` / n/a | px clamps. `maxSize` is also capped to the container minus a small main minimum. |
+| `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles, or on a keyboard step. |
 
 The divider is `role="separator"` with `aria-orientation` + `aria-valuenow/min/max`, focusable, and resizes with the arrow keys. The collapse/expand animates `inline-size`/`block-size` (instant under `prefers-reduced-motion`; no transition while dragging).
 
@@ -1368,8 +1368,8 @@ Reveals text character-by-character with a shade-block tail (terminal typewriter
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `content` | `string` | — | Full text received so far (grows as chunks arrive). |
-| `isComplete` | `boolean` | — | True once no more text will arrive. |
+| `content` | `string` | n/a | Full text received so far (grows as chunks arrive). |
+| `isComplete` | `boolean` | n/a | True once no more text will arrive. |
 | `tailLength` | `number` | `3` | Unrevealed letters held in the tail. |
 | `charIntervalMs` | `number` | `64` | Ms per tick. |
 | `shadeRamp` | `string[]` | `["▒", "▓"]` | Shade glyphs, far → near. |
@@ -1380,8 +1380,8 @@ Reveals text character-by-character with a shade-block tail (terminal typewriter
 `import { Surface } from "@tarassov-ch/swiss-function/surface"`
 
 3D surface `z = f(x,y)` for intrinsically-3D data (response/optimization surfaces,
-terrain) where flattening loses meaning — otherwise prefer the flat `Heatmap`.
-Canvas2D, **orthographic (axonometric)** projection (no perspective distortion —
+terrain) where flattening loses meaning, otherwise prefer the flat `Heatmap`.
+Canvas2D, **orthographic (axonometric)** projection (no perspective distortion, so
 lengths stay comparable, like a CAD drawing), flat-shaded with a single-hue height
 ramp, a measured cube frame with axis ticks, and **drag-to-rotate only** (never
 auto-spins; idle = a fixed angle, so reduced-motion is a no-op). Data is the
@@ -1390,11 +1390,11 @@ auto-spins; idle = a fixed angle, so reduced-motion is a no-op). Data is the
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `data` | `GridData` | — | The gridded heights. |
+| `data` | `GridData` | n/a | The gridded heights. |
 | `zDomain` | `[number, number]` | data min/max | Height range for the ramp. |
 | `wireframe` | `boolean` | `true` | Hairline mesh over the shaded surface. |
 | `colorScale` | `[string, string]` | primary tint → primary | `[low, high]` height-ramp colors. |
-| `xLabel` / `yLabel` / `zLabel` | `string` | — | Axis labels. |
+| `xLabel` / `yLabel` / `zLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 16)` | Plot height. |
 | `renderTooltip` | `(d: SurfaceDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
@@ -1414,7 +1414,7 @@ Toggle switch (Base UI Switch.Root + Thumb). Forwards Base UI Switch props (`che
 
 Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props. The active tab reads as the primary colour + **bold** caption + the underline `Indicator`; the bold width is reserved (a hidden bold copy of the label), so selecting a tab never reflows the row (issue #41). The active state is keyed off `aria-selected`.
 
-**Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve — pass plain-text labels to get it), `Indicator` (active underline), `Panel` (paired by index).
+**Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve, pass plain-text labels to get it), `Indicator` (active underline), `Panel` (paired by index).
 
 ## TextEdit
 
@@ -1430,7 +1430,7 @@ Styled `<textarea>`. Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`.
 
 `import { TextEditInline } from "@tarassov-ch/swiss-function/text-edit-inline"`
 
-A `<textarea>` that rests as a single line and expands to a multi-line editor on hover or focus. The expanded editor is absolutely positioned, so it *overlays* the content below (lifted to `--sf-elevation-3`) instead of pushing it down; leaving (blur + pointer-out) collapses it back to one line, ellipsized (`…`) when the value overflows. While expanded it auto-grows with its content and is **vertically resizable** by the drag handle — once dragged, the manual height stands (auto-grow yields). Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`. `TextEditInlineSize = "sm" | "md" | "lg"`.
+A `<textarea>` that rests as a single line and expands to a multi-line editor on hover or focus. The expanded editor is absolutely positioned, so it *overlays* the content below (lifted to `--sf-elevation-3`) instead of pushing it down; leaving (blur + pointer-out) collapses it back to one line, ellipsized (`…`) when the value overflows. While expanded it auto-grows with its content and is **vertically resizable** by the drag handle; once dragged, the manual height stands (auto-grow yields). Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`. `TextEditInlineSize = "sm" | "md" | "lg"`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -1443,7 +1443,7 @@ While expanded the root carries `data-expanded="true"` (hook for container styli
 
 `import { ThemeBuilder } from "@tarassov-ch/swiss-function/theme-builder"`
 
-Live editor for the `--sf-*` tokens (issue #50): tweak the curated palette / unit / radius / typography / motion and watch a component sample **retheme instantly** (overrides are applied as inline custom properties on the preview scope), then copy the result as a **CSS theme** or **JSON**. `tokens.css` stays the canonical source — this only makes *overriding* it ergonomic (anti-scope: it does not change the default palette). Container-responsive (JS-free): controls beside the preview when wide, stacked when narrow.
+Live editor for the `--sf-*` tokens (issue #50): tweak the curated palette / unit / radius / typography / motion and watch a component sample **retheme instantly** (overrides are applied as inline custom properties on the preview scope), then copy the result as a **CSS theme** or **JSON**. `tokens.css` stays the canonical source. This only makes *overriding* it ergonomic (anti-scope: it does not change the default palette). Container-responsive (JS-free): controls beside the preview when wide, stacked when narrow.
 
 Colours are edited **per theme** (a Light/Dark toggle) and export under `:root` / `[data-theme="dark"]`; dimension/typography/motion tokens are theme-agnostic and export to `:root`. Only *changed* tokens appear in the output.
 
@@ -1451,16 +1451,16 @@ Colours are edited **per theme** (a Light/Dark toggle) and export under `:root` 
 | --- | --- | --- | --- |
 | `defaultTheme` | `"light" \| "dark"` | `"light"` | Which theme the colour controls edit first. |
 | `tokens` | `ThemeToken[]` | curated set | Override the authorable token list. |
-| `onChange` | `(overrides: ThemeOverrides) => void` | — | Fires with the full changed-only override map (`{ base, light, dark }`). |
+| `onChange` | `(overrides: ThemeOverrides) => void` | n/a | Fires with the full changed-only override map (`{ base, light, dark }`). |
 | `children` | `ReactNode` | sample gallery | Preview content rendered under the live theme. |
 
 Also exports the pure serialisers `themeToCss(overrides)` / `themeToJson(overrides)` and the `ThemeToken` / `ThemeOverrides` types.
 
-**Token pipeline** — the same canonical `tokens.css` is emitted to other targets at build (`scripts/tokens/build.mjs`, run as the tail of `npm run build`; standalone `npm run tokens:build`):
+**Token pipeline**: the same canonical `tokens.css` is emitted to other targets at build (`scripts/tokens/build.mjs`, run as the tail of `npm run build`; standalone `npm run tokens:build`):
 
-- `@tarassov-ch/swiss-function/tokens.json` — `{ light, dark }` declared values.
-- `@tarassov-ch/swiss-function/tokens.js` — `values` + `vars` (camelCased `var()` accessors, e.g. `vars.colorFg === "var(--sf-color-fg)"`) for JS/canvas-land.
-- `@tarassov-ch/swiss-function/tokens.style-dictionary.json` — a Style-Dictionary-format tree, so the tokens can be fed into Style Dictionary downstream for further targets. (A lightweight in-repo pipeline is used rather than the `style-dictionary` package, which would want a JSON source as canonical.)
+- `@tarassov-ch/swiss-function/tokens.json`: `{ light, dark }` declared values.
+- `@tarassov-ch/swiss-function/tokens.js`: `values` + `vars` (camelCased `var()` accessors, e.g. `vars.colorFg === "var(--sf-color-fg)"`) for JS/canvas-land.
+- `@tarassov-ch/swiss-function/tokens.style-dictionary.json`: a Style-Dictionary-format tree, so the tokens can be fed into Style Dictionary downstream for further targets. (A lightweight in-repo pipeline is used rather than the `style-dictionary` package, which would want a JSON source as canonical.)
 
 ## Timeline
 
@@ -1470,27 +1470,27 @@ Horizontal time axis with ticks, event markers, optional scrubbing/range selecti
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `start` / `end` | `Date` | — | Axis range (required). |
-| `value` | `Date` | — | Playhead (controlled); renders a draggable scrubber. |
-| `onChange` | `(date: Date) => void` | — | Scrub/click; omit for read-only. |
-| `rangeValue` | `[Date, Date]` | — | Range selection (two handles + band); takes over from the playhead. |
-| `onRangeChange` | `(range: [Date, Date]) => void` | — | Range drag/click. |
+| `start` / `end` | `Date` | n/a | Axis range (required). |
+| `value` | `Date` | n/a | Playhead (controlled); renders a draggable scrubber. |
+| `onChange` | `(date: Date) => void` | n/a | Scrub/click; omit for read-only. |
+| `rangeValue` | `[Date, Date]` | n/a | Range selection (two handles + band); takes over from the playhead. |
+| `onRangeChange` | `(range: [Date, Date]) => void` | n/a | Range drag/click. |
 | `snap` | `TimelineSnap` | `"none"` | Snap scrubbing to events or ticks. |
 | `height` | `number \| string` | auto | Defaults to fit the lane count. |
 | `showNow` | `boolean` | `true` | Faint line at the current time. |
 | `maxLanes` | `number` | `3` | Max label-stacking lanes. Labels that can't be placed collision-free within them are hidden at rest and revealed on hover/focus (markers stay visible). |
-| `pxPerDay` | `number` | — | Minimum px per day: the track gets a min inline size of `days × pxPerDay`, so a too-wide range scrolls horizontally instead of compressing. Unset = fit-to-container. |
-| `tickSpacing` | `number` | tuned (~80–200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. |
-| `compact` | `boolean` | `false` | Condensed strip — labels hidden at rest. |
+| `pxPerDay` | `number` | n/a | Minimum px per day: the track gets a min inline size of `days × pxPerDay`, so a too-wide range scrolls horizontally instead of compressing. Unset = fit-to-container. |
+| `tickSpacing` | `number` | tuned (~80 to 200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. |
+| `compact` | `boolean` | `false` | Condensed strip, labels hidden at rest. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Strip height; implies the strip. `sm` value label shrinks to 75%. |
 | `bordered` | `boolean` | `false` | Input-style frame. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `0` | Resting depth; pairs with `bordered`. |
 | `valueLabel` | `boolean` | `false` | Floating value tag above playhead/handles. |
 | `formatValue` | `(date: Date) => ReactNode` | ISO `YYYY-MM-DD` | Value-tag formatter. |
 | `color` | `string` | `var(--sf-color-primary)` | Accent (playhead, now line, markers, range band, value tag). |
-| `rangeOpacity` | `number` | `0.12` | Opacity (0–1) of the range-selection highlight band's fill (border tracks it, slightly more opaque). |
+| `rangeOpacity` | `number` | `0.12` | Opacity (0 to 1) of the range-selection highlight band's fill (border tracks it, slightly more opaque). |
 
-**Elements / Parts:** `Timeline.Event` — `{ date: Date; onClick?: () => void; children }`.
+**Elements / Parts:** `Timeline.Event`: `{ date: Date; onClick?: () => void; children }`.
 With `onClick` it becomes an interactive button.
 
 ```tsx
@@ -1520,41 +1520,41 @@ A window-manager main area in the style of Niri's scrollable tiling: an infinite
 
 When the container is narrower than `verticalBelow` (with the default `orientation="auto"`), the strip transposes: it scrolls top-to-bottom, each column becomes a full-width band whose height is the column's width value, and the column's windows sit side by side inside the band. Arrow keys, Shift+moves, drops, gutter resizing, snap, and paddles all follow the layout axis; the model, ids, and `WindowMove` indices are identical in both orientations.
 
-The wheel follows the layout axis too: a plain wheel scrolls **along** the strip (sideways when horizontal, down when vertical — a vertical trackpad/mouse wheel drives the horizontal strip so no Shift is needed), and **Shift+wheel** drives the cross axis (the window body under the pointer). A plain wheel over a window body scrolls the strip, not the body; hold Shift to scroll the body. When the strip doesn't overflow, plain-wheel handling steps aside so bodies scroll natively.
+The wheel follows the layout axis too: a plain wheel scrolls **along** the strip (sideways when horizontal, down when vertical; a vertical trackpad/mouse wheel drives the horizontal strip so no Shift is needed), and **Shift+wheel** drives the cross axis (the window body under the pointer). A plain wheel over a window body scrolls the strip, not the body; hold Shift to scroll the body. When the strip doesn't overflow, plain-wheel handling steps aside so bodies scroll natively.
 
-**Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`, `WindowArray.WindowButton`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection). `WindowButton` is a plain `<button>` sharing the ✕/fullscreen chrome exactly — use it inside a Window's `actions` so custom title-bar buttons blend in.
+**Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`, `WindowArray.WindowButton`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection). `WindowButton` is a plain `<button>` sharing the ✕/fullscreen chrome exactly. Use it inside a Window's `actions` so custom title-bar buttons blend in.
 
 | Prop (root) | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `activeId` / `defaultActiveId` / `onActiveChange` | `string \| null` | `null` | Active window (primary border, the roving Tab stop). |
 | `fullscreenId` / `defaultFullscreenId` / `onFullscreenChange` | `string \| null` | `null` | At most one window covers the WindowArray container (not the browser viewport). Escape exits. |
-| `onWindowMove` | `(move: WindowMove) => void` | — | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
+| `onWindowMove` | `(move: WindowMove) => void` | n/a | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
 | `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting shadow depth for the windows (`--sf-elevation-N`); fullscreen windows stay flat. |
 | `snap` | `boolean` | `false` | Proximity scroll-snap: columns settle flush with the nearest viewport edge, gutter in view (free scrolling stays possible; suspended mid-drag/resize so gestures aren't fought). |
-| `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). Each paddle fades in while the pointer is within 80px of its edge (or on keyboard focus); on hoverless devices both stay visible. Also hides the horizontal scrollbar — the strip still scrolls by wheel, keyboard, and drag. |
-| `apiRef` | `Ref<WindowArrayHandle>` | — | Imperative handle for a consumer's central hotkey system (issue #32) — `switchColumn("prev" \| "next")` and `focusActive()`. WindowArray binds **no** column-switch shortcut itself; wire your own keys (e.g. Alt+Arrow) and call the handle. Replaces the removed `hotkeys` prop. |
+| `controls` | `boolean` | `false` | Floating prev/next paddles at the inline edges that switch the active window to the neighbouring column (disabled at the strip's ends; hidden while fullscreen). Each paddle fades in while the pointer is within 80px of its edge (or on keyboard focus); on hoverless devices both stay visible. Also hides the horizontal scrollbar; the strip still scrolls by wheel, keyboard, and drag. |
+| `apiRef` | `Ref<WindowArrayHandle>` | n/a | Imperative handle for a consumer's central hotkey system (issue #32): `switchColumn("prev" \| "next")` and `focusActive()`. WindowArray binds **no** column-switch shortcut itself; wire your own keys (e.g. Alt+Arrow) and call the handle. Replaces the removed `hotkeys` prop. |
 | `orientation` | `"auto" \| "horizontal" \| "vertical"` | `"auto"` | Layout axis. `"auto"` watches the container's width and goes vertical below `verticalBelow`; the explicit values force a mode. |
 | `verticalBelow` | `number` | `480` | Container width (px) below which `"auto"` transposes to the vertical strip. |
 
 | Prop (Column) | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | — | Stable identity for move targets and width callbacks. |
-| `width` / `defaultWidth` / `onWidthChange` | `number` | — / `480` | The column's size in px along the scroll axis — its width, or its band height in the vertical orientation (one state for both). Controlled or uncontrolled; the callback fires when a resize settles (drag end, key press, double-click reset — which restores `defaultWidth`). |
+| `id` | `string` | n/a | Stable identity for move targets and width callbacks. |
+| `width` / `defaultWidth` / `onWidthChange` | `number` | n/a / `480` | The column's size in px along the scroll axis: its width, or its band height in the vertical orientation (one state for both). Controlled or uncontrolled; the callback fires when a resize settles (drag end, key press, double-click reset, which restores `defaultWidth`). |
 | `minWidth` | `number` | root's `columnMinWidth` | |
 | `resizable` | `boolean` | `true` | `false` removes the column's trailing resize gutter. |
 
 | Prop (Window) | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `id` | `string` | — | Stable identity; also keys active/fullscreen state. |
-| `title` | `ReactNode` | — | Title-bar text and the window's accessible label. |
-| `onClose` | `() => void` | — | Renders the ✕. Closing = removing the element from your state. |
+| `id` | `string` | n/a | Stable identity; also keys active/fullscreen state. |
+| `title` | `ReactNode` | n/a | Title-bar text and the window's accessible label. |
+| `onClose` | `() => void` | n/a | Renders the ✕. Closing = removing the element from your state. |
 | `maximizable` | `boolean` | `true` | Shows the fullscreen toggle. |
 | `movable` | `boolean` | `true` | Per-window opt-out of drag/keyboard rearranging. |
-| `actions` | `ReactNode` | — | Extra icon buttons before maximize/close (never start a drag). Use `WindowArray.WindowButton` for chrome-matching styling; give each an `aria-label` and a 16px line-set icon. |
+| `actions` | `ReactNode` | n/a | Extra icon buttons before maximize/close (never start a drag). Use `WindowArray.WindowButton` for chrome-matching styling; give each an `aria-label` and a 16px line-set icon. |
 
-`WindowMove` is `{ windowId, from: { columnId, index }, to }` where `to` is `{ type: "cell", columnId, index }` (into an existing column) or `{ type: "column", index }` (break out into a new column at that strip position — pointer drops on a gutter, or Shift+Left/Right at the strip's ends). **Index convention:** every `to` index is relative to the state after the window left its source column *and* after an emptied source column was removed — applying a move is two splices, no off-by-one:
+`WindowMove` is `{ windowId, from: { columnId, index }, to }` where `to` is `{ type: "cell", columnId, index }` (into an existing column) or `{ type: "column", index }` (break out into a new column at that strip position: pointer drops on a gutter, or Shift+Left/Right at the strip's ends). **Index convention:** every `to` index is relative to the state after the window left its source column *and* after an emptied source column was removed. Applying a move is two splices, no off-by-one:
 
 ```tsx
 const [columns, setColumns] = useState(initial);
@@ -1577,9 +1577,9 @@ const [columns, setColumns] = useState(initial);
 // empty; then splice into to.columnId at to.index (or insert a new column).
 ```
 
-Keyboard (on a focused title bar — each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen. In the vertical orientation arrows follow the transposed layout (up/down switch bands, left/right walk within a band; same for Shift+moves). Column *switching* from anywhere (including focused window content) is no longer a built-in shortcut — bind your own key via the central hotkey layer and call `apiRef.switchColumn(...)` (issue #32). Focus moves auto-scroll the strip (container-scoped; minimal reveal — the column lands flush with the nearest edge, its gutter kept in view) — smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
+Keyboard (on a focused title bar; each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen. In the vertical orientation arrows follow the transposed layout (up/down switch bands, left/right walk within a band; same for Shift+moves). Column *switching* from anywhere (including focused window content) is no longer a built-in shortcut. Bind your own key via the central hotkey layer and call `apiRef.switchColumn(...)` (issue #32). Focus moves auto-scroll the strip (container-scoped; minimal reveal: the column lands flush with the nearest edge, its gutter kept in view); scrolling is smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
 
-Notes: windows render as flat, keyed siblings of one strip grid and are placed into columns purely by grid coordinates, so a move (any direction, including across columns) never remounts a window — React state and DOM state (inputs, scroll) survive; an `<iframe>` may still reload when a move reorders the DOM. The window body scrolls internally. Empty columns render as one full-height drop target; removing an emptied column is the consumer's call. The strip's background is the same muted dither as DataTable's `columnFill` (recolor via `--sf-wa-fill-color`) — a stationary "desk" the windows slide over, visible in the gaps and wherever columns don't reach. Near-exact fits are forgiven: up to 8px of natural overflow is absorbed by narrowing the last column's rendered width — the width *state* is untouched — so a layout meant to fill 100% never grows a horizontal scrollbar.
+Notes: windows render as flat, keyed siblings of one strip grid and are placed into columns purely by grid coordinates, so a move (any direction, including across columns) never remounts a window: React state and DOM state (inputs, scroll) survive; an `<iframe>` may still reload when a move reorders the DOM. The window body scrolls internally. Empty columns render as one full-height drop target; removing an emptied column is the consumer's call. The strip's background is the same muted dither as DataTable's `columnFill` (recolor via `--sf-wa-fill-color`), a stationary "desk" the windows slide over, visible in the gaps and wherever columns don't reach. Near-exact fits are forgiven: up to 8px of natural overflow is absorbed by narrowing the last column's rendered width (the width *state* is untouched), so a layout meant to fill 100% never grows a horizontal scrollbar.
 
 ---
 
@@ -1594,7 +1594,7 @@ Set via a prop or inline style and read by the component's stylesheet:
 | `--sf-datatable-fade-rows` | DataTable | `edgeFade.rows` |
 | `--sf-datatable-fade-density` | DataTable | `edgeFade.density` |
 | `--sf-datatable-col-min` | DataTable | minimum column width (default `3u`) |
-| `--sf-columns-width` | DataTable | columns' total width — placement of the `columnFill` dither panel |
+| `--sf-columns-width` | DataTable | columns' total width: placement of the `columnFill` dither panel |
 | `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |
-| `--sf-wa-gap` | WindowArray | `gap` prop — column/window gap and gutter width |
-| `--sf-wa-elevation` | WindowArray | `elevation` prop — resting window shadow; inherits, so set it on an individual `WindowArray.Window` (`style`) to raise just that window |
+| `--sf-wa-gap` | WindowArray | `gap` prop: column/window gap and gutter width |
+| `--sf-wa-elevation` | WindowArray | `elevation` prop: resting window shadow; inherits, so set it on an individual `WindowArray.Window` (`style`) to raise just that window |

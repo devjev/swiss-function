@@ -21,7 +21,7 @@ bump: minor
 Add the Form composition primitives (Form, FormField, FormError).
 ```
 
-`bump` is `patch` | `minor` | `major`. The note is free markdown — it becomes a
+`bump` is `patch` | `minor` | `major`. The note is free markdown; it becomes a
 bullet in the generated `CHANGELOG.md`.
 
 ## Release
@@ -31,7 +31,7 @@ pending changeset: the **highest** bump wins (a single `major` makes the release
 major), the notes are prepended to `CHANGELOG.md` grouped by bump, the version is
 bumped (`npm version`), and the consumed changeset files are deleted. Then the
 version commit + tag are pushed and the existing `.gitea/workflows/publish.yml`
-publishes to the Forgejo registry — now with the generated notes as the release
+publishes to the Forgejo registry, now with the generated notes as the release
 body instead of a hand-written blurb.
 
 Check what's pending any time:

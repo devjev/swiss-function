@@ -3,8 +3,8 @@
 A self-hosted pixel-diff gate over the Ladle stories. Every story in
 [`stories.json`](./stories.json) is rendered in **both themes** with **reduced
 motion**, screenshotted, and diffed against a committed baseline. Built on
-Playwright's `toHaveScreenshot` (its pixel comparator, no hosted service) —
-fitting the solo / self-hosted setup.
+Playwright's `toHaveScreenshot` (its pixel comparator, no hosted service),
+which fits the solo / self-hosted setup.
 
 This is a **local gate**, exactly like `perf` and `size`: pixel output is
 machine- and font-specific, so baselines are seeded on *your* machine and are

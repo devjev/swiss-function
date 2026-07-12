@@ -116,8 +116,8 @@ priorities or debouncing (callers debounce keystrokes).
 
 ## 9. Resolved ambiguities (from the #57 spike, now normative)
 
-9.1. A dependent of an "unresolved" node — one that does not itself reference
-a missing name — is "upstream-error", with `upstream` set to the unresolved
+9.1. A dependent of an "unresolved" node (one that does not itself reference
+a missing name) is "upstream-error", with `upstream` set to the unresolved
 node's name. ("Unresolved" applies only to the node whose own direct
 dependency is missing; the failure cascades downstream as upstream-error,
 per 3.3's offender propagation.)

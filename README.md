@@ -134,13 +134,13 @@ Base UI's compound API as object namespaces, for example `Dialog.Root`,
 
 ## Documentation
 
-- **[AGENTS.md](./AGENTS.md)** — full component catalogue, conventions, and a
+- **[AGENTS.md](./AGENTS.md)**: full component catalogue, conventions, and a
   "when the user asks for X, reach for Y" map. Written for coding agents, and
   just as useful for humans.
-- **[docs/API.md](./docs/API.md)** — per-component props, defaults, and tokens.
-- **[AESTHETICS.md](./AESTHETICS.md)** — the design philosophy behind the
+- **[docs/API.md](./docs/API.md)**: per-component props, defaults, and tokens.
+- **[AESTHETICS.md](./AESTHETICS.md)**: the design philosophy behind the
   library.
-- **Live demos** — run `npm run dev` to browse the Ladle stories.
+- **Live demos**: run `npm run dev` to browse the Ladle stories.
 
 ## Contributing
 

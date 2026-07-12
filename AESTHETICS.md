@@ -1,12 +1,12 @@
 # Aesthetics
 
 The opinionated stance behind Swiss-Function. A reference for anyone
-building on the system — or contributing to it — so that taste calls
+building on the system, or contributing to it, so that taste calls
 don't drift over time.
 
 The short version: **Bauhaus, not Bay Area.** We want interfaces that
-read like technical instruments — sharp, functional, dense with
-information — not like social products optimized for engagement.
+read like technical instruments (sharp, functional, dense with
+information), not like social products optimized for engagement.
 
 ---
 
@@ -20,7 +20,7 @@ run on every state change, full-bleed hero imagery, and the implicit
 assumption that the user is here to scroll.
 
 None of that suits the work we actually do. We are building tools for
-people who are *reading* and *thinking* — not skimming a feed. Our
+people who are *reading* and *thinking*, not skimming a feed. Our
 posture is closer to a Braun radio, a Müller-Brockmann poster, a CAD
 program, or a financial terminal than to any "design-led" SaaS dashboard
 from the 2020s.
@@ -37,11 +37,11 @@ Concretely:
 These are defaults; they bend when content demands. But they bend with
 intent, not because the rest of the industry has bent that way.
 
-**One sanctioned exception — light skeuomorphism.** In rare, deliberate
+**One sanctioned exception: light skeuomorphism.** In rare, deliberate
 cases we reach for a touch of skeuomorphism reminiscent of *old computers*:
 a tactile keycap, a physical-feeling switch, a beveled readout. The aim is
 never nostalgia-as-decoration. It's to evoke the era when software was
-**fast, understandable, and lightweight** — when a control looked like the
+**fast, understandable, and lightweight**, when a control looked like the
 thing it did and did exactly that. Used sparingly and only where it earns
 its keep (e.g. `Kbd` rendering a shortcut as a real key), it reinforces the
 instrument posture rather than betraying it. The test: does it make the tool
@@ -61,16 +61,16 @@ ornament do elsewhere.
   cache-stable across users.
 - **Monospace for data**, JetBrains Mono preferred via `--sf-font-mono`.
   Inputs, code, axis labels, tabular numbers, anything the eye needs to
-  scan column-aligned. Monospace reads as machine-readable on purpose —
-  it tells the reader "this is information, not narrative".
+  scan column-aligned. Monospace reads as machine-readable on purpose:
+  it signals to the reader "this is information, not narrative".
 - **Three sizes** (`sm`, `md`, `lg`), four weights (regular, medium,
   semibold, bold). Body sits at `md`; `sm` carries secondary content;
-  `lg` carries emphasis. There is no `xs` / `xl` — restraint is the
+  `lg` carries emphasis. There is no `xs` / `xl`; restraint is the
   point. Hierarchy beyond these three lives in **weight, spacing, and
   rule lines**, not in a fourth size.
 - **Two line heights**: `1.25` tight (unitless, for dense single-line
-  controls — buttons, inputs, tabs) and `--sf-line-height-grid` (an
-  absolute `1.5rem`, for block text — what locks prose to the baseline
+  controls like buttons, inputs, tabs) and `--sf-line-height-grid` (an
+  absolute `1.5rem`, for block text, the value that locks prose to the baseline
   grid regardless of font-size).
 - **For long-form documents**, reach for `--sf-measure` (65ch) to cap
   line length, and `text-wrap: pretty` for paragraph flow. Code,
@@ -83,14 +83,14 @@ ones recede.
 
 - **Body text is full-strength.** Default to `--sf-color-fg`. The
   number-one anti-pattern in modern web design is grey body text in the
-  name of "soft" or "elegant" — it is neither. It is *less legible*.
+  name of "soft" or "elegant": it is neither. It is *less legible*.
   Save `--sf-color-fg-subtle` and `--sf-color-muted` for genuinely
   secondary metadata: timestamps next to a username, byte counts beside a
   filename, axis labels under a chart. Never for the sentence you want
   the reader to read.
 - **One accent**, primary blue (`--sf-color-primary: #2563eb`). It marks
   what's interactive and what's focused. Everything else is neutral.
-- **Semantic colors are reserved** — `--sf-color-danger`, `-success`,
+- **Semantic colors are reserved.** `--sf-color-danger`, `-success`,
   `-warning` mean something. Don't use them decoratively. A red bar in
   a chart should mean "negative"; a green one, "positive". A red border
   should mean "this is wrong".
@@ -120,29 +120,29 @@ journeying.
 ### Shape
 
 - **`--sf-radius-default` is 2px** (`--sf-radius-xs`). That's the default
-  for everything except circles and pills. Buttons, inputs, cards — all
-  2px. The result reads as drawn with a hard pencil, not a felt-tip pen.
+  for everything except circles and pills. Buttons, inputs, and cards are
+  all 2px. The result reads as drawn with a hard pencil, not a felt-tip pen.
 - **Only round what's meant to be round.** Switch handles are circular
   because they roll. Avatars are circular because faces are round.
   Buttons are not circular.
 - **Pill shapes** (radius-full) are reserved for tags and toggle states
-  where the rounded form carries semantic weight — typically "this is a
+  where the rounded form carries semantic weight, typically "this is a
   badge, not a button".
 
 ### Borders
 
-- **One structural border.** Every edge that frames a thing — panes,
+- **One structural border.** Every edge that frames a thing (panes,
   cards, dialogs, popovers, menus, inputs, and the dividers inside tables
-  and lists — uses the single `--sf-color-border`. There is no "strong vs
+  and lists) uses the single `--sf-color-border`. There is no "strong vs
   subtle" tier for structure; `--sf-color-border-strong`/`-subtle` are
   aliases of it. When you need two things to read as separate, use
   elevation and spacing, not a second, lighter line.
 - **A resting border is never primary.** Inputs sit on the neutral border
-  at rest; `--sf-color-primary` appears only on *state* — focus ring,
+  at rest; `--sf-color-primary` appears only on *state*: focus ring,
   hover, checked/selected. A blue box just sitting there means nothing.
 - **`--sf-color-gridline` is the one exception, and it is not a border.**
-  It's the faint hairline for data-viz scaffolding — chart gridlines and
-  axes, Skeleton placeholder edges — deliberately quieter than the
+  It's the faint hairline for data-viz scaffolding (chart gridlines and
+  axes, Skeleton placeholder edges), deliberately quieter than the
   structural border so data and content stay in front of the scaffolding.
 
 ### Depth
@@ -171,27 +171,27 @@ Depth indicates layer, not personality.
   pretending to be physical. We are not simulating frosted plastic. We
   are stacking flat planes.
 
-**One sanctioned exception — measured 3D for genuinely-3D data.** The chrome
+**One sanctioned exception: measured 3D for genuinely-3D data.** The chrome
 stacks flat planes, but data can be intrinsically three-dimensional (a surface
 `z = f(x,y)`, a point cloud), and flattening it loses information. There the 3D
-charts (`Surface`, `PointCloud`) are allowed — rendered as *instruments*, not
+charts (`Surface`, `PointCloud`) are allowed, rendered as *instruments*, not
 decoration: **orthographic (axonometric) projection**, so there's no
 vanishing-point perspective and lengths stay comparable along each axis, like a
 CAD/engineering drawing; flat shading and a single-hue, token-derived height
-ramp; a measured bounding-box frame with axis ticks; **drag-to-rotate only —
+ramp; a measured bounding-box frame with axis ticks; **drag-to-rotate only,
 never auto-spin** (the idle view is a fixed angle, so `prefers-reduced-motion` is
 satisfied by construction). The test is the usual one: does the depth *measure*
-the data, or just perform? If the latter, drop it — and reach for the flat
+the data, or just perform? If the latter, drop it, and reach for the flat
 `Heatmap` (2.5D contour/heatmap) instead, which is the default for `z = f(x,y)`.
-**3D bars, 3D pies, ribbon charts, and perspective cameras stay banned** —
+**3D bars, 3D pies, ribbon charts, and perspective cameras stay banned**:
 that's depth-for-personality, which distorts comparison.
 
-**Maps — a restrained default, with off-aesthetic opt-ins.** Geographic data is
+**Maps: a restrained default, with off-aesthetic opt-ins.** Geographic data is
 intrinsically spatial, so `Map` is sanctioned like the 3D charts. Its default
 `minimal` basemap stays on-posture: a monochrome vector style colored entirely
 from `--sf-*` tokens (land/water/roads/labels), data-ink only, re-tinted with the
-theme. The `street` and `terrain` presets are deliberately *off-aesthetic* —
-photographic-ish, busy, personality-laden — and exist only because some tasks
+theme. The `street` and `terrain` presets are deliberately *off-aesthetic*
+(photographic-ish, busy, personality-laden) and exist only because some tasks
 genuinely need a recognizable map; reach for `minimal` first. One hard rule:
 tile-provider **attribution stays visible** (it's a license requirement, not a
 decoration to strip), even under `frame={false}` or fullscreen.
@@ -210,10 +210,10 @@ delight.
   needs one.
 - **The snap easing is a tactile cue, used sparingly.** `--sf-ease-snap`
   (`cubic-bezier(0.34, 1.7, 0.5, 1)`) overshoots slightly past the
-  target then settles — the feel of a good mechanical keyboard:
+  target then settles, like the feel of a good mechanical keyboard:
   immediate, physical, decisive. Reserve it for *discrete, deliberate*
-  moments — a value label revealing on hover, a button settling after a
-  press — paired with a fast duration and a single transformed property
+  moments (a value label revealing on hover, a button settling after a
+  press), paired with a fast duration and a single transformed property
   (use the individual `scale`/`translate` properties so it composes with
   layout transforms). It is **not** a general entrance curve and never
   goes on continuous or incidental motion. This is the one sanctioned
@@ -237,11 +237,11 @@ milestone and enforced by the shared `src/lib/chart` layer):
 
 - **Resize tracks 1:1.** Geometry, ticks and labels move in the same commit,
   coalesced to one recompute per frame. Tick positions are never
-  transitioned — animated reflow reads as smoothing, and smoothing is a lie
+  transitioned: animated reflow reads as smoothing, and smoothing is a lie
   about the data. Label sets stay stable under live resize (step hysteresis,
   survivor bias); a one-pixel drag never reshuffles which labels are shown.
 - **Labels are measured, then thinned or ellipsized. Never rotated.** Rotated
-  text is the spreadsheet default we are not. When labels do not fit, fewer
+  text is a spreadsheet default, and this library is not a spreadsheet. When labels do not fit, fewer
   legible labels beat many mangled ones; the first and last always survive
   (the range must be readable), and truncated labels carry their full text
   in a title.
@@ -308,7 +308,7 @@ Avoid anything that signals "this is a feed":
   depth.
 - **No gradient backgrounds for chrome.** Solid colors only on toolbars,
   cards, headers. Gradients exist in the system for data fills
-  (chart areas, sparklines) — that's it.
+  (chart areas, sparklines), and that's it.
 - **No glass / blur effects.** See "Depth" above.
 - **No skeumorphic textures.** No paper grain, no wood, no leather, no
   brushed metal.
