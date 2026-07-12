@@ -46,7 +46,7 @@
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-shadow-xl);
+  box-shadow: var(--sf-elevation-5);
   z-index: var(--sf-z-modal);
   opacity: 0;
   transition:

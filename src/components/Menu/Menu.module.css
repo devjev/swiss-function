@@ -12,7 +12,7 @@
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-shadow-lg);
+  box-shadow: var(--sf-elevation-3);
   z-index: var(--sf-z-dropdown);
   outline: none;
   opacity: 0;

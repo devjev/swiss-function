@@ -156,12 +156,6 @@
        follows it, instead of floating equidistant from both neighbors. */
     --sf-prose-heading-trail: calc(var(--sf-unit) / 2);
 
-    /* Elevation */
-    --sf-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
-    --sf-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --sf-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --sf-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-
     /* Elevation scale (used by <Box>, available to any component). Six
        discrete steps from flat (0) to deeply floating (5). Each layer
        roughly doubles the previous offset/blur so the progression reads
@@ -251,13 +245,17 @@
        1px borders elevated surfaces already carry (no ring here: it would
        double them). */
     --sf-elevation-1: inset 0 0 0 9999px rgb(255 255 255 / 0.025), 0 1px 2px rgb(0 0 0 / 0.4);
-    --sf-elevation-2: inset 0 0 0 9999px rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.4),
+    --sf-elevation-2:
+      inset 0 0 0 9999px rgb(255 255 255 / 0.04), 0 1px 3px rgb(0 0 0 / 0.4),
       0 2px 6px rgb(0 0 0 / 0.35);
-    --sf-elevation-3: inset 0 0 0 9999px rgb(255 255 255 / 0.055), 0 2px 6px rgb(0 0 0 / 0.45),
+    --sf-elevation-3:
+      inset 0 0 0 9999px rgb(255 255 255 / 0.055), 0 2px 6px rgb(0 0 0 / 0.45),
       0 4px 12px rgb(0 0 0 / 0.4);
-    --sf-elevation-4: inset 0 0 0 9999px rgb(255 255 255 / 0.075), 0 4px 10px rgb(0 0 0 / 0.5),
+    --sf-elevation-4:
+      inset 0 0 0 9999px rgb(255 255 255 / 0.075), 0 4px 10px rgb(0 0 0 / 0.5),
       0 8px 20px rgb(0 0 0 / 0.45);
-    --sf-elevation-5: inset 0 0 0 9999px rgb(255 255 255 / 0.1), 0 8px 18px rgb(0 0 0 / 0.55),
+    --sf-elevation-5:
+      inset 0 0 0 9999px rgb(255 255 255 / 0.1), 0 8px 18px rgb(0 0 0 / 0.55),
       0 16px 36px rgb(0 0 0 / 0.5);
 
     /* Recess (dark): sunken surfaces darken instead of lighten; the inset
@@ -267,16 +265,5 @@
     --sf-recess-3: inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 4px 12px rgb(0 0 0 / 0.5);
     --sf-recess-4: inset 0 4px 10px rgb(0 0 0 / 0.6), inset 0 8px 20px rgb(0 0 0 / 0.55);
     --sf-recess-5: inset 0 8px 18px rgb(0 0 0 / 0.65), inset 0 16px 36px rgb(0 0 0 / 0.6);
-
-    /* Legacy shadow scale: Menu and Dialog popups still consume these (their
-       migration to the elevation scale is a recorded follow-up); mapped to
-       the elevation-2/3/3/5 treatments so dark popups get the cascade too. */
-    --sf-shadow-sm: inset 0 0 0 9999px rgb(255 255 255 / 0.025), 0 1px 2px rgb(0 0 0 / 0.4);
-    --sf-shadow-md: inset 0 0 0 9999px rgb(255 255 255 / 0.04), 0 4px 6px -1px rgb(0 0 0 / 0.45),
-      0 2px 4px -2px rgb(0 0 0 / 0.4);
-    --sf-shadow-lg: inset 0 0 0 9999px rgb(255 255 255 / 0.055),
-      0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.45);
-    --sf-shadow-xl: inset 0 0 0 9999px rgb(255 255 255 / 0.1), 0 20px 25px -5px rgb(0 0 0 / 0.55),
-      0 8px 10px -6px rgb(0 0 0 / 0.5);
   }
 }

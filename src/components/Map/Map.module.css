@@ -83,7 +83,7 @@
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-shadow-md);
+  box-shadow: var(--sf-elevation-2);
   font-size: var(--sf-font-size-sm);
   white-space: nowrap;
   pointer-events: none;
