@@ -1,33 +1,29 @@
 # swiss-function
 
 A React component library for dense, professional interfaces: form-heavy
-apps, data tables, dashboards, internal tools. It is headless where it
-matters (accessibility and behaviour come from [Base UI](https://base-ui.com))
-and opinionated where it counts (a Swiss/Bauhaus visual language, styled with
-CSS Modules and CSS custom property tokens).
+apps, data tables, dashboards, internal tools. Behaviour and accessibility
+come from [Base UI](https://base-ui.com) primitives. Styling is CSS Modules
+and CSS custom property tokens, in a Swiss/Bauhaus visual language.
 
-If you are building a marketing site or a feed-style consumer product, this is
-the wrong library. If you are building an instrument, read on.
+It is aimed at application UIs rather than marketing sites or feed-style
+consumer products.
 
-## Why it might be for you
+## What it is
 
-- **Behaviour is solved.** Focus traps, keyboard navigation, ARIA roles, and
-  screen-reader semantics come from Base UI primitives. The library wraps them;
-  it does not reinvent them.
-- **Styling is tokens, not utilities.** No Tailwind, no CSS-in-JS, no utility
-  classes. Every visual decision is a `--sf-*` custom property you can override
-  at any scope. Retheme a subtree by setting a variable on an ancestor.
-- **Dark mode for free.** Flip `data-theme="dark"` on any ancestor and every
-  color token swaps. Components never branch on theme in JavaScript.
-- **Built for density.** Sharp corners, full-strength text, typographic
-  hierarchy, functional motion. It reads like a CAD tool or a financial
-  terminal, not a 2020s SaaS dashboard. See [AESTHETICS.md](./AESTHETICS.md)
-  for the reasoning.
-- **More than the basics.** Beyond buttons and dialogs there are data tables,
-  charts, a graph/network view, maps, a code editor, a reactive notebook, and
-  a chat UI. See the [full catalogue](./AGENTS.md).
-- **Tree-shakeable.** Per-component entry points and side-effect CSS keep your
-  bundle honest.
+- Components wrap Base UI primitives, so focus management, keyboard
+  navigation, and ARIA semantics are handled there rather than reimplemented.
+- Styling uses CSS Modules and `--sf-*` custom properties. No Tailwind, no
+  CSS-in-JS. Any token can be overridden at any scope.
+- Dark mode is a `data-theme="dark"` attribute on an ancestor; the color
+  tokens swap with it, and no component branches on theme in JavaScript.
+- The defaults favour density: sharp corners, full-strength text, typographic
+  hierarchy over color, restrained motion. [AESTHETICS.md](./AESTHETICS.md)
+  explains the reasoning.
+- Alongside the usual controls there are data tables, charts, a graph view,
+  maps, a code editor, a notebook, and a chat UI. The
+  [catalogue](./AGENTS.md) lists them.
+- Each component is a separate entry point with its own CSS, so bundlers can
+  tree-shake what you do not use.
 
 ## Install
 
@@ -47,8 +43,8 @@ import "@tarassov-ch/swiss-function/fonts.css";  // optional: bundled JetBrains 
 ```
 
 `fonts.css` loads the monospace face that `--sf-font-mono` prefers, via the
-optional `@fontsource/jetbrains-mono` dependency. Skip it and monospace text
-falls back to the system mono stack; nothing breaks.
+optional `@fontsource/jetbrains-mono` dependency. Without it, monospace text
+falls back to the system mono stack.
 
 ## Quick start
 
@@ -67,25 +63,25 @@ function LoginRow() {
 }
 ```
 
-Two import styles are supported. The barrel is convenient for prototyping;
-prefer the per-component deep imports in production for the best tree-shaking.
+There are two import styles. The barrel is convenient while prototyping; the
+per-component paths tree-shake better in production.
 
 ```tsx
 // Barrel
 import { Button, Dialog } from "@tarassov-ch/swiss-function";
 
-// Per-component (recommended in production)
+// Per-component
 import { Button } from "@tarassov-ch/swiss-function/button";
 import { Dialog } from "@tarassov-ch/swiss-function/dialog";
 ```
 
-Per-component CSS ships with each component's JavaScript; you never import it
+Each component's CSS ships with its JavaScript, so you do not import it
 separately.
 
 ## Theming
 
 Every visual property is a CSS custom property under the `--sf-*` namespace,
-defined in a CSS `@layer sf.tokens` so your own styles override predictably.
+defined in a CSS `@layer sf.tokens` so your own styles take precedence.
 Override at any scope:
 
 ```css
@@ -107,12 +103,12 @@ Dark mode is opt-in via `[data-theme="dark"]` on any ancestor, commonly
 <html data-theme={prefersDark ? "dark" : "light"}>
 ```
 
-For a live token editor (and CSS/JSON export), reach for the `ThemeBuilder`
-component. `src/tokens/tokens.css` is the canonical list of every variable.
+The `ThemeBuilder` component is a live token editor with CSS and JSON export.
+`src/tokens/tokens.css` is the canonical list of every variable.
 
 ## Components
 
-A teaser of the form and overlay primitives:
+A sample of the form and overlay primitives:
 
 | Form                   | Overlay      | Selection     |
 |------------------------|--------------|---------------|
@@ -122,11 +118,10 @@ A teaser of the form and overlay primitives:
 | `Switch`               | `Drawer`     | `ToggleGroup` |
 | `Radio`                | `MenuBar`    |               |
 
-That is a fraction of it. The full set spans data tables, a dozen chart types,
-graphs, maps, a CodeMirror-based editor, a reactive notebook, and chat.
-[AGENTS.md](./AGENTS.md) is the complete catalogue with guidance on which
-component to reach for; [docs/API.md](./docs/API.md) is the per-component prop
-reference.
+The full set also covers data tables, several chart types, graphs, maps, a
+CodeMirror-based editor, a notebook, and chat. [AGENTS.md](./AGENTS.md) is the
+complete catalogue, with notes on which component fits which case;
+[docs/API.md](./docs/API.md) is the per-component prop reference.
 
 Compound components (`Dialog`, `Field`, `Menu`, `Tabs`, and others) expose
 Base UI's compound API as object namespaces, for example `Dialog.Root`,
@@ -134,12 +129,11 @@ Base UI's compound API as object namespaces, for example `Dialog.Root`,
 
 ## Documentation
 
-- **[AGENTS.md](./AGENTS.md)**: full component catalogue, conventions, and a
-  "when the user asks for X, reach for Y" map. Written for coding agents, and
-  just as useful for humans.
+- **[AGENTS.md](./AGENTS.md)**: component catalogue, conventions, and a
+  "when the user asks for X, reach for Y" map. Written for coding agents,
+  usable by humans.
 - **[docs/API.md](./docs/API.md)**: per-component props, defaults, and tokens.
-- **[AESTHETICS.md](./AESTHETICS.md)**: the design philosophy behind the
-  library.
+- **[AESTHETICS.md](./AESTHETICS.md)**: the reasoning behind the design.
 - **Live demos**: run `npm run dev` to browse the Ladle stories.
 
 ## Contributing
@@ -155,9 +149,9 @@ npm run build      # Type declarations + Vite library build
 ```
 
 The contributor sections of [AGENTS.md](./AGENTS.md) cover the file layout,
-build chain, and the conventions for adding a component. In short: wrap a Base
-UI primitive when one exists, use `forwardRef`, style with CSS Modules and
-tokens (never literals), and add stories.
+build chain, and the conventions for adding a component: wrap a Base UI
+primitive where one exists, use `forwardRef`, style with CSS Modules and
+tokens rather than literals, and add stories.
 
 ## License
 
