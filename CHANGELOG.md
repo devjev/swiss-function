@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.1.2 — 2026-07-12
+
+### Patch
+
+- Dark-mode elevation: brutalist hard offset in the border color (no blur/spread), replacing the soft blurred key shadows.
+
 ## v2.1.1 — 2026-07-12
 
 ### Patch
