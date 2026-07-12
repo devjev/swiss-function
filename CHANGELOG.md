@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.1.1 — 2026-07-12
+
+### Patch
+
+- Dark-mode elevation: the elevation, recess, and legacy shadow tokens now encode depth as a luminance cascade in dark mode (a translucent surface-lightening layer per level plus strengthened key shadows) instead of near-invisible black shadows on the near-black ground. Token-only change; light mode untouched.
+- Migrate the Menu, Dialog, Combobox, DatePicker, and Map popups off the legacy --sf-shadow-* scale onto the --sf-elevation-* tokens everything else uses (Dialog to elevation-5, the dropdowns to elevation-3, the Map tooltip to elevation-2), and remove the now-unused, undocumented --sf-shadow-sm/md/lg/xl tokens (light and dark). Closes #68.
+
 ## v2.1.0 — 2026-07-11
 
 ### Minor
