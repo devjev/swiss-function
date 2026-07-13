@@ -198,7 +198,12 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
   );
 
   return (
-    <div {...rest} ref={ref} data-layout={layout} className={cx(styles.root, className)}>
+    <div
+      {...rest}
+      ref={ref}
+      data-layout={layout}
+      className={cx(styles.root, layout === "compact" && styles.compactRoot, className)}
+    >
       <Combobox.Root
         multiple
         items={options}

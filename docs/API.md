@@ -1327,8 +1327,10 @@ shrink-to-fit parent (an inline-flex toolbar, a float, an `auto` grid track),
 where `100%` is inert, `panel` and `inline` hold a `12rem` floor instead of
 collapsing to the search input's min-content; set
 `--sf-selector-min-inline-size` (e.g. `0`) to change it. `compact` opts out of
-the floor by design. To pin an exact width, set `width`/`inline-size` on the
-control (it wins over the fill).
+the floor by design: its root shrinks to content so it tucks into a toolbar, but
+a `width`/`inline-size` set on the control (className or inline style) wins and
+the field fills it. To pin an exact width in any layout, set `width`/`inline-size`
+on the control (it wins over the fill).
 
 ```tsx
 <Selector layout="compact" items={cities} value={value} onChange={setValue}

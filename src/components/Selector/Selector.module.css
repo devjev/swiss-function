@@ -118,13 +118,20 @@
 }
 
 /* Compact layout: collapses to just a count + clear so it fits in tight spaces.
-   The (still-present, for search) input shrinks to a minimal width; the count
-   sits ahead of it. max-inline-size clamps fit-content inside narrow
-   containers (grid cells) — without it the group keeps its content width and
-   underlaps the neighbouring cell (issue #25). */
-.root .compactGroup {
+   The *root* is what shrinks to content (so the control tucks into a toolbar),
+   clamped to its container so it never overflows a narrow grid cell (issue #25).
+   `.compactRoot` matches `.root`'s specificity and comes after it, so it beats
+   the base `inline-size: 100%` yet still yields to a consumer's own width on the
+   root (a className or inline style), which then fills (issue #69). Kept a class,
+   not `[data-layout]`, precisely so that consumer width can win the tie. */
+.compactRoot {
   inline-size: fit-content;
   max-inline-size: 100%;
+}
+/* The group fills the root, so an explicitly-sized root fills rather than
+   leaving the group at its content width in empty space (issue #69). */
+.root .compactGroup {
+  inline-size: 100%;
 }
 .root .compactInput {
   flex: 1 1 auto;

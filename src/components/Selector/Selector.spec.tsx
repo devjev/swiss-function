@@ -260,6 +260,24 @@ test("compact layout clamps to a narrow container instead of underlapping it (is
   expect(box.width).toBeLessThanOrEqual(225);
 });
 
+test("compact layout fills an explicitly-sized root instead of tucking (issue #69)", async ({
+  mount,
+}) => {
+  // A width set on the control itself (here via style; a className behaves the
+  // same) makes the compact group fill it rather than sit at content width in
+  // empty space. The root shrinks to content only when its width is left auto.
+  const component = await mount(
+    <div>
+      <SelectorHarness layout="compact" initial={["Apple"]} style={{ inlineSize: 400 }} />
+    </div>,
+  );
+  const root = component.locator('[data-layout="compact"]');
+  const group = component.locator('[class*="compactGroup"]').first();
+  expect(Math.round((await root.boundingBox())?.width ?? 0)).toBe(400);
+  // The group fills the root (allow a couple px for borders/rounding).
+  expect((await group.boundingBox())?.width ?? 0).toBeGreaterThan(394);
+});
+
 test("panel layout holds a width floor in a shrink-to-fit parent (not the input's min-content)", async ({
   mount,
 }) => {
