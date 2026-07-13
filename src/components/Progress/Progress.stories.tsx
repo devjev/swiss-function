@@ -94,3 +94,40 @@ export const CustomColor: Story = () => (
     <Progress value={48} fill="animated" color="#7c3aed" />
   </div>
 );
+
+// The animated fill accepts any effect from the shared WebGL dither set (the
+// same one behind NonIdealState / Skeleton). These are the evenly-covered ones
+// that stay legible on a thin bar; the large-area effects (ripple, fire, radar,
+// …) thin out to too few rows here. `shimmer` is the default.
+const thinBarEffects = [
+  "shimmer",
+  "blink",
+  "sparkle",
+  "twinkle",
+  "breathe",
+  "blocks",
+  "interleave",
+  "rotate",
+  "noise",
+] as const;
+
+export const AnimatedEffects: Story = () => (
+  <div style={{ ...row, maxWidth: "32rem" }}>
+    {thinBarEffects.map((effect) => (
+      <div
+        key={effect}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "6rem 1fr",
+          gap: "var(--sf-unit)",
+          alignItems: "center",
+        }}
+      >
+        <code style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-fg)" }}>
+          {effect}
+        </code>
+        <Progress value={68} fill="animated" effect={effect} size="md" />
+      </div>
+    ))}
+  </div>
+);
