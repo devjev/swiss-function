@@ -11,6 +11,15 @@
   composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   overflow: auto;
+  /* Always reserve the vertical-scrollbar gutter. The sticky header and the
+     body rows are separate grids that share one column template; if a classic
+     (space-taking) scrollbar appears only once the body scrolls, the content
+     box narrows and the shared `1fr`/minmax tracks re-solve — drifting the body
+     column edges out from under the header's (issue #70). A stable gutter keeps
+     the content-box width constant whether or not the scrollbar is showing, so
+     the tracks resolve to the same widths in both. Inert with overlay
+     scrollbars (they take no space anyway). */
+  scrollbar-gutter: stable;
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
