@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.3.1 — 2026-07-13
+
+### Patch
+
+- Selector (layout=compact): a width set on the control (className or inline style) now fills the field again, instead of leaving the input group at its content width in empty space (regression, issue #69). The compact root shrinks to content so it still tucks into a toolbar, but an explicit width wins and the group fills it.
+
 ## v2.3.0 — 2026-07-13
 
 ### Minor
