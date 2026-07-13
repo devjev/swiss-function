@@ -9,6 +9,15 @@ interface UseTableClipboardParams<T> {
   selection: Selection;
   onCellChange?: (changes: CellChange[]) => void;
   getCellValue: (rowIndex: number, columnIndex: number) => unknown;
+  /** Prepend the selected columns' header names as the first copied row. */
+  copyWithHeaders: boolean;
+}
+
+/** A column's header as plain clipboard text: the string header, else its id
+ *  (a non-string ReactNode header can't be serialized, so the id stands in). */
+function headerText<T>(col: LeafColumnDef<T> | undefined): string {
+  if (!col) return "";
+  return typeof col.header === "string" ? col.header : col.id;
 }
 
 function coerce(raw: string, edit: EditConfig): unknown | typeof SKIP {
@@ -32,21 +41,33 @@ function coerce(raw: string, edit: EditConfig): unknown | typeof SKIP {
 
 const SKIP = Symbol("skip");
 
-function serializeSelection(
+/** Minimal escape so tabs/newlines in a value don't break the TSV grid. */
+function clean(s: string): string {
+  return s.replace(/[\t\n\r]/g, " ");
+}
+
+/** Serialize the selected cell rectangle as TSV. When `getHeader` is given, the
+ *  selected columns' header names are prepended as the first row. Exported for
+ *  unit testing. */
+export function serializeSelection(
   range: CellRange | null,
   active: Cell | null,
   getCellValue: (r: number, c: number) => unknown,
+  getHeader?: (col: number) => string,
 ): string {
   const r = range ?? (active ? { start: active, end: active } : null);
   if (!r) return "";
   const lines: string[] = [];
+  if (getHeader) {
+    const header: string[] = [];
+    for (let col = r.start.col; col <= r.end.col; col++) header.push(clean(getHeader(col)));
+    lines.push(header.join("\t"));
+  }
   for (let row = r.start.row; row <= r.end.row; row++) {
     const cells: string[] = [];
     for (let col = r.start.col; col <= r.end.col; col++) {
       const v = getCellValue(row, col);
-      const s = v == null ? "" : String(v);
-      // Escape tabs/newlines minimally to keep the TSV grid intact.
-      cells.push(s.replace(/[\t\n\r]/g, " "));
+      cells.push(clean(v == null ? "" : String(v)));
     }
     lines.push(cells.join("\t"));
   }
@@ -60,12 +81,14 @@ export function useTableClipboard<T>({
   selection,
   onCellChange,
   getCellValue,
+  copyWithHeaders,
 }: UseTableClipboardParams<T>) {
   const handleCopy = useCallback(
     async (ev: KeyboardEvent): Promise<boolean> => {
       if (!(ev.metaKey || ev.ctrlKey) || ev.key.toLowerCase() !== "c") return false;
       if (!selection.active && !selection.range) return false;
-      const tsv = serializeSelection(selection.range, selection.active, getCellValue);
+      const getHeader = copyWithHeaders ? (col: number) => headerText(columns[col]) : undefined;
+      const tsv = serializeSelection(selection.range, selection.active, getCellValue, getHeader);
       try {
         await navigator.clipboard.writeText(tsv);
       } catch {
@@ -73,7 +96,7 @@ export function useTableClipboard<T>({
       }
       return true;
     },
-    [selection, getCellValue],
+    [selection, getCellValue, copyWithHeaders, columns],
   );
 
   const handlePaste = useCallback(

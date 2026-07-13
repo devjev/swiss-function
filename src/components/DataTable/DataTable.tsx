@@ -88,6 +88,11 @@ export interface DataTableProps<T>
   }) => EditActivation | undefined;
   /** Called when cell values change (edit or paste). Consumer mutates/replaces data. */
   onCellChange?: (changes: CellChange[]) => void;
+  /** Prepend a row of the selected columns' header names when copying cells to
+   *  the clipboard (Cmd/Ctrl+C), so a paste into a spreadsheet or document is
+   *  self-labelling. Default true. Set false for a raw values-only copy (e.g. to
+   *  paste straight back into the table's editable cells without a header row). */
+  copyWithHeaders?: boolean;
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
   /** Opt into pagination instead of virtualization. */
@@ -474,6 +479,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     editOn = "double",
     getEditActivation,
     onCellChange,
+    copyWithHeaders = true,
     onSelectionChange,
     paginate,
     rowHeight = DEFAULT_ROW_HEIGHT,
@@ -806,6 +812,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     selection,
     onCellChange,
     getCellValue: getValueAt,
+    copyWithHeaders,
   });
 
   // --- Clear selection when the visible matrix shape changes (tree / group toggle) ---

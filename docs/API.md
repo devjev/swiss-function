@@ -351,6 +351,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter; `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
 | `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | n/a | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
 | `onCellChange` | `(changes: CellChange[]) => void` | n/a | Edit/paste committed; consumer updates `data`. |
+| `copyWithHeaders` | `boolean` | `true` | Prepend the selected columns' header names as the first row when copying cells (Cmd/Ctrl+C), so a paste into a spreadsheet/doc is self-labelling. Set `false` for a values-only copy (e.g. pasting straight back into editable cells). A non-string (`ReactNode`) header copies as the column `id`. |
 | `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
