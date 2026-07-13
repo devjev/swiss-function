@@ -120,6 +120,8 @@ const largeAreaEffects = [
   "plasma",
   "rain",
   "wave",
+  "cascade",
+  "crosswave",
   "spiral",
   "radar",
   "tunnel",

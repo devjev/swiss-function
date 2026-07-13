@@ -9,6 +9,10 @@ export type EffectName =
   | "plasma"
   | "rain"
   | "wave"
+  // Cascade pair: wave crests rolling across the field, undulating along the
+  // other axis. `cascade` = top to bottom, `crosswave` = left to right.
+  | "cascade"
+  | "crosswave"
   | "spiral"
   | "radar"
   | "tunnel"

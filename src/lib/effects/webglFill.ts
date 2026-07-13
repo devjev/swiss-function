@@ -178,6 +178,16 @@ void main(){
   }else if(u_effect==35){ // sparkle — sparse bright glints pop on a dense even base
     float ep=floor(u_t*u_speed*4.0);
     inten=0.46+0.5*step(0.9,hash(vec3(cx,cy,ep+u_seed)));
+  }else if(u_effect==37){ // cascade — wave crests roll downward from the top,
+    // undulating across the width so the fronts read as waves, not flat lines.
+    float k=6.2831853/u_wavelength;
+    float undulate=1.2*sin(cx*0.35+u_t*u_speed*1.3);
+    inten=0.5+0.5*sin((cy+undulate)*k-u_t*u_speed*2.4);
+  }else if(u_effect==38){ // crosswave — cascade rotated 90°: vertical crests roll
+    // left to right, undulating along the height.
+    float k=6.2831853/u_wavelength;
+    float undulate=1.2*sin(cy*0.35+u_t*u_speed*1.3);
+    inten=0.5+0.5*sin((cx+undulate)*k-u_t*u_speed*2.4);
   }else{ // blink — crisp per-cell on/off at a random phase; toggles ░↔▒ (36)
     float ph=hash(vec3(cx,cy,7.0))*6.2831853;
     inten=0.4+0.38*step(0.0,sin(u_t*u_speed*2.5+ph));
@@ -223,6 +233,8 @@ const EFFECT_CODE: Record<EffectName, number> = {
   plasma: 3,
   rain: 4,
   wave: 6,
+  cascade: 37,
+  crosswave: 38,
   spiral: 7,
   radar: 8,
   tunnel: 9,
