@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.3.0 — 2026-07-13
+
+### Minor
+
+- Add two animated dither effects to the shared set (NonIdealState / Skeleton / DataTable / Progress): cascade (wave crests rolling top to bottom) and crosswave (the same rolling left to right).
+- DataTable: copying cells (Cmd/Ctrl+C) now prepends the selected columns' header names as the first row, so a paste into a spreadsheet or document is self-labelling. Controlled by the new copyWithHeaders prop (default true); set it false for a values-only copy.
+
 ## v2.2.0 — 2026-07-13
 
 ### Minor
