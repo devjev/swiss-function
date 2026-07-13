@@ -7,7 +7,11 @@ const header = (c: number) => ["name", "age", "role"][c] ?? `col${c}`;
 
 describe("serializeSelection", () => {
   it("emits TSV for the selected rectangle without a header row by default", () => {
-    const tsv = serializeSelection({ start: { row: 0, col: 0 }, end: { row: 1, col: 1 } }, null, value);
+    const tsv = serializeSelection(
+      { start: { row: 0, col: 0 }, end: { row: 1, col: 1 } },
+      null,
+      value,
+    );
     expect(tsv).toBe("r0c0\tr0c1\nr1c0\tr1c1");
   });
 
