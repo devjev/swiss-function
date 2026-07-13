@@ -6,6 +6,16 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.2.0 — 2026-07-13
+
+### Minor
+
+- Add Progress: an accessible progress bar (Base UI Progress) with determinate/indeterminate value, color/dither/animated fills (reusing the shared WebGL dither engine, loaded lazily), tones, elevation, xs-lg thickness, and an optional inline percentage readout.
+
+### Patch
+
+- Selector and Picker: stop the field collapsing to the search input's min-content in a shrink-to-fit parent (an inline-flex toolbar, a float, an auto grid track), where inline-size: 100% is inert. panel/inline Selector and Picker now hold a 12rem width floor (tunable via --sf-selector-min-inline-size / --sf-picker-min-inline-size, 0 disables); compact stays fit-content. A narrow definite cell still clamps the control so it fills rather than overflows (issue #25 unchanged).
+
 ## v2.1.2 — 2026-07-12
 
 ### Patch
