@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.3.2 — 2026-07-13
+
+### Patch
+
+- DataTable: reserve the vertical scrollbar gutter (scrollbar-gutter: stable) on the scroll viewport, so the content-box width stays constant whether or not a classic (space-taking) scrollbar is showing and the header/body column tracks can't drift apart when it appears (addresses #70). No-op with overlay scrollbars.
+
 ## v2.3.1 — 2026-07-13
 
 ### Patch
