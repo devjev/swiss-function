@@ -198,7 +198,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
   );
 
   return (
-    <div {...rest} ref={ref} className={cx(styles.root, className)}>
+    <div {...rest} ref={ref} data-layout={layout} className={cx(styles.root, className)}>
       <Combobox.Root
         multiple
         items={options}

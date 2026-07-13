@@ -212,6 +212,13 @@
     --sf-z-modal: 1200;
     --sf-z-popover: 1300;
     --sf-z-tooltip: 1400;
+
+    /* Dither mask: a 4x4 half-drop field of two 1px dots (12.5% coverage), a
+       uniform halftone where every dot is equidistant from its neighbours. Use
+       it as a `mask-image` over an accent `background-color` to quantise a fill
+       into shade dots (the Chip / DataTable column-fill / Progress dither
+       vocabulary). Theme-agnostic: it is a shape, not a colour. */
+    --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
   }
 
   [data-theme="dark"] {

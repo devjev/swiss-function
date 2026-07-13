@@ -259,3 +259,48 @@ test("compact layout clamps to a narrow container instead of underlapping it (is
   if (!box) throw new Error("missing bounding box");
   expect(box.width).toBeLessThanOrEqual(225);
 });
+
+test("panel layout holds a width floor in a shrink-to-fit parent (not the input's min-content)", async ({
+  mount,
+}) => {
+  // In an inline-flex parent, `inline-size: 100%` is inert (the parent sizes to
+  // the child), and the size=1 search input leaves a ~90px min-content — the
+  // control collapsed to that before the fix. The 12rem (192px) floor holds it.
+  const component = await mount(
+    <div style={{ display: "inline-flex" }}>
+      <SelectorHarness layout="panel" />
+    </div>,
+  );
+  const root = component.locator('[data-layout="panel"]');
+  const box = await root.boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  expect(box.width).toBeGreaterThanOrEqual(190);
+});
+
+test("--sf-selector-min-inline-size overrides the width floor", async ({ mount }) => {
+  const component = await mount(
+    <div style={{ display: "inline-flex", ["--sf-selector-min-inline-size" as string]: "0" }}>
+      <SelectorHarness layout="panel" />
+    </div>,
+  );
+  const root = component.locator('[data-layout="panel"]');
+  const box = await root.boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  // Floor disabled: the control falls back to its (tiny) content width.
+  expect(box.width).toBeLessThan(190);
+});
+
+test("compact layout stays fit-content in a shrink-to-fit parent (floor does not apply)", async ({
+  mount,
+}) => {
+  // The floor is scoped to panel/inline; compact must still tuck into a toolbar.
+  const component = await mount(
+    <div style={{ display: "inline-flex" }}>
+      <SelectorHarness layout="compact" initial={["Apple"]} />
+    </div>,
+  );
+  const root = component.locator('[data-layout="compact"]');
+  const box = await root.boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  expect(box.width).toBeLessThan(190);
+});

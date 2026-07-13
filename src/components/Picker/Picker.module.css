@@ -1,6 +1,14 @@
 .root {
   display: grid;
   inline-size: 100%;
+  /* Floor so the control doesn't collapse to the `size=1` search input's ~90px
+     min-content in a shrink-to-fit parent (an inline-flex toolbar, a float, an
+     `auto` grid track), where `inline-size: 100%` is inert. A definite narrow
+     cell still clamps the control via the `100%` above so it fills rather than
+     overflows (issue #25 stays fixed for cells >= this floor). `12rem` matches
+     the dropdown's own `min-width`. Set `--sf-picker-min-inline-size: 0` to
+     disable. Mirrors Selector. */
+  min-inline-size: var(--sf-picker-min-inline-size, 12rem);
 }
 
 /* The field hosts the search input plus an optional inline clear button; the

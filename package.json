@@ -175,6 +175,10 @@
       "types": "./dist/components/Popover/index.d.ts",
       "import": "./dist/components/Popover/index.js"
     },
+    "./progress": {
+      "types": "./dist/components/Progress/index.d.ts",
+      "import": "./dist/components/Progress/index.js"
+    },
     "./prose": {
       "types": "./dist/components/Prose/index.d.ts",
       "import": "./dist/components/Prose/index.js"

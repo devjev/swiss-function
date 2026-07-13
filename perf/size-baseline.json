@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-11T13:30:14.481Z"
+    "date": "2026-07-13T11:11:00.181Z"
   },
-  "totalGzip": 804863,
+  "totalGzip": 810970,
   "entries": {
     ".": {
-      "files": 235,
-      "jsRaw": 823267,
-      "jsGzip": 249663,
+      "files": 237,
+      "jsRaw": 826225,
+      "jsGzip": 250941,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 249663,
+      "gzip": 250941,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -25,6 +25,7 @@
         "@base-ui/react/menubar",
         "@base-ui/react/otp-field",
         "@base-ui/react/popover",
+        "@base-ui/react/progress",
         "@base-ui/react/radio",
         "@base-ui/react/radio-group",
         "@base-ui/react/switch",
@@ -63,9 +64,9 @@
       "files": 1,
       "jsRaw": 0,
       "jsGzip": 0,
-      "cssRaw": 12395,
-      "cssGzip": 4679,
-      "gzip": 4679,
+      "cssRaw": 14123,
+      "cssGzip": 5319,
+      "gzip": 5319,
       "externals": []
     },
     "./reset.css": {
@@ -88,29 +89,29 @@
     },
     "./tokens.json": {
       "files": 1,
-      "jsRaw": 5753,
-      "jsGzip": 1385,
+      "jsRaw": 6396,
+      "jsGzip": 1526,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1385,
+      "gzip": 1526,
       "externals": []
     },
     "./tokens.style-dictionary.json": {
       "files": 1,
-      "jsRaw": 8593,
-      "jsGzip": 1504,
+      "jsRaw": 9366,
+      "jsGzip": 1659,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1504,
+      "gzip": 1659,
       "externals": []
     },
     "./tokens.js": {
       "files": 1,
-      "jsRaw": 10275,
-      "jsGzip": 2274,
+      "jsRaw": 10802,
+      "jsGzip": 2416,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 2274,
+      "gzip": 2416,
       "externals": []
     },
     "./lib/cx": {
@@ -524,6 +525,15 @@
         "react/jsx-runtime"
       ]
     },
+    "./progress": {
+      "files": 6,
+      "jsRaw": 9111,
+      "jsGzip": 3743,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 3743,
+      "externals": ["@base-ui/react/progress", "react", "react/jsx-runtime"]
+    },
     "./prose": {
       "files": 9,
       "jsRaw": 12757,
@@ -819,11 +829,11 @@
     },
     "./selector": {
       "files": 6,
-      "jsRaw": 13533,
-      "jsGzip": 4176,
+      "jsRaw": 13556,
+      "jsGzip": 4184,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4176,
+      "gzip": 4184,
       "externals": [
         "@base-ui/react/combobox",
         "@tanstack/react-virtual",

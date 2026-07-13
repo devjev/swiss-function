@@ -1,0 +1,153 @@
+/* A progress bar. `--progress-accent` is the single colour knob (a tone sets it,
+   an explicit `color` overrides it inline); the fill, the dither dots, and the
+   animated canvas all read from it. `--progress-pct` (0..100, unset when
+   indeterminate) drives the animated fill's reveal clip. */
+.root {
+  --progress-accent: var(--sf-color-muted);
+
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  inline-size: 100%;
+}
+
+/* Tones. Neutral is the base above; each tone swaps the one accent, exactly as
+   Chip does, so a new tone is one rule and stays theme-aware. */
+.root[data-tone="primary"] {
+  --progress-accent: var(--sf-color-primary);
+}
+.root[data-tone="success"] {
+  --progress-accent: var(--sf-color-success);
+}
+.root[data-tone="warning"] {
+  --progress-accent: var(--sf-color-warning);
+}
+.root[data-tone="danger"] {
+  --progress-accent: var(--sf-color-danger);
+}
+
+/* The track: the full-width groove that clips the fill. */
+.track {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) / 3);
+  background-color: var(--sf-color-bg-subtle);
+  border-radius: var(--sf-radius-default);
+}
+
+/* Thickness rungs. `size` is a geometric dimension (bar height), not a font
+   size, so a fourth `xs` rung is consistent with the deliberately three-rung
+   *type* scale rather than a violation of it. Values on the unit grid:
+   xs 3px, sm 6px, md 8px, lg 12px (at the default 24px unit). */
+.xs .track {
+  block-size: calc(var(--sf-unit) / 8);
+}
+.sm .track {
+  block-size: calc(var(--sf-unit) / 4);
+}
+.md .track {
+  block-size: calc(var(--sf-unit) / 3);
+}
+.lg .track {
+  block-size: calc(var(--sf-unit) / 2);
+}
+
+/* Elevation, mirroring Box: a track only carries a shadow when a depth is set. */
+.track[data-elevation="0"] {
+  box-shadow: var(--sf-elevation-0);
+}
+.track[data-elevation="1"] {
+  box-shadow: var(--sf-elevation-1);
+}
+.track[data-elevation="2"] {
+  box-shadow: var(--sf-elevation-2);
+}
+.track[data-elevation="3"] {
+  box-shadow: var(--sf-elevation-3);
+}
+.track[data-elevation="4"] {
+  box-shadow: var(--sf-elevation-4);
+}
+.track[data-elevation="5"] {
+  box-shadow: var(--sf-elevation-5);
+}
+
+/* The filled portion. Base UI sets its inline width to the value % (and
+   `inset-inline-start: 0`); we position and colour it. */
+.indicator {
+  position: absolute;
+  inset-block: 0;
+  block-size: 100%;
+  background-color: var(--progress-accent);
+  border-radius: inherit;
+}
+
+/* Static dither fill: a faint accent wash carrying the same 4x4 half-drop dot
+   field as Chip / DataTable, so the fill reads as a quantised tint of dots. */
+.root[data-fill="dither"] .indicator {
+  background-color: color-mix(in srgb, var(--progress-accent) 20%, transparent);
+}
+.root[data-fill="dither"] .indicator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--progress-accent);
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* Animated WebGL fill: the canvas covers the whole track (so the effect is
+   measured and positioned across the full bar) and the clip reveals it up to
+   the value. `--progress-pct` falls back to 100 when indeterminate, so the
+   busy effect fills the track. `color` feeds the effect its accent. */
+.canvas {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  color: var(--progress-accent);
+  clip-path: inset(0 calc((100 - var(--progress-pct, 100)) * 1%) 0 0);
+}
+
+/* Indeterminate (Base UI sets `data-status="indeterminate"` and leaves the
+   indicator width unset): a partial bar sweeps left to right for the
+   colour/dither fills. */
+@keyframes progressSweep {
+  0% {
+    inset-inline-start: -40%;
+  }
+  100% {
+    inset-inline-start: 100%;
+  }
+}
+.root[data-indeterminate] .indicator {
+  inline-size: 40%;
+  animation: progressSweep 1.4s var(--sf-ease-in-out) infinite;
+}
+
+/* Inline percentage readout. Mono + tabular figures so the bar doesn't twitch
+   as the number changes; full-strength fg (a value the user reads, never grey). */
+.value {
+  flex: 0 0 auto;
+  min-inline-size: 4ch;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--sf-color-fg);
+  text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Freeze the indeterminate sweep to a static partial bar. The animated WebGL
+     fill freezes itself (the shared effect hook draws a single frame). */
+  .root[data-indeterminate] .indicator {
+    animation: none;
+    inset-inline-start: 0;
+    inline-size: 40%;
+  }
+}

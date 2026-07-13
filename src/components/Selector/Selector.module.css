@@ -4,6 +4,22 @@
   inline-size: 100%;
 }
 
+/* Don't collapse to the search input's tiny min-content when the parent is
+   shrink-to-fit (an inline-flex toolbar, a float, an `auto` grid track). There
+   `inline-size: 100%` is inert (the parent sizes to the child), and the `size=1`
+   input (issue #25) leaves a ~90px min-content, so the control falls to that
+   width regardless of the space the container means to give it. This floor keeps
+   a usable default field width; the `100%` above still lets a *definite* narrow
+   cell clamp the control so it fills rather than overflows (issue #25 stays
+   fixed for cells >= this floor). `12rem` matches the dropdown's own
+   `min-width`, so field and popup share one floor. `compact` opts out: it is
+   deliberately `fit-content` to tuck into a toolbar. Set
+   `--sf-selector-min-inline-size: 0` to disable. */
+.root[data-layout="panel"],
+.root[data-layout="inline"] {
+  min-inline-size: var(--sf-selector-min-inline-size, 12rem);
+}
+
 .empty {
   padding: var(--sf-space-2) var(--sf-space-3);
   font-size: var(--sf-font-size-sm);

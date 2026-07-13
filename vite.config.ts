@@ -44,6 +44,7 @@ const componentNames = [
   "Popover",
   "Menu",
   "ContextMenu",
+  "Progress",
   "Prose",
   "Scatterplot",
   "Skeleton",

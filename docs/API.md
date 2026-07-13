@@ -1140,6 +1140,11 @@ Search a list and choose exactly one: the single-selection sibling of [Selector]
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flat (its default); set it to raise the control. |
 
+**Width:** fills its container and clamps to a narrow *definite* cell (like
+[Selector](#selector)). In a shrink-to-fit parent it holds a `12rem` floor
+instead of collapsing to the search input's min-content; tune it with
+`--sf-picker-min-inline-size`, or set an explicit `width` to pin the control.
+
 ## PointCloud
 
 `import { PointCloud } from "@tarassov-ch/swiss-function/point-cloud"`
@@ -1168,6 +1173,39 @@ Base UI Popover wrapper with themed styling.
 
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup` (Box
 elevation 3), `Title`, `Description`, `Arrow`, `Close`.
+
+## Progress
+
+`import { Progress } from "@tarassov-ch/swiss-function/progress"`
+
+A progress bar: a determinate 0..100% value, or an indeterminate busy state
+(`value={null}`). Wraps Base UI Progress (`role="progressbar"` + the aria value
+attributes) and adds three fill treatments, tones, elevation, and four thickness
+rungs. Renders a `<div>`; extends `HTMLAttributes<HTMLDivElement>` (minus `color`).
+For a static measurement/gauge (disk usage, a score) rather than task completion,
+Base UI's Meter is the right primitive; this component does not wrap it.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `number \| null` | n/a | Current value; `null` = indeterminate (busy). |
+| `min` / `max` | `number` | `0` / `100` | Range. |
+| `fill` | `"color" \| "dither" \| "animated"` | `"color"` | Solid colour, a static dither, or an animated WebGL dither (the same engine as NonIdealState/Skeleton; the ~6KB engine loads lazily and only for `"animated"`). |
+| `size` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Bar **thickness** (~3/6/8/12px on the unit grid). This is a geometric dimension, so it carries an `xs` rung the three-rung type scale does not. |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"primary"` | Semantic fill colour (mirrors Chip). |
+| `color` | `string` | n/a | Explicit fill colour (any CSS colour / `--sf-*` token); wins over `tone`. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Track depth (`--sf-elevation-N`, same scale as Box); omitted = flat. |
+| `showValue` | `boolean` | `false` | Inline percentage readout after the bar; hidden when indeterminate. |
+| `formatValue` | `(value: number, max: number) => ReactNode` | `` `${pct}%` `` | Custom readout. |
+| `effect` | `EffectName` | `"shimmer"` | `fill="animated"` only. Prefer the evenly-covered effects on a thin bar. |
+| `speed` / `density` / `cellSize` / `effectOptions` | passthrough to `useDitheredFill` | `1` / `0.6` / `3` / n/a | `fill="animated"` only. |
+
+Indeterminate bars sweep (colour/dither) or run their effect across the whole
+track (animated); `prefers-reduced-motion` freezes all three to a static frame.
+
+```tsx
+<Progress value={62} fill="animated" tone="success" size="md" showValue />
+<Progress value={null} />            {/* indeterminate */}
+```
 
 ## Prose
 
@@ -1281,6 +1319,15 @@ Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLA
 **Layouts:** `panel` (search + chip bucket below), `inline` (chips inside the
 field, one row, overflow shows a trailing `⋯`), `compact` (collapses to "N items"
 + Clear for tight spaces; review/uncheck in the dropdown).
+
+**Width:** the control fills its container (`inline-size: 100%`) and, in a
+narrow *definite* cell, clamps to fill it rather than overflow. In a
+shrink-to-fit parent (an inline-flex toolbar, a float, an `auto` grid track),
+where `100%` is inert, `panel` and `inline` hold a `12rem` floor instead of
+collapsing to the search input's min-content; set
+`--sf-selector-min-inline-size` (e.g. `0`) to change it. `compact` opts out of
+the floor by design. To pin an exact width, set `width`/`inline-size` on the
+control (it wins over the fill).
 
 ```tsx
 <Selector layout="compact" items={cities} value={value} onChange={setValue}
