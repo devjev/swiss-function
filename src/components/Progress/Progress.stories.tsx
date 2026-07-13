@@ -1,4 +1,6 @@
 import type { Story } from "@ladle/react";
+import { useEffect, useState } from "react";
+import type { EffectName } from "../../lib/effects";
 import { Progress, type ProgressProps } from "./Progress";
 
 const row: React.CSSProperties = {
@@ -96,10 +98,11 @@ export const CustomColor: Story = () => (
 );
 
 // The animated fill accepts any effect from the shared WebGL dither set (the
-// same one behind NonIdealState / Skeleton). These are the evenly-covered ones
-// that stay legible on a thin bar; the large-area effects (ripple, fire, radar,
-// …) thin out to too few rows here. `shimmer` is the default.
-const thinBarEffects = [
+// same one behind NonIdealState / Skeleton). The first group are the
+// evenly-covered effects that stay legible on a thin bar; the second are the
+// large-area effects, which have more vertical structure to read but thin out
+// on a short track (shown at `lg` here). `shimmer` is the default.
+const evenlyCoveredEffects = [
   "shimmer",
   "blink",
   "sparkle",
@@ -111,23 +114,102 @@ const thinBarEffects = [
   "noise",
 ] as const;
 
-export const AnimatedEffects: Story = () => (
-  <div style={{ ...row, maxWidth: "32rem" }}>
-    {thinBarEffects.map((effect) => (
-      <div
-        key={effect}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "6rem 1fr",
-          gap: "var(--sf-unit)",
-          alignItems: "center",
-        }}
-      >
-        <code style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-fg)" }}>
-          {effect}
-        </code>
-        <Progress value={68} fill="animated" effect={effect} size="md" />
-      </div>
-    ))}
-  </div>
-);
+const largeAreaEffects = [
+  "ripple",
+  "scan",
+  "plasma",
+  "rain",
+  "wave",
+  "spiral",
+  "radar",
+  "tunnel",
+  "fire",
+  "bars",
+  "metaballs",
+  "rotozoom",
+  "twister",
+  "copper",
+  "voronoi",
+  "grid",
+  "kaleidoscope",
+  "bobs",
+  "swirl",
+  "helix",
+  "checker",
+  "droplets",
+  "glitch",
+  "life",
+] as const;
+
+// A value that fills 0 -> 100 over `durationMs`, then loops, so the effects are
+// shown as the bar actually fills rather than frozen at one width. Respects
+// reduced motion: holds a static two-thirds fill instead of animating.
+function useSlowFill(durationMs = 9000) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setValue(66);
+      return;
+    }
+    let raf = 0;
+    let start: number | null = null;
+    const tick = (t: number) => {
+      if (start === null) start = t;
+      setValue(Math.round((((t - start) % durationMs) / durationMs) * 100));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [durationMs]);
+  return value;
+}
+
+function EffectRow({
+  effect,
+  value,
+  size,
+}: {
+  effect: EffectName;
+  value: number;
+  size: "md" | "lg";
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "7rem 1fr",
+        gap: "var(--sf-unit)",
+        alignItems: "center",
+      }}
+    >
+      <code style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-fg)" }}>
+        {effect}
+      </code>
+      <Progress value={value} fill="animated" effect={effect} size={size} />
+    </div>
+  );
+}
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: "var(--sf-font-size-sm)",
+  fontWeight: "var(--sf-font-weight-medium)",
+  color: "var(--sf-color-muted)",
+};
+
+export const AnimatedEffects: Story = () => {
+  const value = useSlowFill();
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", maxWidth: "34rem" }}>
+      <span style={sectionLabel}>Evenly covered (legible on a thin bar)</span>
+      {evenlyCoveredEffects.map((effect) => (
+        <EffectRow key={effect} effect={effect} value={value} size="md" />
+      ))}
+      <span style={{ ...sectionLabel, marginTop: "var(--sf-unit)" }}>
+        Large area (more structure, shown taller)
+      </span>
+      {largeAreaEffects.map((effect) => (
+        <EffectRow key={effect} effect={effect} value={value} size="lg" />
+      ))}
+    </div>
+  );
+};
