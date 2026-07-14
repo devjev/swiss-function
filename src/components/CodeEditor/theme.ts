@@ -32,12 +32,13 @@ const uiTheme = EditorView.theme({
     caretColor: "transparent",
     padding: "calc(var(--sf-unit) / 2) 0",
   },
-  // Block caret: a full character cell, tinted so the glyph reads through it.
+  // Block caret: a full character cell, tinted enough to read clearly while the
+  // glyph still shows through.
   ".cm-cursor, .cm-cursor-primary, .cm-cursor-secondary": {
     borderLeft: "none",
     width: "1ch",
     backgroundColor: "var(--sf-color-code-cursor)",
-    opacity: "0.4",
+    opacity: "0.6",
   },
   ".cm-dropCursor": { borderLeftColor: "var(--sf-color-code-cursor)" },
   "@media (prefers-reduced-motion: reduce)": {
