@@ -266,3 +266,34 @@ test("without gridLines the body cells stay borderless", async ({ mount }) => {
   const shadow = await cell.evaluate((el) => getComputedStyle(el).boxShadow);
   expect(shadow).toBe("none");
 });
+
+test("body columns stay aligned with the header when a scrollbar reserves width (issue #70)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 360, blockSize: 160 }}>
+      <ExplorerHarness />
+    </div>,
+  );
+  // Headless Chromium uses overlay scrollbars (no reserved width), so force a
+  // gutter to reproduce the width reduction a classic scrollbar causes. Without
+  // the header-width mirror the body shrinks to the reduced width and its
+  // rightmost column drifts left of the header's.
+  await page.addStyleTag({
+    content: '[class*="viewport"]{ scrollbar-gutter: stable !important; }',
+  });
+  await page.waitForTimeout(100);
+  const drift = await c.evaluate((root) => {
+    const hcells = [...root.querySelectorAll('[class*="headerCell"]')];
+    const rows = [...root.querySelectorAll('[role="row"]')];
+    const bodyRow = rows.find(
+      (r) => !r.querySelector('[class*="headerCell"]') && r.children.length > 1,
+    );
+    if (!bodyRow || !hcells.length) return Number.NaN;
+    const lastH = hcells[hcells.length - 1] as HTMLElement;
+    const lastB = bodyRow.children[bodyRow.children.length - 1] as HTMLElement;
+    return Math.round(lastB.getBoundingClientRect().right - lastH.getBoundingClientRect().right);
+  });
+  expect(Math.abs(drift)).toBeLessThanOrEqual(1);
+});

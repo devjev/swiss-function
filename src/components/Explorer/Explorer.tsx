@@ -428,6 +428,26 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // --- Virtualization -----------------------------------------------------
   const viewportRef = useRef<HTMLDivElement>(null);
   const headerRowRef = useRef<HTMLDivElement>(null);
+
+  // Mirror the sticky header's measured width onto the body. The header spans
+  // the full scroll width, but the body (`inline-size: 100%`) shrinks to the
+  // scrollbar-reduced client width, so when a vertical scrollbar is present the
+  // body columns drift left of the header's — worsening toward the right as the
+  // flexible tracks re-solve against the narrower width (issue #70). Forcing the
+  // body to the header's width keeps every column aligned. Same mechanism as
+  // DataTable's `contentWidth`.
+  const [contentWidth, setContentWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const vp = viewportRef.current;
+    const hr = headerRowRef.current;
+    if (!vp || !hr) return;
+    const measure = () => setContentWidth(Math.round(hr.getBoundingClientRect().width));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    ro.observe(hr);
+    return () => ro.disconnect();
+  }, []);
   const virtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => viewportRef.current,
@@ -940,7 +960,13 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
           {showEmpty ? (
             <div className={styles.empty}>{empty}</div>
           ) : (
-            <div className={styles.body} style={{ height: `${virtualizer.getTotalSize()}px` }}>
+            <div
+              className={styles.body}
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                minWidth: contentWidth ?? undefined,
+              }}
+            >
               {fillOn ? (
                 <div
                   ref={
