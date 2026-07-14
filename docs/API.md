@@ -337,6 +337,29 @@ Auto-grows with content by default; give the root a `height` (via `style`/`class
 
 The palette lives in tokens: `--sf-color-code-{bg,fg,comment,accent,punctuation,cursor,gutter-fg,selection,active-line,matched-bracket}`: monochrome, so only `accent`/`cursor` carry the brand hue; every value rides a semantic token or `color-mix`, so dark mode needs no override.
 
+## CodeEditorInline
+
+`import { CodeEditorInline } from "@tarassov-ch/swiss-function/code-editor-inline"`
+
+A `CodeEditor` that rests as a **single line** and expands to a full multi-line
+editor on focus, the code sibling of [TextEditInline](#texteditinline). The
+editor is always a live CodeMirror instance, so the collapsed first line shows
+**syntax-highlighted** (a real preview, not a label) and undo/cursor survive
+across expand/collapse. Expanded, it's absolutely positioned so it **floats
+over** the content below (`elevation-3`) instead of pushing it down, grows with
+the document up to `maxRows`, then scrolls; blur collapses it back to one line.
+Takes every `CodeEditor` prop (`value`/`onChange`/`extensions`/`theme`/…) plus:
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `maxRows` | `number` | `12` | Max code lines the expanded overlay grows to before it scrolls. |
+| `collapsedElevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting depth; the expanded overlay is always `elevation-3`. |
+| `lineNumbers` | `boolean` | `false` | Default off for a one-liner (`true` shows the gutter in both states). |
+
+The one-line and `maxRows` heights are measured from the live editor's line
+height. Reach for this in dense forms/tables where a cell holds a short
+expression that occasionally needs room to read.
+
 ## DataTable
 
 `import { DataTable } from "@tarassov-ch/swiss-function/data-table"`

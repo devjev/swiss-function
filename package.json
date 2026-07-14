@@ -75,6 +75,10 @@
       "types": "./dist/components/CodeEditor/index.d.ts",
       "import": "./dist/components/CodeEditor/index.js"
     },
+    "./code-editor-inline": {
+      "types": "./dist/components/CodeEditorInline/index.d.ts",
+      "import": "./dist/components/CodeEditorInline/index.js"
+    },
     "./explorer": {
       "types": "./dist/components/Explorer/index.d.ts",
       "import": "./dist/components/Explorer/index.js"

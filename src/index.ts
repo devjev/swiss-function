@@ -9,6 +9,7 @@ export * from "./components/ChatDrawer";
 export * from "./components/Checkbox";
 export * from "./components/Chip";
 export * from "./components/CodeEditor";
+export * from "./components/CodeEditorInline";
 export * from "./components/ContextMenu";
 export * from "./components/DataTable";
 export * from "./components/DatePicker";

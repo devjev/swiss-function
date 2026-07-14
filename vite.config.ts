@@ -55,6 +55,7 @@ const componentNames = [
   "DataTable",
   "Tabs",
   "CodeEditor",
+  "CodeEditorInline",
   "TextEdit",
   "TextEditInline",
   "ThemeBuilder",

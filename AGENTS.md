@@ -95,6 +95,7 @@ Ladle (`npm run dev`).
 | `TextEdit`      | Multi-line / auto-growing text input.                     |
 | `TextEditInline`| Single line at rest, expands to a multi-line editor on hover/focus. The overlay *floats over* the content below (`elevation-3`) instead of pushing it down, auto-grows with content and is vertically resizable while active; collapses back to one ellipsized line on blur. `size` (`sm`/`md`/`lg`, matches Input heights), `maxRows`. Reach for this in dense rows/tables where a note is usually short but occasionally long. |
 | `CodeEditor`    | Editing source / config / structured text (JS, JSON, SQL, YAML…). A thin CodeMirror 6 wrapper, themed to `--sf-color-code-*` tokens (dark/light via `[data-theme]`), block caret, with opt-in `vim`. Three restrained syntax themes via `theme` (`minimal`/`bold`/`primary`, never a rainbow). Bring the language via `extensions` (e.g. `javascript()`, installing the `@codemirror/lang-*` package; none are bundled). `value`/`onChange`, `readOnly`, `lineNumbers`, `lineWrapping`, `tabSize`, `elevation`. Auto-grows; set a root `height` to fix + scroll. Not for prose (that's `TextEdit`/`Markdown`). |
+| `CodeEditorInline` | The `CodeEditor` as a one-liner that expands to a multi-line overlay on focus (the code sibling of `TextEditInline`). Collapsed shows line 1 *syntax-highlighted* (a live CodeMirror, not a label); focus floats the full editor over the content below (`elevation-3`), growing to `maxRows` then scrolling; blur collapses back. Takes every `CodeEditor` prop plus `maxRows` / `collapsedElevation`. Reach for this in dense forms/tables holding a short expression that occasionally needs room. |
 | `Checkbox`      | Binary independent toggles in lists.                      |
 | `Radio`         | Single-choice within a group.                             |
 | `Switch`        | Binary on/off for a setting, with an immediate effect.    |
@@ -367,6 +368,7 @@ Common requests and the right component:
 | "streaming logs" / "terminal output"               | `StreamingTerminalText`                          |
 | "markdown rendering"                               | `Markdown` (`Prose` for document-length content with an outline) |
 | "a code / config editor" / "syntax highlighting" / "JSON/SQL/JS editor" / "vim mode" | `CodeEditor` (CodeMirror 6; language via `extensions`, opt-in `vim`) |
+| "an inline / one-line code field that expands" / "an editable expression in a form row or cell" | `CodeEditorInline` (rests at one line, expands over content on focus; `maxRows`) |
 | "a theme editor / token playground" / "customize the palette live" / "export a theme" | `ThemeBuilder` (edit `--sf-*` live, copy CSS/JSON; token pipeline emits `tokens.json`/`tokens.js`) |
 | "a notebook" / "notebook-like analysis over my data" / "SQL cells" / "in-app analysis over DuckDB" | `Notebook` (+ `createSqlCellType` wired to the app's engine; `proseCellType` for text cells) |
 | "chat UI"                                          | `Chat`                                           |

@@ -1,0 +1,39 @@
+/* CodeEditorInline — a CodeEditor that rests at one line and expands to a
+   multi-line overlay on focus (see the .tsx for the model). `--cei-collapsed`
+   (the one-line height) and `--cei-max` (the maxRows cap) are measured from the
+   live editor and set inline; the fallbacks here cover the first paint before
+   the measure lands. */
+.root {
+  --cei-collapsed: 2.75rem;
+  --cei-max: 24rem;
+
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  /* Resting footprint: one line. The editor is absolutely positioned, so the
+     expanded overlay grows past this box without reflowing the content below. */
+  block-size: var(--cei-collapsed);
+}
+
+/* Lift the overlay above following flow content while expanded. */
+.root[data-expanded] {
+  z-index: 10;
+}
+
+/* The CodeEditor fills the one-line footprint at rest (its overflow clips to
+   line 1, shown syntax-highlighted); on focus it grows with the document up to
+   `maxRows`, then scrolls. `.root .editor` (0,2,0) beats CodeEditor's own
+   `.root` (0,1,0) so the positioning wins regardless of stylesheet order. */
+.root .editor {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: var(--cei-collapsed);
+}
+
+.root[data-expanded] .editor {
+  block-size: auto;
+  min-block-size: var(--cei-collapsed);
+  max-block-size: var(--cei-max);
+}
