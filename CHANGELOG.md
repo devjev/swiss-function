@@ -6,6 +6,14 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.4.1 — 2026-07-14
+
+### Patch
+
+- Dark-mode elevation now reads depth three ways, all carried by the same --sf-elevation-N token so every elevated component gets them: the brutalist hard cast (kept), plus a slight full-bleed lightening film above level 1 (the surface reads a touch lighter than the page) and a 1px inset edge that brightens with the level (bordered rims read progressively lighter). Light mode unchanged.
+- DataTable: drop the scrollbar-gutter reservation added in 2.3.2. It was unnecessary — DataTable already mirrors the header width onto the body, which keeps the columns aligned regardless of the scrollbar — and it reserved permanent gutter space. (The real #70 fix was the same mirror, now added to Explorer.)
+- Explorer: fix the header/body column borders drifting out of alignment when a vertical scrollbar is present (issue #70). The sticky header spans the full scroll width while the body shrank to the scrollbar-reduced client width, so the columns fell progressively out of line toward the right. The body is now mirrored to the header's measured width (the same mechanism DataTable already uses), keeping every column aligned regardless of the scrollbar.
+
 ## v2.4.0 — 2026-07-14
 
 ### Minor
