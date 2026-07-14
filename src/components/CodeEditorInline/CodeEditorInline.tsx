@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import type { CSSProperties, FocusEvent } from "react";
-import { forwardRef, useCallback, useState } from "react";
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import type { BoxElevation } from "../Box";
 import { CodeEditor, type CodeEditorProps } from "../CodeEditor";
@@ -44,6 +44,14 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
     // height; CSS falls back to sane defaults until the first measure lands.
     const [collapsed, setCollapsed] = useState<number | null>(null);
     const [maxHeight, setMaxHeight] = useState<number | null>(null);
+    // The CodeEditor's own root, so we can clear the inline height the browser
+    // writes when the user drags the resize handle — otherwise it would override
+    // the CSS one-line height and the control couldn't collapse.
+    const editorRootRef = useRef<HTMLDivElement>(null);
+
+    useLayoutEffect(() => {
+      if (!focused) editorRootRef.current?.style.removeProperty("height");
+    }, [focused]);
 
     const measure = useCallback(
       (view: EditorView) => {
@@ -82,6 +90,7 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
       >
         <CodeEditor
           {...rest}
+          ref={editorRootRef}
           className={styles.editor}
           lineNumbers={lineNumbers}
           elevation={focused ? 3 : collapsedElevation}

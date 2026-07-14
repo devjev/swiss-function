@@ -36,4 +36,8 @@
   block-size: auto;
   min-block-size: var(--cei-collapsed);
   max-block-size: var(--cei-max);
+  /* Draggable while active, like TextEditInline: the user can pull the overlay
+     taller (up to maxRows) or shorter. The drag height is cleared on collapse
+     (see the .tsx) so it always rests at one line again. */
+  resize: vertical;
 }

@@ -347,7 +347,8 @@ editor is always a live CodeMirror instance, so the collapsed first line shows
 **syntax-highlighted** (a real preview, not a label) and undo/cursor survive
 across expand/collapse. Expanded, it's absolutely positioned so it **floats
 over** the content below (`elevation-3`) instead of pushing it down, grows with
-the document up to `maxRows`, then scrolls; blur collapses it back to one line.
+the document up to `maxRows` (then scrolls) and is vertically resizable by drag
+while active; blur collapses it back to one line.
 Takes every `CodeEditor` prop (`value`/`onChange`/`extensions`/`theme`/…) plus:
 
 | Prop | Type | Default | Notes |

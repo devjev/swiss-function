@@ -31,12 +31,14 @@ test("expands on focus and collapses on blur", async ({ mount }) => {
 
   await c.locator(".cm-content").click();
   await expect(wrapper).toHaveAttribute("data-expanded", "true");
-  // The overlay editor now shows more than one line.
-  const editorH = await c
-    .locator(".cm-editor")
-    .first()
-    .evaluate((el) => el.getBoundingClientRect().height);
-  expect(editorH).toBeGreaterThan(70);
+  // The overlay editor now shows more than one line and is vertically resizable.
+  const editor = c.locator('[class*="root"] [class*="editor"]').first();
+  const { height, resize } = await editor.evaluate((el) => ({
+    height: el.getBoundingClientRect().height,
+    resize: getComputedStyle(el).resize,
+  }));
+  expect(height).toBeGreaterThan(70);
+  expect(resize).toBe("vertical");
 
   await c.getByTestId("outside").click();
   expect(await wrapper.getAttribute("data-expanded")).toBeNull();
