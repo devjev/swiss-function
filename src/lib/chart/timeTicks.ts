@@ -225,6 +225,20 @@ export function promotionLevel(date: Date): TimeUnit {
   return "second";
 }
 
+// `toLocaleString(locale, options)` constructs a fresh `Intl.DateTimeFormat`
+// per call; over a re-ticking axis (zoom/pan) that adds up. Reuse one formatter
+// per option set, created lazily — identical output, far cheaper. Mirrors the
+// fix in Timeline/ticks.ts (issue #72).
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+function fmt(key: string, options: Intl.DateTimeFormatOptions, date: Date): string {
+  let formatter = formatterCache.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(undefined, options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter.format(date);
+}
+
 /** Format `date` at a given promotion level. Locale-default, ≤ 8 characters
  *  at every level so labels never crowd (the Lightweight Charts guideline). */
 export function formatTimeTick(date: Date, level: TimeUnit): string {
@@ -232,24 +246,19 @@ export function formatTimeTick(date: Date, level: TimeUnit): string {
     case "year":
       return String(date.getFullYear());
     case "month":
-      return date.toLocaleString(undefined, { month: "short" });
+      return fmt("month", { month: "short" }, date);
     case "week":
     case "day":
-      return date.toLocaleString(undefined, { month: "short", day: "numeric" });
+      return fmt("monthDay", { month: "short", day: "numeric" }, date);
     case "hour":
     case "minute":
-      return date.toLocaleString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      return fmt("hourMinute", { hour: "2-digit", minute: "2-digit", hour12: false }, date);
     case "second":
-      return date.toLocaleString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      });
+      return fmt(
+        "hourMinuteSecond",
+        { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false },
+        date,
+      );
   }
 }
 

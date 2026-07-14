@@ -96,6 +96,21 @@ function nextTick(date: Date, unit: TickUnit): Date {
   return d;
 }
 
+// `date.toLocaleString(locale, options)` builds a fresh `Intl.DateTimeFormat`
+// on every call, which is expensive; over an axis full of ticks (re-run on each
+// mount) it dominated the render (~120ms — issue #72). Reuse one formatter per
+// distinct option set, created lazily on first use; the output is identical
+// (`toLocaleString` just delegates to `Intl.DateTimeFormat.prototype.format`).
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+function fmt(key: string, options: Intl.DateTimeFormatOptions, date: Date): string {
+  let formatter = formatterCache.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(undefined, options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter.format(date);
+}
+
 function formatTick(date: Date, unit: TickUnit): string {
   switch (unit) {
     case "year":
@@ -104,18 +119,14 @@ function formatTick(date: Date, unit: TickUnit): string {
       // Major month (January) gets the year appended so the user always knows
       // where they are when scrolling across a year boundary.
       return date.getMonth() === 0
-        ? date.toLocaleString(undefined, { month: "short", year: "numeric" })
-        : date.toLocaleString(undefined, { month: "short" });
+        ? fmt("monthYear", { month: "short", year: "numeric" }, date)
+        : fmt("month", { month: "short" }, date);
     case "week":
       return date.getDate().toString();
     case "day":
-      return date.toLocaleString(undefined, { day: "numeric", month: "short" });
+      return fmt("dayMonth", { day: "numeric", month: "short" }, date);
     case "hour":
-      return date.toLocaleString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
+      return fmt("hourMinute", { hour: "2-digit", minute: "2-digit", hour12: false }, date);
   }
 }
 
