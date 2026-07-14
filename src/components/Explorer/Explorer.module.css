@@ -19,6 +19,12 @@
   composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   overflow: auto;
+  /* Reserve the vertical-scrollbar gutter so the sticky header and the body
+     rows (separate grids sharing one column template) keep the same content
+     width whether or not a classic scrollbar is showing — otherwise the columns
+     drift apart when it appears. Mirrors DataTable (issue #70). No-op with
+     overlay scrollbars. */
+  scrollbar-gutter: stable;
   outline: none;
 }
 
