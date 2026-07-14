@@ -11,10 +11,35 @@
   composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   overflow: auto;
+  /* Cell density + text size, from the `cellPadding` / `cellFontSize` props.
+     `md` is the default (today's values); `xs`..`lg` set inherited vars that the
+     header and body cells read, so the whole grid tightens or loosens together.
+     Body cells scale below `sm` (`--sf-font-size-sm`) for dense financial grids;
+     the header follows so labels and data stay proportionate. */
+  --sf-cell-pad-x: calc(var(--sf-unit) / 2);
+  --sf-cell-font: var(--sf-font-size-sm);
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   outline: none;
+}
+.viewport[data-cell-padding="xs"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 4);
+}
+.viewport[data-cell-padding="sm"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 3);
+}
+.viewport[data-cell-padding="lg"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) * 3 / 4);
+}
+.viewport[data-cell-font="xs"] {
+  --sf-cell-font: 0.75rem;
+}
+.viewport[data-cell-font="sm"] {
+  --sf-cell-font: 0.8125rem;
+}
+.viewport[data-cell-font="lg"] {
+  --sf-cell-font: var(--sf-font-size-md);
 }
 
 /* Elastic scroll-snap (proximity = only nudges near a boundary). Snap points
@@ -110,9 +135,9 @@
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
-  padding: 0 calc(var(--sf-unit) / 2);
+  padding: 0 var(--sf-cell-pad-x);
   block-size: calc(var(--sf-unit) * 1.5);
-  font-size: var(--sf-font-size-sm);
+  font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
   box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
@@ -372,8 +397,8 @@
   --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   display: flex;
   align-items: center;
-  padding: 0 calc(var(--sf-unit) / 2);
-  font-size: var(--sf-font-size-sm);
+  padding: 0 var(--sf-cell-pad-x);
+  font-size: var(--sf-cell-font);
   color: var(--sf-color-fg);
   box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
   outline: none;

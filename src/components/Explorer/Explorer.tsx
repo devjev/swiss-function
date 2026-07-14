@@ -190,6 +190,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     edgeFade = false,
     gridLines = false,
     columnFill = false,
+    cellPadding = "md",
+    cellFontSize = "md",
     rowHeight = 32,
     height = "100%",
     className,
@@ -935,6 +937,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       style={style as CSSProperties}
       data-explorer-root=""
       data-grid-lines={gridLines || undefined}
+      data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
+      data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
       {...rest}
     >
       {header}

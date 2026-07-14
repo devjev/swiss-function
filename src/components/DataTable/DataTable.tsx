@@ -93,6 +93,12 @@ export interface DataTableProps<T>
    *  self-labelling. Default true. Set false for a raw values-only copy (e.g. to
    *  paste straight back into the table's editable cells without a header row). */
   copyWithHeaders?: boolean;
+  /** Horizontal padding inside cells — the cell "margins". `md` is the default;
+   *  `xs`/`sm` tighten a dense grid, `lg` loosens it. Applies to header + body. */
+  cellPadding?: "xs" | "sm" | "md" | "lg";
+  /** Cell text size. `md` is the default; `xs`/`sm` shrink it for dense financial
+   *  grids, `lg` enlarges it. Applies to header + body. Independent of `cellPadding`. */
+  cellFontSize?: "xs" | "sm" | "md" | "lg";
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
   /** Opt into pagination instead of virtualization. */
@@ -480,6 +486,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     getEditActivation,
     onCellChange,
     copyWithHeaders = true,
+    cellPadding = "md",
+    cellFontSize = "md",
     onSelectionChange,
     paginate,
     rowHeight = DEFAULT_ROW_HEIGHT,
@@ -1618,6 +1626,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-column-fill={fillOn || undefined}
         data-frozen={frozenCount > 0 || undefined}
         data-frozen-scrolled={frozenScrolled || undefined}
+        data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
+        data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
       >
         {/* Headers — one row per header group; parent groups span their leaves.
             With `reorderableColumns`, leaf headers are sortable (drag to reorder). */}

@@ -3,6 +3,13 @@
   /* Shrink chevron + icon glyphs together with the indent step so all three
      rhythm-sized elements match the tighter Explorer cadence. */
   --sf-chevron-size: calc(var(--sf-unit) * 0.5);
+  /* Cell density + text size, from the `cellPadding` / `cellFontSize` props.
+     `md` is the default (today's values); `xs`..`lg` set these inherited vars
+     the header and body cells read, so the tree tightens or loosens together.
+     Set on the wrapper (not the viewport) because the header row is a sibling
+     of the scroll viewport, not a descendant of it. */
+  --sf-cell-pad-x: calc(var(--sf-unit) / 2);
+  --sf-cell-font: var(--sf-font-size-sm);
   display: flex;
   flex-direction: column;
   inline-size: 100%;
@@ -13,6 +20,24 @@
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
+}
+.wrapper[data-cell-padding="xs"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 4);
+}
+.wrapper[data-cell-padding="sm"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 3);
+}
+.wrapper[data-cell-padding="lg"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) * 3 / 4);
+}
+.wrapper[data-cell-font="xs"] {
+  --sf-cell-font: 0.75rem;
+}
+.wrapper[data-cell-font="sm"] {
+  --sf-cell-font: 0.8125rem;
+}
+.wrapper[data-cell-font="lg"] {
+  --sf-cell-font: var(--sf-font-size-md);
 }
 
 .viewport {
@@ -37,9 +62,9 @@
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
-  padding: 0 calc(var(--sf-unit) / 2);
+  padding: 0 var(--sf-cell-pad-x);
   block-size: calc(var(--sf-unit) * 1.25);
-  font-size: var(--sf-font-size-sm);
+  font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
   border-inline-end: 1px solid var(--sf-color-border-subtle);
@@ -279,7 +304,8 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 calc(var(--sf-unit) / 2);
+  padding: 0 var(--sf-cell-pad-x);
+  font-size: var(--sf-cell-font);
   block-size: 100%;
   overflow: hidden;
   white-space: nowrap;

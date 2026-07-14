@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DataTable } from "./DataTable";
 import {
   DataTableHarness,
   EditorsHarness,
@@ -787,4 +788,33 @@ test("editing after sorting fires CellChange with the display row index", async 
   await page.keyboard.press("Enter");
   // rowIndex is the DISPLAY index (0 = top visible row), not the data index.
   expect(lastChanges).toEqual([{ rowIndex: 0, columnId: "name", value: "Row 1X" }]);
+});
+
+test("cellPadding and cellFontSize scale header + body cells", async ({ mount }) => {
+  const cols = [{ id: "name", header: "Name", accessor: "name" as const }];
+  const data = [{ name: "Alice" }];
+  const c = await mount(
+    <div>
+      <div data-testid="xs">
+        <DataTable data={data} columns={cols} height={100} cellPadding="xs" cellFontSize="xs" />
+      </div>
+      <div data-testid="lg">
+        <DataTable data={data} columns={cols} height={100} cellPadding="lg" cellFontSize="lg" />
+      </div>
+    </div>,
+  );
+  const read = (id: string) =>
+    c
+      .getByTestId(id)
+      .locator('[role="gridcell"]')
+      .first()
+      .evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { pad: Number.parseFloat(cs.paddingLeft), font: Number.parseFloat(cs.fontSize) };
+      });
+  const xs = await read("xs");
+  const lg = await read("lg");
+  expect(xs.pad).toBe(6);
+  expect(lg.pad).toBe(18);
+  expect(xs.font).toBeLessThan(lg.font);
 });

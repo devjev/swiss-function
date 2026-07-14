@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { Explorer } from "./Explorer";
 import { ExplorerHarness } from "./Explorer.harness";
 
 test("renders headers and root rows; folders show chevron, files don't", async ({ mount }) => {
@@ -296,4 +297,33 @@ test("body columns stay aligned with the header when a scrollbar reserves width 
     return Math.round(lastB.getBoundingClientRect().right - lastH.getBoundingClientRect().right);
   });
   expect(Math.abs(drift)).toBeLessThanOrEqual(1);
+});
+
+test("cellPadding and cellFontSize scale header + body cells", async ({ mount }) => {
+  const nodes = [{ id: "a", name: "Alpha" }];
+  const columns = [{ id: "name", header: "Name" }];
+  const c = await mount(
+    <div>
+      <div data-testid="xs" style={{ blockSize: 120 }}>
+        <Explorer nodes={nodes} columns={columns} cellPadding="xs" cellFontSize="xs" />
+      </div>
+      <div data-testid="lg" style={{ blockSize: 120 }}>
+        <Explorer nodes={nodes} columns={columns} cellPadding="lg" cellFontSize="lg" />
+      </div>
+    </div>,
+  );
+  const read = (id: string) =>
+    c
+      .getByTestId(id)
+      .locator('[class*="headerCell"]')
+      .first()
+      .evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { pad: Number.parseFloat(cs.paddingLeft), font: Number.parseFloat(cs.fontSize) };
+      });
+  const xs = await read("xs");
+  const lg = await read("lg");
+  expect(xs.pad).toBe(6);
+  expect(lg.pad).toBe(18);
+  expect(xs.font).toBeLessThan(lg.font);
 });

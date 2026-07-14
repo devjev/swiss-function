@@ -352,6 +352,8 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | n/a | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
 | `onCellChange` | `(changes: CellChange[]) => void` | n/a | Edit/paste committed; consumer updates `data`. |
 | `copyWithHeaders` | `boolean` | `true` | Prepend the selected columns' header names as the first row when copying cells (Cmd/Ctrl+C), so a paste into a spreadsheet/doc is self-labelling. Set `false` for a values-only copy (e.g. pasting straight back into editable cells). A non-string (`ReactNode`) header copies as the column `id`. |
+| `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
+| `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
@@ -613,6 +615,8 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
 | `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
 | `gridLines` | `boolean` | `false` | Spreadsheet look: every body cell draws its own right + bottom hairline (the same per-cell edge model as DataTable). |
+| `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
+| `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `columnFill` | `boolean \| { animated?, effect?, color?, density?, speed? }` | `false` | Dither filler right of fixed-width columns; a no-op when the last column already stretches (the default). |
 | `rowHeight` | `number` | `32` | Px (≈ `unit * 4/3`). |
 | `height` | `number \| string` | `"100%"` | Viewport height; number = px, string = CSS. |

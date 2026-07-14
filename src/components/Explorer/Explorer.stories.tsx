@@ -477,3 +477,39 @@ export const Spreadsheet: Story = () => {
     </div>
   );
 };
+
+// Cell density + text size, independent 4-rung scales (issue: dense trees).
+export const Density: Story = () => {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(["src", "src/components"]));
+  const levels = ["xs", "sm", "md", "lg"] as const;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "var(--sf-unit)" }}>
+      {levels.map((s) => (
+        <div key={s}>
+          <p
+            style={{
+              fontSize: "var(--sf-font-size-sm)",
+              color: "var(--sf-color-muted)",
+              margin: "0 0 4px",
+            }}
+          >
+            {s}
+          </p>
+          <div style={{ blockSize: 220 }}>
+            <Explorer
+              nodes={seed}
+              columns={[
+                { id: "name", header: "Name" },
+                { id: "kind", header: "Kind", render: (n) => n.meta?.kind ?? "" },
+              ]}
+              expandedIds={expanded}
+              onExpandedChange={setExpanded}
+              cellPadding={s}
+              cellFontSize={s}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};

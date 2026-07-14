@@ -140,6 +140,13 @@ export interface ExplorerProps<M = unknown>
    *  (Explorer's resting look is borderless rows). */
   gridLines?: boolean;
 
+  /** Horizontal padding inside cells — the cell "margins". `md` is the default;
+   *  `xs`/`sm` tighten a dense tree, `lg` loosens it. Applies to header + body. */
+  cellPadding?: "xs" | "sm" | "md" | "lg";
+  /** Cell text size. `md` is the default; `xs`/`sm` shrink it for dense trees,
+   *  `lg` enlarges it. Applies to header + body. Independent of `cellPadding`. */
+  cellFontSize?: "xs" | "sm" | "md" | "lg";
+
   /** Row height in px. Default 32 (≈ unit * 4/3). */
   rowHeight?: number;
   /** Viewport height. Default `"100%"` — fills the parent (the common case

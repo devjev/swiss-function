@@ -621,3 +621,32 @@ export const FrozenColumns: Story = () => (
     <DataTable data={seed(60)} columns={wideColumns} height={360} frozenColumns={2} />
   </div>
 );
+
+// Cell density + text size, independent 4-rung scales (issue: dense grids).
+export const Density: Story = () => {
+  const levels = ["xs", "sm", "md", "lg"] as const;
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
+      {levels.map((s) => (
+        <div key={s}>
+          <p
+            style={{
+              fontSize: "var(--sf-font-size-sm)",
+              color: "var(--sf-color-muted)",
+              margin: "0 0 4px",
+            }}
+          >
+            cellPadding={s} · cellFontSize={s}
+          </p>
+          <DataTable
+            data={seed(6)}
+            columns={baseColumns}
+            height={200}
+            cellPadding={s}
+            cellFontSize={s}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
