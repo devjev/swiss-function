@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import type { CSSProperties, FocusEvent } from "react";
-import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import type { BoxElevation } from "../Box";
 import { CodeEditor, type CodeEditorProps } from "../CodeEditor";
@@ -48,23 +48,32 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
     // writes when the user drags the resize handle — otherwise it would override
     // the CSS one-line height and the control couldn't collapse.
     const editorRootRef = useRef<HTMLDivElement>(null);
+    const viewRef = useRef<EditorView | null>(null);
 
     useLayoutEffect(() => {
       if (!focused) editorRootRef.current?.style.removeProperty("height");
     }, [focused]);
 
-    const measure = useCallback(
-      (view: EditorView) => {
-        const line = view.defaultLineHeight || 20;
-        const cs = getComputedStyle(view.contentDOM);
-        const padY =
-          (Number.parseFloat(cs.paddingTop) || 0) + (Number.parseFloat(cs.paddingBottom) || 0);
-        const border = 2; // the CodeEditor root's 1px top + bottom
-        setCollapsed(Math.round(line + padY + border));
-        setMaxHeight(Math.round(line * maxRows + padY + border));
-      },
-      [maxRows],
-    );
+    const measure = useCallback(() => {
+      const view = viewRef.current;
+      if (!view) return;
+      const line = view.defaultLineHeight || 20;
+      const cs = getComputedStyle(view.contentDOM);
+      const padY =
+        (Number.parseFloat(cs.paddingTop) || 0) + (Number.parseFloat(cs.paddingBottom) || 0);
+      const border = 2; // the CodeEditor root's 1px top + bottom
+      setCollapsed(Math.round(line + padY + border));
+      setMaxHeight(Math.round(line * maxRows + padY + border));
+    }, [maxRows]);
+
+    // `defaultLineHeight` is font-dependent and can read short before the mono
+    // webfont applies, which would leave the collapsed box too short (the line
+    // clips top-heavy). Re-measure after layout and once fonts are ready.
+    useEffect(() => {
+      const raf = requestAnimationFrame(measure);
+      document.fonts?.ready.then(measure).catch(() => {});
+      return () => cancelAnimationFrame(raf);
+    }, [measure]);
 
     // Collapse only when focus leaves the whole control, not when it moves
     // between the editor's inner parts (e.g. into an autocomplete tooltip).
@@ -95,7 +104,8 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
           lineNumbers={lineNumbers}
           elevation={focused ? 3 : collapsedElevation}
           onCreateEditor={(view) => {
-            measure(view);
+            viewRef.current = view;
+            measure();
             onCreateEditor?.(view);
           }}
         />

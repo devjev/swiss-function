@@ -32,6 +32,13 @@
   block-size: var(--cei-collapsed);
 }
 
+/* Compact the editor's vertical padding — a code one-liner shouldn't carry the
+   full-editor's roomy block padding. Applies to both states; the collapsed box
+   then lands ~1.5u, matching an Input, with the line vertically centred. */
+.root :global(.cm-content) {
+  padding-block: calc(var(--sf-unit) / 4);
+}
+
 .root[data-expanded] .editor {
   block-size: auto;
   min-block-size: var(--cei-collapsed);
