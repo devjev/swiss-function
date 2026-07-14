@@ -274,3 +274,35 @@ function toDate(value: unknown): Date | null {
   const d = new Date(value as string | number);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Render a value the way its editor presents it, so an editable cell's resting
+ * display matches what appears when it's activated — no jump from `true` to
+ * `True`, a raw select value to its label, or an ISO string to a `Date`'s
+ * `toString()`. Used for editable columns that don't supply a custom `cell`.
+ */
+export function formatEditDisplay(value: unknown, config: EditConfig): string {
+  switch (config.type) {
+    case "boolean":
+      return value ? "True" : "False";
+    case "select": {
+      const opt = config.options.find((o) => o.value === String(value));
+      return opt ? opt.label : value == null ? "" : String(value);
+    }
+    case "number": {
+      const n = toNumber(value);
+      if (n == null) return "";
+      return `${n.toFixed(config.decimals ?? 0)}${config.unit ? ` ${config.unit}` : ""}`;
+    }
+    case "date": {
+      const d = toDate(value);
+      return d ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` : "";
+    }
+    default:
+      return value == null ? "" : String(value);
+  }
+}

@@ -347,7 +347,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | --- | --- | --- | --- |
 | `data` | `T[]` | n/a | Rows. |
 | `columns` | `ColumnDef<T>[]` | n/a | Column tree (leaves + groups). |
-| `editable` | `boolean` | `false` | Click-to-edit + paste-to-update. Per-column via `edit`. |
+| `editable` | `boolean` | `false` | Click-to-edit + paste-to-update. Per-column via `edit`. An editable column with no custom `cell` renders its resting display the way its editor shows the value (boolean → `True`/`False`, select → the option's label, number → decimals + unit, date → ISO), so activating a cell doesn't jump the text. |
 | `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter; `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
 | `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | n/a | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
 | `onCellChange` | `(changes: CellChange[]) => void` | n/a | Edit/paste committed; consumer updates `data`. |

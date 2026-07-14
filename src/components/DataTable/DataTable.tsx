@@ -44,7 +44,7 @@ import {
 } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { resolveEditActivation } from "./editActivation";
-import { CellEditor } from "./editors";
+import { CellEditor, formatEditDisplay } from "./editors";
 import { Pagination } from "./Pagination";
 import { computeRowOrder, getCellValue } from "./rowOrder";
 import { buildTreeMeta } from "./treeRows";
@@ -463,9 +463,11 @@ function DataTableRowInner<T>({
               <span className={styles.cellBody}>
                 {colDef.cell
                   ? colDef.cell({ value, row: original, rowIndex: dataIdx })
-                  : value == null
-                    ? ""
-                    : String(value)}
+                  : colDef.edit
+                    ? formatEditDisplay(value, colDef.edit)
+                    : value == null
+                      ? ""
+                      : String(value)}
               </span>
             )}
           </div>
