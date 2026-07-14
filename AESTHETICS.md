@@ -151,14 +151,15 @@ Depth indicates layer, not personality.
 
 - **Six elevation steps** (`--sf-elevation-0` through `-5`). Surfaces
   use them sparingly. Most of the page sits at 0 or 1.
-- **Dark mode encodes depth as luminance, not shadow.** There is no
-  luminance below a near-black ground, so in dark the elevation tokens
-  read the surface itself: a slight, full-bleed lightening film lifts it
-  a little above the page (engaged only above level 1, and kept subtle),
-  and a 1px inset edge brightens with the level, so a bordered surface's
-  rim reads progressively lighter and a borderless one gains a faint lit
-  edge. Both ride the same `--sf-elevation-N` shadow, so every consumer
-  gets them with no component change.
+- **Dark mode reads depth three ways, since near-black swallows a soft
+  drop shadow.** All ride the same `--sf-elevation-N` shadow, so every
+  consumer gets them with no component change: a brutalist hard cast (a
+  zero-blur offset in the border colour, stepping to the lower-right and
+  growing with the level); a slight, full-bleed lightening film that
+  lifts the surface a little above the page (engaged only above level 1,
+  and kept subtle); and a 1px inset edge that brightens with the level,
+  so a bordered surface's rim reads progressively lighter and a
+  borderless one gains a faint lit edge.
 - **Controls get a tactile cue**: `inset 0 1px 0 rgb(255 255 255 /
   0.18)` along the top edge, plus their elevation drop shadow. Together
   they read as a slightly raised key on an instrument panel. Buttons,
