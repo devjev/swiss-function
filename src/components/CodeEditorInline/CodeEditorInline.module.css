@@ -42,11 +42,11 @@
    height so a one-liner reads proportionate at every size, not just padded. */
 .root[data-size="sm"] {
   --cei-fs: var(--sf-font-size-sm);
-  --cei-py: calc(var(--sf-unit) / 6);
+  --cei-py: calc(var(--sf-unit) / 24);
 }
 .root[data-size="lg"] {
   --cei-fs: var(--sf-font-size-lg);
-  --cei-py: calc(var(--sf-unit) / 3);
+  --cei-py: calc(var(--sf-unit) / 2 - 1px);
 }
 
 /* Apply the per-size code font + compact block padding to the editor. Compacting
