@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.4.0 — 2026-07-14
+
+### Minor
+
+- Progress: the track/fill corner radius is now a component-scoped token, --sf-progress-radius (default --sf-radius-default). Set it to 0 to square the bar to match the blocky dither family without overriding the shared --sf-radius-default for the whole subtree (issue #71).
+
+### Patch
+
+- Consistent scrollbars: every scrollable surface in the library now uses the shared scroll-surface tokens (thin, invisible-until-hover, primary thumb on region hover) via the `scrollable` utility. Previously only DataTable, Pane, Prose and WindowArray did; now Chat, Dialog, Drawer, Explorer, Notebook, Picker, Selector, SplitPane, ThemeBuilder, Timeline, the Combobox dropdown, Markdown code blocks, and the CodeEditor (CodeMirror) scroller match too.
+- Timeline / chart date axes: cache the Intl.DateTimeFormat used for tick labels instead of rebuilding one per label via toLocaleString. Tick formatting was the dominant cost when a view with a Timeline mounts (~120ms in a profiled route switch-back, issue #72); the cached formatter is ~40x cheaper per label with identical output.
+
 ## v2.3.2 — 2026-07-13
 
 ### Patch
