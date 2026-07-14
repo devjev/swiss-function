@@ -842,3 +842,31 @@ test("a Picker cell editor fits its cell instead of overflowing it (issue #69 re
   expect(editorW).toBeGreaterThan(0);
   expect(editorW).toBeLessThanOrEqual(cellW + 1);
 });
+
+test("fillHeight holds the viewport height and dithers the space below the rows", async ({
+  mount,
+}) => {
+  const cols = [{ id: "a", header: "A", accessor: "a" as const }];
+  const data = [{ a: "one" }, { a: "two" }];
+  const c = await mount(
+    <div style={{ width: 240 }}>
+      <DataTable data={data} columns={cols} height={300} fillHeight columnFill />
+    </div>,
+  );
+  // The viewport fills the full height rather than shrinking to two rows.
+  const vpH = await c
+    .getByRole("grid")
+    .evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  expect(vpH).toBe(300);
+  // A dither filler covers the leftover (its box extends below the last row).
+  const fillers = c.locator('[class*="columnFill"]');
+  expect(await fillers.count()).toBeGreaterThanOrEqual(1);
+  const bottoms = await fillers.evaluateAll((els) =>
+    els.map((el) => Math.round(el.getBoundingClientRect().bottom)),
+  );
+  const rowBottom = await c
+    .getByRole("gridcell")
+    .last()
+    .evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
+  expect(Math.max(...bottoms)).toBeGreaterThan(rowBottom + 20);
+});

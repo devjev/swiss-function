@@ -650,3 +650,12 @@ export const Density: Story = () => {
     </div>
   );
 };
+
+// Hold a fixed height with too few rows: the empty band below the last row (and
+// the right gutter, with columnFill) render as the same dither — a filled panel.
+export const FillHeight: Story = () => (
+  <div style={{ display: "flex", gap: "var(--sf-unit)" }}>
+    <DataTable data={seed(4)} columns={baseColumns} height={320} fillHeight columnFill />
+    <DataTable data={seed(4)} columns={baseColumns} height={320} fillHeight />
+  </div>
+);

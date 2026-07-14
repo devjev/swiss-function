@@ -165,6 +165,12 @@ export interface DataTableProps<T>
    *  sparse table doesn't read as unfinished). `true` uses a static CSS dither;
    *  pass an object to animate it or tune the look. Default `false`. */
   columnFill?: ColumnFill;
+  /** Hold the full `height` even when there aren't enough rows to fill it (instead
+   *  of shrinking to content), and render the empty band below the last row as the
+   *  same dither surface as `columnFill` — so a sparse table reads as one filled
+   *  panel rather than data plus blank space. Uses `columnFill`'s look when it's
+   *  set, else a static dither. Default `false`. */
+  fillHeight?: boolean;
   /** Allow leaf columns to be reordered by dragging their headers. Default false. */
   reorderableColumns?: boolean;
   /** Controlled column order (leaf column ids). Pass with `onColumnOrderChange`. */
@@ -512,6 +518,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     defaultColumnWidths,
     onColumnWidthsChange,
     columnFill = false,
+    fillHeight = false,
     reorderableColumns = false,
     columnOrder: controlledColumnOrder,
     defaultColumnOrder,
@@ -684,6 +691,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Virtualization ---
   const containerRef = useRef<HTMLDivElement>(null);
+  // The body (rows) element, measured for the fillHeight below-rows band.
+  const bodyRef = useRef<HTMLDivElement>(null);
   const visibleRowCount = displayOrder
     ? displayOrder.length
     : paginate
@@ -1176,23 +1185,41 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // place the dither filler. Unlike `contentWidth` (the header element, which is
   // 100% of the viewport in fill mode) this is the columns' real trailing edge.
   const [columnsWidth, setColumnsWidth] = useState(0);
-  // Full scrollable content height (header + body), so the filler spans the whole
-  // leftover column rather than only the body.
-  const [fillHeight, setFillHeight] = useState(0);
+  // Full scrollable content height (header + body), so the right-gutter filler
+  // spans the whole leftover column rather than only the body.
+  const [fillerHeight, setFillerHeight] = useState(0);
+  // The empty band below the last row when `fillHeight` holds the viewport taller
+  // than its content: viewport client height minus the content height.
+  const [belowRowsHeight, setBelowRowsHeight] = useState(0);
   useLayoutEffect(() => {
-    if (!fillOn) return;
+    if (!fillOn && !fillHeight) return;
     const hr = headerRowRef.current;
     const vp = containerRef.current;
     if (hr) {
       const tracks = getComputedStyle(hr).gridTemplateColumns.split(" ");
       setColumnsWidth(tracks.reduce((sum, t) => sum + (Number.parseFloat(t) || 0), 0));
     }
-    if (vp) setFillHeight(vp.scrollHeight);
-  }, [fillOn, gridTemplateColumns, contentWidth, data.length, rowHeight, paginate]);
+    if (vp) {
+      // True content height (header + body). `scrollHeight` clamps up to the
+      // client height once the viewport is held taller than the rows, so measure
+      // the body's own extent instead.
+      const body = bodyRef.current;
+      const content = body ? body.offsetTop + body.offsetHeight : vp.scrollHeight;
+      setFillerHeight(content);
+      setBelowRowsHeight(fillHeight ? Math.max(0, vp.clientHeight - content) : 0);
+    }
+  }, [fillOn, fillHeight, gridTemplateColumns, contentWidth, data.length, rowHeight, paginate]);
 
   // The animated variant renders a WebGL dither canvas; the hook is inert until
   // a canvas mounts (static mode), mirroring Skeleton's usage.
   const { rootRef: fillRootRef, canvasRef: fillCanvasRef } = useDitheredFill({
+    effect: fillOpts.effect ?? "noise",
+    density: fillOpts.density ?? 0.5,
+    color: fillOpts.color,
+    speed: fillOpts.speed,
+  });
+  // Second animated fill for the below-rows band (its own canvas/context).
+  const { rootRef: bandRootRef, canvasRef: bandCanvasRef } = useDitheredFill({
     effect: fillOpts.effect ?? "noise",
     density: fillOpts.density ?? 0.5,
     color: fillOpts.color,
@@ -1467,7 +1494,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         aria-hidden="true"
         style={
           {
-            height: fillHeight,
+            height: fillerHeight,
             "--sf-columns-width": `${columnsWidth}px`,
             ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
           } as CSSProperties
@@ -1475,6 +1502,36 @@ export function DataTable<T>(props: DataTableProps<T>) {
       >
         {/* aria-hidden lives on the parent .columnFill; canvas is decorative. */}
         {fillAnimated ? <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} /> : null}
+      </div>
+    ) : null;
+
+  // Dither band filling the empty space below the last row (fillHeight mode):
+  // full width, from the content bottom to the viewport bottom. Same dither as
+  // columnFill (its config when set, else a static default). Together with the
+  // right-gutter filler above it covers the whole leftover of a sparse table.
+  const belowRowsFiller =
+    fillHeight && belowRowsHeight > 0 && !showEmpty ? (
+      <div
+        ref={
+          fillAnimated
+            ? (node) => {
+                bandRootRef.current = node;
+              }
+            : undefined
+        }
+        className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+        aria-hidden="true"
+        style={
+          {
+            top: fillerHeight,
+            height: belowRowsHeight,
+            // Full width (start at 0, not the columns' right edge).
+            "--sf-columns-width": "0px",
+            ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
+          } as CSSProperties
+        }
+      >
+        {fillAnimated ? <canvas ref={bandCanvasRef} className={styles.columnFillCanvas} /> : null}
       </div>
     ) : null;
 
@@ -1611,7 +1668,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
         className={styles.viewport}
         style={
           {
-            maxHeight: height,
+            // `fillHeight` holds the viewport at the full height (fills even with
+            // few rows); otherwise `height` is a cap that sizes to content.
+            height: fillHeight ? height : undefined,
+            maxHeight: fillHeight ? undefined : height,
             "--sf-row-height": `${rowHeight}px`,
             "--sf-header-rows": headerGroups.length,
             // INTERNAL variable (like --sf-columns-width above), not a consumer
@@ -1683,7 +1743,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         {showEmpty ? (
           <div className={styles.empty}>{empty ?? "No data"}</div>
         ) : paginate ? (
-          <div className={styles.body}>
+          <div ref={bodyRef} className={styles.body}>
             {displayOrder
               ? Array.from(displayOrder, (dataIdx, rowIndex) => (
                   <DataTableRow
@@ -1705,6 +1765,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
           </div>
         ) : (
           <div
+            ref={bodyRef}
             className={styles.body}
             style={{
               height: rowVirtualizer.getTotalSize(),
@@ -1759,6 +1820,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
           </div>
         )}
         {columnFiller}
+        {belowRowsFiller}
 
         {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so
             it overlays the last rows without adding layout space; the sticky
