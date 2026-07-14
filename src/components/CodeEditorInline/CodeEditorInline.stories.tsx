@@ -75,3 +75,20 @@ export const JsonValue: Story = () => {
     </div>
   );
 };
+
+/** Standard height rungs — sm / md / lg scale the code font + padding together. */
+export const Sizes: Story = () => {
+  const extensions = useMemo(() => [javascript()], []);
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", maxWidth: "30rem" }}>
+      {(["sm", "md", "lg"] as const).map((s) => (
+        <CodeEditorInline
+          key={s}
+          size={s}
+          defaultValue={"row.subs - row.reds"}
+          extensions={extensions}
+        />
+      ))}
+    </div>
+  );
+};

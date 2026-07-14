@@ -6,6 +6,12 @@
 .root {
   --cei-collapsed: 2.75rem;
   --cei-max: 24rem;
+  /* Per-size metrics: the code font + block padding that land the collapsed
+     one-liner on the standard control heights (sm ≈ 1u, md ≈ 1.5u, lg ≈ 2u).
+     md is the base; sm/lg override below. The actual pixel height is measured
+     from these (see the .tsx), so the rungs stay honest if the font changes. */
+  --cei-fs: var(--sf-font-size-md);
+  --cei-py: calc(var(--sf-unit) / 4);
 
   position: relative;
   display: block;
@@ -32,11 +38,23 @@
   block-size: var(--cei-collapsed);
 }
 
-/* Compact the editor's vertical padding — a code one-liner shouldn't carry the
-   full-editor's roomy block padding. Applies to both states; the collapsed box
-   then lands ~1.5u, matching an Input, with the line vertically centred. */
+/* Size rungs (sm/lg override the md base). The code font shrinks/grows with the
+   height so a one-liner reads proportionate at every size, not just padded. */
+.root[data-size="sm"] {
+  --cei-fs: var(--sf-font-size-sm);
+  --cei-py: calc(var(--sf-unit) / 6);
+}
+.root[data-size="lg"] {
+  --cei-fs: var(--sf-font-size-lg);
+  --cei-py: calc(var(--sf-unit) / 3);
+}
+
+/* Apply the per-size code font + compact block padding to the editor. Compacting
+   the full editor's roomy block padding is what lets a one-liner sit at ~1u–2u,
+   the line vertically centred. */
 .root :global(.cm-content) {
-  padding-block: calc(var(--sf-unit) / 4);
+  padding-block: var(--cei-py);
+  font-size: var(--cei-fs);
 }
 
 .root[data-expanded] .editor {

@@ -353,6 +353,7 @@ Takes every `CodeEditor` prop (`value`/`onChange`/`extensions`/`theme`/…) plus
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Resting one-line height on the control ladder (≈ 1u / 1.5u / 2u); scales the code font + padding together. |
 | `maxRows` | `number` | `12` | Max code lines the expanded overlay grows to before it scrolls. |
 | `collapsedElevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting depth; the expanded overlay is always `elevation-3`. |
 | `lineNumbers` | `boolean` | `false` | Default off for a one-liner (`true` shows the gutter in both states). |

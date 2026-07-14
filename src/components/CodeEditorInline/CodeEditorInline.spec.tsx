@@ -43,3 +43,23 @@ test("expands on focus and collapses on blur", async ({ mount }) => {
   await c.getByTestId("outside").click();
   expect(await wrapper.getAttribute("data-expanded")).toBeNull();
 });
+
+test("size scales the resting height (sm < md < lg)", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 320 }}>
+      <div data-testid="sm">
+        <CodeEditorInline size="sm" defaultValue="a + b" />
+      </div>
+      <div data-testid="lg">
+        <CodeEditorInline size="lg" defaultValue="a + b" />
+      </div>
+    </div>,
+  );
+  const h = (id: string) =>
+    c
+      .getByTestId(id)
+      .locator('[class*="editor"]')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().height);
+  expect(await h("sm")).toBeLessThan(await h("lg"));
+});

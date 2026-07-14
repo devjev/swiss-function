@@ -6,7 +6,12 @@ import type { BoxElevation } from "../Box";
 import { CodeEditor, type CodeEditorProps } from "../CodeEditor";
 import styles from "./CodeEditorInline.module.css";
 
+export type CodeEditorInlineSize = "sm" | "md" | "lg";
+
 export interface CodeEditorInlineProps extends CodeEditorProps {
+  /** Resting one-line height, matching the control ladder: `sm` ≈ 1u / `md` ≈
+   *  1.5u / `lg` ≈ 2u. Scales the code font and padding together. Default `md`. */
+  size?: CodeEditorInlineSize;
   /** Max code lines the expanded overlay grows to before it scrolls. Default 12. */
   maxRows?: number;
   /** Resting (collapsed) depth on the `--sf-elevation-N` scale. Default 1; the
@@ -29,6 +34,7 @@ export interface CodeEditorInlineProps extends CodeEditorProps {
 export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps>(
   function CodeEditorInline(
     {
+      size = "md",
       maxRows = 12,
       collapsedElevation = 1,
       lineNumbers = false,
@@ -69,11 +75,13 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
     // `defaultLineHeight` is font-dependent and can read short before the mono
     // webfont applies, which would leave the collapsed box too short (the line
     // clips top-heavy). Re-measure after layout and once fonts are ready.
+    // Re-run on `size` too: it swaps the code font, which changes the line
+    // height the collapsed footprint is derived from.
     useEffect(() => {
       const raf = requestAnimationFrame(measure);
       document.fonts?.ready.then(measure).catch(() => {});
       return () => cancelAnimationFrame(raf);
-    }, [measure]);
+    }, [measure, size]);
 
     // Collapse only when focus leaves the whole control, not when it moves
     // between the editor's inner parts (e.g. into an autocomplete tooltip).
@@ -93,6 +101,7 @@ export const CodeEditorInline = forwardRef<HTMLDivElement, CodeEditorInlineProps
         ref={ref}
         className={cx(styles.root, className)}
         style={rootStyle}
+        data-size={size === "md" ? undefined : size}
         data-expanded={focused || undefined}
         onFocus={() => setFocused(true)}
         onBlur={handleBlur}
