@@ -6,6 +6,19 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.5.0 — 2026-07-14
+
+### Minor
+
+- Add CodeEditorInline: a CodeEditor that rests as a single line and expands to a multi-line editor on focus (the code sibling of TextEditInline). Collapsed shows line 1 syntax-highlighted (a live CodeMirror, not a label); focus floats the full editor over the content below (elevation-3), growing to maxRows then scrolling and vertically resizable by drag while active; blur collapses back. Takes every CodeEditor prop plus maxRows / collapsedElevation.
+- DataTable and Explorer: new cellPadding and cellFontSize props (each xs | sm | md | lg, default md) to set cell density and text size independently — from tight, small-font grids for dense financial tables to roomy, larger-font ones. Applies to header and body cells.
+
+### Patch
+
+- CodeEditor: make the block caret more visible (opacity 0.4 -> 0.6) so it's easier to spot while still letting the glyph read through. Applies to CodeEditor and CodeEditorInline.
+- DataTable: an editable column's resting cell display now matches what its editor shows — boolean cells read True/False (not true/false), select cells show the option's label (not the raw value), numbers get their decimals + unit, and dates render as ISO — so activating a cell no longer jumps the value's text. Columns with a custom cell renderer are unaffected.
+- DataTable: fix the boolean/select cell editor (a Picker) overflowing a narrow cell into the next column. The Picker's 12rem standalone min-width floor (added in 2.3.1 for issue #69) leaked into the inline editor; the editor now zeroes that floor and fills the cell.
+
 ## v2.4.1 — 2026-07-14
 
 ### Patch
