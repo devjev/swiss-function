@@ -242,19 +242,27 @@
     --sf-color-focus-ring: #60a5fa;
     --sf-color-overlay: rgb(0 0 0 / 0.6);
 
-    /* Elevation (dark): a brutalist hard shadow. Instead of the soft, blurred
-       key shadows that near-black swallows, each level is a single zero-blur
-       offset cast in the border colour, so it lands as a crisp block to the
-       lower-right of the surface, reading like the border stepped off its
-       edge. The offset grows with the level; the colour and hardness stay
-       fixed. No blur, no spread, no inset lighten: the surface stays flat and
-       is read purely by its 1px border and this hard cast. Elevated surfaces
-       already carry the border, so nothing on the component side changes. */
-    --sf-elevation-1: 2px 2px 0 0 var(--sf-color-border);
-    --sf-elevation-2: 3px 3px 0 0 var(--sf-color-border);
-    --sf-elevation-3: 4px 4px 0 0 var(--sf-color-border);
-    --sf-elevation-4: 6px 6px 0 0 var(--sf-color-border);
-    --sf-elevation-5: 8px 8px 0 0 var(--sf-color-border);
+    /* Elevation (dark): near-black swallows soft drop shadows, so depth is read
+       from the surface itself. Two inset layers, both carried by the shadow so
+       every consumer of `--sf-elevation-N` gets them with no component change:
+       (1) a full-bleed white film that lifts the surface a little above the page
+       bg — engaged only above level 1, and staying slight; and (2) a 1px inset
+       edge that lightens with the level, so a bordered surface's rim reads
+       progressively brighter (and a borderless one gains a faint lit edge). The
+       edge is listed first so it paints over the film at the rim. */
+    --sf-elevation-1: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+    --sf-elevation-2:
+      inset 0 0 0 1px rgb(255 255 255 / 0.1),
+      inset 0 0 0 9999px rgb(255 255 255 / 0.03);
+    --sf-elevation-3:
+      inset 0 0 0 1px rgb(255 255 255 / 0.15),
+      inset 0 0 0 9999px rgb(255 255 255 / 0.04);
+    --sf-elevation-4:
+      inset 0 0 0 1px rgb(255 255 255 / 0.22),
+      inset 0 0 0 9999px rgb(255 255 255 / 0.05);
+    --sf-elevation-5:
+      inset 0 0 0 1px rgb(255 255 255 / 0.3),
+      inset 0 0 0 9999px rgb(255 255 255 / 0.06);
 
     /* Recess (dark): sunken surfaces darken instead of lighten; the inset
        blacks need real alpha to register on #0a0a0a. */
