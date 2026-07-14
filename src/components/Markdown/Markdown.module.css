@@ -126,6 +126,13 @@
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   overflow-x: auto;
+  /* Same scroll-surface tokens as the `scrollable` utility, inlined because a
+     descendant selector (`.rendered pre`) can't `composes:`. */
+  scrollbar-width: var(--sf-scrollbar-width);
+  scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
+}
+.rendered pre:hover {
+  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
 }
 .rendered pre code {
   font-family: var(--sf-font-mono);

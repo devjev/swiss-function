@@ -16,6 +16,7 @@
 }
 
 .viewport {
+  composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   overflow: auto;
   outline: none;

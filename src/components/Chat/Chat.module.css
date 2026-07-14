@@ -15,6 +15,7 @@
 
 /* Scroll viewport — takes all remaining height above the input row. */
 .messages {
+  composes: scrollable from "../../lib/scrollable.module.css";
   flex: 1;
   min-block-size: 0;
   overflow-y: auto;

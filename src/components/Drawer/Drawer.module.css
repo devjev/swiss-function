@@ -82,6 +82,7 @@
 
 /* Scroll viewport + content padding. */
 .viewport {
+  composes: scrollable from "../../lib/scrollable.module.css";
   flex: 1 1 auto;
   min-block-size: 0;
   overflow: auto;

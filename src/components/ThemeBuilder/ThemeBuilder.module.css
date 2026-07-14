@@ -172,6 +172,7 @@
 }
 
 .output {
+  composes: scrollable from "../../lib/scrollable.module.css";
   max-block-size: calc(var(--sf-unit) * 10);
   overflow: auto;
   padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 3 / 4);

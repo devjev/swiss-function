@@ -36,6 +36,7 @@
    the borders eat inner space; without the -2px the popup grows a nested
    second scrollbar. */
 .virtualList {
+  composes: scrollable from "../../lib/scrollable.module.css";
   max-height: calc(16rem - 2 * var(--sf-space-1) - 2px);
   overflow: auto;
 }

@@ -50,6 +50,17 @@
   min-block-size: 0;
 }
 
+/* CodeMirror owns its own scroll element; give it the system scroll-surface
+   tokens (same as the `scrollable` utility) so the editor's scrollbar matches
+   every other scrollable surface. Hover on the scroller reveals the thumb. */
+.root :global(.cm-scroller) {
+  scrollbar-width: var(--sf-scrollbar-width);
+  scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
+}
+.root :global(.cm-scroller):hover {
+  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+}
+
 /* The container already carries focus affordance (border + ring); drop
    CodeMirror's own focus outline to avoid a double ring. */
 .root :global(.cm-editor.cm-focused) {

@@ -13,6 +13,7 @@
 
 /* Main pane — flexes to fill whatever the panel leaves. */
 .main {
+  composes: scrollable from "../../lib/scrollable.module.css";
   flex: 1 1 0;
   min-inline-size: 0;
   min-block-size: 0;

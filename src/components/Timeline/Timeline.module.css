@@ -2,6 +2,7 @@
    Height grows linearly with --sf-timeline-lanes (set per-instance by JS):
    1.5u below the axis for ticks + 0.25u gap + N × 1.25u above for labels. */
 .viewport {
+  composes: scrollable from "../../lib/scrollable.module.css";
   position: relative;
   /* The timeline's accent — playhead, now line, markers, range band, value tag.
      Defaults to the primary token; override per-instance via the `color` prop. */

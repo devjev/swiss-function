@@ -104,6 +104,7 @@
 }
 
 .popup {
+  composes: scrollable from "../../lib/scrollable.module.css";
   /* `position: relative` so the popup's own z-index participates too (the bare
      value was inert on a statically-positioned popup — issue #2). */
   position: relative;
