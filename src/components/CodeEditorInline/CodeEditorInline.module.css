@@ -57,6 +57,13 @@
   font-size: var(--cei-fs);
 }
 
+/* No active-line highlight: on a short expression it's just noise, and on the
+   collapsed single line it would tint the whole field. */
+.root :global(.cm-activeLine),
+.root :global(.cm-activeLineGutter) {
+  background-color: transparent;
+}
+
 .root[data-expanded] .editor {
   block-size: auto;
   min-block-size: var(--cei-collapsed);
