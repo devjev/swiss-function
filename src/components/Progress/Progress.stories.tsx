@@ -88,6 +88,17 @@ export const Elevation: Story = () => (
   </div>
 );
 
+// Square the corners to sit with the blocky dither family, via the
+// component-scoped `--sf-progress-radius` token (0 here) — no need to override
+// the broad `--sf-radius-default`.
+export const Squared: Story = () => (
+  <div style={{ ...row, ["--sf-progress-radius" as string]: "0" }}>
+    <Progress value={62} fill="color" showValue />
+    <Progress value={62} fill="dither" />
+    <Progress value={62} fill="animated" />
+  </div>
+);
+
 // An explicit colour overrides the tone, for the rare case a bar must match a
 // brand or data-series colour rather than a semantic status.
 export const CustomColor: Story = () => (

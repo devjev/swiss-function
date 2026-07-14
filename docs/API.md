@@ -1203,9 +1203,15 @@ Base UI's Meter is the right primitive; this component does not wrap it.
 Indeterminate bars sweep (colour/dither) or run their effect across the whole
 track (animated); `prefers-reduced-motion` freezes all three to a static frame.
 
+**Corners:** the track (and, through it, the fill and its elevation shadow) round
+with `--sf-progress-radius`, defaulting to `--sf-radius-default`. Set
+`--sf-progress-radius: 0` to square the bar to match the blocky dither family,
+without overriding the shared `--sf-radius-default` for the whole subtree.
+
 ```tsx
 <Progress value={62} fill="animated" tone="success" size="md" showValue />
 <Progress value={null} />            {/* indeterminate */}
+<Progress value={62} style={{ "--sf-progress-radius": 0 }} />  {/* squared */}
 ```
 
 ## Prose

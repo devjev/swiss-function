@@ -26,7 +26,13 @@
   --progress-accent: var(--sf-color-danger);
 }
 
-/* The track: the full-width groove that clips the fill. */
+/* The track: the full-width groove that clips the fill. Its corner radius is a
+   component-scoped knob (`--sf-progress-radius`, default the library radius), so
+   a bar can be squared to match the blocky dither family (`--sf-progress-radius:
+   0`) without overriding the broad `--sf-radius-default` for the whole subtree
+   (issue #71). The indicator, the dither `::before`, and the clipped canvas all
+   inherit it via `overflow: hidden` + `border-radius: inherit`, so the fill and
+   its elevation shadow follow the chosen corner. */
 .track {
   position: relative;
   flex: 1;
@@ -34,7 +40,7 @@
   inline-size: 100%;
   block-size: calc(var(--sf-unit) / 3);
   background-color: var(--sf-color-bg-subtle);
-  border-radius: var(--sf-radius-default);
+  border-radius: var(--sf-progress-radius, var(--sf-radius-default));
 }
 
 /* Thickness rungs. `size` is a geometric dimension (bar height), not a font

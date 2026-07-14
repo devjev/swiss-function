@@ -92,3 +92,24 @@ test("tone sets the accent custom property; elevation sets the shadow", async ({
   const shadow = await track.evaluate((el) => getComputedStyle(el).boxShadow);
   expect(shadow).not.toBe("none");
 });
+
+test("--sf-progress-radius squares the track corners (issue #71)", async ({ mount }) => {
+  const c = await mount(
+    <div>
+      <div data-testid="rounded">
+        <ProgressHarness value={50} />
+      </div>
+      <div data-testid="squared" style={{ ["--sf-progress-radius" as string]: "0" }}>
+        <ProgressHarness value={50} />
+      </div>
+    </div>,
+  );
+  const radiusOf = (id: string) =>
+    c
+      .getByTestId(id)
+      .locator('[class*="track"]')
+      .evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius));
+  // Default follows --sf-radius-default (2px, non-zero); the token squares it.
+  expect(await radiusOf("rounded")).toBeGreaterThan(0);
+  expect(await radiusOf("squared")).toBe(0);
+});
