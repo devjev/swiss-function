@@ -818,3 +818,27 @@ test("cellPadding and cellFontSize scale header + body cells", async ({ mount })
   expect(lg.pad).toBe(18);
   expect(xs.font).toBeLessThan(lg.font);
 });
+
+test("a Picker cell editor fits its cell instead of overflowing it (issue #69 regression)", async ({
+  mount,
+}) => {
+  // In a narrow table the active/role columns are well under the Picker's
+  // standalone 12rem min-width; the editor must fill the cell, not spill into
+  // the next column.
+  const c = await mount(
+    <div style={{ maxWidth: 460 }}>
+      <EditorsHarness />
+    </div>,
+  );
+  const cell = c.getByRole("gridcell").nth(3); // active (boolean → Picker)
+  await cell.dblclick();
+  const { cellW, editorW } = await cell.evaluate((el) => {
+    const ed = el.querySelector('[class*="editor"]');
+    return {
+      cellW: el.getBoundingClientRect().width,
+      editorW: ed ? ed.getBoundingClientRect().width : 0,
+    };
+  });
+  expect(editorW).toBeGreaterThan(0);
+  expect(editorW).toBeLessThanOrEqual(cellW + 1);
+});

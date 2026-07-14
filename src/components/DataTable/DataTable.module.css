@@ -533,6 +533,13 @@
   inset: 0;
   inline-size: 100%;
   block-size: 100%;
+  /* A Picker/Selector editor (boolean/select) carries a `min-inline-size` floor
+     for standalone use (12rem, issue #69); in a cell it must fill the cell, not
+     overflow into the next column. Zero the floor (and any own min-width) so
+     `inline-size: 100%` governs. */
+  min-inline-size: 0;
+  --sf-picker-min-inline-size: 0;
+  --sf-selector-min-inline-size: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -559,6 +566,7 @@
 .cell .editor > div,
 .cell .editor [data-size] {
   inline-size: 100%;
+  min-inline-size: 0;
   block-size: 100%;
   border: 0;
   border-radius: 0;
