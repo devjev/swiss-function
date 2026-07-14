@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.5.1 — 2026-07-14
+
+### Patch
+
+- CodeEditorInline: the sm size now rests at 1u (was ~30px) and lg at ~2u, so the size rungs land on the standard control heights (sm 1u / md 1.5u / lg 2u).
+
 ## v2.5.0 — 2026-07-14
 
 ### Minor
