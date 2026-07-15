@@ -3,7 +3,7 @@ import { forwardRef, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { useFullscreen } from "../../lib/useFullscreen";
 import type { ButtonVariant } from "../Button";
-import { Chat, type ChatAction, type ChatMessage, type ChatPart } from "../Chat";
+import { Chat, type ChatAction, type ChatMessage, type ChatPart, type ChatProps } from "../Chat";
 import { type EffectName, NonIdealState } from "../NonIdealState";
 import { SplitPane, type SplitSide, useSplitPane } from "../SplitPane";
 import { Tabs } from "../Tabs";
@@ -83,6 +83,10 @@ export interface ChatDrawerProps {
   sendVariant?: ButtonVariant;
   /** Override the built-in chat input's border colour (any CSS colour). */
   borderColor?: string;
+  /** How the built-in chat reveals streaming assistant text. Forwarded to the
+   *  inner `Chat`; pass `{ mode: "stream" }` for a live token stream, or `false`
+   *  for plain Markdown. See `Chat`'s `reveal`. */
+  reveal?: ChatProps["reveal"];
   /** Disable the input. Defaults to `thinking` (input locks while the agent works). */
   disabled?: boolean;
 
@@ -229,6 +233,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     sendLabel,
     sendVariant,
     borderColor,
+    reveal,
     disabled,
     views,
     activeView,
@@ -358,6 +363,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
                   sendLabel={sendLabel}
                   sendVariant={sendVariant}
                   borderColor={borderColor}
+                  reveal={reveal}
                   disabled={disabled ?? thinking}
                 />
               </div>

@@ -247,7 +247,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). |
+| `messages` / `onSubmit` / `onAction` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
 | `views` | `ChatDrawerView[]` | n/a | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |

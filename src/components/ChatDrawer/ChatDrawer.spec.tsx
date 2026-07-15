@@ -44,3 +44,47 @@ test("thinking mounts the effect canvas", async ({ mount }) => {
   );
   await expect(c.locator("canvas")).toHaveCount(1);
 });
+
+test("forwards reveal to the inner Chat (mode=stream resolves streaming text fast)", async ({
+  mount,
+  page,
+}) => {
+  const content = "Streaming a fairly long assistant reply of many tokens indeed here";
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        messages={[{ id: "a", role: "assistant", content, isStreaming: true }]}
+        onSubmit={() => {}}
+        reveal={{ mode: "stream", tailLength: 3, charIntervalMs: 20 }}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  await page.waitForTimeout(80);
+  const txt = (await c.textContent()) ?? "";
+  const resolved = txt.replace(/[▒▓█ ]/g, "");
+  const nonWs = content.replace(/\s/g, "");
+  // With reveal forwarded, stream mode has resolved almost everything already;
+  // the default dramatic reveal would show only a few characters by now.
+  expect(resolved.length).toBeGreaterThan(nonWs.length - 6);
+});
+
+test("forwards reveal={false}: streaming text lands as plain markdown", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        messages={[{ id: "a", role: "assistant", content: "Hello **world**", isStreaming: true }]}
+        onSubmit={() => {}}
+        reveal={false}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  await expect(c.getByText("world")).toBeVisible();
+  const txt = (await c.textContent()) ?? "";
+  expect(/[▒▓█]/.test(txt)).toBe(false);
+});
