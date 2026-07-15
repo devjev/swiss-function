@@ -6,6 +6,7 @@ export type {
   CellRange,
   CellRenderProps,
   ColumnDef,
+  DataTableHighlight,
   EditConfig,
   EditorType,
   ExpandedState,

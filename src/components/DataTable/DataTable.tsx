@@ -55,6 +55,7 @@ import type {
   CellRange,
   CellSpanFn,
   ColumnDef,
+  DataTableHighlight,
   EditActivation,
   ExpandedState,
   LeafColumnDef,
@@ -101,6 +102,11 @@ export interface DataTableProps<T>
   cellFontSize?: "xs" | "sm" | "md" | "lg";
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
+  /** Persistent coloured range overlays (the Excel "coloured range reference"
+   *  look). Positional, in visible coordinates. Use several distinct colours to
+   *  mark separate ranges (e.g. charting series). Drive it yourself: capture the
+   *  mouse selection via `onSelectionChange` and push a highlight with a colour. */
+  highlights?: DataTableHighlight[];
   /** Opt into pagination instead of virtualization. */
   paginate?: PaginateConfig;
   /** Row height in px. Default 36 (matches --sf-unit * 1.5). */
@@ -326,6 +332,45 @@ function cellInRange(row: number, col: number, range: CellRange | null): boolean
   );
 }
 
+/** Default highlight colours: the semantic tokens, cycled by array position, so
+ *  `highlights` with no explicit `color` still read as distinct ranges without
+ *  introducing a new multi-hue palette (the palette stays small). */
+const HIGHLIGHT_PALETTE = [
+  "var(--sf-color-primary)",
+  "var(--sf-color-success)",
+  "var(--sf-color-warning)",
+  "var(--sf-color-danger)",
+];
+
+/** A highlight with its range normalised (start <= end) and colour resolved. */
+type ResolvedHighlight = {
+  id: string;
+  color: string;
+  start: Cell;
+  end: Cell;
+};
+
+/** The coloured-range overlays covering one cell: one absolutely-positioned div
+ *  per highlight, bordered only on the range's perimeter edges. Shared by both
+ *  row renderers so they stay in lockstep. */
+function highlightOverlays(highlights: ResolvedHighlight[], row: number, col: number): ReactNode {
+  if (highlights.length === 0) return null;
+  return highlights.map((h) =>
+    row >= h.start.row && row <= h.end.row && col >= h.start.col && col <= h.end.col ? (
+      <div
+        key={h.id}
+        className={styles.highlight}
+        aria-hidden="true"
+        style={{ "--sf-highlight-color": h.color } as CSSProperties}
+        data-edge-top={row === h.start.row || undefined}
+        data-edge-bottom={row === h.end.row || undefined}
+        data-edge-start={col === h.start.col || undefined}
+        data-edge-end={col === h.end.col || undefined}
+      />
+    ) : null,
+  );
+}
+
 interface DataTableRowProps<T> {
   original: T;
   /** Original data index — row key + custom-cell `rowIndex` (parity with
@@ -346,6 +391,7 @@ interface DataTableRowProps<T> {
   editing: RowEditingState | null;
   selectionActive: Cell | null;
   selectionRange: CellRange | null;
+  highlights: ResolvedHighlight[];
   registerCell: (row: number, col: number, el: HTMLDivElement | null) => void;
   onCellPointerDown: (cell: Cell, ev: { shiftKey: boolean }) => void;
   onCellPointerEnter: (cell: Cell) => void;
@@ -382,6 +428,7 @@ function DataTableRowInner<T>({
   editing,
   selectionActive,
   selectionRange,
+  highlights,
   registerCell,
   onCellPointerDown,
   onCellPointerEnter,
@@ -476,6 +523,7 @@ function DataTableRowInner<T>({
                       : String(value)}
               </span>
             )}
+            {highlightOverlays(highlights, displayIndex, colIndex)}
           </div>
         );
       })}
@@ -497,6 +545,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     cellPadding = "md",
     cellFontSize = "md",
     onSelectionChange,
+    highlights,
     paginate,
     rowHeight = DEFAULT_ROW_HEIGHT,
     height = DEFAULT_HEIGHT,
@@ -1221,6 +1270,27 @@ export function DataTable<T>(props: DataTableProps<T>) {
     });
   }, [getCellSpan, displayOrder, data, visibleRows, visibleRowCount, colCount, visibleLeaves]);
 
+  // --- Coloured range highlights ---
+  // Normalise each range (start <= end) and resolve its colour once; the per-cell
+  // lookup then loops this (few) list. Overlays are per cell (no geometry
+  // measured), so they align to the grid and survive virtualization/scroll.
+  const resolvedHighlights = useMemo<ResolvedHighlight[]>(
+    () =>
+      (highlights ?? []).map((h, i) => ({
+        id: h.id ?? `sf-highlight-${i}`,
+        color: h.color ?? (HIGHLIGHT_PALETTE[i % HIGHLIGHT_PALETTE.length] as string),
+        start: {
+          row: Math.min(h.range.start.row, h.range.end.row),
+          col: Math.min(h.range.start.col, h.range.end.col),
+        },
+        end: {
+          row: Math.max(h.range.start.row, h.range.end.row),
+          col: Math.max(h.range.start.col, h.range.end.col),
+        },
+      })),
+    [highlights],
+  );
+
   // --- Tree column index (where the chevron + indent live) ---
   const treeColIdx = useMemo(() => {
     if (!getSubRows) return -1;
@@ -1240,6 +1310,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     editing,
     selectionActive: selection.active,
     selectionRange: selection.range,
+    highlights: resolvedHighlights,
     registerCell,
     onCellPointerDown: handleCellPointerDown,
     onCellPointerEnter: handleCellPointerEnter,
@@ -1349,6 +1420,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         ) : (
           content
         )}
+        {/* Coloured range overlays: one per highlight covering this cell. */}
+        {highlightOverlays(resolvedHighlights, rowIndex, colIndex)}
       </div>
     );
   };

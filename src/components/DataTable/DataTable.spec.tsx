@@ -895,3 +895,94 @@ test("fillHeight alone still fits the columns horizontally (no forced overflow)"
   // No horizontal overflow beyond the min-content floor (a couple of px slack).
   expect(scrollW).toBeLessThanOrEqual(clientW + 2);
 });
+
+test("highlights render coloured range overlays with a perimeter border", async ({ mount }) => {
+  const data = [
+    { name: "Ada", age: 20, active: true },
+    { name: "Bo", age: 21, active: false },
+    { name: "Cai", age: 22, active: true },
+  ];
+  const c = await mount(
+    <DataTableHarness
+      data={data}
+      cols={["name", "age", "active"]}
+      containerWidth={520}
+      highlights={[
+        // The "age" column (col 1), all three rows — a charting range.
+        { id: "series", range: { start: { row: 0, col: 1 }, end: { row: 2, col: 1 } } },
+      ]}
+    />,
+  );
+  const overlays = c.locator('[class*="highlight"]');
+  // One overlay per covered cell (3 rows × 1 col).
+  await expect(overlays).toHaveCount(3);
+  // Top row carries the top border, bottom row the bottom; the single column
+  // carries both side borders on every cell.
+  const top = overlays.first();
+  await expect(top).toHaveAttribute("data-edge-top", "true");
+  await expect(top).toHaveAttribute("data-edge-start", "true");
+  await expect(top).toHaveAttribute("data-edge-end", "true");
+  expect(await top.getAttribute("data-edge-bottom")).toBeNull();
+  await expect(overlays.last()).toHaveAttribute("data-edge-bottom", "true");
+  // The border paints in the resolved colour (default palette slot 0 = primary).
+  const borderTopW = await top.evaluate((el) => getComputedStyle(el).borderTopWidth);
+  expect(borderTopW).toBe("2px");
+});
+
+test("highlights: two ranges render in distinct colours; explicit color wins", async ({
+  mount,
+}) => {
+  const data = [
+    { name: "Ada", age: 20, active: true },
+    { name: "Bo", age: 21, active: false },
+  ];
+  const c = await mount(
+    <DataTableHarness
+      data={data}
+      cols={["name", "age", "active"]}
+      containerWidth={520}
+      highlights={[
+        { id: "a", range: { start: { row: 0, col: 0 }, end: { row: 1, col: 0 } } },
+        {
+          id: "b",
+          range: { start: { row: 0, col: 2 }, end: { row: 1, col: 2 } },
+          color: "rgb(1, 2, 3)",
+        },
+      ]}
+    />,
+  );
+  const overlays = c.locator('[class*="highlight"]');
+  await expect(overlays).toHaveCount(4); // 2 cells each
+  const colorOf = (el: HTMLElement) => getComputedStyle(el).borderTopColor;
+  const first = await overlays.first().evaluate(colorOf);
+  const last = await overlays.last().evaluate(colorOf);
+  expect(first).not.toBe(last); // distinct colours
+  expect(last).toBe("rgb(1, 2, 3)"); // explicit color honoured
+});
+
+test("highlights are positional: they stay on the same cells across a data change", async ({
+  mount,
+}) => {
+  // A highlight on row 0 marks the top row by position. Positional anchoring
+  // means it frames whatever data occupies that row, so it stays put.
+  const c = await mount(
+    <DataTableHarness
+      data={[
+        { name: "Ada", age: 20, active: true },
+        { name: "Bo", age: 21, active: false },
+      ]}
+      cols={["name", "age"]}
+      containerWidth={400}
+      highlights={[{ id: "top", range: { start: { row: 0, col: 0 }, end: { row: 0, col: 1 } } }]}
+    />,
+  );
+  // Two overlays (row 0, both columns), and they sit on the first row's cells.
+  const overlays = c.locator('[class*="highlight"]');
+  await expect(overlays).toHaveCount(2);
+  const rowTop = await c
+    .getByRole("row")
+    .nth(1) // row 0 is the header row
+    .evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  const hlTop = await overlays.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
+  expect(Math.abs(hlTop - rowTop)).toBeLessThanOrEqual(1);
+});

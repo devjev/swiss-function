@@ -9,6 +9,26 @@ export type Selection = {
   range: CellRange | null;
 };
 
+/** A persistent coloured range overlay (the Excel "coloured range reference"
+ *  look: a light fill plus a solid border around the block). Positional: the
+ *  `range` is in visible row/column coordinates, like `Selection` and cell
+ *  spans, so a highlight marks a screen region and stays put when the data is
+ *  sorted or filtered (it then frames whatever sorted into those cells).
+ *  Several highlights in distinct colours mark, e.g., separate charting ranges. */
+export type DataTableHighlight = {
+  /** Stable identity (React key). Falls back to the array index. */
+  id?: string;
+  /** Covered cells, inclusive, in visible coordinates. Start/end may be given
+   *  in any order; they are normalised. */
+  range: CellRange;
+  /** Any CSS colour (or token, e.g. `var(--sf-color-primary)`). When omitted,
+   *  colours cycle through the semantic tokens by array position. */
+  color?: string;
+  /** Optional name for the range, for a consumer-drawn legend. Not rendered
+   *  inline. */
+  label?: string;
+};
+
 export type EditorType = "text" | "number" | "boolean" | "select" | "date";
 
 export type SelectOption = { value: string; label: string };

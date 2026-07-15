@@ -659,3 +659,61 @@ export const FillHeight: Story = () => (
     <DataTable data={seed(4)} columns={baseColumns} height={320} fillHeight />
   </div>
 );
+
+// Coloured range highlights (the Excel "coloured range reference" look): a light
+// fill plus a solid border around each block. Positional and declarative — use
+// several colours to mark separate ranges, e.g. charting series.
+export const Highlights: Story = () => (
+  <DataTable
+    data={seed(12)}
+    columns={baseColumns}
+    height={360}
+    highlights={[
+      // The Age column as one series (default palette colour 0).
+      { id: "age", range: { start: { row: 0, col: 1 }, end: { row: 11, col: 1 } } },
+      // The Score column as a second series (default palette colour 1).
+      { id: "score", range: { start: { row: 0, col: 5 }, end: { row: 11, col: 5 } } },
+      // A block of rows flagged in an explicit colour.
+      {
+        id: "flag",
+        range: { start: { row: 3, col: 3 }, end: { row: 6, col: 4 } },
+        color: "var(--sf-color-danger)",
+      },
+    ]}
+  />
+);
+
+// Select-to-highlight: drag a range with the mouse, then "Mark range" turns the
+// live selection into a persistent coloured highlight. This is the declarative
+// pattern — the DataTable renders `highlights`; you own the list and add to it
+// from `onSelectionChange` (e.g. to pick charting ranges the way Excel does).
+export const SelectToHighlight: Story = () => {
+  const [sel, setSel] = useState<import("./types").CellRange | null>(null);
+  const [highlights, setHighlights] = useState<import("./types").DataTableHighlight[]>([]);
+  const add = () => {
+    if (!sel) return;
+    setHighlights((prev) => [...prev, { id: `h${prev.length}`, range: sel }]);
+  };
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
+      <div style={{ display: "flex", gap: "calc(var(--sf-unit) / 2)", alignItems: "center" }}>
+        <button type="button" onClick={add} disabled={!sel}>
+          Mark range ({highlights.length})
+        </button>
+        <button type="button" onClick={() => setHighlights([])} disabled={!highlights.length}>
+          Clear
+        </button>
+        <span style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
+          Drag to select cells, then Mark range.
+        </span>
+      </div>
+      <DataTable
+        data={seed(12)}
+        columns={baseColumns}
+        height={320}
+        highlights={highlights}
+        onSelectionChange={(s) => setSel(s.range)}
+      />
+    </div>
+  );
+};

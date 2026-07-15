@@ -18,6 +18,7 @@ interface HarnessProps {
   scrollSnap?: DataTableProps<Row>["scrollSnap"];
   edgeFade?: boolean;
   columnFill?: DataTableProps<Row>["columnFill"];
+  highlights?: DataTableProps<Row>["highlights"];
   reorderableColumns?: boolean;
   filterableColumns?: boolean;
   onCellChange?: DataTableProps<Row>["onCellChange"];
@@ -41,6 +42,7 @@ export function DataTableHarness({
   scrollSnap,
   edgeFade,
   columnFill,
+  highlights,
   reorderableColumns,
   filterableColumns,
   onCellChange,
@@ -83,6 +85,7 @@ export function DataTableHarness({
       scrollSnap={scrollSnap}
       edgeFade={edgeFade}
       columnFill={columnFill}
+      highlights={highlights}
       reorderableColumns={reorderableColumns}
       filterableColumns={filterableColumns}
       editOn={editOn}

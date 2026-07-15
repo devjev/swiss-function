@@ -381,6 +381,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. |
+| `highlights` | `DataTableHighlight[]` | n/a | Persistent coloured range overlays (the Excel "coloured range reference" look: a light fill plus a solid border around the block). Each is `{ id?, range: CellRange, color?, label? }`. **Positional** (visible coordinates, like the selection and cell spans): a highlight marks a screen region and stays put when data is sorted or filtered. `color` is any CSS colour/token; omit it and colours cycle the semantic tokens by array position. Use several distinct colours to mark separate ranges (e.g. charting series). Declarative: to add one "with the mouse", capture the selection via `onSelectionChange` and push a highlight with a colour. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |

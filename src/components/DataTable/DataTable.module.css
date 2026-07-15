@@ -536,6 +536,33 @@
   z-index: 1;
 }
 
+/* Coloured range highlight: one overlay per highlight covering a cell (Excel's
+   "coloured range reference" look). A light fill on every covered cell, plus a
+   solid border only on the edges where the cell sits on the range perimeter, so
+   the block reads as one framed region. Painted below the live range selection
+   (`::after`, z-index 1) and the active outline. Pointer-transparent. */
+.highlight {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+  background-color: color-mix(in srgb, var(--sf-highlight-color), transparent 86%);
+  border: 0 solid var(--sf-highlight-color);
+}
+.highlight[data-edge-top] {
+  border-block-start-width: 2px;
+}
+.highlight[data-edge-bottom] {
+  border-block-end-width: 2px;
+}
+.highlight[data-edge-start] {
+  border-inline-start-width: 2px;
+}
+.highlight[data-edge-end] {
+  border-inline-end-width: 2px;
+}
+
 /* Active cell: 2px primary outline inset (doesn't shift layout). The outline
    renders above content, so a consumer cell background can't hide it. */
 .cell[data-active] {
