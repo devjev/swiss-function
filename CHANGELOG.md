@@ -6,6 +6,18 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.7.0 — 2026-07-15
+
+### Minor
+
+- Add Minimap: a scroll overview rail with structural markers, clickable heading labels, and a proportional viewport indicator
+- Chat: add reveal prop to tune or opt out of the streaming-text terminal reveal (forwards mode/charIntervalMs/tailLength to StreamingTerminalText, or false for plain Markdown); StreamingTerminalText gains mode="stream" that tracks a live token stream instead of lagging then bursting
+- DataTable: highlights prop for persistent coloured range overlays (Excel coloured-range-reference look: light fill + perimeter border). Positional and declarative; several distinct colours mark separate ranges (e.g. charting series), driven from onSelectionChange
+
+### Patch
+
+- DataTable: rework the columnFill / fillHeight dither into one continuous backdrop behind the grid (was two measured, absolutely-positioned panels). Removes the L-shaped seam, halves the animated WebGL contexts to one, and drops all fill geometry measurement
+
 ## v2.6.0 — 2026-07-14
 
 ### Minor
