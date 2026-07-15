@@ -87,23 +87,44 @@ export const ShortContent: Story = () => (
   </div>
 );
 
-/* Spans anchored to real section ranges (sections are uniform, so fractions of
-   the document are section boundaries): scrolling to a span's edge lands the
-   matching section at the viewport top. */
+/* Block spans mark ranges of the document (chapters, changed regions, search
+   hits). Each is a fraction of the whole content, so its edges are section
+   boundaries here. The blocks below cover sections 2 to 4 (blue), 9 to 14
+   (neutral), and 18 to 21 (green). */
 export const BlockSpans: Story = () => (
-  <div style={frame}>
-    <Minimap
-      markers={[
-        // Sections 2 to 4.
-        { id: "a", topFraction: 1 / 24, heightFraction: 3 / 24, tone: "primary" },
-        // Sections 9 to 14.
-        { id: "b", topFraction: 8 / 24, heightFraction: 6 / 24 },
-        // Sections 18 to 21.
-        { id: "c", topFraction: 17 / 24, heightFraction: 4 / 24, tone: "success" },
-      ]}
-    >
-      <LongDocument />
-    </Minimap>
+  <div style={{ display: "grid", gap: "var(--sf-unit)", maxWidth: "60rem" }}>
+    <div style={{ color: "var(--sf-color-fg)", fontSize: "var(--sf-font-size-sm)" }}>
+      <p style={{ margin: "0 0 calc(var(--sf-unit) / 2)" }}>
+        The three dither blocks mark ranges of the document:{" "}
+        <b style={{ color: "var(--sf-color-primary)" }}>blue</b> is sections 2 to 4, <b>neutral</b>{" "}
+        is sections 9 to 14, and <b style={{ color: "var(--sf-color-success)" }}>green</b> is
+        sections 18 to 21. Each block is a fraction of the whole content (
+        {"{ topFraction, heightFraction }"}), so its top and bottom edges sit at those section
+        boundaries on the rail.
+      </p>
+      <p style={{ margin: 0 }}>
+        The thin highlighted strip is the <b>viewport</b>, the slice of the document on screen right
+        now, not a cursor at the current heading. It is one screenful tall (here about one section),
+        so as you scroll it slides through the blocks and straddles a block edge whenever your
+        screen spans that boundary: with a heading centred, the top of your screen is still in the
+        section above, so the strip overlaps the block that section belongs to. A block fully
+        contains the strip only while your whole screen is inside that block's range.
+      </p>
+    </div>
+    <div style={frame}>
+      <Minimap
+        markers={[
+          // Sections 2 to 4.
+          { id: "a", topFraction: 1 / 24, heightFraction: 3 / 24, tone: "primary" },
+          // Sections 9 to 14.
+          { id: "b", topFraction: 8 / 24, heightFraction: 6 / 24 },
+          // Sections 18 to 21.
+          { id: "c", topFraction: 17 / 24, heightFraction: 4 / 24, tone: "success" },
+        ]}
+      >
+        <LongDocument />
+      </Minimap>
+    </div>
   </div>
 );
 
