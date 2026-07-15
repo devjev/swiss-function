@@ -36,9 +36,10 @@
   outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
-/* The content wrapper gives the ResizeObserver / MutationObserver / rect
-   measurement a content-sized box. `flow-root` keeps child margins from
-   collapsing through it, so its border box is the honest content height. */
+/* The content wrapper gives the ResizeObserver a content-sized box (the scroll
+   element's border box is the viewport and does not grow with content).
+   `flow-root` keeps child margins from collapsing through it, so its border
+   box is the honest content height. */
 .content {
   display: flow-root;
 }

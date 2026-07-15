@@ -1106,18 +1106,19 @@ zone): Down/Up arrows step, PageDown/PageUp page, Home/End to the extremes.
 All programmatic gesture scrolls use `behavior: "instant"` explicitly, so a
 consumer's `scroll-behavior: smooth` cannot make a drag rubber-band.
 
-**Virtualization caveat (the headline):** virtualized bodies (Prose, DataTable,
-Explorer) mount roughly one viewport plus overscan, so a DOM scan sees only the
-current window and DOM-derived offsets drift. `markers="auto"` is unsupported
-over virtualized content; pass the `markers` array as data there, re-supply it
-whenever the virtualizer's measurements change (offsets under estimate-based
-virtualization are themselves estimates until measured), and route jumps
-through `onJump`. In v1 the component always owns its scroll container;
-attaching to an external host-owned scroller is a planned follow-up.
+**Markers are always data.** You supply the `markers` array in content
+coordinates; the component does not scan the DOM. This is what makes
+virtualized bodies (Prose, DataTable, Explorer) work: they mount roughly one
+viewport plus overscan, so a DOM scan would see only the current window, but a
+data array covers the whole document. Under estimate-based virtualization the
+offsets are themselves estimates until measured, so re-supply the array
+whenever the virtualizer's measurements change, and route jumps through
+`onJump`. In v1 the component always owns its scroll container; attaching to an
+external host-owned scroller is a planned follow-up.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `markers` | `"auto" \| MinimapMarker[]` | n/a | The array form is the primary API (content coordinates). `"auto"` scans the content for `h1`..`h6` plus `[data-minimap-marker]` (rect-based offsets; elements inside nested scrollables are skipped), rescanning via a debounced MutationObserver. Plain content only. |
+| `markers` | `MinimapMarker[]` | n/a | Structural markers in content coordinates: `block` spans (dither rules) and `header` markers (clickable labels). |
 | `side` | `"left" \| "right"` | `"right"` | Rail edge, by grid placement (logical, so RTL flips it). DOM order stays content-then-rail, so the tab order is stable either way. |
 | `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (6u = 144px). |
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
@@ -1154,9 +1155,6 @@ viewport (camera recentering); this maps a 1D DOM scroll offset.
 >
   {longContent}
 </Minimap>
-
-// Plain prose content: derive markers from the DOM.
-<Minimap markers="auto">{article}</Minimap>
 ```
 
 ## NonIdealState

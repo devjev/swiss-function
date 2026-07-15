@@ -39,9 +39,6 @@ const MIN_MARKER_PX = 2;
 /** Arrow-key scroll step: one unit, roughly a text line. */
 const KEY_STEP_PX = 24;
 
-/** Trailing debounce for auto-scan rescans (the Graph.Minimap rebuild policy). */
-const SCAN_DEBOUNCE_MS = 100;
-
 /** Active-heading threshold: a label click lands its heading exactly at the
  *  top, so the heading with `top <= scrollTop + epsilon` must include it. */
 const ACTIVE_EPSILON_PX = 2;
@@ -49,30 +46,11 @@ const ACTIVE_EPSILON_PX = 2;
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
-/** Cheap equality for rescan results, so an unchanged scan causes no render. */
-function sameMarkers(a: readonly MinimapMarker[], b: readonly MinimapMarker[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((m, i) => {
-    const n = b[i];
-    return (
-      !!n &&
-      m.top === n.top &&
-      m.height === n.height &&
-      m.heightFraction === n.heightFraction &&
-      m.kind === n.kind &&
-      m.label === n.label &&
-      m.level === n.level
-    );
-  });
-}
-
 export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
-  /** Structural markers in content coordinates (the primary API), or `"auto"`
-   *  to scan the content for h1..h6 plus `[data-minimap-marker]` (plain
-   *  content only: a DOM scan cannot see virtualized or nested-scrollable
-   *  content). Virtualized hosts must pass the array form and re-supply it
-   *  whenever the virtualizer's measurements change. */
-  markers?: "auto" | MinimapMarker[];
+  /** Structural markers in content coordinates: `block` spans (dither rules)
+   *  and `header` markers. You always supply these as data, so virtualized
+   *  hosts work by re-supplying the array whenever their measurements change. */
+  markers?: MinimapMarker[];
   /** Which edge the rail occupies. The DOM order (content, then rail) is fixed
    *  regardless, so the tab order is stable. Default `"right"`. */
   side?: "left" | "right";
@@ -268,99 +246,22 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     [schedule],
   );
 
-  // --- markers="auto": DOM scan of the content wrapper -----------------------
-  const autoEnabledRef = useRef(false);
-  autoEnabledRef.current = markers === "auto";
-  const [autoMarkers, setAutoMarkers] = useState<MinimapMarker[]>([]);
-  const scanTimerRef = useRef(0);
-
-  /** Scan the content wrapper for h1..h6 plus [data-minimap-marker]. Offsets
-   *  come from rects anchored to the content wrapper (offsetTop would be
-   *  relative to the nearest positioned ancestor and land nested headings at
-   *  the rail top). Elements inside nested scrollables are skipped: they
-   *  scroll independently, neither observer sees their inner scrolling, and
-   *  their markers would silently drift. */
-  const scan = useCallback(() => {
-    const content = contentRef.current;
-    if (!content || !autoEnabledRef.current) return;
-    const contentRect = content.getBoundingClientRect();
-    const found: MinimapMarker[] = [];
-    const nodes = content.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,[data-minimap-marker]");
-    let index = 0;
-    for (const node of nodes) {
-      let insideNestedScrollable = false;
-      for (let el = node.parentElement; el && el !== content; el = el.parentElement) {
-        // Computed overflow-y is "auto" for horizontal-only scrollers too
-        // (CSS couples the axes), so also require actual vertical
-        // scrollability: a wide-table wrapper must not swallow its headings.
-        const overflowY = getComputedStyle(el).overflowY;
-        if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
-          insideNestedScrollable = true;
-          break;
-        }
-      }
-      if (insideNestedScrollable) continue;
-      const rect = node.getBoundingClientRect();
-      const top = rect.top - contentRect.top;
-      if (/^H[1-6]$/.test(node.tagName)) {
-        found.push({
-          id: `sf-minimap-auto-${index}`,
-          top,
-          kind: "header",
-          label: node.textContent ?? "",
-          level: Number(node.tagName.charAt(1)),
-        });
-      } else {
-        found.push({ id: `sf-minimap-auto-${index}`, top, kind: "block", height: rect.height });
-      }
-      index += 1;
-    }
-    setAutoMarkers((prev) => (sameMarkers(prev, found) ? prev : found));
-  }, []);
-
-  const scheduleScan = useCallback(() => {
-    if (!autoEnabledRef.current) return;
-    window.clearTimeout(scanTimerRef.current);
-    scanTimerRef.current = window.setTimeout(scan, SCAN_DEBOUNCE_MS);
-  }, [scan]);
-
-  useEffect(() => () => window.clearTimeout(scanTimerRef.current), []);
-
-  // Rescan when the prop switches to auto (the observers only fire on change).
-  useEffect(() => {
-    if (markers === "auto") scheduleScan();
-  }, [markers, scheduleScan]);
-
   // The content wrapper gets its own observer: the scroll element's border box
   // is the viewport and does not resize when content grows (images finishing
   // loading while the user is idle would otherwise leave everything stale).
-  // The MutationObserver feeds the auto-scan through the same trailing
-  // debounce; both are inert unless markers="auto".
   const contentObserverRef = useRef<ResizeObserver | null>(null);
-  const contentMutationRef = useRef<MutationObserver | null>(null);
   const setContentNode = useCallback(
     (node: HTMLDivElement | null) => {
       contentObserverRef.current?.disconnect();
       contentObserverRef.current = null;
-      contentMutationRef.current?.disconnect();
-      contentMutationRef.current = null;
       contentRef.current = node;
       if (node && typeof ResizeObserver !== "undefined") {
-        const observer = new ResizeObserver(() => {
-          schedule();
-          scheduleScan();
-        });
+        const observer = new ResizeObserver(schedule);
         observer.observe(node);
         contentObserverRef.current = observer;
       }
-      if (node && typeof MutationObserver !== "undefined") {
-        const observer = new MutationObserver(scheduleScan);
-        observer.observe(node, { childList: true, subtree: true, characterData: true });
-        contentMutationRef.current = observer;
-        scheduleScan();
-      }
     },
-    [schedule, scheduleScan],
+    [schedule],
   );
 
   const railObserverRef = useRef<ResizeObserver | null>(null);
@@ -503,10 +404,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     });
   }, []);
 
-  const markerList = useMemo(
-    () => (markers === "auto" ? autoMarkers : Array.isArray(markers) ? markers : []),
-    [markers, autoMarkers],
-  );
+  const markerList = useMemo<MinimapMarker[]>(() => markers ?? [], [markers]);
   const warnedRef = useRef(false);
 
   const resolvedMarkers = useMemo(() => {

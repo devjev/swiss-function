@@ -62,28 +62,6 @@ export function Clustered() {
   );
 }
 
-/** Auto-scan fixture: real headings, one inside a nested scrollable (must be
- *  skipped), and a mutation target to test rescans. */
-export function AutoDoc() {
-  return (
-    <div style={{ height: 400, width: 520 }}>
-      <Minimap markers="auto">
-        <div data-testid="autodoc" style={{ padding: 16 }}>
-          <h2 style={{ height: 24, margin: 0 }}>Alpha</h2>
-          <div style={{ height: 2000 }} />
-          <h3 style={{ height: 24, margin: 0 }}>Beta</h3>
-          <div style={{ height: 2000 }} />
-          <div style={{ height: 120, overflowY: "auto" }}>
-            <h4 style={{ height: 24, margin: 0 }}>Nested (skipped)</h4>
-            <div style={{ height: 600 }} />
-          </div>
-          <div style={{ height: 2000 }} />
-        </div>
-      </Minimap>
-    </div>
-  );
-}
-
 /** Outer-scroller fixture for the wheel consume-guard: the Minimap sits inside
  *  a scrollable page with more content below. */
 export function InOuterScroller() {
@@ -108,26 +86,6 @@ export function Shrinkable() {
     <div style={{ height: 400, width: 520 }}>
       <Minimap markers={[{ id: "m", top: 0 }]}>
         <div data-testid="grow" style={{ height: 8000 }} />
-      </Minimap>
-    </div>
-  );
-}
-
-/** Auto-scan fixture with a horizontal-only scroll wrapper: computed
- *  overflow-y couples to "auto", but the wrapper cannot scroll vertically, so
- *  its heading must still reach the rail. */
-export function AutoHorizontalWrap() {
-  return (
-    <div style={{ height: 400, width: 520 }}>
-      <Minimap markers="auto">
-        <div style={{ padding: 16 }}>
-          <h2 style={{ height: 24, margin: 0 }}>Alpha</h2>
-          <div style={{ height: 2000 }} />
-          <div style={{ overflowX: "auto" }}>
-            <h3 style={{ height: 24, margin: 0, width: 900 }}>Wide (kept)</h3>
-          </div>
-          <div style={{ height: 2000 }} />
-        </div>
       </Minimap>
     </div>
   );

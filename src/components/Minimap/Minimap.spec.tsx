@@ -1,15 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import {
-  AutoDoc,
-  AutoHorizontalWrap,
-  Clustered,
-  InOuterScroller,
-  Short,
-  Shrinkable,
-  Tall,
-  WithLabels,
-} from "./Minimap.harness";
+import { Clustered, InOuterScroller, Short, Shrinkable, Tall, WithLabels } from "./Minimap.harness";
 
 /** The scroll element is the target of the scrollbar's aria-controls. */
 async function scrollTopOf(c: { locator(selector: string): Locator; page(): Page }) {
@@ -143,25 +134,6 @@ test("clustered labels decimate; dropped ones are absent from the tab order", as
   expect(count).toBeGreaterThanOrEqual(1);
 });
 
-test("auto mode scans headings, skips nested scrollables, and rescans on mutation", async ({
-  mount,
-  page,
-}) => {
-  const c = await mount(<AutoDoc />);
-  await expect(c.getByRole("button", { name: "Alpha" })).toBeVisible();
-  await expect(c.getByRole("button", { name: "Beta" })).toBeVisible();
-  // The heading inside the nested scrollable is excluded from the rail.
-  await expect(c.getByRole("button", { name: "Nested (skipped)" })).toHaveCount(0);
-  // Mutate the content: a new heading appears after the debounced rescan.
-  await page.evaluate(() => {
-    const host = document.querySelector('[data-testid="autodoc"]');
-    const h = document.createElement("h2");
-    h.textContent = "Gamma";
-    host?.appendChild(h);
-  });
-  await expect(c.getByRole("button", { name: "Gamma" })).toBeVisible({ timeout: 2000 });
-});
-
 test("grabbing the band wins over a label it covers; uncovered labels stay clickable", async ({
   mount,
   page,
@@ -219,10 +191,4 @@ test("the rail collapses again when overflowing content shrinks to fit", async (
     if (el) el.style.height = "100px";
   });
   await expect(c.locator('[role="scrollbar"]')).toBeHidden();
-});
-
-test("auto mode keeps headings inside horizontal-only scroll wrappers", async ({ mount }) => {
-  const c = await mount(<AutoHorizontalWrap />);
-  await expect(c.getByRole("button", { name: "Alpha" })).toBeVisible();
-  await expect(c.getByRole("button", { name: "Wide (kept)" })).toBeVisible();
 });

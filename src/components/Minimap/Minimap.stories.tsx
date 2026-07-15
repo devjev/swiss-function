@@ -136,15 +136,6 @@ export const WideRail: Story = () => (
   </div>
 );
 
-/* markers="auto": the rail derives headers from the DOM (h1..h6). */
-export const AutoMarkers: Story = () => (
-  <div style={frame}>
-    <Minimap markers="auto">
-      <LongDocument />
-    </Minimap>
-  </div>
-);
-
 /* A dozen h3s in a tight span: label decimation drops the losers, their
    dither rules stay. */
 export const ClusteredHeadings: Story = () => (
@@ -164,38 +155,6 @@ export const ClusteredHeadings: Story = () => (
     >
       <div style={{ height: "40000px", padding: "var(--sf-unit)" }}>
         <p>A very long document with a dense cluster of h3 headings near the top.</p>
-      </div>
-    </Minimap>
-  </div>
-);
-
-/* A nested scrollable inside the content: its headings stay out of the rail
-   and it keeps its own scrollbar hover reveal. */
-export const NestedScrollable: Story = () => (
-  <div style={frame}>
-    <Minimap markers="auto">
-      <div style={{ padding: "0 var(--sf-unit)" }}>
-        <Section index={0} />
-        <div
-          style={{
-            height: "12rem",
-            overflowY: "auto",
-            border: "1px solid var(--sf-color-border)",
-            padding: "0 var(--sf-unit)",
-          }}
-        >
-          <h3>Nested log (not in the rail)</h3>
-          {Array.from({ length: 30 }, (_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static generated lines; the index is the identity
-            <p key={i} style={{ margin: 0 }}>
-              line {i + 1}
-            </p>
-          ))}
-        </div>
-        {Array.from({ length: 12 }, (_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: static generated sections; the index is the identity
-          <Section key={i} index={i + 1} />
-        ))}
       </div>
     </Minimap>
   </div>
