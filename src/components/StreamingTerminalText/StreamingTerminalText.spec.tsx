@@ -114,3 +114,39 @@ test("block boundary crossed → next block opens with shade blocks already styl
   const pCount = await c.locator("p").count();
   expect(pCount).toBeGreaterThan(0);
 });
+
+test("mode=stream reveals all but the tail on the first ticks (tracks the source)", async ({
+  mount,
+  page,
+}) => {
+  // A long line that dramatic (1 char/tick) could not finish in this window,
+  // but stream mode reveals to the cap (all but the tail) in a single tick.
+  const content = "Helloworld this is a fairly long streamed line of many tokens indeed";
+  const c = await mount(
+    <StreamingTerminalText
+      content={content}
+      isComplete={false}
+      mode="stream"
+      tailLength={3}
+      charIntervalMs={20}
+    />,
+  );
+  await page.waitForTimeout(80); // a few ticks
+  const txt = (await c.textContent()) ?? "";
+  const resolved = txt.replace(/[▒▓█ ]/g, "");
+  const nonWs = content.replace(/\s/g, "");
+  // Everything except the 3-char shade tail is already resolved.
+  expect(resolved.length).toBe(nonWs.length - 3);
+});
+
+test("mode=dramatic (default) reveals slowly, one char per tick", async ({ mount, page }) => {
+  const content = "Helloworld this is a fairly long streamed line of many tokens indeed";
+  const c = await mount(
+    <StreamingTerminalText content={content} isComplete={false} charIntervalMs={20} />,
+  );
+  await page.waitForTimeout(80); // ~4 ticks → ~4 chars, nowhere near the cap
+  const txt = (await c.textContent()) ?? "";
+  const resolved = txt.replace(/[▒▓█ ]/g, "");
+  const nonWs = content.replace(/\s/g, "");
+  expect(resolved.length).toBeLessThan(nonWs.length / 2);
+});

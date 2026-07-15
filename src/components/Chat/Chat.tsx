@@ -115,6 +115,13 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   height?: number | string;
   /** Whether the input is disabled (e.g., while the assistant is still streaming). */
   disabled?: boolean;
+  /** How streaming assistant text is revealed. Omit for the default terminal
+   *  reveal (dramatic, per-character). Pass an object to tune it: `mode`
+   *  (`"stream"` tracks a live token stream so it doesn't lag then burst),
+   *  `charIntervalMs`, `tailLength` — all forwarded to `StreamingTerminalText`.
+   *  Pass `false` to skip the reveal entirely: streaming text renders as plain
+   *  `Markdown`, landing exactly as tokens arrive (no per-character shimmer). */
+  reveal?: false | { mode?: "dramatic" | "stream"; charIntervalMs?: number; tailLength?: number };
 }
 
 export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
@@ -129,6 +136,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     borderColor,
     height,
     disabled,
+    reveal,
     className,
     style,
     ...rest
@@ -150,8 +158,15 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   // `Markdown` render. Without this the reveal would be abandoned mid-animation
   // and the full formatted reply would snap in at once.
   const [revealing, setRevealing] = useState<Set<string>>(() => new Set());
+  // Stable boolean (an inline `reveal` object would otherwise re-trigger the
+  // effect every render); only the opt-out matters to the reveal tracking.
+  const revealOff = reveal === false;
 
   useEffect(() => {
+    // With the reveal opted out (`reveal={false}`) no StreamingTerminalText
+    // mounts, so nothing would ever call finishReveal — don't track these, or
+    // the set would grow unbounded and keep messages flagged animating.
+    if (revealOff) return;
     const streamingIds = messages
       .filter((m) => m.role === "assistant" && m.isStreaming)
       .map((m) => m.id);
@@ -166,7 +181,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
       }
       return next;
     });
-  }, [messages]);
+  }, [messages, revealOff]);
 
   const finishReveal = useCallback((id: string) => {
     setRevealing((prev) => {
@@ -237,11 +252,17 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   // streaming target; otherwise renders as static markdown. The reveal is kept
   // mounted through the `isStreaming` flip until it drains — see `revealing`.
   const renderText = (text: string, msg: ChatMessage, animate: boolean) =>
-    animate ? (
+    // `reveal={false}` opts out of the terminal reveal: streaming text renders
+    // as plain Markdown, landing as tokens arrive. Otherwise the reveal props
+    // (mode / charIntervalMs / tailLength) are forwarded.
+    animate && !revealOff ? (
       <StreamingTerminalText
         content={text}
         isComplete={!msg.isStreaming}
         onRevealComplete={() => finishReveal(msg.id)}
+        mode={reveal?.mode}
+        charIntervalMs={reveal?.charIntervalMs}
+        tailLength={reveal?.tailLength}
       />
     ) : (
       <Markdown value={text} />

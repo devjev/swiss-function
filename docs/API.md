@@ -186,6 +186,7 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
+| `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
 
 ### Rich (non-text) responses
 
@@ -1539,6 +1540,7 @@ Reveals text character-by-character with a shade-block tail (terminal typewriter
 | --- | --- | --- | --- |
 | `content` | `string` | n/a | Full text received so far (grows as chunks arrive). |
 | `isComplete` | `boolean` | n/a | True once no more text will arrive. |
+| `mode` | `"dramatic" \| "stream"` | `"dramatic"` | Reveal cadence. `"dramatic"` reveals one character per tick (a steady shimmer, good for scripted text). `"stream"` reveals everything except the shade tail each tick, so the text tracks a live token stream as it arrives instead of lagging then bursting to catch up at the end. |
 | `tailLength` | `number` | `3` | Unrevealed letters held in the tail. |
 | `charIntervalMs` | `number` | `64` | Ms per tick. |
 | `shadeRamp` | `string[]` | `["▒", "▓"]` | Shade glyphs, far → near. |

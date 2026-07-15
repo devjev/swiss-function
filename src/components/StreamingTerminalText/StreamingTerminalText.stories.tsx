@@ -133,3 +133,47 @@ export const FromFetch: Story = () => (
     </p>
   </div>
 );
+
+// A fast source (12 chars every 40ms, faster than the default reveal) feeding
+// both modes at once. `"dramatic"` lags behind and then bursts to catch up on
+// completion; `"stream"` tracks the source, only the shade tail trailing the
+// live edge. This is the difference issue #75 is about.
+export const ModeComparison: Story = () => {
+  const [content, setContent] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
+  const [running, setRunning] = useState(false);
+
+  const start = () => {
+    setContent("");
+    setIsComplete(false);
+    setRunning(true);
+    let i = 0;
+    const id = window.setInterval(() => {
+      i = Math.min(i + 12, SAMPLE.length);
+      setContent(SAMPLE.slice(0, i));
+      if (i >= SAMPLE.length) {
+        window.clearInterval(id);
+        setIsComplete(true);
+        setRunning(false);
+      }
+    }, 40);
+  };
+
+  return (
+    <div style={{ maxWidth: 720, display: "grid", gap: "var(--sf-unit)" }}>
+      <div>
+        <Button variant="primary" onClick={start} disabled={running}>
+          {running ? "Streaming…" : "Start streaming"}
+        </Button>
+      </div>
+      <div>
+        <strong style={{ fontSize: "var(--sf-font-size-sm)" }}>mode="dramatic" (default)</strong>
+        <StreamingTerminalText content={content} isComplete={isComplete} />
+      </div>
+      <div>
+        <strong style={{ fontSize: "var(--sf-font-size-sm)" }}>mode="stream"</strong>
+        <StreamingTerminalText content={content} isComplete={isComplete} mode="stream" />
+      </div>
+    </div>
+  );
+};

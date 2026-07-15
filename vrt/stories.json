@@ -348,6 +348,7 @@
   "splitpane--top",
   "streaming-terminal-text--configured",
   "streaming-terminal-text--from-fetch",
+  "streaming-terminal-text--mode-comparison",
   "streaming-terminal-text--simulated",
   "streaming-terminal-text--static",
   "switch--default",

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-15T14:11:28.645Z"
+    "date": "2026-07-15T15:25:13.252Z"
   },
-  "totalGzip": 832599,
+  "totalGzip": 833339,
   "entries": {
     ".": {
       "files": 243,
-      "jsRaw": 852415,
-      "jsGzip": 258346,
+      "jsRaw": 853064,
+      "jsGzip": 258575,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 258346,
+      "gzip": 258575,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -203,20 +203,20 @@
     },
     "./chat": {
       "files": 25,
-      "jsRaw": 36846,
-      "jsGzip": 14297,
+      "jsRaw": 37495,
+      "jsGzip": 14526,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 14297,
+      "gzip": 14526,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./chat-drawer": {
       "files": 37,
-      "jsRaw": 65823,
-      "jsGzip": 24449,
+      "jsRaw": 66472,
+      "jsGzip": 24678,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24449,
+      "gzip": 24678,
       "externals": [
         "@base-ui/react/tabs",
         "react",
@@ -753,11 +753,11 @@
     },
     "./streaming-terminal-text": {
       "files": 8,
-      "jsRaw": 10468,
-      "jsGzip": 4165,
+      "jsRaw": 10659,
+      "jsGzip": 4218,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4165,
+      "gzip": 4218,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./surface": {

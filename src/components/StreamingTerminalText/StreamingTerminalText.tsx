@@ -82,6 +82,12 @@ export interface StreamingTerminalTextProps extends HTMLAttributes<HTMLDivElemen
   onRevealComplete?: () => void;
   /** Unrevealed non-whitespace letters held in the developing tail. */
   tailLength?: number;
+  /** Reveal cadence. `"dramatic"` (default) reveals one resolved character per
+   *  tick, a steady per-character shimmer good for scripted text. `"stream"`
+   *  reveals everything except the shade tail on each tick, so the text tracks
+   *  a live token stream as it arrives (only the tail shimmers) instead of
+   *  lagging behind a fast source and then bursting to catch up at the end. */
+  mode?: "dramatic" | "stream";
   /** Milliseconds per resolved tick. */
   charIntervalMs?: number;
   /** Shade glyphs from far-end (low density) to near-end (high density). */
@@ -106,6 +112,7 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
       isComplete,
       onRevealComplete,
       tailLength = 3,
+      mode = "dramatic",
       charIntervalMs = 64,
       shadeRamp = ["▒", "▓"],
       spacePlaceholder = " ",
@@ -136,10 +143,12 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
     const positionsRef = useRef(positions);
     const isCompleteRef = useRef(isComplete);
     const tailLengthRef = useRef(tailLength);
+    const modeRef = useRef(mode);
     useEffect(() => {
       positionsRef.current = positions;
       isCompleteRef.current = isComplete;
       tailLengthRef.current = tailLength;
+      modeRef.current = mode;
     });
 
     useEffect(() => {
@@ -149,11 +158,16 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
           const tail = tailLengthRef.current;
           const cap = isCompleteRef.current ? p.length : Math.max(0, p.length - tail);
           if (rc >= cap) return rc;
-          // Steady one-char shimmer while streaming. Once complete, drain any
-          // backlog proportionally so a fast-arrived message finishes its
-          // animation in ~24 ticks (≈1.5 s) instead of crawling for seconds —
-          // and is never abandoned by a hard swap to static markdown.
-          const step = isCompleteRef.current ? Math.max(1, Math.ceil((cap - rc) / 24)) : 1;
+          // Once complete, drain any backlog proportionally so a fast-arrived
+          // message finishes in ~24 ticks (≈1.5 s) instead of crawling — and is
+          // never abandoned by a hard swap to static markdown. While streaming:
+          // `"dramatic"` is a steady one-char shimmer (scripted feel);
+          // `"stream"` reveals to the cap each tick, so the text tracks a live
+          // token stream and only the shade tail shimmers — no slow-then-fast.
+          let step: number;
+          if (isCompleteRef.current) step = Math.max(1, Math.ceil((cap - rc) / 24));
+          else if (modeRef.current === "stream") step = cap - rc;
+          else step = 1;
           return Math.min(cap, rc + step);
         });
       }, charIntervalMs);

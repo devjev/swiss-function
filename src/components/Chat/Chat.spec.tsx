@@ -208,3 +208,41 @@ test("thinking (done) collapses to a summary and re-expands on click", async ({ 
   await expect(c.getByText("search")).toBeVisible();
   await expect.poll(async () => (await body.boundingBox())?.height ?? 0).toBeGreaterThan(10);
 });
+
+test("reveal={false} renders streaming text as plain markdown (no terminal shade tail)", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Chat
+      messages={[{ id: "a", role: "assistant", content: "Hello **world**", isStreaming: true }]}
+      onSubmit={() => {}}
+      reveal={false}
+    />,
+  );
+  // Text lands immediately (markdown), fully, with no shade-block reveal glyphs.
+  await expect(c.getByText("world")).toBeVisible();
+  const txt = (await c.textContent()) ?? "";
+  expect(/[▒▓█]/.test(txt)).toBe(false);
+  await expect(c.locator("strong")).toHaveText("world");
+});
+
+test("reveal mode=stream threads through: streaming text resolves quickly", async ({
+  mount,
+  page,
+}) => {
+  const content = "Streaming a fairly long assistant reply of many tokens indeed here";
+  const c = await mount(
+    <Chat
+      messages={[{ id: "a", role: "assistant", content, isStreaming: true }]}
+      onSubmit={() => {}}
+      reveal={{ mode: "stream", tailLength: 3, charIntervalMs: 20 }}
+    />,
+  );
+  await page.waitForTimeout(80);
+  const txt = (await c.textContent()) ?? "";
+  const resolved = txt.replace(/[▒▓█ ]/g, "");
+  const nonWs = content.replace(/\s/g, "");
+  // Stream mode has resolved almost everything (all but the short tail), unlike
+  // the default dramatic reveal which would show only a few characters by now.
+  expect(resolved.length).toBeGreaterThan(nonWs.length - 6);
+});
