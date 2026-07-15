@@ -147,13 +147,20 @@
 }
 
 /* The invisible grab/focus zone: at least one unit tall (WCAG 2.5.8), centered
-   on the visual band. It carries role="scrollbar" and the keyboard path; the
-   pointer path stays on the rail (the zone is pointer-events: none, and the
-   rail's press hit-test uses the zone's geometry in JS). */
+   on the visual band. It carries role="scrollbar", the keyboard path, and the
+   grab gesture. It stacks above the labels: grabbing the focus marker always
+   wins where the band covers a label (a covered label is clickable again once
+   the band moves away). */
 .zone {
   position: absolute;
   inset-inline: 0;
-  pointer-events: none;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none;
+}
+
+.rail[data-dragging] .zone {
+  cursor: grabbing;
 }
 
 .zone:focus-visible {

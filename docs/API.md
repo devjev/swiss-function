@@ -1097,10 +1097,11 @@ flicker) when the content fits. The scroll element hides its own native
 scrollbar (`scrollbar-width: none` on that one element, non-inheriting): the
 rail is that element's scroll affordance; nested scrollables keep their own.
 
-Gestures: drag the band (relative, preserves grab offset), press empty rail to
-jump (centers the viewport on the pressed position) and keep dragging, wheel
-over the rail forwards to the content, header label click jumps top-aligned
-(smooth, instant under reduced motion). Keyboard (on the `role="scrollbar"`
+Gestures: drag the band (relative, preserves grab offset; grabbing wins where
+the band covers a label, and the label is clickable again once the band moves
+away), press empty rail to jump (centers the viewport on the pressed position)
+and keep dragging, wheel over the rail forwards to the content, header label
+click jumps top-aligned (smooth, instant under reduced motion). Keyboard (on the `role="scrollbar"`
 zone): Down/Up arrows step, PageDown/PageUp page, Home/End to the extremes.
 All programmatic gesture scrolls use `behavior: "instant"` explicitly, so a
 consumer's `scroll-behavior: smooth` cannot make a drag rubber-band.
@@ -1123,10 +1124,12 @@ attaching to an external host-owned scroller is a planned follow-up.
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
-`MinimapMarker`: `{ id?, top?, topFraction?, height?, kind?, label?, level?, tone? }`.
+`MinimapMarker`: `{ id?, top?, topFraction?, height?, heightFraction?, kind?, label?, level?, tone? }`.
 `top` is a content offset in px; `topFraction` a fraction of `scrollHeight` in
 [0, 1]; exactly one is required (`top` wins when both are set; a marker with
-neither is dropped with a one-time dev warning). `kind` is `"block"` (default)
+neither is dropped with a one-time dev warning). `height`/`heightFraction`
+give block spans an extent (px or fraction; `height` wins when both are set).
+`kind` is `"block"` (default)
 or `"header"`; `label` and `level` apply to headers (`level` drives indent and
 collision priority); `tone` (`primary`/`success`/`warning`/`danger`) recolors a
 marker only where the color means something. Colliding labels decimate

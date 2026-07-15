@@ -24,6 +24,10 @@ export interface MinimapMarker {
   topFraction?: number;
   /** Extent in content px, for block spans. Optional; a bare rule otherwise. */
   height?: number;
+  /** Extent as a fraction of scrollHeight in [0, 1]: the scaling sibling of
+   *  `topFraction`, for spans anchored by fraction. `height` wins when both
+   *  are set. */
+  heightFraction?: number;
   /** `block` (default): a thin dither rule, decorative. `header`: a
    *  clickable, level-indented text label. */
   kind?: MinimapMarkerKind;
@@ -44,6 +48,16 @@ export function resolveMarkerTop(marker: MinimapMarker, scrollHeight: number): n
     return marker.topFraction * scrollHeight;
   }
   return null;
+}
+
+/** Resolve a marker's extent in content px (0 for a bare rule). `height` wins
+ *  when both fields are set, mirroring resolveMarkerTop. */
+export function resolveMarkerHeight(marker: MinimapMarker, scrollHeight: number): number {
+  if (typeof marker.height === "number" && Number.isFinite(marker.height)) return marker.height;
+  if (typeof marker.heightFraction === "number" && Number.isFinite(marker.heightFraction)) {
+    return marker.heightFraction * scrollHeight;
+  }
+  return 0;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);

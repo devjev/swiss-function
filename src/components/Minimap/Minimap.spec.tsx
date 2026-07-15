@@ -162,14 +162,25 @@ test("auto mode scans headings, skips nested scrollables, and rescans on mutatio
   await expect(c.getByRole("button", { name: "Gamma" })).toBeVisible({ timeout: 2000 });
 });
 
-test("a label overlapping the indicator band still receives its click", async ({ mount }) => {
+test("grabbing the band wins over a label it covers; uncovered labels stay clickable", async ({
+  mount,
+  page,
+}) => {
   const c = await mount(<WithLabels />);
-  // Band rests at the top, over the "One" label (top 0). The label is topmost.
-  await c.getByRole("button", { name: "Two" }).click();
-  await expect.poll(() => scrollTopOf(c), { timeout: 3000 }).toBe(2000);
-  // Now the band sits over "Two"; clicking it must jump (not start a drag).
-  await c.getByRole("button", { name: "One" }).click();
-  await expect.poll(() => scrollTopOf(c), { timeout: 3000 }).toBe(0);
+  const rail = c.locator('[class*="rail"]');
+  const box = (await rail.boundingBox())!;
+  // Band rests at the top, covering the "One" label. A press there must grab
+  // the focus marker (drag scrolls), never click the label.
+  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + 108, { steps: 4 });
+  await page.mouse.up();
+  const st = await scrollTopOf(c);
+  expect(st).toBeGreaterThan(1600);
+  expect(st).toBeLessThan(2400);
+  // A label the band does not cover stays clickable and jumps.
+  await c.getByRole("button", { name: "Three" }).click();
+  await expect.poll(() => scrollTopOf(c), { timeout: 3000 }).toBe(4000);
 });
 
 test("wheel over the rail does not chain to an outer scroller while consuming", async ({

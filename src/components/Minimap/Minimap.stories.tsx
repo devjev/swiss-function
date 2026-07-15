@@ -87,13 +87,19 @@ export const ShortContent: Story = () => (
   </div>
 );
 
+/* Spans anchored to real section ranges (sections are uniform, so fractions of
+   the document are section boundaries): scrolling to a span's edge lands the
+   matching section at the viewport top. */
 export const BlockSpans: Story = () => (
   <div style={frame}>
     <Minimap
       markers={[
-        { id: "a", topFraction: 0.05, height: 900, tone: "primary" },
-        { id: "b", topFraction: 0.35, height: 2400 },
-        { id: "c", topFraction: 0.7, height: 1500, tone: "success" },
+        // Sections 2 to 4.
+        { id: "a", topFraction: 1 / 24, heightFraction: 3 / 24, tone: "primary" },
+        // Sections 9 to 14.
+        { id: "b", topFraction: 8 / 24, heightFraction: 6 / 24 },
+        // Sections 18 to 21.
+        { id: "c", topFraction: 17 / 24, heightFraction: 4 / 24, tone: "success" },
       ]}
     >
       <LongDocument />

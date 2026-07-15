@@ -5,6 +5,7 @@ import {
   markerRailHeight,
   markerRailY,
   railVisibleNext,
+  resolveMarkerHeight,
   resolveMarkerTop,
   scrollTopForRailPress,
   scrollTopForThumbTop,
@@ -227,5 +228,23 @@ describe("decimateLabels", () => {
       { y: 112, level: 1 },
     ];
     expect(decimateLabels(labels, 24)).toEqual([false, true]);
+  });
+});
+
+describe("resolveMarkerHeight", () => {
+  it("uses height when present", () => {
+    expect(resolveMarkerHeight({ top: 0, height: 900 }, 10000)).toBe(900);
+  });
+
+  it("resolves heightFraction against scrollHeight", () => {
+    expect(resolveMarkerHeight({ top: 0, heightFraction: 0.25 }, 10000)).toBe(2500);
+  });
+
+  it("prefers height when both are present", () => {
+    expect(resolveMarkerHeight({ top: 0, height: 900, heightFraction: 0.25 }, 10000)).toBe(900);
+  });
+
+  it("returns 0 for a bare rule", () => {
+    expect(resolveMarkerHeight({ top: 0 }, 10000)).toBe(0);
   });
 });

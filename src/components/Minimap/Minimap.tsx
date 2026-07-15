@@ -11,6 +11,7 @@ import {
   markerRailHeight,
   markerRailY,
   railVisibleNext,
+  resolveMarkerHeight,
   resolveMarkerTop,
   scrollTopForRailPress,
   scrollTopForThumbTop,
@@ -57,6 +58,7 @@ function sameMarkers(a: readonly MinimapMarker[], b: readonly MinimapMarker[]): 
       !!n &&
       m.top === n.top &&
       m.height === n.height &&
+      m.heightFraction === n.heightFraction &&
       m.kind === n.kind &&
       m.label === n.label &&
       m.level === n.level
@@ -526,7 +528,12 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       resolved.push({
         key: marker.id ?? `sf-minimap-${index}`,
         y: markerRailY(top, scrollHeight, railHeight),
-        height: markerRailHeight(marker.height ?? 0, scrollHeight, railHeight, MIN_MARKER_PX),
+        height: markerRailHeight(
+          resolveMarkerHeight(marker, scrollHeight),
+          scrollHeight,
+          railHeight,
+          MIN_MARKER_PX,
+        ),
         tone: marker.tone,
       });
     });
@@ -674,6 +681,14 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
           aria-valuemax={100}
           aria-valuenow={pct}
           onKeyDown={onIndicatorKeyDown}
+          onPointerDown={(event) => {
+            // The zone sits above the labels: grabbing the focus marker wins
+            // wherever the band covers a label (the label is clickable again
+            // once the band moves away). Forward to the rail drag handler,
+            // whose zone hit-test resolves this press to a relative drag.
+            event.stopPropagation();
+            railDrag.onPointerDown(event);
+          }}
         />
         {/* Labels stack topmost; pointerdown stops propagation so a label
             press never starts a rail jump or drag, it only clicks. */}
