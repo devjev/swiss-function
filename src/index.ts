@@ -34,6 +34,7 @@ export * from "./components/Map";
 export * from "./components/Markdown";
 export * from "./components/Menu";
 export * from "./components/MenuBar";
+export * from "./components/Minimap";
 export * from "./components/NonIdealState";
 export * from "./components/Notebook";
 export * from "./components/Outliner";

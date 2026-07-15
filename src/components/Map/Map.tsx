@@ -27,6 +27,7 @@ import type {
   MapPoint,
   MapVector,
 } from "../../lib/map/types";
+import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
 import { NonIdealState } from "../NonIdealState";
@@ -99,12 +100,6 @@ const DEFAULT_CENTER: LngLat = [0, 20];
 const DEFAULT_ZOOM = 1;
 /** Padding (px) around fitted bounds. */
 const FIT_PADDING = 40;
-
-/** True when the user asked for reduced motion (camera moves snap, no fly). */
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 /** Cached probe result — WebGL availability cannot change within a page session. */
 let webglSupport: boolean | undefined;

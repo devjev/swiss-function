@@ -4,6 +4,7 @@
  *  to "no looping animation". */
 
 import { useEffect, useRef, useState } from "react";
+import { prefersReducedMotion } from "../prefersReducedMotion";
 
 export type SpinnerVariant =
   | "braille"
@@ -100,14 +101,6 @@ export const SPINNERS: Record<SpinnerVariant, SpinnerSpec> = {
 export function spinnerStill(variant: SpinnerVariant): string {
   const spec = SPINNERS[variant];
   return spec.still ?? spec.frames[0] ?? "";
-}
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
 }
 
 /**

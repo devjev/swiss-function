@@ -1,0 +1,209 @@
+/* Minimap (issue #73): a scroll-overview rail beside a component-owned scroll
+   container. The rail is a real grid column, never an overlay, so it does not
+   occlude content and needs no pointer-events layering against it. */
+
+.wrapper {
+  display: grid;
+  /* Logical order: content column, then the rail at the trailing side. The
+     `side="left"` variant swaps *placement* on the two children below; the DOM
+     stays scroll-element-then-rail so the tab order is stable. */
+  grid-template-columns: minmax(0, 1fr) var(--sf-minimap-width);
+  block-size: 100%;
+  /* Without this, the grid's intrinsic min size keeps the 1fr column from
+     shrinking and silently pushes the scroll onto an outer container (the same
+     rule Pane bakes in). */
+  min-block-size: 0;
+}
+
+.scroll {
+  grid-row: 1;
+  min-block-size: 0;
+  overflow-y: auto;
+  /* The rail is this element's scroll affordance. The native scrollbar is
+     removed entirely: `thin` would keep an invisible but interactive gutter at
+     the trailing edge (Windows/Linux classic scrollbars), and the shared
+     `scrollable` hover reveal would light a second primary bar beside the
+     rail. `scrollbar-width` does not inherit, so nested scrollables keep
+     their own affordance. */
+  scrollbar-width: none;
+}
+
+/* The scroll element carries tabIndex=0 (no native scrollbar, and WebKit never
+   auto-focuses scrollers), so it needs the standard ring, inset to stay
+   inside the scrollport. */
+.scroll:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
+}
+
+/* The content wrapper gives the ResizeObserver / MutationObserver / rect
+   measurement a content-sized box. `flow-root` keeps child margins from
+   collapsing through it, so its border box is the honest content height. */
+.content {
+  display: flow-root;
+}
+
+.rail {
+  grid-row: 1;
+  grid-column: 2;
+  position: relative;
+  overflow: hidden;
+  border-inline-start: 1px solid var(--sf-color-border);
+  /* The rail is a drag surface: without this, touch pointers pan the page
+     instead of feeding the pointer-capture drag. */
+  touch-action: none;
+}
+
+/* Invisible probe measuring the rendered var(--sf-unit): the JS label math
+   (centering, clamp, decimation spacing) reads its offsetHeight instead of
+   assuming 24px, so a non-16px root font cannot desynchronize it from the
+   CSS label boxes. */
+.unitProbe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  inline-size: 0;
+  block-size: var(--sf-unit);
+}
+
+/* Decorative layer holding the block markers. */
+.markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Side variant: swap *placement*, not DOM order, so the tab order is stable. */
+.wrapper[data-side="left"] {
+  grid-template-columns: var(--sf-minimap-width) minmax(0, 1fr);
+}
+.wrapper[data-side="left"] .scroll {
+  grid-column: 2;
+}
+.wrapper[data-side="left"] .rail {
+  grid-column: 1;
+  border-inline-start: none;
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+
+/* No overflow: single column, rail gone (out of the tab order and the
+   accessibility tree). The visibility test has hysteresis in JS so this
+   template swap cannot flicker-loop with width-dependent content heights. */
+.wrapper[data-collapsed] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.wrapper[data-collapsed] .scroll {
+  grid-column: 1;
+}
+.wrapper[data-collapsed] .rail {
+  display: none;
+}
+
+/* Block markers: thin dither rules, the density read. Neutral fg through the
+   dither mask reads as structure, not text (the no-grey rule is about text);
+   an optional tone recolors a marker only where the color means something. */
+.marker {
+  position: absolute;
+  inset-inline: calc(var(--sf-unit) / 4);
+  background-color: var(--minimap-marker-color, var(--sf-color-fg));
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+.marker[data-tone="primary"] {
+  --minimap-marker-color: var(--sf-color-primary);
+}
+.marker[data-tone="success"] {
+  --minimap-marker-color: var(--sf-color-success);
+}
+.marker[data-tone="warning"] {
+  --minimap-marker-color: var(--sf-color-warning);
+}
+.marker[data-tone="danger"] {
+  --minimap-marker-color: var(--sf-color-danger);
+}
+
+/* Viewport indicator: the honestly proportional band of the document visible
+   in the main view (the markers inside it are the content on screen). Visual
+   only: pointer interaction goes through the rail (single pointerdown owner),
+   keyboard through the grab zone below. Rests at low emphasis; full primary on
+   hover, drag, and keyboard focus. */
+.indicator {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--sf-color-primary) 14%, transparent);
+  border-block: 1px solid color-mix(in srgb, var(--sf-color-primary) 40%, transparent);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.rail:hover .indicator,
+.rail[data-dragging] .indicator,
+.rail:has(.zone:focus-visible) .indicator {
+  background-color: color-mix(in srgb, var(--sf-color-primary) 28%, transparent);
+  border-block-color: var(--sf-color-primary);
+}
+
+/* The invisible grab/focus zone: at least one unit tall (WCAG 2.5.8), centered
+   on the visual band. It carries role="scrollbar" and the keyboard path; the
+   pointer path stays on the rail (the zone is pointer-events: none, and the
+   rail's press hit-test uses the zone's geometry in JS). */
+.zone {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+.zone:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
+}
+
+/* Header labels: real buttons inside the rail at their marker's position.
+   Full-strength fg at rest (the no-grey rule: state is never signaled by
+   graying text); the active one gets an accent rule and a bg tint. */
+.label {
+  position: absolute;
+  inset-inline: 0;
+  display: block;
+  block-size: var(--sf-unit);
+  padding: 0;
+  padding-inline-end: calc(var(--sf-unit) / 4);
+  border: none;
+  background: none;
+  appearance: none;
+  font: inherit;
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-unit);
+  text-align: start;
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  border-inline-start: 2px solid transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.label:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.label[aria-current] {
+  border-inline-start-color: var(--sf-color-primary);
+  background-color: color-mix(in srgb, var(--sf-color-primary) 10%, transparent);
+}
+
+.label:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator,
+  .label {
+    transition: none;
+  }
+}

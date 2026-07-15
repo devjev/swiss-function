@@ -223,6 +223,10 @@
       "types": "./dist/components/Menu/index.d.ts",
       "import": "./dist/components/Menu/index.js"
     },
+    "./minimap": {
+      "types": "./dist/components/Minimap/index.d.ts",
+      "import": "./dist/components/Minimap/index.js"
+    },
     "./menu-bar": {
       "types": "./dist/components/MenuBar/index.d.ts",
       "import": "./dist/components/MenuBar/index.js"

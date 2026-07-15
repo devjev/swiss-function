@@ -36,6 +36,7 @@ import {
   forceIterations,
 } from "../../lib/graph/forceLayout";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
+import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { useThemeEpoch } from "../../lib/useThemeEpoch";
 import { FullscreenToggle } from "../Fullscreen";
@@ -356,13 +357,6 @@ interface ContextMenuState {
   x: number;
   y: number;
   target: GraphMenuTarget;
-}
-
-/** True when the user asked for reduced motion (layout switches snap instead
- *  of animating). Defaults to `false` outside the browser. */
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** True when the force layout should settle in the FA2 worker instead of the

@@ -1074,6 +1074,88 @@ in the collapsed panel; omit for self-describing controls).
 </MenuBar.Root>
 ```
 
+## Minimap
+
+`import { Minimap } from "@tarassov-ch/swiss-function/minimap"`
+
+A scroll-overview rail beside a component-owned scroll container, in the manner
+of the VS Code minimap but built from **structural markers**, not a scaled
+content clone. `block` markers are thin dither rules (the density read);
+`header` markers render their text as truncated, level-indented, clickable
+labels with active tracking (`aria-current`). The viewport indicator is the
+**honestly proportional band** of the document currently visible in the main
+view: the markers inside it always correspond to the content on screen. The
+minimum target size (24px) lives on an invisible grab/focus zone centered on
+the band, never on the band itself.
+
+The component owns the scroll container (like `Pane.Body`): a CSS Grid wrapper
+holds its own scroll element plus the rail as a real grid column (never an
+overlay). **The parent must constrain the wrapper's height**; dropped into an
+unconstrained div the content never overflows and the rail never appears. The
+rail hides entirely (with hysteresis, so width-dependent content cannot make it
+flicker) when the content fits. The scroll element hides its own native
+scrollbar (`scrollbar-width: none` on that one element, non-inheriting): the
+rail is that element's scroll affordance; nested scrollables keep their own.
+
+Gestures: drag the band (relative, preserves grab offset), press empty rail to
+jump (centers the viewport on the pressed position) and keep dragging, wheel
+over the rail forwards to the content, header label click jumps top-aligned
+(smooth, instant under reduced motion). Keyboard (on the `role="scrollbar"`
+zone): Down/Up arrows step, PageDown/PageUp page, Home/End to the extremes.
+All programmatic gesture scrolls use `behavior: "instant"` explicitly, so a
+consumer's `scroll-behavior: smooth` cannot make a drag rubber-band.
+
+**Virtualization caveat (the headline):** virtualized bodies (Prose, DataTable,
+Explorer) mount roughly one viewport plus overscan, so a DOM scan sees only the
+current window and DOM-derived offsets drift. `markers="auto"` is unsupported
+over virtualized content; pass the `markers` array as data there, re-supply it
+whenever the virtualizer's measurements change (offsets under estimate-based
+virtualization are themselves estimates until measured), and route jumps
+through `onJump`. In v1 the component always owns its scroll container;
+attaching to an external host-owned scroller is a planned follow-up.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `markers` | `"auto" \| MinimapMarker[]` | n/a | The array form is the primary API (content coordinates). `"auto"` scans the content for `h1`..`h6` plus `[data-minimap-marker]` (rect-based offsets; elements inside nested scrollables are skipped), rescanning via a debounced MutationObserver. Plain content only. |
+| `side` | `"left" \| "right"` | `"right"` | Rail edge, by grid placement (logical, so RTL flips it). DOM order stays content-then-rail, so the tab order is stable either way. |
+| `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (6u = 144px). |
+| `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
+| `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
+| `children` | `ReactNode` | n/a | The scrollable content. |
+
+`MinimapMarker`: `{ id?, top?, topFraction?, height?, kind?, label?, level?, tone? }`.
+`top` is a content offset in px; `topFraction` a fraction of `scrollHeight` in
+[0, 1]; exactly one is required (`top` wins when both are set; a marker with
+neither is dropped with a one-time dev warning). `kind` is `"block"` (default)
+or `"header"`; `label` and `level` apply to headers (`level` drives indent and
+collision priority); `tone` (`primary`/`success`/`warning`/`danger`) recolors a
+marker only where the color means something. Colliding labels decimate
+deepest-level-first, then by document order; dropped labels are not rendered at
+all (nothing invisible in the tab order) while their dither rules stay.
+
+The forwarded ref targets the **scroll element** (read the offset, scroll
+programmatically, or hand it to a virtualizer's `getScrollElement`).
+
+Tokens: `--sf-minimap-width` (rail width, default `calc(var(--sf-unit) * 6)`).
+
+Not `Graph.Minimap` / `Map.Minimap`: those are canvas overviews of a canvas
+viewport (camera recentering); this maps a 1D DOM scroll offset.
+
+```tsx
+<Minimap
+  markers={[
+    { id: "intro", top: 0, kind: "header", label: "Introduction", level: 1 },
+    { id: "data", topFraction: 0.4, kind: "header", label: "Data", level: 2 },
+    { id: "risk", topFraction: 0.7, height: 1200, tone: "warning" },
+  ]}
+>
+  {longContent}
+</Minimap>
+
+// Plain prose content: derive markers from the DOM.
+<Minimap markers="auto">{article}</Minimap>
+```
+
 ## NonIdealState
 
 `import { NonIdealState } from "@tarassov-ch/swiss-function/non-ideal-state"`

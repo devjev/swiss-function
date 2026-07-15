@@ -29,6 +29,7 @@ const componentNames = [
   "Map",
   "Markdown",
   "MenuBar",
+  "Minimap",
   "NonIdealState",
   "Outliner",
   "Pane",

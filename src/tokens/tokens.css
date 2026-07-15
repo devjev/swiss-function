@@ -206,6 +206,11 @@
     --sf-scrollbar-thumb-hover: var(--sf-color-primary);
     --sf-scrollbar-track: transparent;
 
+    /* Minimap rail width (issue #73): wide enough for truncated heading
+       labels. A dimension token, not a color, so the small-palette rule is
+       untouched. The Minimap `width` prop overrides it per instance. */
+    --sf-minimap-width: calc(var(--sf-unit) * 6);
+
     /* Z-indices */
     --sf-z-dropdown: 1000;
     --sf-z-overlay: 1100;
