@@ -23,7 +23,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -691,8 +691,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Virtualization ---
   const containerRef = useRef<HTMLDivElement>(null);
-  // The body (rows) element, measured for the fillHeight below-rows band.
-  const bodyRef = useRef<HTMLDivElement>(null);
   const visibleRowCount = displayOrder
     ? displayOrder.length
     : paginate
@@ -1180,46 +1178,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [visibleLeaves, columnWidths, fillOn, defaultColumnWidth, frozenCount],
   );
 
-  // --- Column-fill filler ---
-  // Total px width of the columns (sum of the resolved grid tracks), used to
-  // place the dither filler. Unlike `contentWidth` (the header element, which is
-  // 100% of the viewport in fill mode) this is the columns' real trailing edge.
-  const [columnsWidth, setColumnsWidth] = useState(0);
-  // Full scrollable content height (header + body), so the right-gutter filler
-  // spans the whole leftover column rather than only the body.
-  const [fillerHeight, setFillerHeight] = useState(0);
-  // The empty band below the last row when `fillHeight` holds the viewport taller
-  // than its content: viewport client height minus the content height.
-  const [belowRowsHeight, setBelowRowsHeight] = useState(0);
-  useLayoutEffect(() => {
-    if (!fillOn && !fillHeight) return;
-    const hr = headerRowRef.current;
-    const vp = containerRef.current;
-    if (hr) {
-      const tracks = getComputedStyle(hr).gridTemplateColumns.split(" ");
-      setColumnsWidth(tracks.reduce((sum, t) => sum + (Number.parseFloat(t) || 0), 0));
-    }
-    if (vp) {
-      // True content height (header + body). `scrollHeight` clamps up to the
-      // client height once the viewport is held taller than the rows, so measure
-      // the body's own extent instead.
-      const body = bodyRef.current;
-      const content = body ? body.offsetTop + body.offsetHeight : vp.scrollHeight;
-      setFillerHeight(content);
-      setBelowRowsHeight(fillHeight ? Math.max(0, vp.clientHeight - content) : 0);
-    }
-  }, [fillOn, fillHeight, gridTemplateColumns, contentWidth, data.length, rowHeight, paginate]);
+  // --- Fill backdrop ---
+  // A single dither surface behind the grid content (see `.content` / `.fill`
+  // in the CSS). The opaque cells occlude it; the empty leftover (right of the
+  // fixed columns, below the last row, and the corner) reveals it as one
+  // continuous surface. No geometry is measured: the content wrapper is sized
+  // by the header's `max-content` and stretched to the viewport with
+  // `min-width/height: 100%`, so the backdrop covers exactly the leftover.
+  const fillActive = fillOn || fillHeight;
 
   // The animated variant renders a WebGL dither canvas; the hook is inert until
-  // a canvas mounts (static mode), mirroring Skeleton's usage.
+  // a canvas mounts (static mode), mirroring Skeleton's usage. One context for
+  // the whole backdrop (gutter + band share it).
   const { rootRef: fillRootRef, canvasRef: fillCanvasRef } = useDitheredFill({
-    effect: fillOpts.effect ?? "noise",
-    density: fillOpts.density ?? 0.5,
-    color: fillOpts.color,
-    speed: fillOpts.speed,
-  });
-  // Second animated fill for the below-rows band (its own canvas/context).
-  const { rootRef: bandRootRef, canvasRef: bandCanvasRef } = useDitheredFill({
     effect: fillOpts.effect ?? "noise",
     density: fillOpts.density ?? 0.5,
     color: fillOpts.color,
@@ -1477,11 +1448,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [leafParents, orderedLeafIds, setColumnOrder],
   );
 
-  // Dither panel filling the space right of the last column (columnFill mode).
-  // Lives inside `.body` so it spans the full body height and scrolls vertically
-  // with the rows; collapses to ~0 width when the columns overflow the viewport.
-  const columnFiller =
-    fillOn && !showEmpty ? (
+  // The single dither backdrop (see the `.content` / `.fill` layer notes above).
+  // A `position: absolute; inset: 0` child of `.content`, painted behind the
+  // cells (`z-index: -1`), so it fills the whole leftover as one surface.
+  const fillBackdrop =
+    fillActive && !showEmpty ? (
       <div
         ref={
           fillAnimated
@@ -1490,48 +1461,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
               }
             : undefined
         }
-        className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+        className={cx(styles.fill, fillAnimated && styles.fillAnimated)}
         aria-hidden="true"
         style={
-          {
-            height: fillerHeight,
-            "--sf-columns-width": `${columnsWidth}px`,
-            ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
-          } as CSSProperties
+          fillOpts.color ? ({ "--sf-fill-color": fillOpts.color } as CSSProperties) : undefined
         }
       >
-        {/* aria-hidden lives on the parent .columnFill; canvas is decorative. */}
-        {fillAnimated ? <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} /> : null}
-      </div>
-    ) : null;
-
-  // Dither band filling the empty space below the last row (fillHeight mode):
-  // full width, from the content bottom to the viewport bottom. Same dither as
-  // columnFill (its config when set, else a static default). Together with the
-  // right-gutter filler above it covers the whole leftover of a sparse table.
-  const belowRowsFiller =
-    fillHeight && belowRowsHeight > 0 && !showEmpty ? (
-      <div
-        ref={
-          fillAnimated
-            ? (node) => {
-                bandRootRef.current = node;
-              }
-            : undefined
-        }
-        className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
-        aria-hidden="true"
-        style={
-          {
-            top: fillerHeight,
-            height: belowRowsHeight,
-            // Full width (start at 0, not the columns' right edge).
-            "--sf-columns-width": "0px",
-            ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
-          } as CSSProperties
-        }
-      >
-        {fillAnimated ? <canvas ref={bandCanvasRef} className={styles.columnFillCanvas} /> : null}
+        {fillAnimated ? <canvas ref={fillCanvasRef} className={styles.fillCanvas} /> : null}
       </div>
     ) : null;
 
@@ -1674,8 +1610,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
             maxHeight: fillHeight ? undefined : height,
             "--sf-row-height": `${rowHeight}px`,
             "--sf-header-rows": headerGroups.length,
-            // INTERNAL variable (like --sf-columns-width above), not a consumer
-            // token: the single writer for every row's grid-template-columns,
+            // INTERNAL variable, not a consumer token: the single writer for
+            // every row's grid-template-columns,
             // so a resize step mutates one element instead of every row.
             "--sf-datatable-template": gridTemplateColumns,
             ...(frozenCount > 0 ? { scrollPaddingInlineStart: frozenWidth } : {}),
@@ -1686,141 +1622,151 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
+        data-fill={fillActive || undefined}
         data-frozen={frozenCount > 0 || undefined}
         data-frozen-scrolled={frozenScrolled || undefined}
         data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
         data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
       >
-        {/* Headers — one row per header group; parent groups span their leaves.
+        {/* Grid content wrapper. `display: contents` outside fill mode (zero
+            box, so the layout is identical to no wrapper); in fill mode it
+            becomes the backdrop container: sized by the header's `max-content`
+            and stretched to the viewport, holding the single `.fill` surface
+            behind the cells. `edgeFade` stays outside so it spans the gutter. */}
+        <div className={styles.content}>
+          {fillBackdrop}
+          {/* Headers — one row per header group; parent groups span their leaves.
             With `reorderableColumns`, leaf headers are sortable (drag to reorder). */}
-        {(() => {
-          const headerRows = headerGroups.map((hg, hgIndex) => (
+          {(() => {
+            const headerRows = headerGroups.map((hg, hgIndex) => (
+              <div
+                key={hg.id}
+                ref={hgIndex === 0 ? headerRowRef : undefined}
+                className={styles.headerRow}
+                role="row"
+              >
+                {hg.headers.map((header) => {
+                  const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
+                  return reorderableColumns && isLeaf ? (
+                    <SortableHeaderCell
+                      key={header.id}
+                      id={header.column.id}
+                      render={(dnd) => renderHeaderCell(header, dnd)}
+                    />
+                  ) : (
+                    renderHeaderCell(header)
+                  );
+                })}
+              </div>
+            ));
+            if (!reorderableColumns) return headerRows;
+            return (
+              <DndContext
+                sensors={reorderSensors}
+                onDragStart={onColumnDragStart}
+                onDragEnd={onColumnDragEnd}
+                onDragCancel={() => setDraggingColId(null)}
+              >
+                <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
+                  {headerRows}
+                </SortableContext>
+                <DragOverlay dropAnimation={null}>
+                  {draggingLeaf ? (
+                    <div className={styles.headerDragOverlay}>
+                      {typeof draggingLeaf.header === "string"
+                        ? draggingLeaf.header
+                        : draggingLeaf.id}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            );
+          })()}
+
+          {/* Body */}
+          {showEmpty ? (
+            <div className={styles.empty}>{empty ?? "No data"}</div>
+          ) : paginate ? (
+            <div className={styles.body}>
+              {displayOrder
+                ? Array.from(displayOrder, (dataIdx, rowIndex) => (
+                    <DataTableRow
+                      key={dataIdx}
+                      {...flatRowProps}
+                      original={data[dataIdx] as T}
+                      dataIdx={dataIdx}
+                      displayIndex={rowIndex}
+                      height={rowHeight}
+                    />
+                  ))
+                : pageRows.map((row, rowIndex) => (
+                    <div
+                      key={row.id}
+                      role="row"
+                      className={styles.row}
+                      style={{ height: rowHeight }}
+                    >
+                      {row
+                        .getVisibleCells()
+                        .map((_, colIndex) => renderCell(row, rowIndex, colIndex))}
+                    </div>
+                  ))}
+            </div>
+          ) : (
             <div
-              key={hg.id}
-              ref={hgIndex === 0 ? headerRowRef : undefined}
-              className={styles.headerRow}
-              role="row"
+              className={styles.body}
+              style={{
+                height: rowVirtualizer.getTotalSize(),
+                position: "relative",
+                // In fill mode the `.content` wrapper (sized by the header's
+                // `max-content`) pins the body width, so the virtualized body,
+                // whose absolutely-positioned rows establish no `max-content`,
+                // aligns with the header for free. Outside fill mode keep the
+                // measured `contentWidth`.
+                minWidth: fillOn ? undefined : (contentWidth ?? undefined),
+              }}
             >
-              {hg.headers.map((header) => {
-                const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
-                return reorderableColumns && isLeaf ? (
-                  <SortableHeaderCell
-                    key={header.id}
-                    id={header.column.id}
-                    render={(dnd) => renderHeaderCell(header, dnd)}
-                  />
-                ) : (
-                  renderHeaderCell(header)
+              {virtualRows.map((vr) => {
+                if (order) {
+                  const dataIdx = order[vr.index];
+                  if (dataIdx === undefined) return null;
+                  return (
+                    <DataTableRow
+                      key={dataIdx}
+                      {...flatRowProps}
+                      original={data[dataIdx] as T}
+                      dataIdx={dataIdx}
+                      displayIndex={vr.index}
+                      height={vr.size}
+                      start={vr.start}
+                    />
+                  );
+                }
+                const row = rows[vr.index];
+                if (!row) return null;
+                return (
+                  <div
+                    key={row.id}
+                    role="row"
+                    className={styles.row}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: vr.size,
+                      transform: `translateY(${vr.start}px)`,
+                    }}
+                  >
+                    {row
+                      .getVisibleCells()
+                      .map((_, colIndex) => renderCell(row, vr.index, colIndex))}
+                  </div>
                 );
               })}
             </div>
-          ));
-          if (!reorderableColumns) return headerRows;
-          return (
-            <DndContext
-              sensors={reorderSensors}
-              onDragStart={onColumnDragStart}
-              onDragEnd={onColumnDragEnd}
-              onDragCancel={() => setDraggingColId(null)}
-            >
-              <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
-                {headerRows}
-              </SortableContext>
-              <DragOverlay dropAnimation={null}>
-                {draggingLeaf ? (
-                  <div className={styles.headerDragOverlay}>
-                    {typeof draggingLeaf.header === "string"
-                      ? draggingLeaf.header
-                      : draggingLeaf.id}
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          );
-        })()}
-
-        {/* Body */}
-        {showEmpty ? (
-          <div className={styles.empty}>{empty ?? "No data"}</div>
-        ) : paginate ? (
-          <div ref={bodyRef} className={styles.body}>
-            {displayOrder
-              ? Array.from(displayOrder, (dataIdx, rowIndex) => (
-                  <DataTableRow
-                    key={dataIdx}
-                    {...flatRowProps}
-                    original={data[dataIdx] as T}
-                    dataIdx={dataIdx}
-                    displayIndex={rowIndex}
-                    height={rowHeight}
-                  />
-                ))
-              : pageRows.map((row, rowIndex) => (
-                  <div key={row.id} role="row" className={styles.row} style={{ height: rowHeight }}>
-                    {row
-                      .getVisibleCells()
-                      .map((_, colIndex) => renderCell(row, rowIndex, colIndex))}
-                  </div>
-                ))}
-          </div>
-        ) : (
-          <div
-            ref={bodyRef}
-            className={styles.body}
-            style={{
-              height: rowVirtualizer.getTotalSize(),
-              position: "relative",
-              // In fill mode pin the virtualized body to the columns' real total
-              // (`columnsWidth`). Its rows are absolutely positioned, so they
-              // don't establish `max-content`; without this the CSS
-              // `min-width: max-content` collapses to ~0 and `width:100%` shrinks
-              // the body to the viewport when it's narrower than the columns,
-              // misaligning it from the header (issue #3). When the viewport is
-              // wider, `width:100%` (≥ columnsWidth) still wins, so the dither
-              // filler keeps its room.
-              minWidth: fillOn ? columnsWidth || undefined : (contentWidth ?? undefined),
-            }}
-          >
-            {virtualRows.map((vr) => {
-              if (order) {
-                const dataIdx = order[vr.index];
-                if (dataIdx === undefined) return null;
-                return (
-                  <DataTableRow
-                    key={dataIdx}
-                    {...flatRowProps}
-                    original={data[dataIdx] as T}
-                    dataIdx={dataIdx}
-                    displayIndex={vr.index}
-                    height={vr.size}
-                    start={vr.start}
-                  />
-                );
-              }
-              const row = rows[vr.index];
-              if (!row) return null;
-              return (
-                <div
-                  key={row.id}
-                  role="row"
-                  className={styles.row}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: vr.size,
-                    transform: `translateY(${vr.start}px)`,
-                  }}
-                >
-                  {row.getVisibleCells().map((_, colIndex) => renderCell(row, vr.index, colIndex))}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {columnFiller}
-        {belowRowsFiller}
+          )}
+        </div>
 
         {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so
             it overlays the last rows without adding layout space; the sticky

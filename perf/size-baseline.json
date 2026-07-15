@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-15T13:00:48.790Z"
+    "date": "2026-07-15T14:11:28.645Z"
   },
-  "totalGzip": 834021,
+  "totalGzip": 832599,
   "entries": {
     ".": {
       "files": 243,
-      "jsRaw": 854225,
-      "jsGzip": 258820,
+      "jsRaw": 852415,
+      "jsGzip": 258346,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 258820,
+      "gzip": 258346,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -604,11 +604,11 @@
     },
     "./notebook": {
       "files": 72,
-      "jsRaw": 196591,
-      "jsGzip": 62875,
+      "jsRaw": 194781,
+      "jsGzip": 62401,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 62875,
+      "gzip": 62401,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -771,11 +771,11 @@
     },
     "./data-table": {
       "files": 54,
-      "jsRaw": 149026,
-      "jsGzip": 46524,
+      "jsRaw": 147216,
+      "jsGzip": 46050,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 46524,
+      "gzip": 46050,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

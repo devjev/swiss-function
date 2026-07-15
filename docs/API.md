@@ -1763,7 +1763,7 @@ Set via a prop or inline style and read by the component's stylesheet:
 | `--sf-datatable-fade-rows` | DataTable | `edgeFade.rows` |
 | `--sf-datatable-fade-density` | DataTable | `edgeFade.density` |
 | `--sf-datatable-col-min` | DataTable | minimum column width (default `3u`) |
-| `--sf-columns-width` | DataTable | columns' total width: placement of the `columnFill` dither panel |
+| `--sf-fill-color` | DataTable | `columnFill.color`: the fill backdrop's dither colour |
 | `--sf-dialog-x` / `--sf-dialog-y` | Dialog | drag position of a `draggable` Popup |
 | `--sf-wa-gap` | WindowArray | `gap` prop: column/window gap and gutter width |
 | `--sf-wa-elevation` | WindowArray | `elevation` prop: resting window shadow; inherits, so set it on an individual `WindowArray.Window` (`style`) to raise just that window |

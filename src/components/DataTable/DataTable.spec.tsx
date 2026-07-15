@@ -503,8 +503,8 @@ test("columnFill: last column gets a handle and a dither filler renders", async 
   // The last column ("active") now has its own trailing resize handle (it's no
   // longer the flush-right filler).
   await expect(component.locator('[data-column-id="active"]')).toHaveCount(1);
-  // The dither filler panel renders in the leftover space.
-  await expect(component.locator('[class*="columnFill"]')).toHaveCount(1);
+  // The single dither backdrop renders behind the grid content.
+  await expect(component.locator('[class*="fill"]')).toHaveCount(1);
 });
 
 test("columnFill: virtualized body keeps the header's column widths when the viewport is narrower than the columns (issue #3)", async ({
@@ -858,15 +858,40 @@ test("fillHeight holds the viewport height and dithers the space below the rows"
     .getByRole("grid")
     .evaluate((el) => Math.round(el.getBoundingClientRect().height));
   expect(vpH).toBe(300);
-  // A dither filler covers the leftover (its box extends below the last row).
-  const fillers = c.locator('[class*="columnFill"]');
-  expect(await fillers.count()).toBeGreaterThanOrEqual(1);
-  const bottoms = await fillers.evaluateAll((els) =>
-    els.map((el) => Math.round(el.getBoundingClientRect().bottom)),
-  );
+  // Exactly one dither backdrop (not the old two panels), and it covers the
+  // leftover: its box extends below the last row (it spans the full held-open
+  // content area, so the empty band shows).
+  const fill = c.locator('[class*="fill"]');
+  await expect(fill).toHaveCount(1);
+  const fillBottom = await fill.evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
   const rowBottom = await c
     .getByRole("gridcell")
     .last()
     .evaluate((el) => Math.round(el.getBoundingClientRect().bottom));
-  expect(Math.max(...bottoms)).toBeGreaterThan(rowBottom + 20);
+  expect(fillBottom).toBeGreaterThan(rowBottom + 20);
+});
+
+test("fillHeight alone still fits the columns horizontally (no forced overflow)", async ({
+  mount,
+}) => {
+  // fillHeight is vertical-only: in a container narrower than the columns'
+  // preferred widths, the last column must still stretch (1fr) and the tracks
+  // shrink so the table fits, exactly as without fillHeight. columnFill (not set
+  // here) is the mode that pins columns and leaves a right gutter.
+  const cols = [
+    { id: "a", header: "A", accessor: "a" as const, width: 16 },
+    { id: "b", header: "B", accessor: "b" as const, width: 16 },
+    { id: "c", header: "C", accessor: "c" as const, width: 16 },
+  ];
+  const data = [{ a: "1", b: "2", c: "3" }];
+  const c = await mount(
+    <div style={{ width: 240 }}>
+      <DataTable data={data} columns={cols} height={300} fillHeight />
+    </div>,
+  );
+  const { scrollW, clientW } = await c
+    .getByRole("grid")
+    .evaluate((el) => ({ scrollW: el.scrollWidth, clientW: el.clientWidth }));
+  // No horizontal overflow beyond the min-content floor (a couple of px slack).
+  expect(scrollW).toBeLessThanOrEqual(clientW + 2);
 });

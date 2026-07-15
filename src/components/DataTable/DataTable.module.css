@@ -112,9 +112,9 @@
 .headerRow {
   display: grid;
   /* Column tracks come from --sf-datatable-template, set inline on the viewport
-     (an INTERNAL variable, like --sf-columns-width — not a consumer token).
-     One writer instead of a per-row inline style: a column resize then mutates
-     a single element and the memoized body rows bail out of re-rendering. */
+     (an INTERNAL variable, not a consumer token). One writer instead of a
+     per-row inline style: a column resize then mutates a single element and the
+     memoized body rows bail out of re-rendering. */
   grid-template-columns: var(--sf-datatable-template);
   width: 100%;
   min-width: min-content;
@@ -330,34 +330,59 @@
   min-width: max-content;
 }
 
-/* In fill mode the last column is a real fixed column with the dither panel to
-   its right, so it keeps its trailing separator (normally erased because the
+/* In fill mode the last column is a real fixed column with the dither backdrop
+   to its right, so it keeps its trailing separator (normally erased because the
    last column is the flush-right filler). */
 .viewport[data-column-fill] .headerCell:last-child,
 .viewport[data-column-fill] .cell:last-child {
   --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
 }
 
-/* Column-fill mode: a dither panel filling the space to the right of the last
-   column, from the columns' trailing edge (`--sf-columns-width`, set inline) to
-   the viewport's right edge. It's a direct child of the scroll viewport spanning
-   the full content height (set inline) — header strip included — so the empty
-   space reads as one block. Non-interactive; collapses to ~0 width when the
-   columns overflow the viewport. */
-.columnFill {
+/* Grid content wrapper. Outside fill mode it is `display: contents`: it
+   generates no box, so header + body lay out exactly as if it were absent (no
+   regression for the common path). In fill mode it becomes the backdrop
+   container: a real box sized by the header's `max-content` and stretched to
+   the viewport (`min-*: 100%`), holding the single `.fill` surface behind the
+   cells. `isolation` scopes the backdrop's negative z-index to this subtree. */
+.content {
+  display: contents;
+}
+.viewport[data-fill] .content {
+  display: block;
+  position: relative;
+  isolation: isolate;
+  min-inline-size: 100%;
+  min-block-size: 100%;
+}
+/* Only columnFill pins the columns to their preferred widths (leaving a right
+   gutter). fillHeight alone is vertical-only: without `max-content` the wrapper
+   stays viewport-width, so the 1fr last column still stretches and the table
+   fits horizontally, while `min-block-size: 100%` still holds it tall enough
+   for the backdrop to cover the below-rows band. */
+.viewport[data-column-fill] .content {
+  inline-size: max-content;
+}
+
+/* The single fill backdrop: one dither surface behind the cells. Because the
+   content wrapper is `max(columns, viewport)` in both axes and the opaque cells
+   sit at the top-left, the leftover (right of the columns, below the last row,
+   and the corner) reveals this surface as one continuous block. `z-index: -1`
+   drops it behind the non-positioned cells; the sticky header, frozen cells and
+   edge fade all stay above it. No geometry is measured. */
+.fill {
   position: absolute;
-  top: 0;
-  inset-inline-start: var(--sf-columns-width, 0);
-  inset-inline-end: 0;
+  inset: 0;
+  z-index: -1;
   pointer-events: none;
+  overflow: hidden;
   color: var(--sf-color-muted);
 }
 
 /* Static variant: a uniform muted Bayer dither (half-drop, ~12.5% coverage),
    the same dither vocabulary as the edge fade and Selector chips. */
-.columnFill:not(.columnFillAnimated) {
+.fill:not(.fillAnimated) {
   background-color: var(
-    --sf-columnfill-color,
+    --sf-fill-color,
     color-mix(in srgb, var(--sf-color-muted), transparent 55%)
   );
   --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
@@ -367,12 +392,21 @@
   mask-size: 4px 4px;
 }
 
-/* Animated variant: the WebGL dither canvas fills the panel. */
-.columnFillCanvas {
+/* Animated variant: the WebGL dither canvas fills the backdrop. */
+.fillCanvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+/* Fill mode: data cells must be opaque so the backdrop shows only in the
+   leftover, not through the cells. The row itself is full-width and stays
+   transparent (only its cells span the columns), so the gutter to the right of
+   the cells reveals the backdrop; the header cells are already opaque. Range
+   selection is an `::after` overlay, so this base background does not hide it. */
+.viewport[data-fill] .cell {
+  background-color: var(--sf-color-bg);
 }
 
 .row {
