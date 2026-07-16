@@ -172,6 +172,49 @@ export const Choices: Story = () => {
   );
 };
 
+export const ErrorState: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { id: "u1", role: "user", content: "Summarise the quarterly report." },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "error",
+          partId: "err",
+          message: "Overloaded — couldn't answer. Try again.",
+          requestId: "req_011Cd5ReJN3vNgRyshH9DNQb",
+          retryable: true,
+        },
+      ],
+    },
+  ]);
+
+  const handleAction = (a: ChatAction) => {
+    if (a.type === "error" && a.value === "retry") {
+      // The app re-sends; here we just replace the error with an answer.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === a.messageId
+            ? { id: m.id, role: "assistant", content: "Here's the summary you asked for." }
+            : m,
+        ),
+      );
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat
+        messages={messages}
+        onSubmit={() => {}}
+        onAction={handleAction}
+        onError={(e) => console.log("chat error:", e)}
+      />
+    </div>
+  );
+};
+
 const ORCHESTRATION_TREE: ChatTreeNode[] = [
   {
     id: "request",

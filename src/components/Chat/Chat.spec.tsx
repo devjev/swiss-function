@@ -246,3 +246,69 @@ test("reveal mode=stream threads through: streaming text resolves quickly", asyn
   // the default dramatic reveal which would show only a few characters by now.
   expect(resolved.length).toBeGreaterThan(nonWs.length - 6);
 });
+
+test("an error part renders the message + request id and fires onError once", async ({ mount }) => {
+  let errors = 0;
+  let lastMessage = "";
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a",
+          role: "assistant",
+          parts: [
+            {
+              type: "error",
+              partId: "e",
+              message: "Overloaded — try again.",
+              requestId: "req_1",
+              retryable: true,
+            },
+          ],
+        },
+      ]}
+      onSubmit={() => {}}
+      onError={(e) => {
+        errors += 1;
+        lastMessage = e.message;
+      }}
+    />,
+  );
+  await expect(c.getByText("Overloaded — try again.")).toBeVisible();
+  await expect(c.getByText("req_1")).toBeVisible();
+  await expect(c.getByRole("alert")).toBeVisible();
+  expect(errors).toBe(1);
+  expect(lastMessage).toBe("Overloaded — try again.");
+});
+
+test("a retryable error's Retry reports through onAction", async ({ mount }) => {
+  let action: unknown = null;
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a",
+          role: "assistant",
+          parts: [{ type: "error", partId: "e", message: "Overloaded.", retryable: true }],
+        },
+      ]}
+      onSubmit={() => {}}
+      onAction={(a) => {
+        action = a;
+      }}
+    />,
+  );
+  await c.getByRole("button", { name: "Retry" }).click();
+  expect(action).toEqual({ messageId: "a", partId: "e", type: "error", value: "retry" });
+});
+
+test("a non-retryable error shows no Retry", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={[{ id: "a", role: "assistant", parts: [{ type: "error", message: "Failed." }] }]}
+      onSubmit={() => {}}
+    />,
+  );
+  await expect(c.getByText("Failed.")).toBeVisible();
+  await expect(c.getByRole("button", { name: "Retry" })).toHaveCount(0);
+});

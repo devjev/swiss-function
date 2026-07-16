@@ -1,0 +1,22 @@
+/* ChatError: the NonIdealState provides the bordered block + glitch fill; this
+   only tunes the in-chat message typography. */
+
+.root {
+  /* A micro-element: override NonIdealState's tall min-block-size floor so it
+     sizes to its content (message + id + retry) with a small floor. */
+  min-block-size: calc(var(--sf-unit) * 5);
+  min-inline-size: 0;
+}
+
+.message {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-danger);
+}
+
+.requestId {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}

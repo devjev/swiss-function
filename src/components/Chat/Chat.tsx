@@ -7,6 +7,7 @@ import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
 import styles from "./Chat.module.css";
 import { type ChatChoice, ChatChoices } from "./ChatChoices";
+import { ChatError } from "./ChatError";
 import { ChatThinking } from "./ChatThinking";
 import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
 
@@ -57,6 +58,18 @@ export interface ChatThinkingPart {
   defaultExpanded?: boolean;
 }
 
+/** An error surfaced by the backend (e.g. an overloaded/timeout response),
+ *  shown as a small glitch block. The app parses its payload into a clean
+ *  `message` (+ optional `requestId`); `onError` fires when it appears, and a
+ *  `retryable` error's Retry reports through `onAction`. */
+export interface ChatErrorPart {
+  type: "error";
+  partId?: string;
+  message: string;
+  requestId?: string;
+  retryable?: boolean;
+}
+
 /** Escape hatch for any other block — rendered by `Chat`'s `renderPart`. */
 export interface ChatCustomPart {
   type: string;
@@ -69,7 +82,16 @@ export type ChatPart =
   | ChatChoicesPart
   | ChatTreePart
   | ChatThinkingPart
+  | ChatErrorPart
   | ChatCustomPart;
+
+/** Passed to `onError` when an error part appears in the transcript. */
+export interface ChatErrorContext {
+  messageId: string;
+  partId?: string;
+  message: string;
+  requestId?: string;
+}
 
 /** Emitted when a user interacts with a non-text block (chooses an option,
  *  clicks a tree node, or a custom block calls back). */
@@ -93,7 +115,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
-export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit"> {
+export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit" | "onError"> {
   messages: ChatMessage[];
   /** Fired with the trimmed text when the user submits. Input clears automatically. */
   onSubmit: (text: string) => void;
@@ -101,6 +123,10 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
   /** Fired when a user interacts with a choices / tree / custom block. */
   onAction?: (action: ChatAction) => void;
+  /** Fired once when an error part appears in the transcript (a notification
+   *  hook: log / toast / auto-retry). A `retryable` error also renders a Retry,
+   *  reported through `onAction` (`type: "error", value: "retry"`). */
+  onError?: (error: ChatErrorContext) => void;
   /** Placeholder text shown in the empty input. Default "Ask anything…". */
   placeholder?: string;
   /** Caption for the submit button. Default "Send". */
@@ -130,6 +156,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     onSubmit,
     renderPart,
     onAction,
+    onError,
     placeholder = "Ask anything…",
     sendLabel = "Send",
     sendVariant = "secondary",
@@ -150,6 +177,29 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   // Whether the viewport is pinned to the bottom. Stays true until the user
   // scrolls up to read history — then we stop yanking the view down.
   const stickRef = useRef(true);
+
+  // Fire `onError` once per error part, when it first appears (a notification,
+  // never during render). Keyed by message + part identity.
+  const reportedErrorsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!onError) return;
+    const reported = reportedErrorsRef.current;
+    for (const msg of messages) {
+      msg.parts?.forEach((part, i) => {
+        if (part.type !== "error") return;
+        const p = part as ChatErrorPart;
+        const key = `${msg.id}:${p.partId ?? i}`;
+        if (reported.has(key)) return;
+        reported.add(key);
+        onError({
+          messageId: msg.id,
+          partId: p.partId,
+          message: p.message,
+          requestId: p.requestId,
+        });
+      });
+    }
+  }, [messages, onError]);
 
   // Assistant messages whose reveal animation is still in flight. A message is
   // added while it streams and stays here — keeping its `StreamingTerminalText`
@@ -330,6 +380,21 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
                 defaultExpanded={p.defaultExpanded}
                 onSelect={(id) =>
                   onAction?.({ messageId: msg.id, partId: p.partId, type: "thinking", value: id })
+                }
+              />
+            </div>
+          );
+        }
+        case "error": {
+          const p = part as ChatErrorPart;
+          return (
+            <div key={key} className={styles.part}>
+              <ChatError
+                message={p.message}
+                requestId={p.requestId}
+                retryable={p.retryable}
+                onRetry={() =>
+                  onAction?.({ messageId: msg.id, partId: p.partId, type: "error", value: "retry" })
                 }
               />
             </div>

@@ -60,6 +60,25 @@ export const Resizable: Story = () => {
   );
 };
 
+export const TallDescriptions: Story = () => (
+  // Multi-line descriptions: every cell (radio, label, description) stays
+  // vertically centered in its row.
+  <div style={{ maxWidth: "34rem" }}>
+    <RadioTable defaultValue="manual">
+      <RadioTable.Option
+        value="manual"
+        label="Manual trade"
+        description="Add a manual trade that is not in the transfer agent trade report."
+      />
+      <RadioTable.Option
+        value="override"
+        label="Month override"
+        description="Invalidate all reported trades by the transfer agent and overwrite them with a single synthetic transaction of a certain size."
+      />
+    </RadioTable>
+  </div>
+);
+
 export const WithDisabled: Story = () => (
   <div style={{ maxWidth: "34rem" }}>
     <RadioTable defaultValue="pro">

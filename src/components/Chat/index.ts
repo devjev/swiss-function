@@ -3,6 +3,8 @@ export type {
   ChatChoice,
   ChatChoicesPart,
   ChatCustomPart,
+  ChatErrorContext,
+  ChatErrorPart,
   ChatMessage,
   ChatPart,
   ChatProps,

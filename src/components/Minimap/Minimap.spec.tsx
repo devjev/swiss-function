@@ -207,13 +207,11 @@ test("min-block mode: the rail grows taller than its viewport and scrolls", asyn
 }) => {
   await mount(<DenseScroll />);
   const rail = page.locator('[class*="rail"]');
-  const box = await rail.evaluate((el) => ({
-    scrollH: el.scrollHeight,
-    clientH: el.clientHeight,
-    scroll: el.hasAttribute("data-scroll"),
-  }));
-  expect(box.scroll).toBe(true);
-  expect(box.scrollH).toBeGreaterThan(box.clientH + 100);
+  // The rail content height is set by the rAF-coalesced measure; poll for it.
+  await expect(rail).toHaveAttribute("data-scroll", "");
+  await expect
+    .poll(() => rail.evaluate((el) => el.scrollHeight - el.clientHeight))
+    .toBeGreaterThan(100);
   // No block marker is shorter than 0.5u (12px at the default unit).
   const minBlock = await page.evaluate(() => {
     const heights = [...document.querySelectorAll('[class*="markers"] > div')].map(
@@ -257,4 +255,36 @@ test("min-block mode: dragging the band to the rail edge keeps scrolling", async
   await page.mouse.up();
   // Edge auto-scroll advanced the content further while the pointer was still.
   expect(afterHold).toBeGreaterThan(atEdge + 200);
+});
+
+test("min-block mode: a dragged band never dips below the rail's visible bottom", async ({
+  mount,
+  page,
+}) => {
+  await mount(<DenseScroll />);
+  const rail = page.locator('[class*="rail"]').first();
+  const box = (await rail.boundingBox())!;
+  // Grab the band near its TOP (so its bottom trails the pointer), then drag it
+  // well past the rail's bottom edge (the "fold").
+  const band = await page.evaluate(() => {
+    const zone = document.querySelector('[role="scrollbar"]');
+    const r = (zone?.previousElementSibling as HTMLElement).getBoundingClientRect();
+    return { x: r.x + r.width / 2, top: r.y };
+  });
+  await page.mouse.move(band.x, band.top + 3);
+  await page.mouse.down();
+  await page.mouse.move(band.x, box.y + box.height + 40, { steps: 8 });
+  // Held past the fold, the band pins at the edge: its bottom stays within the
+  // rail's visible bottom (flush, never below).
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const zone = document.querySelector('[role="scrollbar"]');
+        const bandRect = (zone?.previousElementSibling as HTMLElement).getBoundingClientRect();
+        const railRect = document.querySelector("[data-scroll]")!.getBoundingClientRect();
+        return Math.round(bandRect.bottom - railRect.bottom);
+      }),
+    )
+    .toBeLessThanOrEqual(1);
+  await page.mouse.up();
 });

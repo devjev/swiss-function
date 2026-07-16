@@ -198,27 +198,41 @@ export function decimateLabels(labels: readonly LabelCandidate[], minSpacing: nu
   return visible;
 }
 
-/** Effective rail content height for the min-block-size / scrollable-rail mode.
- *  The rail's inner content grows just enough that the *smallest* span block
- *  reaches `minBlockPx` instead of compressing below it; everything else stays
- *  proportional (mapped into this taller height), and the rail viewport scrolls
- *  it. `spanRailHeights` are the markers' unfloored proportional heights at the
- *  natural `railHeight` (extent-bearing markers only). Returns `railHeight` when
- *  nothing needs to grow; `maxScale` caps a pathological (tiny-span) input so it
- *  cannot explode the DOM (past the cap, blocks compress again). */
+/** Effective rail content height for the min/max block-size mode. The rail's
+ *  inner content is scaled so span blocks land in `[minBlockPx, maxBlockPx]`:
+ *  it *grows* so the smallest span reaches `minBlockPx` (dense → the rail
+ *  scrolls), and *shrinks* so the largest span fits `maxBlockPx` (sparse → the
+ *  rail compresses below its own height). Everything stays proportional (mapped
+ *  into this height). `spanRailHeights` are the markers' unfloored proportional
+ *  heights at the natural `railHeight` (extent-bearing markers only). Returns
+ *  `railHeight` when nothing binds. `maxScale` bounds the scale both ways
+ *  (`[1/maxScale, maxScale]`), so a pathological input cannot explode or vanish
+ *  the rail. `minBlockPx`/`maxBlockPx` of 0 mean "no floor / no cap"; an
+ *  effective max is never taken below the min. */
 export function railContentHeight(
   spanRailHeights: readonly number[],
   railHeight: number,
   minBlockPx: number,
+  maxBlockPx: number,
   maxScale: number,
 ): number {
-  if (railHeight <= 0 || minBlockPx <= 0) return railHeight;
+  if (railHeight <= 0) return railHeight;
   let smallest = Number.POSITIVE_INFINITY;
+  let largest = 0;
   for (const h of spanRailHeights) {
-    if (h > 0 && h < smallest) smallest = h;
+    if (h > 0) {
+      if (h < smallest) smallest = h;
+      if (h > largest) largest = h;
+    }
   }
-  if (!Number.isFinite(smallest) || smallest >= minBlockPx) return railHeight;
-  return railHeight * clamp(minBlockPx / smallest, 1, maxScale);
+  if (!Number.isFinite(smallest)) return railHeight;
+  const effMax = maxBlockPx > 0 ? Math.max(maxBlockPx, minBlockPx) : Number.POSITIVE_INFINITY;
+  let scale = 1;
+  // Grow so the smallest span reaches the floor (the dense, scrollable case).
+  if (minBlockPx > 0 && smallest < minBlockPx) scale = minBlockPx / smallest;
+  // Shrink so the largest span fits the cap (the sparse, compressing case).
+  if (largest * scale > effMax) scale = effMax / largest;
+  return railHeight * clamp(scale, 1 / maxScale, maxScale);
 }
 
 /** Edge-triggered scroll-into-view for the rail when its content is taller than

@@ -15,7 +15,7 @@
  *  coordinates (re-supplying on resize), which is exactly Minimap's contract.
  */
 
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 import {
   createContext,
   forwardRef,
@@ -172,6 +172,8 @@ const RegistryContext = createContext<RegistryValue>(noop);
 const LevelContext = createContext<number>(1);
 /** Default row elevation, set once on the Root, overridable per Field. */
 const ElevationContext = createContext<BoxElevation>(1);
+/** When true, rows render without the surrounding Box (no surface, no padding). */
+const BareContext = createContext<boolean>(false);
 
 // --- Root -------------------------------------------------------------------
 
@@ -196,6 +198,10 @@ export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
   /** Maximum rail block height per field, in `--sf-unit` multiples. Caps how
    *  tall a block grows in a sparse form. Unset = no cap. */
   maxBlock?: number;
+  /** Render rows without the surrounding Box: no surface (border/shadow) and no
+   *  box padding, for a minimal look. The `elevation` prop is then ignored.
+   *  Default `false`. */
+  bare?: boolean;
 }
 
 const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm(
@@ -208,6 +214,7 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     navSize = "sm",
     minBlock = 0.5,
     maxBlock,
+    bare = false,
     className,
     children,
     style,
@@ -414,7 +421,9 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
 
   return (
     <RegistryContext.Provider value={registry}>
-      <ElevationContext.Provider value={elevation}>{body}</ElevationContext.Provider>
+      <ElevationContext.Provider value={elevation}>
+        <BareContext.Provider value={bare}>{body}</BareContext.Provider>
+      </ElevationContext.Provider>
     </RegistryContext.Provider>
   );
 });
@@ -485,6 +494,7 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
     const { register, unregister } = useContext(RegistryContext);
     const level = useContext(LevelContext);
     const defaultElevation = useContext(ElevationContext);
+    const bare = useContext(BareContext);
     const boxRef = useRef<HTMLElement>(null);
     const setRefs = useMemo(() => mergeRefs<HTMLElement>(boxRef, ref), [ref]);
 
@@ -500,6 +510,39 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
       return () => unregister(id);
     }, [id, register, unregister, markerLabel, level, tone]);
 
+    const inner = (
+      <Field
+        className={cx(styles.field, description != null && styles.hasDescription)}
+        required={required}
+        hotkey={hotkey}
+      >
+        <Field.Label className={styles.fieldLabel}>{label}</Field.Label>
+        <div className={styles.fieldControl}>{children}</div>
+        {description != null ? (
+          <Field.Description className={styles.fieldDescription}>{description}</Field.Description>
+        ) : null}
+        {error != null ? (
+          <Field.Error className={styles.fieldError} match>
+            {error}
+          </Field.Error>
+        ) : null}
+      </Field>
+    );
+
+    // Bare: a plain div carries the row (marker anchor + query container) with no
+    // surface and no padding. Otherwise the Box provides the surface + padding.
+    if (bare) {
+      return (
+        <div
+          {...(rest as HTMLAttributes<HTMLDivElement>)}
+          ref={setRefs as Ref<HTMLDivElement>}
+          className={cx(styles.row, styles.rowBare, className)}
+        >
+          {inner}
+        </div>
+      );
+    }
+
     return (
       <Box
         {...rest}
@@ -507,22 +550,7 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
         elevation={elevation ?? defaultElevation}
         className={cx(styles.row, className)}
       >
-        <Field
-          className={cx(styles.field, description != null && styles.hasDescription)}
-          required={required}
-          hotkey={hotkey}
-        >
-          <Field.Label className={styles.fieldLabel}>{label}</Field.Label>
-          <div className={styles.fieldControl}>{children}</div>
-          {description != null ? (
-            <Field.Description className={styles.fieldDescription}>{description}</Field.Description>
-          ) : null}
-          {error != null ? (
-            <Field.Error className={styles.fieldError} match>
-              {error}
-            </Field.Error>
-          ) : null}
-        </Field>
+        {inner}
       </Box>
     );
   },

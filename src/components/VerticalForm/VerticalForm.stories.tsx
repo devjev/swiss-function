@@ -107,6 +107,30 @@ export const WithSections: Story = () => (
   </div>
 );
 
+export const Bare: Story = () => (
+  // `bare`: rows render without the surrounding Box (no surface, no padding) for
+  // a minimal look. Sections and the Minimap rail work the same.
+  <div style={frame}>
+    <VerticalForm bare>
+      <VerticalForm.Section title="Account">
+        <VerticalForm.Field label="Email" description="We never share it." required>
+          <Input type="email" />
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Password" description="At least 12 characters." required>
+          <Input type="password" />
+        </VerticalForm.Field>
+      </VerticalForm.Section>
+      <VerticalForm.Section title="Profile">
+        {DETAILS.map((name) => (
+          <VerticalForm.Field key={name} label={name}>
+            <Input placeholder={name} />
+          </VerticalForm.Field>
+        ))}
+      </VerticalForm.Section>
+    </VerticalForm>
+  </div>
+);
+
 export const WithErrors: Story = () => (
   <div style={frame}>
     <VerticalForm>
@@ -245,6 +269,25 @@ export const Dense: Story = () => (
           key={i}
           label={`Field ${i + 1}`}
           description={i % 4 === 0 ? `Notes for field ${i + 1}.` : undefined}
+        >
+          <Input placeholder={`Value ${i + 1}`} />
+        </VerticalForm.Field>
+      ))}
+    </VerticalForm>
+  </div>
+);
+
+export const MaxBlockCompressed: Story = () => (
+  // A small maxBlock caps the rail blocks and compresses the rail vertically:
+  // the density strip packs into the top rather than spreading over the full
+  // rail. (minBlock still floors dense forms; here max is the binding one.)
+  <div style={{ ...frame, height: "22rem" }}>
+    <VerticalForm maxBlock={0.75}>
+      {Array.from({ length: 12 }, (_, i) => (
+        <VerticalForm.Field
+          // biome-ignore lint/suspicious/noArrayIndexKey: static generated fields; the index is the identity
+          key={i}
+          label={`Field ${i + 1}`}
         >
           <Input placeholder={`Value ${i + 1}`} />
         </VerticalForm.Field>

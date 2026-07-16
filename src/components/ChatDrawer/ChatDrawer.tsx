@@ -73,6 +73,9 @@ export interface ChatDrawerProps {
   onSubmit?: (text: string) => void;
   /** Fired when a user interacts with a choices / tree / custom block. */
   onAction?: (action: ChatAction) => void;
+  /** Fired once when an error part appears in the transcript (log / toast /
+   *  auto-retry). Forwarded to the inner `Chat`. */
+  onError?: ChatProps["onError"];
   /** Render a custom part by `type`. */
   renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
   /** Placeholder text for the built-in chat input. Default "Ask anything…". */
@@ -228,6 +231,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     messages,
     onSubmit,
     onAction,
+    onError,
     renderPart,
     placeholder,
     sendLabel,
@@ -358,6 +362,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
                   messages={messages ?? []}
                   onSubmit={onSubmit ?? (() => {})}
                   onAction={onAction}
+                  onError={onError}
                   renderPart={renderPart}
                   placeholder={placeholder}
                   sendLabel={sendLabel}

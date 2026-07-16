@@ -51,6 +51,15 @@
   container-type: inline-size;
 }
 
+/* Bare row: a plain wrapper (no Box), so no surface and no box padding. It keeps
+   the row's query-container role for the wide-row reflow below; rows are then
+   separated only by the content grid's row-gap. */
+.rowBare {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
 .fieldControl {
   min-inline-size: 0;
 }

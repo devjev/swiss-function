@@ -14,25 +14,37 @@ import {
   thumbGeometry,
 } from "./geometry";
 
-describe("railContentHeight (min-block scrollable rail)", () => {
-  it("returns the rail height when the smallest span already meets the floor", () => {
-    // Smallest span is 20px, floor is 12px → no growth.
-    expect(railContentHeight([20, 40, 80], 400, 12, 40)).toBe(400);
+describe("railContentHeight (min/max block sizing)", () => {
+  // Args: (spanRailHeights, railHeight, minBlockPx, maxBlockPx, maxScale)
+  it("returns the rail height when nothing binds", () => {
+    // Smallest 20 >= floor 12, largest 80 <= no cap → scale 1.
+    expect(railContentHeight([20, 40, 80], 400, 12, 0, 40)).toBe(400);
   });
 
-  it("scales up so the smallest span reaches the floor", () => {
-    // Smallest span 6px, floor 12px → scale 2 → 800.
-    expect(railContentHeight([6, 30], 400, 12, 40)).toBe(800);
+  it("grows so the smallest span reaches the floor (dense → scroll)", () => {
+    // Smallest 6, floor 12 → scale 2 → 800.
+    expect(railContentHeight([6, 30], 400, 12, 0, 40)).toBe(800);
   });
 
-  it("caps the scale so a tiny span cannot explode the height", () => {
-    // Smallest span 0.1px would need scale 120; capped at 40.
-    expect(railContentHeight([0.1], 400, 12, 40)).toBe(400 * 40);
+  it("shrinks so the largest span fits the cap (sparse → compress)", () => {
+    // Largest 130, cap 24 → scale 24/130 → content < railHeight.
+    expect(railContentHeight([130], 400, 0, 24, 40)).toBeCloseTo(400 * (24 / 130), 5);
+    expect(railContentHeight([130], 400, 0, 24, 40)).toBeLessThan(400);
+  });
+
+  it("never lets the cap undercut the floor", () => {
+    // Cap 8 < floor 12 → effective max 12; uniform span meets both at scale 1.
+    expect(railContentHeight([12], 400, 12, 8, 40)).toBe(400);
+  });
+
+  it("caps the scale both ways so a pathological input cannot explode or vanish", () => {
+    expect(railContentHeight([0.1], 400, 12, 0, 40)).toBe(400 * 40); // grow cap
+    expect(railContentHeight([100000], 400, 0, 1, 40)).toBe(400 / 40); // shrink cap
   });
 
   it("ignores zero-extent markers and returns rail height when there are no spans", () => {
-    expect(railContentHeight([0, 0], 400, 12, 40)).toBe(400);
-    expect(railContentHeight([], 400, 12, 40)).toBe(400);
+    expect(railContentHeight([0, 0], 400, 12, 0, 40)).toBe(400);
+    expect(railContentHeight([], 400, 12, 0, 40)).toBe(400);
   });
 });
 

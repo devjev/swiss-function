@@ -67,12 +67,12 @@
 }
 
 /* The rail's inner content box: the coordinate origin for markers, indicator,
-   zone and labels. Its block-size is set inline (railHeight in fit mode, taller
-   in scroll mode). */
+   zone and labels. Its block-size is set inline and is authoritative: the rail
+   height in fit mode, taller (scrollable) under minMarkerSize, shorter
+   (compressed, top-aligned) under a small maxMarkerSize. */
 .track {
   position: relative;
   inline-size: 100%;
-  min-block-size: 100%;
 }
 
 /* Invisible probe measuring the rendered var(--sf-unit): the JS label math

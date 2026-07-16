@@ -9,6 +9,10 @@
   overflow: hidden;
   background-color: var(--sf-color-bg);
   min-inline-size: 0;
+  /* The query container is the table (all rows share its width). Keeping it OFF
+     the .option grid matters: container-type on the grid element itself zeroes
+     the label's max-content track. */
+  container-type: inline-size;
 }
 
 .option {
@@ -18,7 +22,6 @@
   column-gap: calc(var(--sf-unit) / 2);
   row-gap: calc(var(--sf-unit) / 4);
   padding: calc(var(--sf-unit) / 2);
-  container-type: inline-size;
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
@@ -44,6 +47,17 @@
 .option[data-disabled] .label,
 .option[data-disabled] .description {
   opacity: 0.5;
+}
+
+/* Base UI renders a hidden radio <input> as a grid child; pull it out of the
+   grid flow so it can't claim a column and collapse the label. */
+.option input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Radio in column 1, aligned to the title's first line. */
@@ -76,24 +90,32 @@
    the three cells center on one line. Only rows with a description split. */
 @container (min-inline-size: 20rem) {
   .hasDescription {
-    grid-template-columns: auto minmax(0, 1fr) minmax(7rem, 0.6fr);
+    /* Radio + a content-width label + the description filling the rest. The
+       label stays on one line (max-content, never collapses); the description
+       wraps within its own column so a long one can never overlap the label. */
+    grid-template-columns: auto max-content minmax(0, 1fr);
     align-items: center;
     column-gap: var(--sf-unit);
     row-gap: 0;
   }
   .hasDescription .radio {
+    /* Center the radio with the row (not pinned to the label's first line), so a
+       tall multi-line description keeps every cell vertically centred. */
+    align-self: center;
     margin-block-start: 0;
   }
   .hasDescription .label {
     grid-column: 2;
+    white-space: nowrap;
   }
   .hasDescription .description {
     grid-column: 3;
     grid-row: 1;
     align-self: center;
-    /* Right-flush against the table edge: the label/detail read as two columns
-       (the plan-table look). */
-    justify-self: end;
+    min-inline-size: 0;
+    /* Fill the column and right-align the text within it (the plan-table look):
+       a long description wraps at the column edge instead of shrinking to its
+       content and overflowing into the label. */
     text-align: end;
   }
 }
