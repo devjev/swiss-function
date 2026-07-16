@@ -6,6 +6,19 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.9.0 — 2026-07-16
+
+### Minor
+
+- Chat/ChatDrawer: a ChatErrorPart (type: 'error') renders a backend error as a small NonIdealState-style glitch block with the message, optional requestId and a Retry; a new onError callback fires once when an error appears (log/toast/auto-retry), and Retry reports through onAction. Closes #77
+
+### Patch
+
+- Minimap: maxMarkerSize now compresses the rail (shrinks the content height so the capped blocks pack together) instead of only clamping each block's rendered height and leaving the rail full-height with gaps. VerticalForm's maxBlock inherits this
+- Minimap: while dragging the focus band on a scrollable rail, the band now pins at the rail edge instead of dipping below the visible bottom (the fold); the edge auto-scroll flows content under the pinned band
+- RadioTable: in the wide layout every cell (radio, label, description) is vertically centered, so a tall multi-line description no longer leaves the radio/label floating at the top; and the label no longer collapses/overlaps the description (the query container moved off the option grid, and Base UI's hidden input is taken out of grid flow)
+- VerticalForm: bare option renders rows without the surrounding box (no surface, no padding) for a minimal look
+
 ## v2.8.0 — 2026-07-16
 
 ### Minor
