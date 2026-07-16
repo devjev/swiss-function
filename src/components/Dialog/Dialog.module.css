@@ -42,6 +42,12 @@
   width: calc(100% - 2rem);
   max-height: calc(100vh - 2rem);
   overflow: auto;
+  /* A vertical stack of its parts, so a `Stack fill` (or any flex:1 child) can
+     absorb the remaining height and lock a field to the lower edge as the popup
+     is resized (issue #74). With no growing child the parts keep their natural
+     height, so existing dialogs are unchanged. */
+  display: flex;
+  flex-direction: column;
   padding: var(--sf-space-6);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);

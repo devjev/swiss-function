@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-16T19:14:53.944Z"
+    "date": "2026-07-16T21:22:47.148Z"
   },
-  "totalGzip": 893045,
+  "totalGzip": 895130,
   "entries": {
     ".": {
-      "files": 251,
-      "jsRaw": 892219,
-      "jsGzip": 269829,
+      "files": 253,
+      "jsRaw": 893909,
+      "jsGzip": 270596,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 269829,
+      "gzip": 270596,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -203,20 +203,20 @@
     },
     "./chat": {
       "files": 31,
-      "jsRaw": 49002,
-      "jsGzip": 18868,
+      "jsRaw": 49083,
+      "jsGzip": 18906,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 18868,
+      "gzip": 18906,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./chat-drawer": {
       "files": 39,
-      "jsRaw": 68981,
-      "jsGzip": 25557,
+      "jsRaw": 69062,
+      "jsGzip": 25595,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25557,
+      "gzip": 25595,
       "externals": [
         "@base-ui/react/tabs",
         "react",
@@ -570,11 +570,11 @@
     },
     "./prose": {
       "files": 9,
-      "jsRaw": 12757,
-      "jsGzip": 4930,
+      "jsRaw": 12838,
+      "jsGzip": 4968,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4930,
+      "gzip": 4968,
       "externals": [
         "@tanstack/react-virtual",
         "react",
@@ -600,11 +600,11 @@
     },
     "./markdown": {
       "files": 6,
-      "jsRaw": 4703,
-      "jsGzip": 2110,
+      "jsRaw": 4784,
+      "jsGzip": 2148,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 2110,
+      "gzip": 2148,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./non-ideal-state": {
@@ -618,11 +618,11 @@
     },
     "./notebook": {
       "files": 72,
-      "jsRaw": 196805,
-      "jsGzip": 62900,
+      "jsRaw": 196886,
+      "jsGzip": 62938,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 62900,
+      "gzip": 62938,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -650,11 +650,11 @@
     },
     "./outliner": {
       "files": 13,
-      "jsRaw": 27930,
-      "jsGzip": 8750,
+      "jsRaw": 28011,
+      "jsGzip": 8788,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 8750,
+      "gzip": 8788,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./pane": {
@@ -765,13 +765,22 @@
       "gzip": 2991,
       "externals": ["react", "react/jsx-runtime"]
     },
-    "./streaming-terminal-text": {
-      "files": 8,
-      "jsRaw": 10659,
-      "jsGzip": 4218,
+    "./stack": {
+      "files": 4,
+      "jsRaw": 1735,
+      "jsGzip": 975,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4218,
+      "gzip": 975,
+      "externals": ["react", "react/jsx-runtime"]
+    },
+    "./streaming-terminal-text": {
+      "files": 8,
+      "jsRaw": 10740,
+      "jsGzip": 4256,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 4256,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./surface": {
@@ -807,11 +816,11 @@
     },
     "./table-input": {
       "files": 26,
-      "jsRaw": 62253,
-      "jsGzip": 19846,
+      "jsRaw": 62437,
+      "jsGzip": 19885,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 19846,
+      "gzip": 19885,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -833,11 +842,11 @@
     },
     "./text-edit": {
       "files": 4,
-      "jsRaw": 984,
-      "jsGzip": 715,
+      "jsRaw": 1065,
+      "jsGzip": 753,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 715,
+      "gzip": 753,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./text-edit-inline": {

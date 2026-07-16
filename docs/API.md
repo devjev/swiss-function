@@ -1590,6 +1590,48 @@ const [open, setOpen] = useState(true);
 </div>
 ```
 
+## Stack
+
+`import { Stack } from "@tarassov-ch/swiss-function/stack"`
+
+A resize-aware fill/stretch layout (issue #74): lay children in a column (or
+row), where every child keeps its natural size and a region wrapped in
+`Stack.Fill` stretches to absorb the remaining space and stays locked to the
+edge as the container (a resizable `Dialog.Popup`, a panel) resizes. It
+encapsulates the fiddly flex + `min-*-size: 0` chain this pattern needs by
+hand, where forgetting one `min-block-size: 0` silently collapses the fill. Pair
+with `<TextEdit fill />` inside `Stack.Fill` for a "this field grows to the
+bottom edge" region that reads declaratively.
+
+**Elements / Parts:** `Stack` (Root) + `Stack.Fill` (the growing region; its lone
+child fills it in turn).
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `direction` | `Stack` | `"vertical" \| "horizontal"` | `"vertical"` | Main axis: a column or a row. |
+| `gap` | `Stack` | `number` | `0` | Gap between children, in `--sf-unit` multiples. |
+| `fill` | `Stack` | `boolean` | `false` | Make the stack itself grow to fill its parent (as a flex item, and as a definite-size block/grid child). Set it on the body of a resizable region so the `Stack.Fill` inside has room to expand into. |
+
+`Dialog.Popup` is a flex column, so a `<Stack fill>` dropped in as its body works
+directly. With no growing child the parts keep their natural height, so plain
+dialogs are unchanged.
+
+```tsx
+<Dialog.Popup draggable resizable defaultHeight={360}>
+  <Dialog.Handle><Dialog.Title>Add adjustment</Dialog.Title></Dialog.Handle>
+  <Stack fill gap={0.75}>
+    <Field><Field.Label>Amount</Field.Label><Input /></Field>
+    <Stack.Fill>{/* label + */}<TextEdit fill /></Stack.Fill>
+    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <Dialog.Close render={<Button>Save</Button>} />
+    </div>
+  </Stack>
+</Dialog.Popup>
+```
+
+For a header + a single scrollable body, reach for `Pane` (the fixed "auto / 1fr"
+recipe) instead.
+
 ## StreamingTerminalText
 
 `import { StreamingTerminalText } from "@tarassov-ch/swiss-function/streaming-terminal-text"`
@@ -1710,6 +1752,7 @@ Styled `<textarea>`. Extends `TextareaHTMLAttributes<HTMLTextAreaElement>`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `rows` | `number` | `3` | Initial textarea rows. |
+| `fill` | `boolean` | `false` | Stretch to fill a flexible parent (a `Stack.Fill`, a definite-height container) and lock to its edge instead of sizing to `rows`; drops the manual resize handle since the parent owns the size (issue #74). |
 
 ## TextEditInline
 

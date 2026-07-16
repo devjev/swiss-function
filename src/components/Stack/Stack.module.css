@@ -1,0 +1,50 @@
+/* Stack — the resize-aware fill/stretch layout (issue #74). Flexbox is the right
+   tool here: a growing region is exactly what flex-grow expresses, and the
+   min-*-size: 0 chain (the part that silently breaks a hand-rolled version) is
+   set once, in one place. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stack-gap, 0);
+  /* Let the stack shrink inside its parent on both axes; without this, an
+     intrinsic min-size keeps the fill region from ever giving up space. */
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.root[data-direction="horizontal"] {
+  flex-direction: row;
+}
+
+/* `fill`: the stack grows to fill its parent — as a flex item (grow) and as a
+   block/grid child of a definite-size parent (100% on both axes; 100% of an
+   auto-sized axis is inert, so this is safe). Set it on the body of a resizable
+   region so the Fill inside has room to expand into. */
+.root[data-fill] {
+  flex: 1 1 auto;
+  align-self: stretch;
+  block-size: 100%;
+  inline-size: 100%;
+}
+
+/* The growing region. It absorbs the remaining main-axis space and is itself a
+   flex box in the same direction, so its child fills it. */
+.fill {
+  flex: 1 1 0;
+  min-block-size: 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+.fill[data-direction="horizontal"] {
+  flex-direction: row;
+}
+
+/* A lone child fills the region (the common case: one stretch control). With
+   more than one child, the consumer marks which one grows (or nests a Stack). */
+.fill > :only-child {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  min-inline-size: 0;
+}

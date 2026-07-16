@@ -23,6 +23,16 @@
     border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* `fill`: stretch to the parent's height and lock to its edge (issue #74).
+   Fills as a flex child (grow) or a definite-height block child (100%); the
+   parent owns the size, so the manual resize handle is dropped. */
+.root[data-fill] {
+  flex: 1 1 auto;
+  block-size: 100%;
+  min-block-size: 0;
+  resize: none;
+}
+
 .root::placeholder {
   color: var(--sf-color-muted);
 }

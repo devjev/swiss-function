@@ -52,6 +52,7 @@ const componentNames = [
   "Skeleton",
   "Spinner",
   "SplitPane",
+  "Stack",
   "StreamingTerminalText",
   "Surface",
   "DataTable",

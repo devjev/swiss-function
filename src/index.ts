@@ -52,6 +52,7 @@ export * from "./components/Selector";
 export * from "./components/Skeleton";
 export * from "./components/Spinner";
 export * from "./components/SplitPane";
+export * from "./components/Stack";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Surface";
 export * from "./components/Switch";

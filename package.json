@@ -251,6 +251,10 @@
       "types": "./dist/components/SplitPane/index.d.ts",
       "import": "./dist/components/SplitPane/index.js"
     },
+    "./stack": {
+      "types": "./dist/components/Stack/index.d.ts",
+      "import": "./dist/components/Stack/index.js"
+    },
     "./streaming-terminal-text": {
       "types": "./dist/components/StreamingTerminalText/index.d.ts",
       "import": "./dist/components/StreamingTerminalText/index.js"
