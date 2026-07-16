@@ -88,3 +88,13 @@
   opacity: 1;
   transform: scale(1);
 }
+
+/* Dark mode: the elevation scale is a hard, zero-blur cast that steps to the
+   lower-right. On a disc this small it reads as a misaligned rectangle, not a
+   shadow (issue #78), so swap in a soft resting shadow. Disabled (none) and
+   active (pressed inset) keep their own shadows. */
+[data-theme="dark"] .root:not([data-disabled]):not(:active) {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(0 0 0 / 0.4);
+}
