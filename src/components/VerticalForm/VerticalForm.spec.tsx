@@ -38,6 +38,41 @@ test("section titles appear on the rail above their fields", async ({ mount }) =
   await expect(c.getByRole("button", { name: "Profile" })).toBeVisible();
 });
 
+test("Tab moves focus field to field; Shift+Tab reverses", async ({ mount, page }) => {
+  const c = await mount(<Basic />);
+  const active = () =>
+    page.evaluate(() => document.activeElement?.getAttribute("placeholder") ?? null);
+  await c.getByPlaceholder("Field 1", { exact: true }).focus();
+  expect(await active()).toBe("Field 1");
+  await page.keyboard.press("Tab");
+  expect(await active()).toBe("Field 2");
+  await page.keyboard.press("Tab");
+  expect(await active()).toBe("Field 3");
+  await page.keyboard.press("Shift+Tab");
+  expect(await active()).toBe("Field 2");
+  await page.keyboard.press("Shift+Tab");
+  expect(await active()).toBe("Field 1");
+});
+
+test("Tab into a field below the fold scrolls it into view", async ({ mount, page }) => {
+  const c = await mount(<Basic />);
+  await c.getByPlaceholder("Field 1", { exact: true }).focus();
+  // 10 fields overflow the 320px frame; tab down to the last one.
+  for (let i = 0; i < 9; i++) await page.keyboard.press("Tab");
+  const target = c.getByPlaceholder("Field 10", { exact: true });
+  await expect(target).toBeFocused();
+  // The focused field sits inside the scroll viewport, not clipped below the fold.
+  const inView = await target.evaluate((el) => {
+    let sc = el.parentElement;
+    while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+    const cont = (sc ?? document.scrollingElement) as HTMLElement;
+    const a = el.getBoundingClientRect();
+    const c = cont.getBoundingClientRect();
+    return a.top >= c.top - 1 && a.bottom <= c.bottom + 1;
+  });
+  expect(inView).toBe(true);
+});
+
 test("nav: selecting a title in the bottom picker scrolls to it", async ({ mount, page }) => {
   const c = await mount(<NavForm />);
   expect(await scrollTopOf(c)).toBe(0);
