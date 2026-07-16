@@ -37,3 +37,15 @@ test("a disabled option is disabled and unchecked", async ({ mount }) => {
   await expect(ent).toBeDisabled();
   await expect(ent).not.toBeChecked();
 });
+
+test("descriptions share one left edge (table column alignment)", async ({ mount }) => {
+  const c = await mount(<RadioTableHarness />);
+  const descs = c.locator('[class*="description"]');
+  await expect(descs).toHaveCount(4);
+  // Every description starts on the same line despite the four labels having
+  // different widths: the subgrid shares one label column across the rows.
+  const lefts = await descs.evaluateAll((els) =>
+    els.map((e) => Math.round(e.getBoundingClientRect().left)),
+  );
+  expect(new Set(lefts).size).toBe(1);
+});

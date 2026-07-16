@@ -1385,10 +1385,13 @@ Base UI radio + group wrappers. `RadioGroup` forwards all Base UI RadioGroup pro
 A bordered, hairline-divided table of radio options, each a radio + label +
 description: the "pick one, each with a title and detail" pattern (plan pickers,
 settings). Built on `RadioGroup`/`Radio` (single selection, roving arrow-key
-nav, radiogroup/radio roles). The description sits to the right of the label on
-a wide container and drops below it when narrow (a container query on the row,
-the `VerticalForm.Field` pattern, tighter), so the whole thing reads as one
-coherent component. The whole row is the click target; the label is the radio's
+nav, radiogroup/radio roles). On a wide container it reads as a real table: the
+rows share one grid (a CSS `subgrid`), so every label ends and every description
+starts on the same line regardless of label width. The description text is
+left-aligned and hyphenated (`hyphens: auto`, so it needs a `lang` on an
+ancestor, as the app root sets). When the container is narrow the description
+drops below its label (a container query on the row, the `VerticalForm.Field`
+pattern, tighter), so the whole thing stays one coherent component. The whole row is the click target; the label is the radio's
 accessible name.
 
 **Elements / Parts:** `RadioTable` (Root; wraps Base UI RadioGroup, forwards

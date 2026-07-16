@@ -1,25 +1,38 @@
-/* RadioTable: a bordered, hairline-divided table of radio rows. Tight,
-   unit-scaled spacing so it reads as one coherent component. Each row is a
-   container so a wide row can move the description to the right. */
+/* RadioTable: a bordered, hairline-divided table of radio rows. The whole table
+   is ONE grid with three shared columns (radio | label | description) and each
+   row is a `subgrid`, so every label ends and every description starts on the
+   same line, like a real table. Tight, unit-scaled spacing so it reads as one
+   coherent component. */
+
+.root {
+  /* The query container. Kept OFF the grid: container-type on the element that
+     owns the max-content label track zeroes that track, so the wrapper carries
+     the container and the grid stays a plain grid. */
+  container-type: inline-size;
+  min-inline-size: 0;
+}
 
 .table {
   display: grid;
+  /* Shared across every row: radio (auto), label (its widest content), then the
+     description filling the rest. `max-content` measured over ALL rows is what
+     lines the descriptions up. */
+  grid-template-columns: auto max-content minmax(0, 1fr);
+  column-gap: var(--sf-unit);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
   background-color: var(--sf-color-bg);
   min-inline-size: 0;
-  /* The query container is the table (all rows share its width). Keeping it OFF
-     the .option grid matters: container-type on the grid element itself zeroes
-     the label's max-content track. */
-  container-type: inline-size;
 }
 
 .option {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  column-gap: calc(var(--sf-unit) / 2);
+  /* Span the table's columns and adopt them, so this row's cells sit on the
+     shared tracks (not a per-row grid that measures its own label width). */
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
   row-gap: calc(var(--sf-unit) / 4);
   padding: calc(var(--sf-unit) / 2);
   cursor: pointer;
@@ -50,7 +63,7 @@
 }
 
 /* Base UI renders a hidden radio <input> as a grid child; pull it out of the
-   grid flow so it can't claim a column and collapse the label. */
+   grid flow so it can't claim a column. */
 .option input {
   position: absolute;
   inline-size: 1px;
@@ -60,16 +73,16 @@
   pointer-events: none;
 }
 
-/* Radio in column 1, aligned to the title's first line. */
+/* Radio in the shared first column, centered with the row. */
 .radio {
   grid-column: 1;
   grid-row: 1;
-  align-self: start;
-  margin-block-start: calc((var(--sf-line-height-grid) - 1.125rem) / 2);
+  align-self: center;
 }
 
 .label {
   grid-column: 2;
+  grid-row: 1;
   font-size: var(--sf-font-size-md);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-grid);
@@ -77,46 +90,35 @@
   user-select: none;
 }
 
-/* Description is copy the user reads: full-strength fg, never grey. */
+/* A row with no description: the label fills the remaining columns instead of
+   leaving the description column empty. */
+.option:not(.hasDescription) .label {
+  grid-column: 2 / -1;
+}
+
+/* Description is copy the user reads: full-strength fg, never grey. Hyphenate so
+   a long word breaks cleanly instead of overflowing (needs a `lang` on an
+   ancestor, as the app root sets). */
 .description {
-  grid-column: 2;
+  /* Narrow: below the label, spanning the label + description columns. */
+  grid-column: 2 / -1;
+  grid-row: 2;
   font-size: var(--sf-font-size-sm);
   line-height: var(--sf-line-height-grid);
   color: var(--sf-color-fg);
   user-select: none;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: break-word;
 }
 
-/* Wide row: the description moves to a right-hand column beside the label, and
-   the three cells center on one line. Only rows with a description split. */
+/* Wide row: the description moves to its own shared column, right of the label
+   and left-aligned, so every row's description starts on the same line. */
 @container (min-inline-size: 20rem) {
-  .hasDescription {
-    /* Radio + a content-width label + the description filling the rest. The
-       label stays on one line (max-content, never collapses); the description
-       wraps within its own column so a long one can never overlap the label. */
-    grid-template-columns: auto max-content minmax(0, 1fr);
-    align-items: center;
-    column-gap: var(--sf-unit);
-    row-gap: 0;
-  }
-  .hasDescription .radio {
-    /* Center the radio with the row (not pinned to the label's first line), so a
-       tall multi-line description keeps every cell vertically centred. */
-    align-self: center;
-    margin-block-start: 0;
-  }
-  .hasDescription .label {
-    grid-column: 2;
-    white-space: nowrap;
-  }
   .hasDescription .description {
     grid-column: 3;
     grid-row: 1;
-    align-self: center;
-    min-inline-size: 0;
-    /* Fill the column and right-align the text within it (the plan-table look):
-       a long description wraps at the column edge instead of shrinking to its
-       content and overflowing into the label. */
-    text-align: end;
+    text-align: start;
   }
 }
 

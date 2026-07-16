@@ -21,7 +21,13 @@ const Root = forwardRef<HTMLDivElement, RadioTableProps>(function RadioTable(
   { className, ...rest },
   ref,
 ) {
-  return <BaseRadioGroup {...rest} ref={ref} className={mergeClassName(styles.table, className)} />;
+  // The wrapper carries the size-query container; the RadioGroup is the grid.
+  // (container-type on the grid that owns the max-content label track zeroes it.)
+  return (
+    <div className={styles.root}>
+      <BaseRadioGroup {...rest} ref={ref} className={mergeClassName(styles.table, className)} />
+    </div>
+  );
 });
 
 export interface RadioTableOptionProps extends Omit<HTMLAttributes<HTMLLabelElement>, "onChange"> {
