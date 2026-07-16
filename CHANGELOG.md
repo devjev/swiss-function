@@ -6,6 +6,21 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.8.0 — 2026-07-16
+
+### Minor
+
+- Add RadioTable: a bordered, hairline-divided table of radio options, each a radio + label + description; the description sits right of the label when wide and below it when narrow (tight, unit-scaled). Compound RadioTable + RadioTable.Option, built on RadioGroup/Radio
+- Add VerticalForm: a scrollable vertical field stack (one field per row) navigated by a Minimap rail. Each row reads on the rail as a filled dither block (the density read) with its field name as a label riding on top; an errored field tones both its block and its rail label danger. VerticalForm.Section titles group fields and read in italics on the rail, with their fields indented under them. When a row is wide the field's description moves to the right of the control (a container query on the row), dropping back below it when narrow. Opt-in `nav` adds a bottom bar with a searchable Picker of every title (sections and indented fields): selecting one scrolls to it, and scrolling updates the Picker to the title at the viewport top; `navSize` sizes that Picker (default sm); selecting a title centers the field in the viewport (accounting for its own height and the nav bar) and the Picker tracks the centered title (defaulting to the first at rest). `minBlock`/`maxBlock` bound the rail block heights in units (default min 0.5u): a dense form's rail no longer compresses its blocks away, it scrolls. Fields lay out on a columnless grid with a consistent half-unit vertical rhythm and baseline line-heights. Compound VerticalForm.Section / VerticalForm.Field, presentational (wrap in Form for validation).
+- Menu.Popup and MenuBar.Content: add returnFocus (default true); set false to keep focus off the trigger when the menu closes, so a custom hotkey layer isn't disturbed and a stray Space/Enter doesn't reopen it (maps to Base UI finalFocus)
+- Minimap: minMarkerSize keeps block spans from compressing below a floor; when the content is too dense the rail's inner content grows taller than the rail and the rail itself scrolls, auto-following the viewport band (so more labels survive). maxMarkerSize caps block height for sparse content. jumpAlign='center' lands a label-click jump (and the active anchor) at the viewport middle rather than the top. In the scrollable-rail mode, dragging the viewport band to the rail's top/bottom edge keeps the rail (and the content) scrolling, so the drag can reach content beyond the visible rail
+
+### Patch
+
+- ChatDrawer: forward the new reveal prop to its inner Chat (default mode), so drawer consumers can reach mode="stream" / charIntervalMs / reveal=false (fixes #76)
+- Minimap: heading labels use a smaller (0.65rem) size via the new --sf-minimap-label-size token and are rendered as a tight caption that hugs its text (a small opaque background pill, level indent applied as position not padding) rather than a full-width chip, so dither block markers stay the main density read and headings ride on top of them. A label on a block-span marker now sits at the block's top, so it lines up with the block and with the viewport band when that content is scrolled to the top (a bare heading rule still centers its label). Adjacent block spans are trimmed a few rail px apart so a stack of them reads as separate blocks. A toned marker's label now takes its tone's colour (a danger heading reads red in its text, not only its block). Per-level label indent is a quarter-unit (down from a half), and a new marker `emphasis` renders its label in italics (used for grouping headings). The viewport focus band renders above the labels (a translucent overlay), and the active-label accent is an inset shadow rather than a border. The default rail width (--sf-minimap-width) is now 3u (72px), down from 6u, for a slimmer rail; override the token or the width prop to widen it.
+- Picker: opening the dropdown after a selection now shows the whole list and starts a fresh search on the first keystroke, instead of keeping the selected label as the filter (which matched only that item and made typing append to it)
+
 ## v2.7.0 — 2026-07-15
 
 ### Minor
