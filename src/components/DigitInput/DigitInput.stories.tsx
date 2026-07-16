@@ -43,6 +43,18 @@ export const Mask: Story = () => <DigitInput mode="mask" digits={3} decimals={2}
 /** A classic six-cell code entry in mask mode. */
 export const MaskPin: Story = () => <DigitInput mode="mask" digits={6} />;
 
+/** `signed` adds a leading +/- cell: click it, or type `-`/`+`, or press
+ *  ArrowDown past zero. The value and the form string carry the sign. */
+export const Signed: Story = () => {
+  const [value, setValue] = useState<number | null>(-12.5);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--sf-space-4)" }}>
+      <DigitInput signed digits={3} decimals={1} unit="°C" value={value} onValueChange={setValue} />
+      <span style={{ fontFamily: "var(--sf-font-mono)" }}>{value === null ? "null" : value}</span>
+    </div>
+  );
+};
+
 export const AllSizes: Story = () => (
   <div style={{ display: "flex", flexDirection: "column", gap: "var(--sf-space-4)" }}>
     <DigitInput size="sm" digits={3} decimals={2} unit="%" defaultValue={42.5} />

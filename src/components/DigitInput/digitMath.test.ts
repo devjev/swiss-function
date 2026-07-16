@@ -7,11 +7,15 @@ import {
   parseDecimalText,
   popDigit,
   pushDigit,
+  signedCanonical,
+  signedToValue,
+  stepSigned,
   stepUlps,
   ulpsToCanonical,
   ulpsToCells,
   ulpsToMaskString,
   ulpsToValue,
+  valueToSignedParts,
   valueToUlps,
 } from "./digitMath";
 
@@ -165,5 +169,52 @@ describe("formatValueText", () => {
     expect(formatValueText(4250, P32, "%")).toBe("42.50 %");
     expect(formatValueText(4250, P32, undefined)).toBe("42.50");
     expect(formatValueText(4250, P32, { node: true })).toBe("42.50");
+  });
+});
+
+describe("valueToSignedParts", () => {
+  it("splits a value into magnitude ulps + sign", () => {
+    expect(valueToSignedParts(42.5, P32)).toEqual({ ulps: 4250, sign: 1, clamped: false });
+    expect(valueToSignedParts(-42.5, P32)).toEqual({ ulps: 4250, sign: -1, clamped: false });
+    expect(valueToSignedParts(0, P32)).toEqual({ ulps: 0, sign: 1, clamped: false });
+    expect(valueToSignedParts(null, P32)).toEqual({ ulps: null, sign: 1, clamped: false });
+  });
+
+  it("clamps the magnitude to capacity, keeping the sign", () => {
+    expect(valueToSignedParts(-9999, P32)).toEqual({ ulps: 99999, sign: -1, clamped: true });
+  });
+});
+
+describe("signedToValue", () => {
+  it("applies the sign; null stays null and zero is +0", () => {
+    expect(signedToValue(4250, -1, P32)).toBe(-42.5);
+    expect(signedToValue(4250, 1, P32)).toBe(42.5);
+    expect(signedToValue(0, -1, P32)).toBe(0);
+    expect(Object.is(signedToValue(0, -1, P32), -0)).toBe(false);
+    expect(signedToValue(null, -1, P32)).toBeNull();
+  });
+});
+
+describe("stepSigned", () => {
+  it("steps the signed magnitude, crossing zero into negatives", () => {
+    expect(stepSigned(1, 1, -1, P32)).toEqual({ ulps: 0, sign: 1 }); // +1 → 0
+    expect(stepSigned(0, 1, -1, P32)).toEqual({ ulps: 1, sign: -1 }); // 0 → -1
+    expect(stepSigned(1, -1, -1, P32)).toEqual({ ulps: 2, sign: -1 }); // -1 → -2
+    expect(stepSigned(1, -1, 1, P32)).toEqual({ ulps: 0, sign: 1 }); // -1 → 0
+    expect(stepSigned(null, 1, -1, P32)).toEqual({ ulps: 1, sign: -1 }); // pristine down → -1
+  });
+
+  it("clamps to ±capacity", () => {
+    expect(stepSigned(99999, 1, 1, P32)).toEqual({ ulps: 99999, sign: 1 });
+    expect(stepSigned(99999, -1, -1, P32)).toEqual({ ulps: 99999, sign: -1 });
+  });
+});
+
+describe("signedCanonical", () => {
+  it("prefixes a minus only for a non-zero negative magnitude", () => {
+    expect(signedCanonical(4250, -1, P32)).toBe("-42.50");
+    expect(signedCanonical(4250, 1, P32)).toBe("42.50");
+    expect(signedCanonical(0, -1, P32)).toBe("0.00"); // no -0
+    expect(signedCanonical(null, -1, P32)).toBe("");
   });
 });

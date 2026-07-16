@@ -143,6 +143,25 @@
   color: var(--sf-color-fg-subtle);
 }
 
+/* Leading +/- toggle for a signed input: a cell you can click. Negative reads
+   in the danger tone so a below-zero value is legible at a glance. */
+.signCell {
+  cursor: pointer;
+  margin-inline-end: calc(var(--sf-unit) / 6);
+  /* The cells layer is pointer-events:none (the capture input overlays it); the
+     sign toggle is the one interactive cell, so lift it above that overlay. */
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+.signCell[data-sign="minus"] {
+  color: var(--sf-color-danger);
+}
+.root[data-disabled] .signCell,
+.root[data-readonly] .signCell {
+  cursor: not-allowed;
+}
+
 .root[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;

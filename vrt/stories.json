@@ -148,6 +148,7 @@
   "digitinput--percent",
   "digitinput--pin",
   "digitinput--playground",
+  "digitinput--signed",
   "digitinputmicro--all-sizes",
   "digitinputmicro--bounded",
   "digitinputmicro--controlled",

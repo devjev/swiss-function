@@ -12,7 +12,7 @@ import { Fragment, forwardRef, useCallback, useEffect, useMemo, useRef, useState
 import { cx } from "../../lib/cx";
 import type { BoxElevation } from "../Box";
 import styles from "./DigitInput.module.css";
-import type { DigitConfig } from "./digitMath";
+import type { DigitConfig, Sign } from "./digitMath";
 import {
   capacityMax,
   formatValueText,
@@ -21,11 +21,15 @@ import {
   parseDecimalText,
   popDigit,
   pushDigit,
+  signedCanonical,
+  signedToValue,
+  stepSigned,
   stepUlps,
   ulpsToCanonical,
   ulpsToCells,
   ulpsToMaskString,
   ulpsToValue,
+  valueToSignedParts,
   valueToUlps,
 } from "./digitMath";
 
@@ -59,6 +63,10 @@ export interface DigitInputProps
   decimalSeparator?: ReactNode;
   /** Suffix rendered inside the control after the cells, e.g. `"%"`. */
   unit?: ReactNode;
+  /** Allow negative values: renders a leading `+`/`-` sign cell (click to
+   *  toggle, or type `-`/`+`), lets ArrowDown cross zero, and the value/form
+   *  string carry the sign. `push` mode only. Default `false`. */
+  signed?: boolean;
   /** Controlled value. `null` is the pristine untyped mask. */
   value?: number | null;
   /** Initial value when uncontrolled. Default `null` (pristine). */
@@ -114,6 +122,7 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     decimals = 0,
     decimalSeparator = ".",
     unit,
+    signed = false,
     value,
     defaultValue = null,
     onValueChange,
@@ -132,14 +141,22 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
   const total = config.digits + config.decimals;
 
   const [internalUlps, setInternalUlps] = useState<number | null>(
-    () => valueToUlps(defaultValue, config).ulps,
+    () => valueToSignedParts(defaultValue, config).ulps,
+  );
+  const [internalSign, setInternalSign] = useState<Sign>(() =>
+    signed ? valueToSignedParts(defaultValue, config).sign : 1,
   );
   const isControlled = value !== undefined;
-  const controlled = useMemo(
-    () => (isControlled ? valueToUlps(value, config) : null),
-    [isControlled, value, config],
-  );
+  // Controlled parse keeps sign only when `signed`; otherwise a negative prop
+  // clamps to 0 exactly as before (valueToUlps floors negatives).
+  const controlled = useMemo(() => {
+    if (!isControlled) return null;
+    if (signed) return valueToSignedParts(value, config);
+    const r = valueToUlps(value, config);
+    return { ulps: r.ulps, sign: 1 as Sign, clamped: r.clamped };
+  }, [isControlled, signed, value, config]);
   const ulps = isControlled ? (controlled?.ulps ?? null) : internalUlps;
+  const sign: Sign = signed ? (isControlled ? (controlled?.sign ?? 1) : internalSign) : 1;
 
   useClampWarning(controlled?.clamped === true, value, config);
 
@@ -148,15 +165,24 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
 
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const applyUlps = useCallback(
-    (next: number | null) => {
-      if (next === ulps) return;
+  const apply = useCallback(
+    (nextUlps: number | null, nextSign: Sign = sign) => {
+      const effSign: Sign = signed ? nextSign : 1;
+      if (nextUlps === ulps && effSign === sign) return;
       setEditStamp((s) => s + 1);
-      if (!isControlled) setInternalUlps(next);
-      onValueChange?.(ulpsToValue(next, config));
+      if (!isControlled) {
+        setInternalUlps(nextUlps);
+        setInternalSign(effSign);
+      }
+      onValueChange?.(
+        signed ? signedToValue(nextUlps, effSign, config) : ulpsToValue(nextUlps, config),
+      );
     },
-    [ulps, isControlled, onValueChange, config],
+    [ulps, sign, signed, isControlled, onValueChange, config],
   );
+
+  /** The hidden input / form / clipboard string, sign included when signed. */
+  const canonical = signed ? signedCanonical(ulps, sign, config) : ulpsToCanonical(ulps, config);
 
   const separatorString = typeof decimalSeparator === "string" ? decimalSeparator : ".";
 
@@ -165,16 +191,27 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     if (readOnly || disabled) return;
     if (/^[0-9]$/.test(e.key)) {
       e.preventDefault();
-      applyUlps(pushDigit(ulps, Number(e.key), config));
+      apply(pushDigit(ulps, Number(e.key), config));
+    } else if (signed && (e.key === "-" || e.key === "+")) {
+      e.preventDefault();
+      apply(ulps, e.key === "-" ? -1 : 1);
     } else if (e.key === "Backspace") {
       e.preventDefault();
-      applyUlps(popDigit(ulps));
+      const next = popDigit(ulps);
+      // Popping the last digit returns to pristine, which is positive.
+      apply(next, next === null ? 1 : sign);
     } else if (e.key === "Delete") {
       e.preventDefault();
-      applyUlps(null);
+      apply(null, 1);
     } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
       e.preventDefault();
-      applyUlps(stepUlps(ulps, e.key === "ArrowUp" ? 1 : -1, config));
+      const dir = e.key === "ArrowUp" ? 1 : -1;
+      if (signed) {
+        const stepped = stepSigned(ulps, sign, dir, config);
+        apply(stepped.ulps, stepped.sign);
+      } else {
+        apply(stepUlps(ulps, dir, config));
+      }
     }
     // Everything else falls through: Enter (form submit / Field validation
     // commit), Tab, Escape, shortcuts. Separator keys land in onBeforeInput
@@ -195,29 +232,36 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     if (native.inputType === "insertText") {
       e.preventDefault();
       let next = ulps;
+      let nextSign = sign;
       for (const ch of native.data ?? "") {
         if (/[0-9]/.test(ch)) next = pushDigit(next, Number(ch), config);
+        else if (signed && (ch === "-" || ch === "+")) nextSign = ch === "-" ? -1 : 1;
       }
-      applyUlps(next);
+      apply(next, nextSign);
     } else if (native.inputType === "deleteContentBackward") {
       e.preventDefault();
-      applyUlps(popDigit(ulps));
+      const next = popDigit(ulps);
+      apply(next, next === null ? 1 : sign);
     }
   };
 
   const handlePaste = (e: ReactClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     if (readOnly || disabled) return;
-    const parsed = parseDecimalText(e.clipboardData.getData("text/plain"), separatorString, config);
-    if (parsed !== null) applyUlps(parsed);
+    const raw = e.clipboardData.getData("text/plain");
+    const parsed = parseDecimalText(raw, separatorString, config);
+    if (parsed !== null) apply(parsed, signed && /^\s*-/.test(raw) ? -1 : 1);
   };
 
   // Autofill / browser form-restore net: the only way the native value can
   // change (we preventDefault all typing), so re-parse whatever landed.
   const handleExternalChange = (raw: string) => {
-    const canonical = ulpsToCanonical(ulps, config);
     if (raw === canonical) return;
-    applyUlps(raw === "" ? null : parseDecimalText(raw, ".", config));
+    if (raw === "") {
+      apply(null, 1);
+      return;
+    }
+    apply(parseDecimalText(raw, ".", config), signed && /^\s*-/.test(raw) ? -1 : 1);
   };
 
   // IME recovery: composition inserts are not cancelable, so re-assert the
@@ -225,7 +269,7 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
   // unchanged, which is exactly the case after a swallowed composition).
   const handleCompositionEnd = () => {
     const el = inputRef.current;
-    if (el) el.value = ulpsToCanonical(ulps, config);
+    if (el) el.value = canonical;
   };
 
   // Native form reset: restore the uncontrolled default after the browser has
@@ -235,15 +279,24 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     if (!form) return;
     const onReset = () => {
       queueMicrotask(() => {
-        if (!isControlled) setInternalUlps(valueToUlps(defaultValue, config).ulps);
+        if (isControlled) return;
+        const parts = valueToSignedParts(defaultValue, config);
+        setInternalUlps(parts.ulps);
+        setInternalSign(signed ? parts.sign : 1);
       });
     };
     form.addEventListener("reset", onReset);
     return () => form.removeEventListener("reset", onReset);
-  }, [isControlled, defaultValue, config]);
+  }, [isControlled, defaultValue, config, signed]);
 
   const cells = ulpsToCells(ulps, config);
-  const numericValue = ulpsToValue(ulps, config);
+  const maxValue = ulpsToValue(capacityMax(config), config) ?? undefined;
+  const numericValue = signed ? signedToValue(ulps, sign, config) : ulpsToValue(ulps, config);
+  // aria-valuetext: reuse the magnitude formatter, prefix a minus when negative.
+  const valueText =
+    signed && sign < 0 && ulps != null && ulps > 0
+      ? `-${formatValueText(ulps, config, unit)}`
+      : formatValueText(ulps, config, unit);
 
   return (
     <span
@@ -255,6 +308,24 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
       data-readonly={readOnly || undefined}
     >
       <span aria-hidden="true" className={styles.cells}>
+        {signed && (
+          // biome-ignore lint/a11y/noStaticElementInteractions: a mouse-only affordance inside the aria-hidden cells; the keyboard path is the spinbutton input's -/+ handling, which carries all a11y.
+          <span
+            className={cx(styles.cell, styles.signCell)}
+            data-cell=""
+            data-sign={sign < 0 ? "minus" : "plus"}
+            // Mouse affordance for the sign (keyboard types -/+). mousedown so
+            // focus stays on the input; a click never blurs the control.
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (readOnly || disabled) return;
+              apply(ulps, sign < 0 ? 1 : -1);
+              inputRef.current?.focus();
+            }}
+          >
+            {sign < 0 ? "-" : "+"}
+          </span>
+        )}
         {Array.from({ length: total }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: cells have no identity beyond their position — index keys are the correct semantics here.
           <Fragment key={i}>
@@ -277,17 +348,17 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
       <BaseInput
         ref={inputRef}
         className={styles.input}
-        value={ulpsToCanonical(ulps, config)}
+        value={canonical}
         onValueChange={handleExternalChange}
         onKeyDown={handleKeyDown}
         onBeforeInput={handleBeforeInput}
         onPaste={handlePaste}
         onCompositionEnd={handleCompositionEnd}
         role="spinbutton"
-        aria-valuemin={0}
-        aria-valuemax={ulpsToValue(capacityMax(config), config) ?? undefined}
+        aria-valuemin={signed && maxValue != null ? -maxValue : 0}
+        aria-valuemax={maxValue}
         aria-valuenow={numericValue ?? undefined}
-        aria-valuetext={formatValueText(ulps, config, unit)}
+        aria-valuetext={valueText}
         inputMode="numeric"
         autoComplete="off"
         spellCheck={false}
@@ -308,6 +379,9 @@ const MaskDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function MaskDi
     decimals = 0,
     decimalSeparator = ".",
     unit,
+    // Consumed (not forwarded to the DOM): mask is left-to-right cell fill with
+    // no sign position, so `signed` is push-only. Dev-warn below.
+    signed = false,
     value,
     defaultValue = null,
     onValueChange,
@@ -324,6 +398,12 @@ const MaskDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function MaskDi
 ) {
   const config = useMemo(() => normalizeConfig(digits, decimals), [digits, decimals]);
   const total = config.digits + config.decimals;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production" && signed) {
+      console.warn('DigitInput: `signed` is only supported in mode="push" (ignored in mask mode).');
+    }
+  }, [signed]);
 
   // The cell string is ALWAYS internal state: partial fills (e.g. "42") have
   // no representation in the public number|null value, so the prop cannot be

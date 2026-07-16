@@ -141,3 +141,53 @@ export function formatValueText(ulps: number | null, config: DigitConfig, unit: 
   const text = ulpsToCanonical(ulps, config);
   return typeof unit === "string" && unit.length > 0 ? `${text} ${unit}` : text;
 }
+
+// --- Signed helpers ---------------------------------------------------------
+// The digit engine above works on a NON-NEGATIVE magnitude (ulps); the sign is
+// carried alongside it (`1` / `-1`) so push/pop/cells never have to reason
+// about a minus. These helpers cross the value <-> (magnitude, sign) boundary.
+
+export type Sign = 1 | -1;
+
+/** Controlled signed value → magnitude ulps + sign. The magnitude clamps to
+ *  capacity exactly like `valueToUlps`; the sign is the value's own. Zero and
+ *  null are positive. */
+export function valueToSignedParts(
+  value: number | null,
+  config: DigitConfig,
+): { ulps: number | null; sign: Sign; clamped: boolean } {
+  if (value === null) return { ulps: null, sign: 1, clamped: false };
+  if (!Number.isFinite(value)) return { ulps: null, sign: 1, clamped: true };
+  const sign: Sign = value < 0 ? -1 : 1;
+  const { ulps, clamped } = valueToUlps(Math.abs(value), config);
+  return { ulps, sign, clamped };
+}
+
+/** Magnitude ulps + sign → signed value. `null` stays `null`; zero is `+0`
+ *  (never `-0`). */
+export function signedToValue(ulps: number | null, sign: Sign, config: DigitConfig): number | null {
+  const magnitude = ulpsToValue(ulps, config);
+  if (magnitude === null || magnitude === 0) return magnitude;
+  return magnitude * sign;
+}
+
+/** ArrowUp/Down for a signed field: step the SIGNED magnitude so it crosses
+ *  zero into negatives, clamped to ±capacity. */
+export function stepSigned(
+  ulps: number | null,
+  sign: Sign,
+  direction: 1 | -1,
+  config: DigitConfig,
+): { ulps: number; sign: Sign } {
+  const cap = capacityMax(config);
+  const signed = (ulps ?? 0) * sign + direction;
+  const clamped = Math.max(-cap, Math.min(cap, signed));
+  return { ulps: Math.abs(clamped), sign: clamped < 0 ? -1 : 1 };
+}
+
+/** Canonical machine string with the sign (the form/clipboard value). No
+ *  `-0`: the minus only prefixes a non-zero magnitude. */
+export function signedCanonical(ulps: number | null, sign: Sign, config: DigitConfig): string {
+  const base = ulpsToCanonical(ulps, config);
+  return sign < 0 && ulps != null && ulps > 0 ? `-${base}` : base;
+}

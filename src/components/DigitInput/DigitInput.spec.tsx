@@ -69,6 +69,62 @@ test("ArrowUp/Down step one least-significant unit and clamp at the ends", async
   await expect(input).toHaveAttribute("aria-valuenow", "0");
 });
 
+test("signed: typing '-'/'+' toggles the sign; value and form string carry it", async ({
+  mount,
+}) => {
+  const seen: (number | null)[] = [];
+  const c = await mount(
+    <DigitInput signed digits={3} decimals={1} onValueChange={(v) => seen.push(v)} />,
+  );
+  const input = c.locator("input");
+  await input.focus();
+  await input.press("4");
+  await input.press("2");
+  await input.press("5"); // 42.5
+  await input.press("-"); // → -42.5
+  expect(seen.at(-1)).toBe(-42.5);
+  await expect(c.locator("[data-sign]")).toHaveText("-");
+  await expect(input).toHaveValue("-42.5");
+  await input.press("+"); // → 42.5
+  expect(seen.at(-1)).toBe(42.5);
+  await expect(c.locator("[data-sign]")).toHaveText("+");
+});
+
+test("signed: clicking the sign cell toggles negative", async ({ mount }) => {
+  const seen: (number | null)[] = [];
+  const c = await mount(
+    <DigitInput signed digits={2} defaultValue={5} onValueChange={(v) => seen.push(v)} />,
+  );
+  await c.locator("[data-sign]").click();
+  expect(seen.at(-1)).toBe(-5);
+  await expect(c.locator("[data-sign]")).toHaveText("-");
+});
+
+test("signed: ArrowDown crosses zero into negatives", async ({ mount }) => {
+  const seen: (number | null)[] = [];
+  const c = await mount(
+    <DigitInput
+      signed
+      digits={1}
+      decimals={1}
+      defaultValue={0}
+      onValueChange={(v) => seen.push(v)}
+    />,
+  );
+  const input = c.locator("input");
+  await input.focus();
+  await input.press("ArrowDown"); // 0 → -0.1
+  expect(seen.at(-1)).toBe(-0.1);
+  await expect(c.locator("[data-sign]")).toHaveText("-");
+  await expect(input).toHaveAttribute("aria-valuenow", "-0.1");
+});
+
+test("signed: a controlled negative value renders with the minus sign", async ({ mount }) => {
+  const c = await mount(<DigitInput signed digits={3} decimals={1} unit="°C" value={-12.5} />);
+  await expect(c.locator("[data-sign]")).toHaveText("-");
+  await expect(c.locator("input")).toHaveValue("-12.5");
+});
+
 test("Arrow from pristine un-pristines: down → 0, up → 1 ulp", async ({ mount }) => {
   const c = await mount(<DigitInput digits={2} decimals={1} />);
   const input = c.locator("input");

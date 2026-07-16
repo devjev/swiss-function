@@ -506,12 +506,13 @@ Fixed-capacity numeric input rendered as individual digit cells (`[0][4][2].[5][
 | `mode` | `"push" \| "mask"` | `"push"` | Typing model: calculator vs 2FA-cell (see above). Not meant to change at runtime (a flip remounts the control). |
 | `decimalSeparator` | `ReactNode` | `"."` | Display glyph only. The form/clipboard value always uses `"."`. |
 | `unit` | `ReactNode` | n/a | Suffix inside the control (e.g. `"%"`). String units join `aria-valuetext`. |
-| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | `null` = pristine mask. Reported values are always complete (untyped positions are 0). Controlled values clamp to capacity + round to `decimals` (dev-warn on clamp). |
+| `signed` | `boolean` | `false` | Allow negatives: a leading `+`/`-` cell (click to toggle, or type `-`/`+`), ArrowDown crosses zero, and the value + form string carry the sign. **`push` mode only** (mask has no sign position; dev-warns and ignores it there). |
+| `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | `null` = pristine mask. Reported values are always complete (untyped positions are 0). Controlled values clamp to capacity + round to `decimals` (dev-warn on clamp). With `signed`, a negative value shows the minus; without it, negatives clamp to 0. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cell heights 1u / 1.5u / 2u (Input parity). |
 | `elevation` | `0` to `5` | `2` | Resting cell depth, cascading to every cell. |
 | `name` | `string` | n/a | Form participation; submits the canonical string (e.g. `"4.25"`). |
 
-Keyboard (`push`): **0 to 9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling (deliberate). Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); negatives are unsupported (clamped to 0).
+Keyboard (`push`): **0 to 9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling (deliberate). Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); a leading `-` in pasted text sets the sign when `signed`, otherwise negatives clamp to 0. With `signed`, `-`/`+` set the sign, ArrowDown steps below zero, and the ± magnitude clamps to capacity in both directions.
 
 Keyboard (`mask`): OTPField's native model: typing fills the focused cell and advances, Backspace clears and steps back, ArrowLeft/Right move between cells; there is no ulp stepping. Paste is decimal-aware: text containing a separator (`"12.34"`) fills positionally (→ `012.34`), plain digit strings fill left-to-right like typing.
 
