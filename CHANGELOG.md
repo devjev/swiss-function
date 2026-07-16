@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.11.1 — 2026-07-16
+
+### Patch
+
+- TableInput: even the vertical rhythm — the last data row now sits 0.5u above the divider below it, matching the header's top padding (was a tighter 0.25u), so the data region reads symmetric top-to-bottom
+
 ## v2.11.0 — 2026-07-16
 
 ### Minor
