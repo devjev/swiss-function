@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.11.0 — 2026-07-16
+
+### Minor
+
+- DigitInput: opt-in signed prop for negative values (push mode). Adds a leading +/- cell you can click or set by typing -/+, ArrowDown steps below zero, and the value and form string carry the sign. Mask mode is unaffected (signed is push-only).
+
 ## v2.10.0 — 2026-07-16
 
 ### Minor
