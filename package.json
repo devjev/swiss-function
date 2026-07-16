@@ -263,6 +263,10 @@
       "types": "./dist/components/DataTable/index.d.ts",
       "import": "./dist/components/DataTable/index.js"
     },
+    "./table-input": {
+      "types": "./dist/components/TableInput/index.d.ts",
+      "import": "./dist/components/TableInput/index.js"
+    },
     "./tabs": {
       "types": "./dist/components/Tabs/index.d.ts",
       "import": "./dist/components/Tabs/index.js"

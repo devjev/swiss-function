@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-16T11:19:56.057Z"
+    "date": "2026-07-16T18:03:03.269Z"
   },
-  "totalGzip": 868179,
+  "totalGzip": 890891,
   "entries": {
     ".": {
-      "files": 249,
-      "jsRaw": 878551,
-      "jsGzip": 266068,
+      "files": 251,
+      "jsRaw": 888123,
+      "jsGzip": 268752,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 266068,
+      "gzip": 268752,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -451,11 +451,11 @@
     },
     "./radio-table": {
       "files": 6,
-      "jsRaw": 4233,
-      "jsGzip": 1950,
+      "jsRaw": 4361,
+      "jsGzip": 1984,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1950,
+      "gzip": 1984,
       "externals": [
         "@base-ui/react/radio",
         "@base-ui/react/radio-group",
@@ -700,11 +700,11 @@
     },
     "./minimap": {
       "files": 8,
-      "jsRaw": 28103,
-      "jsGzip": 7765,
+      "jsRaw": 28462,
+      "jsGzip": 7831,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7765,
+      "gzip": 7831,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./menu-bar": {
@@ -805,6 +805,23 @@
         "react/jsx-runtime"
       ]
     },
+    "./table-input": {
+      "files": 26,
+      "jsRaw": 61997,
+      "jsGzip": 19772,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 19772,
+      "externals": [
+        "@base-ui/react/checkbox",
+        "@base-ui/react/combobox",
+        "@base-ui/react/input",
+        "@base-ui/react/popover",
+        "@tanstack/react-virtual",
+        "react",
+        "react/jsx-runtime"
+      ]
+    },
     "./tabs": {
       "files": 4,
       "jsRaw": 2402,
@@ -895,11 +912,11 @@
     },
     "./vertical-form": {
       "files": 20,
-      "jsRaw": 54696,
-      "jsGzip": 17032,
+      "jsRaw": 55507,
+      "jsGzip": 17188,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 17032,
+      "gzip": 17188,
       "externals": [
         "@base-ui/react/combobox",
         "@base-ui/react/field",

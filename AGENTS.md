@@ -104,6 +104,7 @@ Ladle (`npm run dev`).
 | `Selector`      | Search + multi-select with a visible "bucket" of chosen items as removable chips. `layout="panel"` (separate bucket, default) or `"inline"` (tag-input). High-level: `<Selector items value onChange />`. |
 | `Picker`        | Search + single-select, the one-choice sibling of `Selector` (same item shape, `value` is one string). The field shows the chosen label and doubles as the filter. High-level: `<Picker items value onChange />`. |
 | `Dropzone`      | File drag-and-drop zone (+ click-to-browse) that surfaces files via `onFilesChange` and renders them as a removable list. Presentational: the upload itself is yours; feed per-file progress/error through the `fileStatus` slot. |
+| `TableInput`    | A compact editable table used as a **form control**, for entering an **array of objects** (one row per object). `columns` name a row property and pick a cell editor via DataTable's `edit` config (text→`TextEditInline`, number→`DigitInputMicro`, boolean→`Checkbox`, select/date→`Picker`/`DatePicker`), cells are always-on editors. A footer button adds a blank row, a per-row trash deletes; opt-in `reorderable` drags to reorder (lazy dnd-kit), `minRows`/`maxRows` bound the count, `equalColumns` evens the widths. Controlled `value`/`onChange`. Drop it in a `Field`. Not `DataTable` (that's a display grid at scale, no add/remove-row UI). |
 
 ### Surfaces & layout
 
@@ -352,6 +353,7 @@ Common requests and the right component:
 | "a PIN / 2FA code input" / "a fixed-digit amount" / "a percent / price the user types into" / "instrument-panel number entry" | `DigitInput` (`digits`/`decimals`/`unit`; calculator-style push typing) |
 | "a date picker" / "pick a date" / "a calendar input" / "due date field" | `DatePicker` (ISO by default; type `2026-07`, `12 jul`, `tomorrow`, not `type="date"`) |
 | "a table"                                          | `DataTable` (almost always; it handles a lot)   |
+| "edit an array of objects" / "a form field that's a small editable table" / "add/remove rows of inputs" / "a repeatable row input" / "input a list of records" | `TableInput` (compact editable table as a form control; add/delete rows, `reorderable`, reuses DataTable's `edit` cell editors). Use `DataTable` instead for display/analysis at scale. |
 | "tabs"                                             | `Tabs`                                           |
 | "collapsible sections"                             | No dedicated component; use `Tabs` for peer views, or `Reflow` (collapses to accordion-style sections when narrow) |
 | "a sidebar file tree"                              | `Explorer`                                       |

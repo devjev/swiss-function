@@ -55,6 +55,7 @@ const componentNames = [
   "StreamingTerminalText",
   "Surface",
   "DataTable",
+  "TableInput",
   "Tabs",
   "CodeEditor",
   "CodeEditorInline",

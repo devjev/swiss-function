@@ -55,6 +55,7 @@ export * from "./components/SplitPane";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Surface";
 export * from "./components/Switch";
+export * from "./components/TableInput";
 export * from "./components/Tabs";
 export * from "./components/TextEdit";
 export * from "./components/TextEditInline";

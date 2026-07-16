@@ -1638,6 +1638,54 @@ Toggle switch (Base UI Switch.Root + Thumb). Forwards Base UI Switch props (`che
 | --- | --- | --- | --- |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth; sets `data-elevation`. |
 
+## TableInput
+
+`import { TableInput } from "@tarassov-ch/swiss-function/table-input"`
+
+A compact, editable table used as a form control, for entering an **array of
+objects** (one row per object). Each column names a property on the row and
+picks a cell editor via the same `edit` config `DataTable` uses
+(`text`→`TextEditInline`, `number`→`DigitInputMicro`, `boolean`→`Checkbox`,
+`select`/`date`→`Picker`/`DatePicker`); the cells are always-on editors, not
+click-to-edit. Rows are added with a footer button and removed with a per-row
+trash button, and can be dragged to reorder (opt-in `reorderable`, which
+lazy-loads dnd-kit). Controlled only: pass `value` (the rows) and `onChange`
+(the next rows). Drop it inside a `Field` like any other control. The header and
+every row share one grid (a CSS `subgrid`), so cells line up like a table; a
+`width` is a column's preferred size that may shrink so the table never
+overflows, `equalColumns` gives every column an equal share instead.
+
+**Elements / Parts:** `TableInput` (a single component; columns are data, not
+JSX children).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `columns` | `TableInputColumn<T>[]` | n/a | Column defs: `key` (the row property), `header`, `edit` (the `EditConfig`), optional `width` (in `--sf-unit` multiples) and `align`. |
+| `value` | `T[]` | n/a | The rows (controlled). |
+| `onChange` | `(rows: T[]) => void` | n/a | Called with the next rows after any edit, add, delete or reorder. |
+| `newRow` | `() => T` | empty cells | Build a blank row on add; defaults to `""` / `null` / `false` per column edit type. |
+| `showHeader` | `boolean` | `true` | Show the header row. |
+| `minRows` | `number` | `0` | Delete is disabled at or below this count. |
+| `maxRows` | `number` | `Infinity` | Add is disabled at or above this count. |
+| `equalColumns` | `boolean` | `false` | Give every data column an equal share, ignoring per-column `width`. |
+| `reorderable` | `boolean` | `false` | Drag rows to reorder (adds a grip column; lazy-loads dnd-kit). |
+| `addLabel` | `ReactNode` | `"Add row"` | Add-button label. |
+| `disabled` | `boolean` | `false` | Disable the whole control (the rows become `inert`). |
+| `size` | `"sm" \| "md"` | `"sm"` | Cell size, mirroring the inner controls. |
+
+```tsx
+<TableInput
+  columns={[
+    { key: "ticker", header: "Ticker", edit: { type: "text" } },
+    { key: "shares", header: "Shares", edit: { type: "number", decimals: 0 }, width: 6, align: "end" },
+    { key: "class", header: "Class", edit: { type: "select", options: CLASSES }, width: 8 },
+  ]}
+  value={rows}
+  onChange={setRows}
+  reorderable
+/>
+```
+
 ## Tabs
 
 `import { Tabs } from "@tarassov-ch/swiss-function/tabs"`
