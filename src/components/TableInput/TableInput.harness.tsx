@@ -38,15 +38,18 @@ export function TableInputHarness({
   reorderable,
   minRows,
   maxRows,
+  width = 560,
 }: {
   reorderable?: boolean;
   minRows?: number;
   maxRows?: number;
+  width?: number;
 }) {
   const [rows, setRows] = useState<Row[]>(INITIAL);
   return (
-    <div style={{ width: 560 }}>
+    <div style={{ width }}>
       <TableInput
+        data-testid="table"
         columns={COLUMNS}
         value={rows}
         onChange={setRows}

@@ -128,3 +128,15 @@ export const Disabled: Story = () => (
     <TableInput columns={HOLDING_COLUMNS} value={INITIAL} onChange={() => {}} disabled />
   </div>
 );
+
+/** Narrow container: columns shrink toward their minimum widths, and once they
+ *  can't all fit the table scrolls horizontally rather than collapsing columns
+ *  into each other. Each control fills its cell (numbers stay right-aligned). */
+export const Narrow: Story = () => {
+  const [rows, setRows] = useState<Holding[]>(INITIAL);
+  return (
+    <div style={{ width: "18rem" }}>
+      <TableInput columns={HOLDING_COLUMNS} value={rows} onChange={setRows} />
+    </div>
+  );
+};

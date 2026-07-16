@@ -33,8 +33,15 @@ export interface TableInputColumn<T = Record<string, unknown>> {
   header?: ReactNode;
   /** Which cell editor to use (the DataTable `edit` config). */
   edit: EditConfig;
-  /** Fixed column width in `--sf-unit` multiples. Omit to share the slack. */
+  /** Preferred column width in `--sf-unit` multiples. Omit to share the slack.
+   *  The column may still shrink toward its `minWidth` so the table fits. */
   width?: number;
+  /** Minimum column width in `--sf-unit` multiples: the column never shrinks
+   *  below this. Once every column is at its minimum and they still don't fit,
+   *  the table scrolls horizontally instead of collapsing. Defaults to a
+   *  per-editor floor (checkbox/number are narrow, text/select/date use
+   *  `minColumnWidth`), capped at `width`. */
+  minWidth?: number;
   /** Cell text alignment. Default `"start"`. */
   align?: "start" | "center" | "end";
 }
@@ -57,8 +64,14 @@ export interface TableInputProps<T = Record<string, unknown>>
   /** Maximum row count: the add button is disabled at or above it. */
   maxRows?: number;
   /** Give every data column an equal share of the width, ignoring per-column
-   *  `width`. Default `false` (a `width` is fixed, a width-less column flexes). */
+   *  `width`. Default `false` (a `width` is the preferred size, a width-less
+   *  column flexes). */
   equalColumns?: boolean;
+  /** Default minimum width (in `--sf-unit` multiples) for text/select/date
+   *  columns that don't set their own `minWidth`. The table scrolls
+   *  horizontally once the columns can't all fit at their minimums, rather than
+   *  letting them collapse and overlap. Default `6`. */
+  minColumnWidth?: number;
   /** Let rows be dragged to reorder (loads dnd-kit lazily). Default `false`. */
   reorderable?: boolean;
   /** Add-button label. Default `"Add row"`. */
@@ -204,6 +217,7 @@ export function TableInput<T = Record<string, unknown>>({
   minRows = 0,
   maxRows = Number.POSITIVE_INFINITY,
   equalColumns = false,
+  minColumnWidth = 6,
   reorderable = false,
   addLabel = "Add row",
   disabled = false,
@@ -213,23 +227,29 @@ export function TableInput<T = Record<string, unknown>>({
   ...rest
 }: TableInputProps<T>) {
   // The grid columns are shared by the header and every row (subgrid), so the
-  // cells line up like a table: [handle?] data… [delete].
+  // cells line up like a table: [handle?] data… [delete]. Each data column is
+  // `minmax(floor, preferred)`: it shrinks toward its floor to fit, and once
+  // every column is at its floor and they still don't fit, the root scrolls
+  // horizontally (see the CSS) instead of collapsing columns into each other.
   const gridTemplate = useMemo(() => {
+    const u = (n: number) => `calc(var(--sf-unit) * ${n})`;
+    const floorFor = (c: TableInputColumn<T>) => {
+      if (c.minWidth != null) return Math.min(c.minWidth, c.width ?? c.minWidth);
+      // Narrow controls (checkbox, micro number) get a tight floor; the rest use
+      // minColumnWidth. Never exceed a set preferred width.
+      const base = c.edit.type === "boolean" ? 2.5 : c.edit.type === "number" ? 4 : minColumnWidth;
+      return c.width != null ? Math.min(base, c.width) : base;
+    };
     const tracks = [
       reorderable ? "auto" : null,
-      // `equalColumns`: every data column shares the width equally. Otherwise a
-      // `width` is the column's preferred size but it may shrink so the table
-      // always fits (never overflows the field); a width-less column takes the
-      // slack.
-      ...columns.map((c) =>
-        equalColumns || c.width == null
-          ? "minmax(0, 1fr)"
-          : `minmax(0, calc(var(--sf-unit) * ${c.width}))`,
-      ),
+      ...columns.map((c) => {
+        const preferred = equalColumns || c.width == null ? "1fr" : u(c.width);
+        return `minmax(${u(floorFor(c))}, ${preferred})`;
+      }),
       "auto",
     ].filter(Boolean);
     return tracks.join(" ");
-  }, [columns, reorderable, equalColumns]);
+  }, [columns, reorderable, equalColumns, minColumnWidth]);
 
   const makeRow = (): T => {
     if (newRow) return newRow();

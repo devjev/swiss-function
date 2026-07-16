@@ -3,11 +3,15 @@
    `subgrid`, so cells line up like a table. Tight, unit-scaled spacing. */
 
 .root {
+  composes: scrollable from "../../lib/scrollable.module.css";
   display: grid;
   /* grid-template-columns is set inline (derived from the columns). */
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
-  overflow: hidden;
+  /* Scroll horizontally once the columns can't all fit at their minimum widths,
+     rather than letting them collapse into each other. Height is content-driven,
+     so no vertical scrollbar appears. */
+  overflow: auto;
   background-color: var(--sf-color-bg);
   min-inline-size: 0;
 }
@@ -51,24 +55,38 @@
 }
 
 .cell {
+  display: flex;
+  align-items: center;
   min-inline-size: 0;
   padding-inline: calc(var(--sf-unit) / 2);
 }
 
+/* Alignment positions the cell's CONTENT inside the always-stretched cell; it
+   must not shrink the cell with justify-self, or an end/center column leaves
+   empty track space beside its value (the "space on the left" of a right-
+   aligned number). A filled control also honors text-align; a natural-width
+   control (a checkbox) is placed by justify-content. */
+.cell[data-align="center"] {
+  justify-content: center;
+}
+.cell[data-align="end"] {
+  justify-content: flex-end;
+}
 .cell[data-align="center"],
 .headerCell[data-align="center"] {
-  justify-self: center;
   text-align: center;
 }
 .cell[data-align="end"],
 .headerCell[data-align="end"] {
-  justify-self: end;
   text-align: end;
 }
 
-/* Editors fill their cell so columns read as one width. */
+/* Editors fill their cell so columns read as one width, and shrink with it
+   (min-inline-size: 0) so a control never overflows its track into the next
+   column: the table scrolls as a whole once tracks reach their floor. */
 .control {
   inline-size: 100%;
+  min-inline-size: 0;
 }
 
 /* The trailing delete column and the leading drag column hug their button. */

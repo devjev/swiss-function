@@ -35,6 +35,23 @@ test("maxRows disables add at the ceiling", async ({ mount }) => {
   await expect(c.getByRole("button", { name: "Add row" })).toBeDisabled();
 });
 
+test("stays robust when narrow: scrolls instead of collapsing columns", async ({ mount }) => {
+  // A container far narrower than the columns' combined minimum widths.
+  const c = await mount(<TableInputHarness width={240} />);
+  const table = c.getByTestId("table");
+  const { scrolls, firstControlWidth } = await table.evaluate((el) => {
+    const control = el.querySelector("textarea");
+    return {
+      scrolls: el.scrollWidth > el.clientWidth + 1,
+      firstControlWidth: control ? Math.round(control.getBoundingClientRect().width) : 0,
+    };
+  });
+  // The table overflows and scrolls rather than squashing the columns together.
+  expect(scrolls).toBe(true);
+  // The first column held a usable width instead of collapsing toward zero.
+  expect(firstControlWidth).toBeGreaterThan(40);
+});
+
 test("keyboard reorder moves a row via the drag handle", async ({ mount, page }) => {
   const c = await mount(<TableInputHarness reorderable />);
   await expect(c.getByTestId("rows")).toHaveText("First|Second");

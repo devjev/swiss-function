@@ -1652,16 +1652,21 @@ click-to-edit. Rows are added with a footer button and removed with a per-row
 trash button, and can be dragged to reorder (opt-in `reorderable`, which
 lazy-loads dnd-kit). Controlled only: pass `value` (the rows) and `onChange`
 (the next rows). Drop it inside a `Field` like any other control. The header and
-every row share one grid (a CSS `subgrid`), so cells line up like a table; a
-`width` is a column's preferred size that may shrink so the table never
-overflows, `equalColumns` gives every column an equal share instead.
+every row share one grid (a CSS `subgrid`), so cells line up like a table. A
+`width` is a column's **preferred** size; each column shrinks only toward its
+`minWidth` floor (a per-editor default, or `minColumnWidth` for text/select/date
+columns), and once every column is at its floor and they still don't fit, the
+table **scrolls horizontally** instead of collapsing columns into each other.
+`equalColumns` gives every column an equal share instead. Every cell control
+fills its column and shrinks with it, so a right-aligned value has no dead space
+on its left and a control never overflows into the next column.
 
 **Elements / Parts:** `TableInput` (a single component; columns are data, not
 JSX children).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `columns` | `TableInputColumn<T>[]` | n/a | Column defs: `key` (the row property), `header`, `edit` (the `EditConfig`), optional `width` (in `--sf-unit` multiples) and `align`. |
+| `columns` | `TableInputColumn<T>[]` | n/a | Column defs: `key` (the row property), `header`, `edit` (the `EditConfig`), optional `width` (preferred size in `--sf-unit` multiples), `minWidth` (the column never shrinks below this; defaults to a per-editor floor capped at `width`) and `align`. |
 | `value` | `T[]` | n/a | The rows (controlled). |
 | `onChange` | `(rows: T[]) => void` | n/a | Called with the next rows after any edit, add, delete or reorder. |
 | `newRow` | `() => T` | empty cells | Build a blank row on add; defaults to `""` / `null` / `false` per column edit type. |
@@ -1669,6 +1674,7 @@ JSX children).
 | `minRows` | `number` | `0` | Delete is disabled at or below this count. |
 | `maxRows` | `number` | `Infinity` | Add is disabled at or above this count. |
 | `equalColumns` | `boolean` | `false` | Give every data column an equal share, ignoring per-column `width`. |
+| `minColumnWidth` | `number` | `6` | Default minimum width (in `--sf-unit` multiples) for text/select/date columns without their own `minWidth`. The table scrolls horizontally once columns can't all fit at their minimums. |
 | `reorderable` | `boolean` | `false` | Drag rows to reorder (adds a grip column; lazy-loads dnd-kit). |
 | `addLabel` | `ReactNode` | `"Add row"` | Add-button label. |
 | `disabled` | `boolean` | `false` | Disable the whole control (the rows become `inert`). |
