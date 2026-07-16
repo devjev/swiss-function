@@ -37,6 +37,7 @@ const componentNames = [
   "Checkbox",
   "Switch",
   "Radio",
+  "RadioTable",
   "DatePicker",
   "Dialog",
   "DigitInput",
@@ -67,6 +68,7 @@ const componentNames = [
   "Reflow",
   "Picker",
   "Dropzone",
+  "VerticalForm",
   "WindowArray",
 ];
 

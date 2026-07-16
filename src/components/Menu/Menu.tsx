@@ -24,13 +24,28 @@ const Positioner = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof Ba
   },
 );
 
-const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseMenu.Popup>>(
-  function MenuPopup({ className, ...rest }, ref) {
-    return (
-      <BaseMenu.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
-    );
-  },
-);
+export interface MenuPopupProps extends ComponentPropsWithoutRef<typeof BaseMenu.Popup> {
+  /** Whether to return focus to the trigger when the menu closes (Base UI's
+   *  default). Set `false` to leave focus where it is — useful when a custom
+   *  hotkey layer owns focus and you don't want the trigger re-armed, so a
+   *  subsequent Space/Enter doesn't reopen it. Maps to Base UI `finalFocus`;
+   *  pass `finalFocus` directly for a specific target element. */
+  returnFocus?: boolean;
+}
+
+const Popup = forwardRef<HTMLDivElement, MenuPopupProps>(function MenuPopup(
+  { className, returnFocus = true, finalFocus, ...rest },
+  ref,
+) {
+  return (
+    <BaseMenu.Popup
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.popup, className)}
+      finalFocus={finalFocus ?? (returnFocus ? undefined : false)}
+    />
+  );
+});
 
 const Item = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseMenu.Item>>(
   function MenuItem({ className, ...rest }, ref) {

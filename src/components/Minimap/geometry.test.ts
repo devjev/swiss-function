@@ -4,6 +4,8 @@ import {
   grabZone,
   markerRailHeight,
   markerRailY,
+  railContentHeight,
+  railScrollForBand,
   railVisibleNext,
   resolveMarkerHeight,
   resolveMarkerTop,
@@ -11,6 +13,49 @@ import {
   scrollTopForThumbTop,
   thumbGeometry,
 } from "./geometry";
+
+describe("railContentHeight (min-block scrollable rail)", () => {
+  it("returns the rail height when the smallest span already meets the floor", () => {
+    // Smallest span is 20px, floor is 12px → no growth.
+    expect(railContentHeight([20, 40, 80], 400, 12, 40)).toBe(400);
+  });
+
+  it("scales up so the smallest span reaches the floor", () => {
+    // Smallest span 6px, floor 12px → scale 2 → 800.
+    expect(railContentHeight([6, 30], 400, 12, 40)).toBe(800);
+  });
+
+  it("caps the scale so a tiny span cannot explode the height", () => {
+    // Smallest span 0.1px would need scale 120; capped at 40.
+    expect(railContentHeight([0.1], 400, 12, 40)).toBe(400 * 40);
+  });
+
+  it("ignores zero-extent markers and returns rail height when there are no spans", () => {
+    expect(railContentHeight([0, 0], 400, 12, 40)).toBe(400);
+    expect(railContentHeight([], 400, 12, 40)).toBe(400);
+  });
+});
+
+describe("railScrollForBand (edge-triggered follow)", () => {
+  // Content 1200 tall in a 400 viewport; band is 30 tall; margin 24.
+  it("holds the scroll when the band is comfortably in view", () => {
+    expect(railScrollForBand(200, 30, 400, 1200, 100, 24)).toBe(100);
+  });
+
+  it("scrolls up when the band is above the margin", () => {
+    // Band top 100, current scroll 200 → band at -100 in view → scroll to 100-24.
+    expect(railScrollForBand(100, 30, 400, 1200, 200, 24)).toBe(76);
+  });
+
+  it("scrolls down when the band is below the margin", () => {
+    // Band bottom 1000+30 vs viewport bottom (400 - 24) at scroll 500.
+    expect(railScrollForBand(1000, 30, 400, 1200, 500, 24)).toBe(1000 + 30 - (400 - 24));
+  });
+
+  it("never scrolls past the content extent", () => {
+    expect(railScrollForBand(1190, 30, 400, 1200, 0, 24)).toBe(800);
+  });
+});
 
 describe("resolveMarkerTop", () => {
   it("uses top when present", () => {

@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { Clustered, InOuterScroller, Short, Shrinkable, Tall, WithLabels } from "./Minimap.harness";
+import {
+  Clustered,
+  DenseScroll,
+  InOuterScroller,
+  Short,
+  Shrinkable,
+  Tall,
+  WithLabels,
+} from "./Minimap.harness";
 
 /** The scroll element is the target of the scrollbar's aria-controls. */
 async function scrollTopOf(c: { locator(selector: string): Locator; page(): Page }) {
@@ -191,4 +199,62 @@ test("the rail collapses again when overflowing content shrinks to fit", async (
     if (el) el.style.height = "100px";
   });
   await expect(c.locator('[role="scrollbar"]')).toBeHidden();
+});
+
+test("min-block mode: the rail grows taller than its viewport and scrolls", async ({
+  mount,
+  page,
+}) => {
+  await mount(<DenseScroll />);
+  const rail = page.locator('[class*="rail"]');
+  const box = await rail.evaluate((el) => ({
+    scrollH: el.scrollHeight,
+    clientH: el.clientHeight,
+    scroll: el.hasAttribute("data-scroll"),
+  }));
+  expect(box.scroll).toBe(true);
+  expect(box.scrollH).toBeGreaterThan(box.clientH + 100);
+  // No block marker is shorter than 0.5u (12px at the default unit).
+  const minBlock = await page.evaluate(() => {
+    const heights = [...document.querySelectorAll('[class*="markers"] > div')].map(
+      (m) => Number.parseFloat((m as HTMLElement).style.height) || 0,
+    );
+    return Math.min(...heights);
+  });
+  expect(minBlock).toBeGreaterThanOrEqual(11.5);
+});
+
+test("min-block mode: the rail follows the main content scroll", async ({ mount, page }) => {
+  const c = await mount(<DenseScroll />);
+  const rail = page.locator('[class*="rail"]');
+  expect(await rail.evaluate((el) => el.scrollTop)).toBe(0);
+  const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
+  await page.evaluate((sel) => {
+    const el = sel ? document.getElementById(sel) : null;
+    if (el) el.scrollTop = el.scrollHeight; // to the bottom
+  }, id);
+  await expect.poll(() => rail.evaluate((el) => el.scrollTop)).toBeGreaterThan(100);
+});
+
+test("min-block mode: dragging the band to the rail edge keeps scrolling", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DenseScroll />);
+  const rail = page.locator('[class*="rail"]').first();
+  const box = (await rail.boundingBox())!;
+  const scrollTop = async () => {
+    const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
+    return page.evaluate((sel) => (sel ? (document.getElementById(sel)?.scrollTop ?? 0) : 0), id);
+  };
+  // Grab the band at the top, drag to the bottom edge, then hold there.
+  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 2, { steps: 6 });
+  const atEdge = await scrollTop();
+  await page.waitForTimeout(700); // pointer stationary at the edge
+  const afterHold = await scrollTop();
+  await page.mouse.up();
+  // Edge auto-scroll advanced the content further while the pointer was still.
+  expect(afterHold).toBeGreaterThan(atEdge + 200);
 });

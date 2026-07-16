@@ -135,6 +135,14 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
   // Mirror the selected value to the option object Base UI compares by reference,
   // so the field shows the right label and the list highlights the right row.
   const selectedOption = selected ? (byValue.get(selected) ?? null) : null;
+  const selectedLabel = selectedOption?.label ?? "";
+
+  // The input text is the search query while the popup is open, and the selected
+  // item's label while it is closed. Opening clears the query, so the field
+  // shows the whole list (not filtered to the current selection) and the user
+  // types a fresh search instead of appending to the selected label.
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
 
   const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
 
@@ -144,6 +152,13 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
         items={options}
         value={selectedOption}
         onValueChange={(next: PickerOption | null) => setSelected(next?.value ?? "")}
+        open={open}
+        onOpenChange={(nextOpen: boolean) => {
+          setOpen(nextOpen);
+          if (nextOpen) setQuery("");
+        }}
+        inputValue={open ? query : selectedLabel}
+        onInputValueChange={(next: string) => setQuery(next)}
         disabled={disabled}
         virtualized
         onItemHighlighted={(_item, details) => {

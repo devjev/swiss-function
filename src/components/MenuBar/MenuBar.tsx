@@ -284,27 +284,38 @@ const Trigger = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof Ba
 
 // --- Content (Portal + Positioner + Popup with Box chrome) -------------
 
-const Content = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseMenu.Popup>>(
-  function MenuBarContent({ className, children, ...rest }, ref) {
-    const position = useContext(PositionContext);
-    // Bar at top → menus open down (side="bottom"); bar at bottom → open up.
-    const side = position === "bottom" ? "top" : "bottom";
-    return (
-      <BaseMenu.Portal>
-        <BaseMenu.Positioner className={styles.positioner} side={side} sideOffset={4} align="start">
-          <BaseMenu.Popup
-            {...rest}
-            ref={ref}
-            className={mergeClassName(styles.popup, className)}
-            render={<Box elevation={3} padding={0.25} />}
-          >
-            <InMenuContext.Provider value={true}>{children}</InMenuContext.Provider>
-          </BaseMenu.Popup>
-        </BaseMenu.Positioner>
-      </BaseMenu.Portal>
-    );
-  },
-);
+interface MenuBarContentProps extends ComponentPropsWithoutRef<typeof BaseMenu.Popup> {
+  /** Whether to return focus to the trigger when the menu closes (Base UI's
+   *  default). Set `false` to leave focus where it is — useful when a custom
+   *  hotkey layer owns focus and you don't want the trigger re-armed, so a
+   *  subsequent Space/Enter doesn't reopen it. Maps to Base UI `finalFocus`;
+   *  pass `finalFocus` directly for a specific target element. */
+  returnFocus?: boolean;
+}
+
+const Content = forwardRef<HTMLDivElement, MenuBarContentProps>(function MenuBarContent(
+  { className, children, returnFocus = true, finalFocus, ...rest },
+  ref,
+) {
+  const position = useContext(PositionContext);
+  // Bar at top → menus open down (side="bottom"); bar at bottom → open up.
+  const side = position === "bottom" ? "top" : "bottom";
+  return (
+    <BaseMenu.Portal>
+      <BaseMenu.Positioner className={styles.positioner} side={side} sideOffset={4} align="start">
+        <BaseMenu.Popup
+          {...rest}
+          ref={ref}
+          className={mergeClassName(styles.popup, className)}
+          render={<Box elevation={3} padding={0.25} />}
+          finalFocus={finalFocus ?? (returnFocus ? undefined : false)}
+        >
+          <InMenuContext.Provider value={true}>{children}</InMenuContext.Provider>
+        </BaseMenu.Popup>
+      </BaseMenu.Positioner>
+    </BaseMenu.Portal>
+  );
+});
 
 // --- Item --------------------------------------------------------------
 

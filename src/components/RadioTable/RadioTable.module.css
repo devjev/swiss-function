@@ -1,0 +1,105 @@
+/* RadioTable: a bordered, hairline-divided table of radio rows. Tight,
+   unit-scaled spacing so it reads as one coherent component. Each row is a
+   container so a wide row can move the description to the right. */
+
+.table {
+  display: grid;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+  background-color: var(--sf-color-bg);
+  min-inline-size: 0;
+}
+
+.option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: calc(var(--sf-unit) / 2);
+  row-gap: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 2);
+  container-type: inline-size;
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Hairline dividers between rows; the outer border comes from `.table`. */
+.option:not(:first-child) {
+  border-block-start: 1px solid var(--sf-color-border);
+}
+
+.option:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+/* Selected row: a faint primary tint (quieter than an accent bar, matches the
+   grouped-list look). `:has` reads the Radio's checked state. */
+.option:has([data-checked]) {
+  background-color: color-mix(in srgb, var(--sf-color-primary) 8%, var(--sf-color-bg));
+}
+
+.option[data-disabled] {
+  cursor: not-allowed;
+}
+.option[data-disabled] .label,
+.option[data-disabled] .description {
+  opacity: 0.5;
+}
+
+/* Radio in column 1, aligned to the title's first line. */
+.radio {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  margin-block-start: calc((var(--sf-line-height-grid) - 1.125rem) / 2);
+}
+
+.label {
+  grid-column: 2;
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-grid);
+  color: var(--sf-color-fg);
+  user-select: none;
+}
+
+/* Description is copy the user reads: full-strength fg, never grey. */
+.description {
+  grid-column: 2;
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-line-height-grid);
+  color: var(--sf-color-fg);
+  user-select: none;
+}
+
+/* Wide row: the description moves to a right-hand column beside the label, and
+   the three cells center on one line. Only rows with a description split. */
+@container (min-inline-size: 20rem) {
+  .hasDescription {
+    grid-template-columns: auto minmax(0, 1fr) minmax(7rem, 0.6fr);
+    align-items: center;
+    column-gap: var(--sf-unit);
+    row-gap: 0;
+  }
+  .hasDescription .radio {
+    margin-block-start: 0;
+  }
+  .hasDescription .label {
+    grid-column: 2;
+  }
+  .hasDescription .description {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    /* Right-flush against the table edge: the label/detail read as two columns
+       (the plan-table look). */
+    justify-self: end;
+    text-align: end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
+}

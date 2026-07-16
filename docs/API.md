@@ -1009,6 +1009,11 @@ Dropdown menu wrapping Base UI's Menu. Parts forward all Base UI props.
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Positioner`, `Popup`, `Item`,
 `Separator`, `Group`, `GroupLabel`.
 
+`Popup` adds `returnFocus` (`boolean`, default `true`): whether to move focus back
+to the trigger when the menu closes. Set `false` to leave focus where it is, so a
+custom hotkey layer isn't disturbed and a stray Space/Enter doesn't reopen the
+trigger. Maps to Base UI `finalFocus` (pass that directly for a specific target).
+
 ## ContextMenu
 
 `import { ContextMenu } from "@tarassov-ch/swiss-function/context-menu"`
@@ -1042,6 +1047,11 @@ the bar), `Submenu`, `SubmenuTrigger`, `SubmenuContent`, `Logo` (persistent left
 slot), `Search` (right-aligned, wraps `Input` size `sm`), `Control` (generic in-place
 control slot, you supply the `Button`/`Switch`/`Input`/…), `Spacer` (pushes
 following row items right; no-op in the panel).
+
+`MenuBar.Content` adds `returnFocus` (`boolean`, default `true`): whether to move
+focus back to the trigger when the menu closes. Set `false` to leave focus where
+it is, so a custom hotkey layer isn't disturbed and a stray Space/Enter doesn't
+reopen the trigger. Maps to Base UI `finalFocus`.
 
 `MenuBar.Root` props (extends Base UI `Menubar` props):
 
@@ -1122,12 +1132,15 @@ external host-owned scroller is a planned follow-up.
 | --- | --- | --- | --- |
 | `markers` | `MinimapMarker[]` | n/a | Structural markers in content coordinates: `block` spans (dither rules) and `header` markers (clickable labels). |
 | `side` | `"left" \| "right"` | `"right"` | Rail edge, by grid placement (logical, so RTL flips it). DOM order stays content-then-rail, so the tab order is stable either way. |
-| `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (6u = 144px). |
+| `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (3u = 72px). |
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
+| `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, auto-following the viewport band (and more labels survive). Unset keeps the fit-everything proportional overview. |
+| `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples. Caps how tall any one block renders (a sparse document otherwise gives a few very tall blocks); the capped block leaves a gap after it. |
+| `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
-`MinimapMarker`: `{ id?, top?, topFraction?, height?, heightFraction?, kind?, label?, level?, tone? }`.
+`MinimapMarker`: `{ id?, top?, topFraction?, height?, heightFraction?, kind?, label?, level?, emphasis?, tone? }`.
 `top` is a content offset in px; `topFraction` a fraction of `scrollHeight` in
 [0, 1]; exactly one is required (`top` wins when both are set; a marker with
 neither is dropped with a one-time dev warning). `height`/`heightFraction`
@@ -1135,14 +1148,21 @@ give block spans an extent (px or fraction; `height` wins when both are set).
 `kind` is `"block"` (default)
 or `"header"`; `label` and `level` apply to headers (`level` drives indent and
 collision priority); `tone` (`primary`/`success`/`warning`/`danger`) recolors a
-marker only where the color means something. Colliding labels decimate
+marker (and its header label) only where the color means something; `emphasis`
+renders a header label in italics (for a grouping heading). Each level indents
+the label a further quarter-unit. Colliding labels decimate
 deepest-level-first, then by document order; dropped labels are not rendered at
 all (nothing invisible in the tab order) while their dither rules stay.
 
 The forwarded ref targets the **scroll element** (read the offset, scroll
 programmatically, or hand it to a virtualizer's `getScrollElement`).
 
-Tokens: `--sf-minimap-width` (rail width, default `calc(var(--sf-unit) * 6)`).
+Tokens: `--sf-minimap-width` (rail width, default `calc(var(--sf-unit) * 3)`),
+`--sf-minimap-label-size` (heading-label font size, default `0.65rem`; below the
+sm..lg body ladder because the rail is a dense navigation affordance). Header
+labels are a compact caption that hugs its text (an opaque `--sf-color-bg` pill
+on the leading edge), so block markers stay the main density read and the
+heading rides on top of the block.
 
 Not `Graph.Minimap` / `Map.Minimap`: those are canvas overviews of a canvas
 viewport (camera recentering); this maps a 1D DOM scroll offset.
@@ -1241,7 +1261,7 @@ scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
 
 `import { Picker } from "@tarassov-ch/swiss-function/picker"`
 
-Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label and doubles as the filter. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
+Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label; opening the dropdown clears it to a fresh search box (the whole list is offered, not filtered to the current selection) and restores the label if dismissed without choosing. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -1355,6 +1375,39 @@ Base UI radio + group wrappers. `RadioGroup` forwards all Base UI RadioGroup pro
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `elevation` | `Radio` | `0 \| 1 \| 2 \| 3 \| 4` | `2` | Resting depth; sets `data-elevation`. |
+
+## RadioTable
+
+`import { RadioTable } from "@tarassov-ch/swiss-function/radio-table"`
+
+A bordered, hairline-divided table of radio options, each a radio + label +
+description: the "pick one, each with a title and detail" pattern (plan pickers,
+settings). Built on `RadioGroup`/`Radio` (single selection, roving arrow-key
+nav, radiogroup/radio roles). The description sits to the right of the label on
+a wide container and drops below it when narrow (a container query on the row,
+the `VerticalForm.Field` pattern, tighter), so the whole thing reads as one
+coherent component. The whole row is the click target; the label is the radio's
+accessible name.
+
+**Elements / Parts:** `RadioTable` (Root; wraps Base UI RadioGroup, forwards
+`value`/`defaultValue`/`onValueChange`/`disabled`), `RadioTable.Option`.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `value` / `defaultValue` | `Root` | `string` | n/a | Selected value (controlled / uncontrolled), forwarded to RadioGroup. |
+| `onValueChange` | `Root` | `(value) => void` | n/a | Fires with the chosen value. |
+| `value` | `Option` | `string` | n/a | The value selected when this option is chosen (required). |
+| `label` | `Option` | `ReactNode` | n/a | The option's title; also the radio's accessible name. |
+| `description` | `Option` | `ReactNode` | n/a | Detail copy (full-strength fg). Right of the label when wide, below it when narrow. |
+| `disabled` | `Option` | `boolean` | `false` | Disable just this option. |
+
+```tsx
+<RadioTable value={plan} onValueChange={setPlan}>
+  <RadioTable.Option value="starter" label="Starter" description="For small teams." />
+  <RadioTable.Option value="pro" label="Pro" description="Adds SSO and audit logs." />
+  <RadioTable.Option value="enterprise" label="Enterprise" description="Contact sales." disabled />
+</RadioTable>
+```
 
 ## Reflow
 
@@ -1683,6 +1736,75 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
+
+## VerticalForm
+
+`import { VerticalForm } from "@tarassov-ch/swiss-function/vertical-form"`
+
+A tall, one-field-per-row form that scrolls and is navigated by a `Minimap`
+rail. It fills the gap between `FieldLayout` (justified, wrapping rows for
+horizontal density) and `Form` (state + validation): here every field gets its
+own row, a `Box` surface holding a vertical `Field` (label, control,
+description, optional error), the whole stack scrolls inside a component-owned
+container, and the field names (and section titles) become clickable markers on
+the rail. An errored field also shows a danger tick on the rail.
+
+**Presentational**: layout and navigation only. Form state, validation, and
+submit stay with the consumer, wrap it in `Form` when you want those. It reuses
+`Field`, `Box`, and `Minimap` directly; the only added machinery measures each
+row's offset within the scroll content and feeds `Minimap` its `markers` array
+(re-supplied on resize). **The parent must constrain the height** (like `Pane`
+and `Minimap`); otherwise the content never overflows and the rail never
+appears. The rail hides itself when the content fits.
+
+**Elements / Parts:** `VerticalForm` (Root; renders the Minimap + scroll
+container), `VerticalForm.Section` (a titled group; its title is a level-1 rail
+label and its fields become level-2), `VerticalForm.Field` (one row).
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `elevation` | `Root` | `BoxElevation` (0..5) | `1` | Default surface elevation for every row. |
+| `side` | `Root` | `"left" \| "right"` | `"right"` | Which edge the Minimap rail occupies. |
+| `minimapWidth` | `Root` | `number` | n/a | Rail width in `--sf-unit` multiples (forwarded to `Minimap`'s `width`). |
+| `padding` | `Root` | `number` | `1` | Content padding in `--sf-unit` multiples. |
+| `nav` | `Root` | `boolean` | `false` | Show a bottom navigation bar: a searchable `Picker` of every title (sections and indented fields). Selecting one centers it in the viewport; scrolling updates the Picker to the title at the viewport centre (the first at rest, so it is never empty). |
+| `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
+| `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
+| `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples (caps a sparse form's tall blocks). Forwarded to `Minimap`'s `maxMarkerSize`. |
+| `title` | `Section` | `ReactNode` | n/a | Section heading; a string also becomes a level-1 rail label. |
+| `label` | `Field` | `ReactNode` | n/a | Field name above the control; a string also becomes a rail label. |
+| `description` | `Field` | `ReactNode` | n/a | Supplementary copy below the control (full-strength fg, never grey). On a wide row it moves to the right of the control (a container query on the row); it drops back below when narrow. |
+| `error` | `Field` | `ReactNode` | n/a | Error below the control; also tones the row's rail block and its rail label `danger`. |
+| `required` | `Field` | `boolean` | `false` | Shows a `*` on the label (visual only). |
+| `hotkey` | `Field` | `string` | n/a | "Jump to this field" shortcut badge (see `Field`'s `hotkey`). |
+| `elevation` | `Field` | `BoxElevation` | Root's | Per-row surface override. |
+| `children` | `Field` | `ReactNode` | n/a | The control (`Input`, `DatePicker`, `Selector`, `TextEdit`, …). |
+
+Each row reads on the rail as a filled dither **block span** of its own height
+(the density read), with its name as a caption riding on top. The forwarded ref
+(on the Root) targets the Minimap **scroll element**. A field or section with a
+non-string name contributes a bare block span (no label). Also exported:
+`buildMarkers` (the pure entries → `MinimapMarker[]` assembly) for testing.
+
+Tokens: sets `--vf-pad` per instance; inherits `--sf-minimap-width` from `Minimap`.
+
+```tsx
+<div style={{ height: "24rem" }}>
+  <VerticalForm>
+    <VerticalForm.Section title="Account">
+      <VerticalForm.Field label="Email" description="We never share it." required>
+        <Input type="email" />
+      </VerticalForm.Field>
+      <VerticalForm.Field label="Password" error="Too short.">
+        <Input type="password" />
+      </VerticalForm.Field>
+    </VerticalForm.Section>
+    <VerticalForm.Field label="Notes">
+      <TextEdit />
+    </VerticalForm.Field>
+  </VerticalForm>
+</div>
+```
 
 ## WindowArray
 

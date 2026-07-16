@@ -206,10 +206,16 @@
     --sf-scrollbar-thumb-hover: var(--sf-color-primary);
     --sf-scrollbar-track: transparent;
 
-    /* Minimap rail width (issue #73): wide enough for truncated heading
-       labels. A dimension token, not a color, so the small-palette rule is
-       untouched. The Minimap `width` prop overrides it per instance. */
-    --sf-minimap-width: calc(var(--sf-unit) * 6);
+    /* Minimap rail width (issue #73): a slim rail (heading labels truncate to
+       fit, captions ride over the density blocks). A dimension token, not a
+       color, so the small-palette rule is untouched. The Minimap `width` prop
+       overrides it per instance. */
+    --sf-minimap-width: calc(var(--sf-unit) * 3);
+    /* Minimap heading-label size: below the sm..lg body ladder on purpose (the
+       rail is a dense navigation affordance, like a scrollbar overview, not
+       body copy). A component dimension token, so the three-size type ladder
+       stays untouched; override per subtree to retune. */
+    --sf-minimap-label-size: 0.65rem;
 
     /* Z-indices */
     --sf-z-dropdown: 1000;

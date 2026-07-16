@@ -143,6 +143,10 @@
       "types": "./dist/components/Radio/index.d.ts",
       "import": "./dist/components/Radio/index.js"
     },
+    "./radio-table": {
+      "types": "./dist/components/RadioTable/index.d.ts",
+      "import": "./dist/components/RadioTable/index.js"
+    },
     "./scatterplot": {
       "types": "./dist/components/Scatterplot/index.d.ts",
       "import": "./dist/components/Scatterplot/index.js"
@@ -290,6 +294,10 @@
     "./reflow": {
       "types": "./dist/components/Reflow/index.d.ts",
       "import": "./dist/components/Reflow/index.js"
+    },
+    "./vertical-form": {
+      "types": "./dist/components/VerticalForm/index.d.ts",
+      "import": "./dist/components/VerticalForm/index.js"
     },
     "./lib/use-collapse": {
       "types": "./dist/lib/useCollapse.d.ts",

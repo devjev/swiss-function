@@ -1,0 +1,97 @@
+/* VerticalForm: a vertical stack of field rows inside the Minimap's scroll
+   container. One field per row; sections group their fields. Layout is grid
+   (row gaps on the unit); the rows themselves are Box surfaces and the Fields
+   inside lay themselves out. No animation of its own — the Minimap owns the
+   scroll behaviour (including the reduced-motion path). */
+
+.content {
+  display: grid;
+  row-gap: var(--sf-unit);
+  padding: calc(var(--sf-unit) * var(--vf-pad, 1));
+  /* Grow to the scroll container's width; the rail sits outside it. */
+  min-inline-size: 0;
+}
+
+/* A section: its title, then its fields stacked a half-unit tighter than the
+   two-unit rhythm between sections (the content grid supplies the outer gap). */
+.section {
+  display: grid;
+  row-gap: calc(var(--sf-unit) / 2);
+}
+
+.sectionTitle {
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-medium);
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+}
+
+/* With the nav bar on, the root stacks the Minimap (fills) over the bar (auto).
+   The parent must still constrain the height, like the Minimap alone does. */
+.root {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+/* Bottom navigation bar: a slim strip holding the full-width title Picker. Grid
+   so the Picker stretches to the bar's width. */
+.navBar {
+  display: grid;
+  border-block-start: 1px solid var(--sf-color-border);
+  padding: calc(var(--sf-unit) / 2);
+  min-inline-size: 0;
+}
+
+/* Row hook: the Box provides the surface. It is also the container the field's
+   layout queries, so a wide row can move the description to the right. */
+.row {
+  min-inline-size: 0;
+  container-type: inline-size;
+}
+
+.fieldControl {
+  min-inline-size: 0;
+}
+
+/* Fields lay out on their columnless (single-column) grid with a consistent
+   half-unit row rhythm and baseline-grid line-heights on the text slots, so
+   every field reads with the same vertical rhythm regardless of which slots
+   (description, error) it carries. The `.row` prefix wins over Field's own
+   grid; row-gap is orthogonal to the wide-row column layout below. */
+.row .field {
+  row-gap: calc(var(--sf-unit) / 2);
+}
+.row .fieldLabel,
+.row .fieldDescription,
+.row .fieldError {
+  line-height: var(--sf-line-height-grid);
+}
+
+/* Wide row: the description moves from below the control to a right-hand column
+   beside it (label still spans the top, error still spans the bottom). Narrow
+   rows keep the default vertical stack from Field. Only fields that actually
+   have a description split; the rest keep a full-width control. */
+@container (min-inline-size: 24rem) {
+  .hasDescription {
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, 12rem);
+    column-gap: var(--sf-unit);
+    align-items: start;
+  }
+  .hasDescription .fieldLabel {
+    grid-column: 1 / -1;
+  }
+  .hasDescription .fieldControl {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .hasDescription .fieldDescription {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+  }
+  .hasDescription .fieldError {
+    grid-column: 1 / -1;
+  }
+}

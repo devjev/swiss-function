@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MenuBarCollapseHarness, MenuBarHarness, MenuBarOverflowHarness } from "./MenuBar.harness";
+import {
+  MenuBarCollapseHarness,
+  MenuBarFocusHarness,
+  MenuBarHarness,
+  MenuBarOverflowHarness,
+} from "./MenuBar.harness";
+
+const activeText = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => document.activeElement?.textContent ?? null);
 
 test("renders the bar with all top-level triggers", async ({ mount }) => {
   const component = await mount(<MenuBarHarness />);
@@ -123,4 +131,23 @@ test("items: opening ⋯ reveals folded items; they stay interactive", async ({ 
   await expect(sw).toBeVisible();
   await sw.click();
   await expect(c.getByTestId("on")).toHaveText("true");
+});
+
+test("selecting an item returns focus to the trigger by default", async ({ mount, page }) => {
+  const c = await mount(<MenuBarFocusHarness />);
+  await c.getByRole("menuitem", { name: "File" }).click();
+  await page.getByRole("menuitem", { name: "New" }).click();
+  await expect.poll(() => activeText(page)).toBe("File");
+});
+
+test("returnFocus={false} leaves focus off the trigger after selecting", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<MenuBarFocusHarness returnFocus={false} />);
+  await c.getByRole("menuitem", { name: "File" }).click();
+  await page.getByRole("menuitem", { name: "New" }).click();
+  // Menu closed; focus was not moved back to the trigger.
+  await expect(page.getByRole("menuitem", { name: "New" })).toHaveCount(0);
+  expect(await activeText(page)).not.toBe("File");
 });

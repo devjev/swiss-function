@@ -10,6 +10,22 @@ interface HarnessProps {
   withSlots?: boolean;
 }
 
+/** Single File menu for the returnFocus test: after selecting an item, whether
+ *  focus lands back on the trigger is what the prop controls. */
+export function MenuBarFocusHarness({ returnFocus }: { returnFocus?: boolean }) {
+  return (
+    <MenuBar.Root>
+      <MenuBar.Menu>
+        <MenuBar.Trigger>File</MenuBar.Trigger>
+        <MenuBar.Content returnFocus={returnFocus}>
+          <MenuBar.Item>New</MenuBar.Item>
+          <MenuBar.Item>Open</MenuBar.Item>
+        </MenuBar.Content>
+      </MenuBar.Menu>
+    </MenuBar.Root>
+  );
+}
+
 // Playwright CT mounts must be top-level component invocations (no inline
 // closures) for serialization. The harness exposes a stable onClickItem hook.
 export function MenuBarHarness({ position, onClickItem, withSlots }: HarnessProps) {

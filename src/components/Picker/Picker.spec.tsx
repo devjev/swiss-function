@@ -15,6 +15,33 @@ test("typing filters the dropdown and clicking an item selects it", async ({ mou
   await expect(component.getByRole("combobox")).toHaveValue("Banana");
 });
 
+test("reopening after a selection shows the whole list; typing searches fresh", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <Picker items={["Apple", "Banana", "Cherry"]} defaultValue="Banana" />,
+  );
+  const field = component.getByRole("combobox");
+  // Closed, the field shows the selected label.
+  await expect(field).toHaveValue("Banana");
+
+  // Reopen: the field clears and every item is offered (not filtered to Banana).
+  await field.click();
+  await expect(field).toHaveValue("");
+  await expect(page.getByRole("option")).toHaveCount(3);
+
+  // Typing starts a fresh query (no leftover "Banana" prefix) and filters to it.
+  await field.pressSequentially("Ch");
+  await expect(field).toHaveValue("Ch");
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "Cherry" })).toBeVisible();
+
+  // Dismissing without choosing restores the previously selected label.
+  await field.press("Escape");
+  await expect(field).toHaveValue("Banana");
+});
+
 test("elevation raises the field; omitted stays flat", async ({ mount }) => {
   const raised = await mount(<Picker items={["Apple", "Banana"]} elevation={2} />);
   const field = raised.locator('[data-elevation="2"]');

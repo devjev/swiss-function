@@ -35,6 +35,9 @@ export interface MinimapMarker {
   label?: string;
   /** Heading depth: drives label indentation and collision-decimation priority. */
   level?: number;
+  /** Render the header label in italics, to set a grouping heading apart from
+   *  the entries under it (a `header` with a `label`). */
+  emphasis?: boolean;
   /** Optional accent; only where the color means something (status, priority). */
   tone?: MinimapMarkerTone;
 }
@@ -193,4 +196,51 @@ export function decimateLabels(labels: readonly LabelCandidate[], minSpacing: nu
     }
   }
   return visible;
+}
+
+/** Effective rail content height for the min-block-size / scrollable-rail mode.
+ *  The rail's inner content grows just enough that the *smallest* span block
+ *  reaches `minBlockPx` instead of compressing below it; everything else stays
+ *  proportional (mapped into this taller height), and the rail viewport scrolls
+ *  it. `spanRailHeights` are the markers' unfloored proportional heights at the
+ *  natural `railHeight` (extent-bearing markers only). Returns `railHeight` when
+ *  nothing needs to grow; `maxScale` caps a pathological (tiny-span) input so it
+ *  cannot explode the DOM (past the cap, blocks compress again). */
+export function railContentHeight(
+  spanRailHeights: readonly number[],
+  railHeight: number,
+  minBlockPx: number,
+  maxScale: number,
+): number {
+  if (railHeight <= 0 || minBlockPx <= 0) return railHeight;
+  let smallest = Number.POSITIVE_INFINITY;
+  for (const h of spanRailHeights) {
+    if (h > 0 && h < smallest) smallest = h;
+  }
+  if (!Number.isFinite(smallest) || smallest >= minBlockPx) return railHeight;
+  return railHeight * clamp(minBlockPx / smallest, 1, maxScale);
+}
+
+/** Edge-triggered scroll-into-view for the rail when its content is taller than
+ *  its viewport: the rail scrolls only when the viewport band would leave the
+ *  `[margin, viewportHeight - margin]` zone, otherwise it holds the current
+ *  scroll (no jitter). `bandTop`/`bandHeight` are in rail-content coordinates. */
+export function railScrollForBand(
+  bandTop: number,
+  bandHeight: number,
+  viewportHeight: number,
+  contentHeight: number,
+  currentScroll: number,
+  margin: number,
+): number {
+  const maxScroll = Math.max(0, contentHeight - viewportHeight);
+  if (maxScroll <= 0) return 0;
+  // Never demand more margin than the slack around the band allows.
+  const m = Math.max(0, Math.min(margin, (viewportHeight - bandHeight) / 2));
+  const topInView = bandTop - currentScroll;
+  const bottomInView = bandTop + bandHeight - currentScroll;
+  let next = currentScroll;
+  if (topInView < m) next = bandTop - m;
+  else if (bottomInView > viewportHeight - m) next = bandTop + bandHeight - (viewportHeight - m);
+  return clamp(next, 0, maxScroll);
 }

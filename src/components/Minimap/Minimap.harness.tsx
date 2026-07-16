@@ -14,6 +14,27 @@ export function Tall() {
   );
 }
 
+/** Min-block mode: 60 span markers over 8000px would each be ~7px on a 400px
+ *  rail (below the 0.5u floor), so the rail grows taller than its viewport and
+ *  scrolls. */
+export function DenseScroll() {
+  const markers = Array.from({ length: 60 }, (_, i) => ({
+    id: `d${i}`,
+    topFraction: i / 60,
+    heightFraction: 0.9 / 60,
+    kind: i % 5 === 0 ? ("header" as const) : ("block" as const),
+    label: `Item ${i + 1}`,
+    level: 1,
+  }));
+  return (
+    <div style={{ height: 400, width: 520 }}>
+      <Minimap markers={markers} minMarkerSize={0.5}>
+        <div style={{ height: 8000 }} />
+      </Minimap>
+    </div>
+  );
+}
+
 export function Short() {
   return (
     <div style={{ height: 400, width: 520 }}>
