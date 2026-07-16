@@ -25,6 +25,11 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
+  /* A 0.25u below the last row on top of the row's own 0.25u makes the last data
+     row sit 0.5u above the divider, matching the header's 0.5u top padding. Put
+     it on the body (not the last row) so it holds in reorderable mode too, where
+     dnd-kit appends hidden live-region divs after the rows. */
+  padding-block-end: calc(var(--sf-unit) / 4);
 }
 
 /* Header: quiet column titles. Not body copy, so muted is fine here. */
@@ -106,7 +111,8 @@
   box-shadow: var(--sf-elevation-2);
 }
 
-/* Footer holds the add-row button, spanning the full width. */
+/* Footer holds the add-row button, spanning the full width. A compact action
+   strip below the data region. */
 .footer {
   grid-column: 1 / -1;
   display: flex;
