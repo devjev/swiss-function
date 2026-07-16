@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.10.0 — 2026-07-16
+
+### Minor
+
+- TableInput: a compact editable table as a form control for entering arrays of objects. Per-column cell editors via DataTable's edit config (text/number/boolean/select/date), add-row and per-row delete, opt-in drag-to-reorder (lazy dnd-kit), min/max rows and equalColumns. Controlled value/onChange; drops into a Field
+
+### Patch
+
+- RadioTable: the wide layout now reads as a real table. Every row shares one label column (a CSS subgrid), so all descriptions start on the same line regardless of label width; the description text is left-aligned (was right-aligned) and hyphenates long words (hyphens: auto)
+- Switch, Checkbox, Radio: in dark mode these small controls no longer carry the brutalist hard-cast elevation shadow (a zero-blur block stepping to the lower-right), which read as a misaligned rectangle rather than a shadow at their size. They use a soft resting shadow instead; light mode is unchanged. Fixes #78
+
 ## v2.9.0 — 2026-07-16
 
 ### Minor
