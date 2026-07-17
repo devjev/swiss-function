@@ -153,6 +153,22 @@ build chain, and the conventions for adding a component: wrap a Base UI
 primitive where one exists, use `forwardRef`, style with CSS Modules and
 tokens rather than literals, and add stories.
 
+### Releases
+
+Every user-facing change ships with a **changeset**. Land one alongside the
+code:
+
+```sh
+just changeset <patch|minor|major> "One-line release note"
+```
+
+It writes a small file under [`.changes/`](./.changes/README.md). `just release`
+then aggregates the pending changesets (highest bump wins), prepends their notes
+to [CHANGELOG.md](./CHANGELOG.md), bumps the version, deletes the consumed files,
+and pushes the tag; CI publishes to the registry. `just changes-status` shows
+what a release would ship. See [`.changes/README.md`](./.changes/README.md) for
+the full flow.
+
 ## License
 
 MIT
