@@ -147,3 +147,16 @@
 .sizeLg .ghost {
   padding-inline: calc(var(--sf-unit) * 2 / 3);
 }
+
+/* Right-aligned variant: the digits keep to the right edge and the placeholder
+   slots lead, so a column of these aligns on the right (table numeric cells).
+   Placed last so its specificity ascends past the base .ghost/.input rules. */
+.root[data-align="end"] {
+  justify-content: flex-end;
+}
+.root[data-align="end"] .ghost {
+  justify-content: flex-end;
+}
+.root[data-align="end"] .input {
+  text-align: right;
+}

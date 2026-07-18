@@ -22,6 +22,11 @@ export interface DigitInputMicroProps
   /** Glyph used for the empty placeholder slots. Default `"░"` — a dithered
    *  shade block, matching the library's dither vocabulary. */
   placeholderChar?: string;
+  /** Digit alignment. `"start"` (default) grows the number and its placeholder
+   *  slots left to right. `"end"` right-aligns the digits with the placeholder
+   *  slots leading, so a column of these aligns on the right (table numeric
+   *  cells, where decimals must line up). */
+  align?: "start" | "end";
   /** Controlled value. `null` is the empty field. */
   value?: number | null;
   /** Initial value when uncontrolled. Default `null` (empty). */
@@ -67,6 +72,7 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
       decimals = 0,
       unit,
       placeholderChar = "░",
+      align = "start",
       value,
       defaultValue = null,
       onValueChange,
@@ -146,12 +152,23 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
         data-elevation={elevation}
         data-disabled={disabled || undefined}
         data-readonly={readOnly || undefined}
+        data-align={align === "end" ? "end" : undefined}
       >
         {/* Ghost layer: an invisible copy of the draft offsets the muted slots so
-          they begin exactly at the caret. Same font/padding as the input. */}
+          they begin exactly at the caret. Same font/padding as the input. When
+          right-aligned the slots lead, so the digits keep to the right edge. */}
         <span aria-hidden="true" className={styles.ghost}>
-          <span className={styles.ghostTyped}>{draft}</span>
-          <span className={styles.ghostSlots}>{ghost}</span>
+          {align === "end" ? (
+            <>
+              <span className={styles.ghostSlots}>{ghost}</span>
+              <span className={styles.ghostTyped}>{draft}</span>
+            </>
+          ) : (
+            <>
+              <span className={styles.ghostTyped}>{draft}</span>
+              <span className={styles.ghostSlots}>{ghost}</span>
+            </>
+          )}
         </span>
         <BaseInput
           className={styles.input}

@@ -544,6 +544,7 @@ hint, not a contract; reach for `DigitInput` when the capacity IS the contract
 | `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
 | `unit` | `ReactNode` | n/a | Suffix rendered inside the control after the digits (e.g. `"%"`). |
 | `placeholderChar` | `string` | `"░"` | Glyph used for the empty slots: a dithered shade block by default (matches the library's dither vocabulary). |
+| `align` | `"start" \| "end"` | `"start"` | `"start"` grows the number and its placeholder slots left to right. `"end"` right-aligns the digits with the slots leading, so a column of these aligns on the right (used by `TableInput` numeric cells so decimals line up). |
 | `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
 | `min` / `max` | `number` | n/a | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u (Input parity). |

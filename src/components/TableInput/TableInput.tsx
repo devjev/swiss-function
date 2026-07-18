@@ -107,11 +107,13 @@ function Cell({
   value,
   onChange,
   size,
+  align,
 }: {
   config: EditConfig;
   value: unknown;
   onChange: (value: unknown) => void;
   size: TableInputSize;
+  align: "start" | "center" | "end";
 }) {
   switch (config.type) {
     case "number":
@@ -119,6 +121,7 @@ function Cell({
         <DigitInputMicro
           className={styles.control}
           size={size}
+          align={align === "end" ? "end" : "start"}
           value={(value as number | null) ?? null}
           onValueChange={onChange}
           decimals={config.decimals}
@@ -198,6 +201,7 @@ function RowCells<T>({
             value={(row as Record<string, unknown>)[column.key]}
             onChange={(value) => onCell(rowIndex, column.key, value)}
             size={size}
+            align={alignFor(column)}
           />
         </div>
       ))}
