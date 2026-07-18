@@ -2,7 +2,7 @@
 
 ## The lineage, and why it guides us
 
-Swiss-Function descends from a single tradition: the design of precision instruments and the graphic systems that document them. Dieter Rams and Braun; the Airbus glass cockpit and the disciplines of aviation display; Porsche and the automotive instrument cluster; the tactile "quality through precision of fit" of a Curta calculator, a Leica M3, a Hasselblad V, a Tektronix scope, a Moog patchbay; the Swiss grid of Muller-Brockmann, Vignelli and Gerstner; and their digital heirs from the DEC VT100 to the Bloomberg Terminal to Teenage Engineering. These objects were not styled to impress on first sight. They were engineered to be read correctly, under stress and fatigue, for tens of thousands of hours, and they still read correctly decades later. That is exactly the test our library sets itself: an interface for people who are reading and thinking for forty hours a week, judged by whether it would look out of place next to a 1960s Olivetti manual rather than by whether it looks novel this year. This document pulls out what actually transfers from these objects to a screen UI toolkit (grid, density, restraint, honesty of function, tactile feedback, legibility, colour as meaning, longevity) and, for every exemplar, states a concrete directive keyed to our tokens and components. It is the applied companion to [AESTHETICS.md](../AESTHETICS.md); read that for the stance, read this for the lineage that earns it.
+Swiss-Function descends from a single tradition: the design of precision instruments and the graphic systems that document them. Dieter Rams and Braun; the Airbus glass cockpit and the disciplines of aviation display; Porsche and the automotive instrument cluster; the tactile "quality through precision of fit" of a Curta calculator, a Leica M3, a Hasselblad V, a Tektronix scope, a Moog patchbay; the Swiss grid of Muller-Brockmann, Vignelli and Gerstner; and their digital heirs from the DEC VT100 to the Bloomberg Terminal to Teenage Engineering. The same lineage extends into the machinery, electronics and industry that share this discipline: bench test and measurement instruments, control-room and machine-tool panels, audio and broadcast consoles, Olivetti and Italian rationalism, Bang and Olufsen under Jacob Jensen, and mechanical or segmented readouts. These objects were not styled to impress on first sight. They were engineered to be read correctly, under stress and fatigue, for tens of thousands of hours, and they still read correctly decades later. That is exactly the test our library sets itself: an interface for people who are reading and thinking for forty hours a week, judged by whether it would look out of place next to a 1960s Olivetti manual rather than by whether it looks novel this year. This document pulls out what actually transfers from these objects to a screen UI toolkit (grid, density, restraint, honesty of function, tactile feedback, legibility, colour as meaning, longevity) and, for every exemplar, states a concrete directive keyed to our tokens and components. It is the applied companion to [AESTHETICS.md](../AESTHETICS.md); read that for the stance, read this for the lineage that earns it.
 
 ---
 
@@ -288,7 +288,235 @@ The terminal that fixed the grammar of the text interface: a directory listing i
 
 ---
 
-## 8. Meta-principles: what the whole lineage shares, mapped to our system
+## 8. Test and measurement: one primary readout, labelled control zones, colour held for the fault
+
+Bench and handheld electronic test instruments carry a dense function set on a rugged, legible panel: one dominant display, controls grouped into labelled zones, and saturated colour held back for a fault or an out-of-range value.
+
+### Fluke 87 handheld digital multimeter (1988 to present)
+
+![Fluke 87 handheld digital multimeter](inspiration/test-measurement/fluke-87-handheld-digital-multimeter.jpg) - CC BY-SA 4.0, photo Alex P. Kok, Wikimedia Commons.
+
+A rugged handheld true-RMS multimeter, sealed in an over-molded case for field and bench use. One rotary switch at the centre selects the whole function set (DC and AC volts, resistance, milliamps and amps, frequency, capacitance, continuity, diode), so the user changes what is measured in a single place. A large LCD carries the primary digital reading, with a fast analog bargraph beneath it for trend and nulling. Range, hold, and min/max buttons sit above the dial; the guarded input jacks are grouped in one row at the bottom. Yellow appears once, on the case and the shift key. A wide function set collapses onto one selector, one dominant number carries the value while a quiet bargraph carries the trend, and the one saturated colour is spent on the shift key alone.
+
+**Directive.** Collapse a wide set of modes onto one selector (a `ToggleGroup` or `Picker`) so function changes in a single place rather than across a toolbar. Give the primary value a fixed-width readout in `--sf-font-mono` tabular figures (`DigitInput`) so digits never reflow, and place any trend or null read beneath it as a quiet secondary bargraph or sparkline that never competes with the number. Group inputs in one labelled strip. Spend `--sf-color-primary` once on the active mode, and reserve `--sf-color-danger` for a real over-range or fault, the meter's single warning state.
+
+### Hewlett-Packard 34401A bench multimeter (1991 to present)
+
+![Hewlett-Packard 34401A bench multimeter](inspiration/test-measurement/hewlett-packard-34401a-bench-multimeter.jpg) - CC BY-SA 4.0, photo Afandrf, Wikimedia Commons.
+
+A rack-width 6.5-digit bench multimeter, in continuous production for decades under HP, then Agilent, then Keysight. One large vacuum-fluorescent display dominates the left of the panel and shows a single primary reading with a smaller secondary line folded into it. To the right, the keys are grouped into labelled task zones: a row of function keys (DC and AC volts, resistance, current, frequency, continuity, diode), a math and null block, and range and resolution keys. Each key prints its shift function above it in the same monospace legend; the layout and the printed labels, rather than colour, carry the structure. Hierarchy comes from grouping and printed labels, the secondary value folds into the primary display, and no key legend is dimmed to make room for it.
+
+**Directive.** Split a measurement surface into one dominant output region and a control region grouped into labelled task zones on the `--sf-unit` grid, cued by spacing and a single `--sf-color-border` rule rather than by boxing each group (`Pane.Header` over `Pane.Body`). Give the primary value one large readout in `--sf-font-mono` tabular figures and fold any secondary value into that same region rather than adding a panel. Keep every key legend full-strength (`--sf-color-fg`) at a single weight, and spend `--sf-color-primary` only on the active function or a shift class the user learns once.
+
+### Hewlett-Packard Nixie frequency counter (early 1960s onward)
+
+![Hewlett-Packard Nixie frequency counter](inspiration/test-measurement/hewlett-packard-nixie-frequency-counter.jpg) - CC BY 2.0, photo Sterling Coffey, Wikimedia Commons.
+
+A bench electronic counter that reads frequency, period, ratio, and totalize on a horizontal row of Nixie tubes. HP's Nixie-tube counters date from the early 1960s onward. The bright numerals form one register that reads at a glance, with a units annunciator beside it. Below the display sits a bank of switches and knobs for function, gate time or sample rate, trigger level, and input coupling. The display is the one bright element; the controls are a matte functional field. A single bright register reads at a glance above a labelled bank of mode and gate controls, and the numerals scan as one line.
+
+**Directive.** Render a live count as one horizontal register of `--sf-font-mono` tabular figures on a recessed surface (`--sf-color-input-bg`), so the whole number scans as a single line and digits seat in fixed cells (`DigitInput`). Set the unit beside it as a small `--sf-font-size-sm` label (legitimate secondary metadata, so `--sf-color-fg-subtle` is warranted here), the counter's annunciator. Gather function and gate controls into a `ToggleGroup` beneath the readout rather than scattering them. Keep the numerals full-strength on a quiet field and reserve `--sf-color-danger` for an overflow or over-range, the counter's one alarm.
+
+### Linear bench DC power supply (1960s archetype, this unit c. 2015)
+
+![Linear bench DC power supply](inspiration/test-measurement/linear-bench-dc-power-supply.jpg) - CC0 1.0 public domain dedication, photo Derrick Parker, Wikimedia Commons.
+
+A single-output linear bench supply of the common 0 to 30 V, 0 to 5 A form (photographed here as a LodeStar LP3005D, one of many badge-identical units). Two digital readouts sit side by side, one for volts and one for amps, each a fixed-width numeric display. A coarse and a fine knob under each set the target. Two indicator lamps mark the operating mode: CV lights in normal voltage regulation, and CC lights when the load reaches the set current limit and the supply leaves voltage regulation. Output terminals are grouped and colour-coded at the bottom. The panel archetype descends from HP's 1960s linear supplies. Two coupled readouts read side by side, a coarse control pairs with a fine one on the same value, and colour marks the current-limiting state rather than decorating the panel.
+
+**Directive.** Show coupled outputs as two co-aligned `DigitInput` readouts in `--sf-font-mono` tabular figures, so the whole output state reads in one glance (`FieldLayout` rigid rows hold them on the grid). Pair a coarse control with an inline fine nudge on the same value rather than two distant controls. Mark the operating mode with a `Chip` carrying a `dot`: neutral for constant-voltage regulation, and `--sf-color-warning` for constant-current limiting, the one state that means the supply left regulation. Keep terminals grouped in one labelled strip and everything else neutral.
+
+---
+
+## 9. Industrial control and HMI: fixed layouts, staged input, status lit by a real condition
+
+Control-room and machine-tool panels hold a fixed layout, stage input before it takes effect, and light a status indicator only when its condition is true.
+
+### Apollo Guidance Computer DSKY (1966 to 1975, flew 1968 to 1972)
+
+![Apollo Guidance Computer DSKY](inspiration/industrial-control/apollo-guidance-computer-dsky.jpg) - Public domain (work of NASA), Wikimedia Commons.
+
+The Display and Keyboard unit of the Apollo Guidance Computer, the crew's interface to the flight computer in the Command and Lunar Modules. A numeric keypad with VERB, NOUN, ENTR and reset keys; a two-digit VERB field, a two-digit NOUN field and three five-digit signed registers in electroluminescent green; and a block of labelled status lamps (COMP ACTY, OPR ERR, PROG, GIMBAL LOCK, and the rest). A two-part command grammar, VERB names the action and NOUN the operand, is keyed digit by digit, held on the display, and committed with one ENTR; the signed five-digit registers never change width and each lamp lights only on a real condition.
+
+**Directive.** Model structured command entry as an explicit two-part grammar with a single commit. Where an action needs an operand (a command bar, a bulk edit over selected `DataTable` rows), stage the action and its target as two adjacent labelled `Field`s and commit both on one deliberate Enter, echoing the keyed value back before it takes effect. Hold entered numbers in fixed-width `DigitInput` cells with tabular mono figures so a signed five-digit register keeps its width as it fills. Show the interaction stage on the field itself: while it waits for the operator to complete or confirm, mark it with the quiet `--sf-color-primary` focus state rather than recolouring the value. Reserve status indicators for real conditions: an operator-error flag lights `--sf-color-warning` on a rejected keystroke and clears on the next valid one, and a resting readout carries no colour.
+
+### NASA Mission Control console, MOCR (mid-1960s to 1990s)
+
+![NASA Mission Control console](inspiration/industrial-control/nasa-mission-control-console-mocr-building-30.jpg) - Public domain (work of NASA), Wikimedia Commons.
+
+The Mission Operations Control Room in Building 30, Houston: rows of identical consoles, each assigned to one flight controller, each a bank of illuminated event pushbuttons, a few monochrome CRTs showing telemetry in fixed columns, and an intercom keyset, with a shared front wall of trajectory plots and mission clocks. The room ran continuous shifts for days at a stretch. Every operator works an identical console in a fixed position, detail stays local while one shared board carries the room's state, and the layout transfers directly between shifts.
+
+**Directive.** Give a multi-operator or multi-panel app a fixed console layout: each region a permanent `Pane` or `Grid` slot in an identical format, so a user returning after an interruption finds every control where they left it and the arrangement transfers between people. Keep each operator's detail local (their own `DataTable` of telemetry in fixed mono columns) while one shared status strip in a single `Pane.Header` carries the state everyone must see, never duplicated per panel. Build for the long shift: full-strength `--sf-color-fg` on near-black, dense fixed columns, nothing competing with the numbers. Event indicators light only on their event, so a resting console shows no colour and no badge.
+
+### CNC machine-tool control, Siemens Sinumerik (c. 1979 to 1984)
+
+![CNC machine-tool control, Siemens Sinumerik](inspiration/industrial-control/cnc-machine-tool-control-siemens-sinumerik.jpg) - CC BY-SA 2.0, photo Carlos Vieira (via Flickr), Wikimedia Commons.
+
+The operator panel of a CNC machine tool, here a Siemens Sinumerik turning and milling control. A monochrome position readout showing axis coordinates in fixed-decimal fields, an alphanumeric keypad for entering and editing G-code blocks, soft keys whose function is labelled on the screen above them, a mode selector (jog, MDI, auto, edit), feed-rate and spindle overrides, single-block and dry-run steppers, and a hard emergency stop. Fanuc and Bridgeport panels share the same grammar. Machine mode is selected explicitly and shown at all times, one set of soft keys serves many functions because each is labelled where the finger lands, and the emergency stop is the one control set physically apart.
+
+**Directive.** Make machine mode explicit and always visible with a `ToggleGroup` that names the current mode (edit, run, step) so the user never guesses which one is active. Label context-dependent controls in place, on or beside the control the way a CNC soft key carries its current function on the screen, rather than in a distant legend. Render every coordinate or measured value as a fixed-decimal `DigitInput` or `DigitInputMicro` in tabular mono so the readout holds its width while the number moves. Offer a preview-before-commit path for anything that acts on the world, a dry-run or single-block step that shows each change before it applies. Set the one destructive action apart and give it alone `--sf-color-danger`: a `Button variant="danger"` sized larger and separated by space, the panel's emergency stop.
+
+### Marine engine-order telegraph, Chadburn (1870s to 1950)
+
+![Marine engine-order telegraph](inspiration/industrial-control/marine-engine-order-telegraph-chadburn.jpg) - CC BY-SA 4.0, photo TedColes, Wikimedia Commons.
+
+The bridge instrument for ordering engine power. A circular dial engraved with a fixed ring of discrete orders (Full, Half, Slow, Dead Slow Ahead, Stop, and the mirrored Astern set), a handle the officer swings into a detent at the ordered sector, and a bell. Moving the handle rings a matching telegraph in the engine room; the engineer answers by swinging to the same order, which drives a reply pointer on the bridge dial. The order counts as received only when the two pointers agree. A command is a choice from a small fixed set of detented positions, staged rather than assumed done, and the ordered and acknowledged states sit on one face so a mismatch is visible.
+
+**Directive.** For a command with a small fixed set of valid states (a run level, a power mode, a pump on or off), use a discrete detented control, `ToggleGroup` or `Picker`, so the user selects one engraved position and never a meaningless value between two. When the command crosses to a system that must carry it out, do not render it as done on send: show the requested state and the confirmed state together (two `Chip`s, or a requested and acknowledged pair in a status strip) and treat the command as settled only when they agree, flagging a lingering mismatch with `--sf-color-warning`. Give the selection a physical detent with `--sf-ease-snap` on the single committing move so the control seats like a handle into its notch. Keep the position labels engraved in mono and always visible, never hover-revealed.
+
+---
+
+## 10. Audio and broadcast consoles: one repeated module, honest metering, a traceable signal path
+
+One channel-strip module repeated until the eye learns it, metering that reports the real level, and a signal path the eye can trace from top to bottom.
+
+### Solid State Logic SL 4000-series console channel strip (1979 onward)
+
+![Solid State Logic SL 4000-series console channel strip](inspiration/audio-broadcast/solid-state-logic-sl-4000-series-console-channel-str.jpg) - CC BY-SA 3.0, photo JacoTen, Wikimedia Commons.
+
+A large-format analog recording console (an SL4064G+ shown) built from one channel strip repeated across the whole desk. Every strip runs the same vertical order: input gain at the top, then the equaliser, then the dynamics section, then routing, then a long-throw fader at the bottom. The signal moves down the strip in the order the controls are stacked. Density comes from repeating one identical module, so the engineer learns the strip once and reads it across every channel.
+
+**Directive.** Build a dense control surface as a uniform `Grid` of modules that share one internal template, each column the same order of controls on `--sf-unit` tracks, so scanning is learned once and reused across every column. Keep the vertical order a real signal path (input at the top, transform in the middle, output and commit at the bottom), the way a `Field` stack or a `DataTable` column already reads. Hold every module identical so position rather than relabelling tells the user which one they are in, and keep readouts in `--sf-font-mono` with tabular figures so levels line up across strips.
+
+### Studio patchbay, TT/bantam (1970s to present)
+
+![Studio patchbay, TT/bantam](inspiration/audio-broadcast/studio-patchbay-tt-bantam.jpg) - CC BY-SA 2.0, photo VACANT FEVER, Wikimedia Commons.
+
+Rows of identical jack sockets that route any output to any input in the studio. Convention places outputs on the top row and inputs on the bottom, each jack labelled beneath it. A patch cord makes one route physically visible; many bays are normalled, so a sensible default connection stays live until a cord overrides it. Routing is exposed and hand-editable as a grid of identical cells, the top-output and bottom-input convention is learned once, and a connection is a visible cord rather than a hidden setting.
+
+**Directive.** When two parts of an interface connect, draw the connection explicitly: reach for `Graph`'s visible, editable edges or a rendered line rather than burying the relationship in a config dialog. Lay repeated connection points as a uniform `Grid` of identical cells parted by `--sf-color-gridline` hairlines, labelled locally in `--sf-font-mono`, so one cell teaches the whole field. Where a control has a sensible default route, show that resting state directly (a `Chip` with a `dot`, a pre-filled value) rather than leaving the user to guess what is wired to what.
+
+### VU meter (standardised 1939)
+
+![VU meter](inspiration/audio-broadcast/vu-meter.jpg) - CC BY-SA 3.0 / GFDL / CC BY 2.5, photo Iainf, Wikimedia Commons.
+
+A moving-coil needle over an arc scale, marked in volume units with 0 VU as the reference and a red zone above it. Its ballistics average the signal over roughly 300 milliseconds, so the needle reports perceived loudness and passes over brief transients. Metering reports the level a listener perceives by integrating the signal, the scale stays neutral until a genuine overload, and the averaging is a chosen response tied to the data.
+
+**Directive.** For any level or load readout, keep the scale neutral (`--sf-color-fg`, `--sf-color-gridline` ticks) along its whole length and spend `--sf-color-danger` only on the region past a genuine threshold, the way the red zone sits above 0 VU. Pair the analog sweep with an exact figure in `--sf-font-mono` tabular numerals inside a fixed-width box so the number never reflows. Where a value is averaged or smoothed, make that a stated, measured response tied to the data rather than a decorative ease, and give it a `prefers-reduced-motion: reduce` static fallback.
+
+### BBC Peak Programme Meter, Sifam movement (1930s onward)
+
+![BBC Peak Programme Meter, Sifam movement](inspiration/audio-broadcast/bbc-peak-programme-meter-sifam-movement.jpg) - CC BY-SA 3.0 / GFDL, photo Harumphy, Wikimedia Commons.
+
+A black-faced meter with a white scale numbered 1 to 7, four decibels between marks, driven by quasi-peak ballistics: fast attack to catch short peaks, slow decay so the reading holds long enough to see. It measures peak level where the VU meter measures average. Peak metering catches the brief overloads that averaged metering passes over, so an engineer picks the meter that matches the decision, loudness or headroom, and two honest meters beat one number forced to mean both.
+
+**Directive.** When one number cannot answer two questions, show both readouts and label what each measures rather than collapsing them into a single figure; choose the metric by the decision it serves (a peak against an average, a rate against a total). Render a long-session scale the way this dial does: high-contrast, evenly spaced, `--sf-color-fg` at full strength on near-black in dark mode, leaning on the `[data-theme="dark"]` lit-edge model so the scale carries the contrast. Keep the marks crisp and pixel-snapped while the moving indicator stays anti-aliased, and hold the numeric readout in tabular `--sf-font-mono`.
+
+---
+
+## 11. Olivetti and Italian rationalism: the keyboard as a precise instrument, restraint carrying a measured warmth
+
+Olivetti and the Italian rationalist tradition treat the keyboard as a precise instrument, and let disciplined restraint carry a measured degree of warmth.
+
+### Olivetti Programma 101 "La Perottina" (1965, styling Mario Bellini, engineering Pier Giorgio Perotto)
+
+![Olivetti Programma 101](inspiration/olivetti-italian/olivetti-programma-101-la-perottina.jpg) - CC BY-SA 4.0, photo Alessandro Nassiri (Museo della Scienza e della Tecnologia, Milano), Wikimedia Commons.
+
+The first self-contained desktop programmable computer, shown at the 1964 World's Fair and in volume from 1965. A keyboard, a magnetic-card reader, and a printing unit sit in one wedge-shaped cast body sized to a single desk; NASA bought ten to plan the Apollo 11 landing. A computation printed onto a paper tape the operator kept, and the program lived on a magnetic card the operator loaded. One person ran the whole machine at their own table, with no console room and no shared mainframe. A full task collapses into one instrument the operator owns at the desk, and a run leaves a durable printed record rather than a reading that scrolls away.
+
+**Directive.** Compose a whole task into one self-contained `Pane` the user owns: the entry row and its commit `Button` at the near (bottom) edge on the `--sf-unit` grid, the working surface above, and a persistent append-only record of results below (a monospace `StreamingTerminalText` or a scrollable log) rather than scattering steps across modal dialogs. Keep that record durable and scannable in `--sf-font-mono` tabular figures rather than a toast that fades; a value the user acted on should stay on the page as a printed line. Let one operator own the full pipeline in one surface instead of routing them through a wizard.
+
+### Olivetti Divisumma 18 (1973, Mario Bellini)
+
+![Olivetti Divisumma 18](inspiration/olivetti-italian/olivetti-divisumma-18-mario-bellini.jpg) - CC BY-SA 4.0, photo Peter Aaron (Museo della Scienza e della Tecnologia, Milano), Wikimedia Commons.
+
+An electronic printing calculator whose keypad is one continuous flexible skin: cylindrical "volcano" keys rise from and round back into a single moulded rubber membrane, sealing the mechanism from dust. The body is a warm yellow. Bellini set out to make an electronic product tactile and inviting to the hand, and MoMA holds it. The keys read as one coherent surface rather than a field of separate switches. Warmth is measured to one degree: the instrument gains tactility by making the control surface respond under the finger and by resolving many keys into one continuous plane.
+
+**Directive.** Spend the one sanctioned tactile cue here rather than on anything gaudier: the `inset 0 1px 0 rgb(255 255 255 / 0.18)` top-edge highlight on entry controls plus `--sf-ease-snap` on the single committing keystroke, so `DigitInput` or a keypad seats each digit like a detent and reads as responsive under the finger. Resolve a grid of cells into one instrument, a single bordered surface with hairline `--sf-color-gridline` dividers between digit cells rather than a scatter of separately bordered boxes. Hold the warmth to that one tactile degree and keep the surface neutral; the Divisumma earns its character from feel, so route any pull toward a warm decorative fill back to `--sf-color-bg`.
+
+### Olivetti Lettera 22 (1950, Marcello Nizzoli)
+
+![Olivetti Lettera 22](inspiration/olivetti-italian/olivetti-lettera-22-marcello-nizzoli.jpg) - CC BY-SA 3.0 (dual with GFDL 1.2+), photo Austin Calhoon, Wikimedia Commons.
+
+A low, light, quiet portable mechanical typewriter, carried by journalists and writers and operated for hours at a stretch. The Illinois Institute of Technology named it the best-designed product of the previous 100 years in 1959; it won the Compasso d'Oro in 1954 and stayed in production for 15 years. The muted crackle finish recedes and the keyboard is the whole instrument, tuned for economy of means and low-fatigue use. The tool is judged by tens of thousands of fatigue-free hours, so at rest it recedes and the user's work is the only strong thing on the surface.
+
+**Directive.** Design for the forty-hour week: keep resting chrome quiet and low-contrast (neutral `--sf-color-bg`, hairline `--sf-color-border`) so the user's content carries the only strong contrast, and reserve `--sf-color-primary` for the active control. Make the keyboard the primary surface, every action reachable without the mouse through a central hotkey engine and `focusFieldHotkey`, `Kbd` keycaps naming the shortcut in place, and full keyboard navigation across `DataTable`, `Explorer`, and `Menu`. Prefer economy of means, a light default with few controls on the `--sf-unit` grid, over a dense panel the hand has to hunt through.
+
+### Olivetti Valentine (1969, Ettore Sottsass with Perry A. King)
+
+![Olivetti Valentine](inspiration/olivetti-italian/olivetti-valentine-ettore-sottsass-with-perry-king.jpg) - CC BY-SA 4.0, photo Maksym Kozlenko, Wikimedia Commons.
+
+A portable typewriter in lipstick-bright red ABS plastic, built on Lettera 32 mechanics and launched on Valentine's Day 1969. Sottsass chose the saturated red "so as not to remind anyone of monotonous working hours" and pitched it for anywhere except the office. It became an icon and entered MoMA's collection by 1971, though as a working tool it sold in the tens of thousands against a projection of millions. The colour carries mood across the whole body and codes nothing. This is the boundary of the tradition, where colour and form turned toward personality; the red is total and decorative, spent on mood rather than on marking a state, and it marks exactly the line the colour discipline holds.
+
+**Directive.** Use the Valentine as the review test for colour: if a surface is saturated all over at rest and the colour marks no state, it is decorative and should return to neutral `--sf-color-bg` / `--sf-color-fg`, with `--sf-color-primary` and the semantic tones spent only on what is interactive, focused, committed, or a genuine state. Keep the two kinds of warmth separate: a measured tactile degree in the feel (the Divisumma cue) is sanctioned, while colour spread across resting chrome as mood is not. When a request asks for a bright or fun surface, answer with typographic hierarchy and one coded accent rather than a full-body fill, and cite the Valentine when decorative colour creeps into a resting control.
+
+---
+
+## 12. Bang and Olufsen (Jacob Jensen): flush panels, one material, one axis, controls concealed until use
+
+Jacob Jensen's designs for Bang & Olufsen hold one material across a flush face, align every control to one axis, and conceal the set-once controls until the moment of use.
+
+### Bang & Olufsen Beogram 4000 (1972, Jacob Jensen)
+
+![Bang & Olufsen Beogram 4000](inspiration/bang-olufsen/bang-olufsen-beogram-4000-jacob-jensen-1972.jpg) - CC BY-SA 3.0. Bang & Olufsen Beogram 4000, credited to Jacob Jensen Holding, Wikimedia Commons (File:B&O Beogram 4000.jpg).
+
+A linear-tracking turntable for Bang & Olufsen. The tonearm travels straight across the record rather than swinging through an arc, so the arm carriage and the operating controls sit flush in a narrow aluminium strip alongside the platter rather than standing above it. Aluminium and rosewood, one finish across the whole face. It won the iF Design Award in 1972 and entered the MoMA design collection in 1973. A working surface splits into an output field and a parallel control strip, both flush on one plane and aligned to a single axis, so the whole face reads as one flat surface.
+
+**Directive.** Split a control surface into an output region and a control strip on one shared axis, both at the same elevation, with one clean boundary between them: a `Pane.Header` or `DataTable` toolbar over `Pane.Body`, or a `Grid` that sets the controls in a strip beside the data. Align every control to the `--sf-unit` grid so it reads level with the surface rather than stacked on top of it. Hold one finish across the plane: a single `--sf-color-bg`, a single `--sf-color-border`, sharp `--sf-radius-default` at 2px, no nested cards. Keep the resting surface at `--sf-elevation-0` or `1` and spend elevation only on a genuine layer, so the panel stays one plane.
+
+### Bang & Olufsen Beomaster 1900 (1976, Jacob Jensen)
+
+No freely licensed image available. Contemporary Beomaster 1900 photographs on Beoworld and Beocentral are copyright of their photographers; the model is documented in the V&A collection (item O321483) and at MoMA. The directive is derived from those references.
+
+An FM receiver and amplifier with a flat front face and no protruding knobs. The controls used often (power, volume, source, the five preset stations) respond to light contact on the flat aluminium face through B&O's sensi-touch system. The controls set once and then left (station tuning, bass, treble, balance, stereo select) sit under a full-width aluminium lift-up lid. Each setting shows through the closed lid as a thin lit dash that lights only where a value is set. Frequent controls stay on the calm face and set-once controls hide under a lid, so the resting panel shows only what is active.
+
+**Directive.** Split controls into a primary set on the resting surface and a secondary set behind a disclosure. Put frequent actions on the face (a `Pane.Header` toolbar, a `MenuBar.Control` row, a `ToggleGroup`) and fold the set-once controls into a `Drawer`, `Popover`, or `Reflow` accordion that opens on demand. Keep the resting panel quiet: no badges, no notification dots, `--sf-color-primary` only on the active or focused control and neutral `--sf-color-border` everywhere else. Where a value is set, surface it as a small `--sf-font-mono` readout (a `Chip` with a `dot`) that appears only once set, echoing the lit dashes, rather than a permanent row of always-on controls.
+
+### Bang & Olufsen Beomaster 901 (1972 to 1977, Jacob Jensen)
+
+![Bang & Olufsen Beomaster 901](inspiration/bang-olufsen/bang-olufsen-beomaster-901-jacob-jensen-1972-to-1977.jpg) - CC BY-SA 3.0. Photo by Petri Krohn, Wikimedia Commons (File:Beomaster 901 C1735.jpg).
+
+A compact aluminium-and-rosewood receiver. Volume, balance, bass and treble run as inline sliders along one horizontal axis; waveband and input selection are slim flush push-buttons on the same line. One material, one finish, every control on a single baseline. A control cluster reads as one calm plane when every control shares an axis, a height, and a finish, with alignment supplying the order and no boxes around groups.
+
+**Directive.** Lay a settings row on one shared baseline aligned to the `--sf-unit` grid rather than boxing each group. Zone by spacing and weight, keeping one `--sf-color-border` on the outer frame and none inside. Hold one finish: a single `--sf-color-bg` and one control height across the row. Compose the row from `FieldLayout` fields with a `ToggleGroup` and a `ButtonGroup` that share a cascading `size`, so a bar of related controls reads as one continuous surface rather than a set of separate widgets.
+
+### Bang & Olufsen Beogram 2402 (early 1980s, Jacob Jensen)
+
+![Bang & Olufsen Beogram 2402](inspiration/bang-olufsen/bang-olufsen-beogram-2402-jacob-jensen-early-1980s.jpg) - CC BY-SA 3.0. Photo by user BKP, Wikimedia Commons (File:BEOGRAM 2402 02.JPG).
+
+A later linear-tracking turntable. A single flat lid covers the platter and the tangential arm, and the plinth carries flush controls in one aluminium finish. Closed, the object reads as one uninterrupted plane; the mechanism appears only when the lid is raised. The resting object stays one calm, uniform plane, and the complexity stays available without being on display.
+
+**Directive.** Present a complex region as one uniform surface at rest and reveal its machinery on demand. Hold one finish across the whole surface (one `--sf-color-bg`, one `--sf-color-border`, sharp `--sf-radius-default` at 2px) and put the working detail behind a `Fullscreen` toggle, a `Drawer`, or a `Dialog` that opens when needed, or a `DataTable` toolbar and `Graph.Controls` that stay collapsed until the user engages. Treat the reveal as a state with a `--sf-duration-base` transition under `--sf-ease-out` and a `prefers-reduced-motion` static fallback, and let the surface return to one plane when closed.
+
+---
+
+## 13. Mechanical and segmented readouts: a grid of character cells, each digit stepped or lit into place
+
+The fixed-cell readout as an instrument: a grid of character positions, each digit stepped or lit into place and held at full contrast.
+
+### Solari di Udine split-flap departure board (1956 onward)
+
+![Solari di Udine split-flap departure board](inspiration/segmented-readouts/solari-di-udine-split-flap-departure-board.jpg) - Public domain (photo Cassiopeia sweet, 2003, Tokyo/Haneda arrival board), Wikimedia Commons.
+
+A departure board built from rows of fixed cells, each holding a stack of hinged flaps printed one character per leaf. To show a value the drum turns and flaps fall until the target character seats face-up, with the familiar clatter as the intermediate leaves pass. Every cell has the same capacity and the same alphabet, so a change is a step through that alphabet until the character locks into place. The board reads as a grid of identical character positions, and the whole schedule scans in aligned monospace columns. Solari sold its first moving board to Liege station in 1956 and thousands more to airports and railway stations through the 1990s. A readout is a grid of fixed-capacity cells, and a value arrives by stepping a cell through a fixed alphabet until the character locks in.
+
+**Directive.** Model numeric entry as fixed cells that a digit seats into. In `DigitInput` "push" mode keep each digit a fixed tabular-numeral cell on the `--sf-unit` grid, and let a committed keystroke settle with one `--sf-ease-snap` overshoot at `--sf-duration-fast` so the character locks like a fallen flap rather than fading in. Give any live readout a fixed-width box so digits hold their pixel position as the value changes; let the surrounding scale or label move. Set schedules and logs (a `DataTable` time column, `StreamingTerminalText`) in aligned `--sf-font-mono` columns so the field reads as one grid of cells.
+
+### Nixie tube numeric display (1955 to late 1970s)
+
+![Nixie tube numeric display](inspiration/segmented-readouts/nixie-tube-numeric-display.jpg) - CC BY 4.0 (photo TubeTimeUS, 2018), Wikimedia Commons.
+
+A cold-cathode tube holding ten cathodes, each shaped as a complete numeral zero to nine and stacked front to back. Voltage on one cathode makes it glow with an orange neon discharge, so the lit figure is a whole character rather than a reconstruction from parts. Because the numerals sit at slightly different depths, the glowing digit reads with real presence against the dark glass. Each tube is one cell, and a multi-digit readout is a row of identical tubes. Nixies drove instrument panels, frequency counters and early desktop calculators before seven-segment LEDs displaced them. An emissive character on a near-black field is the most legible numeric readout, and one hue against darkness is enough to carry it.
+
+**Directive.** This is the dark-theme reading of a numeric readout. Under `[data-theme="dark"]` keep the field near-black and let the digits carry the contrast at full-strength `--sf-color-fg` in `--sf-font-mono` tabular numerals, so a `DigitInput` or a `DataTable` metric cell reads as a row of lit tubes rather than a boxed-in form. Reserve saturated colour for a genuine state, a `--sf-color-warning` caution or a `--sf-color-danger` limit on the specific digit or cell that crosses it, and keep resting digits neutral. Lean on the dark-mode lit-edge elevation model so the working edges catch light rather than surface fills being raised.
+
+### Seven-segment LED display (1970s onward)
+
+![Seven-segment LED display](inspiration/segmented-readouts/seven-segment-led-display.jpg) - Public domain, PD-self (photo Dmitry G), Wikimedia Commons.
+
+A character built from seven bar segments in a figure-eight, plus a decimal point, each segment an addressable LED. Lighting a subset draws a digit, and the fixed seven-segment geometry is the entire alphabet the cell can render, which is why the numerals carry their distinct angular shape. The unlit segments stay faintly present as dark bars, so the ghost of a full "8" sits behind every digit and marks the cell's capacity. High-contrast red or green segments on a black face made these the readout of calculators, clock radios, instrument panels and lab gear. The character is reconstructed from a fixed segment grid, and the idle segments stay visible as a placeholder that shows the cell's full extent.
+
+**Directive.** Use the unlit-segment ghost as the model for placeholder capacity. `DigitInputMicro` already shows faded, dithered slots (░░ ░░) at rest and fills them left to right; keep those rest-state slots visible at `--sf-color-muted` so the field advertises its extent the way the dark bars of an idle seven-segment cell do, rather than collapsing to a blank box. Keep filled digits full-strength `--sf-color-fg` in `--sf-font-mono` tabular numerals over the recessed `--sf-color-input-bg` slot, so the contrast between a set digit and its ghost reads at a glance.
+
+### Reflective seven-segment LCD (1970s onward)
+
+![Reflective seven-segment LCD](inspiration/segmented-readouts/reflective-seven-segment-lcd.jpg) - CC BY 3.0 (photo badsanta23, 2010), Wikimedia Commons.
+
+A passive display where each segment is a liquid-crystal cell that, when addressed, twists to block ambient light and turns dark against a grey or grey-green reflective background. It emits nothing and draws almost no power, so the same figure-eight seven-segment grid reads by daylight on a wristwatch, a multimeter or a bench clock. The unlit segments stay permanently faintly visible as the ghost of a full "8", and the readout is calm and low-contrast rather than glowing. The same cell reads by reflected ambient light as dark figures on a pale field, the light-theme counterpart to the emissive tube, with the idle segments always present as a quiet placeholder.
+
+**Directive.** This is the light-theme reading of the same cell. Under the default theme render digits as dark `--sf-color-fg` figures on the recessed `--sf-color-input-bg` field, calm and low-contrast, matching reflected light rather than a backlit glow. Carry the ever-present ghost segment through as `DigitInputMicro`'s rest-state placeholder slots at `--sf-color-muted`, and keep the readout quiet: no accent on a resting value, `--sf-color-primary` only on focus. Pair this with the emissive dark-theme reading above so a single `DigitInput` swaps between the two by token under `[data-theme]`, never by branching on theme in JS.
+
+---
+
+## 14. Meta-principles: what the whole lineage shares, mapped to our system
 
 Seven principles run through every cluster. Each maps to a token or component behaviour we already have or should have.
 
@@ -336,7 +564,7 @@ The 606 shelf that still fits a 1960 rail, the 500-series body that ran 56 years
 
 ---
 
-## 9. How this should show up in swiss-function
+## 15. How this should show up in swiss-function
 
 A short checklist of directives, drawn from the sections above, to apply and to cite in review.
 
