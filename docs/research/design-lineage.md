@@ -1,14 +1,14 @@
 # Design Lineage and Aesthetic References
 
-## The lineage, and why it is our north star
+## The lineage, and why it guides us
 
-Swiss-Function descends from a single tradition: the design of precision instruments and the graphic systems that document them. Dieter Rams and Braun; the Airbus glass cockpit and the disciplines of aviation display; Porsche and the automotive instrument cluster; the tactile "quality through precision of fit" of a Curta calculator, a Leica M3, a Hasselblad V, a Tektronix scope, a Moog patchbay; the Swiss grid of Muller-Brockmann, Vignelli and Gerstner; and their digital heirs from the DEC VT100 to the Bloomberg Terminal to Teenage Engineering. These objects were not styled to impress on first sight. They were engineered to be read correctly, under stress and fatigue, for tens of thousands of hours, and they still read correctly decades later. That is exactly the test our library sets itself: an interface for people who are reading and thinking for forty hours a week, judged by whether it would look out of place next to a 1960s Olivetti manual, not by whether it looks novel this year. This document pulls out what actually transfers from these objects to a screen UI toolkit (grid, density, restraint, honesty of function, tactile feedback, legibility, colour as meaning, longevity) and, for every exemplar, states a concrete directive keyed to our tokens and components. It is the applied companion to [AESTHETICS.md](../AESTHETICS.md); read that for the stance, read this for the lineage that earns it.
+Swiss-Function descends from a single tradition: the design of precision instruments and the graphic systems that document them. Dieter Rams and Braun; the Airbus glass cockpit and the disciplines of aviation display; Porsche and the automotive instrument cluster; the tactile "quality through precision of fit" of a Curta calculator, a Leica M3, a Hasselblad V, a Tektronix scope, a Moog patchbay; the Swiss grid of Muller-Brockmann, Vignelli and Gerstner; and their digital heirs from the DEC VT100 to the Bloomberg Terminal to Teenage Engineering. These objects were not styled to impress on first sight. They were engineered to be read correctly, under stress and fatigue, for tens of thousands of hours, and they still read correctly decades later. That is exactly the test our library sets itself: an interface for people who are reading and thinking for forty hours a week, judged by whether it would look out of place next to a 1960s Olivetti manual rather than by whether it looks novel this year. This document pulls out what actually transfers from these objects to a screen UI toolkit (grid, density, restraint, honesty of function, tactile feedback, legibility, colour as meaning, longevity) and, for every exemplar, states a concrete directive keyed to our tokens and components. It is the applied companion to [AESTHETICS.md](../AESTHETICS.md); read that for the stance, read this for the lineage that earns it.
 
 ---
 
 ## 1. Rams and Braun: "less, but better"
 
-The founding discipline: subtraction, honesty of function, order through an invisible grid, and colour used as a functional code rather than a coat.
+The founding discipline: subtraction, honesty of function, order through an invisible grid, and colour used as a functional code.
 
 ### Braun T3 pocket radio (1958, Dieter Rams with Hans Gugelot)
 
@@ -24,7 +24,7 @@ The face splits cleanly in two honest zones: a machine-drilled speaker grid on t
 
 A near-monochrome field with a strict 5-column grid of keys. Colour encodes function only: numerals dark, operators a quiet warmer olive (a different class of key), and the single yellow "=" key marking the one action you commit with. That one warm key is the only saturated colour on the instrument. Restraint is what makes the accent legible.
 
-**Directive.** Hold the interface monochrome and spend `--sf-color-primary` (or a semantic tone) only on the one action that commits or the one thing that is focused, exactly like the yellow "=". Never colour a control decoratively while it rests. Encode a second class of control (secondary vs primary) with a quiet tonal step, not a second hue. Keep numerals in `--sf-font-mono` with tabular figures so `DigitInput`, `DataTable` cells and keypads align and scan like the ET66. This is already our rule; the ET66 is the image to cite in review.
+**Directive.** Hold the interface monochrome and spend `--sf-color-primary` (or a semantic tone) only on the one action that commits or the one thing that is focused, exactly like the yellow "=". Never colour a control decoratively while it rests. Encode a second class of control (secondary vs primary) with a quiet tonal step rather than a second hue. Keep numerals in `--sf-font-mono` with tabular figures so `DigitInput`, `DataTable` cells and keypads align and scan like the ET66. This is already our rule; the ET66 is the image to cite in review.
 
 ### Braun SK4 Phonosuper, "Snow White's Coffin" (1956, Rams and Gugelot)
 
@@ -32,7 +32,7 @@ A near-monochrome field with a strict 5-column grid of keys. Colour encodes func
 
 In a market of veneered cabinets with hinged lids, this arrived looking like lab equipment: a transparent Plexiglas lid that invites inspection of the platter instead of hiding it, all controls confined to one strip on the right, and a speaker grille that is just thin horizontal rules pressed into metal. The clear lid was an honesty move and an engineering one (metal rattled at volume). A hairline rule, repeated, is enough texture.
 
-**Directive.** Prefer transparency over friendly concealment: surface the real state and real data (a live count, the actual query, the raw value in an editable cell) rather than smoothing it behind summarized chrome. Corral controls into one honest strip (a single `Pane.Header` or toolbar), leaving the body a calm working surface. Build separation from repeated hairlines at `--sf-color-gridline`, not from shadows or fills. Let one structural element carry any warmth; do not paint warmth on.
+**Directive.** Prefer transparency over friendly concealment: surface the real state and real data (a live count, the actual query, the raw value in an editable cell) rather than smoothing it behind summarized chrome. Corral controls into one honest strip (a single `Pane.Header` or toolbar), leaving the body a calm working surface. Build separation from repeated hairlines at `--sf-color-gridline` rather than from shadows or fills. Let one structural element carry any warmth; do not paint warmth on.
 
 ### 606 Universal Shelving System (1960, Rams for Vitsoe, still in production)
 
@@ -46,7 +46,7 @@ A tiny kit of parts hung from wall tracks, recombining into endless configuratio
 
 ## 2. Aviation cockpits: colour as a reserved channel, lit by exception
 
-High-trust displays that a trained eye reads at a glance, under glare and fatigue. The strongest lesson in the whole lineage about colour discipline and spatial constancy.
+High-trust displays that a trained eye reads at a glance, under glare and fatigue. A central lesson in the lineage about colour discipline and spatial constancy.
 
 ### Airbus Primary Flight Display and Flight Mode Annunciator (1982 to present)
 
@@ -60,7 +60,7 @@ A near-monochrome screen where every saturated pixel is answerable to a state: g
 
 ![Electronic Centralised Aircraft Monitor (ECAM) and the dark cockpit](inspiration/aviation-cockpit/electronic-centralised-aircraft-monitor-ecam-and-the.jpg) - CC BY 2.0, photo Steve Jurvetson.
 
-The overhead panel sits dark under normal operation; a fault lights a single button and posts a colour-tiered message. Severity is two tiers that never collapse into one alert: red master WARNING (immediate action, steady light, continuous chime) versus amber master CAUTION (awareness, single chime). Each alert is paired with the corrective action, so the display tells you what to do, not just that something is wrong.
+The overhead panel sits dark under normal operation; a fault lights a single button and posts a colour-tiered message. Severity is two tiers that never collapse into one alert: red master WARNING (immediate action, steady light, continuous chime) versus amber master CAUTION (awareness, single chime). Each alert is paired with the corrective action, so the display tells you what to do rather than just that something is wrong.
 
 **Directive.** Make the resting UI genuinely quiet: no colour, no badges, no notification dots when nothing is wrong (our "no engagement signifiers" rule as an instrument principle). Reserve exactly two alert tiers and keep them distinct: `--sf-color-warning` for an awareness caution (persists, does not interrupt) and `--sf-color-danger` for an action-required hazard (stronger, may interrupt); never a third decorative alert colour. Pair every error or warning with the concrete next action, and route both through `NonIdealState` or a status region rather than scattering them.
 
@@ -76,7 +76,7 @@ A fixed 14 by 24 monospace screen, two columns of labelled fields, each flanked 
 
 ![The glass flight deck as a fixed-layout workplace](inspiration/aviation-cockpit/the-glass-flight-deck-as-a-fixed-layout-workplace.jpg) - CC BY-SA 2.5, photo Ralf Roletschek.
 
-Six identical-format screens in a permanent grid; nothing moves house between flights. The Navigation Display is a dark scan showing only the route arc, range rings and traffic that matter now. Spatial constancy means recognition replaces search, and cross-crew training transfers directly. The layout is judged by decades of fatigue-free use, not by novelty.
+Six identical-format screens in a permanent grid; nothing moves house between flights. The Navigation Display is a dark scan showing only the route arc, range rings and traffic that matter now. Spatial constancy means recognition replaces search, and cross-crew training transfers directly. The layout is judged by decades of fatigue-free use rather than by novelty.
 
 **Directive.** Assign each region of an app a permanent home with `Pane` / `Grid` and do not reflow or reorder critical information on state change; a `DataTable` column, a status strip and a detail pane should be where the user last left their eyes. Follow the Navigation Display in charts: default to `scaffolding="hover"` so gridlines and axes stay quiet (`--sf-color-gridline`) and the data marks carry the ink, adding scale only when density demands it. Strip anything competing with the data and add back only what proves necessary.
 
@@ -90,7 +90,7 @@ Porsche instrument clusters: a matte field that recedes so only the data is lit,
 
 ![Porsche 356 A cockpit: the centrally placed tachometer](inspiration/automotive-instruments/porsche-356-a-cockpit-the-centrally-placed-tachomete.jpg) - CC BY-SA 3.0, photo PekePON, Wikimedia Commons.
 
-Porsche put the tachometer dead centre and dominant, on the stated reasoning that exact speed is secondary (a racer drives as fast as possible anyway) while rpm governs the shift point and protects the engine. Hierarchy by importance, not convention. A complete driver surface is built from only three instruments, each present because a real decision needs it.
+Porsche put the tachometer dead centre and dominant, on the stated reasoning that exact speed is secondary (a racer drives as fast as possible anyway) while rpm governs the shift point and protects the engine. Hierarchy by importance rather than convention. A complete driver surface is built from only three instruments, each present because a real decision needs it.
 
 **Directive.** In a dense readout or dashboard, put the metric the user acts on in the optical centre and give it the largest type, even when convention would front-load a different number. Use `Grid` to reserve one fixed central primary-readout slot with smaller `sm`-sized satellites around it; rank tiles by decision-value and refuse to make every KPI the same size. Add a readout only when a real decision needs it.
 
@@ -100,13 +100,13 @@ Porsche put the tachometer dead centre and dominant, on the stated reasoning tha
 
 A fixed symmetrical fan of graduated dials with one dominant member, matte black faces so the only bright things are needles and numbers, and a single saturated colour (red) reserved strictly for the redline threshold. Nothing decorative survives.
 
-**Directive.** Build stat and metric clusters as a fixed, ordered grid with one dominant tile and equal-weight satellites; keep the ground neutral (`--sf-color-bg`, near-black in dark mode) and let only the values carry contrast. Reserve saturated colour (`--sf-color-danger`) for an actual threshold crossing, never for decoration, and use tabular numerals wherever a number can change. This is typographic hierarchy, not colour hierarchy, rendered in dials.
+**Directive.** Build stat and metric clusters as a fixed, ordered grid with one dominant tile and equal-weight satellites; keep the ground neutral (`--sf-color-bg`, near-black in dark mode) and let only the values carry contrast. Reserve saturated colour (`--sf-color-danger`) for an actual threshold crossing, never for decoration, and use tabular numerals wherever a number can change. This is typographic hierarchy rather than colour hierarchy, rendered in dials.
 
 ### Porsche 997 central tachometer with warning tell-tales (2004 to 2012)
 
 ![Porsche 997 central tachometer with warning tell-tales](inspiration/automotive-instruments/porsche-997-central-tachometer-with-warning-tell-tal.jpg) - CC BY-SA 2.5, Wikimedia Commons.
 
-Status tell-tales hold fixed, learnable positions but render nothing until their condition is true, so nothing competes for attention it has not earned. And the gauge dual-encodes: an analog sweep for the instantaneous rate, a small digital inset for the exact figure, both inside one instrument. Ticks stay crisp and fixed; only the needle moves.
+Status tell-tales hold fixed, learnable positions but render nothing until their condition is true, so nothing competes for attention until its condition holds. And the gauge dual-encodes: an analog sweep for the instantaneous rate, a small digital inset for the exact figure, both inside one instrument. Ticks stay crisp and fixed; only the needle moves.
 
 **Directive.** Give status indicators reserved, stable slots but render nothing (or the quietest neutral) until the state is real: no notification dots, no decorative new-badges. When a value needs both a quick trend read and an exact figure, pair a sparkline or a `Spinner`-style glyph with a tabular numeric readout instead of choosing one. Keep chrome (ticks, rules, cell edges) crisp and pixel-snapped while the moving mark stays anti-aliased.
 
@@ -120,9 +120,9 @@ Forty years on, the layout is unchanged: still tachometer-centred and largest, b
 
 ---
 
-## 4. Mechanical precision: one locus and one gesture, group by zoning not boxes
+## 4. Mechanical precision: one locus and one gesture, group by zoning rather than boxes
 
-Instruments that read as high quality because of the fit and the decisive detent of each control, not any ornament. The cluster that most directly licenses our tactile-feedback vocabulary.
+Instruments that read as high quality because of the fit and the decisive detent of each control rather than any ornament. The cluster that most directly licenses our tactile-feedback vocabulary.
 
 ### Curta mechanical calculator (1948 to 1970, Curt Herzstark)
 
@@ -136,7 +136,7 @@ The whole interaction concentrates in one input locus: the crank is the only sub
 
 ![Hewlett-Packard HP-35 scientific calculator](inspiration/mechanical-precision/hewlett-packard-hp-35-scientific-calculator.jpg) - CC BY-SA 3.0, Wikimedia Commons.
 
-A crowded 35-key panel zoned by weight, size, spacing and a single accent, not by boxes. The most important action (ENTER, the stack push) is the largest and most saturated key, so the hand finds it without reading. Legends were molded through the plastic so they could never wear off.
+A crowded 35-key panel zoned by weight, size, spacing and a single accent rather than by boxes. The most important action (ENTER, the stack push) is the largest and most saturated key, so the hand finds it without reading. Legends were molded through the plastic so they could never wear off.
 
 **Directive.** Zone a control cluster (a toolbar, a `ButtonGroup`, a form's action row) by typographic weight, key size, whitespace and exactly one accent (`--sf-color-primary` on the single primary `Button`), never by boxing every group in borders. The primary action is visually the largest and most saturated element; everything else is neutral. Keep legends full-strength and always present (never grey, never hover-only) so the affordance never wears off.
 
@@ -146,19 +146,19 @@ A crowded 35-key panel zoned by weight, size, spacing and a single accent, not b
 
 A high-density panel kept legible by dividing it into labelled functional regions separated by a faint background tint, rule lines and space rather than heavy borders. Red center knobs mean one specific thing (you are off calibration). A coarse control nests its fine adjustment concentrically, in the same place. Small-caps labels and quiet gridlines keep scaffolding behind the data.
 
-**Directive.** Zone dense surfaces (a `Box` or `Pane` full of controls, a `DataTable` toolbar, a chart's control cluster) into labelled regions cued by a faint tint or a single `--sf-color-border` rule and spacing on the `--sf-unit` grid, not by nesting boxed cards. Reserve semantic colour for genuine state: a red ring or marker means "this value is out of range," echoing the red VAR knob. Keep a coarse-plus-fine pair together (a stepped value with an inline nudge), and keep gridlines and axis chrome on `--sf-color-gridline`, quieter than structural borders.
+**Directive.** Zone dense surfaces (a `Box` or `Pane` full of controls, a `DataTable` toolbar, a chart's control cluster) into labelled regions cued by a faint tint or a single `--sf-color-border` rule and spacing on the `--sf-unit` grid rather than by nesting boxed cards. Reserve semantic colour for genuine state: a red ring or marker means "this value is out of range," echoing the red VAR knob. Keep a coarse-plus-fine pair together (a stepped value with an inline nudge), and keep gridlines and axis chrome on `--sf-color-gridline`, quieter than structural borders.
 
 ### Moog modular synthesizer patchbay (1960s to 1970s)
 
 ![Moog modular synthesizer (patchbay layout)](inspiration/mechanical-precision/moog-modular-synthesizer-patchbay-layout.jpg) - CC BY-SA 4.0, Wikimedia Commons.
 
-A wall of modules, every one a uniform-width strip with an identical internal layout (label top, controls middle, patch jacks bottom). Density is enormous but legible because the grid of identical modules teaches the eye one layout it reuses everywhere. Patch cords make the signal routing physically visible and hand-editable.
+A wall of modules, every one a uniform-width strip with an identical internal layout (label top, controls middle, patch jacks bottom). Density is high but legible because the grid of identical modules teaches the eye one layout it reuses everywhere. Patch cords make the signal routing physically visible and hand-editable.
 
 **Directive.** Compose dense tool surfaces as a uniform `Grid` of modules that share one internal template (label top, controls middle, inputs and outputs bottom) aligned to `--sf-unit` tracks, so scanning is learned once. When elements connect, draw the connection explicitly: use `Graph`'s visible, editable edges or a rendered line rather than burying the relationship in a config panel. Favour a stable left-to-right, top-to-bottom flow so the eye follows the pipeline.
 
 ---
 
-## 5. Cameras: only what is needed, engrave don't sticker, honest seams
+## 5. Cameras: only what is needed, labels engraved into the material, honest seams
 
 Leica and Hasselblad: control density stripped to the task, labels cut into the material, modular bodies that snap together at legible joints and report their own state.
 
@@ -166,9 +166,9 @@ Leica and Hasselblad: control density stripped to the task, labels cut into the 
 
 ![Leica M3 top plate (Ernst Leitz Wetzlar, chrome brass body with 50mm Summicron)](inspiration/cameras/leica-m3-top-plate-ernst-leitz-wetzlar-chrome-brass-.jpg) - CC BY-SA 2.0 FR (dual CeCILL), author Rama, Wikimedia Commons.
 
-The top plate carries only what shooting needs: no mode dial, no scene selector, no branding beyond a maker's mark. Each control earns its footprint and is married to one job. Labels are cut into the metal, permanent and monochrome, so hierarchy comes from position, size and rule, never colour. The one combined shutter dial consolidates a whole decision onto a single detented control. Colour appears exactly once, as a red index dot.
+The top plate carries only what shooting needs: no mode dial, no scene selector, no branding beyond a maker's mark. Each control earns its footprint and handles one job. Labels are cut into the metal, permanent and monochrome, so hierarchy comes from position, size and rule, never colour. The one combined shutter dial consolidates a whole decision onto a single detented control. Colour appears exactly once, as a red index dot.
 
-**Directive.** Strip component chrome to the controls the task actually needs and treat a finished-looking blank surface as done, not empty. Render labels and values in `--sf-font-mono` at full strength (`--sf-color-fg`, with `font-size-adjust: var(--sf-font-mono-adjust)`), single weight, grid-aligned, carrying hierarchy through position and rule lines rather than colour. Spend `--sf-color-primary` like the red index dot: once, only to mark the active or focused state. Prefer one consolidated control (a single `ToggleGroup`, one dial-like stepper, one `Picker`) over several scattered toggles for a single decision.
+**Directive.** Strip component chrome to the controls the task actually needs and treat a finished-looking blank surface as done rather than empty. Render labels and values in `--sf-font-mono` at full strength (`--sf-color-fg`, with `font-size-adjust: var(--sf-font-mono-adjust)`), single weight, grid-aligned, carrying hierarchy through position and rule lines rather than colour. Spend `--sf-color-primary` like the red index dot: once, only to mark the active or focused state. Prefer one consolidated control (a single `ToggleGroup`, one dial-like stepper, one `Picker`) over several scattered toggles for a single decision.
 
 ### Leica M3, low-key study (same body, rim-lit against black)
 
@@ -182,23 +182,23 @@ The camera does not need even lighting to be legible: the eye finds the controls
 
 ![Hasselblad 500 C/M with waist-level finder and 80mm Carl Zeiss Planar (profile)](inspiration/cameras/hasselblad-500-c-m-with-waist-level-finder-and-80mm-.jpg) - CC BY-SA 4.0, author Christopher Crouzet, Wikimedia Commons.
 
-Not one moulded object but body, film back, finder and lens, each swappable, each doing one job, each joined at a legible bright seam. A module carries its own always-visible status readout: the film back shows "12" frames and a film-type reminder, so the system reports its own state without a screen. The leaf shutter in the lens is what makes lens and body cleanly separable: a clean interface between parts.
+Body, film back, finder and lens are separate parts, each swappable, each doing one job, each joined at a legible bright seam. A module carries its own always-visible status readout: the film back shows "12" frames and a film-type reminder, so the system reports its own state without a screen. The leaf shutter in the lens is what makes lens and body cleanly separable: a clean interface between parts.
 
-**Directive.** Compose interfaces from distinct modules, each owning one job, separated by exactly one structural border (`--sf-color-border`), keeping the seam legible rather than dissolving panels into each other (use elevation and spacing, not a second lighter line). This is the compound-component grammar we already have: `Pane.Header` over `Pane.Body`, `Dialog.Root` / `Handle` / `Body`, `WindowArray` columns, a `DataTable` whose swappable data is the film back. Give each module a small, always-visible status readout of its own state (a `Chip` with a `dot`, a frame counter), engraved-quiet in mono, never a notification badge.
+**Directive.** Compose interfaces from distinct modules, each owning one job, separated by exactly one structural border (`--sf-color-border`), keeping the seam legible rather than dissolving panels into each other (use elevation and spacing rather than a second lighter line). This is the compound-component grammar we already have: `Pane.Header` over `Pane.Body`, `Dialog.Root` / `Handle` / `Body`, `WindowArray` columns, a `DataTable` whose swappable data is the film back. Give each module a small, always-visible status readout of its own state (a `Chip` with a `dot`, a frame counter), engraved-quiet in mono, never a notification badge.
 
 ### Hasselblad 500C with Carl Zeiss Planar lens, three-quarter front (1957)
 
 ![Hasselblad 500C with Carl Zeiss Synchro-Compur Planar lens (three-quarter front)](inspiration/cameras/hasselblad-500c-with-carl-zeiss-synchro-compur-plana.jpg) - Public domain, author Holger Ellgaard, Wikimedia Commons.
 
-Every coupled exposure parameter (shutter, aperture, EV, focus) is stacked coaxially on one barrel, so the whole exposure state reads in a single glance and adjacent rings turn without the hand moving. Two engraving colours separate two coupled scales without clutter. The body is a hard rectilinear cube whose only softening is a hairline radius on the chrome corner rails: sharp as a decision, radiused only where a hand grips it.
+Every coupled exposure parameter (shutter, aperture, EV, focus) is stacked coaxially on one barrel, so the whole exposure state reads in a single glance and adjacent rings turn without the hand moving. Two engraving colours separate two coupled scales without clutter. The body is a hard rectilinear cube whose only softening is a hairline radius on the chrome corner rails: sharp everywhere, radiused only where a hand grips it.
 
-**Directive.** Co-locate and co-align coupled parameters so their combined state reads in one glance: use `FieldLayout` rigid and flexible rows and mono tabular figures so adjacent related fields line up on the baseline grid and the whole state is one read, not a hunt across a form. Keep the rectilinear body sharp: honour `--sf-radius-default` at 2px as the chrome corner rail, a whisper of rounding for grip, and resist any pull toward 8 to 16px softening. Where two coupled scales share a control, distinguish them by one restrained means (mono weight, a rule, or the single `--sf-color-primary` index), never a rainbow.
+**Directive.** Co-locate and co-align coupled parameters so their combined state reads in one glance: use `FieldLayout` rigid and flexible rows and mono tabular figures so adjacent related fields line up on the baseline grid and the whole state is one read rather than a hunt across a form. Keep the rectilinear body sharp: honour `--sf-radius-default` at 2px as the chrome corner rail, a slight rounding for grip, and resist any pull toward 8 to 16px softening. Where two coupled scales share a control, distinguish them by one restrained means (mono weight, a rule, or the single `--sf-color-primary` index), never a rainbow.
 
 ---
 
-## 6. The Swiss grid: design the programme, not the page
+## 6. The Swiss grid: design the programme rather than the page
 
-Muller-Brockmann, Vignelli and Gerstner: the grid as an invisible source of order, hierarchy from scale and space rather than colour, and identity from a single strong invariant that absorbs enormous content variety.
+Muller-Brockmann, Vignelli and Gerstner: the grid as an invisible source of order, hierarchy from scale and space rather than colour, and identity from a single strong invariant that absorbs wide content variety.
 
 ### Josef Muller-Brockmann, Beethoven Tonhalle poster (1955, Zurich)
 
@@ -212,7 +212,7 @@ One dominant rule-driven graphic idea (rhythm as concentric arcs on a fixed angu
 
 ![Josef Muller-Brockmann, der Film exhibition poster](inspiration/swiss-grid/josef-muller-brockmann-der-film-exhibition-poster.jpg) - Public domain, Wikimedia Commons.
 
-The oversized title is built on the same modular squares that structure the page, so the image is made of type rather than dropped onto it. The one accent, red, is reserved strictly for functional text (institution, dates, a tabular opening-hours block), while the big graphic element stays neutral. Large negative space is a held choice governed by the grid, not filler.
+The oversized title is built on the same modular squares that structure the page, so the image is made of type rather than dropped onto it. The one accent, red, is reserved strictly for functional text (institution, dates, a tabular opening-hours block), while the big graphic element stays neutral. Large negative space is a held choice governed by the grid rather than filler.
 
 **Directive.** Reserve `--sf-color-primary` for functional, actionable or state-bearing text and marks, never for the large neutral display element (a page title, a wordmark, a big metric stays in `--sf-color-fg`). Set any schedule, hours or numeric tabular block (a `DataTable` time column, a `DatePicker` listing, a log timestamp column) in aligned monospace columns like these opening hours. When a single element is meant to be oversized, build it on the same grid and unit math as the layout, at heavy weight in deliberate negative space, so display and structure are one system.
 
@@ -228,9 +228,9 @@ Clarity by abstraction: every route line constrained to 0, 45 and 90 degrees, on
 
 ![Massimo Vignelli, National Park Service Unigrid brochure system](inspiration/swiss-grid/massimo-vignelli-national-park-service-unigrid-broch.jpg) - Public domain (US federal government work, National Park Service), Wikimedia Commons.
 
-One rigid invariant (a solid black title band, fixed Helvetica, modular folding panels) absorbs hundreds of parks by many authors and still reads as one identity. The constraint is the brand. Consistency at scale comes from removing per-instance styling decisions, not from policing them.
+One rigid invariant (a solid black title band, fixed Helvetica, modular folding panels) absorbs hundreds of parks by many authors and still reads as one identity. The constraint is the brand. Consistency at scale comes from removing per-instance styling decisions rather than policing them.
 
-**Directive.** This is the model for the toolkit itself: fix one invariant chrome and let content vary underneath it. Our equivalent of the black band is the token set (the `--sf-color-*` palette, `--sf-unit`, the three type sizes, sharp 2px corners) plus the fixed component chrome (`Pane.Header`, `Dialog.Handle` and title, `MenuBar`), and consumers must not re-skin it per screen. Every `Pane` header, `Dialog` title and `DataTable` header should look identical across an app, so "which module am I in" is answered by content, not by re-themed chrome. When a component needs a new look, add a prop within the system (`variant`, `size`, `tone`), never a bespoke fork.
+**Directive.** This is the model for the toolkit itself: fix one invariant chrome and let content vary underneath it. Our equivalent of the black band is the token set (the `--sf-color-*` palette, `--sf-unit`, the three type sizes, sharp 2px corners) plus the fixed component chrome (`Pane.Header`, `Dialog.Handle` and title, `MenuBar`), and consumers must not re-skin it per screen. Every `Pane` header, `Dialog` title and `DataTable` header should look identical across an app, so "which module am I in" is answered by content rather than by re-themed chrome. When a component needs a new look, add a prop within the system (`variant`, `size`, `tone`), never a bespoke fork.
 
 ### Karl Gerstner, Designing Programmes and the Capital magazine grid (1962 to 1964)
 
@@ -238,7 +238,7 @@ No freely licensed image available (Gerstner's work is still largely under copyr
 
 Gerstner built one fine substructure of 58 units that resolves simultaneously into 1, 2, 3, 4, 5 or 6 columns, so one grid yields many layouts without ever breaking alignment. His thesis: design the rule set (the programme) and let it generate the solutions. Flexibility and consistency are not opposites; a well-chosen programme delivers both.
 
-**Directive.** Make our layout primitives programmes, not fixed templates. Base column systems on one fine underlying unit (`--sf-unit`) that subdivides cleanly into 2, 3, 4 and 6 tracks, so the same grid answers many densities without new breakpoints (this is how `Grid` and `FieldLayout` factor, and it matches the container-driven, breakpoint-free collapse the library favours). Prefer a rule the consumer parameterizes through props and tokens over a hardcoded arrangement. When building any new component, first define its programme (its tokens, its unit math, its allowed states) and let the specific rendering fall out.
+**Directive.** Make our layout primitives programmes rather than fixed templates. Base column systems on one fine underlying unit (`--sf-unit`) that subdivides cleanly into 2, 3, 4 and 6 tracks, so the same grid answers many densities without new breakpoints (this is how `Grid` and `FieldLayout` factor, and it matches the container-driven, breakpoint-free collapse the library favours). Prefer a rule the consumer parameterizes through props and tokens over a hardcoded arrangement. When building any new component, first define its programme (its tokens, its unit math, its allowed states) and let the specific rendering fall out.
 
 ---
 
@@ -250,7 +250,7 @@ Screen-native descendants that carry the instrument posture into pixels: the VT1
 
 ![Teenage Engineering OP-1](inspiration/digital-heirs/teenage-engineering-op-1.jpg) - CC BY-SA 2.0, author justin lincoln, Wikimedia Commons.
 
-Four rotary encoders colour-coded blue, green, white, orange, where each colour maps to one live synth parameter and to the matching sector of the display. The colour is not a mood; it is a persistent, learnable functional code, and it survives the "one accent" rule precisely because it is a fixed channel-to-colour mapping. Direct manipulation plus a tiny always-on readout beats nested menus.
+Four rotary encoders colour-coded blue, green, white, orange, where each colour maps to one live synth parameter and to the matching sector of the display. The colour is a persistent, learnable functional code, and it survives the "one accent" rule precisely because it is a fixed channel-to-colour mapping. Direct manipulation plus a tiny always-on readout is clearer than nested menus.
 
 **Directive.** Reserve any multi-hue scheme for a fixed channel-to-colour mapping the user learns once and sees identically everywhere (a `ToggleGroup` or `DigitInput` whose N channels each own a stable token colour, echoed in the chart series that reads them); outside such a coded channel, stay neutral with the single primary accent. Give real controls generous hit targets and pair each with a small monospace readout rather than a modal. When a control set maps one-to-one onto distinct parameters, expose all of them at once and let the fixed colour code carry the wayfinding.
 
@@ -266,17 +266,17 @@ A caseless printed circuit board that is itself the faceplate, function names si
 
 No freely licensed image (the app UI is copyrighted). Directive derived from iA's published design rationale.
 
-The argument is precise: a proportional font whispers "almost published" while a monospace font says "work in progress," so mono is the more honest choice for text that is still thinking. iA later refined this into a duospace design so the mono grid stays honest without fighting readability. The app ships almost no settings on purpose, a single blue accent for the caret, and a focus mode that dims surrounding context rather than hiding it.
+The argument is precise: a proportional font reads as "almost published" while a monospace font reads as "work in progress," so mono is the more honest choice for draft text. iA later refined this into a duospace design so the mono grid stays honest without fighting readability. The app ships almost no settings on purpose, a single blue accent for the caret, and a focus mode that dims surrounding context rather than hiding it.
 
-**Directive.** Keep the monospace/sans split load-bearing: `--sf-font-mono` for anything the eye scans as data or input (fields, code, tabular numerals, axis labels) and sans only for running prose, always paired with `font-size-adjust: var(--sf-font-mono-adjust)` so mono sits on the sans x-height (the same balancing instinct as iA's duospace). Use exactly one accent (`--sf-color-primary`) for the single live element (caret, active row, focus ring) and keep everything else neutral. Prefer opinionated defaults and few props over a settings panel. When you build a focus affordance, dim surrounding context transiently as a state, and never let that become resting body copy: at rest, body text is still full-strength `--sf-color-fg`, never grey.
+**Directive.** Keep the monospace/sans split doing real work: `--sf-font-mono` for anything the eye scans as data or input (fields, code, tabular numerals, axis labels) and sans only for running prose, always paired with `font-size-adjust: var(--sf-font-mono-adjust)` so mono sits on the sans x-height (the same balancing instinct as iA's duospace). Use exactly one accent (`--sf-color-primary`) for the single live element (caret, active row, focus ring) and keep everything else neutral. Prefer opinionated defaults and few props over a settings panel. When you build a focus affordance, dim surrounding context transiently as a state, and never let that become resting body copy: at rest, body text is still full-strength `--sf-color-fg`, never grey.
 
 ### Bloomberg Terminal, keyboard and amber-on-black (1982 to present)
 
 ![Bloomberg Terminal (keyboard + amber-on-black)](inspiration/digital-heirs/bloomberg-terminal-keyboard-amber-on-black.jpg) - Public domain, author Cariafraweb, Wikimedia Commons.
 
-An expert tool that optimizes for the daily user, not the newcomer: keyboard-first command entry with a persistent command line and a single decisive commit key, a yellow function-key bank that colour-codes the whole market namespace, and amber-on-black readouts for long sessions. The 9 by 19 monospace font was reproduced pixel-for-pixel across decades of hardware; stability and recognizability outrank fashion.
+An expert tool that optimizes for the daily user rather than the newcomer: keyboard-first command entry with a persistent command line and a single decisive commit key, a yellow function-key bank that colour-codes the whole market namespace, and amber-on-black readouts for long sessions. The 9 by 19 monospace font was reproduced pixel-for-pixel across decades of hardware; stability and recognizability outrank fashion.
 
-**Directive.** Treat the keyboard as the primary input surface for expert flows: a persistent command or search entry, a single obvious commit key (Enter), and discoverable shortcuts shown as `Kbd` keycaps driven by a central hotkey engine (`focusFieldHotkey`), rather than burying actions in menus. Where a set of destinations forms a stable domain namespace, give it one consistent learnable colour and label code across the whole app, not per-screen ad hoc colour. Lean on native dark mode and full-strength contrast for long-session density (dense `DataTable`s, mono tabular numerals). Hold token names and component contracts stable across versions so a returning user's muscle memory still works.
+**Directive.** Treat the keyboard as the primary input surface for expert flows: a persistent command or search entry, a single obvious commit key (Enter), and discoverable shortcuts shown as `Kbd` keycaps driven by a central hotkey engine (`focusFieldHotkey`), rather than burying actions in menus. Where a set of destinations forms a stable domain namespace, give it one consistent learnable colour and label code across the whole app rather than per-screen ad hoc colour. Lean on native dark mode and full-strength contrast for long-session density (dense `DataTable`s, mono tabular numerals). Hold token names and component contracts stable across versions so a returning user's muscle memory still works.
 
 ### DEC VT100 and terminal culture (1978, and the grid it standardized)
 
@@ -284,7 +284,7 @@ An expert tool that optimizes for the daily user, not the newcomer: keyboard-fir
 
 The terminal that fixed the grammar of the text interface: a directory listing in perfectly aligned monospace columns, a footer totalling files and blocks, a solid block cursor at the prompt. Fixed-width cells are what make columns line up and near-identical glyphs (0/O, 1/l/I) distinguishable. The addressable character grid is the entire layout system, and small honest details (the block caret, hairlines on the pixel grid) make a readout feel like an instrument.
 
-**Directive.** Let a grid be the layout (CSS `Grid` on the `--sf-unit` baseline, not ad hoc flexbox). Use tabular monospace numerals wherever values change or must line up (`DataTable` cells, axis labels, `DigitInput`, `StreamingTerminalText`) so columns scan vertically. Keep the block caret and terminal styling in `CodeEditor` and terminal surfaces. Snap all chrome hairlines (gridlines, ticks, cell edges) to the device-pixel grid while leaving data marks anti-aliased, so the scaffolding stays crisp and the readout reads as a measuring device, not an illustration.
+**Directive.** Let a grid be the layout (CSS `Grid` on the `--sf-unit` baseline rather than ad hoc flexbox). Use tabular monospace numerals wherever values change or must line up (`DataTable` cells, axis labels, `DigitInput`, `StreamingTerminalText`) so columns scan vertically. Keep the block caret and terminal styling in `CodeEditor` and terminal surfaces. Snap all chrome hairlines (gridlines, ticks, cell edges) to the device-pixel grid while leaving data marks anti-aliased, so the scaffolding stays crisp and the readout reads as a measuring device rather than an illustration.
 
 ---
 
@@ -294,7 +294,7 @@ Seven principles run through every cluster. Each maps to a token or component be
 
 ### 1. The grid is the source of order, and it is invisible
 
-From the 606 E-track to the Airbus fixed-screen deck to Gerstner's 58-unit substructure to the VT100 character cell: order comes from a shared modular grid that everything aligns to, felt but never drawn. Structure carries the calm, so arrangement is free to be asymmetric and content-driven.
+From the 606 E-track to the Airbus fixed-screen deck to Gerstner's 58-unit substructure to the VT100 character cell: order comes from a shared modular grid that everything aligns to, felt but never drawn. The structure supplies the order, so arrangement is free to be asymmetric and content-driven.
 
 **Maps to:** `--sf-unit` (1.5rem) as the single source, `--sf-leading-base` and `--sf-line-height-grid` locking block text to the baseline, and the `--sf-space-0..12` ladder only for non-unit fractions. Behaviour: `Grid`, `FieldLayout` and `Pane` derive every gap, height and inset from the unit; separation comes from alignment plus elevation and spacing, never a card border doing what alignment already does.
 
@@ -310,7 +310,7 @@ The SK4 under glass, the T3 speaker grid exposed, the Pocket Operator's bare boa
 
 **Maps to:** the one sanctioned skeuomorphism (`Kbd` keycaps, the `inset 0 1px 0 rgb(255 255 255 / 0.18)` tactile top-edge cue on inputs/switches/buttons); text-entry controls resting one shade below the page (`--sf-color-input-bg`) and lifting to `--sf-color-bg` on focus so an empty field reads as a recessed slot. Behaviour: surface real state and real data (a live count, the actual query, the raw editable value); compound components (`Pane`, `Dialog`, `WindowArray`) as honest modules each showing its own state via a `Chip` `dot` or counter; explicit `Graph` edges over relationships hidden in a config dialog.
 
-### 4. Tactile precision: quality is felt, not decorated, through committed discrete feedback
+### 4. Tactile precision: quality is felt rather than decorated, through committed discrete feedback
 
 The Curta's detent, the HP ENTER key, the Leica dial click: these read as high quality because of the decisive click of each control. On screen this is committed, discrete feedback, never springy or looping motion.
 
@@ -322,7 +322,7 @@ The PFD read under glare, the Porsche cluster read at speed, the Bloomberg scree
 
 **Maps to:** `--sf-font-mono` with `--sf-font-mono-adjust` (0.52) so mono sits on the sans x-height; `--sf-color-gridline` (quieter than `--sf-color-border`) for chart scaffolding; full-strength `--sf-color-fg` for all body text. Behaviour: charts default to `scaffolding="hover"` with labels measured then thinned or ellipsized, never rotated, first and last always surviving; chrome hairlines snapped to the device-pixel grid while marks stay anti-aliased; live readouts in fixed-width boxes so digits never reflow.
 
-### 6. Colour is a code, not a coat: saturation reserved for meaning
+### 6. Colour is a code: saturation reserved for meaning
 
 The ET66 yellow "=", the Porsche redline, the Airbus green/cyan/amber/red state channel, the OP-1 knob-to-parameter mapping. A near-monochrome field is what makes the one signal legible. Multi-hue is licensed only as a fixed, learnable channel-to-colour code repeated identically everywhere.
 
@@ -345,10 +345,10 @@ A short checklist of directives, drawn from the sections above, to apply and to 
 3. **Two alert tiers, each paired with the next action.** `warning` for awareness (persists, does not interrupt), `danger` for action-required (stronger, may interrupt), routed through `NonIdealState` or a fixed status strip. No third decorative alert colour, no badges when nothing is wrong.
 4. **Box and tabularize live values.** Metric readouts in fixed-width boxes with `--sf-font-mono` tabular numerals so digits never reflow; let the scale or trend move, never the number.
 5. **Rank by decision-value.** One dominant tile or readout in the optical centre, equal-weight `sm`-sized satellites around it; refuse to make every KPI the same size.
-6. **Split surfaces into an output zone and a control strip.** One clean boundary (a single `Pane.Header` or toolbar); zone dense clusters by weight, size and spacing, not by boxing every group in borders.
+6. **Split surfaces into an output zone and a control strip.** One clean boundary (a single `Pane.Header` or toolbar); zone dense clusters by weight, size and spacing rather than by boxing every group in borders.
 7. **Label adjacent, stage then commit.** `Field` and `FieldLayout` put the label beside its control in strict source order; dense inline edits stage in one consistent place (`DataTable` cell editors, a command bar) and commit on an explicit action.
-8. **Keep the mono/sans split load-bearing.** `--sf-font-mono` (with `font-size-adjust: var(--sf-font-mono-adjust)`) for data, input, code and axis labels; sans for prose. Body text is always full-strength `--sf-color-fg`, never grey.
-9. **Motion is a detent, not a spring.** Reserve `--sf-ease-snap` for a single deliberate interaction; charts redraw rather than animate; every transition has a `prefers-reduced-motion: reduce` static fallback.
+8. **Keep the mono/sans split doing real work.** `--sf-font-mono` (with `font-size-adjust: var(--sf-font-mono-adjust)`) for data, input, code and axis labels; sans for prose. Body text is always full-strength `--sf-color-fg`, never grey.
+9. **Motion is a detent rather than a spring.** Reserve `--sf-ease-snap` for a single deliberate interaction; charts redraw rather than animate; every transition has a `prefers-reduced-motion: reduce` static fallback.
 10. **Dark mode is lit edges on near-black.** Lean on the `[data-theme="dark"]` hard cast, lightening film and 1px lit inset rim to define controls; reserve highlight brightness for interactive and focused elements. No glassmorphism, no gradients on chrome.
 11. **Compose from honest modules with visible seams.** Compound components separated by one `--sf-color-border`, each owning one job and showing its own state (a `Chip` `dot`, a counter). Draw connections explicitly with `Graph` edges rather than hiding them in a config panel.
 12. **Schematize node-link and route views.** Fixed angle set, one line weight, one node marker, series identity by colour from a small fixed palette, plus a compact fixed legend.

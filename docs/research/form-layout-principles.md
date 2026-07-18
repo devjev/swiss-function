@@ -8,18 +8,18 @@ Throughout: widths, gaps, and heights are declared in `--sf-unit` multiples (1.5
 
 ## 1. The design stance: instrument-panel forms
 
-A form in this library is a control surface, not a landing-page sign-up. The reference points are an Airbus MCDU scratchpad, a Bloomberg entry blotter, and the fixed-legend rigor of a Leica top plate: every field has a known place, the rhythm is the baseline grid, and nothing moves under the operator unless the operator moved it.
+A form in this library is a control surface. The reference points are an Airbus MCDU scratchpad, a Bloomberg entry blotter, and the fixed-legend rigor of a Leica top plate: every field has a known place, the rhythm is the baseline grid, and nothing moves under the operator unless the operator moved it.
 
 That posture produces a small set of non-negotiables:
 
 - **Labels are fixed legend.** They sit above the control, left-flush with it, always visible. A placeholder is never a label.
 - **The grid is the order.** Vertical rhythm is 2u between sections and 1u within; the label-to-control gap is u/4. You should be able to lay a baseline grid over any form and have every row land on it.
 - **Chrome recedes, data is foremost.** Hairline separation and honest spacing carry grouping. A field is not a card; a form is not a stack of cards.
-- **Colour is state, not decoration.** A resting field is neutral. Saturated colour appears only when something is true: primary on focus, danger on error. No brand-colour resting borders, no success-green on valid fields, no decorative field backgrounds.
+- **Colour is state.** A resting field is neutral. Saturated colour appears only when something is true: primary on focus, danger on error. No brand-colour resting borders, no success-green on valid fields, no decorative field backgrounds.
 - **Copy the user must read is full strength.** `Field.Description` and `FieldLayout` hints render at the small type size in `--sf-color-fg`, never grey. This is the project's cardinal anti-pattern and it is locked here so a refactor cannot quietly grey it out.
 - **Nothing jumps.** An appearing error or a dependent field must not shove the rows below it. The layout reserves the space it will need (the MCDU scratchpad principle: the message line is always there, it just fills in).
 
-Density is a lever, not a luxury. The default is tight and on the grid; comfortable is an option, never the resting state. Whitespace is rhythm, not padding for its own sake.
+Density is a lever. The default is tight and on the grid; comfortable is an option. Whitespace serves the rhythm.
 
 ---
 
@@ -39,15 +39,15 @@ Labels sit directly above their control, sharing the control's left edge: top-al
 
 Group with the baseline grid and, at most, a hairline. Roughly 2u between sections and 1u within a section is enough separation for the eye; a section title carries the rest.
 
-Do **not** wrap each field or field-group in a bordered or elevated box. Card-per-field grouping fragments a dense form into a stack of trays, adds four borders where one gap would do, and reads as a consumer product. A section is a title plus rhythm, not a container with a perimeter.
+Do **not** wrap each field or field-group in a bordered or elevated box. Card-per-field grouping fragments a dense form into a stack of trays, adds four borders where one gap would do, and reads as a consumer product. A section is a title plus rhythm.
 
 This is a live tension in `VerticalForm`, whose default `elevation={1}` gives every row a Box surface. For dense instrument forms, prefer `bare` (rhythm-and-hairline grouping) and reserve the surface for the rare case where a row genuinely needs to read as a distinct panel.
 
 ### 2.3 Density
 
-Density comes from spacing and the type scale, not from shrinking type below legibility. There are three type sizes (`sm`, `md`, `lg`); a dense form uses `sm` and tighter uniform gaps, never a fourth invented sub-legible size. Interactive hit areas stay usable even when compact.
+Density comes from spacing and the type scale. There are three type sizes (`sm`, `md`, `lg`); a dense form uses `sm` and tighter uniform gaps, never a fourth invented sub-legible size. Interactive hit areas stay usable even when compact.
 
-Row height is a spacing decision, and it is an integer multiple of the baseline unit so the rhythm holds. Do not adopt a 48px touch-target row as the default; that is consumer-grid folklore, not an instrument row.
+Row height is a spacing decision, and it is an integer multiple of the baseline unit so the rhythm holds. Do not adopt a 48px touch-target row as the default; that is consumer-grid folklore.
 
 ### 2.4 Justified fields
 
@@ -56,7 +56,7 @@ Row height is a spacing decision, and it is an integer multiple of the baseline 
 Two rules keep justification honest:
 
 - **Field width should signal expected input length.** A year, a code, a quantity, or a date is a bounded datum and should render visibly narrower than an address or a name. Use `rigid` (fixed unit width) for bounded controls; do not stretch every field to a uniform column just to justify the line. A four-character field next to a long text field should be less than half its width.
-- **Absorb slack in one place.** Leftover horizontal space belongs in a single flexible or filler track, not distributed as sparse inter-column padding and never as a centered block (centering floats both margins and removes the row's fixed left origin). When data under-fills a wide container, cap the fields to their content width, anchor them to the reading edge (left), and let one `Filler` hold the remainder (optionally dithered so the emptiness reads as marked, not blank).
+- **Absorb slack in one place.** Leftover horizontal space belongs in a single flexible or filler track. It is never spread as sparse inter-column padding or held as a centered block (centering floats both margins and removes the row's fixed left origin). When data under-fills a wide container, cap the fields to their content width, anchor them to the reading edge (left), and let one `Filler` hold the remainder (optionally dithered so the emptiness reads as marked).
 
 Because the mechanism is `flex-wrap` (not grid auto-flow), fields keep strict source order and never migrate lines. Narrowing carries fewer fields per line: gradual, container-driven collapse with no breakpoints. Horizontally-adjacent fields (at most three) are legitimate only when they are fragments of one datum (date parts, city and postcode, first and last name); unrelated fields from two sections never share a line.
 
@@ -71,7 +71,7 @@ The failure to avoid: centering each field independently on the line. Centre ali
 Two rules, both about not surprising the operator:
 
 - **Reserve the message row.** The description or error slot is pre-allocated so an appearing validation error overwrites it in place and never reflows the fields below it. Trigger an error on a middle field and every field beneath it must keep its y-position; only the reserved slot changes. The same applies to a dependent field that appears based on another's value: reserve its space or accept that the layout will jump.
-- **Reward early, punish late.** Never flag a field being filled for the first time mid-keystroke; validate on blur or submit while it is still empty or still valid. Once a field is *in* error, re-validate per keystroke so the error clears the instant the input becomes valid, not on the next blur.
+- **Reward early, punish late.** Never flag a field being filled for the first time mid-keystroke; validate on blur or submit while it is still empty or still valid. Once a field is *in* error, re-validate per keystroke so the error clears the instant the input becomes valid.
 
 Error text is `--sf-color-danger` adjacent to its control. Description text is `--sf-color-fg` at the small size. Neither is ever muted. A submit or busy state must be reflected on the button so the form cannot be double-submitted.
 
@@ -79,7 +79,7 @@ For a fully-visible dense panel, inline-at-field errors are sufficient. A separa
 
 ### 2.7 Long labels
 
-A long field label is an adverse case, not an edge case, and it needs a contract:
+A long field label is an adverse case, and it needs a contract:
 
 - Cap the label measure and either wrap predictably beneath its own control (never pushing the control's start point sideways) or truncate to one line with a `title` revealing the full text.
 - Never rotate a label to vertical or diagonal.
@@ -94,7 +94,7 @@ The measure cap uses the system tokens (`--sf-measure` / `--sf-measure-wide`), s
 Named anti-patterns. If a form does any of these, it is wrong for this library.
 
 - **Placeholder-as-label.** The label disappears the moment the field is useful.
-- **Card-per-field grouping.** A bordered or elevated box around every field or field-group. Grouping is rhythm plus a hairline, not a perimeter.
+- **Card-per-field grouping.** A bordered or elevated box around every field or field-group. Grouping is rhythm plus a hairline.
 - **Right-aligned label columns** as a general layout. Breaks under long labels and RTL.
 - **Labels beside controls** for ordinary fields. Reserve the beside layout for switch and checkbox rows only.
 - **Uniform field widths.** Stretching a year field and an address field to the same column erases the input-length signal.
@@ -104,9 +104,9 @@ Named anti-patterns. If a form does any of these, it is wrong for this library.
 - **Decorative colour on resting fields.** Brand-colour borders, tinted backgrounds, success-green on valid fields. Colour is reserved for focus and error state.
 - **Grey body copy.** Muted `Field.Description` or hint text. Full-strength `--sf-color-fg` at the small size.
 - **Rotated or clipped-without-recovery labels.** No vertical text; no truncation without a `title`.
-- **Required-vs-optional by hue alone.** The distinction must survive a grayscale screenshot (a `*` glyph or text marker, not just colour).
-- **A fourth, sub-legible type size** to cram more in. Compress with spacing tokens and the `sm` size, not with unreadable type.
-- **48px comfortable rows as the default.** That is a touch-target minimum from consumer grids, not a dense-instrument row height.
+- **Required-vs-optional by hue alone.** The distinction must survive a grayscale screenshot (a `*` glyph or text marker rather than just colour).
+- **A fourth, sub-legible type size** to cram more in. Compress with spacing tokens and the `sm` size.
+- **48px comfortable rows as the default.** That is a touch-target minimum from consumer grids.
 
 ---
 
@@ -125,7 +125,7 @@ A testable checklist for `VerticalForm` (and, where noted, `FieldLayout`) under 
 ### B. Many fields (a tall form, 20-plus rows)
 
 - [ ] **B1 Position rail present.** In a fixed-height frame, a 20-field form renders a position rail with at least 20 markers and a jump control listing the titles.
-- [ ] **B2 Height-required footgun documented.** The same form with no height constraint on the parent renders no rail (the parent must constrain height). This is expected and must be documented, not silently broken.
+- [ ] **B2 Height-required footgun documented.** The same form with no height constraint on the parent renders no rail (the parent must constrain height). This is expected and must be documented rather than silently broken.
 - [ ] **B3 Errored fields marked on the rail.** A field with an error contributes a danger-toned tick on the rail.
 - [ ] **B4 Sparse form does not read as unfinished.** A short form in a tall container either holds its height with a marked (dithered) band or anchors cleanly to the top; it does not leave an ambiguous blank rectangle that reads as still-loading.
 
@@ -145,7 +145,7 @@ A testable checklist for `VerticalForm` (and, where noted, `FieldLayout`) under 
 ### E. Broad container (a form under-filling a wide region, roughly 1600px-plus)
 
 - [ ] **E1 Content-width cap, left-anchored.** Fields cap at their content width and anchor to the container's left (reading) edge; the form is not centered with two floating margins.
-- [ ] **E2 Slack in one track.** Leftover horizontal space is one contiguous region on the trailing side (a single flexible or filler track), not distributed as sparse inter-field padding.
+- [ ] **E2 Slack in one track.** Leftover horizontal space is one contiguous region on the trailing side (a single flexible or filler track) rather than distributed as sparse inter-field padding.
 - [ ] **E3 Width signals length.** A bounded field (date, code, quantity) is visibly narrower than a long text field: `bounded.width < 0.5 * text.width`. A rigid control's width is unchanged between a wide and a narrow container while a flexible sibling absorbs the slack.
 
 ### F. Mixed control sizes on one line
@@ -157,7 +157,7 @@ A testable checklist for `VerticalForm` (and, where noted, `FieldLayout`) under 
 
 - [ ] **G1 No reflow on error.** Triggering an error on a middle field leaves every field below it at its original y-position; only the reserved message slot changes.
 - [ ] **G2 Reward early.** Typing two characters into a fresh required field without blurring shows no error and no danger styling.
-- [ ] **G3 Punish late, clear immediately.** Typing the correction into an already-errored field clears the error on the keystroke that makes it valid, not on the next blur.
+- [ ] **G3 Punish late, clear immediately.** Typing the correction into an already-errored field clears the error on the keystroke that makes it valid.
 
 ---
 
@@ -187,18 +187,18 @@ Passes:
 
 - **A1, A3** hold. Label above control (`.field { flex-direction: column }`, `.label` then `.body`, `FieldLayout.module.css:27-51`); rhythm is 2u between sections, 1u within, u/4 label-to-control (`.root gap: calc(2 * var(--sf-unit))`, `.section gap: var(--sf-unit)`, `.field gap: calc(var(--sf-unit) / 4)`).
 - **D1, D2** hold. Because a Section is `flex-wrap` (not grid auto-flow), fields keep strict source order and never migrate lines (`FieldLayout.tsx` header comment, `.section flex-wrap: wrap`); narrowing carries fewer fields per line with no breakpoints. `min-inline-size: 0` on root and section contains overflow.
-- **E2** holds. Slack is absorbed by flexible/filler `flex-grow` into whichever tracks grow, not by inter-field padding; `Filler` gives the single trailing track (optionally dithered, `FieldLayout.tsx:206-230`).
+- **E2** holds. Slack is absorbed by flexible/filler `flex-grow` into whichever tracks grow, with no inter-field padding; `Filler` gives the single trailing track (optionally dithered, `FieldLayout.tsx:206-230`).
 - **A5** holds. The hint reads at the small size in `--sf-color-fg` (`.hint`, `FieldLayout.module.css:64-69`), explicitly not grey.
 - **E3 (partial)** holds for the bounded case: `rigid` pins a fixed unit width that does not shrink under a hint (`FieldLayout.tsx:129-136,182-185`), so a rigid control stays fixed while a flexible sibling absorbs slack.
 
 Gaps:
 
 - **Gap F1 (F1, F2, mixed control sizes): the row centres each field, with no cross-field baseline.** `.body { align-items: center }` (`FieldLayout.module.css:45-51`) centres each field's control-and-hint independently, and there is no subgrid or shared baseline across the fields on one wrapped line. A tall control on a line pulls its short neighbours to the vertical middle rather than a shared top or baseline. Fails F1 and F2 directly; this is the section 2.5 failure mode, present in the code.
-- **Gap F2 (E3, width signals length): flexible fields grow uniformly to justify.** The default kind is `flexible` with `grow: 1, basis: 14u, min: 10u, max: 36u` (`FieldLayout.tsx:73-78`). Because every flexible field on a line grows with equal weight to justify it, sibling flexible fields tend toward equal widths regardless of expected input length. The input-length signal exists only if the author reaches for `rigid` (or hand-tunes `preferred`/`grow`) on every bounded field; nothing defaults a bounded datum to a narrower track. Partial fail on E3: bounded-versus-open width is manual, not enforced.
+- **Gap F2 (E3, width signals length): flexible fields grow uniformly to justify.** The default kind is `flexible` with `grow: 1, basis: 14u, min: 10u, max: 36u` (`FieldLayout.tsx:73-78`). Because every flexible field on a line grows with equal weight to justify it, sibling flexible fields tend toward equal widths regardless of expected input length. The input-length signal exists only if the author reaches for `rigid` (or hand-tunes `preferred`/`grow`) on every bounded field; nothing defaults a bounded datum to a narrower track. Partial fail on E3: bounded-versus-open width is manual rather than enforced.
 - **Gap F3 (C1, C2, long labels): the label has no measure contract.** `.label` (`FieldLayout.module.css:37-41`) has no `max-width`, no ellipsis, no `--sf-measure` cap. A long label wraps to as many lines as it needs and, because the label is a block above the control, a very long label in a narrow flexible field wraps unpredictably and grows the field's height, staggering the line (compounding Gap F1). Fails C1; contributes to C2.
 - **Gap F4 (B4/E1 vertical fill): fills only horizontally.** `Filler` absorbs horizontal slack, but there is no vertical fill for a short form in a tall container. Consistent with VerticalForm's Gap V5: the "filled instrument panel" read is horizontal-only in the form layers.
 
 ### Cross-cutting
 
 - **Reward-early / punish-late (G2, G3)** is untestable against these two components alone: both are presentational, so validation timing lives in `Form` and the consumer. The rubric's G items should be run against a `Form`-wrapped story, and `Form`'s validation policy is where the reward-early/punish-late invariant must actually be enforced.
-- The two most valuable fixes, ranked: (1) reserve the message row so an appearing error stops reflowing the form (Gap V2), the highest-frequency real jump; (2) re-express VerticalForm's 24rem/8rem/12rem breakpoint in `--sf-unit` multiples (Gap V3), the one place the stack leaves the unit grid. Both are small and both close a stated principle.
+- The two fixes to prioritize, ranked: (1) reserve the message row so an appearing error stops reflowing the form (Gap V2), the highest-frequency real jump; (2) re-express VerticalForm's 24rem/8rem/12rem breakpoint in `--sf-unit` multiples (Gap V3), the one place the stack leaves the unit grid. Both are small and both close a stated principle.
