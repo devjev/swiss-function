@@ -20,7 +20,7 @@ const HOLDING_COLUMNS: TableInputColumn<Holding>[] = [
     header: "Shares",
     edit: { type: "number", decimals: 0 },
     width: 6,
-    align: "end",
+    // number columns right-align automatically now; no explicit align needed
   },
   {
     key: "assetClass",

@@ -45,6 +45,8 @@
   line-height: var(--sf-line-height-grid);
   color: var(--sf-color-muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .row {
@@ -87,6 +89,19 @@
 .control {
   inline-size: 100%;
   min-inline-size: 0;
+}
+
+/* Numeric cells read in tabular mono figures so decimals column-align, the same
+   contract DataTable's number cells use. Inherited by the inner editor. */
+.cell[data-type="number"] {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+}
+.cell[data-type="number"] .control {
+  font-family: inherit;
+  font-size-adjust: inherit;
+  font-variant-numeric: inherit;
 }
 
 /* The trailing delete column and the leading drag column hug their button. */

@@ -95,6 +95,12 @@ function emptyCell(config: EditConfig): unknown {
   }
 }
 
+/** A number reads right-aligned by default so decimals line up; other types read
+ *  from the start. An explicit `align` on the column always wins. */
+function alignFor<T>(column: TableInputColumn<T>): "start" | "center" | "end" {
+  return column.align ?? (column.edit.type === "number" ? "end" : "start");
+}
+
 /** One always-on cell editor, chosen by the column's edit config. */
 function Cell({
   config,
@@ -181,7 +187,12 @@ function RowCells<T>({
     <>
       {lead}
       {columns.map((column) => (
-        <div key={column.key} className={styles.cell} data-align={column.align ?? "start"}>
+        <div
+          key={column.key}
+          className={styles.cell}
+          data-align={alignFor(column)}
+          data-type={column.edit.type}
+        >
           <Cell
             config={column.edit}
             value={(row as Record<string, unknown>)[column.key]}
@@ -237,7 +248,14 @@ export function TableInput<T = Record<string, unknown>>({
       if (c.minWidth != null) return Math.min(c.minWidth, c.width ?? c.minWidth);
       // Narrow controls (checkbox, micro number) get a tight floor; the rest use
       // minColumnWidth. Never exceed a set preferred width.
-      const base = c.edit.type === "boolean" ? 2.5 : c.edit.type === "number" ? 4 : minColumnWidth;
+      const base =
+        c.edit.type === "boolean"
+          ? 2.5
+          : c.edit.type === "number"
+            ? 4
+            : c.edit.type === "date"
+              ? 7
+              : minColumnWidth;
       return c.width != null ? Math.min(base, c.width) : base;
     };
     const tracks = [
@@ -303,7 +321,8 @@ export function TableInput<T = Record<string, unknown>>({
             <div
               key={column.key}
               className={styles.headerCell}
-              data-align={column.align ?? "start"}
+              data-align={alignFor(column)}
+              title={typeof column.header === "string" ? column.header : column.key}
             >
               {column.header ?? column.key}
             </div>
