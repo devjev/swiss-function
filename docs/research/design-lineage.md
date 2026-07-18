@@ -516,7 +516,69 @@ A passive display where each segment is a liquid-crystal cell that, when address
 
 ---
 
-## 14. Meta-principles: what the whole lineage shares, mapped to our system
+## 14. Siemens industrial control: one modular grammar from the DIN rail to the operator screen, colour spent only on a real fault
+
+Siemens process and machine control builds from one repeated module, prints each unit's identity where the hand works, stages entry before it commits, and lights colour only on a genuine fault, holding the same grammar from a single DIN-rail block to a plant-wide mimic wall.
+
+### SIMATIC S7-300 rack on a DIN rail (1994 to 2023)
+
+![SIMATIC S7-300 rack on a DIN rail](inspiration/siemens-industrial-control/simatic-s7-300-rack-on-a-din-rail-1994-to-2023.jpg) - CC BY-SA 2.5, photo Ulli1105, Wikimedia Commons.
+
+A programmable controller assembled from modules snapped onto one shared DIN rail. The CPU sits at the left with a vertical status-LED strip (SF, BF, DC5V, FRCE, RUN, STOP) and a keyed mode switch; identical-width signal modules follow, each carrying its own vertical strip of channel LEDs, a light hinged terminal cover, and a slot number printed at the foot. Every module is the same height and hangs on the same rail, so the whole assembly reads as one repeated grid. The bodies are matte anthracite and the only colour is the lit LEDs: green for channel state, with the SF system-fault LED held red at the top of each strip and dark until a real fault. Density comes from repeating one module footprint, so the eye learns the slot once and reads it across the cabinet, and the RUN/STOP selector on the CPU stays visible at all times.
+
+**Directive.** Compose a dense control surface as a uniform `Grid` of modules sharing one footprint on `--sf-unit` tracks, so a `DataTable` or `Explorer` row, a form section, or a panel column is one repeated slot the eye learns once. Give each module a single status strip and keep its body neutral (`--sf-color-fg`, `--sf-color-border`), spending `--sf-color-danger` only on a genuine fault the way the SF LED stays dark until a real system fault (a `Chip` with a `dot`, neutral at rest). Keep the current mode named and visible on the controlling module with a `ToggleGroup` rather than buried in a menu, echoing the always-visible RUN/STOP switch.
+
+### SIMATIC S5 PG 675 luggable programmer (early 1980s)
+
+![SIMATIC S5 PG 675 luggable programmer](inspiration/siemens-industrial-control/simatic-s5-pg-675-luggable-programmer.jpg) - CC BY-SA 3.0 / GFDL, photo Mixabest, Wikimedia Commons.
+
+The portable programming device for the SIMATIC S5 controller family. A flip-up alphanumeric keyboard with eight function keys, a 23 cm monochrome CRT, two 5.25-inch floppy drives and an integrated EPROM programmer fold into one rugged case of roughly 17 to 20 kg. It ran CP/M and loaded the STEP 5 software from a system diskette. An engineer carried the whole authoring workstation to the machine, wrote and tested the control program on the factory floor, then wrote it into the controller. The display, keyboard and storage pack into one self-contained instrument that shows its own state and needs nothing else to do the job; a small monochrome screen and a fixed key bank are sized for the task and legible under shop lighting.
+
+**Directive.** Design a region as a self-contained unit that carries everything the task needs and depends on no ambient chrome: a `Pane` (header plus scrollable body) or a `WindowArray` column holding a complete working context, so it stays usable dropped into a sidebar or a split. Give function keys fixed, learnable homes: a `MenuBar.Control` strip or a `ButtonGroup` whose actions keep their position, each labelled in `--sf-font-mono` and tagged with a `Kbd` keycap driven by a central hotkey engine (`focusFieldHotkey`). Build for the small dense screen first: full-strength `--sf-color-fg` on the field, tabular mono figures, and no layout that assumes a wide viewport.
+
+### STEP 5 ladder, statement list and function block editor (late 1970s to 1990s)
+
+![STEP 5 ladder, statement list and function block editor](inspiration/siemens-industrial-control/step-5-ladder-statement-list-and-function-block-edit.png) - CC BY-SA 4.0, author Alxcor, Wikimedia Commons.
+
+STEP 5 authored the logic for S5 controllers in three interchangeable representations of one program: LAD (contact plan, a ladder of contacts and coils), STL (statement list, a text of boolean instructions) and FBD (function block diagram, gates wired into blocks). The editor rendered each on a fixed character grid, one network per segment, and switched a translatable block between the three views. Programs were built from named, typed blocks (organization, program, function, data) rather than one long listing. The logic is a single structure the author reads as a wiring diagram, as text, or as gates, each view generated from the same source; the grid seats contacts and coils in fixed cells, so a rung scans left to right like a circuit and the eye learns one template.
+
+**Directive.** When one underlying model has more than one useful representation (a query as builder or text, a rule as form or expression), offer them as `Tabs` over the same source and generate each view rather than storing them apart. Lay any diagrammatic logic on a strict `Grid` of `--sf-unit` cells so elements seat in fixed positions and the path reads left to right, and keep the wiring explicit with `Graph`'s visible, editable edges rather than a hidden config. Render statement lists and code in `CodeEditor` (block caret, `--sf-color-code-*` themes), and give a block-structured program a navigable spine with `Explorer` or a `Minimap` keyed to the named blocks. Keep every legend and operand full-strength in `--sf-font-mono` with `font-size-adjust: var(--sf-font-mono-adjust)`.
+
+### SIMATIC HMI Basic Panel running a live process screen (second-generation Basic Panel, photographed 2019)
+
+![SIMATIC HMI Basic Panel running a live process screen](inspiration/siemens-industrial-control/simatic-hmi-basic-panel-running-a-live-process-scree.jpg) - CC BY-SA 4.0, photo ZianMan, 2019, Wikimedia Commons (File:SIMATIC HMI.jpg).
+
+A small SIMATIC HMI touch panel (a KTP400-class Basic Panel, about 4 inches, four hardware function keys F1 to F4 in the bezel below the display) mounted in a machine and showing a running process. The screen holds a persistent header line: date at the left, the current machine state ("Unit Stop") in the centre, a login indicator and the clock at the right. An alarm field sits at the top left, a warning triangle carrying the active-alarm count beside two labelled value fields (0.50 %, 0.0 kg/h). The body is a high-contrast mimic: a tank with two pumps, a dosing pump, valves and pipes drawn as flat schematic symbols in one line weight, a vertical level bar, a flow readout and a batch number in fixed fields. A row of four on-screen softkeys (Mode, Menu, Archive, Reset) sits directly above the four hardware keys, so each label names the physical key beneath it. The whole operator-screen skeleton reads in one artifact: a status and alarm line that never moves, values in fixed labelled fields, a schematic mimic carrying the process state, and a softkey frame binding on-screen labels to fixed physical keys.
+
+**Directive.** Give every app a persistent status strip in a fixed `Pane.Header` slot that spells the current mode in words plus the clock and never reorders. Set value readouts as `DigitInput` or `DataTable` cells in `--sf-font-mono` tabular figures with `font-size-adjust: var(--sf-font-mono-adjust)`, so digits seat in fixed boxes and never reflow as they change. Draw any process mimic as flat schematic marks (a `Graph` or rendered symbols) at one line weight on a neutral field, with no gradients. Reserve the alarm indicator for a real condition: `--sf-color-warning` for an awareness caution and `--sf-color-danger` for an action-required hazard, absent at rest, with the count and message routed through a status region or `NonIdealState`. Fix action controls to a frame with a `ButtonGroup`, labelling each in place and echoing the binding as a `Kbd` keycap rather than a distant legend.
+
+### SINUMERIK operator panel front: the softkey frame and machine keypad (monochrome-CRT era, 1980s to 1990s)
+
+![SINUMERIK operator panel front: the softkey frame and machine keypad](inspiration/siemens-industrial-control/sinumerik-operator-panel-front-the-softkey-frame-and.jpg) - CC BY-SA 2.0, photo Carlos Vieira (Brazil) via Flickr, Wikimedia Commons (File:CNC panel.jpg). Distinct from the section 9 SINUMERIK image by the same photographer.
+
+The operator panel front of a Siemens SINUMERIK CNC, the man-machine communication (MMC) frame that section 9 only sketches. A monochrome display sits in a steel bezel over a row of unlabeled softkeys that take their meaning from the screen labels directly above them, flanked by a recall key and a menu-extend key that page the softkey set. Below sit an alphanumeric block for editing G-code blocks, a DIN-standard numeric keypad (7 8 9 / 4 5 6 / 1 2 3 / +/- 0 . with arithmetic keys), a cursor and page block, and three committed-action keys set apart in the corner: a white RESET, a red stop, and a green cycle-start. One fixed frame of generic keys serves many functions because each takes its current meaning from the label on the screen beside it; the keys hold their positions and hit-targets while their bindings change with context, and the two paging keys walk the set. Committing an action is a separate deliberate key set apart from the editing keys.
+
+**Directive.** Build a context-action surface as a fixed frame of equal `Button`s whose positions never move, rebinding only their labels and `onClick` from the active view rather than rebuilding a bespoke toolbar per screen. A `Pane` holds the working `Pane.Body` in the centre with two `ButtonGroup` rails at fixed edges (a bottom strip and a right strip on the `--sf-unit` grid), each key the same size and hit-target so muscle memory survives across contexts; page a longer set with a recall/more pair rather than reflowing the strip. Keep numeric entry a DIN keypad of fixed tabular-mono cells (`DigitInput`), fully keyboard-driven. Set the committing keys apart in their own corner away from the editing keys: a cycle-start maps to one primary `Button`, a stop to `Button variant="danger"`, so a commit is never adjacent to a data key. Legends stay full-strength `--sf-color-fg` in `--sf-font-mono`, never grey or hover-only.
+
+### Mauell mosaic mimic panel: the process map built from a modular tile grid (1961 onward)
+
+![Mauell mosaic mimic panel: the process map built from a modular tile grid](inspiration/siemens-industrial-control/mauell-mosaic-mimic-panel-the-process-map-built-from.jpg) - CC BY-SA 3.0 / GFDL, photo Frank Ortmann (2004), German Wikipedia. Hosted on de.wikipedia with a Commons transfer pending copyright review; the file page carries both licences, so treat the URL as stable but flag the pending review.
+
+A mosaic mimic panel assembled from small square plastic tiles on one shared grid (standard cells are 18, 24, 36 or 48 mm). Each tile carries a fragment of the plant schematic: a length of pipe, a valve symbol, a vessel, an instrument loop tag such as "FIRC 1024", colour-coded by the medium it carries. A self-supporting metal grid frame holds the tiles and lets a lamp, an edgewise meter or a switch drop into any cell, so the control-room wall becomes one schematic map of the process that every operator reads at once, and a plant change is a matter of pulling and replacing tiles. Mauell built these from 1961 and the schematic lines run continuously across the tile seams, so the grid supplies the alignment while the drawing stays free. Siemens process control of the same decades drove exactly this kind of mimic desk, and when screens arrived Teleperm M (1980) and SIMATIC PCS 7 (1997) rebuilt the discipline as on-screen faceplates, one standardized operator block per motor, valve or controller, called up on demand and read the same way every time.
+
+**Directive.** Build a process or pipeline schematic as a uniform `Grid` on `--sf-unit` tracks, each cell holding one fragment: a symbol, a value, or a status lamp. Route the connecting lines orthogonally across the cell seams with `Graph`'s editable edges at one line weight and one node marker, so the drawing stays continuous while the grid supplies the alignment. Reserve a small fixed palette to code the medium or series (a channel-to-colour map the operator learns once and sees identically everywhere) and stay neutral outside it; a resting line carries no `--sf-color-primary`. Keep instrument tags and values in `--sf-font-mono` tabular figures on the cell, and let a `Chip` `dot` or a lit cell show `--sf-color-warning` or `--sf-color-danger` only on a real condition. When the mimic moves on-screen, give a whole class of element one shared faceplate compound (a `Field` or `Box` with a fixed internal template) read the same way every time, and edit the diagram by swapping cells through props and tokens rather than reflowing the grid.
+
+### Siemens miniature circuit breaker, printed class-and-rating marking (5SX2, 1990s to present)
+
+![Siemens miniature circuit breaker, printed class-and-rating marking](inspiration/siemens-industrial-control/siemens-miniature-circuit-breaker-printed-class-and-.jpg) - CC BY-SA 3.0, photo Dmitry G, Wikimedia Commons.
+
+A modular DIN-rail miniature circuit breaker, a Siemens 5SX2, the family the SENTRON line now continues. It clips onto the standard 35 mm rail at a fixed one-module width. The front face prints only what an installer needs where the toggle sits: the maker, the type, and the code C25, where C names the tripping characteristic (a class) and 25 the rated current in amperes. The side face carries the rest as a dense monochrome block: rated voltage, the IEC and EN standard numbers, the approval marks, Made in Germany. Colour codes nothing decorative; the identity of the device is the printed class-and-rating code, read the same way across a whole row of identical modules in a cabinet. The same discipline governs a SIRIUS contactor, whose terminals follow one fixed scheme (A1/A2 for the coil, 1 to 6 for the poles, 13/14 for an auxiliary contact) so any electrician wires it without a manual.
+
+**Directive.** Mark a repeated element the way these modules are marked: a short printed code that names its class and its value (C25), set in `--sf-font-mono` at full-strength `--sf-color-fg`, so a column of identical rows in a `DataTable` or an `Explorer` is told apart by its code rather than by re-themed chrome. Keep the marking monochrome and let colour code only a class or a state (a `Chip` with a `tone`: `--sf-color-warning` for tripped or at-limit, neutral at rest), never decoration. Fold secondary detail (standards, ratings, provenance) into the same module rather than a separate panel, the way the side face carries its standards block. Hold one fixed labelling scheme across the toolkit so a returning user reads any instance without a legend, taking standard terminal marking as the model for stable, learnable field and column names.
+
+---
+
+## 15. Meta-principles: what the whole lineage shares, mapped to our system
 
 Seven principles run through every cluster. Each maps to a token or component behaviour we already have or should have.
 
@@ -564,7 +626,7 @@ The 606 shelf that still fits a 1960 rail, the 500-series body that ran 56 years
 
 ---
 
-## 15. How this should show up in swiss-function
+## 16. How this should show up in swiss-function
 
 A short checklist of directives, drawn from the sections above, to apply and to cite in review.
 
