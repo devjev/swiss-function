@@ -10,6 +10,7 @@ import { forwardRef, useId, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
 import { Input } from "../Input";
+import { PasswordInput } from "../PasswordInput";
 import { Spinner } from "../Spinner";
 import styles from "./Login.module.css";
 
@@ -66,7 +67,6 @@ export const Login = forwardRef<HTMLFormElement, LoginProps>(function Login(
 ) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [reveal, setReveal] = useState(false);
   const errorId = useId();
   const identifierId = useId();
   const passwordId = useId();
@@ -117,29 +117,14 @@ export const Login = forwardRef<HTMLFormElement, LoginProps>(function Login(
 
         <label className={styles.field} htmlFor={passwordId}>
           <span className={styles.label}>{passwordLabel}</span>
-          <div className={styles.passwordRow}>
-            <Input
-              id={passwordId}
-              type={reveal ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              disabled={loading}
-              className={styles.passwordInput}
-              aria-invalid={error != null || undefined}
-              aria-describedby={error != null ? errorId : undefined}
-            />
-            <button
-              type="button"
-              className={styles.reveal}
-              onClick={() => setReveal((v) => !v)}
-              aria-pressed={reveal}
-              aria-label={reveal ? "Hide password" : "Show password"}
-              disabled={loading}
-            >
-              {reveal ? "hide" : "show"}
-            </button>
-          </div>
+          <PasswordInput
+            id={passwordId}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+            aria-invalid={error != null || undefined}
+            aria-describedby={error != null ? errorId : undefined}
+          />
         </label>
 
         <Button type="submit" variant="primary" className={styles.submit} disabled={loading}>

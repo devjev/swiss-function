@@ -34,6 +34,7 @@ const componentNames = [
   "NonIdealState",
   "Outliner",
   "Pane",
+  "PasswordInput",
   "PointCloud",
   "Checkbox",
   "Switch",

@@ -1303,6 +1303,31 @@ Full-height container with a fixed header and scrollable body (CSS-grid `auto / 
 **Elements / Parts:** `Pane.Root` (grid container), `Pane.Header` (auto-sized, no
 scroll), `Pane.Body` (scrollable, `min-block-size: 0`).
 
+## PasswordInput
+
+`import { PasswordInput } from "@tarassov-ch/swiss-function/password-input"`
+
+An `Input` for a password with a monospace show/hide toggle at its end. Masks by
+default; the toggle swaps the field between `password` and `text`. It takes every
+`Input` prop (the reveal state is internal) and forwards the ref to the input, so
+it drops into a `Field` like any other control. `Login` uses it for its password
+field.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `showLabel` | `ReactNode` | `"show"` | Toggle label while masked. |
+| `hideLabel` | `ReactNode` | `"hide"` | Toggle label while revealed. |
+| `defaultRevealed` | `boolean` | `false` | Start in the shown state. |
+| `className` | `string` | n/a | Class for the wrapper; the input keeps its own styling. |
+| ...`Input` props | | | `inputSize`, `elevation`, `value`/`onChange`, `name`, etc. (`type` is managed). `autoComplete` defaults to `"current-password"`. |
+
+```tsx
+<Field orientation="vertical">
+  <Field.Label>Password</Field.Label>
+  <PasswordInput autoComplete="new-password" />
+</Field>
+```
+
 ## Picker
 
 `import { Picker } from "@tarassov-ch/swiss-function/picker"`

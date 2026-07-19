@@ -40,6 +40,7 @@ export * from "./components/NonIdealState";
 export * from "./components/Notebook";
 export * from "./components/Outliner";
 export * from "./components/Pane";
+export * from "./components/PasswordInput";
 export * from "./components/Picker";
 export * from "./components/PointCloud";
 export * from "./components/Popover";

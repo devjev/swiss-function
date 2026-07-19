@@ -219,6 +219,10 @@
       "types": "./dist/components/Pane/index.d.ts",
       "import": "./dist/components/Pane/index.js"
     },
+    "./password-input": {
+      "types": "./dist/components/PasswordInput/index.d.ts",
+      "import": "./dist/components/PasswordInput/index.js"
+    },
     "./picker": {
       "types": "./dist/components/Picker/index.d.ts",
       "import": "./dist/components/Picker/index.js"

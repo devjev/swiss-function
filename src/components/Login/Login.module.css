@@ -57,38 +57,11 @@
   letter-spacing: 0.02em;
 }
 
-/* Password: the input fills, a bare monospace show/hide toggle sits at its end. */
-.passwordRow {
-  display: flex;
-  align-items: stretch;
-  gap: calc(var(--sf-unit) / 4);
-}
-.passwordInput {
-  flex: 1;
-  min-inline-size: 0;
-}
-.reveal {
-  flex: none;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  padding-inline: calc(var(--sf-unit) / 2);
-  font-family: inherit;
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
-  border-radius: var(--sf-radius-default);
-  transition: color var(--sf-duration-fast) var(--sf-ease-out);
-}
-.reveal:hover {
-  color: var(--sf-color-fg);
-}
-.reveal:focus-visible {
-  outline: var(--sf-focus-ring-width) solid var(--sf-color-primary);
-  outline-offset: 1px;
-}
-.reveal:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+/* Every button in the panel reads monospace, for full terminal consistency (the
+   submit and the consumer's alternatives; the password toggle is already mono). */
+.root button {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
 }
 
 /* Terminal error line: a "! message" in the danger colour on a faint danger band. */
@@ -146,10 +119,4 @@
 .alternatives {
   display: grid;
   gap: calc(var(--sf-unit) / 2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    transition: none;
-  }
 }
