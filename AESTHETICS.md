@@ -362,6 +362,13 @@ These are not nostalgic references. They reflect a specific belief:
 that interfaces for working should be optimized for the worker, not for
 the platform that hosts them.
 
+The sourced version of this heritage lives in
+[docs/research/design-lineage.md](./docs/research/design-lineage.md): each
+exemplar paired with a historical-interface image, the design principle and
+the trade-off behind it, and a directive for our UI. The table and form
+layout rubrics that operationalise it sit alongside in
+[docs/research/](./docs/research/).
+
 ---
 
 ## When in doubt

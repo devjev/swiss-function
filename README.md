@@ -134,6 +134,10 @@ Base UI's compound API as object namespaces, for example `Dialog.Root`,
   usable by humans.
 - **[docs/API.md](./docs/API.md)**: per-component props, defaults, and tokens.
 - **[AESTHETICS.md](./AESTHETICS.md)**: the reasoning behind the design.
+- **[docs/research/](./docs/research/)**: the design lineage, a sourced
+  heritage of precision instruments (Rams, aviation and automotive
+  instruments, cameras, the Swiss grid, industrial control) with a directive
+  for each, plus the table and form layout rubrics and the inspiration set.
 - **Live demos**: run `npm run dev` to browse the Ladle stories.
 
 ## Contributing
