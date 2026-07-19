@@ -8,8 +8,9 @@
  *  Controlled only: pass `value` (the rows) and `onChange` (the next rows).
  */
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode } from "react";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
@@ -84,6 +85,11 @@ export interface TableInputProps<T = Record<string, unknown>>
   minColumnWidth?: number;
   /** Let rows be dragged to reorder (loads dnd-kit lazily). Default `false`. */
   reorderable?: boolean;
+  /** Window the rows with `@tanstack/react-virtual` so only the visible slice is
+   *  in the DOM, for arrays past a few hundred rows. Requires a bounded height
+   *  (set one via `style`); the header sticks while the body scrolls. Ignored
+   *  when `reorderable` (drag-reorder keeps the full render). Default `false`. */
+  virtualize?: boolean;
   /** Add-button label. Default `"Add row"`. */
   addLabel?: ReactNode;
   /** Disable the whole control. */
@@ -253,6 +259,7 @@ export function TableInput<T = Record<string, unknown>>({
   equalColumns = false,
   minColumnWidth = 6,
   reorderable = false,
+  virtualize = false,
   addLabel = "Add row",
   empty,
   fillHeight = false,
@@ -324,6 +331,25 @@ export function TableInput<T = Record<string, unknown>>({
   const canDelete = value.length > minRows;
   const canAdd = value.length < maxRows;
 
+  // Windowing (opt-in, non-reorderable): render only the visible slice. Rows are
+  // a fixed height so the scroll math is exact, and `scrollMargin` accounts for
+  // the sticky header sitting above the list inside the scroll container.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const useWindow = virtualize && !reorderable && value.length > 0;
+  const rowHeightPx = size === "md" ? 44 : 36;
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    if (useWindow && bodyRef.current) setScrollMargin(bodyRef.current.offsetTop);
+  }, [useWindow]);
+  const rowVirtualizer = useVirtualizer({
+    count: useWindow ? value.length : 0,
+    getScrollElement: () => rootRef.current,
+    estimateSize: () => rowHeightPx,
+    overscan: 8,
+    scrollMargin,
+  });
+
   const rowProps = {
     columns,
     size,
@@ -337,10 +363,12 @@ export function TableInput<T = Record<string, unknown>>({
     // ...rest; a <fieldset> can't be the subgrid container this layout needs.
     <div
       {...rest}
+      ref={rootRef}
       className={cx(styles.root, className)}
       style={{ ...style, gridTemplateColumns: gridTemplate }}
       data-disabled={disabled || undefined}
       data-fill-height={fillHeight || undefined}
+      data-virtualize={useWindow || undefined}
       data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
       data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
     >
@@ -363,43 +391,66 @@ export function TableInput<T = Record<string, unknown>>({
 
       {/* The rows subtree is `inert` when disabled: non-focusable and
           non-interactive across every editor type, in one place. */}
-      <div className={styles.body} inert={disabled || undefined}>
-        {value.length === 0 && empty != null ? (
-          <div className={styles.emptyState}>{empty}</div>
-        ) : reorderable ? (
-          <Suspense
-            fallback={value.map((row, rowIndex) => (
+      {useWindow ? (
+        <div
+          ref={bodyRef}
+          className={cx(styles.body, styles.bodyVirtual)}
+          style={{ blockSize: rowVirtualizer.getTotalSize() }}
+          inert={disabled || undefined}
+        >
+          {rowVirtualizer.getVirtualItems().map((vr) => (
+            <div
+              key={vr.index}
+              className={styles.vrow}
+              style={{
+                gridTemplateColumns: gridTemplate,
+                blockSize: rowHeightPx,
+                transform: `translateY(${vr.start - scrollMargin}px)`,
+              }}
+            >
+              <RowCells row={value[vr.index] as T} rowIndex={vr.index} {...rowProps} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.body} inert={disabled || undefined}>
+          {value.length === 0 && empty != null ? (
+            <div className={styles.emptyState}>{empty}</div>
+          ) : reorderable ? (
+            <Suspense
+              fallback={value.map((row, rowIndex) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
+                <div className={styles.row} key={rowIndex}>
+                  <RowCells
+                    row={row}
+                    rowIndex={rowIndex}
+                    lead={<div className={styles.handleCell} />}
+                    {...rowProps}
+                  />
+                </div>
+              ))}
+            >
+              <SortableRows
+                rows={value}
+                onReorder={onChange as (rows: unknown[]) => void}
+                rowClassName={styles.row}
+                handleClassName={styles.handle}
+              >
+                {(row, rowIndex, handle) => (
+                  <RowCells row={row as T} rowIndex={rowIndex} lead={handle} {...rowProps} />
+                )}
+              </SortableRows>
+            </Suspense>
+          ) : (
+            value.map((row, rowIndex) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
               <div className={styles.row} key={rowIndex}>
-                <RowCells
-                  row={row}
-                  rowIndex={rowIndex}
-                  lead={<div className={styles.handleCell} />}
-                  {...rowProps}
-                />
+                <RowCells row={row} rowIndex={rowIndex} {...rowProps} />
               </div>
-            ))}
-          >
-            <SortableRows
-              rows={value}
-              onReorder={onChange as (rows: unknown[]) => void}
-              rowClassName={styles.row}
-              handleClassName={styles.handle}
-            >
-              {(row, rowIndex, handle) => (
-                <RowCells row={row as T} rowIndex={rowIndex} lead={handle} {...rowProps} />
-              )}
-            </SortableRows>
-          </Suspense>
-        ) : (
-          value.map((row, rowIndex) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional
-            <div className={styles.row} key={rowIndex}>
-              <RowCells row={row} rowIndex={rowIndex} {...rowProps} />
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Fill the height when sparse: a static dither band in its own grid row
           holds the panel to its set height with the footer pinned below. */}

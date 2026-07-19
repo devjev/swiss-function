@@ -160,6 +160,33 @@ export const Dense: Story = () => {
   );
 };
 
+const CLASSES = ["equity", "bond", "cash"];
+
+/** A large array windowed with `virtualize`: only the visible slice is in the
+ *  DOM. Requires a bounded height (set via `style`); the header sticks while the
+ *  body scrolls. Ignored under `reorderable`. */
+export const Virtualized: Story = () => {
+  const [rows, setRows] = useState<Holding[]>(() =>
+    Array.from({ length: 500 }, (_, i) => ({
+      ticker: `SYM${i}`,
+      shares: (i * 7) % 1000,
+      assetClass: CLASSES[i % 3] ?? "cash",
+      active: i % 2 === 0,
+    })),
+  );
+  return (
+    <div style={{ maxWidth: "40rem" }}>
+      <TableInput
+        columns={HOLDING_COLUMNS}
+        value={rows}
+        onChange={setRows}
+        virtualize
+        style={{ blockSize: "20rem" }}
+      />
+    </div>
+  );
+};
+
 export const Disabled: Story = () => (
   <div style={{ maxWidth: "40rem" }}>
     <TableInput columns={HOLDING_COLUMNS} value={INITIAL} onChange={() => {}} disabled />

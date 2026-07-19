@@ -226,3 +226,27 @@
 .root[data-fill-height] .footer {
   grid-row: 4;
 }
+
+/* Virtualized (windowed) mode: the root is the scroll container (the consumer
+   sets a bounded height), the header sticks to the top, and the body holds
+   absolutely positioned rows translated to their scroll offset. */
+.root[data-virtualize] .headerRow {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background-color: var(--sf-color-bg);
+}
+.bodyVirtual {
+  display: block;
+  position: relative;
+  padding-block-end: 0;
+}
+.vrow {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 0;
+  display: grid;
+  align-items: center;
+  column-gap: calc(var(--sf-unit) / 2);
+  border-block-start: 1px solid var(--sf-color-border);
+}
