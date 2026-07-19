@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.13.0 — 2026-07-19
+
+### Minor
+
+- Add Login, a terminal-styled sign-in panel: a dithered title bar, monospace identifier and password fields (DOS block caret, mono show/hide toggle), a terminal error line, and slots for a footer and other auth methods (alternatives, below a dithered divider). Self-contained: it holds the field state and reports the credentials on submit; you drive loading and error. Complements Input type=password for a bare password field and DigitInput mode=mask for 2FA/OTP/PIN.
+- Add PasswordInput, an Input for a password with a monospace show/hide toggle at its end (masks by default, takes every Input prop, drops into a Field). Login now uses it for the password field, and every button in the Login panel renders monospace for full terminal consistency.
+
 ## v2.12.1 — 2026-07-19
 
 ### Patch
