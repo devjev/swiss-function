@@ -63,6 +63,11 @@ export interface TableInputProps<T = Record<string, unknown>>
   minRows?: number;
   /** Maximum row count: the add button is disabled at or above it. */
   maxRows?: number;
+  /** Slot rendered in the body when there are no rows: an async no-data result
+   *  or a pending/failed load. Pass a `NonIdealState`. Omit it and an empty
+   *  table shows only the header and the add button (the "start by adding a
+   *  row" case). */
+  empty?: ReactNode;
   /** Give every data column an equal share of the width, ignoring per-column
    *  `width`. Default `false` (a `width` is the preferred size, a width-less
    *  column flexes). */
@@ -235,6 +240,7 @@ export function TableInput<T = Record<string, unknown>>({
   minColumnWidth = 6,
   reorderable = false,
   addLabel = "Add row",
+  empty,
   disabled = false,
   size = "sm",
   className,
@@ -338,7 +344,9 @@ export function TableInput<T = Record<string, unknown>>({
       {/* The rows subtree is `inert` when disabled: non-focusable and
           non-interactive across every editor type, in one place. */}
       <div className={styles.body} inert={disabled || undefined}>
-        {reorderable ? (
+        {value.length === 0 && empty != null ? (
+          <div className={styles.emptyState}>{empty}</div>
+        ) : reorderable ? (
           <Suspense
             fallback={value.map((row, rowIndex) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional

@@ -36,6 +36,16 @@
   padding-block-end: calc(var(--sf-unit) / 4);
 }
 
+/* Empty-state slot: spans every column, centred, shown when there are no rows
+   (async no-data or a pending/failed load). The header and footer stay. */
+.emptyState {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--sf-unit);
+}
+
 /* Header: quiet column titles. Not body copy, so muted is fine here. */
 .headerCell {
   padding: calc(var(--sf-unit) / 2);

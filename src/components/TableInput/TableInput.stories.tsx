@@ -1,6 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
 import { Field } from "../Field";
+import { NonIdealState } from "../NonIdealState";
 import { TableInput, type TableInputColumn } from "./TableInput";
 
 /* Deterministic fixtures: fixed rows, no randomness or `new Date()` at module
@@ -137,6 +138,31 @@ export const Narrow: Story = () => {
   return (
     <div style={{ width: "18rem" }}>
       <TableInput columns={HOLDING_COLUMNS} value={rows} onChange={setRows} />
+    </div>
+  );
+};
+
+/** Zero rows with an `empty` slot: an async no-data or failed-load state. The
+ *  header and the add button stay, so the reader keeps the column context and
+ *  can still start a row. */
+export const Empty: Story = () => {
+  const [rows, setRows] = useState<Holding[]>([]);
+  return (
+    <div style={{ maxWidth: "40rem" }}>
+      <TableInput
+        columns={HOLDING_COLUMNS}
+        value={rows}
+        onChange={setRows}
+        empty={
+          <div style={{ inlineSize: "22rem", blockSize: "8rem" }}>
+            <NonIdealState
+              variant="no-results"
+              title="No holdings"
+              description="Add a position to begin."
+            />
+          </div>
+        }
+      />
     </div>
   );
 };
