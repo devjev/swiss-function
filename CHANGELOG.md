@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.12.0 — 2026-07-19
+
+### Minor
+
+- Add Stack, a resize-aware fill/stretch layout primitive (Stack + Stack.Fill): a column/row where a Fill region stretches to absorb the remaining space and locks to the edge as the container resizes, encapsulating the flex + min-*-size:0 chain. Adds a fill prop to TextEdit (stretch to a flexible parent, drop the resize handle), and makes Dialog.Popup a flex column so a Stack fill body works directly. Closes #74.
+- TableInput and form-layout improvements against the new layout rubrics. TableInput: numeric columns auto right-align in tabular mono figures; header labels ellipsize with a title; a date width floor; an empty slot for the no-rows case; fillHeight dithers the band below sparse rows; cellPadding and cellFontSize consume the DataTable density variables; opt-in virtualize windows large arrays under a sticky header. DigitInputMicro gains an align prop (right-aligned digits with the placeholder slots leading). VerticalForm gains reserveError (a pre-allocated error slot, so an appearing error does not reflow the rows) and a per-field width cap; VerticalForm and FieldLayout labels wrap within their column, and FieldLayout fields on a wrapped line share a top edge.
+
+### Patch
+
+- TableInput: robust resizing. Columns now shrink toward a per-column minWidth (new minWidth column prop + minColumnWidth prop) and the table scrolls horizontally once they can't all fit, instead of collapsing and overlapping when narrow. Cells stretch and their controls fill the column, so end/center-aligned values no longer leave dead space on the left and a control never overflows into the next column. Closes #79.
+
 ## v2.11.1 — 2026-07-16
 
 ### Patch
