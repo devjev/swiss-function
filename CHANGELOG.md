@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.12.1 — 2026-07-19
+
+### Patch
+
+- Maintenance release.
+
 ## v2.12.0 — 2026-07-19
 
 ### Minor
