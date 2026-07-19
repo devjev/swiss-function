@@ -90,6 +90,15 @@ export interface TableInputProps<T = Record<string, unknown>>
   disabled?: boolean;
   /** Cell size, mirroring the inner controls. Default `"sm"` (tight). */
   size?: TableInputSize;
+  /** Cell padding density, consuming the same variable system as `DataTable`
+   *  (`--sf-cell-pad-x`): `xs` tightens the grid toward a dense financial table,
+   *  `lg` loosens it. Independent of `size`, which sets the editor heights.
+   *  Default `"md"`. */
+  cellPadding?: "xs" | "sm" | "md" | "lg";
+  /** Header text size, consuming `DataTable`'s `--sf-cell-font` ladder so a
+   *  dense `TableInput` and a dense `DataTable` read at the same scale. Default
+   *  `"md"`. */
+  cellFontSize?: "xs" | "sm" | "md" | "lg";
 }
 
 /** The empty value a fresh cell holds, by editor type. */
@@ -249,6 +258,8 @@ export function TableInput<T = Record<string, unknown>>({
   fillHeight = false,
   disabled = false,
   size = "sm",
+  cellPadding = "md",
+  cellFontSize = "md",
   className,
   style,
   ...rest
@@ -330,6 +341,8 @@ export function TableInput<T = Record<string, unknown>>({
       style={{ ...style, gridTemplateColumns: gridTemplate }}
       data-disabled={disabled || undefined}
       data-fill-height={fillHeight || undefined}
+      data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
+      data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
     >
       {showHeader ? (
         <div className={styles.headerRow}>

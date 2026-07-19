@@ -142,6 +142,24 @@ export const FillHeight: Story = () => {
   );
 };
 
+/** Dense: `cellPadding="xs"` tightens the cells and `cellFontSize="xs"` shrinks
+ *  the header, consuming the same density variables as a dense `DataTable` so
+ *  the two read at one scale. */
+export const Dense: Story = () => {
+  const [rows, setRows] = useState<Holding[]>(INITIAL);
+  return (
+    <div style={{ maxWidth: "40rem" }}>
+      <TableInput
+        columns={HOLDING_COLUMNS}
+        value={rows}
+        onChange={setRows}
+        cellPadding="xs"
+        cellFontSize="xs"
+      />
+    </div>
+  );
+};
+
 export const Disabled: Story = () => (
   <div style={{ maxWidth: "40rem" }}>
     <TableInput columns={HOLDING_COLUMNS} value={INITIAL} onChange={() => {}} disabled />

@@ -5,6 +5,12 @@
 .root {
   composes: scrollable from "../../lib/scrollable.module.css";
   display: grid;
+  /* Cell density + header text size, consuming the same variable system as
+     DataTable (`--sf-cell-pad-x` / `--sf-cell-font`) so the two tune to one
+     visual density. `md` is the default; the data attributes below set `xs`,
+     `sm` or `lg`. */
+  --sf-cell-pad-x: calc(var(--sf-unit) / 2);
+  --sf-cell-font: var(--sf-font-size-sm);
   /* grid-template-columns is set inline (derived from the columns). */
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
@@ -14,6 +20,24 @@
   overflow: auto;
   background-color: var(--sf-color-bg);
   min-inline-size: 0;
+}
+.root[data-cell-padding="xs"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 4);
+}
+.root[data-cell-padding="sm"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) / 3);
+}
+.root[data-cell-padding="lg"] {
+  --sf-cell-pad-x: calc(var(--sf-unit) * 3 / 4);
+}
+.root[data-cell-font="xs"] {
+  --sf-cell-font: 0.75rem;
+}
+.root[data-cell-font="sm"] {
+  --sf-cell-font: 0.8125rem;
+}
+.root[data-cell-font="lg"] {
+  --sf-cell-font: var(--sf-font-size-md);
 }
 
 .headerRow,
@@ -48,9 +72,10 @@
 
 /* Header: quiet column titles. Not body copy, so muted is fine here. */
 .headerCell {
-  padding: calc(var(--sf-unit) / 2);
+  padding-inline: var(--sf-cell-pad-x);
+  padding-block-start: calc(var(--sf-unit) / 2);
   padding-block-end: calc(var(--sf-unit) / 4);
-  font-size: var(--sf-font-size-sm);
+  font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-grid);
   color: var(--sf-color-muted);
@@ -70,7 +95,7 @@
   display: flex;
   align-items: center;
   min-inline-size: 0;
-  padding-inline: calc(var(--sf-unit) / 2);
+  padding-inline: var(--sf-cell-pad-x);
 }
 
 /* Alignment positions the cell's CONTENT inside the always-stretched cell; it
