@@ -127,6 +127,10 @@
       "types": "./dist/components/Kbd/index.d.ts",
       "import": "./dist/components/Kbd/index.js"
     },
+    "./login": {
+      "types": "./dist/components/Login/index.d.ts",
+      "import": "./dist/components/Login/index.js"
+    },
     "./checkbox": {
       "types": "./dist/components/Checkbox/index.d.ts",
       "import": "./dist/components/Checkbox/index.js"

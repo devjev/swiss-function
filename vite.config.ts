@@ -26,6 +26,7 @@ const componentNames = [
   "Icon",
   "Input",
   "Kbd",
+  "Login",
   "Map",
   "Markdown",
   "MenuBar",

@@ -30,6 +30,7 @@ export * from "./components/Heatmap";
 export * from "./components/Icon";
 export * from "./components/Input";
 export * from "./components/Kbd";
+export * from "./components/Login";
 export * from "./components/Map";
 export * from "./components/Markdown";
 export * from "./components/Menu";

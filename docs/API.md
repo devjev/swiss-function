@@ -934,6 +934,48 @@ Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Ex
 <Kbd combo="mod+shift+enter" />
 ```
 
+## Login
+
+`import { Login } from "@tarassov-ch/swiss-function/login"`
+
+A compact, terminal-styled sign-in panel: a dithered title bar, an identifier and
+a password field (monospace with the DOS block caret, plus a mono show/hide
+toggle), a terminal error line, and slots for a footer and for other auth
+methods. Self-contained: it holds the field state and reports the values on
+submit; the authentication, and the `loading`/`error` it drives, is yours. It
+renders a `<form>`, so Enter submits and the browser password manager works.
+There is no separate password primitive; a plain password field is `<Input
+type="password" />`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `onSubmit` | `(c: { identifier, password }) => void` | n/a | Called with the typed credentials on submit. Drive `loading`/`error` from the result. |
+| `title` | `ReactNode` | `"Sign in"` | Text in the dithered title bar (rendered uppercase). |
+| `identifierLabel` | `ReactNode` | `"User"` | Label for the first field. |
+| `identifierType` | `"text" \| "email"` | `"text"` | `"email"` sets the email keyboard, validation, and autocomplete. |
+| `passwordLabel` | `ReactNode` | `"Password"` | Label for the password field. |
+| `submitLabel` | `ReactNode` | `"Sign in"` | Submit button label. |
+| `error` | `ReactNode` | n/a | A failed-sign-in message, shown as a terminal error line (`role="alert"`). |
+| `loading` | `boolean` | `false` | Disables the fields and shows a spinner in the button while you authenticate. |
+| `footer` | `ReactNode` | n/a | Slot below the form for links (e.g. "forgot password"). |
+| `alternatives` | `ReactNode` | n/a | Slot for other auth methods (passkey, SSO), rendered below a dithered "or" divider. You supply the buttons. |
+
+```tsx
+<Login
+  identifierLabel="Email"
+  identifierType="email"
+  loading={pending}
+  error={error}
+  onSubmit={async ({ identifier, password }) => {
+    setPending(true);
+    setError(await signIn(identifier, password));
+    setPending(false);
+  }}
+  footer={<a href="/reset">Forgot password?</a>}
+  alternatives={<Button variant="secondary">Continue with a passkey</Button>}
+/>
+```
+
 ## Map
 
 `import { Map } from "@tarassov-ch/swiss-function/map"`

@@ -1,0 +1,155 @@
+/* Login: a terminal-styled sign-in panel. Monospace throughout (the block caret
+   comes from Input), a dithered title bar, and a terminal error line. The dither
+   is a static muted Bayer pattern, the same vocabulary as DataTable's fill. */
+
+.root {
+  display: block;
+  inline-size: min(100%, calc(var(--sf-unit) * 15));
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+}
+
+/* --- Dithered title bar: DITHER  TITLE  DITHER --- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) * 1.5);
+  padding-inline: calc(var(--sf-unit) / 2);
+  border-block-end: 1px solid var(--sf-color-border);
+}
+.title {
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.dither {
+  flex: 1;
+  block-size: 6px;
+  background-color: color-mix(in srgb, var(--sf-color-muted), transparent 45%);
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* --- Body --- */
+.body {
+  display: grid;
+  gap: var(--sf-unit);
+  padding: calc(var(--sf-unit) * 1.5);
+}
+
+.field {
+  display: grid;
+  gap: calc(var(--sf-unit) / 4);
+}
+.label {
+  font-size: var(--sf-font-size-sm);
+  letter-spacing: 0.02em;
+}
+
+/* Password: the input fills, a bare monospace show/hide toggle sits at its end. */
+.passwordRow {
+  display: flex;
+  align-items: stretch;
+  gap: calc(var(--sf-unit) / 4);
+}
+.passwordInput {
+  flex: 1;
+  min-inline-size: 0;
+}
+.reveal {
+  flex: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding-inline: calc(var(--sf-unit) / 2);
+  font-family: inherit;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  border-radius: var(--sf-radius-default);
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.reveal:hover {
+  color: var(--sf-color-fg);
+}
+.reveal:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-primary);
+  outline-offset: 1px;
+}
+.reveal:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Terminal error line: a "! message" in the danger colour on a faint danger band. */
+.error {
+  display: flex;
+  gap: calc(var(--sf-unit) / 2);
+  align-items: baseline;
+  margin: 0;
+  padding: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-danger);
+  background-color: color-mix(in srgb, var(--sf-color-danger), transparent 90%);
+  border: 1px solid color-mix(in srgb, var(--sf-color-danger), transparent 68%);
+  border-radius: var(--sf-radius-default);
+}
+.errorMark {
+  font-weight: var(--sf-font-weight-bold);
+}
+
+.submit {
+  inline-size: 100%;
+  justify-content: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.footer {
+  font-size: var(--sf-font-size-sm);
+  text-align: center;
+}
+
+/* Dithered "or" divider before the alternative auth methods. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  block-size: 4px;
+  background-color: color-mix(in srgb, var(--sf-color-muted), transparent 45%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+.dividerLabel {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.alternatives {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    transition: none;
+  }
+}
