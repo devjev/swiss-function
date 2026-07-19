@@ -65,9 +65,10 @@ export interface TableInputProps<T = Record<string, unknown>>
   /** Maximum row count: the add button is disabled at or above it. */
   maxRows?: number;
   /** Slot rendered in the body when there are no rows: an async no-data result
-   *  or a pending/failed load. Pass a `NonIdealState`. Omit it and an empty
-   *  table shows only the header and the add button (the "start by adding a
-   *  row" case). */
+   *  or a pending/failed load. Pass a short centred message; a `NonIdealState`
+   *  suits a full-page table but reads heavy in a compact one. Omit it and an
+   *  empty table shows only the header and the add button (the "start by adding
+   *  a row" case). */
   empty?: ReactNode;
   /** Hold the root's height (set one via `style`) even when the rows are too few
    *  to fill it, dithering the empty band below the last row so a sparse table

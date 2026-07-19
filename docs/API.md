@@ -1724,7 +1724,7 @@ JSX children).
 | `size` | `"sm" \| "md"` | `"sm"` | Cell size, mirroring the inner controls. |
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell padding density, the same `--sf-cell-pad-x` variable DataTable uses, so the two tune to one density. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Header text size, DataTable's `--sf-cell-font` ladder. |
-| `empty` | `ReactNode` | n/a | Slot shown in the body when there are no rows (async no-data or a failed load); pass a `NonIdealState`. The header and add button stay. |
+| `empty` | `ReactNode` | n/a | Slot shown in the body when there are no rows (async no-data or a failed load); pass a short centred message (a `NonIdealState` suits a large table). The header and add button stay. |
 | `fillHeight` | `boolean` | `false` | With a height set via `style`, dither the empty band below the last row so a sparse table reads as one filled panel; the add-row footer stays pinned at the bottom. |
 | `virtualize` | `boolean` | `false` | Window the rows with `@tanstack/react-virtual` so only the visible slice is in the DOM (needs a bounded height; the header sticks). Ignored under `reorderable`. |
 

@@ -1,7 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
 import { Field } from "../Field";
-import { NonIdealState } from "../NonIdealState";
 import { TableInput, type TableInputColumn } from "./TableInput";
 
 /* Deterministic fixtures: fixed rows, no randomness or `new Date()` at module
@@ -217,12 +216,17 @@ export const Empty: Story = () => {
         value={rows}
         onChange={setRows}
         empty={
-          <div style={{ inlineSize: "22rem", blockSize: "8rem" }}>
-            <NonIdealState
-              variant="no-results"
-              title="No holdings"
-              description="Add a position to begin."
-            />
+          <div
+            style={{
+              display: "grid",
+              gap: "calc(var(--sf-unit) / 4)",
+              justifyItems: "center",
+              padding: "calc(var(--sf-unit) * 1.5) 0",
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontWeight: "var(--sf-font-weight-medium)" }}>No holdings</span>
+            <span style={{ fontSize: "var(--sf-font-size-sm)" }}>Add a position to begin.</span>
           </div>
         }
       />
