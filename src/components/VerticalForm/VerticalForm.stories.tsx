@@ -1,4 +1,6 @@
 import type { Story } from "@ladle/react";
+import { useState } from "react";
+import { Button } from "../Button";
 import { DatePicker } from "../DatePicker";
 import { Input } from "../Input";
 import { Selector } from "../Selector";
@@ -68,6 +70,37 @@ Playground.args = { elevation: 1, side: "right", padding: 1, minimapWidth: 6 };
 Playground.argTypes = {
   elevation: { control: { type: "inline-radio" }, options: [0, 1, 2, 3] },
   side: { control: { type: "inline-radio" }, options: ["left", "right"] },
+};
+
+/** `reserveError`: the error slot is pre-allocated, so toggling an error on the
+ *  middle field fills the reserved line in place rather than shifting the fields
+ *  below it. */
+export const ReservedError: Story = () => {
+  const [invalid, setInvalid] = useState(false);
+  return (
+    <div>
+      <Button size="sm" data-testid="toggle" onClick={() => setInvalid((v) => !v)}>
+        Toggle error
+      </Button>
+      <div style={frame}>
+        <VerticalForm reserveError>
+          <VerticalForm.Field label="Email" required>
+            <Input type="email" />
+          </VerticalForm.Field>
+          <VerticalForm.Field
+            label="Password"
+            required
+            error={invalid ? "At least 12 characters." : undefined}
+          >
+            <Input type="password" />
+          </VerticalForm.Field>
+          <VerticalForm.Field label="Confirm password" required data-testid="confirm">
+            <Input type="password" />
+          </VerticalForm.Field>
+        </VerticalForm>
+      </div>
+    </div>
+  );
 };
 
 const COUNTRIES = [

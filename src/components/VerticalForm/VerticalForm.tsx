@@ -175,6 +175,11 @@ const ElevationContext = createContext<BoxElevation>(1);
 /** When true, rows render without the surrounding Box (no surface, no padding). */
 const BareContext = createContext<boolean>(false);
 
+/** Reserve a one-line error slot under each field so an appearing error does not
+ *  reflow the form. Opt-in (for validated forms); off keeps a non-validated form
+ *  compact. */
+const ReserveErrorContext = createContext<boolean>(false);
+
 // --- Root -------------------------------------------------------------------
 
 export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
@@ -202,6 +207,11 @@ export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
    *  box padding, for a minimal look. The `elevation` prop is then ignored.
    *  Default `false`. */
   bare?: boolean;
+  /** Reserve a one-line error slot under every field so an appearing validation
+   *  error fills it in place rather than inserting a line and reflowing the rows
+   *  below. Set this when the form validates; leave it off (default) to keep a
+   *  display-only form compact. */
+  reserveError?: boolean;
 }
 
 const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm(
@@ -215,6 +225,7 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     minBlock = 0.5,
     maxBlock,
     bare = false,
+    reserveError = false,
     className,
     children,
     style,
@@ -422,7 +433,9 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
   return (
     <RegistryContext.Provider value={registry}>
       <ElevationContext.Provider value={elevation}>
-        <BareContext.Provider value={bare}>{body}</BareContext.Provider>
+        <BareContext.Provider value={bare}>
+          <ReserveErrorContext.Provider value={reserveError}>{body}</ReserveErrorContext.Provider>
+        </BareContext.Provider>
       </ElevationContext.Provider>
     </RegistryContext.Provider>
   );
@@ -495,6 +508,7 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
     const level = useContext(LevelContext);
     const defaultElevation = useContext(ElevationContext);
     const bare = useContext(BareContext);
+    const reserveError = useContext(ReserveErrorContext);
     const boxRef = useRef<HTMLElement>(null);
     const setRefs = useMemo(() => mergeRefs<HTMLElement>(boxRef, ref), [ref]);
 
@@ -525,6 +539,8 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
           <Field.Error className={styles.fieldError} match>
             {error}
           </Field.Error>
+        ) : reserveError ? (
+          <div className={cx(styles.fieldError, styles.fieldErrorReserved)} aria-hidden="true" />
         ) : null}
       </Field>
     );

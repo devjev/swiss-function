@@ -78,6 +78,13 @@
   line-height: var(--sf-line-height-grid);
 }
 
+/* Reserved error placeholder (opt-in `reserveError`): an empty one-line slot so
+   an appearing error fills it in place rather than inserting a line and
+   reflowing the rows below. */
+.fieldErrorReserved {
+  min-block-size: 1lh;
+}
+
 /* Wide row: the description moves from below the control to a right-hand column
    beside it (label still spans the top, error still spans the bottom). Narrow
    rows keep the default vertical stack from Field. Only fields that actually
