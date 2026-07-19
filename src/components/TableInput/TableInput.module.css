@@ -167,3 +167,37 @@
 .root[data-disabled] {
   opacity: 0.6;
 }
+
+/* Fill-height dither band: a muted static Bayer fill (the library's dither
+   vocabulary, the same look as DataTable's fill and the edge fades). It sits in
+   its own grid row and grows to hold a sparse table to its set height. Static,
+   so no reduced-motion branch is needed. */
+.fillBand {
+  grid-column: 1 / -1;
+  min-block-size: 0;
+  background-color: color-mix(in srgb, var(--sf-color-muted), transparent 55%);
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* Explicit grid rows so the band holds the height with or without a header: the
+   body takes its content height, the band absorbs the slack, the footer pins to
+   the bottom. Placed last so specificity ascends past the base row rules. */
+.root[data-fill-height] {
+  grid-template-rows: auto auto 1fr auto;
+}
+.root[data-fill-height] .headerRow {
+  grid-row: 1;
+}
+.root[data-fill-height] .body {
+  grid-row: 2;
+}
+.root[data-fill-height] .fillBand {
+  grid-row: 3;
+}
+.root[data-fill-height] .footer {
+  grid-row: 4;
+}

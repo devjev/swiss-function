@@ -68,6 +68,11 @@ export interface TableInputProps<T = Record<string, unknown>>
    *  table shows only the header and the add button (the "start by adding a
    *  row" case). */
   empty?: ReactNode;
+  /** Hold the root's height (set one via `style`) even when the rows are too few
+   *  to fill it, dithering the empty band below the last row so a sparse table
+   *  reads as one filled panel. The add-row footer stays pinned at the bottom.
+   *  Default `false`. */
+  fillHeight?: boolean;
   /** Give every data column an equal share of the width, ignoring per-column
    *  `width`. Default `false` (a `width` is the preferred size, a width-less
    *  column flexes). */
@@ -241,6 +246,7 @@ export function TableInput<T = Record<string, unknown>>({
   reorderable = false,
   addLabel = "Add row",
   empty,
+  fillHeight = false,
   disabled = false,
   size = "sm",
   className,
@@ -323,6 +329,7 @@ export function TableInput<T = Record<string, unknown>>({
       className={cx(styles.root, className)}
       style={{ ...style, gridTemplateColumns: gridTemplate }}
       data-disabled={disabled || undefined}
+      data-fill-height={fillHeight || undefined}
     >
       {showHeader ? (
         <div className={styles.headerRow}>
@@ -380,6 +387,10 @@ export function TableInput<T = Record<string, unknown>>({
           ))
         )}
       </div>
+
+      {/* Fill the height when sparse: a static dither band in its own grid row
+          holds the panel to its set height with the footer pinned below. */}
+      {fillHeight ? <div className={styles.fillBand} aria-hidden="true" /> : null}
 
       <div className={styles.footer}>
         <Button

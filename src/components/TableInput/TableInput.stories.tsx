@@ -124,6 +124,24 @@ export const DatesAndText: Story = () => {
   );
 };
 
+/** A sparse table held to a fixed height: `fillHeight` dithers the empty band
+ *  below the last row so it reads as one filled panel, with the add button
+ *  pinned at the bottom. */
+export const FillHeight: Story = () => {
+  const [rows, setRows] = useState<Holding[]>(INITIAL.slice(0, 2));
+  return (
+    <div style={{ maxWidth: "40rem" }}>
+      <TableInput
+        columns={HOLDING_COLUMNS}
+        value={rows}
+        onChange={setRows}
+        fillHeight
+        style={{ blockSize: "18rem" }}
+      />
+    </div>
+  );
+};
+
 export const Disabled: Story = () => (
   <div style={{ maxWidth: "40rem" }}>
     <TableInput columns={HOLDING_COLUMNS} value={INITIAL} onChange={() => {}} disabled />
