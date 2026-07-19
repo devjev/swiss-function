@@ -24,6 +24,8 @@
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
   color: var(--sf-color-fg);
+  /* A long title wraps within the column rather than overflowing it. */
+  overflow-wrap: break-word;
 }
 
 /* With the nav bar on, the root stacks the Minimap (fills) over the bar (auto).
@@ -76,6 +78,8 @@
 .row .fieldDescription,
 .row .fieldError {
   line-height: var(--sf-line-height-grid);
+  /* A long label or message wraps within the row rather than overflowing. */
+  overflow-wrap: break-word;
 }
 
 /* Reserved error placeholder (opt-in `reserveError`): an empty one-line slot so
@@ -91,7 +95,10 @@
    have a description split; the rest keep a full-width control. */
 @container (min-inline-size: 24rem) {
   .hasDescription {
-    grid-template-columns: minmax(0, 1fr) minmax(8rem, 12rem);
+    /* Description column sized in `--sf-unit` multiples (5u to 8u) so it tracks
+       the unit scale. The 24rem query bound stays a length: a container query
+       condition cannot read a custom property. */
+    grid-template-columns: minmax(0, 1fr) minmax(calc(var(--sf-unit) * 5), calc(var(--sf-unit) * 8));
     column-gap: var(--sf-unit);
     align-items: start;
   }

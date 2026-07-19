@@ -110,6 +110,21 @@ const COUNTRIES = [
   { value: "it", label: "Italy" },
 ];
 
+/** A per-field `width` caps a bounded control so it reads narrower than an open
+ *  text field, and a long label wraps within the row rather than overflowing. */
+export const WidthAndLabels: Story = () => (
+  <div style={frame}>
+    <VerticalForm>
+      <VerticalForm.Field label="Date of the most recent portfolio rebalancing" width={8}>
+        <DatePicker value={null} onChange={() => {}} />
+      </VerticalForm.Field>
+      <VerticalForm.Field label="Notes">
+        <Input placeholder="Full width" />
+      </VerticalForm.Field>
+    </VerticalForm>
+  </div>
+);
+
 export const WithSections: Story = () => (
   <div style={frame}>
     <VerticalForm>

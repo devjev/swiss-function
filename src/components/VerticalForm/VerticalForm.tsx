@@ -487,6 +487,10 @@ export interface VerticalFormFieldProps extends Omit<HTMLAttributes<HTMLElement>
   description?: ReactNode;
   /** Error message below the control; also marks the row's rail tick danger. */
   error?: ReactNode;
+  /** Cap the control's width, in `--sf-unit` multiples, so a bounded field (a
+   *  date, a code, a quantity) reads visibly narrower than an open text field
+   *  rather than stretching to the full row. Unset = fill the row. */
+  width?: number;
   /** Show a `*` on the label. Visual only — add `required` to the control too
    *  for HTML validation. */
   required?: boolean;
@@ -500,7 +504,7 @@ export interface VerticalFormFieldProps extends Omit<HTMLAttributes<HTMLElement>
 
 const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
   function VerticalFormField(
-    { label, description, error, required, hotkey, elevation, className, children, ...rest },
+    { label, description, error, width, required, hotkey, elevation, className, children, ...rest },
     ref,
   ) {
     const id = useId();
@@ -531,7 +535,12 @@ const VerticalFormField = forwardRef<HTMLElement, VerticalFormFieldProps>(
         hotkey={hotkey}
       >
         <Field.Label className={styles.fieldLabel}>{label}</Field.Label>
-        <div className={styles.fieldControl}>{children}</div>
+        <div
+          className={styles.fieldControl}
+          style={width != null ? { maxInlineSize: `calc(var(--sf-unit) * ${width})` } : undefined}
+        >
+          {children}
+        </div>
         {description != null ? (
           <Field.Description className={styles.fieldDescription}>{description}</Field.Description>
         ) : null}

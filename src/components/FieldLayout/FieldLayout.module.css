@@ -20,6 +20,9 @@
   flex-wrap: wrap;
   gap: var(--sf-unit);
   min-inline-size: 0;
+  /* Fields on one wrapped line share a top edge, so a tall control does not pull
+     its shorter neighbours to the vertical middle (rubric F1). */
+  align-items: start;
 }
 
 /* --- Field ---------------------------------------------------------------- */
@@ -38,6 +41,8 @@
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   color: var(--sf-color-fg);
+  /* A long label wraps within the field rather than forcing it wider (F3). */
+  overflow-wrap: break-word;
 }
 
 /* Control + hint sit side by side and wrap (the hint beneath the control) when
