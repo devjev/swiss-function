@@ -1,0 +1,17 @@
+{
+  "//": "TableInput geometry regression checks. The empty state must not overflow the table or overlap the footer (the NonIdealState bug: a 336px min-block-size block bled past the add button).",
+  "themes": ["light", "dark"],
+  "cases": [
+    {
+      "story": "table-input--empty",
+      "checks": [
+        { "type": "contained", "parent": "[data-testid=empty-table]" },
+        { "type": "noOverlap", "a": "text=No holdings", "b": "text=Add row" }
+      ]
+    },
+    {
+      "story": "table-input--fill-height",
+      "checks": [{ "type": "contained", "parent": "[data-testid=fill-table]" }]
+    }
+  ]
+}

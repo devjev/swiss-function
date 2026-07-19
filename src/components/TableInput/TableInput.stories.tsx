@@ -134,6 +134,7 @@ export const FillHeight: Story = () => {
         columns={HOLDING_COLUMNS}
         value={rows}
         onChange={setRows}
+        data-testid="fill-table"
         fillHeight
         style={{ blockSize: "18rem" }}
       />
@@ -215,6 +216,7 @@ export const Empty: Story = () => {
         columns={HOLDING_COLUMNS}
         value={rows}
         onChange={setRows}
+        data-testid="empty-table"
         empty={
           <div
             style={{
