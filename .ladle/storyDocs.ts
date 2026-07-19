@@ -7,436 +7,868 @@
  * Generated per story from the component sources; edit an entry to refine it.
  */
 export const storyDocs: Record<string, string> = {
-  "box--custom-padding": "Three boxes at the same elevation with `padding` set to 0, 0.5, and 2 units. Reach for `padding` when the default 1-unit inset is too tight or too loose; a number is multiplied by `--sf-unit`, a string passes through raw.",
-  "box--elevations": "A grid of the six shadow depths, `elevation` 0 (flat) through 5 (furthest). Use it to pick the depth that groups a surface against its background.",
-  "box--polymorphic-section": "A single Box rendered as a `<section>` through the `render` prop instead of the default `<div>`. Reach for `render` when the surface needs a semantic element without losing Box styling.",
-  "box--with-texture": "Boxes at elevation 0, 2, and 4 with `texture` on, adding a faint monochrome noise overlay. Turn on `texture` when a flat surface needs a slight tactile grain.",
-  "button--all-sizes": "The three heights side by side, from `size=\"sm\"` through `\"md\"` to `\"lg\"`. Pick the size that fits the density of the surrounding UI; `md` is the default.",
-  "button--all-variants": "The four `variant` values in a row: `primary`, `secondary`, `ghost`, and `danger`. Choose by the weight and destructiveness of the action, one primary per view, `danger` for irreversible ones.",
-  "button--disabled": "Primary and secondary buttons with the `disabled` prop set. Use it to block an action that is currently unavailable while keeping it visible.",
-  "button--playground": "A single button wired to Ladle controls for `variant`, `size`, `tight`, and `disabled`. Use it to try prop combinations before committing to one.",
-  "button--tight": "`tight` trims the horizontal padding and icon/text gap while keeping the height from `size`, so a compact button still lines up with its peers. Reach for it in dense toolbars and icon-only buttons; it composes with `size` and `variant`.",
-  "button-group--default": "A primary Save beside a secondary Cancel, joined into one segmented row with `role=\"group\"`. The common two-action pairing: reach for `ButtonGroup` whenever related buttons belong together instead of scattered across a toolbar.",
-  "button-group--mixed-variants": "Three buttons of different variants (secondary, primary, danger) sit in one group, so grouping and per-button emphasis are independent. Set each child's `variant` to signal which action is the safe default and which is destructive.",
-  "button-group--sizes": "Three groups at `size=\"sm\"`, `\"md\"`, and `\"lg\"`, each cascading its size to every child Button. Set `size` once on `ButtonGroup` rather than on each button; a child that sets its own `size` still wins.",
-  "button-group--three-actions": "A three-item pager (Prev, page indicator, Next) built from secondary buttons in one group. Use this for segmented navigation or any short row of peer actions that read as a single control.",
-  "chart--barchart--chart-window": "The full interactive chart window: `frame`, `fullscreen`, the `controls` toolbar, and editable `annotations`. Because the x axis is categorical, `zoomable` windows the value (y) axis via wheel, drag, and keyboard; `zoomOutLimit={Infinity}` lets you pull back into empty margin. Reach for this for the trading-terminal read with zoom buttons and drawing tools.",
-  "chart--barchart--drill-down": "Click or press Enter on a bar to drill into finer data: `onPointActivate` fires, and the consumer swaps `categories`/`series` (year totals to quarters) and renders its own back button. Reach for this to make bars a navigation surface; drill-down is an event you wire rather than built-in behavior.",
-  "chart--barchart--full-scaffolding": "`scaffolding=\"full\"` restores the classic chrome: a nice-tick y-axis with horizontal gridlines and no inline value labels. Reach for this when bars are too dense or too numerous for the default direct-label read.",
-  "chart--barchart--grouped": "Two series per category rendered as side-by-side bars, each with its own `color` (plan versus actual). The legend appears automatically once there is more than one series. Reach for this to compare parallel measures across the same categories.",
-  "chart--barchart--many-categories": "A single series across twelve months, showing how the default Tufte scaffolding holds up with many bands and inline value labels. Reach for this to gauge readability before switching to `scaffolding=\"full\"`.",
-  "chart--barchart--narrow": "Long category names squeezed into a 320px container, exercising the measured fitting ladder: labels ellipsize (full text in the `title`) and thin to a stride keeping first and last when bands get too narrow, while the y column sizes to the widest label. Deterministic data, so it doubles as a visual-regression surface.",
-  "chart--barchart--playground": "The Ladle args playground: edit `categories`, `series`, `xLabel`, `yLabel`, and `showLegend` live to see how each prop shapes the chart. Reach for this to try a configuration before wiring it up.",
-  "chart--barchart--single-series": "The baseline case: one series across five days in the default `scaffolding=\"hover\"` mode, with per-bar value labels and the y-axis chrome fading in on hover. Reach for this as the starting point for a simple categorical bar chart.",
-  "chart--barchart--with-custom-colors": "Per-series `color` set to semantic tokens (`--sf-color-danger` for open, `--sf-color-success` for resolved) so the hue carries meaning. Reach for this when the color should encode status; keep to tokens rather than literals.",
-  "chart--bridgechart--chart-window": "The full interactive chart window: `frame`, `fullscreen`, `controls`, and value-axis (y) zoom, since the waterfall's x is categorical. Carries an editable `hline` reference level through `annotations`/`onAnnotationsChange`, and `zoomOutLimit={Infinity}` lets you pull back past the data extent. Reach for this when the bridge is a live analysis surface rather than a static figure.",
-  "chart--bridgechart--full-scaffolding": "`scaffolding=\"full\"` drops the per-bar value labels in favour of a nice-tick y-axis with horizontal gridlines. Use it for denser bridges where a shared scale reads better than labels on every bar.",
-  "chart--bridgechart--narrow": "A stress test: long step names in a 320px container. The measured fitting ladder ellipsizes labels (full text in the `title`) and thins to a stride keeping the first and last when bands get too tight, while the y column sizes to the widest measured label. Deterministic data, so it doubles as a visual-regression surface.",
-  "chart--bridgechart--negative": "When the running total dips below the starting baseline, negative deltas render in danger red and the auto-fit domain extends below zero. Shows how the chart handles refunds, churn, or outflows that push the cumulative down.",
-  "chart--bridgechart--playground": "The Ladle args playground: a starting total, two deltas, and an ending total, with `items`, `yLabel`, and `showConnectors` exposed as controls. Start here to try prop combinations interactively.",
-  "chart--bridgechart--quarterly": "The classic financier's waterfall: an opening total, several signed deltas, and a closing total, with dashed connectors tracing cumulative flow between bars. The default read for a single-period decomposition such as an ARR bridge.",
-  "chart--bridgechart--with-subtotals": "Multiple `kind:\"total\"` items placed mid-bridge act as anchored subtotals: each resets the cumulative to its own value, so the next delta floats above it. Reach for this to segment a long bridge into checkpointed sections.",
-  "chart--bridgechart--without-connectors": "The same four-bar bridge with `showConnectors={false}`, dropping the dashed lines between bars. Use it for dense bridges where the connectors start to crowd the plot.",
-  "chart--candlestickchart--chart-window": "The trading-terminal window: `controls`, `fullscreen`, and `frame` together add a toolbar with zoom and drawing tools (trend line, levels, regions, notes, measure), plus selection with drag handles and Delete/Escape editing. Every drawing flows through `onAnnotationsChange` as serializable JSON anchored at timestamps and prices; reach for it when the user needs to mark up a chart.",
-  "chart--candlestickchart--daily": "Daily OHLC over a date axis at the default `scaffolding=\"hover\"`: up candles (close at or above open) read success-coloured, down candles danger-coloured, and hovering a column shows the O/H/L/C tooltip with a crosshair. The baseline example for a plain price chart.",
-  "chart--candlestickchart--full-scaffolding": "`scaffolding=\"full\"` keeps the nice-tick price axis and gridlines visible at all times. Reach for it with dense series where the reader needs a persistent scale to read against.",
-  "chart--candlestickchart--minimal": "`scaffolding=\"minimal\"` is the Tufte idle state: no axis or gridlines until you hover, where a crosshair traces the close price and date. Use it when the candles should carry the chart and scaffolding would be clutter.",
-  "chart--candlestickchart--narrow": "A stress test: 90 daily candles in a 320px container at `scaffolding=\"full\"`. Candles group under a level-of-detail budget without flapping on resize, month-boundary ticks outrank day ticks in one collision pass so labels never overlap, and the price column sizes to the widest measured label.",
-  "chart--candlestickchart--numeric-axis": "A plain numeric x-axis (session/index number) via candles with numeric `x`, labelled with `xLabel=\"Session\"`. Reach for it when the bars are sequential samples rather than calendar dates.",
-  "chart--candlestickchart--playground": "The Ladle args playground: 30 candles with a `scaffolding` radio (`minimal`/`hover`/`full`) and a `yLabel`. Use it to try prop combinations interactively.",
-  "chart--candlestickchart--zoomable": "`zoomable` over two years of daily candles: wheel zooms at the cursor (click once or hold ctrl/cmd), drag pans, double-click resets, and arrow/`+`/`-`/`0` keys drive the focused chart. Zoom runs in bar-index space so weekends stay collapsed, far-out views aggregate candles into true OHLC groups, and the `annotations` (an hline last-close level and a measure) stay anchored at timestamps and prices as you move.",
-  "chart--flows--chart-window": "The full interactive chart window: a `frame`, `fullscreen` toggle, the `controls` toolbar, and `zoomable` value-axis (AUM) zoom (the x axis stays per-period). Carries an editable `hline` reference annotation at the opening AUM and sets `zoomOutLimit` to infinity for unbounded zoom-out. Reach for it when the flows chart should behave like a trading-terminal panel the user can zoom, annotate, and expand.",
-  "chart--flows--compact": "A short flows chart fixed to `height={220}` in a 40rem container, with no x label. Use it to check the ribbon and legend read cleanly in a dense, height-constrained slot.",
-  "chart--flows--full-scaffolding": "`scaffolding=\"full\"` keeps the AUM axis and gridlines visible at all times, rather than the default hover reveal. Reach for it when the exact level at each waterfall step matters.",
-  "chart--flows--narrow": "A narrow-container stress test: 12 monthly `YYYY-MM` periods in a 320px width with `scaffolding=\"full\"` and `showLegend={false}`. Since `YYYY-MM` labels can't usefully ellipsize, the period axis thins to a stride keeping the first and last, and the y column sizes to the widest AUM label. Deterministic, so it doubles as a visual-regression surface.",
-  "chart--flows--playground": "The Ladle args playground: one monthly AUM ledger with `yLabel` and `xLabel` set, every prop editable from the controls panel. Use it to try `scaffolding`, `colors`, connectors, and the other props interactively.",
-  "chart--scatterplot--annotations": "Declarative `annotations` (hline, vline, rect, measure) anchored in data space, so they stay pinned to their values as the (also `zoomable`) chart zooms and pans. Reach for it to mark thresholds, events, or ranges you persist as plain JSON.",
-  "chart--scatterplot--chart-window": "The full chart window: `controls` adds the toolbar (zoom in, out, reset), and since `onAnnotationsChange` is wired, the drawing tools too; `frame` gives it a panel border and `fullscreen` a maximize toggle. Reach for this for the trading-terminal look where the user draws and edits annotations that round-trip through state.",
-  "chart--scatterplot--drill-down": "`onPointActivate` fires on click or Enter; the consumer swaps `series` for finer-grained data and renders its own breadcrumb (years to months here). Reach for it to build drill-down, which is an event you wire rather than built-in behavior.",
-  "chart--scatterplot--full-scaffolding": "`scaffolding=\"full\"` replaces the idle per-datum dot-dash ticks with even nice-tick axes and horizontal gridlines. Reach for it when many overlapping x values would collide as dot-dash labels, or for dense data.",
-  "chart--scatterplot--line": "A single series drawn as a line only (`showLine` on, `showPoints={false}`). Reach for it when the trend matters more than the individual readings.",
-  "chart--scatterplot--multi-series": "Two series with explicit `color` and `showLine`, and the legend appears automatically past one series. Reach for it to compare series (treatment against control) on shared axes.",
-  "chart--scatterplot--narrow": "A stress case: a date x-axis and seven-digit y values inside a 320px container. The per-datum dot-dash labels pass through measured collision thinning (the range endpoints always survive) and the y column sizes to the widest label.",
-  "chart--scatterplot--playground": "The Ladle args playground: toggle `series`, `showPoints`/`showLine`, the axis labels, and `showLegend` live. Start here to feel out the props.",
-  "chart--scatterplot--points": "The default read: one series of point markers on numeric axes, with idle dot-dash scaffolding that fills in on hover. Reach for it to show discrete observations.",
-  "chart--scatterplot--points-and-line": "One series showing both the markers and the connecting line (`showLine` and `showPoints` together). Reach for it when both the individual samples and their trend matter.",
-  "chart--scatterplot--time-series": "A date x-axis: pass `Date` values for `x` and the axis ticks on a calendar ladder (months here). Reach for it for anything measured over time.",
-  "chart--scatterplot--zoomable": "`zoomable` turns on wheel-zoom at the cursor, drag-pan, double-click reset, and keyboard nav when focused. Two years of daily data: zoom in and the time axis morphs from months to days, the decimated line reveals raw points, and the y-axis follows the visible window.",
-  "chart3d--heatmap--basic": "A filled heatmap of the field z = sin(r)/r, with axis ticks pinned to actual cell centers. The default: pass `data` (gridded `x`/`y`/`z`) plus `xLabel`/`yLabel` and you get colored cells with a primary-tinted ramp.",
-  "chart3d--heatmap--chart-window": "The full interactive chart window: `frame`, `fullscreen`, `controls`, and editable `annotations`, with `zoomable` windowing a vertical sub-range of rows (wheel, drag, `+`/`-`/`0`). `zoomOutLimit={Infinity}` lets you pull back past the data extent. Reach for this when the heatmap is a workspace the user explores rather than a static read.",
-  "chart3d--heatmap--narrow": "A 24x12 grid with 7-digit axis values squeezed into 320px, to show tick thinning under pressure: per-cell-center labels drop by measured collision (first and last always kept) so they never overlap, and the y column sizes to the widest surviving label.",
-  "chart3d--heatmap--sensitivity-field": "The same NPV model at full 41x41 resolution as a smooth field with 8 iso-lines (`contours={8}`), over a diverging red-to-green ramp on a symmetric `zDomain` so the baseline reads neutral. The continuous read for when you don't need per-cell numbers; the near-vertical contours make the dominant driver visible at a glance.",
-  "chart3d--heatmap--sensitivity-matrix": "A two-way sensitivity table: a coarse 9x9 grid with each cell's value printed on its fill (`showValues` plus `valueFormat`), a diverging `colorScale`, and a symmetric `zDomain` centering the baseline. Reach for this for the classic colored data table of one metric against two drivers; keep the grid small, since value labels only fit on a table-sized field.",
-  "chart3d--heatmap--with-contours": "The `Basic` peak field with 6 marching-squares iso-lines layered on top (`contours={6}`). The 2D read of a field that the Surface story renders in 3D; use `contours` to expose level structure the flat fill alone hides.",
-  "chart3d--pointcloud--clusters": "Three labelled point series (Alpha, Beta, Gamma) sitting at separate x/y/z centres, each given its own `color` and listed in the legend. Reach for this to show how `series` separates distinct groups by colour in a rotatable 3D scatter; drag to rotate.",
-  "chart3d--pointcloud--sensitivity-cluster": "320 Monte-Carlo scenarios over a 5-year DCF, plotted with growth delta on x, discount delta on y, and NPV % change as height (z), split into green upside and red downside `series`. Reach for this when a point cloud reads risk: the cloud's tilt is the sensitivity and its vertical spread is the outcome range.",
-  "chart3d--pointcloud--single-series": "One unnamed series of 200 points using the default `pointRadius` and primary colour, with no legend (it appears only above one series). Reach for this as the plain baseline: a single cloud with default styling.",
-  "chart3d--surface--no-wireframe": "The sin(r)/r peak with `wireframe={false}`, so only the shaded facets show and the hairline mesh is dropped. Reach for this when the mesh clutters a dense grid or you want a solid, clay-like read of the surface.",
-  "chart3d--surface--peak": "The classic z = sin(r)/r ripple at default settings, with `xLabel`/`yLabel`/`zLabel` and drag-to-rotate. The reference story for learning to read a 3D surface: a clean single peak and concentric rings.",
-  "chart3d--surface--sensitivity-surface": "A 5-year DCF's two-way NPV sensitivity as a response surface, using a diverging `colorScale` (danger to success) and a symmetric `zDomain` so the baseline plane sits neutral at the ramp's midpoint. Reach for this to read sensitivity as gradient: the steep tilt along the growth axis against the gentle slope along the discount axis.",
-  "chart3d--surface--terrain": "A smooth pseudo-terrain summed from sinusoids at a taller `height={420}` and no axis labels, showing many hills and valleys at once. Use it to see how the shading and painter-sort hold up on a busy, multi-peak field.",
-  "chat--choices": "An assistant message built from ordered `parts`: a text block followed by an in-chat choice menu. Picking an option fires `onAction`, which the app turns into the next turn. Reach for it when the assistant needs the user to pick from a short set before continuing.",
-  "chat--custom-block": "A custom part type (`status`) rendered through the `renderPart` escape hatch, here a small service-health card wrapped in `ChatBlock`. Use it for any block the built-in part types do not cover.",
-  "chat--customized": "The same empty chat re-accented: `sendVariant=\"primary\"`, a renamed `sendLabel` (\"Run\"), a primary `borderColor`, and a custom `placeholder`. Reach for these props when the chat should read as the primary action rather than the neutral default.",
-  "chat--decision-tree": "A `tree` part rendered as a terminal-style directory tree of plan steps. Clicking a node fires `onAction` with the node id. Use it to show an orchestration or decision plan the user can inspect step by step.",
-  "chat--default": "A running conversation with a simulated streaming assistant reply: each user message pushes a placeholder that fills in character by character, and `disabled` gates the input while it streams. The baseline example of markdown messages plus the terminal reveal.",
-  "chat--empty": "A chat opened with no messages and a custom `placeholder`. Shows the resting state before the first turn.",
-  "chat--error-state": "An `error` part standing in for a backend failure (overloaded response), showing the `message`, `requestId`, and a Retry. `onError` fires when it appears; Retry reports through `onAction`. Use it to surface a failed turn the user can re-send.",
-  "chat--thinking": "A scripted `thinking` part: a bare \"Thinking\u2026\" spinner expands into a live orchestration fan-out that fills in step by step, collapses to a `summary` when done, then appends the final answer. Drive it by updating the message `status` and `steps`, the way you drive `isStreaming`.",
-  "chat--thinking-error": "A `thinking` part in the `error` state, expanded via `defaultExpanded` to show which step failed (build done, push registry errored). Use it when an orchestration run stops partway and the failing branch should stay visible.",
-  "chatdrawer--coarse-grain": "Same drawer with a chunkier thinking effect: `cellSize={14}` doubles the shade-block size (default 7), so the dither reads coarser. Send a message to compare the grain. Reach for a larger `cellSize` when the fine default dither is too busy for the panel width.",
-  "chatdrawer--default": "The baseline: a right-edge chat panel that pushes the app content aside rather than overlaying it. Drag the divider to resize between `minSize` and `maxSize`; sending a message flips `thinking` on and blooms the ripple effect through the padding gutter. Reach for `ChatDrawer` when the assistant is a persistent side region of the app.",
-  "chatdrawer--left": "The panel docked on the left edge via `side=\"left\"`; everything else matches Default. Use it when the assistant belongs on the opposite side from your main navigation.",
-  "chatdrawer--views": "Multi-view mode: `views` turns the header into an icon bar (a Chat view and a Files view), and `actions` adds a custom \"New chat\" button beside the fullscreen and close controls. Each view keeps its state while hidden, so switching away and back does not reset the chat. Reach for this when the drawer hosts more than the conversation.",
-  "checkbox--default": "An unchecked checkbox in its resting state. The baseline for a binary independent toggle in a list.",
-  "checkbox--default-checked": "A checked checkbox showing the checkmark indicator. Set `defaultChecked` to start a toggle in the on state.",
-  "checkbox--disabled": "A checked but non-interactive checkbox. Combine `disabled` with `defaultChecked` to display a fixed value the user cannot change.",
-  "checkbox--indeterminate": "A checkbox in the mixed state, drawn as a horizontal dash instead of a check. Set `indeterminate` for a parent whose children are partly selected.",
-  "chip--disabled": "Chips dimmed and inert via `disabled`: both the chip's own `onClick` and the `onRemove` \u2715 stop responding. Use for a token that is present but currently unavailable.",
-  "chip--filters": "A row of filter chips where the whole chip is a button (`onClick` gives it `role=\"button\"`, a focus ring, and Enter/Space). The active one carries `tone=\"primary\"` and a `dot`; reach for this when chips select a view or narrow a list.",
-  "chip--removable": "A wrapping bucket of tags, each with an `onRemove` \u2715 that is keyboard-reachable and stops propagation so it never fires the chip's own click. Reach for this for a set of chosen items the user can dismiss one at a time.",
-  "chip--sizes": "The two `size` values, `md` (default) and `sm`, both landing on the baseline grid; `sm` matches a small Button. Drop to `sm` for dense rows and toolbars.",
-  "chip--tones": "The five `tone` values across three readings: sharp default, with a status `dot`, and `round` pill form. Reach for a tone only when the colour is information (a `danger` or `success` state), leaving `neutral` for everything decorative.",
-  "code-editor--controlled": "A fully controlled editor: `value` + `onChange` drive the document, and a live line/character count reads back below. Reach for this when app state owns the text.",
-  "code-editor--elevation": "The same editor at `elevation` 0, 2, and 4 on the Box/Input depth scale. Use `elevation` to seat the editor at the right resting depth for its surface.",
-  "code-editor--empty": "An empty editor showing its `placeholder` prompt. Covers the no-content resting state.",
-  "code-editor--fixed-height": "Give the root a `height` (here 160px via `style`) and the editor fills it and scrolls internally. Reach for this to cap the editor instead of letting it auto-grow with content.",
-  "code-editor--java-script": "JavaScript highlighting via the `javascript()` extension, colored from `--sf-color-code-*` tokens. Toggle `data-theme=\"dark\"` and the palette swaps with no code change.",
-  "code-editor--json": "The same editor over JSON, language supplied through `extensions` (`@codemirror/lang-json`). Shows that any CodeMirror language plugs in the same way.",
-  "code-editor--playground": "The interactive story: adjust `theme`, `vim`, `lineWrapping`, and `readOnly` from Ladle controls against a JavaScript sample. Use it to feel how the props combine.",
-  "code-editor--read-only": "A `readOnly` editor with soft `lineWrapping` and the gutter off (`lineNumbers={false}`). Reach for this to display code that stays selectable but cannot be edited.",
-  "code-editor--themes": "The three restrained syntax `theme`s side by side: `minimal` (comments only), `bold` (weight and slant, no hue), `primary` (adds the brand accent). Pick one to set how loud the highlighting reads.",
-  "code-editor--vim": "Vim keybindings enabled with the `vim` prop; focus the editor and try `i`, `Esc`, `dd`, `:w`. Reach for this when users expect modal editing.",
-  "code-editor-inline--form-rows": "Three editable expressions stacked in a dense form, each resting as one syntax-highlighted line and expanding on focus. Reach for this when a form or table row holds a short expression that occasionally needs room; the expanded overlay floats over neighbouring rows instead of shoving them down.",
-  "code-editor-inline--json-value": "A JSON one-liner edited via the `json()` extension, with a taller `maxRows={10}` cap before the overlay scrolls. Shows that the language comes from the CodeMirror `extensions` you pass and that `maxRows` sets how far the expanded editor grows.",
-  "code-editor-inline--multiline": "A multi-line value collapsed to its first line, shown syntax-highlighted; focus reveals the rest, growing up to `maxRows={6}` then scrolling. Use it when the stored value is often several lines but the row should read as one at rest.",
-  "code-editor-inline--playground": "The default resting state: one syntax-highlighted line that expands over the paragraph below it on click or tab, then collapses on blur. Start here to see the core behaviour, that the expanded editor floats over surrounding content rather than pushing it down.",
-  "code-editor-inline--sizes": "The `sm`, `md`, and `lg` rungs side by side, each scaling the code font and padding together to match the control-height ladder. Pick a `size` so the collapsed line aligns with the Input and other controls in the same row.",
-  "context-menu--default": "Right-click the bordered area to open a context menu of Cut/Copy/Paste plus a `Separator` and a disabled Rename item. Reach for `ContextMenu` when an action belongs to a right-clickable region: `ContextMenu.Trigger` marks that region, and the popup and items are Menu's parts verbatim.",
-  "data-table--column-fill-animated": "The same fixed-width layout as ColumnFillStatic, but `columnFill={{ animated: true }}` renders the leftover space right of the columns as the animated WebGL dither (reduced motion falls back to a static frame). Reach for it when you want the filler to read as a live surface.",
-  "data-table--column-fill-static": "`columnFill` keeps columns at fixed widths instead of stretching the last one, filling the leftover space with a static dither so a sparse table doesn't read as unfinished. Resized widths persist through `onColumnWidthsChange`, and the filler grows and shrinks with the last column.",
-  "data-table--column-groups": "Nested `columns` build a grouped header; click the chevron beside a group (here 'Address') to collapse it to a single placeholder column. Use groups to bracket related leaf columns under one banner.",
-  "data-table--density": "`cellPadding` and `cellFontSize` are independent four-rung scales (xs/sm/md/lg); the story stacks all four levels. Tighten both for a dense financial grid, loosen them for a roomier read.",
-  "data-table--edge-fade-tuned": "`edgeFade={{ rows: 4, density: 0.6 }}` makes the bottom fade taller and gentler than the default two-row, full-density mask. Tune these when the standard fade is too abrupt for your row height.",
-  "data-table--editable": "`editable` turns on cell editing with a purpose-built editor per `edit.type`: text uses the inline text editor, numbers a DigitInputMicro, dates a DatePicker, boolean and select a Picker. Double-click, F2, or Enter opens the editor; Enter or Tab commits, Esc cancels.",
-  "data-table--empty": "With no data, the `empty` slot renders in place of rows. Supply it to explain the blank state and point to the next action.",
-  "data-table--fill-height": "`fillHeight` holds the given `height` when there are too few rows and dithers the empty band below the last row; paired with `columnFill` (left table) the right gutter dithers too, so the sparse table reads as one filled panel. The right table drops `columnFill` for contrast.",
-  "data-table--filterable": "`filterableColumns` adds a funnel to each leaf header: text, select, and boolean columns get a value checklist, number columns a min/max range, and filters apply live and compose with sorting. Use it when users need to narrow a table in place.",
-  "data-table--frozen-columns": "`frozenColumns={2}` pins the first two columns to the left while the rest scroll horizontally, the column analogue of the sticky header, with a soft shadow marking the boundary once scrolled. Use it to keep identifying columns in view across many columns.",
-  "data-table--highlights": "`highlights` overlays persistent coloured range markers (a light fill plus a bordered perimeter, the Excel coloured-reference look); here two columns and a flagged block each take a distinct colour. Positional and declarative: reach for it to mark ranges such as charting series.",
-  "data-table--merged-cells": "`getCellSpan` visually merges cells: the Department column merges down across consecutive equal values (rowspan) and the grouped 2026 header spans its two quarters (colspan), with the internal seams erased. Reach for it to collapse repeated values into one block.",
-  "data-table--narrow-container": "In a 360px wrapper the columns shrink toward their minimum widths to fit without a horizontal scrollbar; only once even the minimums don't fit does the table scroll. Shows the default fit-then-scroll behaviour in a tight space.",
-  "data-table--paginated": "`paginate={{ pageSize: 25 }}` swaps virtualization for paged navigation. Reach for it when users expect page controls rather than a continuous scroll.",
-  "data-table--paste-into-range": "Anchor a cell and paste TSV (Cmd/Ctrl+V) to update a whole block down and to the right of the active cell; the sample writes a 2x4 grid. Shows spreadsheet-style paste into an `editable` table.",
-  "data-table--per-cell-edit-activation": "`getEditActivation` sets the edit trigger per cell: here active rows open on a single click while inactive rows keep the double-click default. Use it when only some rows should be quick to edit.",
-  "data-table--read-only": "The default read-only grid: 50 rows, sortable columns, virtualized body. Reach for this when the table only displays data and no cell should be edited.",
-  "data-table--reorderable": "`reorderableColumns` lets you drag a header onto a neighbour to reorder, and the order persists through `onColumnOrderChange` while header clicks still sort and the right edge still resizes. Reach for it when users should arrange columns themselves.",
-  "data-table--resizable-columns": "Column resizing is on by default: drag a header's trailing edge, double-click it to auto-fit content, or focus it and nudge with arrow keys (Shift for a larger step). The Active column sets `resizable: false` to lock it.",
-  "data-table--select-to-highlight": "Drag a range, then 'Mark range' pushes the live selection into the `highlights` list as a persistent colour. Shows the declarative pattern: capture the selection via `onSelectionChange` and own the highlight list yourself.",
-  "data-table--selection": "Cell selection: click to anchor, shift+click or drag to extend a range, arrow keys to move, Cmd/Ctrl+A to select all, Cmd/Ctrl+C to copy. `onSelectionChange` reports the active cell and range.",
-  "data-table--single-click-edit": "`editOn=\"single\"` opens the editor on the first click, while double-click, F2, and Enter still work. Reach for it in grids where users edit constantly and a double-click each time is friction.",
-  "data-table--snap-and-edge-fade": "`scrollSnap=\"rows\"` nudges scrolling to row boundaries on release, and `edgeFade` masks the bottom rows with a dither to hint there's more below. Use them together for a grid that reads as a finished panel while scrolling.",
-  "data-table--tree": "`getSubRows` turns the data into an expandable tree; click a parent's chevron to expand or collapse its children, and `defaultExpanded` sets the initial state. Reach for this when rows nest hierarchically.",
-  "data-table--tree-and-column-groups": "`getSubRows` and grouped `columns` compose in one table: expandable rows under a grouped 'Location' header. Shows the tree and column-group features stack without conflict.",
-  "data-table--tree-deep": "A five-level tree (depth 5, breadth 2) driven by the same `getSubRows` chevron and indent. Shows the tree holds up as nesting gets deep.",
-  "data-table--virtualized100k": "100,000 rows with only about 30 row elements mounted at once, so scrolling stays smooth. This is the default rendering path for any large flat table.",
-  "datepicker--constrained": "Bounds the selectable range with `minDate`/`maxDate` and vetoes individual days with `isDateDisabled` (weekends here). Disabled days render struck through, and keyboard navigation skips over them. Reach for this when only some dates are bookable.",
-  "datepicker--free-text-entry": "Shows the text field as the primary control: type `2026-07`, `12 jul`, `tomorrow`, `+7`, or a bare `12` and the calendar follows while the footer echoes what Enter commits. A live readout below prints the committed `value` in ISO (`YYYY-MM-DD`). Look here to understand the typing shortcuts.",
-  "datepicker--playground": "The interactive story: flip `showWeekNumbers`, `clearable`, and `disabled`, and cycle `size` through sm/md/lg from the Ladle controls. Use it to try prop combinations against one picker.",
-  "datepicker--sizes": "The three control heights (`size` sm/md/lg) stacked, matching the `Input` sizes. Reach for this to pick the height that fits the surrounding form density.",
-  "datepicker--week-numbers": "Adds a leading column of ISO week numbers via `showWeekNumbers`, the full ISO 8601 posture. Turn it on when users track dates by calendar week.",
-  "dialog--default": "The plain modal: trigger button, faint backdrop, `Dialog.Title` and `Dialog.Description`, and a right-aligned row of `Dialog.Close` buttons. Reach for this for a confirmation or a destructive action, where the danger variant sits beside a secondary cancel.",
-  "dialog--window": "A window-chrome dialog: `draggable` moves it by the `Dialog.Handle` header, `resizable` grips every edge and corner, and `defaultWidth`/`defaultHeight` set the opening size; a `Dialog.Actions` row holds `Dialog.Maximize` and `Dialog.CloseButton`. Reach for this when a dialog should behave like a movable, resizable window rather than a fixed modal.",
-  "digitinput--all-sizes": "The same percent field at `size=\"sm\"`, `\"md\"`, and `\"lg\"`, stacked to compare cell heights. Match the size to the surrounding `Input` controls.",
-  "digitinput--controlled": "A controlled field driven by external buttons: one sets the value to 21, one clears it to `null` (the pristine mask). Reach for this when the value lives in your own state and other controls write to it; a live `null`/number readout sits alongside.",
-  "digitinput--in-field": "The input inside a `Field` compound, which wires the `Field.Label` and `Field.Description` to the hidden input and carries `required`. Use this whenever the control needs a label, helper copy, or form validation.",
-  "digitinput--mask": "`mode=\"mask\"` is the 2FA feel: each cell is a focus stop, typing fills left-to-right with auto-advance, and the value stays `null` until every cell is filled. Pasting \"12.34\" fills positionally to 012.34. Reach for it when the input reads as a code being entered.",
-  "digitinput--mask-pin": "A six-cell code entry in `mode=\"mask\"` with `digits={6}` and no decimals or unit. Use it for PINs and one-time codes where every cell must be filled before the value reads.",
-  "digitinput--money": "A four-integer, two-decimal amount with `decimalSeparator=\",\"` and `unit=\"CHF\"`; the display uses the comma while the form value stays canonical (\"1234.50\"). Reach for this for currency entry that shows a locale separator.",
-  "digitinput--percent": "The base sketch: three integer cells, two decimals, and a `%` unit, reading `(_ _ _._ _ %)`. The default push model, good for a percentage the user types into.",
-  "digitinput--pin": "With `decimals={0}` and no unit, `digits={6}` reads as a six-place numeric code. Reach for it for a PIN or code entry using the calculator push model.",
-  "digitinput--playground": "The full Ladle playground with every prop as a control: `digits`, `decimals`, `unit`, `mode`, `size`, `decimalSeparator`, and the disabled/readOnly flags. Use it to feel how push typing, Backspace, Delete, ArrowUp/Down, and unit-aware paste behave together.",
-  "digitinput--signed": "`signed` adds a leading `+`/`-` cell: click it, type `-`/`+`, or press ArrowDown past zero, and the value and form string carry the sign (here a -12.5 \u00b0C temperature). Reach for it when negatives are valid; push mode only.",
-  "digitinputmicro--all-sizes": "The three control sizes (`size` sm, md, lg) stacked, each showing the same percent value. Use it to check that a DigitInputMicro matches the height of neighbouring `Input`s in a form row.",
-  "digitinputmicro--bounded": "An input constrained to [0, 100] via `min` and `max`; out-of-range entries clamp on blur. Reach for `min`/`max` when the number has hard limits, such as a percentage or a capped quantity.",
-  "digitinputmicro--controlled": "A controlled field driven by external buttons: one sets 1234 to 9999, another clears it, and the live value reads out beside them. Clearing sends `null`, the empty-field signal you get through `onValueChange`.",
-  "digitinputmicro--decimals": "Four slots with `decimals={2}`, so the field accepts one decimal point capped at two places. Set `decimals` above 0 for fractional entry; leave it at 0 for integer-only.",
-  "digitinputmicro--default": "The plain integer input with four faded placeholder slots (`slots={4}`) that fill left to right as you type and grow past the hint. The starting point when the width is a suggestion rather than a fixed capacity.",
-  "digitinputmicro--disabled": "A `disabled` field holding a value: greyed out and non-interactive. Use `disabled` when the input is inactive under current conditions.",
-  "digitinputmicro--in-field": "The input inside a `Field` with a label and description, wiring up the standard form-row slots. This is how to label and describe a DigitInputMicro; don't roll your own label markup.",
-  "digitinputmicro--playground": "The interactive story: adjust `slots`, `decimals`, `unit`, `size`, `disabled` and `readOnly` from the Ladle controls to feel out the props. Start here to see how a setting changes the control.",
-  "digitinputmicro--read-only": "A `readOnly` field showing its value but rejecting edits, while staying focusable and selectable. Use `readOnly` to display a number the user may copy but not change.",
-  "digitinputmicro--with-unit": "A percent value with `unit=\"%\"` rendered after the digits as trailing metadata. Pass `unit` to append a suffix such as %, kg or a currency code.",
-  "drawer--all-sides": "Left, right, and bottom drawers on one page, showing the non-modal posture: every trigger stays clickable while a drawer is open. Use it to compare the three `side` values side by side.",
-  "drawer--bottom": "A drawer rising from the bottom edge with `side=\"bottom\"`. Use it for a sheet on narrow or touch layouts where an edge panel reads better from below.",
-  "drawer--left": "The same panel pinned to the left edge via `side=\"left\"`. Reach for a left drawer for navigation or filters that belong on the leading edge.",
-  "drawer--right": "A drawer sliding in from the right edge, the default `side`. Non-modal: the page behind stays interactive, and Escape or the Close button dismisses it.",
-  "drawer--with-handle": "Adds `Drawer.SwipeArea`, a grab rail that stays pinned to the edge while the drawer is closed so you can swipe or drag it back open. Reach for this when the drawer needs a persistent reopen affordance; omit it for a drawer that fully hides.",
-  "dropzone--default": "The bare control: drag files onto the zone or click to browse, and each chosen file appears in a removable list below. Reach for this as the starting point, all defaults (`multiple`, `showList`, standard label and description).",
-  "dropzone--disabled": "The whole zone with `disabled` set: the drop target rejects drops and clicks, and the file list drops its remove buttons. Use it to lock the control while an upload is in flight or a prerequisite is unmet.",
-  "dropzone--playground": "Every prop wired to Ladle controls (`multiple`, `disabled`, `showList`, `label`, `description`, `accept`) over controlled `files` state. Use it to try combinations before settling on props.",
-  "dropzone--single-file": "`multiple={false}` with `accept=\"image/*\"`: a new pick replaces the previous file rather than appending, and the native browser limits selection to images. Reach for this when the field takes exactly one file, like an avatar or a single document.",
-  "dropzone--with-status": "The `fileStatus` slot renders a per-file trailing element (here a faux \"uploading\u2026\" / \"queued\" label). Use it to show consumer-owned upload progress or errors, since Dropzone handles the picking but not the transfer.",
-  "explorer--data-grid": "Explorer as a data grid: `sortable` headers, `filterableColumns` funnels, `resizableColumns` and `reorderableColumns` on the metadata columns, and an `edgeFade` at the bottom. The Name tree column stays pinned at index 0; sorting reorders each folder's children in place and filtering keeps the path to every match and auto-expands it. Reach for this when the tree carries columns of data the user wants to sort and filter.",
-  "explorer--density": "The same tree at each rung of `cellPadding` and `cellFontSize` (`xs`/`sm`/`md`/`lg`), shown in a 2x2 grid. The two scales are independent, so you can tighten row height without shrinking the text. Reach for this to pack a dense tree into a narrow rail.",
-  "explorer--editable": "The full editing surface: `editable` turns on F2/double-click rename (via `editingId`/`onEditingChange`/`onRename`), a right-click menu, and row drag to move (drop on a folder to nest, on a row edge to reorder), plus add and delete. Wire `onRename`, `onAdd`, `onMove`, and `onDelete` to mutate your own node tree. Reach for this when the user manipulates the tree rather than just reads it.",
-  "explorer--file-tree": "The sidebar file-tree pattern: one column (`columns={[{ id: \"name\" }]}`) with `showHeader={false}`, still `editable`. Same component as the grid, narrowed to a single indented column of names. Reach for this for a VS Code-style file rail.",
-  "explorer--loading-placeholder": "A loading skeleton: a tree of empty-named nodes whose cells render `Skeleton` rects through each column's `render`, so indentation comes from real tree structure. Reach for this to show a file tree's shape while its contents load.",
-  "explorer--read-only": "The baseline: a static three-column tree (Name, Size, Modified) with controlled `selectedIds` and `expandedIds`, no editing or column affordances. Reach for this when the tree only needs selection and expand/collapse.",
-  "explorer--spreadsheet": "`gridLines` draws a right and bottom hairline on every body cell, the same per-cell edge model as DataTable, so the tree reads as a spreadsheet. Reach for this when the metadata columns carry real tabular data that benefits from ruled cells.",
-  "explorer--with-menu-bar": "Explorer under a `MenuBar` (logo, File menu, search) inside one bordered frame, with a fixed `height` on the tree. Shows the panel composition for a file-browser region. Reach for this when the tree needs an application chrome above it.",
-  "field--disabled": "A whole field greyed out and non-interactive via the `disabled` prop on `Field`, which cascades to the label, control, and description. Reach for it when the user lacks permission or a precondition isn't met.",
-  "field--inline": "A checkbox sitting beside its label on one row, set by `orientation=\"horizontal\"`. Use this for a single binary toggle where the label reads as the option itself, like an agree-to-terms checkbox.",
-  "field--jump-hotkey": "Fields advertising a jump-to shortcut via `hotkey` (`\"g u\"`, `\"mod+e\"`): each shows a `Kbd` badge and gets a `data-hotkey` attribute. The field binds no key itself; your app's central hotkey engine handles the press and calls `focusFieldHotkey(combo)`.",
-  "field--multiple-controls": "Three fields stacked into a small form: a required text input, an input with a description, and a horizontal switch. Shows that each row is its own `Field` and you space them yourself, rather than one `Field` wrapping several controls.",
-  "field--required": "A required field: `required` on `Field` adds the `*` marker to the label, and `required` on the control adds native HTML validation. Set both when a value is mandatory and you want the browser to enforce it.",
-  "field--stacked": "The default vertical layout: label above the control above the description. This is the standard form row; reach for it for almost any labelled input.",
-  "field--with-error": "A validation message rendered through `Field.Error`, shown after the control is touched and left invalid (focus then blur the empty input to trigger it). Use `Field.Error` for the live per-field error slot beneath a control.",
-  "fieldlayout--collapsed": "A narrow 320px frame where a three-field row folds down one field at a time until each stands alone. Shows the breakpoint-free collapse: fields hold strict source order and never migrate lines, so narrowing the container just carries fewer fields per line.",
-  "fieldlayout--dither-filler": "A rigid `Valid from` field followed by a `FieldLayout.Filler` with `dither`, which fills the trailing slack with a console-style dither instead of blank space. Reach for it when the emptiness after a short field should read as marked; reduced motion draws a single static frame.",
-  "fieldlayout--kinds": "The three field kinds in one row: `kind=\"rigid\"` holds a fixed 8u width, flexible flexes between 10u and 36u, and `FieldLayout.Filler` absorbs the slack so the row justifies to the right padding. Read this to see what each kind contributes before laying out a form.",
-  "fieldlayout--playground": "A full two-section form in a resizable frame, each row mixing rigid, flexible, and filler fields so it always justifies; drag the frame's corner across the wrap thresholds to watch rows carry fewer fields. The reference for laying out a whole form, where 2u between sections and 1u between rows carry the hierarchy without headings.",
-  "form--basic": "The common case: stacked `FormField`s bound by `name`, a `resolver` for cross-field checks, and `onSubmit` receiving typed values only once everything validates. Reach for this to wire up a whole form with state and validation.",
-  "form--form-level-error": "A submit error that belongs to no single field: the `resolver` returns a `form` message and `FormError` reads it from the enclosing `Form`. Use it for things like \"Invalid credentials\" that no one field owns.",
-  "form--per-field-validate": "Each `FormField` carries its own `validate`, running on blur (and re-running on change after a submit) with no `resolver` needed. Reach for this when the rules are single-field, like a minimum length. Set the timing with `validationMode`.",
-  "form--with-field-layout": "Wrapping each `FormField` in a `FieldLayout.Field` lays the form out as justified, multi-column rows while binding and validation still flow through the `Form`. Reach for this when a stacked form is too tall and fields should share rows.",
-  "fullscreen--button-bottom-left": "Moves the toggle to the lower-left corner via `buttonPosition=\"bottom-left\"`. Reach for a non-default position when the top-right corner is already taken by other controls.",
-  "fullscreen--default": "A bordered container holding plain content, with the toggle in the top-right corner. Click it to fill the viewport; Escape or the button exits. The baseline case: wrap any region you want expandable to full screen.",
-  "fullscreen--with-non-ideal-state": "A single child stretches to 100% when expanded, here a `NonIdealState` fills the whole viewport with no explicit height set. Use this when the wrapped content should grow to occupy the expanded space rather than sit at its natural size.",
-  "graph--concentric": "The `concentric` layout: nodes packed into nested circles (circlepack). Reach for it to read a network as concentric clusters of related nodes. Uses the 100-node SMALL fixture, small enough that labels render.",
-  "graph--context-menu": "Right-click any node for the built-in menu: Focus and Expand (recenter the camera at two zoom levels), Pin label, and Hide. This story keeps the defaults so every action does something; pass `contextMenuItems` to replace the menu per target (node, edge, or empty stage).",
-  "graph--dense-content": "Each node and edge carries an arbitrary `data` record (tier, request rate, SLO, edge p99). The `renderNode` hook sizes each node by its request rate; hover or click a node or edge to inspect its full record. Reach for this pattern to drive visual attributes from your own data.",
-  "graph--editable": "`editable` adds a Connect toggle to the toolbar: turn it on, then drag from one node to another to draw an edge; right-click an edge or select it and press Delete to remove it. The graph updates its view instantly and fires `onEdgeCreate` / `onEdgeDelete`, which this story persists into local state so edits survive and the camera and layout stay put.",
-  "graph--embedded": "`fill` makes the graph take its parent's height instead of the fixed default, and `frame={false}` drops its own border so it does not double up with a surrounding container. Here it fills a resizable bordered box and re-fits on resize; drag the box corner to watch it reflow. Reach for this when embedding a graph inside your own framed region.",
-  "graph--force": "The default `force` layout (forceAtlas2): an organic, physics-settled arrangement where connected nodes pull together. The general-purpose choice when the network has no inherent hierarchy or ordering.",
-  "graph--grid": "The `grid` layout: nodes placed on a \u221an \u00d7 \u221an lattice, row-major. Reach for it when you want a regular, position-stable arrangement rather than a shape that reflects connectivity.",
-  "graph--lab--large--default": "A throwaway performance-harness story mounting the real `Graph` on the 10k-node LARGE fixture with a `force` layout and the `[data-graph-*]` hooks that `probe-graph.mjs` drives. It exists to time control-toggle and layout-switch latency at scale, so reach for it only when profiling Graph rather than as a usage example.",
-  "graph--large-stress": "The LARGE fixture: 10k nodes and roughly 20k edges. Labels are culled at this scale, but pan, zoom, the `Graph.Controls` toolbar, and the `Graph.Minimap` stay responsive. Use it to gauge behaviour at the top of the interactive range.",
-  "graph--playground": "The interactive sandbox: Ladle args switch the `size` (small / medium / large fixture) and the `layout`, with `Graph.Controls` and `Graph.Minimap` mounted. Use it to compare layouts and scales against the same component.",
-  "graph--radial": "The `radial` layout: every node on a single ring (circular). Reach for it to show a flat set of peers with no depth, all equidistant from the center.",
-  "graph--tree": "The `tree` layout: a layered top-down pass that seeds roots from in-degree and places each node on the row of its BFS depth. Reach for it when the network is a hierarchy (dependency trees, org charts) and you want the levels to read as rows.",
-  "grid--asymmetric": "A fixed content-width sidebar beside a flexible main pane, set with `columns={[\"min-content\", \"1fr\"]}`. Reach for it when one track should hug its content and the other absorb the rest.",
-  "grid--auto-flow": "Six cards flowing into a three-column grid, where the `columns={3}` number shorthand expands to `repeat(3, minmax(0, 1fr))`. Reach for it for an even N-column layout with items placed automatically.",
-  "grid--cluster": "Content-sized chips packed left to right and wrapping, via the raw string `columns=\"repeat(auto-fit, minmax(0, max-content))\"`. Reach for it for tag clusters or any row where each cell sizes to its own content.",
-  "grid--named-areas": "A header / nav / main / footer layout described by the `areas` prop, with each child placed through `Grid.Item area=\"...\"`. Reach for it when named regions read more clearly than column and row line numbers.",
-  "grid--polymorphic": "The grid rendered as a `<ul>` and each item as an `<li>` through the `render` prop. Reach for it when the grid must carry semantic markup such as a list, nav, or section.",
-  "grid--resizable-both": "A 2x2 grid with both column and row gutters draggable, set by `resizable=\"both\"`. Reach for it when the user should redistribute space on both axes.",
-  "grid--resizable-columns": "Three columns whose shared gutters you drag to redistribute width, enabled by `resizable=\"columns\"`; double-click a gutter to split evenly, or focus it and use Arrow keys (Shift for a larger step). Reach for it to let the user retune column widths.",
-  "grid--resizable-playground": "A 3x2 grid whose `resizable` mode toggles between `columns`, `rows`, and `both` from Ladle controls. Use it to compare the three resize modes interactively.",
-  "grid--resizable-rows": "Three stacked rows whose shared gutters you drag to redistribute height, enabled by `resizable=\"rows\"`. Reach for it to let the user retune row heights.",
-  "grid--sidebar-flexible-main": "A draggable `auto` sidebar next to a `1fr` main pane inside a `resize: both` container, using `columns={[\"auto\", 1]}` with `resizable=\"columns\"`: the sidebar holds its dragged px width while the main pane stays flush to the edge and reflows as the container changes width. Reach for it for a resizable-sidebar plus filling-main layout.",
-  "grid--spans": "Items covering several columns of a four-column grid via `colSpan={2}` and `colSpan={3}`. Reach for `colSpan` / `rowSpan` when one cell must span multiple tracks.",
-  "grid--stack": "A single-column vertical stack of blocks, made by giving `Grid` only a `gap` and no `columns`. Reach for it for plain vertical rhythm between elements.",
-  "grid--style-escape": "Raw grid CSS passed through `style` (here `gridAutoRows`) for properties that have no dedicated prop. Reach for it when you need a grid feature the component props don't expose.",
-  "icon--custom": "A custom lightning glyph built by passing your own 16x16 `path` content as `children` to the `Icon` primitive. Reach for this when the curated set lacks a glyph you need; here `color` tints it to `--sf-color-primary` and `label` gives it an accessible name.",
-  "icon--gallery": "The full curated icon set, each named export rendered at `size={1}` with its name below. Browse this to find the glyph you want and its import name; every icon here tree-shakes on its own.",
-  "icon--in-buttons": "Icons paired with text inside `Button` variants (Download, Edit, Delete) plus one icon-only ghost button. Shows the standard pattern: `aria-hidden` on the glyph when adjacent text carries the meaning, and an `aria-label` on the button when the icon stands alone.",
-  "icon--sizes": "One `Star` rendered across sizes: the default `1em` (tracks surrounding text), numeric `size` values that are `--sf-unit` multiples (0.75, 1, 1.5), and a raw CSS length (`32px`). Use a number to keep the icon on the grid, a string when you need an exact pixel size.",
-  "input--all-sizes": "The three `inputSize` values (`sm`, `md`, `lg`) stacked so their heights line up for comparison. Reach for it to pick a size that matches surrounding controls.",
-  "input--playground": "A single `Input` with `inputSize`, `disabled`, and `placeholder` wired to Ladle controls. Use it to try props live before settling on a configuration.",
-  "kbd--default": "One row of combos (`mod+k`, `alt+enter`, `shift+arrowup`, `esc`\u2026) rendered three ways: auto-detected for your OS, then forced macOS and Windows/Linux via the `mac` prop. Shows how `mod` resolves to \u2318 on Mac and Ctrl elsewhere, and how off-Mac keys join with a `+` separator.",
-  "kbd--in-context": "Keycaps sitting inline at the right of menu-style rows, each `combo` paired with its action label. Reach for this to see how `Kbd` reads next to text in menus, tooltips, and command lists.",
-  "map--areas-and-vectors": "Draws all three overlay types at once: a filled `areas` polygon, two `vectors` poly-lines (one `arrow`-headed, one `dashed` and success-colored), and `points`. Reach for it to see how regions, routes, and markers layer together with token-tinted defaults.",
-  "map--default": "A bare minimal basemap with just `center` and `zoom`, no overlays. The starting point: what the token-tinted map looks like empty.",
-  "map--fill-in-container": "The map with `fill` and `frame={false}` inside a fixed-height wrapper, so it takes the parent's height and drops its own border. Use this pattern when embedding a map in a pane, split, or already-framed container.",
-  "map--fit-to-bounds": "Passes `bounds` instead of `center`/`zoom` so the camera fits a lng/lat box on mount, framing all four points. Reach for `bounds` when you want the view derived from the data extent rather than a hand-picked center.",
-  "map--points": "Circle markers via `points`, each with a `label` and optional per-point `color`, `radius`, or `data`; `onFeatureClick` makes them clickable and hovering shows the label tooltip. The default way to plot locations on a map.",
-  "map--raw-geo-json": "The power-user path: a raw `geojson` FeatureCollection (a Point and a LineString) drawn with the same token-tinted defaults as the typed overlays. Reach for it when your data already lives in GeoJSON and you don't need per-feature props.",
-  "map--static-non-interactive": "A fixed view with `interactive={false}` (pan/zoom/rotate disabled) and `fullscreen={false}` (no corner toggle). Use it for a static locator map that reads as an image.",
-  "map--street-preset": "The `basemap=\"street\"` preset zoomed into a city, showing labeled roads and blocks. Reach for it when the map is about streets and addresses rather than the restrained default.",
-  "map--terrain-preset": "The `basemap=\"terrain\"` preset over an alpine region, showing relief and elevation shading. Reach for it for topography, hiking, or anything where the land shape matters.",
-  "map--theming": "Two maps side by side, one wrapped in `data-theme=\"dark\"`, to verify the token-tinted basemap and overlays re-tint with the theme. It demonstrates that a `[data-theme]` change on any ancestor rebuilds the map paint in place.",
-  "map--with-controls-and-minimap": "Attaches the `Map.Controls` bar (zoom, fit, reset, basemap) and the `Map.Minimap` overview inset as compound children. Add these when the user needs to navigate the map rather than just view it.",
-  "markdown--editable": "Adds `editable` so a double-click swaps the rendered view for an inline textarea, with `onChange` committing on Cmd/Ctrl+Enter or blur and Esc cancelling. Reach for this when the same surface both reads and edits notes.",
-  "markdown--empty": "An empty `value` with `editable` set, showing the `placeholder` copy in place of a blank region. Use it to check the resting state before any content exists.",
-  "markdown--rendered": "The default read-only render of a markdown string passed via `value`, exercising the full GitHub-flavored set: headings, bold/italic/strikethrough, links, nested and numbered lists, a blockquote, inline and fenced code, a table, task-list checkboxes, and a rule. Reach for this to display static markdown.",
-  "menu--default": "A button-triggered dropdown built from the full compound: `Menu.Trigger` renders a secondary `Button`, and the `Menu.Popup` holds `Menu.Item`s split by a `Menu.Separator`, with one `disabled` item. Reach for this as the baseline pattern when wiring an action menu off a button.",
-  "menu-bar--borderless": "`bordered={false}` drops the bar's own hairline; the only border here belongs to the wrapper. Reach for it when the bar already sits inside a bordered surface (a `Box`, a card, a `Pane.Header`) and a second line would double up.",
-  "menu-bar--classic": "The baseline menu bar: File / Edit / View triggers, each opening a dropdown of `MenuBar.Item`s with right-aligned `shortcut` hints, `MenuBar.Separator` rules, and nested `MenuBar.Submenu`s (Open Recent, Theme). Start here for a standard application menu bar.",
-  "menu-bar--collapsed": "The collapsed end-state, forced by a 320px wrapper so `collapse=\"all\"` has already folded the whole bar behind the \u2630. Click it to open the panel holding the menus, the Wrap switch, and Search.",
-  "menu-bar--collapsed-menu-start": "The same collapsed panel, but `menuAlign=\"start\"` keeps the \u2630 next to the `Logo` where the menus were, instead of pinning it to the far edge (`menuAlign=\"end\"`, the default).",
-  "menu-bar--collapsible": "A real app bar (`Logo`, File/Edit menus, a Wrap `Control`, right-aligned `Search`) with `collapse=\"all\"` via `collapseAt=\"34rem\"`. Drag the container's resize handle: below the threshold the whole bar folds behind a \u2630; widen it and the parts return inline. Collapse tracks the container width rather than the viewport, so it works in sidebars and split panes.",
-  "menu-bar--logo": "An Apple-style layout: an icon + bold app name as the lead menu (About / Preferences / Quit), then the document menus, then a low-elevation `MenuBar.Search` (`elevation={1}`) that reads as inlaid in the bar. Reach for it when the bar fronts a whole app rather than one document.",
-  "menu-bar--overflow": "`collapse=\"items\"` folds the bar progressively: as the container narrows, the trailing menu moves into a \u22ef overflow menu, then the next, keeping as many parts inline as fit (only `Logo` is pinned). Drag the resize handle to watch items fold one at a time and return on widen.",
-  "menu-bar--overflow-over-data-table": "A `collapse=\"items\"` overflow panel rendered directly above a `DataTable` (regression for issue #5). Confirms the \u22ef panel paints above the table's sticky header and a `Selector` folded into the panel opens its dropdown above the panel.",
-  "menu-bar--position-bottom": "`position=\"bottom\"` pins the bar to the bottom edge of a tall container; because the triggers have room above them, the dropdowns open upward. Reach for it when the menu bar sits at the foot of a region.",
-  "menu-bar--with-state": "Menu items are plain buttons: their `onClick` handlers drive React state, here selecting a theme that the content below echoes. Shows that a `MenuBar` needs no special wiring to act on a click.",
-  "minimap--block-spans": "Three `block` markers placed with `topFraction`/`heightFraction` mark ranges of the document (chapters, changed regions, search hits), two carrying a `tone` (primary and success). Reach for spans to flag regions rather than single headings; the caption walks through how the viewport strip slides across a block edge as you scroll.",
-  "minimap--clustered-headings": "A dozen `header` labels packed into a tight span near the top of a 40000px document, where colliding labels decimate deepest-level-first while every dither rule stays on the rail. Shows how the rail thins crowded labels without dropping the density read.",
-  "minimap--left-rail": "The 24-section document with `side=\"left\"`, so the rail sits on the leading edge while the content keeps its own scroll. Use it when the overview belongs on the left of the pane.",
-  "minimap--rtl": "The same document under `dir=\"rtl\"`: the rail moves to the correct edge and the level indents flip. Confirms the layout mirrors in right-to-left contexts.",
-  "minimap--short-content": "A single short block that fits the viewport, so there is no scroll overflow and the rail collapses (the hysteresis test), letting the content take the full width. Shows the at-rest state when a Minimap has nothing to overview.",
-  "minimap--tall-document": "The base case: a 24-section document with a mix of clickable, level-indented `header` labels (every third section) and plain `block` rules, two carrying a `tone` for status. Reach for this default right rail to give any scrollable region a structural overview.",
-  "minimap--wide-rail": "The default document with `width={10}`, widening the rail (in `--sf-unit` multiples) so longer heading labels get room. Set `width` when the labels need more horizontal space than the 3u default.",
-  "non-ideal-state--effects-subtle": "The quiet, evenly-covered effects (breathe, twinkle, interleave, rotate, blocks, shimmer, sparkle, blink). Reach here when the fill should read as texture behind the message rather than draw the eye.",
-  "non-ideal-state--effects1": "The first seven animated fills (ripple through cascade), each labelled in a 3-column grid. Use it to compare the busier, motion-heavy effects and pick one for the `effect` prop.",
-  "non-ideal-state--effects2": "The next seven fills (crosswave through metaballs) in the same labelled grid. Split from the others so each story stays under the browser's WebGL context limit.",
-  "non-ideal-state--effects3": "Fills fifteen through twenty-one (rotozoom through droplets), one canvas per cell. Another slice of the full `effect` catalogue for side-by-side comparison.",
-  "non-ideal-state--effects4": "The remaining busy fills (glitch, life, and the tail of the set) before the subtle group. Browse it to choose an `effect` with visible structure or motion.",
-  "non-ideal-state--empty": "The `empty` variant: a plasma-filled block with a title, description, and a New item `Button`. Use it for a region that has no content yet and prompts the user to create the first item.",
-  "non-ideal-state--error-state": "The `error` variant with the `glitch` effect and the danger tint, carrying a message and a Retry `Button`. Reach for it when a request failed and the user can try again.",
-  "non-ideal-state--gallery": "All four variants (empty, no-results, error, loading) side by side at a fixed height. Use it to check that the set reads as one family.",
-  "non-ideal-state--loading": "The `loading` variant: a ripple fill with title and description, wired as `role=\"status\"` with `aria-busy`. Use it while a region fetches its data.",
-  "non-ideal-state--no-results": "The `no-results` variant: a noise fill with a Clear filters `Button`. Reach for it when filters or a search return nothing and the user needs to widen them.",
-  "non-ideal-state--odd-size": "A block sized to raw `333px` by `199px` to prove the fill reaches every edge at awkward dimensions. A coverage check rather than a usage pattern.",
-  "non-ideal-state--playground": "The full prop surface as Ladle controls: `variant`, `effect`, `speed`, `density`, `cellSize`, `opacity`, and the copy. Use it to dial in a configuration before copying the props.",
-  "non-ideal-state--sized": "The `empty` variant constrained with `width={28}` and `height={10}` (multiples of `--sf-unit`). Shows the dither filling whatever fixed dimensions you give the block.",
-  "non-ideal-state--subtle-color": "Two blocks showing `opacity` and `color`: a faint `opacity={0.4}` fill above a primary-token fill at `0.5`. Use it to tune how loud the texture reads and to tint the fill from a token.",
-  "notebook--document-validation": "Feeds the notebook a malformed `document`: two cells sharing the name `twice`, an invalid identifier (`3bad`), and a cell whose `type` is absent from `cellTypes`. Reach for this to see how per-cell validation flags each problem inline before any cell runs.",
-  "notebook--error-propagation": "Shows how failure and unresolved states travel the dependency graph: a SQL cell that hits a missing table, a dependent marked upstream-error, a two-cell cycle between `loop_a` and `loop_b`, and an orphan waiting on a name no cell defines. Reach for this to check the status-rail glyphs and messages for `error`, `upstream-error`, `cycle`, and `unresolved`.",
-  "notebook--playground": "The full reactive notebook: a prose cell, a `calc` cell, and two SQL cells wired through `createSqlCellType`, where editing one cell re-runs its dependents. Reach for this to exercise the `document`/`onDocumentChange` loop and the `cellTypes` registry (including a custom `calc` `CellType`) end to end.",
-  "outliner--block-refs": "Transcludes one bullet inside another: `((id))` inlines the referenced bullet's rendered content through the `resolveBlockRef` callback, and edits to the source flow through to every reference. Unresolved ids render a visible \"ref not found\" marker; transclusion is depth-capped. Reach for this when bullets need to embed each other, Roam-style.",
-  "outliner--editable": "The full interactive outliner: click a bullet to focus and edit, arrow keys to navigate and collapse/expand, Tab/Shift+Tab to indent/outdent, Cmd+Shift+\u2191/\u2193 to reorder, and Cmd+Enter to commit and start a new sibling. This is the default mode (no `readOnly`); reach for it whenever the user edits the outline.",
-  "outliner--read-only": "The same sample outline with `readOnly`, so markdown, collapsed branches, and keyboard navigation still work but nothing can be edited, indented, or reordered. Reach for this to display a fixed outline.",
-  "outliner--wiki-links": "Renders `[[Name]]` as clickable wiki links and reports each click through `onWikiLinkClick` (logged below the outline). Reach for this to wire bullet-to-bullet or page navigation on top of the outliner.",
-  "pane--basic": "A `Pane` splitting into an auto-sized `Pane.Header` and a `Pane.Body` that scrolls once its content outgrows the parent's fixed height. Reach for this whenever a region must fill its parent and keep a header pinned while the body scrolls its own overflow.",
-  "pane--nested": "A `Pane` inside another `Pane.Body`: the inner pane fills the outer body and owns its own scroll, without pushing the scroll up to the outer container. Use it when you stack scrollable regions and each needs an independent header and scrollbar.",
-  "pane--no-header": "A `Pane` with only a `Pane.Body` and no `Pane.Header`, so the auto header row collapses to 0 and the body takes the whole pane. Reach for this when you want a single scrollable region without a fixed header.",
-  "perf--candlestickchart--perf-candles": "Renders a deterministic 1000-candle OHLC walk (about 4k SVG elements) at a fixed 960px width, the target the perf probes sweep a pointer across to measure hover input-to-paint latency and frame p95. Reach for it to stress the memoized `CandlesLayer`: each candle crossing should bail out at one fiber instead of re-reconciling every candle group, and it doubles as a manual stress story.",
-  "perf--chat--perf-transcript": "A 200-message markdown transcript that drives the chat perf probes: keystroke-to-paint latency with a long list mounted, send latency, and frame times while a scripted stream appends chunks (the `data-perf-stream` button starts a 40-tick append that re-parses markdown each tick). Reach for it to measure or stress `Chat` under a heavy transcript and live streaming rather than as a usage example.",
-  "perf--datatable--perf-grid": "A deterministic 10,000-row flat grid with sortable, filterable, and resizable columns (`filterableColumns` on), capped at `height={480}` so the body virtualizes. This is the perf-probe target for sort clicks, filter keystrokes, and column-resize steps; flat mode renders straight from `data` without materializing a TanStack Row per row. Reach for it to stress or profile a large read-only grid.",
-  "perf--datatable--perf-tree": "A 50,000-node tree (2,500 roots by 19 children each) supplied through `getSubRows`, mounted fully collapsed. It probes tree-mode heap cost and expand-toggle latency: collapsed subtrees are pruned before TanStack sees them, so only the visible roots are materialized. Reach for it to profile deep hierarchical data or verify the memory savings on large collapsed trees.",
-  "perf--explorer--perf-tree": "An Explorer over an ~11k-node tree (depth 4, breadth 10, deterministic seed) with the top two levels expanded and `filterableColumns` on. It backs the perf probes for scrolling, folder toggles, and filter keystrokes at scale; reach for it to stress the virtualized `treegrid` and confirm row rendering stays smooth on a large forest.",
-  "perf--heatmap--perf-dense": "A 100\u00d7100 field (10k SVG cells) with six iso-lines via `contours`, the target for the perf probe that measures render readiness and hover-to-tooltip latency. Reach for it to stress-test the memoized cell/contour layers on a dense grid, or as a manual worst case for the same.",
-  "perf--picker--perf-thousand": "A `Picker` over 1000 generated items, the target for the perf probes that measure open-to-painted, filter keystrokes, backspace-to-full-list, and arrow navigation across a large virtualized option list. It starts with an empty `value` so a selected label never skews the filter-keystroke timings; reach for it to stress-test or eyeball Picker behaviour at scale.",
-  "perf--pointcloud--perf-cloud20k": "One `series` of 20,000 deterministic points (seeded, bell-shaped spread) rendered at `height={480}`, the target for the orbit-drag redraw probes: it exercises the per-frame project, depth-sort, and paint path at a scale the shipped 320-point stories can't reach. Reach for it to catch a regression in the redraw hot loop (input-to-paint latency, sustained-drag frame p95, per-frame allocation churn) rather than to demo the component.",
-  "perf--scatterplot--perf-points": "A static 5,000-point series, the hover-latency probe. It measures input-to-paint on a pointer sweep and frame p95 as the cursor crosses points, verifying that each hover bails out at the memoized point layer instead of re-reconciling all 5k circles. Reach for it to check hover responsiveness at a dense marker count.",
-  "perf--scatterplot--perf-zoom": "A 50,000-point line with `zoomable` and `scaffolding=\"full\"`, the viewport probe. Every wheel or drag recomputes the x-domain, re-slices the visible window and re-decimates it (min/max per pixel column), so this checks that the rendered element count stays near the plot width at any zoom depth. Reach for it to confirm pan and zoom stay smooth on a large series.",
-  "perf--selector--perf-thousand": "A `Selector` over 1000 options, the target for the interaction-latency probes (open-to-painted, filter keystrokes, arrow navigation) and a manual stress test. Shows the windowed option list (`useVirtualizer`) holding up on a large `items` array while Base UI keeps keyboard navigation over the full filtered set.",
-  "perf--skeleton--perf-fills24": "Renders 24 Skeletons with the `effect` dithered fill active, 8 past the browser's ~16 concurrent WebGL context cap, to prove the pooled engine allocates one shared context and loses none. Reach for it as the WebGL-budget perf probe or a manual stress test; effects and heights come from a seeded PRNG, so the layout stays reproducible across runs.",
-  "perf--windowarray--perf-strip": "A deliberately oversized `WindowArray`: about 54 windows across 12 columns, seeded deterministically so `scripts/perf/run.mjs` can drive drag-rearrange loops, Shift+Arrow moves, and gutter resizes at a scale past normal use. Reach for it to stress-test rearrange and resize latency (the root marks `data-perf-ready` for the headless probe), or as a manual load check for the strip.",
-  "picker--default": "A single Picker over a list of city strings, starting empty, with the chosen value echoed below. The baseline case: search the list, pick one, read the result back through `onChange`.",
-  "picker--disabled": "A Picker locked with `disabled`, preselected via `defaultValue`. Use it to show a non-editable choice while the field still reads its label.",
-  "picker--object-items": "Items given as `{ value, label }` objects, so the field displays the human `label` while `onChange` reports the stable `value` id. Reach for object items when the display text differs from the value you store.",
-  "picker--playground": "The full prop surface wired to Ladle controls: `items`, `placeholder`, `size`, `clearable`, and `disabled`, over a controlled value. Use it to try prop combinations before settling on one.",
-  "picker--sizes": "The three control sizes stacked, `sm` above `md` above `lg`, matching Input heights. Set `size` to fit the Picker into a dense row or a roomier form.",
-  "popover--default": "A secondary Button triggers a click-anchored floating panel holding a `Title` and `Description`, positioned 8px off the trigger via `sideOffset`. Reach for `Popover` to attach anchored content to a click, composing `Popover.Root`, `Trigger`, `Portal`, `Positioner`, and `Popup`.",
-  "progress--animated-effects": "Every effect the animated WebGL fill can run, split into evenly-covered ones that stay legible on a thin `md` bar and large-area ones shown taller at `lg`. The bar slowly fills 0 to 100 and loops so you read each effect as it paints; browse here to pick an `effect` other than the `shimmer` default.",
-  "progress--custom-color": "An explicit `color` overrides the semantic `tone`, taking any CSS colour or `--sf-*` token. Reach for it when a bar must match a brand or data-series colour rather than signal status.",
-  "progress--elevation": "The track sits on the `--sf-elevation-N` scale, shown at 1, 3, and 5. Set `elevation` to give the bar depth against its surface; omit it for a flat track.",
-  "progress--fills": "The three `fill` treatments at the same value: solid `color`, a static `dither`, and an `animated` WebGL dither. Use `color` by default, `dither` for the blocky console look, and `animated` when a live effect signals ongoing work.",
-  "progress--indeterminate": "Passing `value={null}` renders a busy bar with no known percentage: the `color` and `dither` fills sweep, the `animated` fill runs its effect across the whole track. Reach for it while work is in flight but progress cannot be measured; reduced motion freezes all three.",
-  "progress--playground": "Live controls over the main props (`value`, `fill`, `size`, `tone`, `showValue`) to feel out a configuration. Start here to see how the pieces combine before wiring a bar into a page.",
-  "progress--sizes": "The four thickness rungs `xs`, `sm`, `md`, `lg` at the same value. `size` is a geometric dimension, so it adds an `xs` rung below the usual three-rung scale; pick by how much visual weight the bar should carry.",
-  "progress--squared": "Zeroing the component-scoped `--sf-progress-radius` token squares the corners so the bar sits with the blocky dither family, without touching the broad `--sf-radius-default`. Use it when a squared track reads better beside dithered fills.",
-  "progress--tones": "The five semantic `tone` values (`neutral`, `primary`, `success`, `warning`, `danger`) tinting the fill. Choose the tone that matches the status the bar reports; `neutral` is the resting default.",
-  "progress--with-value": "`showValue` appends an inline readout, defaulting to a rounded percentage. Pass `formatValue` to render a fraction of 1 as a percent or a raw `value/max` count when the underlying range is not 0 to 100.",
-  "prose--long": "The full ~2,500-word story in a scrollable `Pane`. Virtualization keeps the DOM small as the reader scrolls; reach for this to see `Prose.Body` handle a document-length source.",
-  "prose--short": "The first three sections only, the smallest source. Confirms `Prose` renders cleanly when there is little content and no outline is shown.",
-  "prose--stress": "The real prose tiled 50 times under chapter markers, about 4,000 blocks. Scroll with DevTools open to confirm the rendered `.block` count stays bounded (~25 to 40) at any scroll position.",
-  "prose--with-outline": "The full story in a two-column `split` layout: `Prose.Outline` navigation beside `Prose.Body`. Reach for this when readers need to jump between headings; the outline tracks and highlights the section in view.",
-  "radio--group": "Three `Radio` options wrapped in a `RadioGroup`, each paired with its own `<label>`, with `defaultValue` preselecting Medium. Reach for this whenever a set of choices is mutually exclusive: the group tracks one selected `value` and enforces single-choice selection.",
-  "radio-table--no-descriptions": "Three options as bare radio plus label, no `description` on any `RadioTable.Option`. Reach for this when the choices are self-explanatory (a size or a mode) and a detail line would be noise.",
-  "radio-table--playground": "A four-tier plan picker wired to `value`/`onValueChange`, each `RadioTable.Option` carrying a `label` and a `description`. The default view of the component: pick one, each choice with a title and a supporting line.",
-  "radio-table--resizable": "The same plan picker inside a horizontally resizable box, so you can drag the corner and watch each description move right of its `label` when the container is wide and drop below it when narrow. Use it to check the container-driven reflow at any width.",
-  "radio-table--tall-descriptions": "Two options whose `description` text wraps to several lines, showing that the radio, label, and description stay vertically centered in a tall row. Reach for this to confirm the layout holds when descriptions are long.",
-  "radio-table--with-disabled": "Three options where the last sets `disabled`, so it renders dimmed and skips selection and arrow-key focus. Shows how to lock a choice that is not yet available.",
-  "reflow--narrow-accordion": "A 360px wrapper forces the collapsed state, so the columns stack as a vertical accordion with the first section open. Reach here to see the default `collapseMode` collapse: each title becomes an accordion trigger.",
-  "reflow--narrow-tabs": "The same narrow wrapper, but `collapseMode=\"tabs\"` collapses the columns into a tab switcher that shows one panel at a time. Use tabs over the accordion when the columns are peers the user swaps between rather than scans top to bottom.",
-  "reflow--wide": "The three columns side by side, each with its title as a real heading above its body. This is the expanded state; drop `collapseAt` below the container width (default 32u) and it stays wide.",
-  "scrollable--both": "A surface scrolling on both axes at once (`overflow: auto`), the styled thumb shared by each axis. Reach for it to check the two scrollbars together, including the corner where they meet.",
-  "scrollable--compared-to-default": "The `.scrollable` surface side by side with an unstyled native one, so the thin thumb and hover recolor read at a glance against the browser default. Toggle Ladle's theme to confirm dark mode adapts with no per-theme override.",
-  "scrollable--horizontal": "A single wide line overflowing sideways, driven by `overflowX: auto`, to show the horizontal scrollbar. Use it to review the thumb on the x axis.",
-  "scrollable--vertical": "A tall column of rows scrolling on the y axis (`overflowY: auto`): the thumb stays invisible at rest and appears in the primary color when you hover the surface. The common case for reviewing the vertical scrollbar.",
-  "selector--compact": "Two `layout=\"compact\"` selectors that collapse to an \"N selected\" count plus Clear, sized to their content. Reach for this in a toolbar or filter bar where space is tight; the second one uses `compactLabel` to reword the count, and the full set is reviewed and unchecked in the dropdown.",
-  "selector--inline": "`layout=\"inline\"`: the chosen chips sit inside the search field, tag-input style. Reach for this when you want one self-contained control rather than a separate bucket panel.",
-  "selector--inline-overflow": "The inline layout in a 20rem container with more chips than fit. The control stays one row and clips the overflow with a trailing marker; the whole selection stays reachable in the dropdown, so the field never grows vertically.",
-  "selector--object-items": "`items` given as `{ value, label }` objects instead of bare strings, so the stored value and the displayed text differ. Also sets `bucketLabel=\"Stack\"` to retitle the panel heading.",
-  "selector--panel": "The default `layout=\"panel\"`: a search field above a separate bucket that lists the chosen chips with a Clear action. Reach for this when the selection deserves its own visible area.",
-  "selector--playground": "The full prop surface wired to Ladle controls: switch `layout` (panel/inline/compact), `size`, and `disabled` to compare every configuration in one place.",
-  "selector--sizes": "The three `size` values (`sm`, `md`, `lg`) stacked in inline layout, matching `Input` heights. Use it to pick the size that fits the surrounding form density.",
-  "skeleton--card": "Composes several skeletons into a card placeholder: a circle avatar beside a headline and subhead line, laid out with `Grid`. Reach for this pattern to hold the shape of a list item or profile card while its data loads.",
-  "skeleton--circle": "A round placeholder from `shape=\"circle\"` sized with `size`. Use it for avatars, icons, and other square-round slots.",
-  "skeleton--dithered-effect": "Swaps the default shimmer for a WebGL dithered fill via `effect` (here `noise`, `plasma`, `ripple`), the same engine as `NonIdealState`. Reach for it when a plain shimmer reads as too quiet for a large loading region.",
-  "skeleton--pill": "A rounded-end placeholder from `shape=\"pill\"`. Use it to stand in for a chip, tag, or button while it loads.",
-  "skeleton--playground": "Interactive controls over a single skeleton; the `shape` radio switches between rect, circle, and pill. Use it to feel out props before wiring the component in.",
-  "skeleton--polymorphic": "Renders each skeleton as an `<li>` through the `render` prop instead of the default `<div>`. Reach for `render` when the placeholder must sit inside a list, table, or other element that constrains its valid children.",
-  "skeleton--rect": "The default: a sharp-cornered block one unit tall that fills its container width. This is the base skeleton for a single line or bar.",
-  "skeleton--sized": "Three blocks at explicit `width` and `height` in `--sf-unit` multiples. Set both when the placeholder must match a known element's size rather than fill its container.",
-  "skeleton--text-block": "Stacks full-width lines with a short final line at 60% to mimic a paragraph. Use it to hold the space for a block of running text.",
-  "spinner--colors": "Five spinners tinted with palette tokens via `color` (primary, success, danger, muted), plus one that omits `color` and inherits `currentColor` from an orange container. Reach for it to see how a spinner picks up either an explicit token or the surrounding text color.",
-  "spinner--gallery": "Every `variant` in the set rendered at `size=\"lg\"` beside its name, from braille and dots to blocks, bars, and arrows. Use it to browse the full glyph catalogue and pick the animation that fits.",
-  "spinner--inline-with-text": "Two spinners sitting inside a line of body text (`braille` before, `dots` after \"Loading results\u2026\"), inheriting the surrounding font size. Shows how a spinner reads beside a label without knocking the baseline.",
-  "spinner--speeds": "The `bars` variant at four `speed` multipliers (0.5x, 1x, 2x, 4x) side by side. Reach for it to judge how fast a spinner should cycle for a given wait.",
-  "splitpane--bottom": "The panel docks to the bottom edge (`side=\"bottom\"`), splitting the container into a top main region and a bottom panel with a horizontal divider. Reach for it when the secondary content belongs below the main view, like a console or a details strip.",
-  "splitpane--fixed-non-resizable": "Passes `resizable={false}`, so the panel holds its `defaultSize` and no divider renders. Use it when the panel width is fixed and the user should not drag it.",
-  "splitpane--left": "The panel sits on the left edge (`side=\"left\"`) and pushes the main content to the right. Reach for it for a left sidebar such as navigation or a file tree.",
-  "splitpane--right": "The default: a right-edge panel (`side=\"right\"`) that pushes the main content left. Toggle it with the button, then drag the divider to resize or focus it and use the arrow keys; `onSizeChange` reports the settled width.",
-  "splitpane--top": "The panel docks to the top edge (`side=\"top\"`) above the main region, split by a horizontal divider. Reach for it when the secondary content belongs above the main view.",
-  "stack--basic": "A fixed-height box where a heading and an Amount field keep their natural size while a `Stack.Fill` holding a `TextEdit fill` stretches to the bottom edge. Reach for it when one region in a region of fixed height should absorb the leftover vertical space.",
-  "stack--horizontal": "Set `direction=\"horizontal\"` to lay the stack as a row: a fixed 8rem sidebar plus a `Stack.Fill` main column that absorbs the remaining width. Use it when one column should take whatever horizontal space the others leave.",
-  "stack--in-a-resizable-dialog": "The motivating case (issue #74): a draggable, resizable `Dialog.Popup` whose body is a `Stack fill`, with the Reason region a `Stack.Fill` plus `TextEdit fill` that stays locked above the action row as the window resizes. Reach for this pattern when a field must grow and stay pinned to the lower edge inside a resizable container.",
-  "streaming-terminal-text--configured": "Auto-starts on mount and feeds the sample text through tuned props: a slower `charIntervalMs`, a longer `tailLength`, and a three-glyph `shadeRamp`. Reach for it to see how the reveal cadence and the density of the developing shade tail respond to prop changes.",
-  "streaming-terminal-text--from-fetch": "A documentation stub rather than a live demo: the comment block at the top of the story holds the consumer-side wiring for a real `fetch().body.getReader()` stream, feeding `content` and flipping `isComplete` on `done`. Read it when connecting the component to a backend; use the Simulated story to watch the reveal itself.",
-  "streaming-terminal-text--mode-comparison": "A fast source (12 chars every 40ms) drives two instances at once so you can compare `mode=\"dramatic\"` against `mode=\"stream\"`. The default dramatic reveal lags a fast source and then bursts to catch up on completion, while stream tracks the source and shimmers only the shade tail at the live edge.",
-  "streaming-terminal-text--simulated": "A Start button drives bursty chunked arrival via `setInterval`, adding 4 to 12 chars per tick to mimic a real LLM stream. The interactive demo: reach for it to watch the reveal and shade tail against live-like input.",
-  "streaming-terminal-text--static": "Passes the full text at once with `isComplete`, so there is no reveal animation and the content renders straight to materialized Markdown. Shows the finished, resolved state the stream lands on.",
-  "switch--default": "A bare switch in its resting off state, uncontrolled. This is the starting point for a binary on/off setting that takes effect immediately.",
-  "switch--default-checked": "The switch rendered on at mount via `defaultChecked`, still uncontrolled so the user can toggle it. Reach for `defaultChecked` when a setting starts enabled.",
-  "switch--disabled": "A checked switch made non-interactive with `disabled`. Use it to show an on setting the user cannot change in the current context.",
-  "table-input--dates-and-text": "A milestone table mixing text, `date`, and `boolean` columns, with `equalColumns` giving every column the same share so the wide date editor doesn't crowd the text one. Reach for `equalColumns` when editor widths differ enough to unbalance the layout.",
-  "table-input--dense": "The same holdings table tightened with `cellPadding=\"xs\"` and `cellFontSize=\"xs\"`, which consume DataTable's density variables so the two read at one scale. Reach for these when a compact financial layout needs the grid packed tighter.",
-  "table-input--disabled": "The whole control switched off with `disabled`: cells are non-focusable and the add and delete buttons are inert. Shows the read-only state for a form that isn't currently editable.",
-  "table-input--empty": "Zero rows with a centred `empty` slot for a no-data or failed-load state; the header and add button stay so the reader keeps column context and can start a row. Reach for `empty` on an async table; omit it and an empty table shows just the header and add button.",
-  "table-input--fill-height": "A sparse two-row table held to a fixed height (`style={{ blockSize }}`) with `fillHeight` dithering the empty band below the last row so it reads as one filled panel, add button pinned at the bottom. Reach for `fillHeight` when a fixed-height table has too few rows to fill it.",
-  "table-input--in-a-field": "The table dropped inside a vertical `Field` with a `Field.Label` and `Field.Description`, the intended way to label and describe it. This is how `TableInput` sits in a form.",
-  "table-input--min-max-rows": "`minRows={1}` disables delete at one row and `maxRows={5}` disables add at five, bounding the row count. Reach for these when the array has a required floor or a hard ceiling.",
-  "table-input--narrow": "The table in an 18rem container: columns shrink toward their minimum widths, and once they can't all fit the table scrolls horizontally rather than collapsing columns into each other. Shows the reflow behaviour in a tight sidebar or split pane.",
-  "table-input--playground": "The base holdings table with text, number, select, and boolean columns and controlled `value`/`onChange`. The default starting point for exploring the props.",
-  "table-input--reorderable": "Adds `reorderable` so rows carry a drag handle and can be dragged to reorder (dnd-kit loads lazily). Reach for it when row order is meaningful to the user; note it disables `virtualize`.",
-  "table-input--virtualized": "A 500-row array windowed with `virtualize` and a bounded height (`style={{ blockSize }}`), so only the visible slice is in the DOM and the header sticks while the body scrolls. Reach for `virtualize` past a few hundred rows; it's ignored under `reorderable`.",
-  "tabs--default": "Three peer views in one surface, switched by a `Tabs.List` of `Tabs.Tab`s with a sliding `Tabs.Indicator` under the active tab and one `Tabs.Panel` per `value`. Reach for this to give a region horizontally peer-level views; the selected tab bolds without reflowing the row, since each tab reserves its bold width.",
-  "text-edit--controlled": "A controlled `TextEdit`: `value` and `onChange` are driven from React state, with a live character count below. Reach for this when you need to read or transform the text as the user types.",
-  "text-edit--default": "The bare component at its default `rows={3}`, showing a `placeholder`. This is the starting point for a plain multi-line note field.",
-  "text-edit--disabled": "A `disabled` field holding `defaultValue` text the user cannot edit. Use it to present read-only content while keeping the input's look.",
-  "text-edit--playground": "An interactive sandbox wired to Ladle controls for `placeholder`, `rows`, and `disabled`. Use it to try prop combinations before settling on a configuration.",
-  "text-edit--tall": "A taller field set to `rows={10}` for longer entries. Reach for a higher `rows` when the text is usually a paragraph or more.",
-  "text-edit-inline--controlled": "Drives the field from state via `value` + `onChange`, echoing a live character count below. Reach for this when the app owns the note's value or you need to react to every edit.",
-  "text-edit-inline--default": "The resting behaviour: one ellipsized line that peeks the full text on hover and opens to an editor on click. A paragraph below stays put, showing the expanded overlay floats above the content instead of pushing it down.",
-  "text-edit-inline--playground": "Live-args sandbox for `size`, `maxRows`, `placeholder`, and the value. Use it to feel how a long note grows to `maxRows` before it scrolls.",
-  "text-edit-inline--sizes": "The three resting heights (`size` sm 1u / md 1.5u / lg 2u) stacked, matching the Input heights. Pick the one that lines up with the other controls in the row.",
-  "text-edit-inline--states": "Three cases side by side: empty (placeholder only), a short value that fits one line with no ellipsis, and a long value that ellipsizes. Shows how the collapsed line reads across content lengths.",
-  "theme-builder--custom-preview": "Passes custom `children` in place of the default component gallery: a `Box` with headings, `Chip`s, and a `Button`. Anything inside the preview that reads `--sf-*` tokens re-themes live as you edit the palette, so reach for this to preview the token edits against your own layout. Starts on the dark theme via `defaultTheme`.",
-  "theme-builder--default": "The ThemeBuilder at full width: colour and token controls on the left, a live component sample in the middle, and the generated CSS or JSON on the right. Reach for this to see the standard three-column layout and the built-in preview gallery.",
-  "theme-builder--narrow": "The same builder in a 24rem container, where the controls, preview, and export panels stack into one column. Collapse is driven by a container query on the builder's own width, so it reflows inside a sidebar or split pane without viewport breakpoints.",
-  "timeline--compact": "The condensed control strip: a thin `compact` `bordered` row where event labels stay hidden until you hover a marker or scrub the playhead near one, then float above the box. Reach for this when the timeline is a control rather than a display.",
-  "timeline--custom-color": "Sets the accent for the playhead, now line, markers, range band and value tag with the `color` prop. Takes any CSS colour or a token reference like `var(--sf-color-success)`.",
-  "timeline--daily-ticks": "A one-week span where the axis picks day-level ticks automatically. Shows how the tick unit adapts to a short range.",
-  "timeline--hourly-ticks": "A single working day from 08:00 to 18:00, where the axis drops to hourly ticks. Use a sub-day `start`/`end` for intra-day event strips.",
-  "timeline--monthly-ticks": "A read-only full-year timeline with month ticks and five release markers, each wired to an `onClick`. The baseline lane view with no scrubbing.",
-  "timeline--multi-year": "A six-year span where the axis settles on year ticks. Shows the tick unit widening for long ranges.",
-  "timeline--narrow": "Twelve long-label events crammed into a 320px container with `maxLanes={2}`. Labels the lane pass can't place collision-free are flagged as overflow, hidden at rest and revealed on hover or focus while the diamond markers stay visible.",
-  "timeline--range-select": "Range selection through `rangeValue` and `onRangeChange`: two draggable handles with a band between them. Drag a handle to move one bound, the band to pan the whole range, click the track to pull the nearest bound, or nudge a focused handle with the arrow keys; `rangeOpacity` sets the band fill.",
-  "timeline--range-value-labels": "Range handles each carrying a floating date tag via `valueLabel`, on a `bordered` strip lifted with `elevation={2}`. Reach for this when both range bounds need a visible readout.",
-  "timeline--scrubbable": "A video-style scrubber driven by `value`/`onChange`: click the track to set the playhead, drag to scrub continuously. Event markers keep their own `onClick` and don't trigger the scrub.",
-  "timeline--sizes": "The three strip heights `sm`, `md` and `lg` (24 / 36 / 48px), matching Input and Selector; `compact` is an alias for `md`. At `sm` the floating value labels shrink to stay proportionate.",
-  "timeline--snap-to-events": "With `snap=\"events\"`, the playhead jumps to the nearest `Timeline.Event` date as you scrub. Use this to lock a scrub to real data points.",
-  "timeline--snap-to-ticks": "With `snap=\"ticks\"`, the playhead jumps to the nearest tick boundary, here daily. Use this to constrain a scrub to whole time units.",
-  "timeline--stacked-lanes": "Six events over two weeks whose labels would collide, stacked into distinct vertical lanes by greedy assignment; each new label takes the lowest free lane and the container grows to fit. Cap the stacking with `maxLanes`.",
-  "timeline--tick-spacing": "The same range rendered at `tickSpacing` 40, 100 and 200, the target minimum px between ticks. Larger values choose a sparser axis unit.",
-  "timeline--value-labels": "Turns on `valueLabel` to float a small date tag above the playhead, formatted by `formatValue`. Works for the single playhead and both range handles.",
-  "toggle-group--disabled-one": "A single item marked `disabled` on `ToggleGroup.Item`: the Grid option can't be selected or focused while List and Table still toggle. Reach for this when one choice is temporarily unavailable but should stay visible in the set.",
-  "toggle-group--multi-select": "`multiple` lets several items stay pressed at once, here bold/italic/underline text marks tracked in the `value` array. Use it when the toggles are independent flags rather than one exclusive choice.",
-  "toggle-group--single-select": "The default segmented control: exactly one item is active at a time (a list/grid/table view switch). `value` is still a `string[]`, holding at most one entry. Reach for this for a mutually-exclusive pick.",
-  "toggle-group--sizes": "`size` on the root (`sm`/`md`/`lg`) cascades to every item, shown as three rows at matching Button heights. Set it to line the control up with adjacent buttons or a denser row.",
-  "vertical-form--bare": "`bare` drops the surrounding Box from every row: no surface, no border, no padding, for a minimal look. Sections and the Minimap rail behave the same. Reach for it when you want the fields to sit flush on the page rather than as raised cards.",
-  "vertical-form--dense": "120 fields in a short frame: block markers never compress below `minBlock` (0.5u), so the rail itself grows taller than its viewport and scrolls, auto-following the visible band. More labels survive than in a fit-everything overview. This is what a very long form looks like on the rail.",
-  "vertical-form--fits-without-rail": "Two fields that fit the frame with no overflow, so the Minimap rail stays hidden. Shows that the rail appears only when the content actually scrolls.",
-  "vertical-form--long-form": "24 uniform fields, each with a label and description, scrolling inside the frame with the rail alongside. The baseline case for a plain long form: no sections, no nav, just enough rows to make the rail earn its place.",
-  "vertical-form--max-block-compressed": "A small `maxBlock` (0.75u) caps how tall each rail block grows, so a sparse form's density strip packs into the top of the rail rather than spreading over its full height. Use `maxBlock` when you want the overview compact even with few fields; `minBlock` still floors dense forms.",
-  "vertical-form--playground": "The interactive story: controls for `elevation`, `side`, `padding`, and `minimapWidth` over a mixed form of Inputs and a TextEdit. Start here to feel out the props before wiring a real form.",
-  "vertical-form--reserved-error": "`reserveError` pre-allocates a one-line error slot under each field, so toggling an error on the middle field fills that reserved line in place rather than shifting the fields below it. Set it on any form that validates so an appearing error never reflows the rows. The button toggles the error to show the difference.",
-  "vertical-form--resizable": "Drag the container's bottom-right corner: each field's description moves right of the control when the row is wide and drops back below it when narrow. The reflow is a container query on the row, so it tracks the container width rather than the viewport, and works inside a split pane or sidebar.",
-  "vertical-form--resizable-with-sections": "The same description reflow as `Resizable`, now across grouped `VerticalForm.Section`s and with the `nav` bar on. Resize to watch every section's descriptions react together.",
-  "vertical-form--width-and-labels": "A per-field `width` (8u) caps a bounded control (here a DatePicker) so it reads visibly narrower than an open text field, and a long label wraps within the row rather than overflowing. Use `width` for dates, codes, and quantities that shouldn't stretch to the full row.",
-  "vertical-form--with-errors": "Several fields carry an `error`, which renders the message below the control and marks that row's rail tick danger. Shows how validation errors read both inline and on the Minimap at a glance.",
-  "vertical-form--with-nav": "`nav` adds a bottom bar holding a searchable Picker of every section and field title. Selecting one scrolls to it; scrolling the form updates the Picker to the title at the top. Reach for it on a long, sectioned form where the rail alone isn't enough to jump around quickly.",
-  "vertical-form--with-sections": "Fields grouped under `VerticalForm.Section` titles (Account, Profile, Preferences), each title becoming a level-1 rail marker with its fields indented under it. Use sections to give a longer form structure on the page and on the rail.",
-  "windowarray--basic": "Three columns of stacked windows: drag a title to rearrange (drop it on a gutter to break it into its own column), drag a gutter to resize, and use arrows, Home, and End to navigate, Shift+Arrow to move. The starting point; `onWindowMove` reports each rearrange for you to apply to your own state.",
-  "windowarray--custom-actions": "A consumer-supplied pin button in the Window `actions` slot, built with `WindowArray.WindowButton` so it shares the built-in fullscreen and close chrome exactly and sits before that pair. Reach for it to add per-window controls; the actions row swallows pointer-down, so these never start a window drag.",
-  "windowarray--elevated": "`elevation={4}` gives every window a deeper resting shadow above the dithered desk (the default is `1`), while a fullscreen window stays flat. Set `elevation` from 0 to 5 to tune how far the windows lift off the surface.",
-  "windowarray--fullscreen-and-scrolling-bodies": "Window bodies that overflow scroll internally, and the title-bar fullscreen toggle expands one window over the WindowArray container only (Escape exits). Reach here to see how long content behaves; `maximizable` (default true) controls the toggle.",
-  "windowarray--many-columns": "Eight single-window columns overflow the strip, which scrolls horizontally with `snap` proximity column snapping and `controls` edge paddles that fade in as the pointer nears an edge. Alt+Arrow switches columns from anywhere inside, wired by the consumer through `apiRef.switchColumn` (the component binds no global shortcut).",
-  "windowarray--narrow-vertical": "With `orientation=\"auto\"`, dragging the container below `verticalBelow` (480px) transposes the strip: it scrolls top-to-bottom, columns become full-width bands, and stacked windows sit side by side. Drag the resize corner across the breakpoint to watch the flip; arrows, Shift+moves, gutter resizing, paddles, and Alt+hotkeys all follow the layout axis.",
-  "windowarray--static-strip": "Omitting `onWindowMove` disables dragging and Shift+Arrow moves, and omitting `onClose` drops the close button, so the chrome shrinks to just the fullscreen toggle. Per-window `maximizable={false}` also removes that toggle and per-column `resizable={false}` locks the gutter; reach for this for a display-only strip.",
+  "box--custom-padding":
+    "Three boxes at the same elevation with `padding` set to 0, 0.5, and 2 units. Reach for `padding` when the default 1-unit inset is too tight or too loose; a number is multiplied by `--sf-unit`, a string passes through raw.",
+  "box--elevations":
+    "A grid of the six shadow depths, `elevation` 0 (flat) through 5 (furthest). Use it to pick the depth that groups a surface against its background.",
+  "box--polymorphic-section":
+    "A single Box rendered as a `<section>` through the `render` prop instead of the default `<div>`. Reach for `render` when the surface needs a semantic element without losing Box styling.",
+  "box--with-texture":
+    "Boxes at elevation 0, 2, and 4 with `texture` on, adding a faint monochrome noise overlay. Turn on `texture` when a flat surface needs a slight tactile grain.",
+  "button--all-sizes":
+    'The three heights side by side, from `size="sm"` through `"md"` to `"lg"`. Pick the size that fits the density of the surrounding UI; `md` is the default.',
+  "button--all-variants":
+    "The four `variant` values in a row: `primary`, `secondary`, `ghost`, and `danger`. Choose by the weight and destructiveness of the action, one primary per view, `danger` for irreversible ones.",
+  "button--disabled":
+    "Primary and secondary buttons with the `disabled` prop set. Use it to block an action that is currently unavailable while keeping it visible.",
+  "button--playground":
+    "A single button wired to Ladle controls for `variant`, `size`, `tight`, and `disabled`. Use it to try prop combinations before committing to one.",
+  "button--tight":
+    "`tight` trims the horizontal padding and icon/text gap while keeping the height from `size`, so a compact button still lines up with its peers. Reach for it in dense toolbars and icon-only buttons; it composes with `size` and `variant`.",
+  "button-group--default":
+    'A primary Save beside a secondary Cancel, joined into one segmented row with `role="group"`. The common two-action pairing: reach for `ButtonGroup` whenever related buttons belong together instead of scattered across a toolbar.',
+  "button-group--mixed-variants":
+    "Three buttons of different variants (secondary, primary, danger) sit in one group, so grouping and per-button emphasis are independent. Set each child's `variant` to signal which action is the safe default and which is destructive.",
+  "button-group--sizes":
+    'Three groups at `size="sm"`, `"md"`, and `"lg"`, each cascading its size to every child Button. Set `size` once on `ButtonGroup` rather than on each button; a child that sets its own `size` still wins.',
+  "button-group--three-actions":
+    "A three-item pager (Prev, page indicator, Next) built from secondary buttons in one group. Use this for segmented navigation or any short row of peer actions that read as a single control.",
+  "chart--barchart--chart-window":
+    "The full interactive chart window: `frame`, `fullscreen`, the `controls` toolbar, and editable `annotations`. Because the x axis is categorical, `zoomable` windows the value (y) axis via wheel, drag, and keyboard; `zoomOutLimit={Infinity}` lets you pull back into empty margin. Reach for this for the trading-terminal read with zoom buttons and drawing tools.",
+  "chart--barchart--drill-down":
+    "Click or press Enter on a bar to drill into finer data: `onPointActivate` fires, and the consumer swaps `categories`/`series` (year totals to quarters) and renders its own back button. Reach for this to make bars a navigation surface; drill-down is an event you wire rather than built-in behavior.",
+  "chart--barchart--full-scaffolding":
+    '`scaffolding="full"` restores the classic chrome: a nice-tick y-axis with horizontal gridlines and no inline value labels. Reach for this when bars are too dense or too numerous for the default direct-label read.',
+  "chart--barchart--grouped":
+    "Two series per category rendered as side-by-side bars, each with its own `color` (plan versus actual). The legend appears automatically once there is more than one series. Reach for this to compare parallel measures across the same categories.",
+  "chart--barchart--many-categories":
+    'A single series across twelve months, showing how the default Tufte scaffolding holds up with many bands and inline value labels. Reach for this to gauge readability before switching to `scaffolding="full"`.',
+  "chart--barchart--narrow":
+    "Long category names squeezed into a 320px container, exercising the measured fitting ladder: labels ellipsize (full text in the `title`) and thin to a stride keeping first and last when bands get too narrow, while the y column sizes to the widest label. Deterministic data, so it doubles as a visual-regression surface.",
+  "chart--barchart--playground":
+    "The Ladle args playground: edit `categories`, `series`, `xLabel`, `yLabel`, and `showLegend` live to see how each prop shapes the chart. Reach for this to try a configuration before wiring it up.",
+  "chart--barchart--single-series":
+    'The baseline case: one series across five days in the default `scaffolding="hover"` mode, with per-bar value labels and the y-axis chrome fading in on hover. Reach for this as the starting point for a simple categorical bar chart.',
+  "chart--barchart--with-custom-colors":
+    "Per-series `color` set to semantic tokens (`--sf-color-danger` for open, `--sf-color-success` for resolved) so the hue carries meaning. Reach for this when the color should encode status; keep to tokens rather than literals.",
+  "chart--bridgechart--chart-window":
+    "The full interactive chart window: `frame`, `fullscreen`, `controls`, and value-axis (y) zoom, since the waterfall's x is categorical. Carries an editable `hline` reference level through `annotations`/`onAnnotationsChange`, and `zoomOutLimit={Infinity}` lets you pull back past the data extent. Reach for this when the bridge is a live analysis surface rather than a static figure.",
+  "chart--bridgechart--full-scaffolding":
+    '`scaffolding="full"` drops the per-bar value labels in favour of a nice-tick y-axis with horizontal gridlines. Use it for denser bridges where a shared scale reads better than labels on every bar.',
+  "chart--bridgechart--narrow":
+    "A stress test: long step names in a 320px container. The measured fitting ladder ellipsizes labels (full text in the `title`) and thins to a stride keeping the first and last when bands get too tight, while the y column sizes to the widest measured label. Deterministic data, so it doubles as a visual-regression surface.",
+  "chart--bridgechart--negative":
+    "When the running total dips below the starting baseline, negative deltas render in danger red and the auto-fit domain extends below zero. Shows how the chart handles refunds, churn, or outflows that push the cumulative down.",
+  "chart--bridgechart--playground":
+    "The Ladle args playground: a starting total, two deltas, and an ending total, with `items`, `yLabel`, and `showConnectors` exposed as controls. Start here to try prop combinations interactively.",
+  "chart--bridgechart--quarterly":
+    "The classic financier's waterfall: an opening total, several signed deltas, and a closing total, with dashed connectors tracing cumulative flow between bars. The default read for a single-period decomposition such as an ARR bridge.",
+  "chart--bridgechart--with-subtotals":
+    'Multiple `kind:"total"` items placed mid-bridge act as anchored subtotals: each resets the cumulative to its own value, so the next delta floats above it. Reach for this to segment a long bridge into checkpointed sections.',
+  "chart--bridgechart--without-connectors":
+    "The same four-bar bridge with `showConnectors={false}`, dropping the dashed lines between bars. Use it for dense bridges where the connectors start to crowd the plot.",
+  "chart--candlestickchart--chart-window":
+    "The trading-terminal window: `controls`, `fullscreen`, and `frame` together add a toolbar with zoom and drawing tools (trend line, levels, regions, notes, measure), plus selection with drag handles and Delete/Escape editing. Every drawing flows through `onAnnotationsChange` as serializable JSON anchored at timestamps and prices; reach for it when the user needs to mark up a chart.",
+  "chart--candlestickchart--daily":
+    'Daily OHLC over a date axis at the default `scaffolding="hover"`: up candles (close at or above open) read success-coloured, down candles danger-coloured, and hovering a column shows the O/H/L/C tooltip with a crosshair. The baseline example for a plain price chart.',
+  "chart--candlestickchart--full-scaffolding":
+    '`scaffolding="full"` keeps the nice-tick price axis and gridlines visible at all times. Reach for it with dense series where the reader needs a persistent scale to read against.',
+  "chart--candlestickchart--minimal":
+    '`scaffolding="minimal"` is the Tufte idle state: no axis or gridlines until you hover, where a crosshair traces the close price and date. Use it when the candles should carry the chart and scaffolding would be clutter.',
+  "chart--candlestickchart--narrow":
+    'A stress test: 90 daily candles in a 320px container at `scaffolding="full"`. Candles group under a level-of-detail budget without flapping on resize, month-boundary ticks outrank day ticks in one collision pass so labels never overlap, and the price column sizes to the widest measured label.',
+  "chart--candlestickchart--numeric-axis":
+    'A plain numeric x-axis (session/index number) via candles with numeric `x`, labelled with `xLabel="Session"`. Reach for it when the bars are sequential samples rather than calendar dates.',
+  "chart--candlestickchart--playground":
+    "The Ladle args playground: 30 candles with a `scaffolding` radio (`minimal`/`hover`/`full`) and a `yLabel`. Use it to try prop combinations interactively.",
+  "chart--candlestickchart--zoomable":
+    "`zoomable` over two years of daily candles: wheel zooms at the cursor (click once or hold ctrl/cmd), drag pans, double-click resets, and arrow/`+`/`-`/`0` keys drive the focused chart. Zoom runs in bar-index space so weekends stay collapsed, far-out views aggregate candles into true OHLC groups, and the `annotations` (an hline last-close level and a measure) stay anchored at timestamps and prices as you move.",
+  "chart--flows--chart-window":
+    "The full interactive chart window: a `frame`, `fullscreen` toggle, the `controls` toolbar, and `zoomable` value-axis (AUM) zoom (the x axis stays per-period). Carries an editable `hline` reference annotation at the opening AUM and sets `zoomOutLimit` to infinity for unbounded zoom-out. Reach for it when the flows chart should behave like a trading-terminal panel the user can zoom, annotate, and expand.",
+  "chart--flows--compact":
+    "A short flows chart fixed to `height={220}` in a 40rem container, with no x label. Use it to check the ribbon and legend read cleanly in a dense, height-constrained slot.",
+  "chart--flows--full-scaffolding":
+    '`scaffolding="full"` keeps the AUM axis and gridlines visible at all times, rather than the default hover reveal. Reach for it when the exact level at each waterfall step matters.',
+  "chart--flows--narrow":
+    'A narrow-container stress test: 12 monthly `YYYY-MM` periods in a 320px width with `scaffolding="full"` and `showLegend={false}`. Since `YYYY-MM` labels can\'t usefully ellipsize, the period axis thins to a stride keeping the first and last, and the y column sizes to the widest AUM label. Deterministic, so it doubles as a visual-regression surface.',
+  "chart--flows--playground":
+    "The Ladle args playground: one monthly AUM ledger with `yLabel` and `xLabel` set, every prop editable from the controls panel. Use it to try `scaffolding`, `colors`, connectors, and the other props interactively.",
+  "chart--scatterplot--annotations":
+    "Declarative `annotations` (hline, vline, rect, measure) anchored in data space, so they stay pinned to their values as the (also `zoomable`) chart zooms and pans. Reach for it to mark thresholds, events, or ranges you persist as plain JSON.",
+  "chart--scatterplot--chart-window":
+    "The full chart window: `controls` adds the toolbar (zoom in, out, reset), and since `onAnnotationsChange` is wired, the drawing tools too; `frame` gives it a panel border and `fullscreen` a maximize toggle. Reach for this for the trading-terminal look where the user draws and edits annotations that round-trip through state.",
+  "chart--scatterplot--drill-down":
+    "`onPointActivate` fires on click or Enter; the consumer swaps `series` for finer-grained data and renders its own breadcrumb (years to months here). Reach for it to build drill-down, which is an event you wire rather than built-in behavior.",
+  "chart--scatterplot--full-scaffolding":
+    '`scaffolding="full"` replaces the idle per-datum dot-dash ticks with even nice-tick axes and horizontal gridlines. Reach for it when many overlapping x values would collide as dot-dash labels, or for dense data.',
+  "chart--scatterplot--line":
+    "A single series drawn as a line only (`showLine` on, `showPoints={false}`). Reach for it when the trend matters more than the individual readings.",
+  "chart--scatterplot--multi-series":
+    "Two series with explicit `color` and `showLine`, and the legend appears automatically past one series. Reach for it to compare series (treatment against control) on shared axes.",
+  "chart--scatterplot--narrow":
+    "A stress case: a date x-axis and seven-digit y values inside a 320px container. The per-datum dot-dash labels pass through measured collision thinning (the range endpoints always survive) and the y column sizes to the widest label.",
+  "chart--scatterplot--playground":
+    "The Ladle args playground: toggle `series`, `showPoints`/`showLine`, the axis labels, and `showLegend` live. Start here to feel out the props.",
+  "chart--scatterplot--points":
+    "The default read: one series of point markers on numeric axes, with idle dot-dash scaffolding that fills in on hover. Reach for it to show discrete observations.",
+  "chart--scatterplot--points-and-line":
+    "One series showing both the markers and the connecting line (`showLine` and `showPoints` together). Reach for it when both the individual samples and their trend matter.",
+  "chart--scatterplot--time-series":
+    "A date x-axis: pass `Date` values for `x` and the axis ticks on a calendar ladder (months here). Reach for it for anything measured over time.",
+  "chart--scatterplot--zoomable":
+    "`zoomable` turns on wheel-zoom at the cursor, drag-pan, double-click reset, and keyboard nav when focused. Two years of daily data: zoom in and the time axis morphs from months to days, the decimated line reveals raw points, and the y-axis follows the visible window.",
+  "chart3d--heatmap--basic":
+    "A filled heatmap of the field z = sin(r)/r, with axis ticks pinned to actual cell centers. The default: pass `data` (gridded `x`/`y`/`z`) plus `xLabel`/`yLabel` and you get colored cells with a primary-tinted ramp.",
+  "chart3d--heatmap--chart-window":
+    "The full interactive chart window: `frame`, `fullscreen`, `controls`, and editable `annotations`, with `zoomable` windowing a vertical sub-range of rows (wheel, drag, `+`/`-`/`0`). `zoomOutLimit={Infinity}` lets you pull back past the data extent. Reach for this when the heatmap is a workspace the user explores rather than a static read.",
+  "chart3d--heatmap--narrow":
+    "A 24x12 grid with 7-digit axis values squeezed into 320px, to show tick thinning under pressure: per-cell-center labels drop by measured collision (first and last always kept) so they never overlap, and the y column sizes to the widest surviving label.",
+  "chart3d--heatmap--sensitivity-field":
+    "The same NPV model at full 41x41 resolution as a smooth field with 8 iso-lines (`contours={8}`), over a diverging red-to-green ramp on a symmetric `zDomain` so the baseline reads neutral. The continuous read for when you don't need per-cell numbers; the near-vertical contours make the dominant driver visible at a glance.",
+  "chart3d--heatmap--sensitivity-matrix":
+    "A two-way sensitivity table: a coarse 9x9 grid with each cell's value printed on its fill (`showValues` plus `valueFormat`), a diverging `colorScale`, and a symmetric `zDomain` centering the baseline. Reach for this for the classic colored data table of one metric against two drivers; keep the grid small, since value labels only fit on a table-sized field.",
+  "chart3d--heatmap--with-contours":
+    "The `Basic` peak field with 6 marching-squares iso-lines layered on top (`contours={6}`). The 2D read of a field that the Surface story renders in 3D; use `contours` to expose level structure the flat fill alone hides.",
+  "chart3d--pointcloud--clusters":
+    "Three labelled point series (Alpha, Beta, Gamma) sitting at separate x/y/z centres, each given its own `color` and listed in the legend. Reach for this to show how `series` separates distinct groups by colour in a rotatable 3D scatter; drag to rotate.",
+  "chart3d--pointcloud--sensitivity-cluster":
+    "320 Monte-Carlo scenarios over a 5-year DCF, plotted with growth delta on x, discount delta on y, and NPV % change as height (z), split into green upside and red downside `series`. Reach for this when a point cloud reads risk: the cloud's tilt is the sensitivity and its vertical spread is the outcome range.",
+  "chart3d--pointcloud--single-series":
+    "One unnamed series of 200 points using the default `pointRadius` and primary colour, with no legend (it appears only above one series). Reach for this as the plain baseline: a single cloud with default styling.",
+  "chart3d--surface--no-wireframe":
+    "The sin(r)/r peak with `wireframe={false}`, so only the shaded facets show and the hairline mesh is dropped. Reach for this when the mesh clutters a dense grid or you want a solid, clay-like read of the surface.",
+  "chart3d--surface--peak":
+    "The classic z = sin(r)/r ripple at default settings, with `xLabel`/`yLabel`/`zLabel` and drag-to-rotate. The reference story for learning to read a 3D surface: a clean single peak and concentric rings.",
+  "chart3d--surface--sensitivity-surface":
+    "A 5-year DCF's two-way NPV sensitivity as a response surface, using a diverging `colorScale` (danger to success) and a symmetric `zDomain` so the baseline plane sits neutral at the ramp's midpoint. Reach for this to read sensitivity as gradient: the steep tilt along the growth axis against the gentle slope along the discount axis.",
+  "chart3d--surface--terrain":
+    "A smooth pseudo-terrain summed from sinusoids at a taller `height={420}` and no axis labels, showing many hills and valleys at once. Use it to see how the shading and painter-sort hold up on a busy, multi-peak field.",
+  "chat--choices":
+    "An assistant message built from ordered `parts`: a text block followed by an in-chat choice menu. Picking an option fires `onAction`, which the app turns into the next turn. Reach for it when the assistant needs the user to pick from a short set before continuing.",
+  "chat--custom-block":
+    "A custom part type (`status`) rendered through the `renderPart` escape hatch, here a small service-health card wrapped in `ChatBlock`. Use it for any block the built-in part types do not cover.",
+  "chat--customized":
+    'The same empty chat re-accented: `sendVariant="primary"`, a renamed `sendLabel` ("Run"), a primary `borderColor`, and a custom `placeholder`. Reach for these props when the chat should read as the primary action rather than the neutral default.',
+  "chat--decision-tree":
+    "A `tree` part rendered as a terminal-style directory tree of plan steps. Clicking a node fires `onAction` with the node id. Use it to show an orchestration or decision plan the user can inspect step by step.",
+  "chat--default":
+    "A running conversation with a simulated streaming assistant reply: each user message pushes a placeholder that fills in character by character, and `disabled` gates the input while it streams. The baseline example of markdown messages plus the terminal reveal.",
+  "chat--empty":
+    "A chat opened with no messages and a custom `placeholder`. Shows the resting state before the first turn.",
+  "chat--error-state":
+    "An `error` part standing in for a backend failure (overloaded response), showing the `message`, `requestId`, and a Retry. `onError` fires when it appears; Retry reports through `onAction`. Use it to surface a failed turn the user can re-send.",
+  "chat--thinking":
+    'A scripted `thinking` part: a bare "Thinking\u2026" spinner expands into a live orchestration fan-out that fills in step by step, collapses to a `summary` when done, then appends the final answer. Drive it by updating the message `status` and `steps`, the way you drive `isStreaming`.',
+  "chat--thinking-error":
+    "A `thinking` part in the `error` state, expanded via `defaultExpanded` to show which step failed (build done, push registry errored). Use it when an orchestration run stops partway and the failing branch should stay visible.",
+  "chatdrawer--coarse-grain":
+    "Same drawer with a chunkier thinking effect: `cellSize={14}` doubles the shade-block size (default 7), so the dither reads coarser. Send a message to compare the grain. Reach for a larger `cellSize` when the fine default dither is too busy for the panel width.",
+  "chatdrawer--default":
+    "The baseline: a right-edge chat panel that pushes the app content aside rather than overlaying it. Drag the divider to resize between `minSize` and `maxSize`; sending a message flips `thinking` on and blooms the ripple effect through the padding gutter. Reach for `ChatDrawer` when the assistant is a persistent side region of the app.",
+  "chatdrawer--left":
+    'The panel docked on the left edge via `side="left"`; everything else matches Default. Use it when the assistant belongs on the opposite side from your main navigation.',
+  "chatdrawer--views":
+    'Multi-view mode: `views` turns the header into an icon bar (a Chat view and a Files view), and `actions` adds a custom "New chat" button beside the fullscreen and close controls. Each view keeps its state while hidden, so switching away and back does not reset the chat. Reach for this when the drawer hosts more than the conversation.',
+  "checkbox--default":
+    "An unchecked checkbox in its resting state. The baseline for a binary independent toggle in a list.",
+  "checkbox--default-checked":
+    "A checked checkbox showing the checkmark indicator. Set `defaultChecked` to start a toggle in the on state.",
+  "checkbox--disabled":
+    "A checked but non-interactive checkbox. Combine `disabled` with `defaultChecked` to display a fixed value the user cannot change.",
+  "checkbox--indeterminate":
+    "A checkbox in the mixed state, drawn as a horizontal dash instead of a check. Set `indeterminate` for a parent whose children are partly selected.",
+  "chip--disabled":
+    "Chips dimmed and inert via `disabled`: both the chip's own `onClick` and the `onRemove` \u2715 stop responding. Use for a token that is present but currently unavailable.",
+  "chip--filters":
+    'A row of filter chips where the whole chip is a button (`onClick` gives it `role="button"`, a focus ring, and Enter/Space). The active one carries `tone="primary"` and a `dot`; reach for this when chips select a view or narrow a list.',
+  "chip--removable":
+    "A wrapping bucket of tags, each with an `onRemove` \u2715 that is keyboard-reachable and stops propagation so it never fires the chip's own click. Reach for this for a set of chosen items the user can dismiss one at a time.",
+  "chip--sizes":
+    "The two `size` values, `md` (default) and `sm`, both landing on the baseline grid; `sm` matches a small Button. Drop to `sm` for dense rows and toolbars.",
+  "chip--tones":
+    "The five `tone` values across three readings: sharp default, with a status `dot`, and `round` pill form. Reach for a tone only when the colour is information (a `danger` or `success` state), leaving `neutral` for everything decorative.",
+  "code-editor--controlled":
+    "A fully controlled editor: `value` + `onChange` drive the document, and a live line/character count reads back below. Reach for this when app state owns the text.",
+  "code-editor--elevation":
+    "The same editor at `elevation` 0, 2, and 4 on the Box/Input depth scale. Use `elevation` to seat the editor at the right resting depth for its surface.",
+  "code-editor--empty":
+    "An empty editor showing its `placeholder` prompt. Covers the no-content resting state.",
+  "code-editor--fixed-height":
+    "Give the root a `height` (here 160px via `style`) and the editor fills it and scrolls internally. Reach for this to cap the editor instead of letting it auto-grow with content.",
+  "code-editor--java-script":
+    'JavaScript highlighting via the `javascript()` extension, colored from `--sf-color-code-*` tokens. Toggle `data-theme="dark"` and the palette swaps with no code change.',
+  "code-editor--json":
+    "The same editor over JSON, language supplied through `extensions` (`@codemirror/lang-json`). Shows that any CodeMirror language plugs in the same way.",
+  "code-editor--playground":
+    "The interactive story: adjust `theme`, `vim`, `lineWrapping`, and `readOnly` from Ladle controls against a JavaScript sample. Use it to feel how the props combine.",
+  "code-editor--read-only":
+    "A `readOnly` editor with soft `lineWrapping` and the gutter off (`lineNumbers={false}`). Reach for this to display code that stays selectable but cannot be edited.",
+  "code-editor--themes":
+    "The three restrained syntax `theme`s side by side: `minimal` (comments only), `bold` (weight and slant, no hue), `primary` (adds the brand accent). Pick one to set how loud the highlighting reads.",
+  "code-editor--vim":
+    "Vim keybindings enabled with the `vim` prop; focus the editor and try `i`, `Esc`, `dd`, `:w`. Reach for this when users expect modal editing.",
+  "code-editor-inline--form-rows":
+    "Three editable expressions stacked in a dense form, each resting as one syntax-highlighted line and expanding on focus. Reach for this when a form or table row holds a short expression that occasionally needs room; the expanded overlay floats over neighbouring rows instead of shoving them down.",
+  "code-editor-inline--json-value":
+    "A JSON one-liner edited via the `json()` extension, with a taller `maxRows={10}` cap before the overlay scrolls. Shows that the language comes from the CodeMirror `extensions` you pass and that `maxRows` sets how far the expanded editor grows.",
+  "code-editor-inline--multiline":
+    "A multi-line value collapsed to its first line, shown syntax-highlighted; focus reveals the rest, growing up to `maxRows={6}` then scrolling. Use it when the stored value is often several lines but the row should read as one at rest.",
+  "code-editor-inline--playground":
+    "The default resting state: one syntax-highlighted line that expands over the paragraph below it on click or tab, then collapses on blur. Start here to see the core behaviour, that the expanded editor floats over surrounding content rather than pushing it down.",
+  "code-editor-inline--sizes":
+    "The `sm`, `md`, and `lg` rungs side by side, each scaling the code font and padding together to match the control-height ladder. Pick a `size` so the collapsed line aligns with the Input and other controls in the same row.",
+  "context-menu--default":
+    "Right-click the bordered area to open a context menu of Cut/Copy/Paste plus a `Separator` and a disabled Rename item. Reach for `ContextMenu` when an action belongs to a right-clickable region: `ContextMenu.Trigger` marks that region, and the popup and items are Menu's parts verbatim.",
+  "data-table--column-fill-animated":
+    "The same fixed-width layout as ColumnFillStatic, but `columnFill={{ animated: true }}` renders the leftover space right of the columns as the animated WebGL dither (reduced motion falls back to a static frame). Reach for it when you want the filler to read as a live surface.",
+  "data-table--column-fill-static":
+    "`columnFill` keeps columns at fixed widths instead of stretching the last one, filling the leftover space with a static dither so a sparse table doesn't read as unfinished. Resized widths persist through `onColumnWidthsChange`, and the filler grows and shrinks with the last column.",
+  "data-table--column-groups":
+    "Nested `columns` build a grouped header; click the chevron beside a group (here 'Address') to collapse it to a single placeholder column. Use groups to bracket related leaf columns under one banner.",
+  "data-table--density":
+    "`cellPadding` and `cellFontSize` are independent four-rung scales (xs/sm/md/lg); the story stacks all four levels. Tighten both for a dense financial grid, loosen them for a roomier read.",
+  "data-table--edge-fade-tuned":
+    "`edgeFade={{ rows: 4, density: 0.6 }}` makes the bottom fade taller and gentler than the default two-row, full-density mask. Tune these when the standard fade is too abrupt for your row height.",
+  "data-table--editable":
+    "`editable` turns on cell editing with a purpose-built editor per `edit.type`: text uses the inline text editor, numbers a DigitInputMicro, dates a DatePicker, boolean and select a Picker. Double-click, F2, or Enter opens the editor; Enter or Tab commits, Esc cancels.",
+  "data-table--empty":
+    "With no data, the `empty` slot renders in place of rows. Supply it to explain the blank state and point to the next action.",
+  "data-table--fill-height":
+    "`fillHeight` holds the given `height` when there are too few rows and dithers the empty band below the last row; paired with `columnFill` (left table) the right gutter dithers too, so the sparse table reads as one filled panel. The right table drops `columnFill` for contrast.",
+  "data-table--filterable":
+    "`filterableColumns` adds a funnel to each leaf header: text, select, and boolean columns get a value checklist, number columns a min/max range, and filters apply live and compose with sorting. Use it when users need to narrow a table in place.",
+  "data-table--frozen-columns":
+    "`frozenColumns={2}` pins the first two columns to the left while the rest scroll horizontally, the column analogue of the sticky header, with a soft shadow marking the boundary once scrolled. Use it to keep identifying columns in view across many columns.",
+  "data-table--highlights":
+    "`highlights` overlays persistent coloured range markers (a light fill plus a bordered perimeter, the Excel coloured-reference look); here two columns and a flagged block each take a distinct colour. Positional and declarative: reach for it to mark ranges such as charting series.",
+  "data-table--merged-cells":
+    "`getCellSpan` visually merges cells: the Department column merges down across consecutive equal values (rowspan) and the grouped 2026 header spans its two quarters (colspan), with the internal seams erased. Reach for it to collapse repeated values into one block.",
+  "data-table--narrow-container":
+    "In a 360px wrapper the columns shrink toward their minimum widths to fit without a horizontal scrollbar; only once even the minimums don't fit does the table scroll. Shows the default fit-then-scroll behaviour in a tight space.",
+  "data-table--paginated":
+    "`paginate={{ pageSize: 25 }}` swaps virtualization for paged navigation. Reach for it when users expect page controls rather than a continuous scroll.",
+  "data-table--paste-into-range":
+    "Anchor a cell and paste TSV (Cmd/Ctrl+V) to update a whole block down and to the right of the active cell; the sample writes a 2x4 grid. Shows spreadsheet-style paste into an `editable` table.",
+  "data-table--per-cell-edit-activation":
+    "`getEditActivation` sets the edit trigger per cell: here active rows open on a single click while inactive rows keep the double-click default. Use it when only some rows should be quick to edit.",
+  "data-table--read-only":
+    "The default read-only grid: 50 rows, sortable columns, virtualized body. Reach for this when the table only displays data and no cell should be edited.",
+  "data-table--reorderable":
+    "`reorderableColumns` lets you drag a header onto a neighbour to reorder, and the order persists through `onColumnOrderChange` while header clicks still sort and the right edge still resizes. Reach for it when users should arrange columns themselves.",
+  "data-table--resizable-columns":
+    "Column resizing is on by default: drag a header's trailing edge, double-click it to auto-fit content, or focus it and nudge with arrow keys (Shift for a larger step). The Active column sets `resizable: false` to lock it.",
+  "data-table--select-to-highlight":
+    "Drag a range, then 'Mark range' pushes the live selection into the `highlights` list as a persistent colour. Shows the declarative pattern: capture the selection via `onSelectionChange` and own the highlight list yourself.",
+  "data-table--selection":
+    "Cell selection: click to anchor, shift+click or drag to extend a range, arrow keys to move, Cmd/Ctrl+A to select all, Cmd/Ctrl+C to copy. `onSelectionChange` reports the active cell and range.",
+  "data-table--single-click-edit":
+    '`editOn="single"` opens the editor on the first click, while double-click, F2, and Enter still work. Reach for it in grids where users edit constantly and a double-click each time is friction.',
+  "data-table--snap-and-edge-fade":
+    '`scrollSnap="rows"` nudges scrolling to row boundaries on release, and `edgeFade` masks the bottom rows with a dither to hint there\'s more below. Use them together for a grid that reads as a finished panel while scrolling.',
+  "data-table--tree":
+    "`getSubRows` turns the data into an expandable tree; click a parent's chevron to expand or collapse its children, and `defaultExpanded` sets the initial state. Reach for this when rows nest hierarchically.",
+  "data-table--tree-and-column-groups":
+    "`getSubRows` and grouped `columns` compose in one table: expandable rows under a grouped 'Location' header. Shows the tree and column-group features stack without conflict.",
+  "data-table--tree-deep":
+    "A five-level tree (depth 5, breadth 2) driven by the same `getSubRows` chevron and indent. Shows the tree holds up as nesting gets deep.",
+  "data-table--virtualized100k":
+    "100,000 rows with only about 30 row elements mounted at once, so scrolling stays smooth. This is the default rendering path for any large flat table.",
+  "datepicker--constrained":
+    "Bounds the selectable range with `minDate`/`maxDate` and vetoes individual days with `isDateDisabled` (weekends here). Disabled days render struck through, and keyboard navigation skips over them. Reach for this when only some dates are bookable.",
+  "datepicker--free-text-entry":
+    "Shows the text field as the primary control: type `2026-07`, `12 jul`, `tomorrow`, `+7`, or a bare `12` and the calendar follows while the footer echoes what Enter commits. A live readout below prints the committed `value` in ISO (`YYYY-MM-DD`). Look here to understand the typing shortcuts.",
+  "datepicker--playground":
+    "The interactive story: flip `showWeekNumbers`, `clearable`, and `disabled`, and cycle `size` through sm/md/lg from the Ladle controls. Use it to try prop combinations against one picker.",
+  "datepicker--sizes":
+    "The three control heights (`size` sm/md/lg) stacked, matching the `Input` sizes. Reach for this to pick the height that fits the surrounding form density.",
+  "datepicker--week-numbers":
+    "Adds a leading column of ISO week numbers via `showWeekNumbers`, the full ISO 8601 posture. Turn it on when users track dates by calendar week.",
+  "dialog--default":
+    "The plain modal: trigger button, faint backdrop, `Dialog.Title` and `Dialog.Description`, and a right-aligned row of `Dialog.Close` buttons. Reach for this for a confirmation or a destructive action, where the danger variant sits beside a secondary cancel.",
+  "dialog--window":
+    "A window-chrome dialog: `draggable` moves it by the `Dialog.Handle` header, `resizable` grips every edge and corner, and `defaultWidth`/`defaultHeight` set the opening size; a `Dialog.Actions` row holds `Dialog.Maximize` and `Dialog.CloseButton`. Reach for this when a dialog should behave like a movable, resizable window rather than a fixed modal.",
+  "digitinput--all-sizes":
+    'The same percent field at `size="sm"`, `"md"`, and `"lg"`, stacked to compare cell heights. Match the size to the surrounding `Input` controls.',
+  "digitinput--controlled":
+    "A controlled field driven by external buttons: one sets the value to 21, one clears it to `null` (the pristine mask). Reach for this when the value lives in your own state and other controls write to it; a live `null`/number readout sits alongside.",
+  "digitinput--in-field":
+    "The input inside a `Field` compound, which wires the `Field.Label` and `Field.Description` to the hidden input and carries `required`. Use this whenever the control needs a label, helper copy, or form validation.",
+  "digitinput--mask":
+    '`mode="mask"` is the 2FA feel: each cell is a focus stop, typing fills left-to-right with auto-advance, and the value stays `null` until every cell is filled. Pasting "12.34" fills positionally to 012.34. Reach for it when the input reads as a code being entered.',
+  "digitinput--mask-pin":
+    'A six-cell code entry in `mode="mask"` with `digits={6}` and no decimals or unit. Use it for PINs and one-time codes where every cell must be filled before the value reads.',
+  "digitinput--money":
+    'A four-integer, two-decimal amount with `decimalSeparator=","` and `unit="CHF"`; the display uses the comma while the form value stays canonical ("1234.50"). Reach for this for currency entry that shows a locale separator.',
+  "digitinput--percent":
+    "The base sketch: three integer cells, two decimals, and a `%` unit, reading `(_ _ _._ _ %)`. The default push model, good for a percentage the user types into.",
+  "digitinput--pin":
+    "With `decimals={0}` and no unit, `digits={6}` reads as a six-place numeric code. Reach for it for a PIN or code entry using the calculator push model.",
+  "digitinput--playground":
+    "The full Ladle playground with every prop as a control: `digits`, `decimals`, `unit`, `mode`, `size`, `decimalSeparator`, and the disabled/readOnly flags. Use it to feel how push typing, Backspace, Delete, ArrowUp/Down, and unit-aware paste behave together.",
+  "digitinput--signed":
+    "`signed` adds a leading `+`/`-` cell: click it, type `-`/`+`, or press ArrowDown past zero, and the value and form string carry the sign (here a -12.5 \u00b0C temperature). Reach for it when negatives are valid; push mode only.",
+  "digitinputmicro--all-sizes":
+    "The three control sizes (`size` sm, md, lg) stacked, each showing the same percent value. Use it to check that a DigitInputMicro matches the height of neighbouring `Input`s in a form row.",
+  "digitinputmicro--bounded":
+    "An input constrained to [0, 100] via `min` and `max`; out-of-range entries clamp on blur. Reach for `min`/`max` when the number has hard limits, such as a percentage or a capped quantity.",
+  "digitinputmicro--controlled":
+    "A controlled field driven by external buttons: one sets 1234 to 9999, another clears it, and the live value reads out beside them. Clearing sends `null`, the empty-field signal you get through `onValueChange`.",
+  "digitinputmicro--decimals":
+    "Four slots with `decimals={2}`, so the field accepts one decimal point capped at two places. Set `decimals` above 0 for fractional entry; leave it at 0 for integer-only.",
+  "digitinputmicro--default":
+    "The plain integer input with four faded placeholder slots (`slots={4}`) that fill left to right as you type and grow past the hint. The starting point when the width is a suggestion rather than a fixed capacity.",
+  "digitinputmicro--disabled":
+    "A `disabled` field holding a value: greyed out and non-interactive. Use `disabled` when the input is inactive under current conditions.",
+  "digitinputmicro--in-field":
+    "The input inside a `Field` with a label and description, wiring up the standard form-row slots. This is how to label and describe a DigitInputMicro; don't roll your own label markup.",
+  "digitinputmicro--playground":
+    "The interactive story: adjust `slots`, `decimals`, `unit`, `size`, `disabled` and `readOnly` from the Ladle controls to feel out the props. Start here to see how a setting changes the control.",
+  "digitinputmicro--read-only":
+    "A `readOnly` field showing its value but rejecting edits, while staying focusable and selectable. Use `readOnly` to display a number the user may copy but not change.",
+  "digitinputmicro--with-unit":
+    'A percent value with `unit="%"` rendered after the digits as trailing metadata. Pass `unit` to append a suffix such as %, kg or a currency code.',
+  "drawer--all-sides":
+    "Left, right, and bottom drawers on one page, showing the non-modal posture: every trigger stays clickable while a drawer is open. Use it to compare the three `side` values side by side.",
+  "drawer--bottom":
+    'A drawer rising from the bottom edge with `side="bottom"`. Use it for a sheet on narrow or touch layouts where an edge panel reads better from below.',
+  "drawer--left":
+    'The same panel pinned to the left edge via `side="left"`. Reach for a left drawer for navigation or filters that belong on the leading edge.',
+  "drawer--right":
+    "A drawer sliding in from the right edge, the default `side`. Non-modal: the page behind stays interactive, and Escape or the Close button dismisses it.",
+  "drawer--with-handle":
+    "Adds `Drawer.SwipeArea`, a grab rail that stays pinned to the edge while the drawer is closed so you can swipe or drag it back open. Reach for this when the drawer needs a persistent reopen affordance; omit it for a drawer that fully hides.",
+  "dropzone--default":
+    "The bare control: drag files onto the zone or click to browse, and each chosen file appears in a removable list below. Reach for this as the starting point, all defaults (`multiple`, `showList`, standard label and description).",
+  "dropzone--disabled":
+    "The whole zone with `disabled` set: the drop target rejects drops and clicks, and the file list drops its remove buttons. Use it to lock the control while an upload is in flight or a prerequisite is unmet.",
+  "dropzone--playground":
+    "Every prop wired to Ladle controls (`multiple`, `disabled`, `showList`, `label`, `description`, `accept`) over controlled `files` state. Use it to try combinations before settling on props.",
+  "dropzone--single-file":
+    '`multiple={false}` with `accept="image/*"`: a new pick replaces the previous file rather than appending, and the native browser limits selection to images. Reach for this when the field takes exactly one file, like an avatar or a single document.',
+  "dropzone--with-status":
+    'The `fileStatus` slot renders a per-file trailing element (here a faux "uploading\u2026" / "queued" label). Use it to show consumer-owned upload progress or errors, since Dropzone handles the picking but not the transfer.',
+  "explorer--data-grid":
+    "Explorer as a data grid: `sortable` headers, `filterableColumns` funnels, `resizableColumns` and `reorderableColumns` on the metadata columns, and an `edgeFade` at the bottom. The Name tree column stays pinned at index 0; sorting reorders each folder's children in place and filtering keeps the path to every match and auto-expands it. Reach for this when the tree carries columns of data the user wants to sort and filter.",
+  "explorer--density":
+    "The same tree at each rung of `cellPadding` and `cellFontSize` (`xs`/`sm`/`md`/`lg`), shown in a 2x2 grid. The two scales are independent, so you can tighten row height without shrinking the text. Reach for this to pack a dense tree into a narrow rail.",
+  "explorer--editable":
+    "The full editing surface: `editable` turns on F2/double-click rename (via `editingId`/`onEditingChange`/`onRename`), a right-click menu, and row drag to move (drop on a folder to nest, on a row edge to reorder), plus add and delete. Wire `onRename`, `onAdd`, `onMove`, and `onDelete` to mutate your own node tree. Reach for this when the user manipulates the tree rather than just reads it.",
+  "explorer--file-tree":
+    'The sidebar file-tree pattern: one column (`columns={[{ id: "name" }]}`) with `showHeader={false}`, still `editable`. Same component as the grid, narrowed to a single indented column of names. Reach for this for a VS Code-style file rail.',
+  "explorer--loading-placeholder":
+    "A loading skeleton: a tree of empty-named nodes whose cells render `Skeleton` rects through each column's `render`, so indentation comes from real tree structure. Reach for this to show a file tree's shape while its contents load.",
+  "explorer--read-only":
+    "The baseline: a static three-column tree (Name, Size, Modified) with controlled `selectedIds` and `expandedIds`, no editing or column affordances. Reach for this when the tree only needs selection and expand/collapse.",
+  "explorer--spreadsheet":
+    "`gridLines` draws a right and bottom hairline on every body cell, the same per-cell edge model as DataTable, so the tree reads as a spreadsheet. Reach for this when the metadata columns carry real tabular data that benefits from ruled cells.",
+  "explorer--with-menu-bar":
+    "Explorer under a `MenuBar` (logo, File menu, search) inside one bordered frame, with a fixed `height` on the tree. Shows the panel composition for a file-browser region. Reach for this when the tree needs an application chrome above it.",
+  "field--disabled":
+    "A whole field greyed out and non-interactive via the `disabled` prop on `Field`, which cascades to the label, control, and description. Reach for it when the user lacks permission or a precondition isn't met.",
+  "field--inline":
+    'A checkbox sitting beside its label on one row, set by `orientation="horizontal"`. Use this for a single binary toggle where the label reads as the option itself, like an agree-to-terms checkbox.',
+  "field--jump-hotkey":
+    'Fields advertising a jump-to shortcut via `hotkey` (`"g u"`, `"mod+e"`): each shows a `Kbd` badge and gets a `data-hotkey` attribute. The field binds no key itself; your app\'s central hotkey engine handles the press and calls `focusFieldHotkey(combo)`.',
+  "field--multiple-controls":
+    "Three fields stacked into a small form: a required text input, an input with a description, and a horizontal switch. Shows that each row is its own `Field` and you space them yourself, rather than one `Field` wrapping several controls.",
+  "field--required":
+    "A required field: `required` on `Field` adds the `*` marker to the label, and `required` on the control adds native HTML validation. Set both when a value is mandatory and you want the browser to enforce it.",
+  "field--stacked":
+    "The default vertical layout: label above the control above the description. This is the standard form row; reach for it for almost any labelled input.",
+  "field--with-error":
+    "A validation message rendered through `Field.Error`, shown after the control is touched and left invalid (focus then blur the empty input to trigger it). Use `Field.Error` for the live per-field error slot beneath a control.",
+  "fieldlayout--collapsed":
+    "A narrow 320px frame where a three-field row folds down one field at a time until each stands alone. Shows the breakpoint-free collapse: fields hold strict source order and never migrate lines, so narrowing the container just carries fewer fields per line.",
+  "fieldlayout--dither-filler":
+    "A rigid `Valid from` field followed by a `FieldLayout.Filler` with `dither`, which fills the trailing slack with a console-style dither instead of blank space. Reach for it when the emptiness after a short field should read as marked; reduced motion draws a single static frame.",
+  "fieldlayout--kinds":
+    'The three field kinds in one row: `kind="rigid"` holds a fixed 8u width, flexible flexes between 10u and 36u, and `FieldLayout.Filler` absorbs the slack so the row justifies to the right padding. Read this to see what each kind contributes before laying out a form.',
+  "fieldlayout--playground":
+    "A full two-section form in a resizable frame, each row mixing rigid, flexible, and filler fields so it always justifies; drag the frame's corner across the wrap thresholds to watch rows carry fewer fields. The reference for laying out a whole form, where 2u between sections and 1u between rows carry the hierarchy without headings.",
+  "form--basic":
+    "The common case: stacked `FormField`s bound by `name`, a `resolver` for cross-field checks, and `onSubmit` receiving typed values only once everything validates. Reach for this to wire up a whole form with state and validation.",
+  "form--form-level-error":
+    'A submit error that belongs to no single field: the `resolver` returns a `form` message and `FormError` reads it from the enclosing `Form`. Use it for things like "Invalid credentials" that no one field owns.',
+  "form--per-field-validate":
+    "Each `FormField` carries its own `validate`, running on blur (and re-running on change after a submit) with no `resolver` needed. Reach for this when the rules are single-field, like a minimum length. Set the timing with `validationMode`.",
+  "form--with-field-layout":
+    "Wrapping each `FormField` in a `FieldLayout.Field` lays the form out as justified, multi-column rows while binding and validation still flow through the `Form`. Reach for this when a stacked form is too tall and fields should share rows.",
+  "fullscreen--button-bottom-left":
+    'Moves the toggle to the lower-left corner via `buttonPosition="bottom-left"`. Reach for a non-default position when the top-right corner is already taken by other controls.',
+  "fullscreen--default":
+    "A bordered container holding plain content, with the toggle in the top-right corner. Click it to fill the viewport; Escape or the button exits. The baseline case: wrap any region you want expandable to full screen.",
+  "fullscreen--with-non-ideal-state":
+    "A single child stretches to 100% when expanded, here a `NonIdealState` fills the whole viewport with no explicit height set. Use this when the wrapped content should grow to occupy the expanded space rather than sit at its natural size.",
+  "graph--concentric":
+    "The `concentric` layout: nodes packed into nested circles (circlepack). Reach for it to read a network as concentric clusters of related nodes. Uses the 100-node SMALL fixture, small enough that labels render.",
+  "graph--context-menu":
+    "Right-click any node for the built-in menu: Focus and Expand (recenter the camera at two zoom levels), Pin label, and Hide. This story keeps the defaults so every action does something; pass `contextMenuItems` to replace the menu per target (node, edge, or empty stage).",
+  "graph--dense-content":
+    "Each node and edge carries an arbitrary `data` record (tier, request rate, SLO, edge p99). The `renderNode` hook sizes each node by its request rate; hover or click a node or edge to inspect its full record. Reach for this pattern to drive visual attributes from your own data.",
+  "graph--editable":
+    "`editable` adds a Connect toggle to the toolbar: turn it on, then drag from one node to another to draw an edge; right-click an edge or select it and press Delete to remove it. The graph updates its view instantly and fires `onEdgeCreate` / `onEdgeDelete`, which this story persists into local state so edits survive and the camera and layout stay put.",
+  "graph--embedded":
+    "`fill` makes the graph take its parent's height instead of the fixed default, and `frame={false}` drops its own border so it does not double up with a surrounding container. Here it fills a resizable bordered box and re-fits on resize; drag the box corner to watch it reflow. Reach for this when embedding a graph inside your own framed region.",
+  "graph--force":
+    "The default `force` layout (forceAtlas2): an organic, physics-settled arrangement where connected nodes pull together. The general-purpose choice when the network has no inherent hierarchy or ordering.",
+  "graph--grid":
+    "The `grid` layout: nodes placed on a \u221an \u00d7 \u221an lattice, row-major. Reach for it when you want a regular, position-stable arrangement rather than a shape that reflects connectivity.",
+  "graph--lab--large--default":
+    "A throwaway performance-harness story mounting the real `Graph` on the 10k-node LARGE fixture with a `force` layout and the `[data-graph-*]` hooks that `probe-graph.mjs` drives. It exists to time control-toggle and layout-switch latency at scale, so reach for it only when profiling Graph rather than as a usage example.",
+  "graph--large-stress":
+    "The LARGE fixture: 10k nodes and roughly 20k edges. Labels are culled at this scale, but pan, zoom, the `Graph.Controls` toolbar, and the `Graph.Minimap` stay responsive. Use it to gauge behaviour at the top of the interactive range.",
+  "graph--playground":
+    "The interactive sandbox: Ladle args switch the `size` (small / medium / large fixture) and the `layout`, with `Graph.Controls` and `Graph.Minimap` mounted. Use it to compare layouts and scales against the same component.",
+  "graph--radial":
+    "The `radial` layout: every node on a single ring (circular). Reach for it to show a flat set of peers with no depth, all equidistant from the center.",
+  "graph--tree":
+    "The `tree` layout: a layered top-down pass that seeds roots from in-degree and places each node on the row of its BFS depth. Reach for it when the network is a hierarchy (dependency trees, org charts) and you want the levels to read as rows.",
+  "grid--asymmetric":
+    'A fixed content-width sidebar beside a flexible main pane, set with `columns={["min-content", "1fr"]}`. Reach for it when one track should hug its content and the other absorb the rest.',
+  "grid--auto-flow":
+    "Six cards flowing into a three-column grid, where the `columns={3}` number shorthand expands to `repeat(3, minmax(0, 1fr))`. Reach for it for an even N-column layout with items placed automatically.",
+  "grid--cluster":
+    'Content-sized chips packed left to right and wrapping, via the raw string `columns="repeat(auto-fit, minmax(0, max-content))"`. Reach for it for tag clusters or any row where each cell sizes to its own content.',
+  "grid--named-areas":
+    'A header / nav / main / footer layout described by the `areas` prop, with each child placed through `Grid.Item area="..."`. Reach for it when named regions read more clearly than column and row line numbers.',
+  "grid--polymorphic":
+    "The grid rendered as a `<ul>` and each item as an `<li>` through the `render` prop. Reach for it when the grid must carry semantic markup such as a list, nav, or section.",
+  "grid--resizable-both":
+    'A 2x2 grid with both column and row gutters draggable, set by `resizable="both"`. Reach for it when the user should redistribute space on both axes.',
+  "grid--resizable-columns":
+    'Three columns whose shared gutters you drag to redistribute width, enabled by `resizable="columns"`; double-click a gutter to split evenly, or focus it and use Arrow keys (Shift for a larger step). Reach for it to let the user retune column widths.',
+  "grid--resizable-playground":
+    "A 3x2 grid whose `resizable` mode toggles between `columns`, `rows`, and `both` from Ladle controls. Use it to compare the three resize modes interactively.",
+  "grid--resizable-rows":
+    'Three stacked rows whose shared gutters you drag to redistribute height, enabled by `resizable="rows"`. Reach for it to let the user retune row heights.',
+  "grid--sidebar-flexible-main":
+    'A draggable `auto` sidebar next to a `1fr` main pane inside a `resize: both` container, using `columns={["auto", 1]}` with `resizable="columns"`: the sidebar holds its dragged px width while the main pane stays flush to the edge and reflows as the container changes width. Reach for it for a resizable-sidebar plus filling-main layout.',
+  "grid--spans":
+    "Items covering several columns of a four-column grid via `colSpan={2}` and `colSpan={3}`. Reach for `colSpan` / `rowSpan` when one cell must span multiple tracks.",
+  "grid--stack":
+    "A single-column vertical stack of blocks, made by giving `Grid` only a `gap` and no `columns`. Reach for it for plain vertical rhythm between elements.",
+  "grid--style-escape":
+    "Raw grid CSS passed through `style` (here `gridAutoRows`) for properties that have no dedicated prop. Reach for it when you need a grid feature the component props don't expose.",
+  "icon--custom":
+    "A custom lightning glyph built by passing your own 16x16 `path` content as `children` to the `Icon` primitive. Reach for this when the curated set lacks a glyph you need; here `color` tints it to `--sf-color-primary` and `label` gives it an accessible name.",
+  "icon--gallery":
+    "The full curated icon set, each named export rendered at `size={1}` with its name below. Browse this to find the glyph you want and its import name; every icon here tree-shakes on its own.",
+  "icon--in-buttons":
+    "Icons paired with text inside `Button` variants (Download, Edit, Delete) plus one icon-only ghost button. Shows the standard pattern: `aria-hidden` on the glyph when adjacent text carries the meaning, and an `aria-label` on the button when the icon stands alone.",
+  "icon--sizes":
+    "One `Star` rendered across sizes: the default `1em` (tracks surrounding text), numeric `size` values that are `--sf-unit` multiples (0.75, 1, 1.5), and a raw CSS length (`32px`). Use a number to keep the icon on the grid, a string when you need an exact pixel size.",
+  "input--all-sizes":
+    "The three `inputSize` values (`sm`, `md`, `lg`) stacked so their heights line up for comparison. Reach for it to pick a size that matches surrounding controls.",
+  "input--playground":
+    "A single `Input` with `inputSize`, `disabled`, and `placeholder` wired to Ladle controls. Use it to try props live before settling on a configuration.",
+  "kbd--default":
+    "One row of combos (`mod+k`, `alt+enter`, `shift+arrowup`, `esc`\u2026) rendered three ways: auto-detected for your OS, then forced macOS and Windows/Linux via the `mac` prop. Shows how `mod` resolves to \u2318 on Mac and Ctrl elsewhere, and how off-Mac keys join with a `+` separator.",
+  "kbd--in-context":
+    "Keycaps sitting inline at the right of menu-style rows, each `combo` paired with its action label. Reach for this to see how `Kbd` reads next to text in menus, tooltips, and command lists.",
+  "map--areas-and-vectors":
+    "Draws all three overlay types at once: a filled `areas` polygon, two `vectors` poly-lines (one `arrow`-headed, one `dashed` and success-colored), and `points`. Reach for it to see how regions, routes, and markers layer together with token-tinted defaults.",
+  "map--default":
+    "A bare minimal basemap with just `center` and `zoom`, no overlays. The starting point: what the token-tinted map looks like empty.",
+  "map--fill-in-container":
+    "The map with `fill` and `frame={false}` inside a fixed-height wrapper, so it takes the parent's height and drops its own border. Use this pattern when embedding a map in a pane, split, or already-framed container.",
+  "map--fit-to-bounds":
+    "Passes `bounds` instead of `center`/`zoom` so the camera fits a lng/lat box on mount, framing all four points. Reach for `bounds` when you want the view derived from the data extent rather than a hand-picked center.",
+  "map--points":
+    "Circle markers via `points`, each with a `label` and optional per-point `color`, `radius`, or `data`; `onFeatureClick` makes them clickable and hovering shows the label tooltip. The default way to plot locations on a map.",
+  "map--raw-geo-json":
+    "The power-user path: a raw `geojson` FeatureCollection (a Point and a LineString) drawn with the same token-tinted defaults as the typed overlays. Reach for it when your data already lives in GeoJSON and you don't need per-feature props.",
+  "map--static-non-interactive":
+    "A fixed view with `interactive={false}` (pan/zoom/rotate disabled) and `fullscreen={false}` (no corner toggle). Use it for a static locator map that reads as an image.",
+  "map--street-preset":
+    'The `basemap="street"` preset zoomed into a city, showing labeled roads and blocks. Reach for it when the map is about streets and addresses rather than the restrained default.',
+  "map--terrain-preset":
+    'The `basemap="terrain"` preset over an alpine region, showing relief and elevation shading. Reach for it for topography, hiking, or anything where the land shape matters.',
+  "map--theming":
+    'Two maps side by side, one wrapped in `data-theme="dark"`, to verify the token-tinted basemap and overlays re-tint with the theme. It demonstrates that a `[data-theme]` change on any ancestor rebuilds the map paint in place.',
+  "map--with-controls-and-minimap":
+    "Attaches the `Map.Controls` bar (zoom, fit, reset, basemap) and the `Map.Minimap` overview inset as compound children. Add these when the user needs to navigate the map rather than just view it.",
+  "markdown--editable":
+    "Adds `editable` so a double-click swaps the rendered view for an inline textarea, with `onChange` committing on Cmd/Ctrl+Enter or blur and Esc cancelling. Reach for this when the same surface both reads and edits notes.",
+  "markdown--empty":
+    "An empty `value` with `editable` set, showing the `placeholder` copy in place of a blank region. Use it to check the resting state before any content exists.",
+  "markdown--rendered":
+    "The default read-only render of a markdown string passed via `value`, exercising the full GitHub-flavored set: headings, bold/italic/strikethrough, links, nested and numbered lists, a blockquote, inline and fenced code, a table, task-list checkboxes, and a rule. Reach for this to display static markdown.",
+  "menu--default":
+    "A button-triggered dropdown built from the full compound: `Menu.Trigger` renders a secondary `Button`, and the `Menu.Popup` holds `Menu.Item`s split by a `Menu.Separator`, with one `disabled` item. Reach for this as the baseline pattern when wiring an action menu off a button.",
+  "menu-bar--borderless":
+    "`bordered={false}` drops the bar's own hairline; the only border here belongs to the wrapper. Reach for it when the bar already sits inside a bordered surface (a `Box`, a card, a `Pane.Header`) and a second line would double up.",
+  "menu-bar--classic":
+    "The baseline menu bar: File / Edit / View triggers, each opening a dropdown of `MenuBar.Item`s with right-aligned `shortcut` hints, `MenuBar.Separator` rules, and nested `MenuBar.Submenu`s (Open Recent, Theme). Start here for a standard application menu bar.",
+  "menu-bar--collapsed":
+    'The collapsed end-state, forced by a 320px wrapper so `collapse="all"` has already folded the whole bar behind the \u2630. Click it to open the panel holding the menus, the Wrap switch, and Search.',
+  "menu-bar--collapsed-menu-start":
+    'The same collapsed panel, but `menuAlign="start"` keeps the \u2630 next to the `Logo` where the menus were, instead of pinning it to the far edge (`menuAlign="end"`, the default).',
+  "menu-bar--collapsible":
+    'A real app bar (`Logo`, File/Edit menus, a Wrap `Control`, right-aligned `Search`) with `collapse="all"` via `collapseAt="34rem"`. Drag the container\'s resize handle: below the threshold the whole bar folds behind a \u2630; widen it and the parts return inline. Collapse tracks the container width rather than the viewport, so it works in sidebars and split panes.',
+  "menu-bar--logo":
+    "An Apple-style layout: an icon + bold app name as the lead menu (About / Preferences / Quit), then the document menus, then a low-elevation `MenuBar.Search` (`elevation={1}`) that reads as inlaid in the bar. Reach for it when the bar fronts a whole app rather than one document.",
+  "menu-bar--overflow":
+    '`collapse="items"` folds the bar progressively: as the container narrows, the trailing menu moves into a \u22ef overflow menu, then the next, keeping as many parts inline as fit (only `Logo` is pinned). Drag the resize handle to watch items fold one at a time and return on widen.',
+  "menu-bar--overflow-over-data-table":
+    'A `collapse="items"` overflow panel rendered directly above a `DataTable` (regression for issue #5). Confirms the \u22ef panel paints above the table\'s sticky header and a `Selector` folded into the panel opens its dropdown above the panel.',
+  "menu-bar--position-bottom":
+    '`position="bottom"` pins the bar to the bottom edge of a tall container; because the triggers have room above them, the dropdowns open upward. Reach for it when the menu bar sits at the foot of a region.',
+  "menu-bar--with-state":
+    "Menu items are plain buttons: their `onClick` handlers drive React state, here selecting a theme that the content below echoes. Shows that a `MenuBar` needs no special wiring to act on a click.",
+  "minimap--block-spans":
+    "Three `block` markers placed with `topFraction`/`heightFraction` mark ranges of the document (chapters, changed regions, search hits), two carrying a `tone` (primary and success). Reach for spans to flag regions rather than single headings; the caption walks through how the viewport strip slides across a block edge as you scroll.",
+  "minimap--clustered-headings":
+    "A dozen `header` labels packed into a tight span near the top of a 40000px document, where colliding labels decimate deepest-level-first while every dither rule stays on the rail. Shows how the rail thins crowded labels without dropping the density read.",
+  "minimap--left-rail":
+    'The 24-section document with `side="left"`, so the rail sits on the leading edge while the content keeps its own scroll. Use it when the overview belongs on the left of the pane.',
+  "minimap--rtl":
+    'The same document under `dir="rtl"`: the rail moves to the correct edge and the level indents flip. Confirms the layout mirrors in right-to-left contexts.',
+  "minimap--short-content":
+    "A single short block that fits the viewport, so there is no scroll overflow and the rail collapses (the hysteresis test), letting the content take the full width. Shows the at-rest state when a Minimap has nothing to overview.",
+  "minimap--tall-document":
+    "The base case: a 24-section document with a mix of clickable, level-indented `header` labels (every third section) and plain `block` rules, two carrying a `tone` for status. Reach for this default right rail to give any scrollable region a structural overview.",
+  "minimap--wide-rail":
+    "The default document with `width={10}`, widening the rail (in `--sf-unit` multiples) so longer heading labels get room. Set `width` when the labels need more horizontal space than the 3u default.",
+  "non-ideal-state--effects-subtle":
+    "The quiet, evenly-covered effects (breathe, twinkle, interleave, rotate, blocks, shimmer, sparkle, blink). Reach here when the fill should read as texture behind the message rather than draw the eye.",
+  "non-ideal-state--effects1":
+    "The first seven animated fills (ripple through cascade), each labelled in a 3-column grid. Use it to compare the busier, motion-heavy effects and pick one for the `effect` prop.",
+  "non-ideal-state--effects2":
+    "The next seven fills (crosswave through metaballs) in the same labelled grid. Split from the others so each story stays under the browser's WebGL context limit.",
+  "non-ideal-state--effects3":
+    "Fills fifteen through twenty-one (rotozoom through droplets), one canvas per cell. Another slice of the full `effect` catalogue for side-by-side comparison.",
+  "non-ideal-state--effects4":
+    "The remaining busy fills (glitch, life, and the tail of the set) before the subtle group. Browse it to choose an `effect` with visible structure or motion.",
+  "non-ideal-state--empty":
+    "The `empty` variant: a plasma-filled block with a title, description, and a New item `Button`. Use it for a region that has no content yet and prompts the user to create the first item.",
+  "non-ideal-state--error-state":
+    "The `error` variant with the `glitch` effect and the danger tint, carrying a message and a Retry `Button`. Reach for it when a request failed and the user can try again.",
+  "non-ideal-state--gallery":
+    "All four variants (empty, no-results, error, loading) side by side at a fixed height. Use it to check that the set reads as one family.",
+  "non-ideal-state--loading":
+    'The `loading` variant: a ripple fill with title and description, wired as `role="status"` with `aria-busy`. Use it while a region fetches its data.',
+  "non-ideal-state--no-results":
+    "The `no-results` variant: a noise fill with a Clear filters `Button`. Reach for it when filters or a search return nothing and the user needs to widen them.",
+  "non-ideal-state--odd-size":
+    "A block sized to raw `333px` by `199px` to prove the fill reaches every edge at awkward dimensions. A coverage check rather than a usage pattern.",
+  "non-ideal-state--playground":
+    "The full prop surface as Ladle controls: `variant`, `effect`, `speed`, `density`, `cellSize`, `opacity`, and the copy. Use it to dial in a configuration before copying the props.",
+  "non-ideal-state--sized":
+    "The `empty` variant constrained with `width={28}` and `height={10}` (multiples of `--sf-unit`). Shows the dither filling whatever fixed dimensions you give the block.",
+  "non-ideal-state--subtle-color":
+    "Two blocks showing `opacity` and `color`: a faint `opacity={0.4}` fill above a primary-token fill at `0.5`. Use it to tune how loud the texture reads and to tint the fill from a token.",
+  "notebook--document-validation":
+    "Feeds the notebook a malformed `document`: two cells sharing the name `twice`, an invalid identifier (`3bad`), and a cell whose `type` is absent from `cellTypes`. Reach for this to see how per-cell validation flags each problem inline before any cell runs.",
+  "notebook--error-propagation":
+    "Shows how failure and unresolved states travel the dependency graph: a SQL cell that hits a missing table, a dependent marked upstream-error, a two-cell cycle between `loop_a` and `loop_b`, and an orphan waiting on a name no cell defines. Reach for this to check the status-rail glyphs and messages for `error`, `upstream-error`, `cycle`, and `unresolved`.",
+  "notebook--playground":
+    "The full reactive notebook: a prose cell, a `calc` cell, and two SQL cells wired through `createSqlCellType`, where editing one cell re-runs its dependents. Reach for this to exercise the `document`/`onDocumentChange` loop and the `cellTypes` registry (including a custom `calc` `CellType`) end to end.",
+  "outliner--block-refs":
+    'Transcludes one bullet inside another: `((id))` inlines the referenced bullet\'s rendered content through the `resolveBlockRef` callback, and edits to the source flow through to every reference. Unresolved ids render a visible "ref not found" marker; transclusion is depth-capped. Reach for this when bullets need to embed each other, Roam-style.',
+  "outliner--editable":
+    "The full interactive outliner: click a bullet to focus and edit, arrow keys to navigate and collapse/expand, Tab/Shift+Tab to indent/outdent, Cmd+Shift+\u2191/\u2193 to reorder, and Cmd+Enter to commit and start a new sibling. This is the default mode (no `readOnly`); reach for it whenever the user edits the outline.",
+  "outliner--read-only":
+    "The same sample outline with `readOnly`, so markdown, collapsed branches, and keyboard navigation still work but nothing can be edited, indented, or reordered. Reach for this to display a fixed outline.",
+  "outliner--wiki-links":
+    "Renders `[[Name]]` as clickable wiki links and reports each click through `onWikiLinkClick` (logged below the outline). Reach for this to wire bullet-to-bullet or page navigation on top of the outliner.",
+  "pane--basic":
+    "A `Pane` splitting into an auto-sized `Pane.Header` and a `Pane.Body` that scrolls once its content outgrows the parent's fixed height. Reach for this whenever a region must fill its parent and keep a header pinned while the body scrolls its own overflow.",
+  "pane--nested":
+    "A `Pane` inside another `Pane.Body`: the inner pane fills the outer body and owns its own scroll, without pushing the scroll up to the outer container. Use it when you stack scrollable regions and each needs an independent header and scrollbar.",
+  "pane--no-header":
+    "A `Pane` with only a `Pane.Body` and no `Pane.Header`, so the auto header row collapses to 0 and the body takes the whole pane. Reach for this when you want a single scrollable region without a fixed header.",
+  "perf--candlestickchart--perf-candles":
+    "Renders a deterministic 1000-candle OHLC walk (about 4k SVG elements) at a fixed 960px width, the target the perf probes sweep a pointer across to measure hover input-to-paint latency and frame p95. Reach for it to stress the memoized `CandlesLayer`: each candle crossing should bail out at one fiber instead of re-reconciling every candle group, and it doubles as a manual stress story.",
+  "perf--chat--perf-transcript":
+    "A 200-message markdown transcript that drives the chat perf probes: keystroke-to-paint latency with a long list mounted, send latency, and frame times while a scripted stream appends chunks (the `data-perf-stream` button starts a 40-tick append that re-parses markdown each tick). Reach for it to measure or stress `Chat` under a heavy transcript and live streaming rather than as a usage example.",
+  "perf--datatable--perf-grid":
+    "A deterministic 10,000-row flat grid with sortable, filterable, and resizable columns (`filterableColumns` on), capped at `height={480}` so the body virtualizes. This is the perf-probe target for sort clicks, filter keystrokes, and column-resize steps; flat mode renders straight from `data` without materializing a TanStack Row per row. Reach for it to stress or profile a large read-only grid.",
+  "perf--datatable--perf-tree":
+    "A 50,000-node tree (2,500 roots by 19 children each) supplied through `getSubRows`, mounted fully collapsed. It probes tree-mode heap cost and expand-toggle latency: collapsed subtrees are pruned before TanStack sees them, so only the visible roots are materialized. Reach for it to profile deep hierarchical data or verify the memory savings on large collapsed trees.",
+  "perf--explorer--perf-tree":
+    "An Explorer over an ~11k-node tree (depth 4, breadth 10, deterministic seed) with the top two levels expanded and `filterableColumns` on. It backs the perf probes for scrolling, folder toggles, and filter keystrokes at scale; reach for it to stress the virtualized `treegrid` and confirm row rendering stays smooth on a large forest.",
+  "perf--heatmap--perf-dense":
+    "A 100\u00d7100 field (10k SVG cells) with six iso-lines via `contours`, the target for the perf probe that measures render readiness and hover-to-tooltip latency. Reach for it to stress-test the memoized cell/contour layers on a dense grid, or as a manual worst case for the same.",
+  "perf--picker--perf-thousand":
+    "A `Picker` over 1000 generated items, the target for the perf probes that measure open-to-painted, filter keystrokes, backspace-to-full-list, and arrow navigation across a large virtualized option list. It starts with an empty `value` so a selected label never skews the filter-keystroke timings; reach for it to stress-test or eyeball Picker behaviour at scale.",
+  "perf--pointcloud--perf-cloud20k":
+    "One `series` of 20,000 deterministic points (seeded, bell-shaped spread) rendered at `height={480}`, the target for the orbit-drag redraw probes: it exercises the per-frame project, depth-sort, and paint path at a scale the shipped 320-point stories can't reach. Reach for it to catch a regression in the redraw hot loop (input-to-paint latency, sustained-drag frame p95, per-frame allocation churn) rather than to demo the component.",
+  "perf--scatterplot--perf-points":
+    "A static 5,000-point series, the hover-latency probe. It measures input-to-paint on a pointer sweep and frame p95 as the cursor crosses points, verifying that each hover bails out at the memoized point layer instead of re-reconciling all 5k circles. Reach for it to check hover responsiveness at a dense marker count.",
+  "perf--scatterplot--perf-zoom":
+    'A 50,000-point line with `zoomable` and `scaffolding="full"`, the viewport probe. Every wheel or drag recomputes the x-domain, re-slices the visible window and re-decimates it (min/max per pixel column), so this checks that the rendered element count stays near the plot width at any zoom depth. Reach for it to confirm pan and zoom stay smooth on a large series.',
+  "perf--selector--perf-thousand":
+    "A `Selector` over 1000 options, the target for the interaction-latency probes (open-to-painted, filter keystrokes, arrow navigation) and a manual stress test. Shows the windowed option list (`useVirtualizer`) holding up on a large `items` array while Base UI keeps keyboard navigation over the full filtered set.",
+  "perf--skeleton--perf-fills24":
+    "Renders 24 Skeletons with the `effect` dithered fill active, 8 past the browser's ~16 concurrent WebGL context cap, to prove the pooled engine allocates one shared context and loses none. Reach for it as the WebGL-budget perf probe or a manual stress test; effects and heights come from a seeded PRNG, so the layout stays reproducible across runs.",
+  "perf--windowarray--perf-strip":
+    "A deliberately oversized `WindowArray`: about 54 windows across 12 columns, seeded deterministically so `scripts/perf/run.mjs` can drive drag-rearrange loops, Shift+Arrow moves, and gutter resizes at a scale past normal use. Reach for it to stress-test rearrange and resize latency (the root marks `data-perf-ready` for the headless probe), or as a manual load check for the strip.",
+  "picker--default":
+    "A single Picker over a list of city strings, starting empty, with the chosen value echoed below. The baseline case: search the list, pick one, read the result back through `onChange`.",
+  "picker--disabled":
+    "A Picker locked with `disabled`, preselected via `defaultValue`. Use it to show a non-editable choice while the field still reads its label.",
+  "picker--object-items":
+    "Items given as `{ value, label }` objects, so the field displays the human `label` while `onChange` reports the stable `value` id. Reach for object items when the display text differs from the value you store.",
+  "picker--playground":
+    "The full prop surface wired to Ladle controls: `items`, `placeholder`, `size`, `clearable`, and `disabled`, over a controlled value. Use it to try prop combinations before settling on one.",
+  "picker--sizes":
+    "The three control sizes stacked, `sm` above `md` above `lg`, matching Input heights. Set `size` to fit the Picker into a dense row or a roomier form.",
+  "popover--default":
+    "A secondary Button triggers a click-anchored floating panel holding a `Title` and `Description`, positioned 8px off the trigger via `sideOffset`. Reach for `Popover` to attach anchored content to a click, composing `Popover.Root`, `Trigger`, `Portal`, `Positioner`, and `Popup`.",
+  "progress--animated-effects":
+    "Every effect the animated WebGL fill can run, split into evenly-covered ones that stay legible on a thin `md` bar and large-area ones shown taller at `lg`. The bar slowly fills 0 to 100 and loops so you read each effect as it paints; browse here to pick an `effect` other than the `shimmer` default.",
+  "progress--custom-color":
+    "An explicit `color` overrides the semantic `tone`, taking any CSS colour or `--sf-*` token. Reach for it when a bar must match a brand or data-series colour rather than signal status.",
+  "progress--elevation":
+    "The track sits on the `--sf-elevation-N` scale, shown at 1, 3, and 5. Set `elevation` to give the bar depth against its surface; omit it for a flat track.",
+  "progress--fills":
+    "The three `fill` treatments at the same value: solid `color`, a static `dither`, and an `animated` WebGL dither. Use `color` by default, `dither` for the blocky console look, and `animated` when a live effect signals ongoing work.",
+  "progress--indeterminate":
+    "Passing `value={null}` renders a busy bar with no known percentage: the `color` and `dither` fills sweep, the `animated` fill runs its effect across the whole track. Reach for it while work is in flight but progress cannot be measured; reduced motion freezes all three.",
+  "progress--playground":
+    "Live controls over the main props (`value`, `fill`, `size`, `tone`, `showValue`) to feel out a configuration. Start here to see how the pieces combine before wiring a bar into a page.",
+  "progress--sizes":
+    "The four thickness rungs `xs`, `sm`, `md`, `lg` at the same value. `size` is a geometric dimension, so it adds an `xs` rung below the usual three-rung scale; pick by how much visual weight the bar should carry.",
+  "progress--squared":
+    "Zeroing the component-scoped `--sf-progress-radius` token squares the corners so the bar sits with the blocky dither family, without touching the broad `--sf-radius-default`. Use it when a squared track reads better beside dithered fills.",
+  "progress--tones":
+    "The five semantic `tone` values (`neutral`, `primary`, `success`, `warning`, `danger`) tinting the fill. Choose the tone that matches the status the bar reports; `neutral` is the resting default.",
+  "progress--with-value":
+    "`showValue` appends an inline readout, defaulting to a rounded percentage. Pass `formatValue` to render a fraction of 1 as a percent or a raw `value/max` count when the underlying range is not 0 to 100.",
+  "prose--long":
+    "The full ~2,500-word story in a scrollable `Pane`. Virtualization keeps the DOM small as the reader scrolls; reach for this to see `Prose.Body` handle a document-length source.",
+  "prose--short":
+    "The first three sections only, the smallest source. Confirms `Prose` renders cleanly when there is little content and no outline is shown.",
+  "prose--stress":
+    "The real prose tiled 50 times under chapter markers, about 4,000 blocks. Scroll with DevTools open to confirm the rendered `.block` count stays bounded (~25 to 40) at any scroll position.",
+  "prose--with-outline":
+    "The full story in a two-column `split` layout: `Prose.Outline` navigation beside `Prose.Body`. Reach for this when readers need to jump between headings; the outline tracks and highlights the section in view.",
+  "radio--group":
+    "Three `Radio` options wrapped in a `RadioGroup`, each paired with its own `<label>`, with `defaultValue` preselecting Medium. Reach for this whenever a set of choices is mutually exclusive: the group tracks one selected `value` and enforces single-choice selection.",
+  "radio-table--no-descriptions":
+    "Three options as bare radio plus label, no `description` on any `RadioTable.Option`. Reach for this when the choices are self-explanatory (a size or a mode) and a detail line would be noise.",
+  "radio-table--playground":
+    "A four-tier plan picker wired to `value`/`onValueChange`, each `RadioTable.Option` carrying a `label` and a `description`. The default view of the component: pick one, each choice with a title and a supporting line.",
+  "radio-table--resizable":
+    "The same plan picker inside a horizontally resizable box, so you can drag the corner and watch each description move right of its `label` when the container is wide and drop below it when narrow. Use it to check the container-driven reflow at any width.",
+  "radio-table--tall-descriptions":
+    "Two options whose `description` text wraps to several lines, showing that the radio, label, and description stay vertically centered in a tall row. Reach for this to confirm the layout holds when descriptions are long.",
+  "radio-table--with-disabled":
+    "Three options where the last sets `disabled`, so it renders dimmed and skips selection and arrow-key focus. Shows how to lock a choice that is not yet available.",
+  "reflow--narrow-accordion":
+    "A 360px wrapper forces the collapsed state, so the columns stack as a vertical accordion with the first section open. Reach here to see the default `collapseMode` collapse: each title becomes an accordion trigger.",
+  "reflow--narrow-tabs":
+    'The same narrow wrapper, but `collapseMode="tabs"` collapses the columns into a tab switcher that shows one panel at a time. Use tabs over the accordion when the columns are peers the user swaps between rather than scans top to bottom.',
+  "reflow--wide":
+    "The three columns side by side, each with its title as a real heading above its body. This is the expanded state; drop `collapseAt` below the container width (default 32u) and it stays wide.",
+  "scrollable--both":
+    "A surface scrolling on both axes at once (`overflow: auto`), the styled thumb shared by each axis. Reach for it to check the two scrollbars together, including the corner where they meet.",
+  "scrollable--compared-to-default":
+    "The `.scrollable` surface side by side with an unstyled native one, so the thin thumb and hover recolor read at a glance against the browser default. Toggle Ladle's theme to confirm dark mode adapts with no per-theme override.",
+  "scrollable--horizontal":
+    "A single wide line overflowing sideways, driven by `overflowX: auto`, to show the horizontal scrollbar. Use it to review the thumb on the x axis.",
+  "scrollable--vertical":
+    "A tall column of rows scrolling on the y axis (`overflowY: auto`): the thumb stays invisible at rest and appears in the primary color when you hover the surface. The common case for reviewing the vertical scrollbar.",
+  "selector--compact":
+    'Two `layout="compact"` selectors that collapse to an "N selected" count plus Clear, sized to their content. Reach for this in a toolbar or filter bar where space is tight; the second one uses `compactLabel` to reword the count, and the full set is reviewed and unchecked in the dropdown.',
+  "selector--inline":
+    '`layout="inline"`: the chosen chips sit inside the search field, tag-input style. Reach for this when you want one self-contained control rather than a separate bucket panel.',
+  "selector--inline-overflow":
+    "The inline layout in a 20rem container with more chips than fit. The control stays one row and clips the overflow with a trailing marker; the whole selection stays reachable in the dropdown, so the field never grows vertically.",
+  "selector--object-items":
+    '`items` given as `{ value, label }` objects instead of bare strings, so the stored value and the displayed text differ. Also sets `bucketLabel="Stack"` to retitle the panel heading.',
+  "selector--panel":
+    'The default `layout="panel"`: a search field above a separate bucket that lists the chosen chips with a Clear action. Reach for this when the selection deserves its own visible area.',
+  "selector--playground":
+    "The full prop surface wired to Ladle controls: switch `layout` (panel/inline/compact), `size`, and `disabled` to compare every configuration in one place.",
+  "selector--sizes":
+    "The three `size` values (`sm`, `md`, `lg`) stacked in inline layout, matching `Input` heights. Use it to pick the size that fits the surrounding form density.",
+  "skeleton--card":
+    "Composes several skeletons into a card placeholder: a circle avatar beside a headline and subhead line, laid out with `Grid`. Reach for this pattern to hold the shape of a list item or profile card while its data loads.",
+  "skeleton--circle":
+    'A round placeholder from `shape="circle"` sized with `size`. Use it for avatars, icons, and other square-round slots.',
+  "skeleton--dithered-effect":
+    "Swaps the default shimmer for a WebGL dithered fill via `effect` (here `noise`, `plasma`, `ripple`), the same engine as `NonIdealState`. Reach for it when a plain shimmer reads as too quiet for a large loading region.",
+  "skeleton--pill":
+    'A rounded-end placeholder from `shape="pill"`. Use it to stand in for a chip, tag, or button while it loads.',
+  "skeleton--playground":
+    "Interactive controls over a single skeleton; the `shape` radio switches between rect, circle, and pill. Use it to feel out props before wiring the component in.",
+  "skeleton--polymorphic":
+    "Renders each skeleton as an `<li>` through the `render` prop instead of the default `<div>`. Reach for `render` when the placeholder must sit inside a list, table, or other element that constrains its valid children.",
+  "skeleton--rect":
+    "The default: a sharp-cornered block one unit tall that fills its container width. This is the base skeleton for a single line or bar.",
+  "skeleton--sized":
+    "Three blocks at explicit `width` and `height` in `--sf-unit` multiples. Set both when the placeholder must match a known element's size rather than fill its container.",
+  "skeleton--text-block":
+    "Stacks full-width lines with a short final line at 60% to mimic a paragraph. Use it to hold the space for a block of running text.",
+  "spinner--colors":
+    "Five spinners tinted with palette tokens via `color` (primary, success, danger, muted), plus one that omits `color` and inherits `currentColor` from an orange container. Reach for it to see how a spinner picks up either an explicit token or the surrounding text color.",
+  "spinner--gallery":
+    'Every `variant` in the set rendered at `size="lg"` beside its name, from braille and dots to blocks, bars, and arrows. Use it to browse the full glyph catalogue and pick the animation that fits.',
+  "spinner--inline-with-text":
+    'Two spinners sitting inside a line of body text (`braille` before, `dots` after "Loading results\u2026"), inheriting the surrounding font size. Shows how a spinner reads beside a label without knocking the baseline.',
+  "spinner--speeds":
+    "The `bars` variant at four `speed` multipliers (0.5x, 1x, 2x, 4x) side by side. Reach for it to judge how fast a spinner should cycle for a given wait.",
+  "splitpane--bottom":
+    'The panel docks to the bottom edge (`side="bottom"`), splitting the container into a top main region and a bottom panel with a horizontal divider. Reach for it when the secondary content belongs below the main view, like a console or a details strip.',
+  "splitpane--fixed-non-resizable":
+    "Passes `resizable={false}`, so the panel holds its `defaultSize` and no divider renders. Use it when the panel width is fixed and the user should not drag it.",
+  "splitpane--left":
+    'The panel sits on the left edge (`side="left"`) and pushes the main content to the right. Reach for it for a left sidebar such as navigation or a file tree.',
+  "splitpane--right":
+    'The default: a right-edge panel (`side="right"`) that pushes the main content left. Toggle it with the button, then drag the divider to resize or focus it and use the arrow keys; `onSizeChange` reports the settled width.',
+  "splitpane--top":
+    'The panel docks to the top edge (`side="top"`) above the main region, split by a horizontal divider. Reach for it when the secondary content belongs above the main view.',
+  "stack--basic":
+    "A fixed-height box where a heading and an Amount field keep their natural size while a `Stack.Fill` holding a `TextEdit fill` stretches to the bottom edge. Reach for it when one region in a region of fixed height should absorb the leftover vertical space.",
+  "stack--horizontal":
+    'Set `direction="horizontal"` to lay the stack as a row: a fixed 8rem sidebar plus a `Stack.Fill` main column that absorbs the remaining width. Use it when one column should take whatever horizontal space the others leave.',
+  "stack--in-a-resizable-dialog":
+    "The motivating case (issue #74): a draggable, resizable `Dialog.Popup` whose body is a `Stack fill`, with the Reason region a `Stack.Fill` plus `TextEdit fill` that stays locked above the action row as the window resizes. Reach for this pattern when a field must grow and stay pinned to the lower edge inside a resizable container.",
+  "streaming-terminal-text--configured":
+    "Auto-starts on mount and feeds the sample text through tuned props: a slower `charIntervalMs`, a longer `tailLength`, and a three-glyph `shadeRamp`. Reach for it to see how the reveal cadence and the density of the developing shade tail respond to prop changes.",
+  "streaming-terminal-text--from-fetch":
+    "A documentation stub rather than a live demo: the comment block at the top of the story holds the consumer-side wiring for a real `fetch().body.getReader()` stream, feeding `content` and flipping `isComplete` on `done`. Read it when connecting the component to a backend; use the Simulated story to watch the reveal itself.",
+  "streaming-terminal-text--mode-comparison":
+    'A fast source (12 chars every 40ms) drives two instances at once so you can compare `mode="dramatic"` against `mode="stream"`. The default dramatic reveal lags a fast source and then bursts to catch up on completion, while stream tracks the source and shimmers only the shade tail at the live edge.',
+  "streaming-terminal-text--simulated":
+    "A Start button drives bursty chunked arrival via `setInterval`, adding 4 to 12 chars per tick to mimic a real LLM stream. The interactive demo: reach for it to watch the reveal and shade tail against live-like input.",
+  "streaming-terminal-text--static":
+    "Passes the full text at once with `isComplete`, so there is no reveal animation and the content renders straight to materialized Markdown. Shows the finished, resolved state the stream lands on.",
+  "switch--default":
+    "A bare switch in its resting off state, uncontrolled. This is the starting point for a binary on/off setting that takes effect immediately.",
+  "switch--default-checked":
+    "The switch rendered on at mount via `defaultChecked`, still uncontrolled so the user can toggle it. Reach for `defaultChecked` when a setting starts enabled.",
+  "switch--disabled":
+    "A checked switch made non-interactive with `disabled`. Use it to show an on setting the user cannot change in the current context.",
+  "table-input--dates-and-text":
+    "A milestone table mixing text, `date`, and `boolean` columns, with `equalColumns` giving every column the same share so the wide date editor doesn't crowd the text one. Reach for `equalColumns` when editor widths differ enough to unbalance the layout.",
+  "table-input--dense":
+    'The same holdings table tightened with `cellPadding="xs"` and `cellFontSize="xs"`, which consume DataTable\'s density variables so the two read at one scale. Reach for these when a compact financial layout needs the grid packed tighter.',
+  "table-input--disabled":
+    "The whole control switched off with `disabled`: cells are non-focusable and the add and delete buttons are inert. Shows the read-only state for a form that isn't currently editable.",
+  "table-input--empty":
+    "Zero rows with a centred `empty` slot for a no-data or failed-load state; the header and add button stay so the reader keeps column context and can start a row. Reach for `empty` on an async table; omit it and an empty table shows just the header and add button.",
+  "table-input--fill-height":
+    "A sparse two-row table held to a fixed height (`style={{ blockSize }}`) with `fillHeight` dithering the empty band below the last row so it reads as one filled panel, add button pinned at the bottom. Reach for `fillHeight` when a fixed-height table has too few rows to fill it.",
+  "table-input--in-a-field":
+    "The table dropped inside a vertical `Field` with a `Field.Label` and `Field.Description`, the intended way to label and describe it. This is how `TableInput` sits in a form.",
+  "table-input--min-max-rows":
+    "`minRows={1}` disables delete at one row and `maxRows={5}` disables add at five, bounding the row count. Reach for these when the array has a required floor or a hard ceiling.",
+  "table-input--narrow":
+    "The table in an 18rem container: columns shrink toward their minimum widths, and once they can't all fit the table scrolls horizontally rather than collapsing columns into each other. Shows the reflow behaviour in a tight sidebar or split pane.",
+  "table-input--playground":
+    "The base holdings table with text, number, select, and boolean columns and controlled `value`/`onChange`. The default starting point for exploring the props.",
+  "table-input--reorderable":
+    "Adds `reorderable` so rows carry a drag handle and can be dragged to reorder (dnd-kit loads lazily). Reach for it when row order is meaningful to the user; note it disables `virtualize`.",
+  "table-input--virtualized":
+    "A 500-row array windowed with `virtualize` and a bounded height (`style={{ blockSize }}`), so only the visible slice is in the DOM and the header sticks while the body scrolls. Reach for `virtualize` past a few hundred rows; it's ignored under `reorderable`.",
+  "tabs--default":
+    "Three peer views in one surface, switched by a `Tabs.List` of `Tabs.Tab`s with a sliding `Tabs.Indicator` under the active tab and one `Tabs.Panel` per `value`. Reach for this to give a region horizontally peer-level views; the selected tab bolds without reflowing the row, since each tab reserves its bold width.",
+  "text-edit--controlled":
+    "A controlled `TextEdit`: `value` and `onChange` are driven from React state, with a live character count below. Reach for this when you need to read or transform the text as the user types.",
+  "text-edit--default":
+    "The bare component at its default `rows={3}`, showing a `placeholder`. This is the starting point for a plain multi-line note field.",
+  "text-edit--disabled":
+    "A `disabled` field holding `defaultValue` text the user cannot edit. Use it to present read-only content while keeping the input's look.",
+  "text-edit--playground":
+    "An interactive sandbox wired to Ladle controls for `placeholder`, `rows`, and `disabled`. Use it to try prop combinations before settling on a configuration.",
+  "text-edit--tall":
+    "A taller field set to `rows={10}` for longer entries. Reach for a higher `rows` when the text is usually a paragraph or more.",
+  "text-edit-inline--controlled":
+    "Drives the field from state via `value` + `onChange`, echoing a live character count below. Reach for this when the app owns the note's value or you need to react to every edit.",
+  "text-edit-inline--default":
+    "The resting behaviour: one ellipsized line that peeks the full text on hover and opens to an editor on click. A paragraph below stays put, showing the expanded overlay floats above the content instead of pushing it down.",
+  "text-edit-inline--playground":
+    "Live-args sandbox for `size`, `maxRows`, `placeholder`, and the value. Use it to feel how a long note grows to `maxRows` before it scrolls.",
+  "text-edit-inline--sizes":
+    "The three resting heights (`size` sm 1u / md 1.5u / lg 2u) stacked, matching the Input heights. Pick the one that lines up with the other controls in the row.",
+  "text-edit-inline--states":
+    "Three cases side by side: empty (placeholder only), a short value that fits one line with no ellipsis, and a long value that ellipsizes. Shows how the collapsed line reads across content lengths.",
+  "theme-builder--custom-preview":
+    "Passes custom `children` in place of the default component gallery: a `Box` with headings, `Chip`s, and a `Button`. Anything inside the preview that reads `--sf-*` tokens re-themes live as you edit the palette, so reach for this to preview the token edits against your own layout. Starts on the dark theme via `defaultTheme`.",
+  "theme-builder--default":
+    "The ThemeBuilder at full width: colour and token controls on the left, a live component sample in the middle, and the generated CSS or JSON on the right. Reach for this to see the standard three-column layout and the built-in preview gallery.",
+  "theme-builder--narrow":
+    "The same builder in a 24rem container, where the controls, preview, and export panels stack into one column. Collapse is driven by a container query on the builder's own width, so it reflows inside a sidebar or split pane without viewport breakpoints.",
+  "timeline--compact":
+    "The condensed control strip: a thin `compact` `bordered` row where event labels stay hidden until you hover a marker or scrub the playhead near one, then float above the box. Reach for this when the timeline is a control rather than a display.",
+  "timeline--custom-color":
+    "Sets the accent for the playhead, now line, markers, range band and value tag with the `color` prop. Takes any CSS colour or a token reference like `var(--sf-color-success)`.",
+  "timeline--daily-ticks":
+    "A one-week span where the axis picks day-level ticks automatically. Shows how the tick unit adapts to a short range.",
+  "timeline--hourly-ticks":
+    "A single working day from 08:00 to 18:00, where the axis drops to hourly ticks. Use a sub-day `start`/`end` for intra-day event strips.",
+  "timeline--monthly-ticks":
+    "A read-only full-year timeline with month ticks and five release markers, each wired to an `onClick`. The baseline lane view with no scrubbing.",
+  "timeline--multi-year":
+    "A six-year span where the axis settles on year ticks. Shows the tick unit widening for long ranges.",
+  "timeline--narrow":
+    "Twelve long-label events crammed into a 320px container with `maxLanes={2}`. Labels the lane pass can't place collision-free are flagged as overflow, hidden at rest and revealed on hover or focus while the diamond markers stay visible.",
+  "timeline--range-select":
+    "Range selection through `rangeValue` and `onRangeChange`: two draggable handles with a band between them. Drag a handle to move one bound, the band to pan the whole range, click the track to pull the nearest bound, or nudge a focused handle with the arrow keys; `rangeOpacity` sets the band fill.",
+  "timeline--range-value-labels":
+    "Range handles each carrying a floating date tag via `valueLabel`, on a `bordered` strip lifted with `elevation={2}`. Reach for this when both range bounds need a visible readout.",
+  "timeline--scrubbable":
+    "A video-style scrubber driven by `value`/`onChange`: click the track to set the playhead, drag to scrub continuously. Event markers keep their own `onClick` and don't trigger the scrub.",
+  "timeline--sizes":
+    "The three strip heights `sm`, `md` and `lg` (24 / 36 / 48px), matching Input and Selector; `compact` is an alias for `md`. At `sm` the floating value labels shrink to stay proportionate.",
+  "timeline--snap-to-events":
+    'With `snap="events"`, the playhead jumps to the nearest `Timeline.Event` date as you scrub. Use this to lock a scrub to real data points.',
+  "timeline--snap-to-ticks":
+    'With `snap="ticks"`, the playhead jumps to the nearest tick boundary, here daily. Use this to constrain a scrub to whole time units.',
+  "timeline--stacked-lanes":
+    "Six events over two weeks whose labels would collide, stacked into distinct vertical lanes by greedy assignment; each new label takes the lowest free lane and the container grows to fit. Cap the stacking with `maxLanes`.",
+  "timeline--tick-spacing":
+    "The same range rendered at `tickSpacing` 40, 100 and 200, the target minimum px between ticks. Larger values choose a sparser axis unit.",
+  "timeline--value-labels":
+    "Turns on `valueLabel` to float a small date tag above the playhead, formatted by `formatValue`. Works for the single playhead and both range handles.",
+  "toggle-group--disabled-one":
+    "A single item marked `disabled` on `ToggleGroup.Item`: the Grid option can't be selected or focused while List and Table still toggle. Reach for this when one choice is temporarily unavailable but should stay visible in the set.",
+  "toggle-group--multi-select":
+    "`multiple` lets several items stay pressed at once, here bold/italic/underline text marks tracked in the `value` array. Use it when the toggles are independent flags rather than one exclusive choice.",
+  "toggle-group--single-select":
+    "The default segmented control: exactly one item is active at a time (a list/grid/table view switch). `value` is still a `string[]`, holding at most one entry. Reach for this for a mutually-exclusive pick.",
+  "toggle-group--sizes":
+    "`size` on the root (`sm`/`md`/`lg`) cascades to every item, shown as three rows at matching Button heights. Set it to line the control up with adjacent buttons or a denser row.",
+  "vertical-form--bare":
+    "`bare` drops the surrounding Box from every row: no surface, no border, no padding, for a minimal look. Sections and the Minimap rail behave the same. Reach for it when you want the fields to sit flush on the page rather than as raised cards.",
+  "vertical-form--dense":
+    "120 fields in a short frame: block markers never compress below `minBlock` (0.5u), so the rail itself grows taller than its viewport and scrolls, auto-following the visible band. More labels survive than in a fit-everything overview. This is what a very long form looks like on the rail.",
+  "vertical-form--fits-without-rail":
+    "Two fields that fit the frame with no overflow, so the Minimap rail stays hidden. Shows that the rail appears only when the content actually scrolls.",
+  "vertical-form--long-form":
+    "24 uniform fields, each with a label and description, scrolling inside the frame with the rail alongside. The baseline case for a plain long form: no sections, no nav, just enough rows to make the rail earn its place.",
+  "vertical-form--max-block-compressed":
+    "A small `maxBlock` (0.75u) caps how tall each rail block grows, so a sparse form's density strip packs into the top of the rail rather than spreading over its full height. Use `maxBlock` when you want the overview compact even with few fields; `minBlock` still floors dense forms.",
+  "vertical-form--playground":
+    "The interactive story: controls for `elevation`, `side`, `padding`, and `minimapWidth` over a mixed form of Inputs and a TextEdit. Start here to feel out the props before wiring a real form.",
+  "vertical-form--reserved-error":
+    "`reserveError` pre-allocates a one-line error slot under each field, so toggling an error on the middle field fills that reserved line in place rather than shifting the fields below it. Set it on any form that validates so an appearing error never reflows the rows. The button toggles the error to show the difference.",
+  "vertical-form--resizable":
+    "Drag the container's bottom-right corner: each field's description moves right of the control when the row is wide and drops back below it when narrow. The reflow is a container query on the row, so it tracks the container width rather than the viewport, and works inside a split pane or sidebar.",
+  "vertical-form--resizable-with-sections":
+    "The same description reflow as `Resizable`, now across grouped `VerticalForm.Section`s and with the `nav` bar on. Resize to watch every section's descriptions react together.",
+  "vertical-form--width-and-labels":
+    "A per-field `width` (8u) caps a bounded control (here a DatePicker) so it reads visibly narrower than an open text field, and a long label wraps within the row rather than overflowing. Use `width` for dates, codes, and quantities that shouldn't stretch to the full row.",
+  "vertical-form--with-errors":
+    "Several fields carry an `error`, which renders the message below the control and marks that row's rail tick danger. Shows how validation errors read both inline and on the Minimap at a glance.",
+  "vertical-form--with-nav":
+    "`nav` adds a bottom bar holding a searchable Picker of every section and field title. Selecting one scrolls to it; scrolling the form updates the Picker to the title at the top. Reach for it on a long, sectioned form where the rail alone isn't enough to jump around quickly.",
+  "vertical-form--with-sections":
+    "Fields grouped under `VerticalForm.Section` titles (Account, Profile, Preferences), each title becoming a level-1 rail marker with its fields indented under it. Use sections to give a longer form structure on the page and on the rail.",
+  "windowarray--basic":
+    "Three columns of stacked windows: drag a title to rearrange (drop it on a gutter to break it into its own column), drag a gutter to resize, and use arrows, Home, and End to navigate, Shift+Arrow to move. The starting point; `onWindowMove` reports each rearrange for you to apply to your own state.",
+  "windowarray--custom-actions":
+    "A consumer-supplied pin button in the Window `actions` slot, built with `WindowArray.WindowButton` so it shares the built-in fullscreen and close chrome exactly and sits before that pair. Reach for it to add per-window controls; the actions row swallows pointer-down, so these never start a window drag.",
+  "windowarray--elevated":
+    "`elevation={4}` gives every window a deeper resting shadow above the dithered desk (the default is `1`), while a fullscreen window stays flat. Set `elevation` from 0 to 5 to tune how far the windows lift off the surface.",
+  "windowarray--fullscreen-and-scrolling-bodies":
+    "Window bodies that overflow scroll internally, and the title-bar fullscreen toggle expands one window over the WindowArray container only (Escape exits). Reach here to see how long content behaves; `maximizable` (default true) controls the toggle.",
+  "windowarray--many-columns":
+    "Eight single-window columns overflow the strip, which scrolls horizontally with `snap` proximity column snapping and `controls` edge paddles that fade in as the pointer nears an edge. Alt+Arrow switches columns from anywhere inside, wired by the consumer through `apiRef.switchColumn` (the component binds no global shortcut).",
+  "windowarray--narrow-vertical":
+    'With `orientation="auto"`, dragging the container below `verticalBelow` (480px) transposes the strip: it scrolls top-to-bottom, columns become full-width bands, and stacked windows sit side by side. Drag the resize corner across the breakpoint to watch the flip; arrows, Shift+moves, gutter resizing, paddles, and Alt+hotkeys all follow the layout axis.',
+  "windowarray--static-strip":
+    "Omitting `onWindowMove` disables dragging and Shift+Arrow moves, and omitting `onClose` drops the close button, so the chrome shrinks to just the fullscreen toggle. Per-window `maximizable={false}` also removes that toggle and per-column `resizable={false}` locks the gutter; reach for this for a display-only strip.",
 };
