@@ -165,6 +165,8 @@ A testable checklist for `VerticalForm` (and, where noted, `FieldLayout`) under 
 
 What the two layout layers do today, and the concrete, named gaps. Line references are into `src/components/VerticalForm/` and `src/components/FieldLayout/`.
 
+**Status.** Closed: V2 (reserve the error slot, opt-in `reserveError`), V3 (wide-row column widths in `--sf-unit`; the 24rem container-query bound stays a length, since a container query condition cannot read a custom property), V4 (per-field `width` cap so a bounded control reads narrower), V6 and F3 (labels and section titles wrap within their column), F1 (fields on one wrapped line share a top edge). Held by decision: V1 (the `elevation={1}` card default stays, since changing it is a breaking visual change and `bare` already gives dense forms the hairline look). Partial: F2 (a bounded datum reads narrower through `rigid` or the new `width`, but nothing auto-detects one). Deferred: V5 and F4 (vertical fill for a short form in a tall container, lower value than a table's `fillHeight`; revisit when a full-height form panel needs it).
+
 ### VerticalForm
 
 Passes:
