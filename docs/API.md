@@ -1722,6 +1722,14 @@ JSX children).
 | `addLabel` | `ReactNode` | `"Add row"` | Add-button label. |
 | `disabled` | `boolean` | `false` | Disable the whole control (the rows become `inert`). |
 | `size` | `"sm" \| "md"` | `"sm"` | Cell size, mirroring the inner controls. |
+| `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell padding density, the same `--sf-cell-pad-x` variable DataTable uses, so the two tune to one density. |
+| `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Header text size, DataTable's `--sf-cell-font` ladder. |
+| `empty` | `ReactNode` | n/a | Slot shown in the body when there are no rows (async no-data or a failed load); pass a `NonIdealState`. The header and add button stay. |
+| `fillHeight` | `boolean` | `false` | With a height set via `style`, dither the empty band below the last row so a sparse table reads as one filled panel; the add-row footer stays pinned at the bottom. |
+| `virtualize` | `boolean` | `false` | Window the rows with `@tanstack/react-virtual` so only the visible slice is in the DOM (needs a bounded height; the header sticks). Ignored under `reorderable`. |
+
+A number column right-aligns and renders `--sf-font-mono` tabular figures by
+default (no explicit `align` needed), so decimals line up.
 
 ```tsx
 <TableInput
@@ -1876,10 +1884,12 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
 | `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples (caps a sparse form's tall blocks). Forwarded to `Minimap`'s `maxMarkerSize`. |
 | `bare` | `Root` | `boolean` | `false` | Render rows without the surrounding `Box` (no surface, no box padding) for a minimal look. The `elevation` props are then ignored. |
+| `reserveError` | `Root` | `boolean` | `false` | Reserve a one-line error slot under every field so an appearing validation error fills it in place rather than inserting a line and reflowing the rows below. Off keeps a display-only form compact. |
 | `title` | `Section` | `ReactNode` | n/a | Section heading; a string also becomes a level-1 rail label. |
 | `label` | `Field` | `ReactNode` | n/a | Field name above the control; a string also becomes a rail label. |
 | `description` | `Field` | `ReactNode` | n/a | Supplementary copy below the control (full-strength fg, never grey). On a wide row it moves to the right of the control (a container query on the row); it drops back below when narrow. |
 | `error` | `Field` | `ReactNode` | n/a | Error below the control; also tones the row's rail block and its rail label `danger`. |
+| `width` | `Field` | `number` | n/a | Cap the control's width in `--sf-unit` multiples so a bounded field (a date, a code, a quantity) reads narrower than open text. Unset fills the row. |
 | `required` | `Field` | `boolean` | `false` | Shows a `*` on the label (visual only). |
 | `hotkey` | `Field` | `string` | n/a | "Jump to this field" shortcut badge (see `Field`'s `hotkey`). |
 | `elevation` | `Field` | `BoxElevation` | Root's | Per-row surface override. |
