@@ -72,3 +72,15 @@ test("clicking the chromaticity diagram picks the colour under the pointer", asy
   if (box) await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.55);
   await expect(c.getByTestId("value")).not.toHaveText(before);
 });
+
+test("a diagram pick clamps into sRGB (no out-of-gamut selection)", async ({ mount, page }) => {
+  const c = await mount(
+    <ColorPickerHarness initialValue="#3b82f6" pickerProps={{ diagram: true }} />,
+  );
+  const before = (await c.getByTestId("value").textContent()) ?? "";
+  // A point outside the sRGB triangle but inside the horseshoe (the magenta sliver).
+  const box = await c.getByRole("img", { name: /chromaticity/i }).boundingBox();
+  if (box) await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.79);
+  await expect(c.getByTestId("value")).not.toHaveText(before); // it picked something
+  await expect(c.getByText("OUT OF GAMUT (sRGB)")).toHaveCount(0); // …but in gamut
+});

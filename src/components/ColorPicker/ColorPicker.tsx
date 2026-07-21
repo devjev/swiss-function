@@ -215,15 +215,14 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
     apply({ space, channels, alpha: Math.max(0, Math.min(1, a)) }, complete);
   };
   // A chromaticity-diagram pick: keep the colour's brightness (Y), move its
-  // chromaticity to the picked xy. Points outside sRGB simply read out of gamut.
+  // chromaticity to the picked xy, then gamut-map into sRGB so the dot can't
+  // leave the triangle (the sliders remain the way to push into wide gamut).
   const pickXy = ([x, y]: [number, number], complete: boolean) => {
     if (y <= 1e-4) return;
     const Y = Math.max(srgbToXyz(channelsToSrgb(space, channels))[1], 0.12);
     const srgb = xyzToSrgb([(x / y) * Y, Y, ((1 - x - y) / y) * Y]);
-    apply(
-      { space, channels: srgbToChannels(space, srgb, hueOf(space, channels)), alpha },
-      complete,
-    );
+    const picked = clampToSrgb(space, srgbToChannels(space, srgb, hueOf(space, channels)));
+    apply({ space, channels: picked, alpha }, complete);
   };
   const reproject = (p: ParsedColor): State => ({
     space,

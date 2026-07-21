@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.15.1 — 2026-07-21
+
+### Patch
+
+- ColorPicker: chromaticity-diagram picks now clamp into the sRGB gamut — the dot stays inside the triangle instead of letting you select an out-of-gamut colour (the channel sliders remain the way to push into wide gamut deliberately).
+
 ## v2.15.0 — 2026-07-21
 
 ### Minor
