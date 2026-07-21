@@ -6,10 +6,20 @@
     repeating-conic-gradient(var(--sf-color-border) 0% 25%, var(--sf-color-bg) 0% 50%) 0 0 / 12px
     12px;
   --cp-num-width: 5rem;
+  /* Backdrop revealed under a channel track where the colour is out of the sRGB
+     gamut (the ramp goes transparent there): a fine muted hatch over the slot,
+     reading as "out of range". */
+  --cp-oog:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--sf-color-muted), transparent 72%) 0 1px,
+      transparent 1px 3px
+    ),
+    var(--sf-color-bg-subtle);
 
   display: grid;
   gap: calc(var(--sf-unit) / 2);
-  inline-size: 18rem;
+  inline-size: 20.5rem;
   padding: calc(var(--sf-unit) * 0.75);
   background-color: var(--sf-color-bg);
   border: 1px solid var(--sf-color-border);
@@ -18,13 +28,19 @@
   font-family: var(--sf-font-sans);
 }
 .sm {
-  inline-size: 15rem;
+  inline-size: 17rem;
   gap: calc(var(--sf-unit) / 3);
   --cp-num-width: 4.25rem;
 }
 .lg {
-  inline-size: 22rem;
+  inline-size: 24rem;
   --cp-num-width: 5.75rem;
+}
+/* Embed cleanly in another surface (e.g. Popover.Popup): drop our own chrome. */
+.bare {
+  padding: 0;
+  border: none;
+  background: none;
 }
 .root[data-disabled] {
   opacity: 0.6;
@@ -167,4 +183,80 @@ button.swatch:disabled {
 .swLg {
   inline-size: calc(var(--sf-unit) * 1.75);
   block-size: calc(var(--sf-unit) * 1.75);
+}
+
+/* --- Chromaticity diagram: an optional colour-fill canvas under an SVG overlay
+   (locus outline, sRGB triangle, white point, current-colour dot). --- */
+.diagramWrap {
+  display: flex;
+  justify-content: center;
+}
+.diagram {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: 13.5rem;
+  aspect-ratio: 1;
+}
+.diagram[data-interactive] {
+  cursor: crosshair;
+  touch-action: none;
+}
+.diagramCanvas,
+.diagramSvg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+  /* the container owns the pointer gesture */
+  pointer-events: none;
+}
+/* 1px crisp strokes at any render size via non-scaling-stroke. */
+.diagramSvg :where(rect, polygon, path, circle) {
+  vector-effect: non-scaling-stroke;
+}
+.diagramFrame {
+  fill: none;
+  stroke: var(--sf-color-border);
+  stroke-width: 1;
+}
+.diagramLocus {
+  fill: none;
+  stroke: var(--sf-color-fg-subtle);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+/* Line-art (no fill canvas): a whisper of tint so the horseshoe reads as a shape. */
+.diagramLocusFaint {
+  fill: color-mix(in srgb, var(--sf-color-fg), transparent 96%);
+}
+.diagramTriangle {
+  fill: none;
+  stroke: var(--sf-color-fg);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.diagramWhite {
+  stroke: var(--sf-color-muted);
+  stroke-width: 1;
+}
+/* Dot marker: an fg outer ring + a bg ring around the live colour, so it reads on
+   any background or fill. */
+.diagramDotRing {
+  fill: none;
+  stroke: var(--sf-color-fg);
+  stroke-width: 1.5;
+}
+.diagramDot {
+  stroke: var(--sf-color-bg);
+  stroke-width: 1.5;
+}
+/* Filled: the fill is theme-independent bright colour, so draw the locus + gamut
+   lines in a fixed dark ink to read over any chromaticity. */
+.diagram[data-filled] .diagramLocus,
+.diagram[data-filled] .diagramTriangle {
+  stroke: rgb(0 0 0 / 0.6);
+}
+.diagram[data-filled] .diagramWhite {
+  stroke: rgb(0 0 0 / 0.55);
 }

@@ -15,8 +15,12 @@ import {
   SPACES,
   type SpaceId,
   srgbInGamut,
+  srgbToChannels,
   srgbToHex,
+  srgbToXyz,
   toCss,
+  xyOf,
+  xyzToSrgb,
 } from "../../lib/color";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
@@ -26,6 +30,7 @@ import { ChevronDown, createIcon } from "../Icon";
 import { Input } from "../Input";
 import { Menu } from "../Menu";
 import { Slider } from "../Slider";
+import { ChromaticityDiagram } from "./ChromaticityDiagram";
 import styles from "./ColorPicker.module.css";
 import { ColorSwatch } from "./ColorSwatch";
 
@@ -78,6 +83,12 @@ export interface ColorPickerProps
   swatches?: string[];
   /** Show the out-of-sRGB-gamut chip + clamp action. Default `true`. */
   gamutWarning?: boolean;
+  /** Show a CIE 1931 chromaticity diagram (the horseshoe + sRGB triangle) with a
+   *  dot at the current colour. Default `false`. */
+  diagram?: boolean;
+  /** Drop the panel's own border/background/padding so it embeds cleanly in a
+   *  surface that already provides them (e.g. a `Popover.Popup`). Default `false`. */
+  bare?: boolean;
   /** Control size. Default `"md"`. */
   size?: ColorPickerSize;
   disabled?: boolean;
@@ -133,6 +144,8 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
     eyedropper = true,
     swatches,
     gamutWarning = true,
+    diagram = false,
+    bare = false,
     size = "md",
     disabled,
     className,
@@ -201,6 +214,17 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
   const setAlpha = (a: number, complete: boolean) => {
     apply({ space, channels, alpha: Math.max(0, Math.min(1, a)) }, complete);
   };
+  // A chromaticity-diagram pick: keep the colour's brightness (Y), move its
+  // chromaticity to the picked xy. Points outside sRGB simply read out of gamut.
+  const pickXy = ([x, y]: [number, number], complete: boolean) => {
+    if (y <= 1e-4) return;
+    const Y = Math.max(srgbToXyz(channelsToSrgb(space, channels))[1], 0.12);
+    const srgb = xyzToSrgb([(x / y) * Y, Y, ((1 - x - y) / y) * Y]);
+    apply(
+      { space, channels: srgbToChannels(space, srgb, hueOf(space, channels)), alpha },
+      complete,
+    );
+  };
   const reproject = (p: ParsedColor): State => ({
     space,
     channels: convert(p.space, space, p.channels, hueOf(space, channels)),
@@ -242,7 +266,7 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
     <div
       {...rest}
       ref={ref}
-      className={cx(styles.root, sizeClass[size], className)}
+      className={cx(styles.root, sizeClass[size], bare && styles.bare, className)}
       data-disabled={disabled || undefined}
     >
       <div className={styles.header}>
@@ -252,7 +276,15 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
             <ChevronDown size={0.75} />
           </Menu.Trigger>
           <Menu.Portal>
-            <Menu.Positioner side="bottom" align="start" sideOffset={4}>
+            {/* Rank the space menu above a containing Popover (the picker is
+                often inside one): its dropdown tier would otherwise sit under
+                the popover tier. */}
+            <Menu.Positioner
+              side="bottom"
+              align="start"
+              sideOffset={4}
+              style={{ zIndex: "calc(var(--sf-z-popover) + 1)" } as CSSProperties}
+            >
               <Menu.Popup>
                 {availableSpaces.map((id) => (
                   <Menu.Item key={id} onClick={() => switchSpace(id)}>
@@ -270,6 +302,16 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
           aria-label={`Current colour ${displayHex}`}
         />
       </div>
+
+      {diagram && (
+        <div className={styles.diagramWrap}>
+          <ChromaticityDiagram
+            xy={xyOf(space, channels)}
+            dotColor={opaqueHex}
+            onPick={disabled ? undefined : pickXy}
+          />
+        </div>
+      )}
 
       {SPACES[space].channels.map((def, i) => {
         const val = channels[i] ?? def.min;
@@ -294,7 +336,9 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
               onValueCommitted={(v) => setChannel(i, v as number, true)}
               style={
                 {
-                  "--sf-slider-track-bg": channelGradient(space, channels, i),
+                  // Layer the ramp over the out-of-gamut backdrop: where a stop is
+                  // unreachable in sRGB the ramp is transparent and the backdrop shows.
+                  "--sf-slider-track-bg": `${channelGradient(space, channels, i, gamutWarning)}, var(--cp-oog)`,
                   "--sf-slider-track-shadow": FLAT,
                 } as CSSProperties
               }

@@ -1,6 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
 import { Popover } from "../Popover";
+import { ChromaticityDiagram } from "./ChromaticityDiagram";
 import { ColorPicker } from "./ColorPicker";
 import { ColorSwatch } from "./ColorSwatch";
 
@@ -82,8 +83,10 @@ export const InPopover: Story = () => {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="bottom" align="start" sideOffset={6}>
-          <Popover.Popup>
-            <ColorPicker value={color} onChange={setColor} />
+          {/* `bare` drops the picker's own card (the popup is the surface);
+              lift the popup's width cap so the panel fits. */}
+          <Popover.Popup style={{ maxInlineSize: "none" }}>
+            <ColorPicker bare value={color} onChange={setColor} />
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
@@ -97,5 +100,32 @@ export const Swatches: Story = () => (
     <ColorSwatch color="#16a34a" size="md" />
     <ColorSwatch color="#dc262680" size="lg" />
     <ColorSwatch color="oklch(0.7 0.2 150)" size="lg" />
+  </div>
+);
+
+// The picker with the CIE 1931 chromaticity diagram: the dot tracks the colour,
+// and sits outside the sRGB triangle when the colour is out of gamut.
+export const WithDiagram: Story = () => {
+  const [color, setColor] = useState("oklch(0.7 0.2 150)");
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", justifyItems: "start" }}>
+      <ColorPicker value={color} onChange={setColor} diagram />
+      <span style={readout}>value: {color}</span>
+    </div>
+  );
+};
+
+// Standalone diagram: any CSS colour, with or without the sRGB triangle.
+export const Diagram: Story = () => (
+  <div style={{ display: "flex", gap: "var(--sf-unit)", flexWrap: "wrap" }}>
+    <div style={{ width: 170 }}>
+      <ChromaticityDiagram color="#3b82f6" />
+    </div>
+    <div style={{ width: 170 }}>
+      <ChromaticityDiagram color="oklch(0.85 0.3 145)" />
+    </div>
+    <div style={{ width: 170 }}>
+      <ChromaticityDiagram color="#e11d48" gamut={false} />
+    </div>
   </div>
 );

@@ -390,28 +390,47 @@ it inline, or as the panel inside a `Popover` triggered by a `ColorSwatch`.
 | `alpha` | `boolean` | `true` | Show the alpha channel (over a checkerboard). |
 | `eyedropper` | `boolean` | `true` | Show the screen eyedropper **iff** the browser supports `EyeDropper`. |
 | `swatches` | `string[]` | n/a | Preset colours shown as a row of `ColorSwatch` buttons. |
-| `gamutWarning` | `boolean` | `true` | Show the `OUT OF GAMUT (sRGB)` chip + a Clamp action for out-of-sRGB colours. |
+| `gamutWarning` | `boolean` | `true` | Show the `OUT OF GAMUT (sRGB)` chip + a Clamp action, and mark the out-of-sRGB part of each channel track (see below). |
+| `diagram` | `boolean` | `false` | Show a CIE 1931 chromaticity diagram (see `ChromaticityDiagram`) with a dot at the current colour; click/drag it to pick a colour (keeping the current brightness). |
+| `bare` | `boolean` | `false` | Drop the panel's own border/background/padding to embed it in a surface that already provides them (e.g. a `Popover.Popup`). |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Control size. |
 | `disabled` | `boolean` | `false` | Dims and blocks interaction. |
 
 Channels are labelled `<span>`s that name both the slider (via `aria-labelledby`)
 and its numeric field; the gamut state is text, never colour-only. The gradient
-tracks recompute as the other channels change. HSV/HWB have no CSS function, so
-HSV is edit-only (never an output `format`); CMYK is out of scope.
+tracks recompute as the other channels change, and (with `gamutWarning`) the part
+of a track that leaves sRGB is shown uncoloured — a hatched "out of range"
+backdrop past the reachable range, so you can see where e.g. chroma runs out.
+HSV/HWB have no CSS function, so HSV is edit-only (never an output `format`);
+CMYK is out of scope. The colour engine's `channelGradient(space, channels, i,
+markOutOfGamut?)` builds these tracks.
 
 **`ColorSwatch`** — a colour chip over a checkerboard (so alpha reads), sharp
 corners. Props: `color` (any CSS colour), `size` (`sm`/`md`/`lg`), optional
 `onClick` (makes it a keyboard-reachable button, e.g. a preset or a `Popover`
 trigger); presentational (`role="img"`) otherwise.
 
+**`ChromaticityDiagram`** — a CIE 1931 chromaticity diagram: the spectral-locus
+horseshoe (filled with the chromaticity colours by default, Photoshop-style), the
+sRGB gamut drawn as a triangle, the white point, and a dot at the current colour
+(outside the triangle when the colour is outside sRGB). Props: `color` (a CSS
+string) standalone, or `xy` + `dotColor` (as `ColorPicker` passes, so wide-gamut
+colours plot unclamped); `gamut` (draw the triangle, default `true`); `fill`
+(paint the colours, default `true` — `false` is pure line-art); `onPick(xy,
+done)` makes it interactive (click/drag reports the CIE xy under the pointer;
+points outside the horseshoe are ignored). The engine helpers `xyOf` / `srgbToXy`
+give the CIE xy; `xyToDisplaySrgb`, `srgbToXyz` / `xyzToSrgb`, and
+`inSpectralLocus` back the fill + picking.
+
 ```tsx
 <ColorPicker value={color} onChange={setColor} format="oklch" />
 
-// Triggered form.
+// Triggered form. `bare` drops the picker's card so the popup is the only
+// surface; lift the popup's width cap so the panel fits.
 <Popover.Root>
   <Popover.Trigger><ColorSwatch color={color} size="lg" /></Popover.Trigger>
-  <Popover.Portal><Popover.Positioner><Popover.Popup>
-    <ColorPicker value={color} onChange={setColor} />
+  <Popover.Portal><Popover.Positioner><Popover.Popup style={{ maxInlineSize: "none" }}>
+    <ColorPicker bare value={color} onChange={setColor} />
   </Popover.Popup></Popover.Positioner></Popover.Portal>
 </Popover.Root>
 ```

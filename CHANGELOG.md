@@ -6,6 +6,14 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.15.0 — 2026-07-21
+
+### Minor
+
+- ColorPicker: a slightly wider default panel (the sliders, numeric fields and diagram were cramped); a new `bare` prop that drops the panel's own border/background/padding so it embeds cleanly in a surface that already provides them (e.g. a `Popover.Popup`); and a fix so the space-selector menu stacks above a containing `Popover`.
+- ColorPicker: add a CIE 1931 chromaticity diagram (opt-in `diagram` prop) — the spectral-locus horseshoe filled with the chromaticity colours (Photoshop-style), the sRGB gamut drawn as a triangle, the white point, and a dot at the current colour (outside the triangle = out of sRGB). Click or drag it to pick a colour, keeping the current brightness. New `ChromaticityDiagram` component (`fill` / `onPick` props) and colour-engine helpers in `lib/color` (`xyOf`, `srgbToXy`, `xyToDisplaySrgb`, `srgbToXyz`/`xyzToSrgb`, `inSpectralLocus`, `SPECTRAL_LOCUS`).
+- ColorPicker: channel sliders now mark the out-of-sRGB-gamut part of a track — the ramp goes transparent past the reachable range, revealing a hatched 'out of range' backdrop (most visible on Chroma/Lightness in OKLCH/LCH/Lab). The color engine's channelGradient gains an optional markOutOfGamut flag.
+
 ## v2.14.0 — 2026-07-21
 
 ### Minor

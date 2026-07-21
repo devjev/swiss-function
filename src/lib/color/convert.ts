@@ -281,3 +281,45 @@ export function hexToSrgb(hex: string): { srgb: Srgb; alpha: number } | null {
   const alpha = h.length === 8 ? Number.parseInt(h.slice(6, 8), 16) / 255 : 1;
   return { srgb: [r, g, b], alpha };
 }
+
+/**
+ * CIE 1931 xy chromaticity of a (gamma) sRGB colour. The extended transfer holds
+ * for out-of-[0,1] channels, so wide-gamut colours plot outside the sRGB
+ * triangle. Returns `null` for black (chromaticity is undefined at zero
+ * luminance).
+ */
+export function srgbToXy(srgb: Srgb): [number, number] | null {
+  const lin: Vec3 = [toLinear(srgb[0]), toLinear(srgb[1]), toLinear(srgb[2])];
+  const [X, Y, Z] = mul(LRGB_TO_XYZ, lin);
+  const sum = X + Y + Z;
+  if (sum <= 1e-9) return null;
+  return [X / sum, Y / sum];
+}
+
+/**
+ * The brightest displayable (gamma) sRGB colour at a chromaticity xy — for
+ * painting a chromaticity diagram. Out-of-gamut chromaticities clamp their
+ * negative components (they wash out toward the spectral edges, as in Photoshop),
+ * and the result is normalised so its brightest channel is 1.
+ */
+export function xyToDisplaySrgb(x: number, y: number): Srgb {
+  if (y <= 1e-6) return [0, 0, 0];
+  const xyz: Vec3 = [x / y, 1, (1 - x - y) / y];
+  const lin = mul(XYZ_TO_LRGB, xyz);
+  const r = max(0, lin[0]);
+  const g = max(0, lin[1]);
+  const b = max(0, lin[2]);
+  const m = max(r, g, b, 1e-6);
+  return [toGamma(r / m), toGamma(g / m), toGamma(b / m)];
+}
+
+/** (Gamma) sRGB → CIE XYZ (D65). */
+export function srgbToXyz(srgb: Srgb): Vec3 {
+  return mul(LRGB_TO_XYZ, [toLinear(srgb[0]), toLinear(srgb[1]), toLinear(srgb[2])]);
+}
+
+/** CIE XYZ (D65) → (gamma) sRGB; may fall outside [0,1] for wide-gamut XYZ. */
+export function xyzToSrgb(xyz: Vec3): Srgb {
+  const lin = mul(XYZ_TO_LRGB, xyz);
+  return [toGamma(lin[0]), toGamma(lin[1]), toGamma(lin[2])];
+}

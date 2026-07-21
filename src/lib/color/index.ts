@@ -2,6 +2,7 @@
 // sRGB gamut mapping, CSS parse/serialize, and channel-track gradients. Powers
 // `ColorPicker`; usable on its own.
 
+export { inSpectralLocus, SPECTRAL_LOCUS, SRGB_PRIMARIES, SRGB_WHITE, xyOf } from "./chromaticity";
 export {
   channelsToSrgb,
   clamp01,
@@ -10,7 +11,11 @@ export {
   type Srgb,
   srgbToChannels,
   srgbToHex,
+  srgbToXy,
+  srgbToXyz,
   type Vec3,
+  xyToDisplaySrgb,
+  xyzToSrgb,
 } from "./convert";
 export { type ColorFormat, type CssSpace, type ParsedColor, parse, toCss } from "./format";
 export {

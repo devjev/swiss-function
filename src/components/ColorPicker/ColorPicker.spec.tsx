@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { ChromaticityDiagram } from "./ChromaticityDiagram";
 import { ColorPickerHarness } from "./ColorPicker.harness";
 
 test("renders the default OKLCH channels + alpha and the hex", async ({ mount }) => {
@@ -47,4 +48,27 @@ test("out-of-gamut shows the chip and Clamp maps it in", async ({ mount }) => {
 test("eyedropper={false} hides the pick button", async ({ mount }) => {
   const c = await mount(<ColorPickerHarness pickerProps={{ eyedropper: false }} />);
   await expect(c.getByRole("button", { name: "Pick colour from screen" })).toHaveCount(0);
+});
+
+test("diagram={true} renders the chromaticity diagram", async ({ mount }) => {
+  const c = await mount(<ColorPickerHarness pickerProps={{ diagram: true }} />);
+  await expect(c.getByRole("img", { name: /chromaticity/i })).toBeVisible();
+});
+
+test("standalone ChromaticityDiagram marks the colour with a filled dot", async ({ mount }) => {
+  const c = await mount(<ChromaticityDiagram color="#3b82f6" fill={false} />);
+  await expect(c.locator("circle").last()).toHaveAttribute("fill", "#3b82f6");
+});
+
+test("clicking the chromaticity diagram picks the colour under the pointer", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <ColorPickerHarness initialValue="#00bf54" pickerProps={{ diagram: true }} />,
+  );
+  const before = (await c.getByTestId("value").textContent()) ?? "";
+  const box = await c.getByRole("img", { name: /chromaticity/i }).boundingBox();
+  if (box) await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.55);
+  await expect(c.getByTestId("value")).not.toHaveText(before);
 });
