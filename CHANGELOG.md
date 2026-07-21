@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.15.2 — 2026-07-21
+
+### Patch
+
+- ColorPicker: a chromaticity-diagram pick now sets the colour shown at the pointer (brightness stays on the L slider), so the dot follows the pointer and sticks to the triangle edge in the drag direction — instead of the previous reduce-chroma clamp that pulled the dot toward the white point (opposite the drag), which also made the diagram nearly unusable from a near-white colour.
+
 ## v2.15.1 — 2026-07-21
 
 ### Patch

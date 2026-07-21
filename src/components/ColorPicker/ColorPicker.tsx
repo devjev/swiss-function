@@ -17,10 +17,9 @@ import {
   srgbInGamut,
   srgbToChannels,
   srgbToHex,
-  srgbToXyz,
   toCss,
   xyOf,
-  xyzToSrgb,
+  xyToDisplaySrgb,
 } from "../../lib/color";
 import { cx } from "../../lib/cx";
 import { Button } from "../Button";
@@ -214,15 +213,17 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
   const setAlpha = (a: number, complete: boolean) => {
     apply({ space, channels, alpha: Math.max(0, Math.min(1, a)) }, complete);
   };
-  // A chromaticity-diagram pick: keep the colour's brightness (Y), move its
-  // chromaticity to the picked xy, then gamut-map into sRGB so the dot can't
-  // leave the triangle (the sliders remain the way to push into wide gamut).
+  // A chromaticity-diagram pick sets the colour shown at that point (its
+  // brightest in-gamut form) — brightness stays on the L slider. The dot follows
+  // the pointer inside the triangle and sticks to the edge in the drag direction
+  // outside it (out-of-gamut chromaticities clip onto the sRGB boundary).
   const pickXy = ([x, y]: [number, number], complete: boolean) => {
     if (y <= 1e-4) return;
-    const Y = Math.max(srgbToXyz(channelsToSrgb(space, channels))[1], 0.12);
-    const srgb = xyzToSrgb([(x / y) * Y, Y, ((1 - x - y) / y) * Y]);
-    const picked = clampToSrgb(space, srgbToChannels(space, srgb, hueOf(space, channels)));
-    apply({ space, channels: picked, alpha }, complete);
+    const srgb = xyToDisplaySrgb(x, y);
+    apply(
+      { space, channels: srgbToChannels(space, srgb, hueOf(space, channels)), alpha },
+      complete,
+    );
   };
   const reproject = (p: ParsedColor): State => ({
     space,
