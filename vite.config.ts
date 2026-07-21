@@ -52,6 +52,7 @@ const componentNames = [
   "Prose",
   "Scatterplot",
   "Skeleton",
+  "Slider",
   "Spinner",
   "SplitPane",
   "Stack",
@@ -62,6 +63,7 @@ const componentNames = [
   "Tabs",
   "CodeEditor",
   "CodeEditorInline",
+  "ColorPicker",
   "TextEdit",
   "TextEditInline",
   "ThemeBuilder",
@@ -153,6 +155,10 @@ export default defineConfig({
       input: {
         index: resolve(__dirname, "src/index.ts"),
         ...componentEntries,
+        // The colour engine's public subpath (`/lib/color`). A re-export barrel
+        // is tree-shaken away unless it's an explicit entry, so list it here to
+        // emit dist/lib/color/index.js (single-file libs don't need this).
+        "lib/color/index": resolve(__dirname, "src/lib/color/index.ts"),
         "tokens/tokens": resolve(__dirname, "src/tokens/tokens.css"),
         "tokens/reset": resolve(__dirname, "src/tokens/reset.css"),
       },

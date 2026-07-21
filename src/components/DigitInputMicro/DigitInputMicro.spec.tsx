@@ -50,6 +50,20 @@ test("decimals allows one capped decimal point", async ({ mount }) => {
   expect(seen.at(-1)).toBe(1.23);
 });
 
+test("fixedDecimals pads a controlled value's display to the decimal places", async ({ mount }) => {
+  const c = await mount(<DigitInputMicro decimals={3} fixedDecimals value={0.5} />);
+  await expect(c.locator("input")).toHaveValue("0.500");
+});
+
+test("fixedDecimals normalises a typed value to padded form on blur", async ({ mount }) => {
+  const c = await mount(<DigitInputMicro decimals={3} fixedDecimals defaultValue={0} />);
+  const input = c.locator("input");
+  await input.focus();
+  await input.fill("0.5");
+  await input.blur();
+  await expect(input).toHaveValue("0.500");
+});
+
 test("clamps to min/max on blur", async ({ mount }) => {
   const seen: (number | null)[] = [];
   const c = await mount(

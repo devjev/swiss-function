@@ -1,0 +1,354 @@
+/* A slider dressed as an instrument-panel fader. `--slider-accent` is the single
+   colour knob (a `tone` sets it, an explicit `color` overrides it inline); the
+   fill and its dither read from it. `--sf-slider-radius` rounds the track + thumb
+   (a component-scoped knob so a slider can be squared to sit with the blocky
+   dither family without touching the global radius). `--sf-slider-track-thickness`
+   and `--sf-slider-thumb-size` are set by the size rungs and can be overridden;
+   `--sf-slider-length` is the vertical track length. Base UI drives the thumb and
+   fill positions inline, so nothing here transitions position (an instrument has
+   no inertia). */
+.root {
+  --slider-accent: var(--sf-color-muted);
+  --sf-slider-track-thickness: calc(var(--sf-unit) / 4);
+  --sf-slider-thumb-size: calc(var(--sf-unit) * 0.75);
+
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sf-unit) / 4);
+  inline-size: 100%;
+  touch-action: none;
+}
+
+/* Tones: each swaps the one accent, exactly as Progress/Chip, so a tone is one
+   rule and stays theme-aware. Neutral is the base above. */
+.root[data-tone="primary"] {
+  --slider-accent: var(--sf-color-primary);
+}
+.root[data-tone="success"] {
+  --slider-accent: var(--sf-color-success);
+}
+.root[data-tone="warning"] {
+  --slider-accent: var(--sf-color-warning);
+}
+.root[data-tone="danger"] {
+  --slider-accent: var(--sf-color-danger);
+}
+
+/* Size rungs: track thickness + thumb size on the unit grid (matching the
+   Input/DigitInput ladder). `.md` is the base above. */
+.sm {
+  --sf-slider-track-thickness: calc(var(--sf-unit) / 6);
+  --sf-slider-thumb-size: calc(var(--sf-unit) * 0.667);
+}
+.lg {
+  --sf-slider-track-thickness: calc(var(--sf-unit) / 3);
+  --sf-slider-thumb-size: calc(var(--sf-unit) * 0.917);
+}
+
+/* The interactive area. Taller than the track so the whole strip is a
+   comfortable press/click target; the track centres within it. */
+.control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  min-block-size: var(--sf-slider-thumb-size);
+  cursor: pointer;
+}
+
+/* The recessed slot. An inset ring gives the edge with no layout impact (so it
+   never shifts the fill by a border width), and the recess shadow sinks it into
+   the surface. `overflow: hidden` clips the fill (and its dither) to the slot
+   corners; the thumb lives in the Control, not here, so it is never clipped.
+   `--sf-slider-track-bg` (a `background`, so it accepts a gradient) and
+   `--sf-slider-track-shadow` let a consumer repaint the slot, e.g. a colour
+   channel's gradient ramp with the recess flattened (ColorPicker). */
+.track {
+  position: relative;
+  flex: 1;
+  block-size: var(--sf-slider-track-thickness);
+  background: var(--sf-slider-track-bg, var(--sf-color-input-bg));
+  border-radius: var(--sf-slider-radius, var(--sf-radius-default));
+  box-shadow: var(
+    --sf-slider-track-shadow,
+    var(--sf-recess-1),
+    inset 0 0 0 1px var(--sf-color-border)
+  );
+  overflow: hidden;
+}
+
+/* `fill="none"`: hide the filled portion entirely, leaving just the thumb as a
+   position marker over the track — the mode a ColorPicker channel slider uses so
+   the gradient ramp reads uninterrupted. */
+.root[data-fill="none"] .indicator {
+  display: none;
+}
+
+/* The filled portion. Base UI sizes it along the main axis (single: relative,
+   width v%; range: absolute, inset + width). We only paint it and size the
+   cross axis; never set the main-axis size/position. */
+.indicator {
+  block-size: 100%;
+  background-color: var(--slider-accent);
+  border-radius: inherit;
+}
+
+/* Static dither fill: a faint accent wash under the same 4x4 half-drop dot field
+   as Chip / DataTable / Progress, so the fill reads as a quantised tint. */
+.root[data-fill="dither"] .indicator {
+  background-color: color-mix(in srgb, var(--slider-accent) 20%, transparent);
+}
+.root[data-fill="dither"] .indicator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--slider-accent);
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}
+
+/* The square fader-cap thumb: a raised key on an instrument panel (top-edge inset
+   highlight + elevation), sharp 2px corners, with a faint centre grip line. Base
+   UI positions it inline via `inset-inline-start`/`translate`, so we must not
+   transition position; only depth and colour animate. */
+.thumb {
+  inline-size: var(--sf-slider-thumb-size);
+  block-size: var(--sf-slider-thumb-size);
+  background-color: var(--sf-color-bg);
+  /* A hairline edge so the white cap reads against a white page (border-box, so
+     the outer size stays put and the thumb centre is unaffected). */
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-slider-radius, var(--sf-radius-default));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-2);
+  cursor: grab;
+  transition:
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out),
+    background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* The centre grip line — a fader detail, perpendicular to travel (vertical on a
+   horizontal slider). Faint, so it reads as a detent, not a seam. */
+.thumb::after {
+  content: "";
+  position: absolute;
+  inset-block: 28%;
+  inset-inline-start: 50%;
+  inline-size: 1px;
+  translate: -50% 0;
+  background-color: color-mix(in srgb, var(--sf-color-border), var(--sf-color-fg) 12%);
+}
+
+.thumb:hover {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-3);
+}
+
+/* The pressed thumb dips 1px. `transform` (not `translate`) composes with Base
+   UI's inline `translate` used for positioning. */
+.thumb:active {
+  cursor: grabbing;
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.16);
+}
+
+/* Focus ring on the visible cap. The real focus target is the nested, hidden
+   `<input type="range">`; Base UI forces focus-visible on keyboard nav, so the
+   ring lights on keyboard focus but not on pointer drag. */
+.thumb:has(input:focus-visible) {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 2px);
+}
+
+/* Thumb depth override matrix (default is elevation-2, baked into .thumb). */
+.root[data-elevation="0"] .thumb {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.root[data-elevation="1"] .thumb {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-1);
+}
+.root[data-elevation="3"] .thumb {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-3);
+}
+.root[data-elevation="4"] .thumb {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-4);
+}
+.root[data-elevation="5"] .thumb {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-5);
+}
+
+/* The floating value bubble, a child of each thumb so it tracks it 1:1. Mono +
+   tabular figures so it doesn't twitch as the number changes; full-strength fg
+   (a value the user reads, never grey). */
+.bubble {
+  position: absolute;
+  inset-block-end: calc(100% + calc(var(--sf-unit) / 4));
+  inset-inline-start: 50%;
+  translate: -50% 2px;
+  padding: 0 calc(var(--sf-unit) / 4);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  border-radius: var(--sf-radius-default);
+  box-shadow:
+    inset 0 0 0 1px var(--sf-color-border),
+    var(--sf-elevation-2);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--sf-duration-fast) var(--sf-ease-out),
+    translate var(--sf-duration-fast) var(--sf-ease-snap);
+}
+
+/* Reveal only the active thumb's bubble (`:has(input:focus)` marks the one thumb
+   being dragged or keyboard-driven; `data-dragging` is global to all thumbs). */
+.thumb:hover .bubble,
+.thumb:has(input:focus) .bubble {
+  opacity: 1;
+  translate: -50% 0;
+}
+.root[data-value-label="always"] .bubble {
+  opacity: 1;
+  translate: -50% 0;
+}
+
+/* Ticks: a scale below (horizontal) / beside (vertical) the track. Positioned by
+   `--pos` (0..1), the same convention as the thumb, so tick and thumb centres
+   line up. `aria-hidden`: the slider's aria value text already carries meaning. */
+.ticks {
+  position: relative;
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) * 0.75);
+  pointer-events: none;
+}
+.tick {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: calc(var(--pos, 0) * 100%);
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.tickMark {
+  inline-size: 1px;
+  block-size: calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-border);
+}
+.tickLabel {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--sf-color-fg-subtle);
+  white-space: nowrap;
+}
+
+/* Disabled: dim the whole control, drop the thumb's elevation. */
+.root[data-disabled] {
+  opacity: 0.5;
+}
+.root[data-disabled] .control {
+  cursor: not-allowed;
+}
+.root[data-disabled] .thumb {
+  cursor: not-allowed;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+/* --- Vertical orientation. Base UI already swaps the thumb/fill axis; we swap
+   our own pieces (layout, track, grip, bubble, ticks). The track has a default
+   length via `--sf-slider-length`, overridable, so a vertical slider is
+   self-contained without a height-constrained parent. --- */
+.root[data-orientation="vertical"] {
+  flex-direction: row;
+  inline-size: auto;
+  block-size: auto;
+  gap: calc(var(--sf-unit) / 2);
+}
+.root[data-orientation="vertical"] .control {
+  flex-direction: column;
+  inline-size: auto;
+  block-size: var(--sf-slider-length, 12rem);
+  min-block-size: 0;
+  min-inline-size: var(--sf-slider-thumb-size);
+}
+.root[data-orientation="vertical"] .track {
+  inline-size: var(--sf-slider-track-thickness);
+  block-size: auto;
+}
+.root[data-orientation="vertical"] .indicator {
+  block-size: auto;
+  inline-size: 100%;
+}
+.root[data-orientation="vertical"] .thumb::after {
+  inset-block: auto;
+  inset-inline: 28%;
+  inset-block-start: 50%;
+  inset-inline-start: 28%;
+  inline-size: auto;
+  block-size: 1px;
+  translate: 0 -50%;
+}
+.root[data-orientation="vertical"] .bubble {
+  inset-block-end: auto;
+  inset-block-start: 50%;
+  inset-inline-start: calc(100% + calc(var(--sf-unit) / 4));
+  translate: 2px -50%;
+}
+.root[data-orientation="vertical"] .thumb:hover .bubble,
+.root[data-orientation="vertical"] .thumb:has(input:focus) .bubble,
+.root[data-orientation="vertical"][data-value-label="always"] .bubble {
+  translate: 0 -50%;
+}
+.root[data-orientation="vertical"] .ticks {
+  inline-size: calc(var(--sf-unit) * 0.75);
+  block-size: var(--sf-slider-length, 12rem);
+}
+.root[data-orientation="vertical"] .tick {
+  inset-block-start: auto;
+  inset-block-end: calc(var(--pos, 0) * 100%);
+  inset-inline-start: 0;
+  translate: 0 50%;
+  flex-direction: row;
+  align-items: center;
+}
+.root[data-orientation="vertical"] .tickMark {
+  inline-size: calc(var(--sf-unit) / 4);
+  block-size: 1px;
+}
+
+/* Dark mode: the elevation scale is a hard, zero-blur cast tuned for large
+   surfaces; on the small thumb cap it reads as a misaligned rectangle (issue
+   #78, as Switch), so swap in a soft resting shadow. Pressed/disabled keep their
+   own. */
+[data-theme="dark"] .root:not([data-disabled]) .thumb:not(:active) {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 3px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .bubble {
+    transition: none;
+  }
+}

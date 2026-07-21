@@ -6,6 +6,15 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.14.0 — 2026-07-21
+
+### Minor
+
+- ColorPicker: a channel-slider colour picker across OKLCH/OKLab/RGB/HSL/HSV/LCH/Lab plus a hex field, with live gradient tracks, alpha over a checkerboard, an optional screen eyedropper, preset swatches, and sRGB-gamut handling (out-of-gamut chip + Clamp). Adds a hand-rolled colour engine at lib/color, a ColorSwatch chip, and --sf-slider-track-bg / --sf-slider-track-shadow / fill=none to Slider.
+- DigitInputMicro: add fixedDecimals — always show a fixed number of decimal places, padding with trailing zeros (0.5 -> 0.500), for stable-width, decimal-aligned numeric columns. ColorPicker's channel fields use it.
+- Slider: an instrument-panel fader control (wraps Base UI Slider). A recessed slot with a sharp-cornered accent fill and a square, raised fader-cap thumb; single value or a two-thumb range, tones + a dither fill, sm/md/lg sizes, ticks/marks, a floating value bubble, and vertical orientation. Drops into Field.
+- Tabs: Tabs.List overflow folds tabs that don't fit into a trailing ⋯ overflow menu (the priority-plus useOverflow pattern, container-width based) instead of overrunning the row; the selected tab is always kept visible, and menuLabel names the trigger.
+
 ## v2.13.0 — 2026-07-19
 
 ### Minor

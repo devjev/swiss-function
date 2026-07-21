@@ -365,6 +365,57 @@ The one-line and `maxRows` heights are measured from the live editor's line
 height. Reach for this in dense forms/tables where a cell holds a short
 expression that occasionally needs room to read.
 
+## ColorPicker
+
+`import { ColorPicker, ColorSwatch } from "@tarassov-ch/swiss-function/color-picker"`
+
+A channel-slider colour picker: a stack of labelled sliders with live gradient
+tracks, switchable across colour spaces, plus a hex field, alpha, an optional
+screen eyedropper, and sRGB-gamut handling. Reads as an instrument panel
+(oklch.com / DevTools), not a consumer swatch. Built on the hand-rolled colour
+engine at `@tarassov-ch/swiss-function/lib/color`. The value is a CSS colour
+string; `onChange` also hands back the parsed colour. Renders a `<div>`; extends
+`HTMLAttributes<HTMLDivElement>` (minus `color`/`defaultValue`/`onChange`). Drop
+it inline, or as the panel inside a `Popover` triggered by a `ColorSwatch`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` / `defaultValue` | `string` | `"#3b82f6"` | Controlled / initial colour (any CSS colour string). |
+| `onChange` | `(value: string, color: ColorValue) => void` | n/a | Live; the CSS string + parsed `{ space, channels, alpha, hex, rgb, inGamut }`. |
+| `onChangeComplete` | `(value, color) => void` | n/a | On commit (slider release / numeric or hex entry / swatch / clamp). |
+| `format` | `"auto" \| "rgb" \| "hsl" \| "oklch" \| "oklab" \| "lch" \| "lab"` | `"auto"` | Output space. `"auto"` = `#rrggbb[aa]` in sRGB, else `oklch()`. |
+| `defaultSpace` | `SpaceId` | `"oklch"` | Initial editing space (`oklch`/`oklab`/`rgb`/`hsl`/`hsv`/`lch`/`lab`). |
+| `spaces` | `SpaceId[]` | all seven | Which spaces the dropdown offers. |
+| `onSpaceChange` | `(space: SpaceId) => void` | n/a | Fired when the editing space changes. |
+| `alpha` | `boolean` | `true` | Show the alpha channel (over a checkerboard). |
+| `eyedropper` | `boolean` | `true` | Show the screen eyedropper **iff** the browser supports `EyeDropper`. |
+| `swatches` | `string[]` | n/a | Preset colours shown as a row of `ColorSwatch` buttons. |
+| `gamutWarning` | `boolean` | `true` | Show the `OUT OF GAMUT (sRGB)` chip + a Clamp action for out-of-sRGB colours. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Control size. |
+| `disabled` | `boolean` | `false` | Dims and blocks interaction. |
+
+Channels are labelled `<span>`s that name both the slider (via `aria-labelledby`)
+and its numeric field; the gamut state is text, never colour-only. The gradient
+tracks recompute as the other channels change. HSV/HWB have no CSS function, so
+HSV is edit-only (never an output `format`); CMYK is out of scope.
+
+**`ColorSwatch`** — a colour chip over a checkerboard (so alpha reads), sharp
+corners. Props: `color` (any CSS colour), `size` (`sm`/`md`/`lg`), optional
+`onClick` (makes it a keyboard-reachable button, e.g. a preset or a `Popover`
+trigger); presentational (`role="img"`) otherwise.
+
+```tsx
+<ColorPicker value={color} onChange={setColor} format="oklch" />
+
+// Triggered form.
+<Popover.Root>
+  <Popover.Trigger><ColorSwatch color={color} size="lg" /></Popover.Trigger>
+  <Popover.Portal><Popover.Positioner><Popover.Popup>
+    <ColorPicker value={color} onChange={setColor} />
+  </Popover.Popup></Popover.Positioner></Popover.Portal>
+</Popover.Root>
+```
+
 ## DataTable
 
 `import { DataTable } from "@tarassov-ch/swiss-function/data-table"`
@@ -542,6 +593,7 @@ hint, not a contract; reach for `DigitInput` when the capacity IS the contract
 | --- | --- | --- | --- |
 | `slots` | `number` | `4` | Faded placeholder digit slots shown at rest; they recede as you type. Purely a hint: the field is variable-length. |
 | `decimals` | `number` | `0` | `0` is integer-only; `> 0` permits one decimal point, capped to this many places. |
+| `fixedDecimals` | `boolean` | `false` | Always show `decimals` places, padding with trailing zeros (`0.5` → `0.500`) so a column keeps a stable width and aligned decimals. Free typing is unaffected; normalises on blur and on controlled-value changes. Needs `decimals > 0`. |
 | `unit` | `ReactNode` | n/a | Suffix rendered inside the control after the digits (e.g. `"%"`). |
 | `placeholderChar` | `string` | `"░"` | Glyph used for the empty slots: a dithered shade block by default (matches the library's dither vocabulary). |
 | `align` | `"start" \| "end"` | `"start"` | `"start"` grows the number and its placeholder slots left to right. `"end"` right-aligns the digits with the slots leading, so a column of these aligns on the right (used by `TableInput` numeric cells so decimals line up). |
@@ -1603,6 +1655,71 @@ Animated loading placeholder (shimmer, or a NonIdealState-style dithered effect)
 | `effectOptions` | `EffectOptions` | n/a | Advanced tuning (with `effect`). |
 | `render` | `RenderProp` | `<div />` | Base UI render prop. |
 
+## Slider
+
+`import { Slider } from "@tarassov-ch/swiss-function/slider"`
+
+Pick a value, or a `[start, end]` range, along a continuous scale by dragging.
+Wraps Base UI Slider (`role="slider"` + the aria value attributes, keyboard
+control) and dresses it as an instrument-panel fader: a recessed slot, a
+sharp-cornered accent fill, and a square, raised fader-cap thumb. Renders a
+`<div>`; extends `HTMLAttributes<HTMLDivElement>` (minus `color`/`defaultValue`).
+Drops into `Field` for a labelled row. For a stepped percentage/PIN-style input
+reach for `DigitInput`; this is for a dragged value.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` / `defaultValue` | `number \| number[]` | n/a | A two-entry array makes it a range (two thumbs). Keep the arity stable across renders. |
+| `onValueChange` | `(value: number \| number[]) => void` | n/a | Fires live (drag / keyboard / track press). |
+| `onValueCommitted` | `(value: number \| number[]) => void` | n/a | Fires once on pointer-up. |
+| `min` / `max` | `number` | `0` / `100` | Range. |
+| `step` | `number` | `1` | Snap increment. |
+| `largeStep` | `number` | `10` | PageUp/PageDown and Shift+Arrow. |
+| `minStepsBetweenValues` | `number` | `0` | Minimum gap between the two thumbs of a range. |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Vertical has a default length of `12rem` (see `--sf-slider-length`). |
+| `disabled` | `boolean` | `false` | Dims and blocks interaction. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Track thickness + thumb size on the unit grid (matches the Input ladder). |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"primary"` | Semantic accent (mirrors Progress/Chip). |
+| `color` | `string` | n/a | Explicit accent (any CSS colour / `--sf-*` token); wins over `tone`. |
+| `fill` | `"color" \| "dither" \| "none"` | `"color"` | Solid, the house halftone dot field, or `"none"` to hide the fill (thumb as a marker over a custom track). |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth of the thumb (`--sf-elevation-N`, same scale as Box). |
+| `marks` | `boolean \| Array<number \| { value, label }>` | n/a | Ticks: `true` = one per step (capped at 40), or explicit values / labels. |
+| `valueLabel` | `"hover" \| "always" \| "off"` | `"hover"` | The floating mono value bubble above the active thumb. |
+| `formatValue` | `(value: number) => ReactNode` | raw number | Formats the bubble and tick labels. |
+| `format` / `locale` | `Intl.NumberFormatOptions` / `Intl.LocalesArgument` | n/a | Intl formatting for the value bubble / aria text. |
+| `name` / `form` | `string` | n/a | Form integration (submits the value). |
+| `thumbCollisionBehavior` | `"push" \| "swap" \| "none"` | `"push"` | How range thumbs behave when they meet. |
+
+The thumb tracks the pointer 1:1 (no easing on position); only depth, colour, and
+the value bubble animate, and all motion respects `prefers-reduced-motion`. The
+focus ring lights on keyboard focus, not pointer drag.
+
+**Corners:** the track and thumb round with `--sf-slider-radius`, defaulting to
+`--sf-radius-default`. Set `--sf-slider-radius: 0` to square them to match the
+blocky dither family, without overriding the shared radius for the subtree.
+`--sf-slider-track-thickness` / `--sf-slider-thumb-size` override the size-rung
+dimensions; `--sf-slider-length` sets the vertical track length (default `12rem`).
+
+**Custom track:** `--sf-slider-track-bg` repaints the slot (it is a `background`,
+so it accepts a gradient) and `--sf-slider-track-shadow` overrides its recess.
+With `fill="none"` this turns the slider into a marker over any ramp, e.g. the
+`ColorPicker` channel sliders.
+
+```tsx
+<Slider defaultValue={40} tone="primary" />
+<Slider
+  fill="none"
+  min={0}
+  max={360}
+  defaultValue={210}
+  style={{ "--sf-slider-track-bg": "linear-gradient(to right, red, lime, blue, red)" }}
+/>
+<Slider defaultValue={[25, 70]} minStepsBetweenValues={5} valueLabel="always" />
+<Slider defaultValue={5} min={0} max={10} step={1} marks />
+<Slider orientation="vertical" defaultValue={40} />
+<Slider defaultValue={62} fill="dither" style={{ "--sf-slider-radius": 0 }} />
+```
+
 ## Spinner
 
 `import { Spinner } from "@tarassov-ch/swiss-function/spinner"`
@@ -1818,6 +1935,20 @@ default (no explicit `align` needed), so decimals line up.
 Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props. The active tab reads as the primary colour + **bold** caption + the underline `Indicator`; the bold width is reserved (a hidden bold copy of the label), so selecting a tab never reflows the row (issue #41). The active state is keyed off `aria-selected`.
 
 **Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve, pass plain-text labels to get it), `Indicator` (active underline), `Panel` (paired by index).
+
+`Tabs.List` can fold tabs that don't fit into a trailing `⋯` overflow menu instead of overrunning the row (the priority-plus `useOverflow` pattern, container-width based, so it works in split panes/sidebars). The selected tab is always kept visible, so choosing one from the `⋯` menu pulls it into the row.
+
+| Prop | On | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `overflow` | `List` | `boolean` | `false` | Fold overflowing tabs into a `⋯` menu (keeps the selected tab visible). |
+| `menuLabel` | `List` | `string` | `"More tabs"` | Accessible name for the `⋯` trigger. |
+
+```tsx
+<Tabs.List overflow>
+  {sections.map((s) => <Tabs.Tab key={s} value={s}>{s}</Tabs.Tab>)}
+  <Tabs.Indicator />
+</Tabs.List>
+```
 
 ## TextEdit
 

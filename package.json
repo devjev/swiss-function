@@ -1,6 +1,6 @@
 {
   "name": "@tarassov-ch/swiss-function",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "description": "Swiss-Function design system: headless Base UI components with CSS Modules and CSS custom property tokens.",
   "license": "MIT",
   "author": "Jevgeni Tarassov <jevgeni@tarassov.ch>",
@@ -38,6 +38,10 @@
     "./lib/from-arrow": {
       "types": "./dist/lib/fromArrow.d.ts",
       "import": "./dist/lib/fromArrow.js"
+    },
+    "./lib/color": {
+      "types": "./dist/lib/color/index.d.ts",
+      "import": "./dist/lib/color/index.js"
     },
     "./button": {
       "types": "./dist/components/Button/index.d.ts",
@@ -138,6 +142,10 @@
     "./chip": {
       "types": "./dist/components/Chip/index.d.ts",
       "import": "./dist/components/Chip/index.js"
+    },
+    "./color-picker": {
+      "types": "./dist/components/ColorPicker/index.d.ts",
+      "import": "./dist/components/ColorPicker/index.js"
     },
     "./switch": {
       "types": "./dist/components/Switch/index.d.ts",
@@ -250,6 +258,10 @@
     "./skeleton": {
       "types": "./dist/components/Skeleton/index.d.ts",
       "import": "./dist/components/Skeleton/index.js"
+    },
+    "./slider": {
+      "types": "./dist/components/Slider/index.d.ts",
+      "import": "./dist/components/Slider/index.js"
     },
     "./spinner": {
       "types": "./dist/components/Spinner/index.d.ts",

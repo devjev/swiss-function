@@ -17,6 +17,11 @@ export interface DigitInputMicroProps
   /** Decimal places allowed. `0` (default) is integer-only; `> 0` permits a
    *  single decimal point, capped to this many places. */
   decimals?: number;
+  /** Always show exactly `decimals` decimal places, padding with trailing zeros
+   *  (`0.5` → `0.500`) so a column of values keeps a stable width and aligned
+   *  decimals. Free typing is unaffected; the value normalises on blur and
+   *  whenever a controlled value changes. Needs `decimals > 0`. */
+  fixedDecimals?: boolean;
   /** Suffix rendered inside the control after the digits, e.g. `"%"`. */
   unit?: ReactNode;
   /** Glyph used for the empty placeholder slots. Default `"░"` — a dithered
@@ -70,6 +75,7 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
     {
       slots = 4,
       decimals = 0,
+      fixedDecimals = false,
       unit,
       placeholderChar = "░",
       align = "start",
@@ -92,11 +98,16 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
     const allowNegative = min == null || min < 0;
     const sanitizeOpts = useMemo(() => ({ decimals, allowNegative }), [decimals, allowNegative]);
 
+    // Render a value as draft text, padded to `decimals` places when
+    // `fixedDecimals` (e.g. `0.5` → `0.500`); otherwise its plain form.
+    const display = (v: number | null | undefined): string =>
+      v != null && fixedDecimals && decimals > 0 ? v.toFixed(decimals) : formatValue(v);
+
     // Lossy-controlled: the draft string is the source of truth (an incomplete
     // "1." has no number to mirror). A controlled `value` only overwrites the
     // draft when it reports a *different* number than the draft currently holds,
     // so typing "1." doesn't get clobbered by the prop echoing back `1`.
-    const [draft, setDraft] = useState<string>(() => formatValue(defaultValue));
+    const [draft, setDraft] = useState<string>(() => display(defaultValue));
     const isControlled = value !== undefined;
     const lastReported = useRef<number | null>(parseDraft(draft));
 
@@ -108,7 +119,7 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
       const external = value ?? null;
       if (external !== lastReported.current) {
         lastReported.current = external;
-        setDraft(formatValue(external));
+        setDraft(display(external));
       }
     }, [isControlled, value]);
 
@@ -132,9 +143,13 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
       const parsed = parseDraft(draft);
       const clamped = clamp(parsed, min, max);
       if (clamped !== parsed) {
-        const next = formatValue(clamped);
+        const next = display(clamped);
         setDraft(next);
         report(next);
+      } else if (fixedDecimals && parsed != null) {
+        // Normalise a complete value to its padded form on blur ("0.5" → "0.500").
+        const next = display(parsed);
+        if (next !== draft) setDraft(next);
       }
     };
 

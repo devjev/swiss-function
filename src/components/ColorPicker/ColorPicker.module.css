@@ -1,0 +1,170 @@
+/* A dense colour-picker panel: a space selector + preview, a stack of channel
+   rows (mono label | gradient slider | numeric), a hex field, and optional gamut
+   + swatch rows. `--cp-checker` is the theme-aware checkerboard behind alpha. */
+.root {
+  --cp-checker:
+    repeating-conic-gradient(var(--sf-color-border) 0% 25%, var(--sf-color-bg) 0% 50%) 0 0 / 12px
+    12px;
+  --cp-num-width: 5rem;
+
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  inline-size: 18rem;
+  padding: calc(var(--sf-unit) * 0.75);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+}
+.sm {
+  inline-size: 15rem;
+  gap: calc(var(--sf-unit) / 3);
+  --cp-num-width: 4.25rem;
+}
+.lg {
+  inline-size: 22rem;
+  --cp-num-width: 5.75rem;
+}
+.root[data-disabled] {
+  opacity: 0.6;
+}
+
+/* Header: the space dropdown + the current-colour preview. */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+}
+.spaceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  background: none;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.spaceBtn:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+.spaceBtn:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: 1px;
+}
+.preview {
+  inline-size: calc(var(--sf-unit) * 1.5);
+  block-size: calc(var(--sf-unit) * 1.5);
+  flex: none;
+}
+
+/* Channel row: label | slider | numeric, on a stable 3-column grid. */
+.channel {
+  display: grid;
+  grid-template-columns: 1.75ch 1fr auto;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+.chLabel {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  text-align: center;
+}
+.chSlider {
+  min-inline-size: 0;
+}
+/* Fixed numeric width (per size) with right-aligned digits, so the field never
+   re-widths as a value's string length changes while dragging (it would
+   otherwise jitter the whole row). Wide enough for the longest channel value
+   (e.g. Lab `-125.0`). */
+.chNum {
+  inline-size: var(--cp-num-width);
+}
+
+/* Footer: hex field + eyedropper. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+}
+.hex {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+}
+
+/* Out-of-gamut row. */
+.gamut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+/* Preset swatches. */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 3);
+}
+
+/* --- ColorSwatch (also used standalone) --- */
+.swatch {
+  --cp-checker:
+    repeating-conic-gradient(var(--sf-color-border) 0% 25%, var(--sf-color-bg) 0% 50%) 0 0 / 8px 8px;
+
+  position: relative;
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  background: var(--cp-checker);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  cursor: default;
+}
+button.swatch {
+  cursor: pointer;
+}
+button.swatch:hover {
+  border-color: var(--sf-color-fg-subtle);
+}
+button.swatch:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: 2px;
+}
+button.swatch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* The colour laid over the checkerboard, so alpha reads through. */
+.swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--swatch-color);
+  border-radius: inherit;
+}
+.swSm {
+  inline-size: var(--sf-unit);
+  block-size: var(--sf-unit);
+}
+.swMd {
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+}
+.swLg {
+  inline-size: calc(var(--sf-unit) * 1.75);
+  block-size: calc(var(--sf-unit) * 1.75);
+}

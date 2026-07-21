@@ -90,3 +90,46 @@
   outline-offset: var(--sf-focus-ring-offset, 2px);
   border-radius: var(--sf-radius-default);
 }
+
+/* --- Overflow (`⋯` collapse) ---------------------------------------------- */
+
+/* Positioning context for the absolutely-positioned measurement ghost. */
+.overflowWrap {
+  position: relative;
+  inline-size: 100%;
+}
+
+/* In overflow mode the row fills its container (so the tabs are measured against
+   it) instead of shrink-wrapping like the default inline row. Folding a tab
+   (display:none), not shrinking it, is what makes room, so children never flex. */
+.overflowList {
+  display: flex;
+  inline-size: 100%;
+}
+.overflowList > * {
+  flex: none;
+}
+
+/* Hidden, inert clone laid out at the real row's width; read only to measure
+   which tabs fit. Never shown or interactive. */
+.ghost {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* The overflow trigger: a tab-shaped button carrying the ⋯ glyph. */
+.trigger {
+  color: var(--sf-color-muted);
+}
+.trigger:hover {
+  color: var(--sf-color-fg);
+}
+
+/* Trigger stand-in in the ghost: off-flow so it never shifts item offsets. */
+.ghostTrigger {
+  position: absolute;
+}
