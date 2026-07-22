@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.16.0 — 2026-07-22
+
+### Minor
+
+- DatePicker: precision prop picks ISO weeks, months and years. The value normalizes to the period start (Monday, the 1st, Jan 1), the field shows YYYY-Www / YYYY-MM / YYYY, and typed entry accepts forms like w29, jul, 2028; min/max keep a period pickable while it overlaps the range.
+- WindowArray: opt-in split view. With splittable, each window's chrome gains a split button (two-panes icon) that opens a picker dialog; the chosen pair fills the container as flush halves along the layout axis (splitIds/defaultSplitIds/onSplitChange). Escape, the pressed button, or removing a member exits.
+
+### Patch
+
+- WindowArray: wheel scrolling is now native. A plain wheel scrolls the window body under the pointer and Shift+wheel scrolls the strip sideways, replacing the custom directional handler that mapped a plain wheel to the strip and Shift+wheel to the body.
+
 ## v2.15.2 — 2026-07-21
 
 ### Patch
