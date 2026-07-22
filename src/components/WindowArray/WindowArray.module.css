@@ -81,13 +81,16 @@
   scrollbar-width: none;
 }
 
-/* While a window is fullscreen the strip behind is inert: no scrollbar poking
-   out underneath, no gutter interactions (the gutter rule sits after .gutter
-   below). Scroll POSITION is preserved — only the overflow is hidden. */
-.root[data-has-fullscreen] .viewport {
+/* While a window is fullscreen (or a split pair is showing) the strip behind
+   is inert: no scrollbar poking out underneath, no gutter interactions (the
+   gutter rule sits after .gutter below). Scroll POSITION is preserved — only
+   the overflow is hidden. */
+.root[data-has-fullscreen] .viewport,
+.root[data-has-split] .viewport {
   overflow-x: hidden;
 }
-.root[data-orientation="vertical"][data-has-fullscreen] .viewport {
+.root[data-orientation="vertical"][data-has-fullscreen] .viewport,
+.root[data-orientation="vertical"][data-has-split] .viewport {
   overflow-y: hidden;
 }
 
@@ -190,7 +193,8 @@
 .gutter[data-drop-active]::after {
   background-color: var(--sf-color-primary);
 }
-.root[data-has-fullscreen] .gutter {
+.root[data-has-fullscreen] .gutter,
+.root[data-has-split] .gutter {
   pointer-events: none;
 }
 
@@ -214,9 +218,9 @@
   transition: border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 /* Transposed: windows sit side by side inside a band, so the half-gap moves
-   to the inline edges. :not([data-fullscreen]) keeps this from out-ranking the
-   fullscreen rule's margin: 0 (that rule has lower specificity). */
-.root[data-orientation="vertical"] .window:not([data-fullscreen]) {
+   to the inline edges. :not([data-fullscreen]):not([data-split]) keeps this
+   from out-ranking those rules' margin: 0 (they have lower specificity). */
+.root[data-orientation="vertical"] .window:not([data-fullscreen]):not([data-split]) {
   margin-block: 0;
   margin-inline: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
 }
@@ -236,6 +240,44 @@
   margin: 0;
   border-radius: 0;
   box-shadow: none;
+}
+
+/* Split view: two absolute halves against `.root` (the same containing-block
+   escape as fullscreen), meeting flush at 50%. Half 2 starts 1px early so the
+   two 1px borders overlap into one hairline; the active half sits one z-step
+   higher, so its primary border stays visible at the divider whichever half
+   holds it. Like fullscreen, radius and shadow go. */
+.window[data-split] {
+  position: absolute;
+  z-index: 2;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.window[data-split][data-active] {
+  z-index: 3;
+}
+.window[data-split="1"] {
+  inset-block: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 50%;
+}
+.window[data-split="2"] {
+  inset-block: 0;
+  inset-inline-end: 0;
+  inset-inline-start: calc(50% - 1px);
+}
+/* Transposed: top/bottom halves. The longhands fully override the horizontal
+   rules above (higher specificity). */
+.root[data-orientation="vertical"] .window[data-split="1"] {
+  inset-inline: 0;
+  inset-block-start: 0;
+  inset-block-end: 50%;
+}
+.root[data-orientation="vertical"] .window[data-split="2"] {
+  inset-inline: 0;
+  inset-block-end: 0;
+  inset-block-start: calc(50% - 1px);
 }
 
 /* Drop indicator: 2px primary line at the projected insertion edge. */
@@ -436,6 +478,15 @@
 }
 .pager[data-visible]:disabled {
   opacity: 0.4;
+}
+
+/* Footer of the split picker dialog: Cancel / Split, end-aligned. Lives in
+   the portaled Dialog.Popup, so it can never affect the strip's layout. */
+.splitDialogFooter {
+  display: flex;
+  gap: calc(var(--sf-unit) / 2);
+  justify-content: flex-end;
+  margin-block-start: var(--sf-unit);
 }
 
 /* No hover pointer to approach an edge with: the paddles stay visible. */

@@ -64,6 +64,7 @@ function Demo({
   snap = false,
   controls = false,
   hotkeys = false,
+  splittable = false,
   elevation,
 }: {
   columns?: DemoColumn[];
@@ -73,6 +74,7 @@ function Demo({
   controls?: boolean;
   /** Wires Alt+Arrow to `apiRef.switchColumn` — the consumer's job now (#32). */
   hotkeys?: boolean;
+  splittable?: boolean;
   elevation?: WindowArrayElevation;
 }) {
   const [columns, setColumns] = useState(initial);
@@ -108,6 +110,7 @@ function Demo({
         defaultActiveId="editor"
         snap={snap}
         controls={controls}
+        splittable={splittable}
         apiRef={api}
         elevation={elevation}
       >
@@ -183,6 +186,13 @@ export const Elevated: Story = () => <Demo elevation={4} />;
 /** Window bodies that overflow scroll internally; the fullscreen toggle
  *  expands a window over the WindowArray container only (Escape exits). */
 export const FullscreenAndScrollingBodies: Story = () => <Demo longBodies />;
+
+/** `splittable` adds a split button (two panes) to every window's chrome. Clicking it
+ *  opens a small dialog: the clicked window fills half 1, the picked window
+ *  half 2, and the two split the container along the layout axis (top/bottom
+ *  when vertical). The pressed button or Escape exits; maximize is hidden
+ *  inside a half. */
+export const SplitView: Story = () => <Demo splittable longBodies />;
 
 /** Custom title-bar actions: `WindowArray.WindowButton` shares the ✕/fullscreen
  *  chrome exactly, so consumer buttons blend in. Rendered before the built-in

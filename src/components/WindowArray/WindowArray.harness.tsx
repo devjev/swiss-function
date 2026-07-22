@@ -52,6 +52,7 @@ export function WindowArrayHarness({
   height = 360,
   snap,
   controls,
+  splittable,
   apiHotkeys,
   orientation,
   verticalBelow,
@@ -64,6 +65,7 @@ export function WindowArrayHarness({
   height?: number;
   snap?: boolean;
   controls?: boolean;
+  splittable?: boolean;
   /** Simulates the consumer's central hotkey system: wires Alt+Arrow on the
    *  wrapping div to `apiRef.switchColumn` (WindowArray binds nothing itself
    *  now — issue #32). */
@@ -77,6 +79,7 @@ export function WindowArrayHarness({
   const [columns, setColumns] = useState(() => makeColumns(columnCount, windowsPerColumn));
   const [lastMove, setLastMove] = useState<WindowMove | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [splitIds, setSplitIds] = useState<[string, string] | null>(null);
   const [narrow, setNarrow] = useState(false);
   const effectiveWidth = narrow && narrowWidth != null ? narrowWidth : width;
   const api = useRef<WindowArrayHandle>(null);
@@ -106,6 +109,8 @@ export function WindowArrayHarness({
         columnMinWidth={120}
         snap={snap}
         controls={controls}
+        splittable={splittable}
+        onSplitChange={setSplitIds}
         apiRef={api}
         orientation={orientation}
         verticalBelow={verticalBelow}
@@ -141,6 +146,7 @@ export function WindowArrayHarness({
       </WindowArray>
       <div data-testid="last-move">{lastMove ? JSON.stringify(lastMove) : ""}</div>
       <div data-testid="active-id">{activeId ?? ""}</div>
+      <div data-testid="split-ids">{splitIds ? JSON.stringify(splitIds) : ""}</div>
       {narrowWidth != null ? (
         <button type="button" onClick={() => setNarrow((n) => !n)}>
           Toggle width

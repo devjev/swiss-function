@@ -36,6 +36,9 @@ import {
 } from "react";
 import { cx } from "../../lib/cx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
+import { Button } from "../Button";
+import { Dialog } from "../Dialog";
+import { RadioTable } from "../RadioTable";
 import type { DropSlot, NavDirection, StripModel, WindowMove } from "./layout";
 import {
   clampWidth,
@@ -89,6 +92,12 @@ const CollapseIcon = () => (
   // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
   <svg {...ICON_PROPS}>
     <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" strokeLinecap="square" />
+  </svg>
+);
+const SplitIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M2.5 3.5h4.25v9H2.5zM9.25 3.5h4.25v9h-4.25z" strokeLinecap="square" />
   </svg>
 );
 const CloseIcon = () => (
@@ -198,6 +207,16 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Initial fullscreen window when uncontrolled. */
   defaultFullscreenId?: string | null;
   onFullscreenChange?: (id: string | null) => void;
+  /** Adds a split button (two-panes icon) to every window's chrome (needs at least two
+   *  windows): a picker dialog chooses a second window and the two fill the
+   *  container as halves along the layout axis. Default `false`. */
+  splittable?: boolean;
+  /** Controlled split pair, in order `[half 1, half 2]`. Mutually exclusive
+   *  with fullscreen: when both are set, fullscreen wins. */
+  splitIds?: [string, string] | null;
+  /** Initial split pair when uncontrolled. */
+  defaultSplitIds?: [string, string] | null;
+  onSplitChange?: (ids: [string, string] | null) => void;
   /** Enables rearranging (title-bar drag and Shift+Arrow). The component only
    *  reports the move — apply it to your own state. Absent → rearranging off. */
   onWindowMove?: (move: WindowMove) => void;
@@ -239,6 +258,10 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     fullscreenId: fullscreenProp,
     defaultFullscreenId = null,
     onFullscreenChange,
+    splittable = false,
+    splitIds: splitProp,
+    defaultSplitIds = null,
+    onSplitChange,
     onWindowMove,
     gap = 0.5,
     columnMinWidth = 240,
@@ -303,10 +326,34 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     [onFullscreenChange, fullscreenProp],
   );
 
+  const [splitState, setSplitState] = useState<[string, string] | null>(defaultSplitIds);
+  const split = splitProp !== undefined ? splitProp : splitState;
+  const setSplit = useCallback(
+    (next: [string, string] | null) => {
+      onSplitChange?.(next);
+      if (splitProp === undefined) setSplitState(next);
+    },
+    [onSplitChange, splitProp],
+  );
+  // The picker dialog: the window whose split button opened it (half 1) and
+  // the chosen second window (half 2).
+  const [splitPickerFor, setSplitPickerFor] = useState<string | null>(null);
+  const [splitChoice, setSplitChoice] = useState<string | null>(null);
+
   // A stale controlled id (window no longer exists) reads as null.
   const resolvedActive = active != null && findWindow(model, active) ? active : null;
   const resolvedFullscreen =
     fullscreen != null && findWindow(model, fullscreen) ? fullscreen : null;
+  // Split and fullscreen are mutually exclusive; fullscreen wins when both are
+  // set. A stale or duplicate pair reads as null.
+  const resolvedSplit =
+    resolvedFullscreen == null &&
+    split != null &&
+    split[0] !== split[1] &&
+    findWindow(model, split[0]) &&
+    findWindow(model, split[1])
+      ? split
+      : null;
   // The single Tab stop: the active window's handle, else the first window's.
   const rovingId = resolvedActive ?? edgeWindow(model, "first");
 
@@ -619,24 +666,38 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           setActive(next);
           focusHandle(next);
         }
-      } else if (event.key === "Escape" && resolvedFullscreen != null) {
+      } else if (event.key === "Escape" && (resolvedFullscreen != null || resolvedSplit != null)) {
         event.preventDefault();
-        setFullscreen(null);
+        if (resolvedFullscreen != null) setFullscreen(null);
+        else setSplit(null);
       }
     },
-    [onWindowMove, setActive, focusHandle, resolvedFullscreen, setFullscreen, vertical],
+    [
+      onWindowMove,
+      setActive,
+      focusHandle,
+      resolvedFullscreen,
+      setFullscreen,
+      resolvedSplit,
+      setSplit,
+      vertical,
+    ],
   );
 
-  // Escape exits fullscreen from anywhere (container-scoped — no body scroll
-  // lock; deliberately NOT `useFullscreen`, which overlays the viewport).
+  // Escape exits fullscreen or the split from anywhere (container-scoped — no
+  // body scroll lock; deliberately NOT `useFullscreen`, which overlays the
+  // viewport). While the picker dialog is open its own Escape closes it; bail
+  // so that keypress doesn't also exit an active overlay underneath.
   useEffect(() => {
-    if (resolvedFullscreen == null) return;
+    if (resolvedFullscreen == null && resolvedSplit == null) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setFullscreen(null);
+      if (event.key !== "Escape" || splitPickerFor != null) return;
+      if (resolvedFullscreen != null) setFullscreen(null);
+      else setSplit(null);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [resolvedFullscreen, setFullscreen]);
+  }, [resolvedFullscreen, setFullscreen, resolvedSplit, setSplit, splitPickerFor]);
 
   // --- Focus / state upkeep when windows come and go ------------------------
   const prevModelRef = useRef(model);
@@ -661,6 +722,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       }
     }
     if (fullscreen != null && !findWindow(model, fullscreen)) setFullscreen(null);
+    // A vanished split member exits the split (no collapse to fullscreen).
+    if (split != null && (!findWindow(model, split[0]) || !findWindow(model, split[1]))) {
+      setSplit(null);
+    }
+    if (splitPickerFor != null && !findWindow(model, splitPickerFor)) setSplitPickerFor(null);
   });
 
   // Auto-scroll the strip when the active window's column is (partly) out of
@@ -800,9 +866,22 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     return null;
   };
 
-  const draggingProps = draggingId
-    ? columns.flatMap((c) => c.windows).find((w) => w.id === draggingId)
-    : undefined;
+  const allWindows = columns.flatMap((c) => c.windows);
+  const draggingProps = draggingId ? allWindows.find((w) => w.id === draggingId) : undefined;
+
+  // --- Split view -------------------------------------------------------------
+  // With fewer than two windows there is nothing to pick, so no button.
+  const showSplitButton = splittable && allWindows.length >= 2;
+  const splitSource =
+    splitPickerFor != null ? allWindows.find((w) => w.id === splitPickerFor) : undefined;
+  const confirmSplit = () => {
+    if (splitPickerFor == null || splitChoice == null) return;
+    if (!findWindow(model, splitPickerFor) || !findWindow(model, splitChoice)) return;
+    setSplitPickerFor(null);
+    if (resolvedFullscreen != null) setFullscreen(null);
+    setSplit([splitPickerFor, splitChoice]);
+    setActive(splitPickerFor);
+  };
 
   const lastColumn = columns.length > 0 ? columns[columns.length - 1] : undefined;
   const gapSize = toUnit(gap);
@@ -865,6 +944,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       }
       data-orientation={vertical ? "vertical" : "horizontal"}
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
+      data-has-split={resolvedSplit != null ? "" : undefined}
       data-snap={snap ? "" : undefined}
       data-controls={controls ? "" : undefined}
       data-interacting={draggingId != null || resizingId != null ? "" : undefined}
@@ -938,7 +1018,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   placement={windowPlacement(ci, rowTrack(row, col.windows.length, subrows))}
                   active={resolvedActive === win.id}
                   fullscreen={resolvedFullscreen === win.id}
-                  anyFullscreen={resolvedFullscreen != null}
+                  split={
+                    resolvedSplit == null
+                      ? null
+                      : resolvedSplit[0] === win.id
+                        ? "1"
+                        : resolvedSplit[1] === win.id
+                          ? "2"
+                          : null
+                  }
+                  anyOverlay={resolvedFullscreen != null || resolvedSplit != null}
                   rovingTab={rovingId === win.id}
                   dragging={draggingId === win.id}
                   dropEdge={dropEdgeFor(col.props.id, row, col.windows.length)}
@@ -948,7 +1037,20 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   }}
                   onToggleFullscreen={() => {
                     setActive(win.id);
+                    if (resolvedSplit != null) setSplit(null);
                     setFullscreen(resolvedFullscreen === win.id ? null : win.id);
+                  }}
+                  showSplitButton={showSplitButton}
+                  onSplitButton={() => {
+                    if (
+                      resolvedSplit != null &&
+                      (resolvedSplit[0] === win.id || resolvedSplit[1] === win.id)
+                    ) {
+                      setSplit(null);
+                    } else {
+                      setSplitChoice(null);
+                      setSplitPickerFor(win.id);
+                    }
                   }}
                   onKeyDown={onHandleKeyDown(win.id)}
                   registerHandle={handleRefs.current}
@@ -961,7 +1063,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           {draggingProps ? <div className={styles.dragGhost}>{draggingProps.title}</div> : null}
         </DragOverlay>
       </DndContext>
-      {controls && resolvedFullscreen == null && columns.length > 0 && (
+      {controls && resolvedFullscreen == null && resolvedSplit == null && columns.length > 0 && (
         <>
           <button
             type="button"
@@ -986,6 +1088,43 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             {vertical ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </button>
         </>
+      )}
+      {splittable && (
+        // The picker dialog behind the split button. Portaled to the body, so
+        // nothing inside `.root` gains a containing block (see the CSS header).
+        <Dialog.Root
+          open={splitPickerFor != null}
+          onOpenChange={(open) => {
+            if (!open) setSplitPickerFor(null);
+          }}
+        >
+          <Dialog.Portal>
+            <Dialog.Backdrop />
+            <Dialog.Popup>
+              <Dialog.Title>Split view</Dialog.Title>
+              <Dialog.Description>
+                {splitSource?.title} fills the first half. Pick the window for the second half.
+              </Dialog.Description>
+              <RadioTable
+                aria-label="Second window"
+                value={splitChoice}
+                onValueChange={(value) => setSplitChoice(String(value))}
+              >
+                {allWindows
+                  .filter((w) => w.id !== splitPickerFor)
+                  .map((w) => (
+                    <RadioTable.Option key={w.id} value={w.id} label={w.title} />
+                  ))}
+              </RadioTable>
+              <div className={styles.splitDialogFooter}>
+                <Dialog.Close render={<Button variant="secondary">Cancel</Button>} />
+                <Button disabled={splitChoice == null} onClick={confirmSplit}>
+                  Split
+                </Button>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
       )}
     </section>
   );
@@ -1113,13 +1252,18 @@ interface WindowViewProps {
   placement: CSSProperties;
   active: boolean;
   fullscreen: boolean;
-  anyFullscreen: boolean;
+  /** Which half this window fills while the strip is split, else null. */
+  split: "1" | "2" | null;
+  /** A fullscreen window or a split pair is showing — dragging is off. */
+  anyOverlay: boolean;
   rovingTab: boolean;
   dragging: boolean;
   dropEdge: "before" | "after" | null;
   moveEnabled: boolean;
   onActivate: () => void;
   onToggleFullscreen: () => void;
+  showSplitButton: boolean;
+  onSplitButton: () => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
   registerHandle: Map<string, HTMLButtonElement>;
 }
@@ -1131,13 +1275,16 @@ function WindowView({
   placement,
   active,
   fullscreen,
-  anyFullscreen,
+  split,
+  anyOverlay,
   rovingTab,
   dragging,
   dropEdge,
   moveEnabled,
   onActivate,
   onToggleFullscreen,
+  showSplitButton,
+  onSplitButton,
   onKeyDown,
   registerHandle,
 }: WindowViewProps) {
@@ -1154,7 +1301,7 @@ function WindowView({
     ...rest
   } = win;
   const titleId = useId();
-  const dragEnabled = moveEnabled && !anyFullscreen;
+  const dragEnabled = moveEnabled && !anyOverlay;
   const { setNodeRef: setDragRef, listeners } = useDraggable({
     id,
     disabled: !dragEnabled,
@@ -1179,6 +1326,7 @@ function WindowView({
       style={{ ...placement, ...style }}
       data-active={active ? "" : undefined}
       data-fullscreen={fullscreen ? "" : undefined}
+      data-split={split ?? undefined}
       data-dragging={dragging ? "" : undefined}
       data-drop-edge={dropEdge ?? undefined}
       onPointerDownCapture={onActivate}
@@ -1210,7 +1358,18 @@ function WindowView({
           }}
         >
           {actions}
-          {maximizable && (
+          {showSplitButton && (
+            <button
+              type="button"
+              aria-label={split != null ? "Exit split view" : "Split view"}
+              aria-pressed={split != null}
+              className={styles.iconButton}
+              onClick={onSplitButton}
+            >
+              <SplitIcon />
+            </button>
+          )}
+          {maximizable && split == null && (
             <button
               type="button"
               aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}

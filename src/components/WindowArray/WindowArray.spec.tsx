@@ -741,3 +741,159 @@ test("vertical strip: a plain wheel scrolls the strip vertically (native)", asyn
   await expect.poll(() => viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
   expect(await viewport.evaluate((el) => el.scrollLeft)).toBe(0);
 });
+
+// --- Split view ("1|2") ------------------------------------------------------
+
+/** Click `source`'s split button and pick `target` for the second half. */
+async function enterSplit(page: import("@playwright/test").Page, source: string, target: string) {
+  await page
+    .getByRole("group", { name: source })
+    .getByRole("button", { name: "Split view", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: target }).click();
+  await dialog.getByRole("button", { name: "Split", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+}
+
+test("split view: the 1|2 button opens a picker and two windows fill the halves", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness splittable />);
+  const root = page.getByTestId("window-array");
+  await page
+    .getByRole("group", { name: "Window 1A" })
+    .getByRole("button", { name: "Split view", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // The clicked window is half 1, so it is not offered for half 2.
+  await expect(dialog.getByRole("radio", { name: "Window 1A" })).toHaveCount(0);
+  await dialog.getByRole("radio", { name: "Window 2A" }).click();
+  await dialog.getByRole("button", { name: "Split", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  const rootBox = await root.boundingBox();
+  const b1 = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const b2 = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!rootBox || !b1 || !b2) throw new Error("missing bounding boxes");
+  // Each half is half the container along the split axis (within a few px:
+  // borders and the 1px divider overlap) and full size on the cross axis;
+  // half 2 sits to the right of half 1, flush at the divider.
+  expect(Math.abs(b1.width - rootBox.width / 2)).toBeLessThanOrEqual(4);
+  expect(Math.abs(b2.width - rootBox.width / 2)).toBeLessThanOrEqual(4);
+  expect(Math.abs(b1.height - rootBox.height)).toBeLessThan(6);
+  expect(b2.x).toBeGreaterThan(b1.x + b1.width - 4);
+  expect(b2.x).toBeLessThan(b1.x + b1.width + 4);
+  await expect(page.getByTestId("split-ids")).toHaveText('["w1a","w2a"]');
+  // Both halves show the pressed exit toggle; maximize is hidden while split.
+  for (const id of ["w1a", "w2a"]) {
+    const win = page.locator(`[data-window-id="${id}"]`);
+    await expect(win.getByRole("button", { name: "Exit split view", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(win.getByRole("button", { name: "Enter fullscreen" })).toHaveCount(0);
+  }
+});
+
+test("split view: Cancel leaves the strip untouched", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness splittable />);
+  await page
+    .getByRole("group", { name: "Window 1A" })
+    .getByRole("button", { name: "Split view", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator("[data-split]")).toHaveCount(0);
+  await expect(page.getByTestId("split-ids")).toHaveText("");
+});
+
+test("split view: Escape exits and restores window geometry", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness splittable />);
+  const win = page.locator('[data-window-id="w1a"]');
+  const before = await win.boundingBox();
+  await enterSplit(page, "Window 1A", "Window 2A");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-split]")).toHaveCount(0);
+  await expect(page.getByTestId("split-ids")).toHaveText("");
+  const after = await win.boundingBox();
+  if (!before || !after) throw new Error("missing bounding boxes");
+  expect(Math.abs(after.width - before.width)).toBeLessThan(4);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(4);
+});
+
+test("split view: the pressed 1|2 button exits", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness splittable />);
+  await enterSplit(page, "Window 1A", "Window 2A");
+  await page
+    .locator('[data-window-id="w1a"]')
+    .getByRole("button", { name: "Exit split view", exact: true })
+    .click();
+  await expect(page.locator("[data-split]")).toHaveCount(0);
+  await expect(page.getByTestId("split-ids")).toHaveText("");
+});
+
+test("split view: vertical orientation stacks the halves top/bottom", async ({ mount, page }) => {
+  // 360px wide with the default verticalBelow (480) → vertical strip.
+  await mount(<WindowArrayHarness splittable width={360} height={500} />);
+  const root = page.getByTestId("window-array");
+  await enterSplit(page, "Window 1A", "Window 2A");
+  const rootBox = await root.boundingBox();
+  const b1 = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const b2 = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!rootBox || !b1 || !b2) throw new Error("missing bounding boxes");
+  expect(Math.abs(b1.height - rootBox.height / 2)).toBeLessThanOrEqual(4);
+  expect(Math.abs(b2.height - rootBox.height / 2)).toBeLessThanOrEqual(4);
+  expect(Math.abs(b1.width - rootBox.width)).toBeLessThan(6);
+  expect(b2.y).toBeGreaterThan(b1.y + b1.height - 4);
+  expect(b2.y).toBeLessThan(b1.y + b1.height + 4);
+});
+
+test("split view: closing a member window exits the split", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness splittable />);
+  await enterSplit(page, "Window 1A", "Window 2A");
+  await page.locator('[data-window-id="w1a"]').getByRole("button", { name: "Close" }).click();
+  await expect(page.locator("[data-split]")).toHaveCount(0);
+  await expect(page.getByTestId("split-ids")).toHaveText("");
+});
+
+test("split view: splitting from fullscreen exits fullscreen", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness splittable />);
+  const win = page.locator('[data-window-id="w1a"]');
+  await win.getByRole("button", { name: "Enter fullscreen" }).click();
+  await expect(win).toHaveAttribute("data-fullscreen", "");
+  await enterSplit(page, "Window 1A", "Window 2A");
+  await expect(page.locator("[data-fullscreen]")).toHaveCount(0);
+  await expect(page.locator("[data-split]")).toHaveCount(2);
+});
+
+test("split view: a controlled splitIds pins the split", async ({ mount, page }) => {
+  await mount(
+    <div style={{ inlineSize: 640, blockSize: 360 }}>
+      <WindowArray aria-label="Controlled split" splittable splitIds={["one", "two"]}>
+        <WindowArray.Column id="a" defaultWidth={220}>
+          <WindowArray.Window id="one" title="One">
+            <p>1</p>
+          </WindowArray.Window>
+          <WindowArray.Window id="two" title="Two">
+            <p>2</p>
+          </WindowArray.Window>
+        </WindowArray.Column>
+        <WindowArray.Column id="b" defaultWidth={220}>
+          <WindowArray.Window id="three" title="Three">
+            <p>3</p>
+          </WindowArray.Window>
+        </WindowArray.Column>
+      </WindowArray>
+    </div>,
+  );
+  // The controlled pair renders as halves without any interaction.
+  await expect(page.locator('[data-split="1"]')).toHaveAttribute("data-window-id", "one");
+  await expect(page.locator('[data-split="2"]')).toHaveAttribute("data-window-id", "two");
+  // Escape reports the change, but the controlled value pins the split.
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-split]")).toHaveCount(2);
+});

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-21T11:43:10.743Z"
+    "date": "2026-07-21T17:58:27.165Z"
   },
-  "totalGzip": 968553,
+  "totalGzip": 976393,
   "entries": {
     ".": {
       "files": 270,
-      "jsRaw": 956281,
-      "jsGzip": 290740,
+      "jsRaw": 960587,
+      "jsGzip": 291460,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 290740,
+      "gzip": 291460,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -448,11 +448,11 @@
     },
     "./color-picker": {
       "files": 32,
-      "jsRaw": 71113,
-      "jsGzip": 24511,
+      "jsRaw": 71157,
+      "jsGzip": 24526,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24511,
+      "gzip": 24526,
       "externals": [
         "@base-ui/react/input",
         "@base-ui/react/menu",
@@ -572,13 +572,20 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./window-array": {
-      "files": 6,
-      "jsRaw": 43389,
-      "jsGzip": 11002,
+      "files": 16,
+      "jsRaw": 67685,
+      "jsGzip": 18107,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 11002,
-      "externals": ["@dnd-kit/core", "react", "react/jsx-runtime"]
+      "gzip": 18107,
+      "externals": [
+        "@base-ui/react/dialog",
+        "@base-ui/react/radio",
+        "@base-ui/react/radio-group",
+        "@dnd-kit/core",
+        "react",
+        "react/jsx-runtime"
+      ]
     },
     "./popover": {
       "files": 6,
