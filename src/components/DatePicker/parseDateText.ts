@@ -13,7 +13,17 @@
  *
  *  Incomplete fragments resolve against the caller's current view (so a bare
  *  `12` means the 12th of the visible month).
+ *
+ *  Coarser `precision` reuses the same grammar and normalizes any candidate
+ *  to the period start. Extras per precision: week accepts `w29` / `2026-w29`
+ *  (ISO week of the view year by default); month promotes `2026-07`, a month
+ *  name (`jul`, `jul 2027`) and a bare 1..12 number to candidates (13..31
+ *  falls back to a day-first read, resolving to the visible month); year
+ *  promotes a bare `2026`. Fragments are skipped at year precision.
  */
+
+import type { DatePickerPrecision } from "./dateMath";
+import { dateFromISOWeek, isoWeeksInYear, startOfPeriod } from "./dateMath";
 
 export interface MonthView {
   year: number;
@@ -70,12 +80,21 @@ function fromDayPrefix(view: MonthView, prefix: string): ParsedText {
   return { candidate, view, dayPrefix: complete ? null : prefix };
 }
 
-function parseISO(text: string, view: MonthView): ParsedText | null {
+function parseISO(
+  text: string,
+  view: MonthView,
+  precision: DatePickerPrecision,
+): ParsedText | null {
   const m = /^(\d{4})(?:-(\d{1,2})?(?:-(\d{1,2})?)?)?$/.exec(text);
   if (!m?.[1]) return null;
   const year = Number(m[1]);
   if (m[2] === undefined && !text.includes("-")) {
-    return { candidate: null, view: { year, month: 0 }, dayPrefix: null };
+    // At year precision a complete `2026` IS the pick, not just a view jump.
+    return {
+      candidate: precision === "year" ? new Date(year, 0, 1) : null,
+      view: { year, month: 0 },
+      dayPrefix: null,
+    };
   }
   const monthNum = m[2] ? Number(m[2]) : Number.NaN;
   if (!(monthNum >= 1 && monthNum <= 12)) {
@@ -87,9 +106,35 @@ function parseISO(text: string, view: MonthView): ParsedText | null {
     };
   }
   const monthView = { year, month: monthNum - 1 };
-  if (m[3] === undefined) return { candidate: null, view: monthView, dayPrefix: null };
-  if (m[3] === "") return { candidate: null, view: monthView, dayPrefix: null };
+  if (m[3] === undefined || m[3] === "") {
+    // At month precision a complete `2026-07` IS the pick.
+    return {
+      candidate: precision === "month" ? new Date(year, monthNum - 1, 1) : null,
+      view: monthView,
+      dayPrefix: null,
+    };
+  }
   return fromDayPrefix(monthView, m[3]);
+}
+
+/** ISO week entry, week precision only: `w29`, `2026-w29`, `2026 w29`,
+ *  `2026w29`. The year defaults to the view's. A bare `w`/`2026-w` waits for
+ *  the digits. */
+function parseISOWeekText(text: string, view: MonthView): ParsedText | null {
+  const m = /^(?:(\d{4})[-\s]?)?w(\d{0,2})$/.exec(text);
+  if (!m) return null;
+  const year = m[1] ? Number(m[1]) : view.year;
+  if (!m[2]) {
+    return { candidate: null, view: m[1] ? { year, month: 0 } : null, dayPrefix: null };
+  }
+  const week = Number(m[2]);
+  if (week < 1 || week > isoWeeksInYear(year)) return null;
+  const monday = dateFromISOWeek(year, week);
+  return {
+    candidate: monday,
+    view: { year: monday.getFullYear(), month: monday.getMonth() },
+    dayPrefix: null,
+  };
 }
 
 function parseRelative(text: string, today: Date): ParsedText | null {
@@ -110,6 +155,33 @@ function offset(d: Date, days: number): Date {
   const out = new Date(d);
   out.setDate(out.getDate() + days);
   return out;
+}
+
+/** Month fragments, month precision only: a month name or a bare 1..12
+ *  number, optionally with a 4-digit year (`jul`, `jul 2027`, `7`, `12 2027`).
+ *  There is no day slot at this precision. */
+function parseMonthFragments(text: string, view: MonthView): ParsedText | null {
+  const tokens = text.split(/[\s.,/]+/).filter(Boolean);
+  if (tokens.length === 0 || tokens.length > 2) return null;
+  let month: number | null = null;
+  let year: number | null = null;
+  for (const token of tokens) {
+    if (/^\d{4}$/.test(token)) {
+      if (year !== null) return null;
+      year = Number(token);
+    } else if (/^\d{1,2}$/.test(token)) {
+      const n = Number(token);
+      if (month !== null || n < 1 || n > 12) return null;
+      month = n - 1;
+    } else {
+      const named = matchMonth(token);
+      if (named === null || month !== null) return null;
+      month = named;
+    }
+  }
+  if (month === null) return null;
+  const y = year ?? view.year;
+  return { candidate: new Date(y, month, 1), view: { year: y, month }, dayPrefix: null };
 }
 
 /** Day-first fragments: tokens of digits and month names, split on space,
@@ -160,8 +232,27 @@ function parseFragments(text: string, view: MonthView): ParsedText | null {
   return { candidate: clampDay(y, m, day), view: target, dayPrefix: null };
 }
 
-export function parseDateText(raw: string, view: MonthView, today: Date): ParsedText {
+export function parseDateText(
+  raw: string,
+  view: MonthView,
+  today: Date,
+  precision: DatePickerPrecision = "day",
+): ParsedText {
   const text = raw.trim().toLowerCase();
   if (!text) return NONE;
-  return parseRelative(text, today) ?? parseISO(text, view) ?? parseFragments(text, view) ?? NONE;
+  const result =
+    (precision === "week" ? parseISOWeekText(text, view) : null) ??
+    parseRelative(text, today) ??
+    parseISO(text, view, precision) ??
+    (precision === "month" ? parseMonthFragments(text, view) : null) ??
+    // Fragments are day-first entries; at year precision they mean nothing.
+    (precision === "year" ? null : parseFragments(text, view)) ??
+    NONE;
+  if (precision === "day") return result;
+  // A coarser pick is the whole period: normalize and drop the day prefix.
+  return {
+    candidate: result.candidate ? startOfPeriod(result.candidate, precision) : null,
+    view: result.view,
+    dayPrefix: null,
+  };
 }

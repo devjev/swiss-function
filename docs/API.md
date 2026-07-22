@@ -520,19 +520,22 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 
 Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control: typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th to 19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). Extends `HTMLAttributes<HTMLDivElement>`.
 
+`precision` picks whole periods instead of days. `"week"`: the calendar selects entire ISO-week rows (click any row or its week number; the week column is forced on) and the field shows `YYYY-Www`; typed entry accepts `w29` / `2026-w29` plus any day-level form, which resolves to its week. `"month"`: the popup becomes a year of month cells (paddles page by year); type `2026-07`, `jul` or `jul 2027`. `"year"`: a 12-year page (paddles move a dozen years); type `2028`. The committed `Date` is always the period start: the ISO week's Monday, the 1st, or Jan 1.
+
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `value` | `Date \| null` | n/a | Selected date (controlled; pair with `onChange`). |
 | `defaultValue` | `Date \| null` | n/a | Initial selection (uncontrolled). |
-| `onChange` | `(date: Date \| null) => void` | n/a | Fires on commit or clear. |
-| `placeholder` | `string` | `"YYYY-MM-DD"` | Field placeholder. |
+| `onChange` | `(date: Date \| null) => void` | n/a | Fires on commit or clear. At coarser precisions always the normalized period start. |
+| `precision` | `"day" \| "week" \| "month" \| "year"` | `"day"` | The unit the picker commits; see above. Display, placeholder and typed entry follow. |
+| `placeholder` | `string` | precision's ISO shape | Field placeholder (`YYYY-MM-DD` / `YYYY-Www` / `YYYY-MM` / `YYYY`). |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Field size, mirrors `Input`. |
 | `disabled` | `boolean` | `false` | Disable the control. |
 | `clearable` | `boolean` | `true` | × button once a date is selected. |
-| `minDate` / `maxDate` | `Date` | n/a | Inclusive selectable range (day granularity). |
-| `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. |
-| `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. |
-| `formatValue` | `(date: Date) => string` | ISO `YYYY-MM-DD` | Custom display format for the committed value; parsing still accepts ISO and day-first fragments. |
+| `minDate` / `maxDate` | `Date` | n/a | Inclusive selectable range (day granularity). At coarser precisions a period stays pickable while it overlaps the range. |
+| `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. Day precision only; ignored at coarser precisions. |
+| `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. Forced on at week precision. |
+| `formatValue` | `(date: Date) => string` | precision's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | flat | Resting depth of the field (`--sf-elevation-N`). |
 | `aria-label` | `string` | n/a | Accessible name when not wrapped in a `Field`. |
 

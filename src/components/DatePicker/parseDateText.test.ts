@@ -87,3 +87,79 @@ describe("noise", () => {
     }
   });
 });
+
+describe("week precision", () => {
+  it("accepts w-forms, defaulting the year to the view", () => {
+    for (const text of ["w29", "2026-w29", "2026-W29", "2026w29", "2026 w29"]) {
+      expect(iso(parseDateText(text, VIEW, TODAY, "week").candidate)).toBe("2026-07-13");
+    }
+  });
+
+  it("normalizes day-level entries to their Monday", () => {
+    // Sun Jul 12 2026 belongs to week 28, Monday Jul 6.
+    expect(iso(parseDateText("2026-07-12", VIEW, TODAY, "week").candidate)).toBe("2026-07-06");
+    expect(iso(parseDateText("12 jul", VIEW, TODAY, "week").candidate)).toBe("2026-07-06");
+    // Sat Jul 4 (today) → Monday Jun 29.
+    expect(iso(parseDateText("today", VIEW, TODAY, "week").candidate)).toBe("2026-06-29");
+  });
+
+  it("rejects out-of-range weeks, honoring 52/53-week years", () => {
+    expect(parseDateText("w0", VIEW, TODAY, "week").candidate).toBeNull();
+    expect(parseDateText("w54", VIEW, TODAY, "week").candidate).toBeNull();
+    expect(iso(parseDateText("2026-w53", VIEW, TODAY, "week").candidate)).toBe("2026-12-28");
+    expect(parseDateText("2025-w53", VIEW, TODAY, "week").candidate).toBeNull();
+  });
+
+  it("a bare w waits for digits; the day prefix never leaks", () => {
+    expect(parseDateText("w", VIEW, TODAY, "week").candidate).toBeNull();
+    expect(parseDateText("1", VIEW, TODAY, "week").dayPrefix).toBeNull();
+  });
+});
+
+describe("month precision", () => {
+  it("promotes complete year-month and month fragments to candidates", () => {
+    expect(iso(parseDateText("2026-07", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+    expect(iso(parseDateText("jul", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+    expect(iso(parseDateText("jul 2027", VIEW, TODAY, "month").candidate)).toBe("2027-07-01");
+    expect(iso(parseDateText("7", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+    expect(iso(parseDateText("12 2027", VIEW, TODAY, "month").candidate)).toBe("2027-12-01");
+  });
+
+  it("a bare year stays a view jump", () => {
+    const r = parseDateText("2026", VIEW, TODAY, "month");
+    expect(r.candidate).toBeNull();
+    expect(r.view).toEqual({ year: 2026, month: 0 });
+  });
+
+  it("a number past 12 falls back to a day-first read of the visible month", () => {
+    expect(iso(parseDateText("13", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+    expect(parseDateText("32", VIEW, TODAY, "month").candidate).toBeNull();
+  });
+
+  it("normalizes day-level entries to the 1st", () => {
+    expect(iso(parseDateText("2026-07-12", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+    expect(iso(parseDateText("today", VIEW, TODAY, "month").candidate)).toBe("2026-07-01");
+  });
+});
+
+describe("year precision", () => {
+  it("promotes a bare year to the candidate", () => {
+    const r = parseDateText("2028", VIEW, TODAY, "year");
+    expect(iso(r.candidate)).toBe("2028-01-01");
+    expect(r.view).toEqual({ year: 2028, month: 0 });
+  });
+
+  it("normalizes other entries to Jan 1 and skips day fragments", () => {
+    expect(iso(parseDateText("today", VIEW, TODAY, "year").candidate)).toBe("2026-01-01");
+    expect(parseDateText("12", VIEW, TODAY, "year").candidate).toBeNull();
+  });
+});
+
+describe("day precision regression (no 4th argument)", () => {
+  it("matches the original behavior", () => {
+    expect(iso(parseDateText("2026-07-12", VIEW, TODAY).candidate)).toBe("2026-07-12");
+    const r = parseDateText("2026", VIEW, TODAY);
+    expect(r.candidate).toBeNull();
+    expect(r.view).toEqual({ year: 2026, month: 0 });
+  });
+});

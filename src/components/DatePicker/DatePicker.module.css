@@ -149,7 +149,11 @@
 @media (prefers-reduced-motion: reduce) {
   .popup,
   .field,
-  .day {
+  .day,
+  .weekButton,
+  .weekRow > td,
+  .weekRow > th,
+  .periodCell {
     transition: none;
   }
 }
@@ -276,6 +280,155 @@
 }
 
 .day:disabled {
+  color: color-mix(in srgb, var(--sf-color-fg), transparent 75%);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* --- Week precision --------------------------------------------------------
+   Selection is the whole ISO-week row: the week-number button is the row's
+   single focusable, the rest of the row is a click-target extension. Days
+   render as static text. */
+
+.weekRow {
+  cursor: pointer;
+}
+
+.weekRow > td,
+.weekRow > th {
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.weekRow:not([data-disabled]):hover > td,
+.weekRow:not([data-disabled]):hover > th {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.weekRow[data-candidate] > td,
+.weekRow[data-candidate] > th {
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+}
+
+.weekRow[data-selected] > td,
+.weekRow[data-selected] > th {
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+}
+
+.weekRow > th:first-child {
+  border-start-start-radius: var(--sf-radius-default);
+  border-end-start-radius: var(--sf-radius-default);
+}
+.weekRow > td:last-child {
+  border-start-end-radius: var(--sf-radius-default);
+  border-end-end-radius: var(--sf-radius-default);
+}
+
+.weekRow[data-disabled] {
+  cursor: not-allowed;
+}
+.weekRow[data-disabled] > td {
+  color: color-mix(in srgb, var(--sf-color-fg), transparent 75%);
+  text-decoration: line-through;
+}
+
+/* The week-number button inherits the row tint (its own bg stays clear). */
+.weekButton {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) * 1.25);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: inherit;
+}
+
+.weekButton:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: calc(-1 * var(--sf-focus-ring-width, 2px));
+}
+
+/* Static day text in week mode: the .day metrics without the button skin. */
+.dayStatic {
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  text-align: center;
+  vertical-align: middle;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+}
+
+.dayStatic[data-outside] {
+  color: color-mix(in srgb, var(--sf-color-fg), transparent 55%);
+}
+
+.weekRow[data-selected] > .dayStatic[data-outside] {
+  color: color-mix(in srgb, var(--sf-color-primary-fg), transparent 40%);
+}
+
+.dayStatic[data-today] {
+  font-weight: var(--sf-font-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- Month / year precision -------------------------------------------------
+   A 3x4 grid of period cells; the .day vocabulary, wider. */
+
+.periodGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.periodCell {
+  display: grid;
+  place-items: center;
+  min-inline-size: calc(var(--sf-unit) * 2.75);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding-inline: calc(var(--sf-unit) / 4);
+  border: none;
+  border-radius: var(--sf-radius-default);
+  background: transparent;
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.periodCell:hover:not(:disabled) {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.periodCell:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: calc(-1 * var(--sf-focus-ring-width, 2px));
+}
+
+.periodCell[data-today] {
+  font-weight: var(--sf-font-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.periodCell[data-candidate] {
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+}
+
+.periodCell[data-selected] {
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+}
+
+.periodCell:disabled {
   color: color-mix(in srgb, var(--sf-color-fg), transparent 75%);
   cursor: not-allowed;
   text-decoration: line-through;

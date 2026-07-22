@@ -194,3 +194,191 @@ test("aria-labelledby overrides the placeholder as the accessible name (issue #3
   // Without the forward, the empty field's accname would be its placeholder.
   await expect(c.getByRole("combobox", { name: "Valid from" })).toBeVisible();
 });
+
+// --- Precision: ISO weeks, months, years -------------------------------------
+
+test("week precision: rows pick whole ISO weeks, typing w-forms commits", async ({
+  mount,
+  page,
+}) => {
+  const committed: string[] = [];
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker
+        aria-label="Week"
+        precision="week"
+        defaultValue={new Date(2026, 6, 4)}
+        onChange={(d) => {
+          committed.push(d ? d.toDateString() : "null");
+        }}
+      />
+    </div>,
+  );
+  const input = c.getByRole("combobox");
+  // Sat Jul 4 2026 displays as its ISO week.
+  await expect(input).toHaveValue("2026-W27");
+  await input.click();
+  // The week column is forced on (no showWeekNumbers passed) and the selected
+  // week's button is pressed.
+  await expect(page.locator("[data-week='2026-W27']")).toHaveAttribute("aria-pressed", "true");
+  // Day cells are static text, not buttons.
+  await expect(page.locator("[data-iso]")).toHaveCount(0);
+
+  // Clicking anywhere in another row commits that week (Jul 13 is in W29's
+  // month grid row 3; click the "15" cell's row via its text).
+  await page.locator("td", { hasText: /^15$/ }).click();
+  await expect(input).toHaveValue("2026-W29");
+  expect(committed).toEqual([new Date(2026, 6, 13).toDateString()]);
+
+  // Typing a w-form commits the Monday.
+  await input.click();
+  await input.fill("w30");
+  await input.press("Enter");
+  await expect(input).toHaveValue("2026-W30");
+  expect(committed).toEqual([
+    new Date(2026, 6, 13).toDateString(),
+    new Date(2026, 6, 20).toDateString(),
+  ]);
+});
+
+test("week precision: keyboard moves by weeks and commits once", async ({ mount, page }) => {
+  const committed: string[] = [];
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker
+        aria-label="Week"
+        precision="week"
+        defaultValue={new Date(2026, 6, 4)}
+        onChange={(d) => {
+          committed.push(d ? d.toDateString() : "null");
+        }}
+      />
+    </div>,
+  );
+  const input = c.getByRole("combobox");
+  await input.click();
+  await input.press("ArrowDown");
+  await expect(page.locator("[data-week='2026-W27']")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator("[data-week='2026-W28']")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(input).toHaveValue("2026-W28");
+  // Exactly one commit from the keyboard path (no doubled row click).
+  expect(committed).toEqual([new Date(2026, 6, 6).toDateString()]);
+});
+
+test("week precision: minDate keeps the straddling week pickable (overlap)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker
+        aria-label="Week"
+        precision="week"
+        defaultValue={new Date(2026, 6, 15)}
+        minDate={new Date(2026, 6, 15)}
+      />
+    </div>,
+  );
+  await c.getByRole("combobox").click();
+  // Week 29 contains the Wednesday minDate: enabled. Week 28 is fully before.
+  await expect(page.locator("[data-week='2026-W29']")).toBeEnabled();
+  await expect(page.locator("[data-week='2026-W28']")).toBeDisabled();
+});
+
+test("month precision: a year of month cells, typed names commit", async ({ mount, page }) => {
+  const committed: string[] = [];
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker
+        aria-label="Month"
+        precision="month"
+        defaultValue={new Date(2026, 6, 15)}
+        minDate={new Date(2026, 6, 15)}
+        onChange={(d) => {
+          committed.push(d ? d.toDateString() : "null");
+        }}
+      />
+    </div>,
+  );
+  const input = c.getByRole("combobox");
+  await expect(input).toHaveValue("2026-07");
+  await input.click();
+  const grid = page.getByRole("listbox");
+  await expect(grid).toHaveAttribute("aria-label", "Calendar, 2026");
+  // Overlap: June is fully before the Jul 15 minDate, July overlaps.
+  await expect(page.locator("[data-month='2026-06']")).toBeDisabled();
+  await expect(page.locator("[data-month='2026-07']")).toBeEnabled();
+  await expect(page.locator("[data-month='2026-07']")).toHaveAttribute("aria-selected", "true");
+
+  // Header paddles page by year.
+  await page.getByRole("button", { name: "Next year" }).click();
+  await expect(grid).toHaveAttribute("aria-label", "Calendar, 2027");
+  await page.locator("[data-month='2027-03']").click();
+  await expect(input).toHaveValue("2027-03");
+  expect(committed).toEqual([new Date(2027, 2, 1).toDateString()]);
+
+  // Typing a month name commits the 1st.
+  await input.click();
+  await input.fill("dec");
+  await input.press("Enter");
+  await expect(input).toHaveValue("2027-12");
+  expect(committed[1]).toBe(new Date(2027, 11, 1).toDateString());
+});
+
+test("year precision: a 12-year page, typing a year commits Jan 1", async ({ mount, page }) => {
+  const committed: string[] = [];
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker
+        aria-label="Year"
+        precision="year"
+        defaultValue={new Date(2026, 6, 15)}
+        onChange={(d) => {
+          committed.push(d ? d.toDateString() : "null");
+        }}
+      />
+    </div>,
+  );
+  const input = c.getByRole("combobox");
+  await expect(input).toHaveValue("2026");
+  await input.click();
+  const grid = page.getByRole("listbox");
+  await expect(grid).toHaveAttribute("aria-label", "Calendar, 2016-2027");
+  await expect(page.locator("[data-year='2026']")).toHaveAttribute("aria-selected", "true");
+
+  // Paddles page by a dozen years.
+  await page.getByRole("button", { name: "Next years" }).click();
+  await expect(grid).toHaveAttribute("aria-label", "Calendar, 2028-2039");
+  await page.locator("[data-year='2030']").click();
+  await expect(input).toHaveValue("2030");
+  expect(committed).toEqual([new Date(2030, 0, 1).toDateString()]);
+
+  // Typing a year commits Jan 1 of that year.
+  await input.click();
+  await input.fill("2028");
+  await input.press("Enter");
+  await expect(input).toHaveValue("2028");
+  expect(committed[1]).toBe(new Date(2028, 0, 1).toDateString());
+});
+
+test("precision keyboard: month grid arrows move 1/3, year grid pages", async ({ mount, page }) => {
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker aria-label="Month" precision="month" defaultValue={new Date(2026, 6, 15)} />
+    </div>,
+  );
+  const input = c.getByRole("combobox");
+  await input.click();
+  await input.press("ArrowDown");
+  await expect(page.locator("[data-month='2026-07']")).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator("[data-month='2026-08']")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator("[data-month='2026-11']")).toBeFocused();
+  await page.keyboard.press("PageUp");
+  await expect(page.locator("[data-month='2025-11']")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(input).toHaveValue("2025-11");
+});

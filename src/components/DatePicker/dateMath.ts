@@ -86,3 +86,139 @@ export function formatISODate(d: Date): string {
 export function formatISOMonth(year: number, month: number): string {
   return `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}`;
 }
+
+// --- Period granularity (the `precision` prop) -------------------------------
+
+/** The unit the picker commits: a day, an ISO week, a month, or a year. */
+export type DatePickerPrecision = "day" | "week" | "month" | "year";
+
+/** Monday 00:00 of the ISO week containing `d`. */
+export function startOfISOWeek(d: Date): Date {
+  return addDays(startOfDay(d), -mondayIndex(d));
+}
+
+/** ISO 8601 week-numbering year: the calendar year of the week's Thursday.
+ *  Jan 1 2027 belongs to 2026-W53, so its week-year is 2026. */
+export function isoWeekYear(d: Date): number {
+  return addDays(startOfDay(d), 3 - mondayIndex(d)).getFullYear();
+}
+
+/** 52 or 53 — Dec 28 is always in the year's last ISO week. */
+export function isoWeeksInYear(year: number): number {
+  return isoWeek(new Date(year, 11, 28));
+}
+
+/** Monday of the given ISO week (week 1 always contains Jan 4). */
+export function dateFromISOWeek(year: number, week: number): Date {
+  const jan4 = new Date(year, 0, 4);
+  return addDays(startOfISOWeek(jan4), (week - 1) * 7);
+}
+
+/** `YYYY-Www` per ISO 8601, e.g. `2026-W29` — always the week-numbering
+ *  year, never the calendar year of `d` itself. */
+export function formatISOWeek(d: Date): string {
+  const y = String(isoWeekYear(d)).padStart(4, "0");
+  return `${y}-W${String(isoWeek(d)).padStart(2, "0")}`;
+}
+
+export function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+export function startOfYear(d: Date): Date {
+  return new Date(d.getFullYear(), 0, 1);
+}
+
+export function addWeeks(d: Date, delta: number): Date {
+  return addDays(d, delta * 7);
+}
+
+/** Add years keeping the month/day when possible (Feb 29 + 1y → Feb 28). */
+export function addYearsClamped(d: Date, delta: number): Date {
+  return addMonthsClamped(d, delta * 12);
+}
+
+export function formatISOYear(year: number): string {
+  return String(year).padStart(4, "0");
+}
+
+/** First day (00:00) of the period containing `d`. */
+export function startOfPeriod(d: Date, precision: DatePickerPrecision): Date {
+  switch (precision) {
+    case "day":
+      return startOfDay(d);
+    case "week":
+      return startOfISOWeek(d);
+    case "month":
+      return startOfMonth(d);
+    case "year":
+      return startOfYear(d);
+  }
+}
+
+/** Last day (00:00, not 23:59) of the period containing `d`. */
+export function endOfPeriod(d: Date, precision: DatePickerPrecision): Date {
+  switch (precision) {
+    case "day":
+      return startOfDay(d);
+    case "week":
+      return addDays(startOfISOWeek(d), 6);
+    case "month":
+      return new Date(d.getFullYear(), d.getMonth(), daysInMonth(d.getFullYear(), d.getMonth()));
+    case "year":
+      return new Date(d.getFullYear(), 11, 31);
+  }
+}
+
+export function isSamePeriod(a: Date, b: Date, precision: DatePickerPrecision): boolean {
+  return isSameDay(startOfPeriod(a, precision), startOfPeriod(b, precision));
+}
+
+/** The period's ISO display string: `YYYY-MM-DD` / `YYYY-Www` / `YYYY-MM` /
+ *  `YYYY`. */
+export function formatPeriod(d: Date, precision: DatePickerPrecision): string {
+  switch (precision) {
+    case "day":
+      return formatISODate(d);
+    case "week":
+      return formatISOWeek(d);
+    case "month":
+      return formatISOMonth(d.getFullYear(), d.getMonth());
+    case "year":
+      return formatISOYear(d.getFullYear());
+  }
+}
+
+/** Step by whole periods (day/week exact; month/year clamp the day). */
+export function addPeriods(d: Date, delta: number, precision: DatePickerPrecision): Date {
+  switch (precision) {
+    case "day":
+      return addDays(d, delta);
+    case "week":
+      return addWeeks(d, delta);
+    case "month":
+      return addMonthsClamped(d, delta);
+    case "year":
+      return addYearsClamped(d, delta);
+  }
+}
+
+/** Min/max check by OVERLAP: the period is disabled only when it lies fully
+ *  before `min` or fully after `max`, so a week straddling `min` stays
+ *  pickable. At day precision this reduces to the plain day comparison. */
+export function periodDisabled(
+  d: Date,
+  precision: DatePickerPrecision,
+  min?: Date,
+  max?: Date,
+): boolean {
+  if (min && endOfPeriod(d, precision).getTime() < startOfDay(min).getTime()) return true;
+  if (max && startOfPeriod(d, precision).getTime() > startOfDay(max).getTime()) return true;
+  return false;
+}
+
+/** First year of the fixed page containing `year` (12-year pages by default:
+ *  2016-2027, 2028-2039, …). */
+export function yearPageStart(year: number, size = 12): number {
+  return Math.floor(year / size) * size;
+}
