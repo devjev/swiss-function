@@ -77,7 +77,7 @@ function VirtualOptions({
     };
   }, [scrollToIndexRef, virtualizer]);
   return (
-    <Combobox.List ref={listRef} className={styles.virtualList}>
+    <Combobox.List ref={listRef} className={styles.virtualList} data-virtualized-list="">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((row) => {
           const option = filtered[row.index] as SelectorOption;

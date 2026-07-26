@@ -120,6 +120,17 @@
   overflow: auto;
 }
 
+/* A virtualized option list (Selector/Picker) owns its own scrolling. When one
+   is present the popup must not be a second scroll surface: two clamped
+   scrollers landing within a pixel or two of each other race on fractional
+   rounding (page zoom, font metrics) and grow a redundant, near-immobile
+   scrollbar beside the working one (issue #81). Detect the virtualized list and
+   stand the popup down as a scroller; the list's own cap bounds the height. */
+.popup:has([data-virtualized-list]) {
+  max-height: none;
+  overflow: hidden;
+}
+
 .item {
   display: flex;
   align-items: center;

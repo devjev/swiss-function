@@ -206,6 +206,41 @@ test("filtering to zero matches shows the empty message under virtualization", a
   await expect(page.getByRole("option")).toHaveCount(0);
 });
 
+test("the virtualized list scrolls, but its popup does not (no second scrollbar, issue #81)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<SelectorHarness items={manyItems} />);
+  await component.getByRole("combobox").click();
+
+  // The listbox (virtualList) is the working scroll surface: more content than
+  // its cap, so it overflows and scrolls.
+  const list = page.getByRole("listbox");
+  await expect(list).toBeVisible();
+  const listOverflows = await list.evaluate((el) => el.scrollHeight > el.clientHeight + 1);
+  expect(listOverflows).toBe(true);
+
+  // The enclosing popup must NOT be a second scroll surface. Two clamped
+  // scrollers landing within a pixel or two raced on fractional rounding and
+  // grew a redundant, near-immobile scrollbar. The fix stands the popup down:
+  // no cap of its own and overflow clipped, so it never scrolls. Assert the
+  // mechanism (deterministic) rather than a fractional-pixel outcome (flaky).
+  const popup = await list.evaluate((el) => {
+    const p = el.parentElement;
+    if (!p) throw new Error("popup missing");
+    const cs = getComputedStyle(p);
+    return {
+      overflowY: cs.overflowY,
+      maxHeight: cs.maxHeight,
+      scrolls: p.scrollHeight > p.clientHeight + 1,
+    };
+  });
+  expect(popup.overflowY).not.toBe("auto");
+  expect(popup.overflowY).not.toBe("scroll");
+  expect(popup.maxHeight).toBe("none");
+  expect(popup.scrolls).toBe(false);
+});
+
 test("keyboard highlight survives its row scrolling out of the virtual window", async ({
   mount,
   page,

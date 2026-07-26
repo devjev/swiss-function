@@ -30,14 +30,14 @@
 }
 
 /* Virtualized option list: the List itself is the scroll container (the
-   virtualizer needs its scroll element inside this component's subtree), so
-   the popup's own max-height never engages. Height mirrors the popup's cap
-   minus its padding and its 1px borders — consumers ship `border-box`, where
-   the borders eat inner space; without the -2px the popup grows a nested
-   second scrollbar. */
+   virtualizer needs its scroll element inside this component's subtree). It
+   carries `data-virtualized-list`, which stands the enclosing popup down as a
+   scroll surface (Combobox.module.css), so this cap is the only one that
+   clamps the dropdown height — no knife-edge subtraction against the popup's
+   own cap that a fractional pixel could tip into a second scrollbar (#81). */
 .virtualList {
   composes: scrollable from "../../lib/scrollable.module.css";
-  max-height: calc(16rem - 2 * var(--sf-space-1) - 2px);
+  max-height: 16rem;
   overflow: auto;
 }
 
