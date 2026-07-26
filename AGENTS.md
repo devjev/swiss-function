@@ -274,6 +274,16 @@ These are not suggestions.
   rings, or `--sf-focus-ring-width: 0` to disable them where a container
   already communicates focus (an active window frame, a focused pane).
   Never suppress a ring by out-specificity-ing component CSS.
+- **Stacking**: floaters carry the `--sf-z-*` scale (`-dropdown` 1000 …
+  `-tooltip` 1400), but a floater opened from *inside* an overlay (a
+  Picker/Selector/Combobox or MenuBar dropdown, a DatePicker calendar,
+  Menu/ContextMenu, Popover, or the Graph right-click menu, inside a
+  `Dialog`, `Drawer`, `Popover`, or expanded `Fullscreen`/`Graph`) lifts
+  above that overlay automatically: the overlay publishes its z-index
+  through a React context that crosses the body portal, and the floater
+  paints just above it (issue #82). You do **not** need app-side z-index
+  overrides for library floaters inside library overlays; if you carried
+  any, drop them.
 
 ### Body text is never grey
 

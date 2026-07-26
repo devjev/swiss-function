@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import styles from "./Fullscreen.module.css";
 
@@ -85,6 +86,7 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
     onExpandedChange,
     buttonPosition = "top-right",
     className,
+    style,
     children,
     ...rest
   },
@@ -96,14 +98,26 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
     onExpandedChange,
   });
 
+  // Cross-portal stacking (issue #82): only while expanded is this a modal-band
+  // overlay, so seed the band (and climb above a host overlay) then, not at rest.
+  const layer = useStackLayer(Z_LAYER.modal, true);
+  const rootStyle = expanded && layer.zIndex != null ? { ...style, zIndex: layer.zIndex } : style;
+
   return (
     <div
       ref={ref}
       data-expanded={expanded || undefined}
       className={cx(styles.root, expanded && styles.expanded, className)}
+      style={rootStyle}
       {...rest}
     >
-      <div className={styles.content}>{children}</div>
+      <div className={styles.content}>
+        {expanded ? (
+          <StackingProvider ceiling={layer.ceiling}>{children}</StackingProvider>
+        ) : (
+          children
+        )}
+      </div>
       <FullscreenToggle expanded={expanded} onToggle={toggle} position={buttonPosition} />
     </div>
   );

@@ -2,6 +2,7 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { Box } from "../Box";
 import styles from "./Popover.module.css";
 
@@ -19,13 +20,21 @@ const Close = BasePopover.Close;
 const Positioner = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof BasePopover.Positioner>
->(function PopoverPositioner({ className, ...rest }, ref) {
+>(function PopoverPositioner({ className, style, ...rest }, ref) {
+  // Cross-portal stacking (issue #82): a Popover is a *seed* — it holds
+  // arbitrary content, so it establishes its band as the ceiling for anything
+  // opened inside it (a Picker/DatePicker in a Popover clears the Popover even
+  // at the page root), and climbs above a Dialog/Drawer when opened within one.
+  const { zIndex, ceiling } = useStackLayer(Z_LAYER.popover, true);
   return (
-    <BasePopover.Positioner
-      {...rest}
-      ref={ref}
-      className={mergeClassName(styles.positioner, className)}
-    />
+    <StackingProvider ceiling={ceiling}>
+      <BasePopover.Positioner
+        {...rest}
+        ref={ref}
+        style={zIndex != null ? { ...style, zIndex } : style}
+        className={mergeClassName(styles.positioner, className)}
+      />
+    </StackingProvider>
   );
 });
 

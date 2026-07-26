@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import styles from "./Dialog.module.css";
@@ -243,6 +244,10 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     [draggable, expanded, onHandlePointerDown, toggle],
   );
 
+  // Cross-portal stacking (issue #82): seed the modal band so a floater opened
+  // inside the dialog paints above it, and climb when nested in another overlay.
+  const { zIndex, ceiling } = useStackLayer(Z_LAYER.modal, true);
+
   return (
     <BaseDialog.Popup
       {...rest}
@@ -251,9 +256,11 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
         cx(styles.popup, positioned && styles.draggable, expanded && styles.fullscreen),
         className,
       )}
-      style={{ ...dragStyle, ...sizeStyle, ...style }}
+      style={{ ...dragStyle, ...sizeStyle, ...style, ...(zIndex != null && { zIndex }) }}
     >
-      <PopupContext.Provider value={ctx}>{children}</PopupContext.Provider>
+      <StackingProvider ceiling={ceiling}>
+        <PopupContext.Provider value={ctx}>{children}</PopupContext.Provider>
+      </StackingProvider>
       {resizable && !expanded && (
         <>
           {/* Edges first, then corners — corners must come later in the DOM so

@@ -2,6 +2,7 @@ import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import styles from "./Drawer.module.css";
 
 export type DrawerSide = "left" | "right" | "bottom";
@@ -38,9 +39,20 @@ const Backdrop = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof Base
 );
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDrawer.Popup>>(
-  function DrawerPopup({ className, ...rest }, ref) {
+  function DrawerPopup({ className, style, ...rest }, ref) {
+    // Cross-portal stacking (issue #82): seed the modal band so a floater opened
+    // inside the drawer paints above it, and climb when the drawer is itself
+    // opened inside another overlay.
+    const { zIndex, ceiling } = useStackLayer(Z_LAYER.modal, true);
     return (
-      <BaseDrawer.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
+      <StackingProvider ceiling={ceiling}>
+        <BaseDrawer.Popup
+          {...rest}
+          ref={ref}
+          style={zIndex != null ? { ...style, zIndex } : style}
+          className={mergeClassName(styles.popup, className)}
+        />
+      </StackingProvider>
     );
   },
 );

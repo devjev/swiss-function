@@ -2,6 +2,7 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import styles from "./Combobox.module.css";
 
 const Root = BaseCombobox.Root;
@@ -38,13 +39,19 @@ const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseC
 const Positioner = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof BaseCombobox.Positioner>
->(function ComboboxPositioner({ className, ...rest }, ref) {
+>(function ComboboxPositioner({ className, style, ...rest }, ref) {
+  // Cross-portal stacking (issue #82): a dropdown opened inside a Dialog/Popover
+  // must paint above it. At the page root this is inert (keeps the CSS default).
+  const { zIndex, ceiling } = useStackLayer(Z_LAYER.dropdown, false);
   return (
-    <BaseCombobox.Positioner
-      {...rest}
-      ref={ref}
-      className={mergeClassName(styles.positioner, className)}
-    />
+    <StackingProvider ceiling={ceiling}>
+      <BaseCombobox.Positioner
+        {...rest}
+        ref={ref}
+        style={zIndex != null ? { ...style, zIndex } : style}
+        className={mergeClassName(styles.positioner, className)}
+      />
+    </StackingProvider>
   );
 });
 

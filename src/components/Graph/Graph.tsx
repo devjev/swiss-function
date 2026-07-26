@@ -37,6 +37,7 @@ import {
 } from "../../lib/graph/forceLayout";
 import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
+import { StackingProvider, useStackCeiling, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { useThemeEpoch } from "../../lib/useThemeEpoch";
 import { FullscreenToggle } from "../Fullscreen";
@@ -400,6 +401,13 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     defaultExpanded: defaultFullscreen,
     onExpandedChange: onFullscreenChange,
   });
+  // Cross-portal stacking (issue #82): while fullscreen the root is a modal-band
+  // overlay, so seed that band — the right-click Menu then climbs above it. When
+  // not fullscreen, re-publish the inherited ceiling so the Menu still clears a
+  // Dialog the graph sits in.
+  const inheritedCeiling = useStackCeiling();
+  const graphLayer = useStackLayer(Z_LAYER.modal, true);
+  const provideCeiling = isFullscreen ? graphLayer.ceiling : inheritedCeiling;
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graphology | null>(null);
   // Uncontrolled layout state. When `layout` is provided the prop wins; the
@@ -1176,82 +1184,89 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
             isFullscreen && styles.fullscreen,
             className,
           )}
+          style={
+            isFullscreen && graphLayer.zIndex != null
+              ? { ...rest.style, zIndex: graphLayer.zIndex }
+              : rest.style
+          }
         >
-          {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
+          <StackingProvider ceiling={provideCeiling}>
+            {/* Sigma renders its WebGL canvas here. `role="application"` + tabIndex
             make the surface a keyboard target for pan/zoom; `aria-describedby`
             points at the screen-reader summary below. Per-node traversal isn't
             offered — a WebGL canvas has no per-node DOM at 10k scale (see §9). */}
-          <div
-            ref={surfaceRef}
-            className={styles.surface}
-            role="application"
-            aria-label="Graph view"
-            aria-describedby={summaryId}
-            data-graph-surface
-            data-connect={connectMode || undefined}
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
-            tabIndex={0}
-            onKeyDown={onKeyDown}
-          />
-          {/* Connect-mode rubber-band: a line from the drag's source node to the
+            <div
+              ref={surfaceRef}
+              className={styles.surface}
+              role="application"
+              aria-label="Graph view"
+              aria-describedby={summaryId}
+              data-graph-surface
+              data-connect={connectMode || undefined}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the surface IS interactive — it owns the pan/zoom canvas and handles +/-/0/arrow keyboard navigation, so it must be focusable.
+              tabIndex={0}
+              onKeyDown={onKeyDown}
+            />
+            {/* Connect-mode rubber-band: a line from the drag's source node to the
             cursor, in surface pixels. Non-interactive overlay over the canvas. */}
-          {connectLine && (
-            <svg className={styles.connectOverlay} aria-hidden="true" data-graph-connect-line>
-              <line
-                x1={connectLine.x1}
-                y1={connectLine.y1}
-                x2={connectLine.x2}
-                y2={connectLine.y2}
-              />
-            </svg>
-          )}
-          {/* Screen-reader summary (visually hidden). `aria-describedby` reads it
+            {connectLine && (
+              <svg className={styles.connectOverlay} aria-hidden="true" data-graph-connect-line>
+                <line
+                  x1={connectLine.x1}
+                  y1={connectLine.y1}
+                  x2={connectLine.x2}
+                  y2={connectLine.y2}
+                />
+              </svg>
+            )}
+            {/* Screen-reader summary (visually hidden). `aria-describedby` reads it
             on focus; the polite live region announces layout switches. */}
-          <p id={summaryId} className={styles.srOnly} data-graph-summary>
-            Network graph with {nodeCount} node{nodeCount === 1 ? "" : "s"} and {edgeCount} edge
-            {edgeCount === 1 ? "" : "s"}, {layout} layout. Use the arrow keys to pan, plus and minus
-            to zoom, and 0 to fit the view.
-          </p>
-          <div className={styles.srOnly} aria-live="polite" data-graph-status>
-            {layout} layout
-          </div>
-          {children}
-          {fullscreen && <FullscreenToggle expanded={isFullscreen} onToggle={toggleFullscreen} />}
-          {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
+            <p id={summaryId} className={styles.srOnly} data-graph-summary>
+              Network graph with {nodeCount} node{nodeCount === 1 ? "" : "s"} and {edgeCount} edge
+              {edgeCount === 1 ? "" : "s"}, {layout} layout. Use the arrow keys to pan, plus and
+              minus to zoom, and 0 to fit the view.
+            </p>
+            <div className={styles.srOnly} aria-live="polite" data-graph-status>
+              {layout} layout
+            </div>
+            {children}
+            {fullscreen && <FullscreenToggle expanded={isFullscreen} onToggle={toggleFullscreen} />}
+            {/* Right-click context menu. Controlled `Menu` whose Positioner anchors
             to a fixed, invisible Trigger placed at the cursor (house Explorer
             pattern). Choosing an item runs its action against the target id. */}
-          <Menu.Root
-            open={contextMenu !== null}
-            onOpenChange={(open) => !open && setContextMenu(null)}
-          >
-            <Menu.Trigger
-              aria-hidden="true"
-              tabIndex={-1}
-              className={styles.contextAnchor}
-              style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
-            />
-            <Menu.Portal>
-              <Menu.Positioner side="bottom" align="start">
-                <Menu.Popup data-graph-context-menu>
-                  {contextMenu &&
-                    itemsFor(contextMenu.target).map((item) => (
-                      <Fragment key={item.label}>
-                        {item.separatorBefore && <Menu.Separator />}
-                        <Menu.Item
-                          disabled={item.disabled}
-                          onClick={() => {
-                            item.onSelect(contextMenu.target.id);
-                            setContextMenu(null);
-                          }}
-                        >
-                          {item.label}
-                        </Menu.Item>
-                      </Fragment>
-                    ))}
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
+            <Menu.Root
+              open={contextMenu !== null}
+              onOpenChange={(open) => !open && setContextMenu(null)}
+            >
+              <Menu.Trigger
+                aria-hidden="true"
+                tabIndex={-1}
+                className={styles.contextAnchor}
+                style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
+              />
+              <Menu.Portal>
+                <Menu.Positioner side="bottom" align="start">
+                  <Menu.Popup data-graph-context-menu>
+                    {contextMenu &&
+                      itemsFor(contextMenu.target).map((item) => (
+                        <Fragment key={item.label}>
+                          {item.separatorBefore && <Menu.Separator />}
+                          <Menu.Item
+                            disabled={item.disabled}
+                            onClick={() => {
+                              item.onSelect(contextMenu.target.id);
+                              setContextMenu(null);
+                            }}
+                          >
+                            {item.label}
+                          </Menu.Item>
+                        </Fragment>
+                      ))}
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          </StackingProvider>
         </div>
       </GraphInternalContext.Provider>
     </GraphContext.Provider>

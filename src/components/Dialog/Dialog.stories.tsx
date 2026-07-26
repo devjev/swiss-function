@@ -1,6 +1,11 @@
 import type { Story } from "@ladle/react";
 import { Button } from "../Button";
+import { DatePicker } from "../DatePicker";
+import { Field } from "../Field";
+import { Picker } from "../Picker";
 import { Dialog } from "./Dialog";
+
+const fruit = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig", "Grape"];
 
 export const Default: Story = () => (
   <Dialog.Root>
@@ -42,6 +47,38 @@ export const Window: Story = () => (
         </Dialog.Description>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <Dialog.Close render={<Button variant="secondary">Close</Button>} />
+        </div>
+      </Dialog.Popup>
+    </Dialog.Portal>
+  </Dialog.Root>
+);
+
+// Floaters opened from inside a dialog paint above it (issue #82): open the
+// Picker dropdown or the DatePicker calendar and it sits over the dialog, not
+// behind it. No app-side z-index lift needed.
+export const FloatersInside: Story = () => (
+  <Dialog.Root defaultOpen>
+    <Dialog.Trigger render={<Button>Open settings</Button>} />
+    <Dialog.Portal>
+      <Dialog.Backdrop />
+      <Dialog.Popup>
+        <Dialog.Title>Settings</Dialog.Title>
+        <Dialog.Description>
+          The dropdown and the calendar below open above this dialog.
+        </Dialog.Description>
+        <div style={{ display: "grid", gap: 16, marginTop: 12, minWidth: 280 }}>
+          <Field>
+            <Field.Label>Fruit</Field.Label>
+            <Picker items={fruit} placeholder="Pick one" />
+          </Field>
+          <Field>
+            <Field.Label>Date</Field.Label>
+            <DatePicker aria-label="Date" />
+          </Field>
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+          <Dialog.Close render={<Button variant="secondary">Cancel</Button>} />
+          <Dialog.Close render={<Button>Save</Button>} />
         </div>
       </Dialog.Popup>
     </Dialog.Portal>

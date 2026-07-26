@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-21T17:58:27.165Z"
+    "date": "2026-07-26T11:16:51.412Z"
   },
-  "totalGzip": 976393,
+  "totalGzip": 1007933,
   "entries": {
     ".": {
-      "files": 270,
-      "jsRaw": 960587,
-      "jsGzip": 291460,
+      "files": 271,
+      "jsRaw": 978208,
+      "jsGzip": 295376,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 291460,
+      "gzip": 295376,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -152,12 +152,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./bar-chart": {
-      "files": 33,
-      "jsRaw": 86304,
-      "jsGzip": 26500,
+      "files": 34,
+      "jsRaw": 87776,
+      "jsGzip": 27108,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26500,
+      "gzip": 27108,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -175,12 +175,12 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./bridge-chart": {
-      "files": 33,
-      "jsRaw": 86635,
-      "jsGzip": 26558,
+      "files": 34,
+      "jsRaw": 88107,
+      "jsGzip": 27166,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26558,
+      "gzip": 27166,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -198,12 +198,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./candlestick-chart": {
-      "files": 34,
-      "jsRaw": 99344,
-      "jsGzip": 29986,
+      "files": 35,
+      "jsRaw": 100816,
+      "jsGzip": 30594,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 29986,
+      "gzip": 30594,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -221,12 +221,12 @@
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./chat-drawer": {
-      "files": 43,
-      "jsRaw": 78656,
-      "jsGzip": 28836,
+      "files": 44,
+      "jsRaw": 80048,
+      "jsGzip": 29451,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 28836,
+      "gzip": 29451,
       "externals": [
         "@base-ui/react/menu",
         "@base-ui/react/tabs",
@@ -277,12 +277,12 @@
       ]
     },
     "./explorer": {
-      "files": 33,
-      "jsRaw": 77935,
-      "jsGzip": 24964,
+      "files": 34,
+      "jsRaw": 79606,
+      "jsGzip": 25712,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24964,
+      "gzip": 25712,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -325,12 +325,12 @@
       "externals": ["@base-ui/react/field", "@base-ui/react/form", "react", "react/jsx-runtime"]
     },
     "./flows": {
-      "files": 33,
-      "jsRaw": 89439,
-      "jsGzip": 27431,
+      "files": 34,
+      "jsRaw": 90911,
+      "jsGzip": 28039,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 27431,
+      "gzip": 28039,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -339,21 +339,21 @@
       ]
     },
     "./fullscreen": {
-      "files": 5,
-      "jsRaw": 4513,
-      "jsGzip": 1905,
+      "files": 6,
+      "jsRaw": 5985,
+      "jsGzip": 2513,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1905,
+      "gzip": 2513,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./graph": {
-      "files": 23,
-      "jsRaw": 62435,
-      "jsGzip": 19192,
+      "files": 24,
+      "jsRaw": 64667,
+      "jsGzip": 20077,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 19192,
+      "gzip": 20077,
       "externals": [
         "@base-ui/react/menu",
         "@base-ui/react/toggle",
@@ -379,12 +379,12 @@
       "externals": ["@base-ui/react/use-render", "react", "react/jsx-runtime"]
     },
     "./heatmap": {
-      "files": 29,
-      "jsRaw": 85891,
-      "jsGzip": 26072,
+      "files": 30,
+      "jsRaw": 87363,
+      "jsGzip": 26680,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 26072,
+      "gzip": 26680,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -447,12 +447,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./color-picker": {
-      "files": 32,
-      "jsRaw": 71157,
-      "jsGzip": 24526,
+      "files": 33,
+      "jsRaw": 72549,
+      "jsGzip": 25141,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24526,
+      "gzip": 25141,
       "externals": [
         "@base-ui/react/input",
         "@base-ui/react/menu",
@@ -499,12 +499,12 @@
       ]
     },
     "./scatterplot": {
-      "files": 34,
-      "jsRaw": 103380,
-      "jsGzip": 30740,
+      "files": 35,
+      "jsRaw": 104852,
+      "jsGzip": 31348,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 30740,
+      "gzip": 31348,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -513,21 +513,21 @@
       ]
     },
     "./dialog": {
-      "files": 6,
-      "jsRaw": 15803,
-      "jsGzip": 4558,
+      "files": 7,
+      "jsRaw": 17153,
+      "jsGzip": 5116,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4558,
+      "gzip": 5116,
       "externals": ["@base-ui/react/dialog", "react", "react/jsx-runtime"]
     },
     "./digit-input": {
       "files": 5,
-      "jsRaw": 18850,
-      "jsGzip": 5549,
+      "jsRaw": 18779,
+      "jsGzip": 5524,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 5549,
+      "gzip": 5524,
       "externals": [
         "@base-ui/react/input",
         "@base-ui/react/otp-field",
@@ -545,21 +545,21 @@
       "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
     },
     "./date-picker": {
-      "files": 6,
-      "jsRaw": 21413,
-      "jsGzip": 6102,
+      "files": 7,
+      "jsRaw": 36422,
+      "jsGzip": 9051,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 6102,
+      "gzip": 9051,
       "externals": ["@base-ui/react/popover", "react", "react/jsx-runtime"]
     },
     "./drawer": {
-      "files": 4,
-      "jsRaw": 3520,
-      "jsGzip": 1256,
+      "files": 5,
+      "jsRaw": 4956,
+      "jsGzip": 1857,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1256,
+      "gzip": 1857,
       "externals": ["@base-ui/react/drawer", "react", "react/jsx-runtime"]
     },
     "./dropzone": {
@@ -572,12 +572,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./window-array": {
-      "files": 16,
-      "jsRaw": 67685,
-      "jsGzip": 18107,
+      "files": 17,
+      "jsRaw": 69052,
+      "jsGzip": 18670,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 18107,
+      "gzip": 18670,
       "externals": [
         "@base-ui/react/dialog",
         "@base-ui/react/radio",
@@ -588,12 +588,12 @@
       ]
     },
     "./popover": {
-      "files": 6,
-      "jsRaw": 3484,
-      "jsGzip": 1669,
+      "files": 7,
+      "jsRaw": 4870,
+      "jsGzip": 2285,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1669,
+      "gzip": 2285,
       "externals": [
         "@base-ui/react/popover",
         "@base-ui/react/use-render",
@@ -626,12 +626,12 @@
       ]
     },
     "./map": {
-      "files": 25,
-      "jsRaw": 52651,
-      "jsGzip": 18521,
+      "files": 26,
+      "jsRaw": 54123,
+      "jsGzip": 19129,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 18521,
+      "gzip": 19129,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
@@ -659,12 +659,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./notebook": {
-      "files": 72,
-      "jsRaw": 197540,
-      "jsGzip": 63075,
+      "files": 73,
+      "jsRaw": 213138,
+      "jsGzip": 66307,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 63075,
+      "gzip": 66307,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -718,12 +718,12 @@
       "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
     },
     "./picker": {
-      "files": 6,
-      "jsRaw": 9647,
-      "jsGzip": 3425,
+      "files": 7,
+      "jsRaw": 11064,
+      "jsGzip": 4058,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 3425,
+      "gzip": 4058,
       "externals": [
         "@base-ui/react/combobox",
         "@tanstack/react-virtual",
@@ -741,12 +741,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./menu": {
-      "files": 4,
-      "jsRaw": 2665,
-      "jsGzip": 1079,
+      "files": 5,
+      "jsRaw": 4057,
+      "jsGzip": 1694,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1079,
+      "gzip": 1694,
       "externals": ["@base-ui/react/menu", "react", "react/jsx-runtime"]
     },
     "./minimap": {
@@ -759,12 +759,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./menu-bar": {
-      "files": 13,
-      "jsRaw": 21090,
-      "jsGzip": 7223,
+      "files": 14,
+      "jsRaw": 22827,
+      "jsGzip": 7935,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7223,
+      "gzip": 7935,
       "externals": [
         "@base-ui/react/input",
         "@base-ui/react/menu",
@@ -776,12 +776,12 @@
       ]
     },
     "./context-menu": {
-      "files": 5,
-      "jsRaw": 3158,
-      "jsGzip": 1334,
+      "files": 6,
+      "jsRaw": 4550,
+      "jsGzip": 1949,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 1334,
+      "gzip": 1949,
       "externals": [
         "@base-ui/react/context-menu",
         "@base-ui/react/menu",
@@ -853,12 +853,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 54,
-      "jsRaw": 149894,
-      "jsGzip": 46686,
+      "files": 55,
+      "jsRaw": 165492,
+      "jsGzip": 49918,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 46686,
+      "gzip": 49918,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -875,12 +875,12 @@
       ]
     },
     "./table-input": {
-      "files": 26,
-      "jsRaw": 65957,
-      "jsGzip": 20776,
+      "files": 27,
+      "jsRaw": 81276,
+      "jsGzip": 23875,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 20776,
+      "gzip": 23875,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -892,12 +892,12 @@
       ]
     },
     "./tabs": {
-      "files": 8,
-      "jsRaw": 11996,
-      "jsGzip": 4281,
+      "files": 9,
+      "jsRaw": 13388,
+      "jsGzip": 4896,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4281,
+      "gzip": 4896,
       "externals": ["@base-ui/react/menu", "@base-ui/react/tabs", "react", "react/jsx-runtime"]
     },
     "./text-edit": {
@@ -957,12 +957,12 @@
       ]
     },
     "./selector": {
-      "files": 6,
-      "jsRaw": 14078,
-      "jsGzip": 4278,
+      "files": 7,
+      "jsRaw": 15495,
+      "jsGzip": 4912,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 4278,
+      "gzip": 4912,
       "externals": [
         "@base-ui/react/combobox",
         "@tanstack/react-virtual",
@@ -971,12 +971,12 @@
       ]
     },
     "./reflow": {
-      "files": 13,
-      "jsRaw": 20545,
-      "jsGzip": 7409,
+      "files": 14,
+      "jsRaw": 21937,
+      "jsGzip": 8024,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7409,
+      "gzip": 8024,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/menu",
@@ -986,12 +986,12 @@
       ]
     },
     "./vertical-form": {
-      "files": 20,
-      "jsRaw": 56160,
-      "jsGzip": 17351,
+      "files": 21,
+      "jsRaw": 57577,
+      "jsGzip": 17984,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 17351,
+      "gzip": 17984,
       "externals": [
         "@base-ui/react/combobox",
         "@base-ui/react/field",
