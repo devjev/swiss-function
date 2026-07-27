@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.18.0 — 2026-07-27
+
+### Minor
+
+- PopOut: opt-in chromeless Picture-in-Picture windows (no about:blank address bar) via  (Chromium; falls back to window.open); wired through WindowArray  and Dialog
+
+### Patch
+
+- VerticalForm: a field with a tall control (a TableInput, an expanded TextEdit) no longer distorts the Minimap rail. Its marker spans the field label height, not the whole control, so a tall table stops dominating the rail's block sizing (with maxBlock set it no longer compresses every other marker into the top).
+- WindowArray: popping a window no longer jumps the strip's horizontal scroll. Pointer activation (clicking a window or its chrome) and the pop-out itself no longer trigger the reveal auto-scroll, which is now reserved for keyboard and paddle navigation.
+
 ## v2.17.0 — 2026-07-27
 
 ### Minor
