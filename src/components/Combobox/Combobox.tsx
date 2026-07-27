@@ -2,12 +2,23 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import styles from "./Combobox.module.css";
 
 const Root = BaseCombobox.Root;
-const Portal = BaseCombobox.Portal;
 const Empty = BaseCombobox.Empty;
+
+// Portal into the popped-out window's body when inside a PopOut (issue #84);
+// `undefined` at the app root keeps Base UI's default (the document body).
+const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseCombobox.Portal>>(
+  function ComboboxPortal({ container, ...rest }, ref) {
+    const fallback = usePortalContainer();
+    return (
+      <BaseCombobox.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />
+    );
+  },
+);
 const List = BaseCombobox.List;
 // Renders no element of its own — pass-through.
 const Value = BaseCombobox.Value;

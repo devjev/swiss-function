@@ -1478,7 +1478,7 @@ Opening must be triggered from a user gesture (toggle `open` in a click handler)
 | `closeOnEscape` | `boolean` | `true` | Escape inside the popup closes it (reason `"escape"`). |
 | `windowRef` | `Ref<Window \| null>` | n/a | The live child `Window` (`null` while closed), e.g. to `focus()` it. |
 
-Notes: the subtree **remounts** on every pop-out and return (the portal target changes documents), so lift any state you need to keep. Constructable `adoptedStyleSheets` cannot cross documents; they are serialized to text once at open, with no live sync. Floating overlays opened from popped-out content (Menu, Picker, DatePicker calendar, nested Dialogs, ...) currently portal to the main window's body and appear in the wrong window; prefer inline UI inside popped content until the portal-container pass (issue #84 M3) lands. The opener closes the popup when the `PopOut` unmounts, `open` flips off, or the opener page unloads.
+Notes: the subtree **remounts** on every pop-out and return (the portal target changes documents), so lift any state you need to keep. Constructable `adoptedStyleSheets` cannot cross documents; they are serialized to text once at open, with no live sync. Library floating overlays (Menu, ContextMenu, Popover, MenuBar dropdowns, Picker/Selector, DatePicker calendar, nested Dialogs, Drawer) opened from inside popped-out content portal into the popup window, not the opener: `PopOut` publishes its body through a `PortalContainerProvider` that each overlay reads. The opener closes the popup when the `PopOut` unmounts, `open` flips off, or the opener page unloads.
 
 ## Popover
 

@@ -2,6 +2,7 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { FocusEvent, HTMLAttributes, KeyboardEvent } from "react";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import type { BoxElevation } from "../Box";
 import styles from "./DatePicker.module.css";
@@ -129,6 +130,8 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
   // Cross-portal stacking (issue #82): the calendar climbs above a Dialog/
   // Popover it opens inside; inert at the page root (keeps the CSS default).
   const { zIndex: stackZIndex, ceiling: stackCeiling } = useStackLayer(Z_LAYER.dropdown, false);
+  // Portal into the popped-out window's body when inside a PopOut (issue #84).
+  const portalContainer = usePortalContainer();
   const [today] = useState(() => startOfDay(new Date()));
   const [internal, setInternal] = useState<Date | null>(defaultValue ?? null);
   const isControlled = value !== undefined;
@@ -427,7 +430,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
         }}
         modal={false}
       >
-        <BasePopover.Portal>
+        <BasePopover.Portal container={portalContainer ?? undefined}>
           <StackingProvider ceiling={stackCeiling}>
             <BasePopover.Positioner
               anchor={rootRef}

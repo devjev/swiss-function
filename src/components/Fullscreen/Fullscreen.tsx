@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { forwardRef } from "react";
+import { forwardRef, useRef } from "react";
 import { cx } from "../../lib/cx";
+import { mergeRefs } from "../../lib/mergeRefs";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import styles from "./Fullscreen.module.css";
@@ -92,10 +93,14 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
   },
   ref,
 ) {
+  // Derive the Escape/scroll-lock document from the root, so a Fullscreen
+  // inside a PopOut window works in that window (issue #84).
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const { expanded, toggle } = useFullscreen({
     expanded: controlled,
     defaultExpanded,
     onExpandedChange,
+    ownerRef: rootRef,
   });
 
   // Cross-portal stacking (issue #82): only while expanded is this a modal-band
@@ -105,7 +110,7 @@ export const Fullscreen = forwardRef<HTMLDivElement, FullscreenProps>(function F
 
   return (
     <div
-      ref={ref}
+      ref={mergeRefs(ref, rootRef)}
       data-expanded={expanded || undefined}
       className={cx(styles.root, expanded && styles.expanded, className)}
       style={rootStyle}

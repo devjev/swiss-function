@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, HTMLAttributes, ReactNode, Ref } from "r
 import { Children, createContext, forwardRef, isValidElement, useContext } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
+import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useCollapse } from "../../lib/useCollapse";
 import { useOverflow } from "../../lib/useOverflow";
@@ -304,8 +305,10 @@ const Content = forwardRef<HTMLDivElement, MenuBarContentProps>(function MenuBar
   // Cross-portal stacking (issue #82): a MenuBar dropdown opened while the bar
   // sits inside a Dialog/Drawer climbs above it; inert at the page root.
   const { zIndex, ceiling } = useStackLayer(Z_LAYER.dropdown, false);
+  // Portal into the popped-out window's body when inside a PopOut (issue #84).
+  const portalContainer = usePortalContainer();
   return (
-    <BaseMenu.Portal>
+    <BaseMenu.Portal container={portalContainer ?? undefined}>
       <StackingProvider ceiling={ceiling}>
         <BaseMenu.Positioner
           className={styles.positioner}

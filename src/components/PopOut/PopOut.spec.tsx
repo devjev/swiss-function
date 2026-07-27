@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { PopOutHarness } from "./PopOut.harness";
+import { PopOutFloaterHarness } from "./PopOutFloater.harness";
 
 test("renders children in place while closed", async ({ mount }) => {
   const c = await mount(<PopOutHarness />);
@@ -82,4 +83,19 @@ test("a blocked window.open reverts gracefully", async ({ mount, page }) => {
   await c.getByRole("button", { name: "toggle" }).click();
   await expect(c.getByText("popped content")).toBeVisible();
   await expect(c.getByTestId("last")).toHaveText("false:blocked");
+});
+
+// --- Cross-document floaters (issue #84 M3) ---------------------------------
+
+test("a Menu opened inside a popped window renders in that window", async ({ mount, page }) => {
+  const c = await mount(<PopOutFloaterHarness />);
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c.getByRole("button", { name: "toggle" }).click(),
+  ]);
+  await popup.getByRole("button", { name: "Open menu" }).click();
+  // The dropdown items appear in the popup document, not the opener.
+  await expect(popup.getByText("First item")).toBeVisible();
+  await expect(c.getByText("First item")).toHaveCount(0);
+  await popup.close();
 });

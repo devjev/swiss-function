@@ -90,7 +90,9 @@ export function useChartScaffold({
   onAnnotationsChange,
   value,
 }: UseChartScaffoldOptions): ChartScaffold {
-  const { expanded, toggle: toggleExpanded } = useFullscreen({});
+  // Derive the Escape/scroll-lock document from the plot element, so a chart
+  // maximized inside a PopOut window works in that window (issue #84).
+  const { expanded, toggle: toggleExpanded } = useFullscreen({ ownerRef: plotRef });
 
   const invertRef = useRef<ChartInverts>({ xFromPx: (px) => px, yFromPx: (px) => px });
 

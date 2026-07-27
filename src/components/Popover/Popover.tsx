@@ -2,15 +2,26 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { Box } from "../Box";
 import styles from "./Popover.module.css";
 
 const Root = BasePopover.Root;
 const Trigger = BasePopover.Trigger;
-const Portal = BasePopover.Portal;
 const Arrow = BasePopover.Arrow;
 const Close = BasePopover.Close;
+
+// Portal into the popped-out window's body when inside a PopOut (issue #84);
+// `undefined` at the app root keeps Base UI's default (the document body).
+const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BasePopover.Portal>>(
+  function PopoverPortal({ container, ...rest }, ref) {
+    const fallback = usePortalContainer();
+    return (
+      <BasePopover.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />
+    );
+  },
+);
 
 // Base UI positions the popup with an inline `transform`, which creates a
 // stacking context — so the popup's own `z-index` is trapped inside it and inert

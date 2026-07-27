@@ -19,6 +19,7 @@ import {
   watchChildClosed,
 } from "../../lib/childWindow";
 import { cx } from "../../lib/cx";
+import { PortalContainerProvider } from "../../lib/portalContainer";
 import { StackingProvider } from "../../lib/stacking";
 import styles from "./PopOut.module.css";
 
@@ -176,11 +177,14 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
   if (!open || !childWin || childWin.closed) return <>{children}</>;
   return createPortal(
     // A popped window is a fresh document and a fresh stacking root; do not
-    // inherit an opener overlay's ceiling.
+    // inherit an opener overlay's ceiling. Publish the popup body so library
+    // floaters opened inside portal into this window, not the opener's.
     <StackingProvider ceiling={0}>
-      <div ref={ref} className={cx(styles.root, className)} {...rest}>
-        {children}
-      </div>
+      <PortalContainerProvider container={childWin.document.body}>
+        <div ref={ref} className={cx(styles.root, className)} {...rest}>
+          {children}
+        </div>
+      </PortalContainerProvider>
     </StackingProvider>,
     childWin.document.body,
   );

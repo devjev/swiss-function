@@ -2,6 +2,8 @@ import type { Story } from "@ladle/react";
 import { useState } from "react";
 import { Box } from "../Box";
 import { Button } from "../Button";
+import { Field } from "../Field";
+import { Picker } from "../Picker";
 import { PopOut } from "./PopOut";
 
 const Sample = () => (
@@ -57,6 +59,40 @@ export const CloseReasons: Story = () => {
       <pre style={{ font: "var(--sf-font-size-sm)/1.5 var(--sf-font-mono)" }}>
         {log.join("\n") || "no transitions yet"}
       </pre>
+    </div>
+  );
+};
+
+// A floater (Picker) opened inside the popped window renders in THAT window,
+// not the opener: PopOut publishes its body as the portal container and every
+// library overlay reads it (issue #84 M3).
+export const FloaterInside: Story = () => {
+  const [open, setOpen] = useState(false);
+  const [fruit, setFruit] = useState<string | undefined>(undefined);
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", justifyItems: "start" }}>
+      <Button onClick={() => setOpen(!open)}>{open ? "Bring back" : "Pop out"}</Button>
+      <PopOut
+        open={open}
+        onOpenChange={setOpen}
+        title="Floater inside"
+        rect={{ width: 480, height: 360 }}
+      >
+        <div
+          style={{ display: "grid", gap: "var(--sf-unit)", padding: "calc(var(--sf-unit) * 2)" }}
+        >
+          <p style={{ margin: 0 }}>Open the picker — its dropdown stays inside this window.</p>
+          <Field>
+            <Field.Label>Fruit</Field.Label>
+            <Picker
+              items={["Apple", "Banana", "Cherry", "Date", "Elderberry"]}
+              value={fruit}
+              onChange={setFruit}
+              placeholder="Pick one"
+            />
+          </Field>
+        </div>
+      </PopOut>
     </div>
   );
 };
