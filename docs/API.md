@@ -1446,6 +1446,26 @@ Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 | `showLegend` | `boolean` | when >1 series | Series legend. |
 | `renderTooltip` | `(d: PointCloudDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
+## PopOut
+
+`import { PopOut } from "@tarassov-ch/swiss-function/pop-out"`
+
+Pop content out into a separate browser window. Closed, it renders its children in place; open, it opens a same-origin popup (`window.open`, always `about:blank`), clones every `<style>` and `<link rel="stylesheet">` from the opener head into the popup (and mirrors later additions, removals, and in-place rewrites for the popup's lifetime, so Vite HMR and lazily loaded chunks stay styled), mirrors the opener's `data-theme` live, and portals the children into the popup body. The popup root is a token-themed surface (`--sf-color-bg`/`--sf-color-fg`) filling the popup viewport. `WindowArray` (`popOutable`) builds on it; extends `HTMLAttributes<HTMLDivElement>` (spread onto the popup root).
+
+Opening must be triggered from a user gesture (toggle `open` in a click handler): the window opens in a layout effect within the same task, which keeps the browser's popup blocker quiet. A blocked `window.open` reports `onOpenChange(false, "blocked")` and the content stays in place.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `open` / `defaultOpen` / `onOpenChange` | `boolean` | `false` | Controlled/uncontrolled popup state. On close, the callback's second argument says why: `"closed"` (user closed the browser window), `"escape"` (Escape inside it), `"blocked"` (popup blocker refused). |
+| `title` | `string` | `"Window"` | The popup's `document.title`. |
+| `name` | `string` | generated | `window.name`. Reusing a live popup's name refocuses it instead of stacking a duplicate; keep names unique across concurrent pop-outs. |
+| `rect` | `{ left?; top?; width?; height? }` | n/a | Preferred screen placement in the opener's client coordinates (best-effort; browsers clamp). |
+| `features` | `string` | n/a | Raw `window.open` features string; overrides `rect` entirely. |
+| `closeOnEscape` | `boolean` | `true` | Escape inside the popup closes it (reason `"escape"`). |
+| `windowRef` | `Ref<Window \| null>` | n/a | The live child `Window` (`null` while closed), e.g. to `focus()` it. |
+
+Notes: the subtree **remounts** on every pop-out and return (the portal target changes documents), so lift any state you need to keep. Constructable `adoptedStyleSheets` cannot cross documents; they are serialized to text once at open, with no live sync. Floating overlays opened from popped-out content (Menu, Picker, DatePicker calendar, nested Dialogs, ...) currently portal to the main window's body and appear in the wrong window; prefer inline UI inside popped content until the portal-container pass (issue #84 M3) lands. The opener closes the popup when the `PopOut` unmounts, `open` flips off, or the opener page unloads.
+
 ## Popover
 
 `import { Popover } from "@tarassov-ch/swiss-function/popover"`
@@ -2153,6 +2173,8 @@ Wheel scrolling is native: a plain wheel scrolls the window body under the point
 
 With `splittable`, every window's chrome gains a split button (a two-panes icon; needs at least two windows): clicking it opens a small dialog that preselects the clicked window as half 1 and asks which window fills half 2, and on confirm the two fill the container as halves along the layout axis (left/right on the horizontal strip, top/bottom when vertical), meeting flush at a hairline divider. Inside a half the maximize button is hidden and the pressed split button exits; Escape exits too, and so does removing either member window. Split and fullscreen are mutually exclusive: when both are set, fullscreen wins, and entering one exits the other.
 
+With `popOutable`, every window's chrome gains a pop-out button (external-window icon): clicking it opens the window's content alone in a separate browser window (a `PopOut` popup placed roughly over the window's on-screen spot), and the strip keeps the window frame as a placeholder (title bar, drag, resize all intact) with a "Bring back" button, a "Show window" button that focuses the popup, and the same dithered fill as the strip's desk. Closing the popup, pressing Escape inside it, the placeholder's "Bring back", or the pressed chrome button returns the content. Several windows can be popped at once (one per monitor). Pop-out is mutually exclusive with fullscreen/split per window and wins over both; a popped window hides its fullscreen and split buttons and is excluded from the split picker. The content subtree remounts on each transition (see PopOut).
+
 **Parts:** `WindowArray` (root), `WindowArray.Column`, `WindowArray.Window`, `WindowArray.WindowButton`. Column and Window are data carriers projected by the root (like `Reflow.Column`): they must be direct children (fragments and `.map` are fine; wrapper components are invisible to collection). `WindowButton` is a plain `<button>` sharing the ✕/fullscreen chrome exactly. Use it inside a Window's `actions` so custom title-bar buttons blend in.
 
 | Prop (root) | Type | Default | Notes |
@@ -2161,6 +2183,8 @@ With `splittable`, every window's chrome gains a split button (a two-panes icon;
 | `fullscreenId` / `defaultFullscreenId` / `onFullscreenChange` | `string \| null` | `null` | At most one window covers the WindowArray container (not the browser viewport). Escape exits. |
 | `splittable` | `boolean` | `false` | Adds the split button (two-panes icon) to every window's chrome (with at least two windows). |
 | `splitIds` / `defaultSplitIds` / `onSplitChange` | `[string, string] \| null` | `null` | Split pair in order `[half 1, half 2]`: the two windows fill the container as halves along the layout axis. Escape exits. Mutually exclusive with fullscreen; when both are set, fullscreen wins. |
+| `popOutable` | `boolean` | `false` | Adds the pop-out button (external-window icon) to every window's chrome: the content opens alone in a separate browser window and the strip keeps a placeholder. Toggle from the button (a user gesture), or popup blockers refuse the window. |
+| `poppedIds` / `defaultPoppedIds` / `onPopOutChange` | `string[]` | `[]` | Popped-out window ids (several at once is fine). Stale ids read as absent; a vanished window drops out and its popup closes. Wins over fullscreen/split for the same window. |
 | `onWindowMove` | `(move: WindowMove) => void` | n/a | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
 | `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |

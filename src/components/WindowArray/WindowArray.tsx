@@ -38,6 +38,8 @@ import { cx } from "../../lib/cx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
 import { Dialog } from "../Dialog";
+import type { PopOutRect } from "../PopOut";
+import { PopOut } from "../PopOut";
 import { RadioTable } from "../RadioTable";
 import type { DropSlot, NavDirection, StripModel, WindowMove } from "./layout";
 import {
@@ -104,6 +106,13 @@ const CloseIcon = () => (
   // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
   <svg {...ICON_PROPS}>
     <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
+  </svg>
+);
+// The Icon set's ExternalLink path (arrow leaving a box).
+const PopOutIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" strokeLinecap="square" />
   </svg>
 );
 const ChevronLeftIcon = () => (
@@ -217,6 +226,18 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Initial split pair when uncontrolled. */
   defaultSplitIds?: [string, string] | null;
   onSplitChange?: (ids: [string, string] | null) => void;
+  /** Adds a pop-out button (external-window icon) to every window's chrome:
+   *  the window's content opens alone in a separate browser window (a `PopOut`
+   *  popup) and the strip shows a placeholder until it returns. Mutually
+   *  exclusive with fullscreen/split per window; pop-out wins. Default
+   *  `false`. */
+  popOutable?: boolean;
+  /** Controlled list of popped-out window ids (several may be popped at
+   *  once — one per monitor is the point). */
+  poppedIds?: string[];
+  /** Initial popped-out ids when uncontrolled. */
+  defaultPoppedIds?: string[];
+  onPopOutChange?: (ids: string[]) => void;
   /** Enables rearranging (title-bar drag and Shift+Arrow). The component only
    *  reports the move — apply it to your own state. Absent → rearranging off. */
   onWindowMove?: (move: WindowMove) => void;
@@ -262,6 +283,10 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     splitIds: splitProp,
     defaultSplitIds = null,
     onSplitChange,
+    popOutable = false,
+    poppedIds: poppedProp,
+    defaultPoppedIds,
+    onPopOutChange,
     onWindowMove,
     gap = 0.5,
     columnMinWidth = 240,
@@ -335,6 +360,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     },
     [onSplitChange, splitProp],
   );
+  const [poppedState, setPoppedState] = useState<string[]>(() => defaultPoppedIds ?? []);
+  const popped = poppedProp !== undefined ? poppedProp : poppedState;
+  const setPopped = useCallback(
+    (next: string[]) => {
+      onPopOutChange?.(next);
+      if (poppedProp === undefined) setPoppedState(next);
+    },
+    [onPopOutChange, poppedProp],
+  );
+
   // The picker dialog: the window whose split button opened it (half 1) and
   // the chosen second window (half 2).
   const [splitPickerFor, setSplitPickerFor] = useState<string | null>(null);
@@ -342,8 +377,17 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 
   // A stale controlled id (window no longer exists) reads as null.
   const resolvedActive = active != null && findWindow(model, active) ? active : null;
+  // Stale popped ids read as absent.
+  const resolvedPopped = useMemo(
+    () => popped.filter((id) => findWindow(model, id) != null),
+    [popped, model],
+  );
+  // Pop-out wins over fullscreen/split for the same window: a popped window is
+  // in another browser window, so it cannot also fill this container.
   const resolvedFullscreen =
-    fullscreen != null && findWindow(model, fullscreen) ? fullscreen : null;
+    fullscreen != null && findWindow(model, fullscreen) && !resolvedPopped.includes(fullscreen)
+      ? fullscreen
+      : null;
   // Split and fullscreen are mutually exclusive; fullscreen wins when both are
   // set. A stale or duplicate pair reads as null.
   const resolvedSplit =
@@ -351,7 +395,9 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     split != null &&
     split[0] !== split[1] &&
     findWindow(model, split[0]) &&
-    findWindow(model, split[1])
+    findWindow(model, split[1]) &&
+    !resolvedPopped.includes(split[0]) &&
+    !resolvedPopped.includes(split[1])
       ? split
       : null;
   // The single Tab stop: the active window's handle, else the first window's.
@@ -727,6 +773,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       setSplit(null);
     }
     if (splitPickerFor != null && !findWindow(model, splitPickerFor)) setSplitPickerFor(null);
+    // A vanished popped window drops out of the list (its PopOut unmounts and
+    // the browser popup closes with it).
+    if (popped.some((id) => !findWindow(model, id))) {
+      setPopped(popped.filter((id) => findWindow(model, id) != null));
+    }
   });
 
   // Auto-scroll the strip when the active window's column is (partly) out of
@@ -871,12 +922,15 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 
   // --- Split view -------------------------------------------------------------
   // With fewer than two windows there is nothing to pick, so no button.
-  const showSplitButton = splittable && allWindows.length >= 2;
+  // Popped-out windows are in another browser window and can't fill a half.
+  const splitCandidates = allWindows.filter((w) => !resolvedPopped.includes(w.id));
+  const showSplitButton = splittable && splitCandidates.length >= 2;
   const splitSource =
     splitPickerFor != null ? allWindows.find((w) => w.id === splitPickerFor) : undefined;
   const confirmSplit = () => {
     if (splitPickerFor == null || splitChoice == null) return;
     if (!findWindow(model, splitPickerFor) || !findWindow(model, splitChoice)) return;
+    if (resolvedPopped.includes(splitPickerFor) || resolvedPopped.includes(splitChoice)) return;
     setSplitPickerFor(null);
     if (resolvedFullscreen != null) setFullscreen(null);
     setSplit([splitPickerFor, splitChoice]);
@@ -1052,6 +1106,24 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                       setSplitPickerFor(win.id);
                     }
                   }}
+                  popped={resolvedPopped.includes(win.id)}
+                  showPopOutButton={popOutable}
+                  onPopOutChange={(open) => {
+                    if (open) {
+                      setActive(win.id);
+                      if (fullscreen === win.id) setFullscreen(null);
+                      if (split != null && (split[0] === win.id || split[1] === win.id)) {
+                        setSplit(null);
+                      }
+                      if (!resolvedPopped.includes(win.id)) {
+                        setPopped([...resolvedPopped, win.id]);
+                      }
+                    } else if (resolvedPopped.includes(win.id)) {
+                      // Focus returns to the window's handle once it is back.
+                      pendingFocusRef.current = win.id;
+                      setPopped(resolvedPopped.filter((p) => p !== win.id));
+                    }
+                  }}
                   onKeyDown={onHandleKeyDown(win.id)}
                   registerHandle={handleRefs.current}
                 />
@@ -1110,7 +1182,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                 value={splitChoice}
                 onValueChange={(value) => setSplitChoice(String(value))}
               >
-                {allWindows
+                {splitCandidates
                   .filter((w) => w.id !== splitPickerFor)
                   .map((w) => (
                     <RadioTable.Option key={w.id} value={w.id} label={w.title} />
@@ -1264,6 +1336,11 @@ interface WindowViewProps {
   onToggleFullscreen: () => void;
   showSplitButton: boolean;
   onSplitButton: () => void;
+  /** This window's content is showing in a separate browser window. */
+  popped: boolean;
+  showPopOutButton: boolean;
+  /** Requested pop-out state change (button, restore, popup closed/blocked). */
+  onPopOutChange: (open: boolean) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
   registerHandle: Map<string, HTMLButtonElement>;
 }
@@ -1285,6 +1362,9 @@ function WindowView({
   onToggleFullscreen,
   showSplitButton,
   onSplitButton,
+  popped,
+  showPopOutButton,
+  onPopOutChange,
   onKeyDown,
   registerHandle,
 }: WindowViewProps) {
@@ -1310,6 +1390,23 @@ function WindowView({
     id: `win-${id}`,
     data: { columnId, row },
   });
+  const sectionRef = useRef<HTMLElement | null>(null);
+  // The popup opens roughly over the window it came from: the rect is
+  // measured in the pop-out button's click (before the state flip commits),
+  // so the PopOut's open effect reads a fresh value.
+  const popRectRef = useRef<PopOutRect | undefined>(undefined);
+  const popWinRef = useRef<Window | null>(null);
+  const measurePopRect = () => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    popRectRef.current = {
+      left: r.left,
+      top: r.top,
+      width: Math.max(r.width, 320),
+      height: Math.max(r.height, 240),
+    };
+  };
   return (
     // biome-ignore lint/a11y/useSemanticElements: a window holds arbitrary interactive content — "group" labelled by its title fits; <fieldset> does not.
     <section
@@ -1317,6 +1414,7 @@ function WindowView({
       ref={(el) => {
         setDragRef(el);
         setDropRef(el);
+        sectionRef.current = el;
       }}
       role="group"
       aria-labelledby={titleId}
@@ -1327,6 +1425,7 @@ function WindowView({
       data-active={active ? "" : undefined}
       data-fullscreen={fullscreen ? "" : undefined}
       data-split={split ?? undefined}
+      data-popped={popped ? "" : undefined}
       data-dragging={dragging ? "" : undefined}
       data-drop-edge={dropEdge ?? undefined}
       onPointerDownCapture={onActivate}
@@ -1358,7 +1457,21 @@ function WindowView({
           }}
         >
           {actions}
-          {showSplitButton && (
+          {showPopOutButton && (
+            <button
+              type="button"
+              aria-label={popped ? "Bring the window back" : "Open in a separate window"}
+              aria-pressed={popped}
+              className={styles.iconButton}
+              onClick={() => {
+                if (!popped) measurePopRect();
+                onPopOutChange(!popped);
+              }}
+            >
+              <PopOutIcon />
+            </button>
+          )}
+          {showSplitButton && !popped && (
             <button
               type="button"
               aria-label={split != null ? "Exit split view" : "Split view"}
@@ -1369,7 +1482,7 @@ function WindowView({
               <SplitIcon />
             </button>
           )}
-          {maximizable && split == null && (
+          {maximizable && split == null && !popped && (
             <button
               type="button"
               aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
@@ -1392,7 +1505,33 @@ function WindowView({
           )}
         </div>
       </header>
-      <div className={styles.body}>{children}</div>
+      <div className={styles.body}>
+        {popped && (
+          <div className={styles.poppedBody}>
+            <span className={styles.poppedHint}>Showing in a separate window</span>
+            <div className={styles.poppedActions}>
+              <Button variant="secondary" size="sm" onClick={() => onPopOutChange(false)}>
+                Bring back
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => popWinRef.current?.focus()}>
+                Show window
+              </Button>
+            </div>
+          </div>
+        )}
+        <PopOut
+          open={popped}
+          onOpenChange={(next) => {
+            if (next !== popped) onPopOutChange(next);
+          }}
+          title={typeof title === "string" ? title : id}
+          name={`sf-popout-${id}`}
+          rect={popRectRef.current}
+          windowRef={popWinRef}
+        >
+          {children}
+        </PopOut>
+      </div>
     </section>
   );
 }

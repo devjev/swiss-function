@@ -897,3 +897,92 @@ test("split view: a controlled splitIds pins the split", async ({ mount, page })
   await page.keyboard.press("Escape");
   await expect(page.locator("[data-split]")).toHaveCount(2);
 });
+
+// --- Pop-out windows (issue #84) --------------------------------------------
+
+test("pop-out opens the window's content in a popup and Bring back restores it", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<WindowArrayHarness popOutable />);
+  const win = c.locator('[data-window-id="w1a"]');
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    win.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  await expect(win).toHaveAttribute("data-popped", "");
+  await expect(win.getByText("Showing in a separate window")).toBeVisible();
+  await expect(win.getByText("Body of Window 1A")).toHaveCount(0);
+  await expect(c.getByTestId("popped-ids")).toHaveText('["w1a"]');
+  // The frame stays a strip citizen: title bar and close button remain.
+  await expect(win.getByRole("button", { name: "Window 1A" })).toBeVisible();
+  await win.getByRole("button", { name: "Bring back", exact: true }).click();
+  await expect(win.getByText("Body of Window 1A")).toBeVisible();
+  await expect(win).not.toHaveAttribute("data-popped", "");
+  await expect(c.getByTestId("popped-ids")).toHaveText("[]");
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("closing the popup returns the content to the strip", async ({ mount, page }) => {
+  const c = await mount(<WindowArrayHarness popOutable />);
+  const win = c.locator('[data-window-id="w2a"]');
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    win.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByText("Body of Window 2A")).toBeVisible();
+  await popup.close();
+  await expect(win.getByText("Body of Window 2A")).toBeVisible();
+  await expect(c.getByTestId("popped-ids")).toHaveText("[]");
+});
+
+test("Escape inside the popup returns the content", async ({ mount, page }) => {
+  const c = await mount(<WindowArrayHarness popOutable />);
+  const win = c.locator('[data-window-id="w1a"]');
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    win.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  // The keydown handler closes the window mid-press; press() may lose the
+  // page on the keyup half. That is the behavior under test.
+  await popup.keyboard.press("Escape").catch(() => {});
+  await expect(win.getByText("Body of Window 1A")).toBeVisible();
+  await expect(c.getByTestId("popped-ids")).toHaveText("[]");
+});
+
+test("popping a fullscreen window exits fullscreen first", async ({ mount, page }) => {
+  const c = await mount(<WindowArrayHarness popOutable />);
+  const win = c.locator('[data-window-id="w1a"]');
+  await win.getByRole("button", { name: "Enter fullscreen" }).click();
+  await expect(win).toHaveAttribute("data-fullscreen", "");
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    win.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  await expect(win).not.toHaveAttribute("data-fullscreen", "");
+  await expect(win).toHaveAttribute("data-popped", "");
+  // Fullscreen and split controls hide while popped; pop-out is the toggle.
+  await expect(win.getByRole("button", { name: "Enter fullscreen" })).toHaveCount(0);
+  await win.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(win.getByText("Body of Window 1A")).toBeVisible();
+});
+
+test("the split picker excludes popped-out windows", async ({ mount, page }) => {
+  const c = await mount(<WindowArrayHarness popOutable splittable />);
+  const w1a = c.locator('[data-window-id="w1a"]');
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    w1a.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  await c.locator('[data-window-id="w2a"]').getByRole("button", { name: "Split view" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Window 2B")).toBeVisible();
+  await expect(dialog.getByText("Window 1A")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await w1a.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(w1a.getByText("Body of Window 1A")).toBeVisible();
+});

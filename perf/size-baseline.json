@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-07-26T11:16:51.412Z"
+    "date": "2026-07-27T08:58:09.202Z"
   },
-  "totalGzip": 1007933,
+  "totalGzip": 1019876,
   "entries": {
     ".": {
-      "files": 271,
-      "jsRaw": 978208,
-      "jsGzip": 295376,
+      "files": 274,
+      "jsRaw": 991749,
+      "jsGzip": 299389,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 295376,
+      "gzip": 299389,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -53,6 +53,7 @@
         "graphology-layout-forceatlas2/worker",
         "maplibre-gl",
         "react",
+        "react-dom",
         "react-markdown",
         "react/jsx-runtime",
         "remark-gfm",
@@ -572,18 +573,19 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./window-array": {
-      "files": 17,
-      "jsRaw": 69052,
-      "jsGzip": 18670,
+      "files": 20,
+      "jsRaw": 82527,
+      "jsGzip": 22671,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 18670,
+      "gzip": 22671,
       "externals": [
         "@base-ui/react/dialog",
         "@base-ui/react/radio",
         "@base-ui/react/radio-group",
         "@dnd-kit/core",
         "react",
+        "react-dom",
         "react/jsx-runtime"
       ]
     },
@@ -739,6 +741,15 @@
       "cssGzip": 0,
       "gzip": 10385,
       "externals": ["react", "react/jsx-runtime"]
+    },
+    "./pop-out": {
+      "files": 6,
+      "jsRaw": 10166,
+      "jsGzip": 3929,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 3929,
+      "externals": ["react", "react-dom", "react/jsx-runtime"]
     },
     "./menu": {
       "files": 5,

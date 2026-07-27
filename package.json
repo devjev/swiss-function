@@ -239,6 +239,10 @@
       "types": "./dist/components/PointCloud/index.d.ts",
       "import": "./dist/components/PointCloud/index.js"
     },
+    "./pop-out": {
+      "types": "./dist/components/PopOut/index.d.ts",
+      "import": "./dist/components/PopOut/index.js"
+    },
     "./menu": {
       "types": "./dist/components/Menu/index.d.ts",
       "import": "./dist/components/Menu/index.js"

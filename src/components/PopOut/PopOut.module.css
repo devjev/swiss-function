@@ -1,0 +1,9 @@
+/* The portal root inside the popup's body: fill the popup viewport and paint
+   the token background/foreground so content sits on a themed surface even
+   before it brings its own. */
+.root {
+  display: grid;
+  min-block-size: 100dvh;
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+}

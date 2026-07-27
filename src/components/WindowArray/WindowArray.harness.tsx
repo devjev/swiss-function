@@ -53,6 +53,7 @@ export function WindowArrayHarness({
   snap,
   controls,
   splittable,
+  popOutable,
   apiHotkeys,
   orientation,
   verticalBelow,
@@ -66,6 +67,7 @@ export function WindowArrayHarness({
   snap?: boolean;
   controls?: boolean;
   splittable?: boolean;
+  popOutable?: boolean;
   /** Simulates the consumer's central hotkey system: wires Alt+Arrow on the
    *  wrapping div to `apiRef.switchColumn` (WindowArray binds nothing itself
    *  now — issue #32). */
@@ -80,6 +82,7 @@ export function WindowArrayHarness({
   const [lastMove, setLastMove] = useState<WindowMove | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [splitIds, setSplitIds] = useState<[string, string] | null>(null);
+  const [poppedIds, setPoppedIds] = useState<string[]>([]);
   const [narrow, setNarrow] = useState(false);
   const effectiveWidth = narrow && narrowWidth != null ? narrowWidth : width;
   const api = useRef<WindowArrayHandle>(null);
@@ -111,6 +114,8 @@ export function WindowArrayHarness({
         controls={controls}
         splittable={splittable}
         onSplitChange={setSplitIds}
+        popOutable={popOutable}
+        onPopOutChange={setPoppedIds}
         apiRef={api}
         orientation={orientation}
         verticalBelow={verticalBelow}
@@ -147,6 +152,7 @@ export function WindowArrayHarness({
       <div data-testid="last-move">{lastMove ? JSON.stringify(lastMove) : ""}</div>
       <div data-testid="active-id">{activeId ?? ""}</div>
       <div data-testid="split-ids">{splitIds ? JSON.stringify(splitIds) : ""}</div>
+      <div data-testid="popped-ids">{JSON.stringify(poppedIds)}</div>
       {narrowWidth != null ? (
         <button type="button" onClick={() => setNarrow((n) => !n)}>
           Toggle width

@@ -36,6 +36,7 @@ const componentNames = [
   "Pane",
   "PasswordInput",
   "PointCloud",
+  "PopOut",
   "Checkbox",
   "Switch",
   "Radio",

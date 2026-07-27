@@ -65,6 +65,7 @@ function Demo({
   controls = false,
   hotkeys = false,
   splittable = false,
+  popOutable = false,
   elevation,
 }: {
   columns?: DemoColumn[];
@@ -75,6 +76,7 @@ function Demo({
   /** Wires Alt+Arrow to `apiRef.switchColumn` — the consumer's job now (#32). */
   hotkeys?: boolean;
   splittable?: boolean;
+  popOutable?: boolean;
   elevation?: WindowArrayElevation;
 }) {
   const [columns, setColumns] = useState(initial);
@@ -111,6 +113,7 @@ function Demo({
         snap={snap}
         controls={controls}
         splittable={splittable}
+        popOutable={popOutable}
         apiRef={api}
         elevation={elevation}
       >
@@ -193,6 +196,13 @@ export const FullscreenAndScrollingBodies: Story = () => <Demo longBodies />;
  *  when vertical). The pressed button or Escape exits; maximize is hidden
  *  inside a half. */
 export const SplitView: Story = () => <Demo splittable longBodies />;
+
+/** `popOutable` adds an external-window button to every window's chrome: it
+ *  pops the content out into a separate browser window (roughly over its
+ *  on-screen spot) and the strip keeps a placeholder with restore actions.
+ *  Close the popup, press Escape in it, or hit "Bring back" to return the
+ *  content; several windows can be popped at once (one per monitor). */
+export const PopOutWindows: Story = () => <Demo popOutable splittable longBodies />;
 
 /** Custom title-bar actions: `WindowArray.WindowButton` shares the ✕/fullscreen
  *  chrome exactly, so consumer buttons blend in. Rendered before the built-in
