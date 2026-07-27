@@ -245,6 +245,11 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Initial popped-out ids when uncontrolled. */
   defaultPoppedIds?: string[];
   onPopOutChange?: (ids: string[]) => void;
+  /** Prefer a chromeless Picture-in-Picture window (no address bar) for
+   *  pop-outs where the browser supports it (Chromium). Note only one such
+   *  window exists at a time, so a second pop-out falls back / replaces it;
+   *  best for popping one window at a time. Default `false`. */
+  popOutPip?: boolean;
   /** Enables rearranging (title-bar drag and Shift+Arrow). The component only
    *  reports the move — apply it to your own state. Absent → rearranging off. */
   onWindowMove?: (move: WindowMove) => void;
@@ -294,6 +299,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     poppedIds: poppedProp,
     defaultPoppedIds,
     onPopOutChange,
+    popOutPip = false,
     onWindowMove,
     gap = 0.5,
     columnMinWidth = 240,
@@ -1173,6 +1179,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   }}
                   popped={resolvedPopped.includes(win.id)}
                   showPopOutButton={popOutable}
+                  pip={popOutPip}
                   onPopOutChange={(open) => {
                     if (open) {
                       if (fullscreen === win.id) setFullscreen(null);
@@ -1412,6 +1419,8 @@ interface WindowViewProps {
   /** This window's content is showing in a separate browser window. */
   popped: boolean;
   showPopOutButton: boolean;
+  /** Prefer a chromeless Picture-in-Picture window for the pop-out. */
+  pip: boolean;
   /** Requested pop-out state change (button, restore, popup closed/blocked). */
   onPopOutChange: (open: boolean) => void;
   onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
@@ -1437,6 +1446,7 @@ function WindowView({
   onSplitButton,
   popped,
   showPopOutButton,
+  pip,
   onPopOutChange,
   onKeyDown,
   registerHandle,
@@ -1550,6 +1560,7 @@ function WindowView({
         title={typeof title === "string" ? title : id}
         name={`sf-popout-${id}`}
         rect={popRectRef.current}
+        pip={pip}
         windowRef={popWinRef}
       >
         {/* biome-ignore lint/a11y/useSemanticElements: same "group" rationale as the in-strip window. */}

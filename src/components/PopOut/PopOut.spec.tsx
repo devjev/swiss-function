@@ -99,3 +99,38 @@ test("a Menu opened inside a popped window renders in that window", async ({ mou
   await expect(c.getByText("First item")).toHaveCount(0);
   await popup.close();
 });
+
+// --- Chromeless Picture-in-Picture (issue #84 follow-up) --------------------
+
+test("pip mode opens a chromeless picture-in-picture window and restores on close", async ({
+  mount,
+  page,
+}) => {
+  // Document PiP is Chromium-only; skip where the runner lacks it.
+  const supported = await page.evaluate(() => "documentPictureInPicture" in window);
+  test.skip(!supported, "Document Picture-in-Picture unsupported in this browser");
+
+  const c = await mount(<PopOutHarness pip />);
+  await c.getByRole("button", { name: "toggle" }).click();
+  // The content is portaled into the PiP window (no address bar, no popup
+  // event — it is not a normal window.open popup).
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { documentPictureInPicture: { window: Window | null } })
+            .documentPictureInPicture.window?.document.body.textContent ?? "",
+      ),
+    )
+    .toContain("popped content");
+  await expect(c.getByText("popped content")).toHaveCount(0);
+
+  // Closing the PiP window returns the content to the page.
+  await page.evaluate(() =>
+    (
+      window as unknown as { documentPictureInPicture: { window: Window | null } }
+    ).documentPictureInPicture.window?.close(),
+  );
+  await expect(c.getByText("popped content")).toBeVisible();
+  await expect(c.getByTestId("last")).toHaveText("false:closed");
+});

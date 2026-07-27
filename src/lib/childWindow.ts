@@ -3,7 +3,9 @@
  * browser window, seed its document, and keep its stylesheets and theme in
  * lockstep with the opener for as long as it lives.
  *
- * The child is always `about:blank`, so the opener owns its document. Styles
+ * The child is a blank same-origin document (a `window.open("about:blank")`
+ * popup, or a chromeless Document Picture-in-Picture window), so the opener
+ * owns it. Styles
  * reach the opener as consumer-bundled `<style>`/`<link>` tags (Vite dev
  * injects per module and rewrites text on HMR; the built library's
  * `libInjectCss` side-effect imports add tags when a lazy chunk first runs),
@@ -45,6 +47,40 @@ export function buildFeatures(rect: PopOutRect | undefined, opener: Window): str
  *  task of a user gesture or blockers will refuse it. */
 export function openChildWindow(opts: { name: string; features: string }): Window | null {
   return window.open("about:blank", opts.name, opts.features);
+}
+
+/** The Document Picture-in-Picture API (Chromium-only) opens a **chromeless**
+ *  window: no address bar, no tab strip, always on top. `window.open` can't
+ *  hide its address bar (browsers ignore the `location=no` feature), so this
+ *  is the only way to drop the `about:blank` chrome. Secure-context only. */
+interface DocumentPipWindowOptions {
+  width?: number;
+  height?: number;
+}
+interface DocumentPip {
+  requestWindow(options?: DocumentPipWindowOptions): Promise<Window>;
+  readonly window: Window | null;
+}
+function documentPip(): DocumentPip | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (window as unknown as { documentPictureInPicture?: DocumentPip }).documentPictureInPicture;
+}
+
+/** Whether the browser supports a chromeless Picture-in-Picture window. */
+export function supportsPip(): boolean {
+  return typeof window !== "undefined" && documentPip() != null;
+}
+
+/** Open a chromeless Picture-in-Picture window. Must be called in a user
+ *  gesture. Rejects if unsupported or refused. Only one such window can exist
+ *  at a time — opening a second closes the first. */
+export function openPipWindow(opts: { width?: number; height?: number }): Promise<Window> {
+  const pip = documentPip();
+  if (!pip) return Promise.reject(new Error("Document Picture-in-Picture is not supported"));
+  const options: DocumentPipWindowOptions = {};
+  if (opts.width != null) options.width = Math.round(opts.width);
+  if (opts.height != null) options.height = Math.round(opts.height);
+  return pip.requestWindow(options);
 }
 
 /** Seed a fresh (or reused) child document: charset + viewport meta, title,

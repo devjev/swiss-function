@@ -38,6 +38,29 @@ export const Default: Story = () => {
   );
 };
 
+// `pip` prefers a chromeless Picture-in-Picture window (no address bar) where
+// the browser supports it (Chromium: Chrome/Edge/Brave, secure context), and
+// falls back to a normal window.open popup otherwise.
+export const Chromeless: Story = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", justifyItems: "start" }}>
+      <Button onClick={() => setOpen(!open)}>{open ? "Bring back" : "Pop out (chromeless)"}</Button>
+      <Box elevation={1} style={{ minWidth: "40ch" }}>
+        <PopOut
+          open={open}
+          onOpenChange={(next) => setOpen(next)}
+          title="Chromeless demo"
+          pip
+          rect={{ width: 520, height: 360 }}
+        >
+          <Sample />
+        </PopOut>
+      </Box>
+    </div>
+  );
+};
+
 // Uncontrolled, with a close-reason readout.
 export const CloseReasons: Story = () => {
   const [log, setLog] = useState<string[]>([]);

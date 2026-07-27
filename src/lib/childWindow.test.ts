@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFeatures } from "./childWindow";
+import { buildFeatures, openPipWindow, supportsPip } from "./childWindow";
 
 // The DOM-facing helpers (syncStyles, syncThemeAttr, watchChildClosed) are
 // exercised against real popup windows in PopOut.spec.tsx (Playwright CT);
@@ -31,5 +31,16 @@ describe("buildFeatures", () => {
         opener({ outerHeight: 700, innerHeight: 720 }),
       ),
     ).toBe("popup=yes,width=100,left=111,top=50");
+  });
+});
+
+describe("Picture-in-Picture support", () => {
+  // No `window`/DOM in this runner (see the DOM-facing note above), which is
+  // also the "unsupported browser" shape: supportsPip() is false and
+  // openPipWindow rejects instead of throwing. The API-present path (rounded
+  // size forwarding, real popup) is covered in PopOut.spec.tsx.
+  it("reports unsupported and rejects cleanly when the API is absent", async () => {
+    expect(supportsPip()).toBe(false);
+    await expect(openPipWindow({ width: 400, height: 300 })).rejects.toThrow();
   });
 });

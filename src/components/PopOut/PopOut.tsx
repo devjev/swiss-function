@@ -12,8 +12,10 @@ import { createPortal } from "react-dom";
 import {
   buildFeatures,
   openChildWindow,
+  openPipWindow,
   type PopOutRect,
   prepareChildDocument,
+  supportsPip,
   syncStyles,
   syncThemeAttr,
   watchChildClosed,
@@ -49,6 +51,13 @@ export interface PopOutProps extends HTMLAttributes<HTMLDivElement> {
   rect?: PopOutRect;
   /** Raw `window.open` features string; overrides `rect` entirely. */
   features?: string;
+  /** Prefer a **chromeless** Picture-in-Picture window (no address bar) when
+   *  the browser supports it (Chromium: Chrome/Edge/Brave, secure context).
+   *  Falls back to a normal `window.open` popup otherwise. Note the API allows
+   *  only **one** such window at a time (a second pop-out closes the first),
+   *  it is always-on-top, and the browser places it (so `rect`/`features`
+   *  positioning and `name` reuse do not apply). Default `false`. */
+  pip?: boolean;
   /** Escape inside the popup closes it (reason `"escape"`). Default `true`. */
   closeOnEscape?: boolean;
   /** The live child `Window`, `null` while closed. */
@@ -76,6 +85,7 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
     name,
     rect,
     features,
+    pip = false,
     closeOnEscape = true,
     windowRef,
     className,
@@ -109,43 +119,74 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
   featuresRef.current = features;
   const titleRef = useRef(title);
   titleRef.current = title;
+  const pipRef = useRef(pip);
+  pipRef.current = pip;
 
   // Layout effect: for a discrete event (the consumer's click) React flushes
-  // synchronously, so `window.open` here still carries the user activation
-  // and popup blockers stay quiet. A passive effect would run too late.
+  // synchronously, so opening the window here still carries the user activation
+  // and popup blockers stay quiet. A passive effect would run too late. Picture-
+  // in-Picture resolves asynchronously, but the request is issued in the same
+  // task, so its transient activation holds too.
   useLayoutEffect(() => {
     if (!open) return;
-    const win = openChildWindow({
-      name: windowName,
-      features: featuresRef.current ?? buildFeatures(rectRef.current, window),
-    });
-    if (!win) {
+    let canceled = false;
+    let opened: Window | null = null;
+    const teardown: Array<() => void> = [];
+
+    const setup = (win: Window) => {
+      if (canceled) {
+        if (!win.closed) win.close();
+        return;
+      }
+      opened = win;
+      prepareChildDocument(win.document, document, titleRef.current);
+      const stopStyles = syncStyles(document, win.document);
+      const stopTheme = syncThemeAttr(document, win.document);
+      const stopWatch = watchChildClosed(win, () => {
+        setChildWin(null);
+        setOpenRef.current(false, "closed");
+      });
+      const onOpenerPageHide = () => win.close();
+      window.addEventListener("pagehide", onOpenerPageHide);
+      teardown.push(() => {
+        window.removeEventListener("pagehide", onOpenerPageHide);
+        stopWatch();
+        stopStyles();
+        stopTheme();
+      });
+      win.focus();
+      setChildWin(win);
+    };
+    const blocked = (kind: string) => {
+      if (canceled) return;
       if (process.env.NODE_ENV !== "production") {
         console.warn(
-          "PopOut: window.open was blocked. Toggle `open` from a user gesture (a click handler).",
+          `PopOut: ${kind} was blocked. Toggle \`open\` from a user gesture (a click handler).`,
         );
       }
       setOpenRef.current(false, "blocked");
-      return;
+    };
+
+    if (pipRef.current && supportsPip()) {
+      // Chromeless Picture-in-Picture (no address bar). Placement is the
+      // browser's; only width/height are honored.
+      openPipWindow({ width: rectRef.current?.width, height: rectRef.current?.height })
+        .then(setup)
+        .catch(() => blocked("Picture-in-Picture"));
+    } else {
+      const win = openChildWindow({
+        name: windowName,
+        features: featuresRef.current ?? buildFeatures(rectRef.current, window),
+      });
+      if (!win) blocked("window.open");
+      else setup(win);
     }
-    prepareChildDocument(win.document, document, titleRef.current);
-    const stopStyles = syncStyles(document, win.document);
-    const stopTheme = syncThemeAttr(document, win.document);
-    const stopWatch = watchChildClosed(win, () => {
-      setChildWin(null);
-      setOpenRef.current(false, "closed");
-    });
-    const onOpenerPageHide = () => win.close();
-    window.addEventListener("pagehide", onOpenerPageHide);
-    win.focus();
-    setChildWin(win);
+
     return () => {
-      window.removeEventListener("pagehide", onOpenerPageHide);
-      stopWatch();
-      stopStyles();
-      stopTheme();
+      canceled = true;
+      for (const fn of teardown) fn();
       setChildWin(null);
-      if (!win.closed) win.close();
+      if (opened && !opened.closed) opened.close();
     };
   }, [open, windowName]);
 

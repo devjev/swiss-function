@@ -4,7 +4,7 @@ import { PopOut } from "./PopOut";
 
 /** CT harness: a toggle button driving a controlled PopOut, with the last
  *  transition (`open:reason`) exposed for assertions. */
-export function PopOutHarness() {
+export function PopOutHarness({ pip = false }: { pip?: boolean }) {
   const [open, setOpen] = useState(false);
   const [last, setLast] = useState("");
   // Unique per mount: Playwright CT reuses the page across tests in a worker,
@@ -24,6 +24,7 @@ export function PopOutHarness() {
         }}
         title="CT popout"
         name={name}
+        pip={pip}
         rect={{ width: 420, height: 320 }}
       >
         <p>popped content</p>

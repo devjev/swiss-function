@@ -561,6 +561,7 @@ your own button), `CloseButton` (pre-styled icon ✕).
 | `defaultHeight` | `Popup` | `number` | n/a | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
 | `poppedOut` / `defaultPoppedOut` / `onPoppedOutChange` | `Popup` | `boolean` | `false` | The content shows in a separate browser window (via `PopOut`) while the dialog stays open as a placeholder. Toggle from `Dialog.PopOut` (a user gesture) or popup blockers refuse the window. |
 | `popOutTitle` | `Popup` | `string` | `"Dialog"` | The popup window's `document.title` while popped out. |
+| `popOutPip` | `Popup` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for the popped-out content where supported (Chromium). See PopOut `pip`. |
 | `popOutPlaceholder` | `Popup` | `ReactNode` | built-in | Replaces the "This dialog is open in a separate window" placeholder shown in the dialog while popped out. |
 
 `Maximize` reads the Popup's fullscreen state from context (so it must live
@@ -1475,6 +1476,7 @@ Opening must be triggered from a user gesture (toggle `open` in a click handler)
 | `name` | `string` | generated | `window.name`. Reusing a live popup's name refocuses it instead of stacking a duplicate; keep names unique across concurrent pop-outs. |
 | `rect` | `{ left?; top?; width?; height? }` | n/a | Preferred screen placement in the opener's client coordinates (best-effort; browsers clamp). |
 | `features` | `string` | n/a | Raw `window.open` features string; overrides `rect` entirely. |
+| `pip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) where supported (Chromium, secure context); falls back to `window.open` otherwise. A `window.open` popup always shows an `about:blank` address bar that browsers do not allow hiding — this is the only way to drop it. Trade-offs: only one PiP window can exist at a time (a second pop-out closes the first), it is always-on-top, and the browser places it (so `rect`/`features` and `name` reuse do not apply). |
 | `closeOnEscape` | `boolean` | `true` | Escape inside the popup closes it (reason `"escape"`). |
 | `windowRef` | `Ref<Window \| null>` | n/a | The live child `Window` (`null` while closed), e.g. to `focus()` it. |
 
@@ -2199,6 +2201,7 @@ With `popOutable`, every window's chrome gains a pop-out button (external-window
 | `splitIds` / `defaultSplitIds` / `onSplitChange` | `[string, string] \| null` | `null` | Split pair in order `[half 1, half 2]`: the two windows fill the container as halves along the layout axis. Escape exits. Mutually exclusive with fullscreen; when both are set, fullscreen wins. |
 | `popOutable` | `boolean` | `false` | Adds the pop-out button (external-window icon) to every window's chrome: the content opens alone in a separate browser window and the strip keeps a placeholder. Toggle from the button (a user gesture), or popup blockers refuse the window. |
 | `poppedIds` / `defaultPoppedIds` / `onPopOutChange` | `string[]` | `[]` | Popped-out window ids (several at once is fine). A popped window leaves the strip; its window (chrome + body) shows in a separate browser window. Stale ids read as absent; a vanished window drops out and its popup closes. Wins over fullscreen/split for the same window. |
+| `popOutPip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for pop-outs where supported (Chromium). Only one such window exists at a time, so best for popping one window at a time. See PopOut `pip`. |
 | `onWindowMove` | `(move: WindowMove) => void` | n/a | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
 | `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |

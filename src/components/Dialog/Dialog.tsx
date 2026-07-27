@@ -124,6 +124,10 @@ interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
   onPoppedOutChange?: (popped: boolean) => void;
   /** The popup window's `document.title` while popped out. Default `"Dialog"`. */
   popOutTitle?: string;
+  /** Prefer a chromeless Picture-in-Picture window (no address bar) for the
+   *  popped-out content where the browser supports it (Chromium). Default
+   *  `false`. */
+  popOutPip?: boolean;
   /** Replaces the built-in placeholder (a line of text + Bring back / Show
    *  window buttons) shown in the dialog while popped out. */
   popOutPlaceholder?: ReactNode;
@@ -144,6 +148,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     defaultPoppedOut = false,
     onPoppedOutChange,
     popOutTitle = "Dialog",
+    popOutPip = false,
     popOutPlaceholder,
     style,
     children,
@@ -370,6 +375,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
             }}
             title={popOutTitle}
             rect={popRectRef.current}
+            pip={popOutPip}
             windowRef={popWinRef}
             className={styles.poppedSurface}
           >
