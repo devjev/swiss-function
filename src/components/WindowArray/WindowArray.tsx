@@ -962,7 +962,6 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     setActive(splitPickerFor);
   };
 
-  const lastColumn = columns.length > 0 ? columns[columns.length - 1] : undefined;
   const gapSize = toUnit(gap);
 
   // Flat strip grid: alternating gutter/column tracks (gutter i sits before
@@ -985,24 +984,36 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     vertical
       ? { gridRow: ci * 2 + 2, gridColumn: `${track.start} / span ${track.span}` }
       : { gridColumn: ci * 2 + 2, gridRow: `${track.start} / span ${track.span}` };
-  // Popped-out windows have left the strip, so the remaining windows share each
-  // column's full height: the subrow math and every window's placement run on
-  // the visible windows only, keyed by id.
+  // A column whose windows are all popped out collapses away entirely — no
+  // track and no gutter — so the strip tightens instead of leaving a gap where
+  // the column was. Columns keep their model index `mi` (for `WindowMove` /
+  // new-column drop targets, which stay in full-array terms) but are laid out
+  // by their visible index `vci`.
+  const visibleColumns = columns
+    .map((col, mi) => ({
+      col,
+      mi,
+      visible: col.windows.filter((w) => !resolvedPopped.includes(w.id)),
+    }))
+    .filter((c) => c.visible.length > 0);
+  const lastVisible =
+    visibleColumns.length > 0 ? visibleColumns[visibleColumns.length - 1] : undefined;
+  // Popped-out windows have left the strip, so the remaining windows in a column
+  // share its full height: subrow math and placement run on visible windows,
+  // keyed by id, indexed by the column's visible position.
   const placementById = new Map<string, CSSProperties>();
-  const visibleCounts = columns.map((col, ci) => {
-    const visible = col.windows.filter((w) => !resolvedPopped.includes(w.id));
-    return { ci, visible, count: visible.length };
-  });
-  const subrows = subrowCount(visibleCounts.map((c) => c.count));
-  for (const { ci, visible, count } of visibleCounts) {
+  const subrows = subrowCount(visibleColumns.map((c) => c.visible.length));
+  visibleColumns.forEach(({ visible }, vci) => {
     visible.forEach((w, row) => {
-      placementById.set(w.id, windowPlacement(ci, rowTrack(row, count, subrows)));
+      placementById.set(w.id, windowPlacement(vci, rowTrack(row, visible.length, subrows)));
     });
-  }
+  });
   // Vertical band heights come from their own store (seeded from the width,
   // capped to the container — issue #31); widths stay untouched while
   // collapsed so expanding back restores them.
-  const trackWidths = columns.map((c) => (vertical ? bandHeight(c.props) : columnWidth(c.props)));
+  const trackWidths = visibleColumns.map(({ col }) =>
+    vertical ? bandHeight(col.props) : columnWidth(col.props),
+  );
   if (squeeze > 0 && trackWidths.length > 0) {
     const last = trackWidths.length - 1;
     trackWidths[last] = Math.max(0, (trackWidths[last] ?? 0) - squeeze);
@@ -1013,7 +1024,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     .map((w) => `${w}px`)
     .join(` ${gapSize} `)} ${gapSize}`;
   const crossTemplate = `repeat(${subrows}, minmax(0, 1fr))`;
-  const stripStyle: CSSProperties | undefined = lastColumn
+  const stripStyle: CSSProperties | undefined = lastVisible
     ? vertical
       ? { gridTemplateRows: mainTemplate, gridTemplateColumns: crossTemplate }
       : { gridTemplateColumns: mainTemplate, gridTemplateRows: crossTemplate }
@@ -1054,43 +1065,52 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       >
         <div ref={viewportRef} className={styles.viewport}>
           <div className={styles.strip} style={stripStyle}>
-            {columns.map((col, ci) => {
-              const before = ci > 0 ? columns[ci - 1] : undefined;
+            {visibleColumns.map(({ col, mi, visible }, vci) => {
+              const before = vci > 0 ? visibleColumns[vci - 1] : undefined;
               return (
                 <Fragment key={col.props.id}>
                   <GutterView
-                    index={ci}
-                    placement={gutterPlacement(ci)}
+                    // Drop index is the model position (full-array terms); the
+                    // grid slot is the visible position, so collapsed columns
+                    // leave no gutter.
+                    index={mi}
+                    placement={gutterPlacement(vci)}
                     vertical={vertical}
-                    leftColumn={before ? before.props : null}
+                    leftColumn={before ? before.col.props : null}
                     width={
-                      before ? (vertical ? bandHeight(before.props) : columnWidth(before.props)) : 0
+                      before
+                        ? vertical
+                          ? bandHeight(before.col.props)
+                          : columnWidth(before.col.props)
+                        : 0
                     }
-                    minWidth={before ? (before.props.minWidth ?? columnMinWidth) : 0}
-                    resizing={before != null && resizingId === before.props.id}
-                    dropActive={dropSlot?.kind === "column" && dropSlot.index === ci}
+                    minWidth={before ? (before.col.props.minWidth ?? columnMinWidth) : 0}
+                    resizing={before != null && resizingId === before.col.props.id}
+                    dropActive={dropSlot?.kind === "column" && dropSlot.index === mi}
                     onPointerDown={onGutterPointerDown}
                     onKeyDown={resizeByKey}
                     onReset={resetWidth}
                   />
                   <ColumnBackdrop
                     col={col.props}
-                    windowCount={col.windows.length}
-                    placement={backPlacement(ci)}
+                    windowCount={visible.length}
+                    placement={backPlacement(vci)}
                     registerColumn={columnRefs.current}
                   />
                 </Fragment>
               );
             })}
-            {lastColumn && (
+            {lastVisible && (
               <GutterView
                 index={columns.length}
-                placement={gutterPlacement(columns.length)}
+                placement={gutterPlacement(visibleColumns.length)}
                 vertical={vertical}
-                leftColumn={lastColumn.props}
-                width={vertical ? bandHeight(lastColumn.props) : columnWidth(lastColumn.props)}
-                minWidth={lastColumn.props.minWidth ?? columnMinWidth}
-                resizing={resizingId === lastColumn.props.id}
+                leftColumn={lastVisible.col.props}
+                width={
+                  vertical ? bandHeight(lastVisible.col.props) : columnWidth(lastVisible.col.props)
+                }
+                minWidth={lastVisible.col.props.minWidth ?? columnMinWidth}
+                resizing={resizingId === lastVisible.col.props.id}
                 dropActive={dropSlot?.kind === "column" && dropSlot.index === columns.length}
                 onPointerDown={onGutterPointerDown}
                 onKeyDown={resizeByKey}
@@ -1528,8 +1548,10 @@ function WindowView({
         {/* biome-ignore lint/a11y/useSemanticElements: same "group" rationale as the in-strip window. */}
         <section role="group" aria-labelledby={titleId} className={styles.poppedWindow}>
           <header className={styles.titlebar}>
-            <div id={titleId} className={styles.handle}>
-              {title}
+            {/* Not the draggable handle button (a lone window doesn't drag), so
+                a plain element that still centres and ellipsizes the title. */}
+            <div id={titleId} className={styles.poppedTitle}>
+              <span>{title}</span>
             </div>
             {actionButtons}
           </header>

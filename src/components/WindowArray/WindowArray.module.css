@@ -401,6 +401,26 @@
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
 }
+/* The popup title: same look as the in-strip handle, but a plain element, so
+   it needs explicit vertical centring (a <button> centres its own text). The
+   inner span carries the ellipsis. */
+.poppedTitle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-inline-size: 0;
+  block-size: 100%;
+  padding: 0 calc(var(--sf-unit) / 4);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  line-height: var(--sf-line-height-tight);
+}
+.poppedTitle > span {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 /* Drag ghost rendered in the DragOverlay portal: just the title bar — no full
    window, no scaling, no rotation. */

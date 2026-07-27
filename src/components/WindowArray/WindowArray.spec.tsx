@@ -925,6 +925,26 @@ test("pop-out moves the window (with its chrome) to a popup and leaves no strip 
   await expect.poll(() => popup.isClosed()).toBe(true);
 });
 
+test("a column whose windows are all popped out collapses away", async ({ mount, page }) => {
+  // 3 columns × 1 window each: popping the middle window empties its column.
+  const c = await mount(<WindowArrayHarness popOutable columnCount={3} windowsPerColumn={1} />);
+  // A backdrop div per column (windows are <section>s, not <div>s).
+  await expect(c.locator("div[data-column-id]")).toHaveCount(3);
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c
+      .locator('[data-window-id="w2a"]')
+      .getByRole("button", { name: "Open in a separate window" })
+      .click(),
+  ]);
+  await expect(popup.getByText("Body of Window 2A")).toBeVisible();
+  // The middle column is gone — the strip tightens to two columns.
+  await expect(c.locator("div[data-column-id]")).toHaveCount(2);
+  await expect(c.locator('div[data-column-id="col-2"]')).toHaveCount(0);
+  await popup.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(c.locator("div[data-column-id]")).toHaveCount(3);
+});
+
 test("custom window actions travel into the popped-out window", async ({ mount, page }) => {
   const c = await mount(<WindowArrayHarness popOutable withActions />);
   const win = c.locator('[data-window-id="w1a"]');
