@@ -549,7 +549,8 @@ Compound modal dialog with optional dragging, resizing, and window chrome
 **Elements / Parts:** `Root`, `Trigger`, `Portal`, `Backdrop`, `Popup`, `Handle`
 (drag grip + title-bar row, active only in a draggable Popup), `Actions`
 (right-aligned chrome-button row, place inside `Handle`), `Maximize` (icon button
-that toggles fullscreen), `Title`, `Description`, `Close` (Base UI close, render
+that toggles fullscreen), `PopOut` (icon button that pops the content out into a
+separate browser window), `Title`, `Description`, `Close` (Base UI close, render
 your own button), `CloseButton` (pre-styled icon ✕).
 
 | Prop | On | Type | Default | Notes |
@@ -558,13 +559,26 @@ your own button), `CloseButton` (pre-styled icon ✕).
 | `resizable` | `Popup` | `boolean` | n/a | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
 | `defaultWidth` | `Popup` | `number` | n/a | Initial width in px (else content-driven, capped at 32rem). A resize takes over. |
 | `defaultHeight` | `Popup` | `number` | n/a | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
+| `poppedOut` / `defaultPoppedOut` / `onPoppedOutChange` | `Popup` | `boolean` | `false` | The content shows in a separate browser window (via `PopOut`) while the dialog stays open as a placeholder. Toggle from `Dialog.PopOut` (a user gesture) or popup blockers refuse the window. |
+| `popOutTitle` | `Popup` | `string` | `"Dialog"` | The popup window's `document.title` while popped out. |
+| `popOutPlaceholder` | `Popup` | `ReactNode` | built-in | Replaces the "This dialog is open in a separate window" placeholder shown in the dialog while popped out. |
 
 `Maximize` reads the Popup's fullscreen state from context (so it must live
 inside a `Popup`); while maximized the Popup fills the viewport (`inset: 0`), drag
 and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
-`CloseButton` swallow pointer-down, so placing them in a draggable `Handle` never
-starts a drag. Fullscreen state is internal and resets each time the dialog
-reopens.
+`PopOut` / `CloseButton` swallow pointer-down, so placing them in a draggable
+`Handle` never starts a drag. Fullscreen state is internal and resets each time
+the dialog reopens.
+
+`PopOut` moves the dialog's content into a separate browser window (see the
+PopOut section) placed over the dialog's on-screen spot; the dialog stays open
+as a placeholder, so its modal focus trap keeps trapping in the opener and
+closing the dialog (or the popup, or Escape inside it) brings the content back.
+`CloseButton` inside the popup still closes the whole dialog (Base UI context
+crosses the cross-document portal). Drag, resize, and maximize are suspended
+while popped out, and `Maximize` renders nothing (a placeholder can't maximize).
+Note the content subtree remounts on pop-out and return, so lift any state you
+need to keep.
 
 ## DigitInput
 

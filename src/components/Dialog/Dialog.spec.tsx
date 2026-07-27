@@ -210,3 +210,89 @@ test("arrow keys on the focused SE handle resize the popup", async ({ mount, pag
   expect(after.width).toBeGreaterThan(before.width + 80);
   expect(after.height).toBeGreaterThan(before.height + 80);
 });
+
+// --- Pop-out (issue #84 M2) -------------------------------------------------
+
+test("pop-out moves the content to a popup and Bring back restores it", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness popOut />);
+  const dialog = page.getByTestId("popup");
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByTestId("pop-out").click(),
+  ]);
+  // The content (title, description, chrome) renders inside the popup window.
+  await expect(popup.getByText("Drag me around by the header.")).toBeVisible();
+  expect(await popup.title()).toBe("CT dialog");
+  // The dialog stays open as a placeholder.
+  await expect(dialog).toHaveAttribute("data-popped", "");
+  await expect(dialog.getByText("This dialog is open in a separate window.")).toBeVisible();
+  await expect(dialog.getByText("Drag me around by the header.")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Bring back", exact: true }).click();
+  await expect(dialog.getByText("Drag me around by the header.")).toBeVisible();
+  await expect(dialog).not.toHaveAttribute("data-popped", "");
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("the CloseButton inside the popup closes the whole dialog", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness popOut />);
+  const dialog = page.getByTestId("popup");
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByTestId("pop-out").click(),
+  ]);
+  await expect(popup.getByText("Drag me around by the header.")).toBeVisible();
+  // Context crosses the cross-document portal: Base UI's Close still reaches
+  // the Root, unmounting the dialog, which closes the popup with it.
+  await popup.getByTestId("close-icon").click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("Escape inside the popup returns the content to the dialog", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness popOut />);
+  const dialog = page.getByTestId("popup");
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByTestId("pop-out").click(),
+  ]);
+  await expect(popup.getByText("Drag me around by the header.")).toBeVisible();
+  // The keydown handler closes the window mid-press; press() may lose the
+  // page on the keyup half. That is the behavior under test.
+  await popup.keyboard.press("Escape").catch(() => {});
+  await expect(dialog.getByText("Drag me around by the header.")).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("closing the popped-out dialog from the opener closes the popup", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness popOut />);
+  const dialog = page.getByTestId("popup");
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByTestId("pop-out").click(),
+  ]);
+  await expect(popup.getByText("Drag me around by the header.")).toBeVisible();
+  // Escape in the opener closes the dialog (Base UI), and the popup with it.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("Maximize hides and resize grips are gone while popped out", async ({ mount, page }) => {
+  await mount(<DialogWindowHarness popOut resizable draggable />);
+  const dialog = page.getByTestId("popup");
+  await expect(page.getByTestId("maximize")).toBeVisible();
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByTestId("pop-out").click(),
+  ]);
+  await expect(popup.getByText("Drag me around by the header.")).toBeVisible();
+  // The placeholder dialog offers no maximize and no resize grips; the
+  // popup's own chrome hides Maximize too (a placeholder can't maximize).
+  await expect(page.getByTestId("maximize")).toHaveCount(0);
+  await expect(popup.getByTestId("maximize")).toHaveCount(0);
+  await expect(dialog.locator("[data-edge]")).toHaveCount(0);
+  await popup.close();
+  await expect(page.getByTestId("maximize")).toBeVisible();
+  await expect(dialog.locator("[data-edge]")).toHaveCount(8);
+});

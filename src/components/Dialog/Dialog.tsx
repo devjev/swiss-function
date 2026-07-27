@@ -3,6 +3,7 @@ import type {
   ComponentPropsWithoutRef,
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
 import {
@@ -18,6 +19,9 @@ import { cx, mergeClassName } from "../../lib/cx";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { usePointerDrag } from "../../lib/usePointerDrag";
+import { Button } from "../Button";
+import type { PopOutRect } from "../PopOut";
+import { PopOut as PopOutWindow } from "../PopOut";
 import styles from "./Dialog.module.css";
 
 const Root = BaseDialog.Root;
@@ -65,6 +69,13 @@ const CloseIcon = () => (
     <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
   </svg>
 );
+// The Icon set's ExternalLink path (arrow leaving a box); matches WindowArray.
+const PopOutIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" strokeLinecap="square" />
+  </svg>
+);
 
 /** Lets `Dialog.Handle` reach the popup's drag starter and `Dialog.Maximize`
  *  reach its fullscreen state without prop drilling. */
@@ -75,6 +86,10 @@ interface PopupContextValue {
   expanded: boolean;
   /** Toggle the popup's fullscreen state. */
   toggleFullscreen: () => void;
+  /** Whether the dialog's content is showing in a separate browser window. */
+  popped: boolean;
+  /** Toggle the popped-out state (measures the popup rect on the way out). */
+  togglePopOut: () => void;
 }
 const PopupContext = createContext<PopupContextValue | null>(null);
 
@@ -89,6 +104,20 @@ interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
   /** Initial height in px. Sets the size up front (the default is content-driven,
    *  capped at the viewport). A later resize takes over from here. */
   defaultHeight?: number;
+  /** Controlled popped-out state: the dialog's content shows alone in a
+   *  separate browser window (a `PopOut` popup) while the dialog stays open
+   *  as a small placeholder, so the modal focus trap keeps trapping here and
+   *  closing the dialog closes the popup. Toggle it from `Dialog.PopOut` (a
+   *  user gesture), or popup blockers refuse the window. */
+  poppedOut?: boolean;
+  /** Initial popped-out state when uncontrolled. Default `false`. */
+  defaultPoppedOut?: boolean;
+  onPoppedOutChange?: (popped: boolean) => void;
+  /** The popup window's `document.title` while popped out. Default `"Dialog"`. */
+  popOutTitle?: string;
+  /** Replaces the built-in placeholder (a line of text + Bring back / Show
+   *  window buttons) shown in the dialog while popped out. */
+  popOutPlaceholder?: ReactNode;
 }
 
 /** Smallest a resizable popup may be dragged to, in px. */
@@ -96,7 +125,21 @@ const MIN_W = 240;
 const MIN_H = 120;
 
 const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
-  { className, draggable, resizable, defaultWidth, defaultHeight, style, children, ...rest },
+  {
+    className,
+    draggable,
+    resizable,
+    defaultWidth,
+    defaultHeight,
+    poppedOut: poppedProp,
+    defaultPoppedOut = false,
+    onPoppedOutChange,
+    popOutTitle = "Dialog",
+    popOutPlaceholder,
+    style,
+    children,
+    ...rest
+  },
   ref,
 ) {
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -114,6 +157,19 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   const resizeStart = useRef<{ w: number; h: number; ox: number; oy: number; edge: string } | null>(
     null,
   );
+
+  // Popped-out (controlled triple, same pattern as WindowArray's poppedIds).
+  const [poppedState, setPoppedState] = useState(defaultPoppedOut);
+  const popped = poppedProp !== undefined ? poppedProp : poppedState;
+  const setPopped = useCallback(
+    (next: boolean) => {
+      onPoppedOutChange?.(next);
+      if (poppedProp === undefined) setPoppedState(next);
+    },
+    [onPoppedOutChange, poppedProp],
+  );
+  const popRectRef = useRef<PopOutRect | undefined>(undefined);
+  const popWinRef = useRef<Window | null>(null);
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -223,8 +279,10 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
       ? ({ "--sf-dialog-x": `${offset.x}px`, "--sf-dialog-y": `${offset.y}px` } as CSSProperties)
       : undefined;
   // Lift the cap only on the axis we set, so an unset axis keeps its clamp.
+  // While popped out the placeholder collapses to its natural height (the
+  // remembered size returns with the content).
   const sizeStyle: CSSProperties | undefined =
-    size && !expanded
+    size && !expanded && !popped
       ? {
           ...(size.w != null && { width: `${size.w}px`, maxWidth: "none" }),
           ...(size.h != null && { height: `${size.h}px`, maxHeight: "none" }),
@@ -234,14 +292,35 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   // Stable context identity: dragging updates `offset` state per pointermove —
   // without the memo, every frame would hand Handle/Maximize/CloseButton a
   // fresh context object and re-render them all.
+  // Popping out exits fullscreen (the content leaves this viewport) and
+  // remembers the popup's rect so the browser window opens over it.
+  const togglePopOut = useCallback(() => {
+    if (!popped) {
+      if (expanded) toggle();
+      const el = popupRef.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        popRectRef.current = {
+          left: r.left,
+          top: r.top,
+          width: Math.max(r.width, MIN_W),
+          height: Math.max(r.height, MIN_H),
+        };
+      }
+    }
+    setPopped(!popped);
+  }, [popped, expanded, toggle, setPopped]);
+
   const ctx: PopupContextValue = useMemo(
     () => ({
-      // Dragging is meaningless once maximized — drop the handle starter.
-      onHandlePointerDown: draggable && !expanded ? onHandlePointerDown : undefined,
+      // Dragging is meaningless once maximized or popped — drop the starter.
+      onHandlePointerDown: draggable && !expanded && !popped ? onHandlePointerDown : undefined,
       expanded,
       toggleFullscreen: toggle,
+      popped,
+      togglePopOut,
     }),
-    [draggable, expanded, onHandlePointerDown, toggle],
+    [draggable, expanded, onHandlePointerDown, toggle, popped, togglePopOut],
   );
 
   // Cross-portal stacking (issue #82): seed the modal band so a floater opened
@@ -256,12 +335,40 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
         cx(styles.popup, positioned && styles.draggable, expanded && styles.fullscreen),
         className,
       )}
+      data-popped={popped ? "" : undefined}
       style={{ ...dragStyle, ...sizeStyle, ...style, ...(zIndex != null && { zIndex }) }}
     >
       <StackingProvider ceiling={ceiling}>
-        <PopupContext.Provider value={ctx}>{children}</PopupContext.Provider>
+        <PopupContext.Provider value={ctx}>
+          {popped &&
+            (popOutPlaceholder ?? (
+              <div className={styles.popped}>
+                <p className={styles.poppedText}>This dialog is open in a separate window.</p>
+                <div className={styles.poppedActions}>
+                  <Button variant="secondary" size="sm" onClick={() => setPopped(false)}>
+                    Bring back
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => popWinRef.current?.focus()}>
+                    Show window
+                  </Button>
+                </div>
+              </div>
+            ))}
+          <PopOutWindow
+            open={popped}
+            onOpenChange={(next) => {
+              if (next !== popped) setPopped(next);
+            }}
+            title={popOutTitle}
+            rect={popRectRef.current}
+            windowRef={popWinRef}
+            className={styles.poppedSurface}
+          >
+            {children}
+          </PopOutWindow>
+        </PopupContext.Provider>
       </StackingProvider>
-      {resizable && !expanded && (
+      {resizable && !expanded && !popped && (
         <>
           {/* Edges first, then corners — corners must come later in the DOM so
               they win the hit-test where they overlap an edge. */}
@@ -369,6 +476,8 @@ const Maximize = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"
   function DialogMaximize({ className, onClick, onPointerDown, ...rest }, ref) {
     const ctx = useContext(PopupContext);
     const expanded = ctx?.expanded ?? false;
+    // Maximizing a placeholder is meaningless while the content is popped out.
+    if (ctx?.popped) return null;
     return (
       <button
         type="button"
@@ -387,6 +496,38 @@ const Maximize = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"
         }}
       >
         {expanded ? <CollapseIcon /> : <ExpandIcon />}
+      </button>
+    );
+  },
+);
+
+/** Icon button that pops the dialog's content out into a separate browser
+ *  window (and back). Reads the popup's popped state from context, so it must
+ *  live inside a `Dialog.Popup`; place it in `Dialog.Actions` next to
+ *  `Maximize`/`CloseButton`. While popped it renders inside the popup window
+ *  as the pressed return toggle. */
+const PopOutButton = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button">>(
+  function DialogPopOut({ className, onClick, onPointerDown, ...rest }, ref) {
+    const ctx = useContext(PopupContext);
+    const popped = ctx?.popped ?? false;
+    return (
+      <button
+        type="button"
+        aria-label={popped ? "Bring the dialog back" : "Open in a separate window"}
+        aria-pressed={popped}
+        {...rest}
+        ref={ref}
+        className={cx(styles.iconButton, className)}
+        onClick={(event) => {
+          onClick?.(event);
+          ctx?.togglePopOut();
+        }}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          onPointerDown?.(event);
+        }}
+      >
+        <PopOutIcon />
       </button>
     );
   },
@@ -445,6 +586,7 @@ export const Dialog = {
   Handle,
   Actions,
   Maximize,
+  PopOut: PopOutButton,
   Title,
   Description,
   Close,

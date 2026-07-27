@@ -53,6 +53,37 @@ export const Window: Story = () => (
   </Dialog.Root>
 );
 
+// The pop-out chrome button moves the dialog's content into a separate browser
+// window (over the dialog's on-screen spot); the dialog stays open as a small
+// placeholder whose focus trap keeps trapping here, and closing it (or the
+// popup, or Escape in the popup) brings everything back. The ✕ inside the
+// popup window still closes the whole dialog.
+export const PopOutWindow: Story = () => (
+  <Dialog.Root>
+    <Dialog.Trigger render={<Button>Open window</Button>} />
+    <Dialog.Portal>
+      <Dialog.Backdrop />
+      <Dialog.Popup draggable resizable defaultWidth={520} defaultHeight={320} popOutTitle="Notes">
+        <Dialog.Handle>
+          <Dialog.Title>A dialog that pops out</Dialog.Title>
+          <Dialog.Actions>
+            <Dialog.PopOut />
+            <Dialog.Maximize />
+            <Dialog.CloseButton />
+          </Dialog.Actions>
+        </Dialog.Handle>
+        <Dialog.Description>
+          Hit the pop-out button (the arrow leaving a box) to continue in a separate browser window.
+          The pressed button in the popup, its ✕, or Escape brings the content back.
+        </Dialog.Description>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Dialog.Close render={<Button variant="secondary">Close</Button>} />
+        </div>
+      </Dialog.Popup>
+    </Dialog.Portal>
+  </Dialog.Root>
+);
+
 // Floaters opened from inside a dialog paint above it (issue #82): open the
 // Picker dropdown or the DatePicker calendar and it sits over the dialog, not
 // behind it. No app-side z-index lift needed.

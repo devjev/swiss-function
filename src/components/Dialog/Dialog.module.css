@@ -124,6 +124,32 @@
 .iconButton:hover {
   background-color: var(--sf-color-bg-subtle);
 }
+/* Popped-out: the dialog stays open as a small placeholder (the modal focus
+   trap keeps trapping here) while the content shows in a separate browser
+   window through PopOut. */
+.popped {
+  display: grid;
+  justify-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 2) 0;
+  text-align: center;
+}
+.poppedText {
+  margin: 0;
+  font-size: var(--sf-font-size-sm);
+}
+.poppedActions {
+  display: flex;
+  gap: calc(var(--sf-unit) / 2);
+}
+/* The content surface inside the popup window: keep the dialog's padding and
+   vertical part stacking so the chrome reads the same there. */
+.poppedSurface {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sf-space-6);
+}
+
 .iconButton:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, 1px);
