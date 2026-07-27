@@ -74,6 +74,28 @@ export function NavForm() {
   );
 }
 
+/** A field with a very tall control (stands in for a TableInput) plus `maxBlock`
+ *  set: the tall field must not dominate the rail block sizing and compress the
+ *  other markers into the top (issue: Minimap vs TableInput). "Last" must land
+ *  near the rail bottom, tracking its real position. */
+export function TallFieldForm() {
+  return (
+    <div style={{ height: 320, width: 560 }}>
+      <VerticalForm maxBlock={2}>
+        <VerticalForm.Field label="Tall">
+          <div style={{ height: 600, background: "var(--sf-color-bg-subtle)" }}>A tall control</div>
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Middle">
+          <Input />
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Last">
+          <Input />
+        </VerticalForm.Field>
+      </VerticalForm>
+    </div>
+  );
+}
+
 /** Distinct single-word labels so a filter maps unambiguously to one option. */
 const NAV_FIELDS = [
   "Alfa",

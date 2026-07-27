@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { Basic, NavForm, Sections } from "./VerticalForm.harness";
+import { Basic, NavForm, Sections, TallFieldForm } from "./VerticalForm.harness";
 
 /** The scroll element is the target of the rail scrollbar's aria-controls. */
 async function scrollTopOf(c: { locator(selector: string): Locator; page(): Page }) {
@@ -36,6 +36,22 @@ test("section titles appear on the rail above their fields", async ({ mount }) =
   const c = await mount(<Sections />);
   await expect(c.getByRole("button", { name: "Account" })).toBeVisible();
   await expect(c.getByRole("button", { name: "Profile" })).toBeVisible();
+});
+
+test("a tall field does not compress the other rail markers to the top", async ({ mount }) => {
+  // A field with a very tall control (a TableInput in the wild) used to report
+  // its full height as a rail span; with `maxBlock` set, Minimap shrank the
+  // whole rail to fit it and every marker bunched at the top. The marker span
+  // is now the field's label, so "Last" tracks its real (lower) position.
+  const c = await mount(<TallFieldForm />);
+  const rail = c.locator('[class*="rail"]').first();
+  const railBox = await rail.boundingBox();
+  const lastBox = await c.getByRole("button", { name: "Last" }).boundingBox();
+  if (!railBox || !lastBox) throw new Error("missing bounding boxes");
+  // "Last" is the final field, so its marker sits in the lower half of the rail
+  // (it bunched into the top ~third before the fix).
+  const railFraction = (lastBox.y - railBox.y) / railBox.height;
+  expect(railFraction).toBeGreaterThan(0.5);
 });
 
 test("Tab moves focus field to field; Shift+Tab reverses", async ({ mount, page }) => {

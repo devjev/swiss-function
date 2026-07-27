@@ -2139,6 +2139,8 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
 | `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
 | `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples (caps a sparse form's tall blocks). Forwarded to `Minimap`'s `maxMarkerSize`. |
+
+A field's rail marker is anchored at the row top and spans the field's **label** height, not the whole control's, so a field with a tall control (a `TableInput`, an expanded `TextEdit`) reads as a normal marker with a larger gap to the next one, rather than a giant block that dominates the rail's `minBlock`/`maxBlock` sizing.
 | `bare` | `Root` | `boolean` | `false` | Render rows without the surrounding `Box` (no surface, no box padding) for a minimal look. The `elevation` props are then ignored. |
 | `reserveError` | `Root` | `boolean` | `false` | Reserve a one-line error slot under every field so an appearing validation error fills it in place rather than inserting a line and reflowing the rows below. Off keeps a display-only form compact. |
 | `title` | `Section` | `ReactNode` | n/a | Section heading; a string also becomes a level-1 rail label. |

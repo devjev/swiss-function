@@ -257,10 +257,20 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     const entries: VerticalFormEntry[] = [];
     entriesRef.current.forEach(({ node, meta }, id) => {
       const rect = node.getBoundingClientRect();
+      // The marker anchors at the row top (`top`), but its rail *span* is the
+      // field's LABEL height, not the whole control's. A field's control can be
+      // arbitrarily tall (a TableInput, a TextEdit) — measuring the full box
+      // would make that one marker a giant span that dominates Minimap's rail
+      // block-size scaling (`minBlock`/`maxBlock`): with a cap set, the rail
+      // shrinks to fit the table's block and every other marker compresses into
+      // the top. A label-sized span keeps every field an equal anchor; a tall
+      // field still reads as the gap to the next marker.
+      const label = node.querySelector<HTMLElement>(`.${styles.fieldLabel}`);
+      const height = label ? label.getBoundingClientRect().height : rect.height;
       entries.push({
         id,
         top: rect.top - base,
-        height: rect.height,
+        height,
         label: meta.label,
         level: meta.level,
         tone: meta.tone,

@@ -67,3 +67,55 @@ export const WithTableInputs: Story = () => {
     </div>
   );
 };
+
+// Closer to the consumer report: the tables sit inside `VerticalForm.Section`s
+// with `nav` on, and there are more sections below "People" (the rail must
+// still line each marker up with its section/field in the scroll body).
+export const SectionsAndNav: Story = () => {
+  const [classes, setClasses] = useState(CLASSES);
+  const [schedules, setSchedules] = useState(SCHEDULES);
+  return (
+    <div style={{ height: "30rem", width: "62rem", border: "1px solid var(--sf-color-border)" }}>
+      <VerticalForm nav>
+        <VerticalForm.Section title="Share classes">
+          <VerticalForm.Field label="Classes">
+            <TableInput columns={CLASS_COLUMNS} value={classes} onChange={setClasses} reorderable />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+        <VerticalForm.Section title="Schedules">
+          <VerticalForm.Field label="Windows">
+            <TableInput
+              columns={SCHEDULE_COLUMNS}
+              value={schedules}
+              onChange={setSchedules}
+              reorderable
+            />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+        <VerticalForm.Section title="Exclude">
+          <VerticalForm.Field label="Excluded tickers">
+            <Input placeholder="Tickers" />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+        <VerticalForm.Section title="People">
+          <VerticalForm.Field label="Owners">
+            <Input placeholder="Owners" />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+        <VerticalForm.Section title="Notes">
+          <VerticalForm.Field label="Free text">
+            <Input placeholder="Notes" />
+          </VerticalForm.Field>
+          <VerticalForm.Field label="Reviewer">
+            <Input placeholder="Reviewer" />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+        <VerticalForm.Section title="Audit">
+          <VerticalForm.Field label="Last change">
+            <Input placeholder="Date" />
+          </VerticalForm.Field>
+        </VerticalForm.Section>
+      </VerticalForm>
+    </div>
+  );
+};
