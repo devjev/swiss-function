@@ -6,6 +6,20 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.17.0 — 2026-07-27
+
+### Minor
+
+- Dialog.PopOut moves the dialog's content into a separate browser window while the dialog stays open as a placeholder
+- Floating layers (Picker/Selector/Combobox and MenuBar dropdowns, the DatePicker calendar, Menu/ContextMenu, Popover, and the Graph right-click menu) opened from inside a Dialog, Drawer, Popover, or expanded Fullscreen/Graph now paint above it automatically, via a cross-portal stacking context (issue #82). Consumers can drop app-side z-index lifts for library floaters. Root behaviour is unchanged.
+- PopOut: pop any content out into a separate browser window (styles and theme kept in sync). WindowArray `popOutable` adds a per-window pop-out button that moves the whole window (title bar, custom actions and body) into a separate browser window and takes it out of the strip, so the remaining windows fill the freed space; closing the popup or the pressed pop-out button brings it back.
+
+### Patch
+
+- DigitInput and Login: fix the OTP mask (2FA) field breaking on @base-ui/react 1.6.0. Import the renamed `OTPField` export directly and require `@base-ui/react` ^1.6.0, so a fresh install no longer resolves a Base UI without the old `OTPFieldPreview` (#80).
+- PopOut: floating overlays (menus, pickers, calendars) opened inside a popped-out window now render in that window, not the opener
+- Selector and Picker: the searchable dropdown no longer grows a second, near-immobile scrollbar beside the option list. When the virtualized list is present the popup stands down as a scroll surface instead of both clamping to within a pixel of each other (#81).
+
 ## v2.16.0 — 2026-07-22
 
 ### Minor
