@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.18.1 — 2026-07-27
+
+### Patch
+
+- PopOut: the chromeless Picture-in-Picture pop-out ( / ) no longer opens then immediately closes under React StrictMode in dev. The open session is adopted across the StrictMode remount instead of issuing a second  that rejects (#86).
+- PopOut: the popped-out window now mirrors the opener's full root theme state ( and other  attributes, the root class, and ), not just , so an app's custom colour scheme carries into the popup and updates live (#85).
+
 ## v2.18.0 — 2026-07-27
 
 ### Minor
