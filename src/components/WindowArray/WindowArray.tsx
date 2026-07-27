@@ -115,6 +115,13 @@ const PopOutIcon = () => (
     <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" strokeLinecap="square" />
   </svg>
 );
+// The mirror: an arrow docking back INTO the box (return to the strip).
+const PopInIcon = () => (
+  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
+  <svg {...ICON_PROPS}>
+    <path d="M8 4v4h4M13 3 8 8M11 9.5V13H3V5h3.5" strokeLinecap="square" />
+  </svg>
+);
 const ChevronLeftIcon = () => (
   // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
   <svg {...ICON_PROPS}>
@@ -1497,7 +1504,7 @@ function WindowView({
             onPopOutChange(!popped);
           }}
         >
-          <PopOutIcon />
+          {popped ? <PopInIcon /> : <PopOutIcon />}
         </button>
       )}
       {showSplitButton && !popped && (
