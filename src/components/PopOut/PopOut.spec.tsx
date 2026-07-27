@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PopOutHarness } from "./PopOut.harness";
+import { PopOutHarness, PopOutStrictHarness } from "./PopOut.harness";
 import { PopOutFloaterHarness } from "./PopOutFloater.harness";
 
 test("renders children in place while closed", async ({ mount }) => {
@@ -38,16 +38,39 @@ test("Escape inside the popup closes it and restores the content", async ({ moun
   await expect.poll(() => popup.isClosed()).toBe(true);
 });
 
-test("mirrors the opener's data-theme, live", async ({ mount, page }) => {
+test("mirrors the opener's root theme/palette attributes and class, live", async ({
+  mount,
+  page,
+}) => {
   const c = await mount(<PopOutHarness />);
-  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  // Apps carry the palette on more than data-theme (data-colors, a class, ...).
+  await page.evaluate(() => {
+    const r = document.documentElement;
+    r.setAttribute("data-theme", "dark");
+    r.setAttribute("data-colors", "titanium");
+    r.classList.add("brand-x");
+  });
   const [popup] = await Promise.all([
     page.waitForEvent("popup"),
     c.getByRole("button", { name: "toggle" }).click(),
   ]);
   await expect(popup.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  await expect(popup.locator("html")).toHaveAttribute("data-colors", "titanium");
+  await expect(popup.locator("html")).toHaveClass(/brand-x/);
+  // A runtime scheme switch in the opener propagates.
+  await page.evaluate(() => {
+    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.setAttribute("data-colors", "copper");
+  });
   await expect(popup.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(popup.locator("html")).toHaveAttribute("data-colors", "copper");
+  // A removed attribute is dropped in the popup too.
+  await page.evaluate(() => document.documentElement.removeAttribute("data-colors"));
+  await expect(popup.locator("html")).not.toHaveAttribute("data-colors", /.*/);
+  await page.evaluate(() => {
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.classList.remove("brand-x");
+  });
   await popup.close();
 });
 
@@ -133,4 +156,58 @@ test("pip mode opens a chromeless picture-in-picture window and restores on clos
   );
   await expect(c.getByText("popped content")).toBeVisible();
   await expect(c.getByTestId("last")).toHaveText("false:closed");
+});
+
+// --- React StrictMode (dev double-invoke of effects) ------------------------
+
+test("survives StrictMode's mount→cleanup→mount without closing (window.open)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PopOutStrictHarness />);
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c.getByRole("button", { name: "toggle" }).click(),
+  ]);
+  await expect(popup.getByText("popped content")).toBeVisible();
+  // The window stays open (it must not blink open then close), and the opener
+  // did not revert `open` to false.
+  await page.waitForTimeout(200);
+  await expect.poll(() => popup.isClosed()).toBe(false);
+  await expect(c.getByText("popped content")).toHaveCount(0);
+  await popup.close();
+});
+
+test("survives StrictMode without closing (chromeless picture-in-picture)", async ({
+  mount,
+  page,
+}) => {
+  const supported = await page.evaluate(() => "documentPictureInPicture" in window);
+  test.skip(!supported, "Document Picture-in-Picture unsupported in this browser");
+
+  const c = await mount(<PopOutStrictHarness pip />);
+  await c.getByRole("button", { name: "toggle" }).click();
+  // The PiP window stays open across the StrictMode double-invoke (it used to
+  // open, get canceled, and the second requestWindow reject → revert to closed).
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { documentPictureInPicture: { window: Window | null } })
+            .documentPictureInPicture.window?.document.body.textContent ?? "",
+      ),
+    )
+    .toContain("popped content");
+  await page.waitForTimeout(200);
+  const stillOpen = await page.evaluate(
+    () =>
+      !!(window as unknown as { documentPictureInPicture: { window: Window | null } })
+        .documentPictureInPicture.window,
+  );
+  expect(stillOpen).toBe(true);
+  await page.evaluate(() =>
+    (
+      window as unknown as { documentPictureInPicture: { window: Window | null } }
+    ).documentPictureInPicture.window?.close(),
+  );
 });

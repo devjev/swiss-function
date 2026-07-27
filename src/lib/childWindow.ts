@@ -182,20 +182,39 @@ function copyAdoptedSheets(opener: Document, child: Document): void {
   }
 }
 
-/** Mirror the opener's `data-theme` attribute (the library's theme switch)
- *  onto the child root, live, until the returned cleanup runs. */
-export function syncThemeAttr(opener: Document, child: Document): () => void {
+/** Mirror the opener's root (`<html>`) attributes onto the child root, live,
+ *  until the returned cleanup runs. Apps carry the active theme/palette on the
+ *  root as attributes (`data-theme`, `data-colors`,
+ *  ...) or classes, and the cloned stylesheets key on them, so the whole root
+ *  attribute/class set is mirrored, not just `data-theme`. `style` is skipped
+ *  so the child keeps its anti-flash inline background; the inline
+ *  `color-scheme` (native controls/scrollbars) is mirrored on its own. */
+export function syncRootAttributes(opener: Document, child: Document): () => void {
+  let managed = new Set<string>();
   const apply = () => {
-    const theme = opener.documentElement.getAttribute("data-theme");
-    if (theme == null) child.documentElement.removeAttribute("data-theme");
-    else child.documentElement.setAttribute("data-theme", theme);
+    const src = opener.documentElement;
+    const dst = child.documentElement;
+    const next = new Set<string>();
+    for (const attr of Array.from(src.attributes)) {
+      // Keep the child's own inline style (its anti-flash background/color).
+      if (attr.name === "style") continue;
+      next.add(attr.name);
+      if (dst.getAttribute(attr.name) !== attr.value) dst.setAttribute(attr.name, attr.value);
+    }
+    // Drop attributes we set on a previous pass that the opener no longer has.
+    for (const name of managed) {
+      if (!next.has(name)) dst.removeAttribute(name);
+    }
+    managed = next;
+    // color-scheme drives native form controls and scrollbars; mirror the
+    // inline value (or the computed one) so they match the popup's theme.
+    const inline = src.style.colorScheme;
+    const scheme = inline || opener.defaultView?.getComputedStyle(src).colorScheme || "";
+    if (dst.style.colorScheme !== scheme) dst.style.colorScheme = scheme;
   };
   apply();
   const observer = new MutationObserver(apply);
-  observer.observe(opener.documentElement, {
-    attributes: true,
-    attributeFilter: ["data-theme"],
-  });
+  observer.observe(opener.documentElement, { attributes: true });
   return () => observer.disconnect();
 }
 

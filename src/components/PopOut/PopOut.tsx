@@ -16,8 +16,8 @@ import {
   type PopOutRect,
   prepareChildDocument,
   supportsPip,
+  syncRootAttributes,
   syncStyles,
-  syncThemeAttr,
   watchChildClosed,
 } from "../../lib/childWindow";
 import { cx } from "../../lib/cx";
@@ -65,6 +65,18 @@ export interface PopOutProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
+/** The live child-window session, held on a ref across effect runs so a
+ *  StrictMode remount adopts it instead of re-opening (see the open effect). */
+interface PopOutSession {
+  /** `windowName` + the open mode; a change means a different window. */
+  key: string;
+  /** The child window, once open (null while a PiP request is in flight). */
+  win: Window | null;
+  disposed: boolean;
+  disposeScheduled: boolean;
+  teardown: () => void;
+}
+
 function assignRef<T>(ref: Ref<T> | undefined, value: T) {
   if (typeof ref === "function") ref(value);
   else if (ref) (ref as { current: T }).current = value;
@@ -72,7 +84,8 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T) {
 
 /** Pop content out into a separate browser window. Closed, it renders its
  *  children in place; open, it opens a same-origin popup, clones the opener's
- *  stylesheets into it (and keeps them and `data-theme` in sync), and portals
+ *  stylesheets into it (and keeps them and the opener's root theme/palette
+ *  attributes in sync), and portals
  *  the children into the popup's body. The subtree remounts on each
  *  transition (the portal target changes), so lift any state you need to
  *  keep. `WindowArray` (`popOutable`) and `Dialog.PopOut` build on this. */
@@ -122,43 +135,83 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
   const pipRef = useRef(pip);
   pipRef.current = pip;
 
+  // The live open session, held across effect runs. Picture-in-Picture opens
+  // asynchronously and spends the click's one-shot activation, and React
+  // StrictMode double-invokes effects (mount → cleanup → mount) in dev. If the
+  // remount re-opened, the second `requestWindow` would reject (activation
+  // spent) and the first window would be closed as canceled. So the session is
+  // adopted by a same-window remount, and its disposal is deferred a microtask
+  // so that synchronous remount can cancel it; only a real unmount disposes.
+  const sessionRef = useRef<PopOutSession | null>(null);
+
   // Layout effect: for a discrete event (the consumer's click) React flushes
   // synchronously, so opening the window here still carries the user activation
-  // and popup blockers stay quiet. A passive effect would run too late. Picture-
-  // in-Picture resolves asynchronously, but the request is issued in the same
-  // task, so its transient activation holds too.
+  // and popup blockers stay quiet. A passive effect would run too late.
   useLayoutEffect(() => {
     if (!open) return;
-    let canceled = false;
-    let opened: Window | null = null;
-    const teardown: Array<() => void> = [];
+    const key = `${windowName}|${pipRef.current ? "pip" : "win"}`;
+
+    const disposeSession = (session: PopOutSession) => {
+      if (session.disposed) return;
+      session.disposed = true;
+      session.disposeScheduled = false;
+      session.teardown();
+      if (sessionRef.current === session) sessionRef.current = null;
+      setChildWin(null);
+      if (session.win && !session.win.closed) session.win.close();
+    };
+    const scheduleDispose = (session: PopOutSession) => {
+      session.disposeScheduled = true;
+      // A StrictMode remount runs synchronously before this microtask and
+      // clears the flag; a real unmount leaves it set.
+      queueMicrotask(() => {
+        if (session.disposeScheduled) disposeSession(session);
+      });
+    };
+
+    const existing = sessionRef.current;
+    if (existing && existing.key === key && !existing.disposed) {
+      // Same window remounting: adopt it, don't re-open.
+      existing.disposeScheduled = false;
+      if (existing.win && !existing.win.closed) setChildWin(existing.win);
+      return () => scheduleDispose(existing);
+    }
+
+    const session: PopOutSession = {
+      key,
+      win: null,
+      disposed: false,
+      disposeScheduled: false,
+      teardown: () => {},
+    };
+    sessionRef.current = session;
 
     const setup = (win: Window) => {
-      if (canceled) {
+      if (session.disposed) {
         if (!win.closed) win.close();
         return;
       }
-      opened = win;
+      session.win = win;
       prepareChildDocument(win.document, document, titleRef.current);
       const stopStyles = syncStyles(document, win.document);
-      const stopTheme = syncThemeAttr(document, win.document);
+      const stopAttrs = syncRootAttributes(document, win.document);
       const stopWatch = watchChildClosed(win, () => {
-        setChildWin(null);
+        disposeSession(session);
         setOpenRef.current(false, "closed");
       });
       const onOpenerPageHide = () => win.close();
       window.addEventListener("pagehide", onOpenerPageHide);
-      teardown.push(() => {
+      session.teardown = () => {
         window.removeEventListener("pagehide", onOpenerPageHide);
         stopWatch();
         stopStyles();
-        stopTheme();
-      });
+        stopAttrs();
+      };
       win.focus();
       setChildWin(win);
     };
     const blocked = (kind: string) => {
-      if (canceled) return;
+      if (session.disposed) return;
       if (process.env.NODE_ENV !== "production") {
         console.warn(
           `PopOut: ${kind} was blocked. Toggle \`open\` from a user gesture (a click handler).`,
@@ -182,12 +235,7 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
       else setup(win);
     }
 
-    return () => {
-      canceled = true;
-      for (const fn of teardown) fn();
-      setChildWin(null);
-      if (opened && !opened.closed) opened.close();
-    };
+    return () => scheduleDispose(session);
   }, [open, windowName]);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import type { PopOutCloseReason } from "./PopOut";
 import { PopOut } from "./PopOut";
 
@@ -30,5 +30,16 @@ export function PopOutHarness({ pip = false }: { pip?: boolean }) {
         <p>popped content</p>
       </PopOut>
     </div>
+  );
+}
+
+/** The harness wrapped in `<StrictMode>`, which double-invokes effects in dev
+ *  (mount → cleanup → mount). Guards the pop-out open path against opening then
+ *  immediately closing under that pattern. */
+export function PopOutStrictHarness({ pip = false }: { pip?: boolean }) {
+  return (
+    <StrictMode>
+      <PopOutHarness pip={pip} />
+    </StrictMode>
   );
 }
