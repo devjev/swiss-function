@@ -391,48 +391,15 @@
   min-block-size: 0;
 }
 
-/* Popped-out placeholder: the window frame stays a normal strip citizen
-   (title bar, drag, resize untouched) while the content lives in a separate
-   browser window. The body shows the same dithered fill as the strip's desk,
-   with the hint and restore actions on cleared chips over it. */
-.poppedBody {
-  position: relative;
+/* Popped-out window: the whole window (title bar, custom actions, body) fills
+   the separate browser window. No strip cell is kept — the space is freed for
+   the remaining windows. Header sits at the top, body scrolls under it. */
+.poppedWindow {
   display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: calc(var(--sf-unit) / 2);
-  block-size: 100%;
-  min-block-size: calc(var(--sf-unit) * 6);
-  padding: calc(var(--sf-unit) * 2);
-  text-align: center;
-}
-.poppedBody::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-color: var(
-    --sf-wa-fill-color,
-    color-mix(in srgb, var(--sf-color-muted), transparent 55%)
-  );
-  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
-  -webkit-mask-image: var(--sf-dither);
-  mask-image: var(--sf-dither);
-  -webkit-mask-size: 4px 4px;
-  mask-size: 4px 4px;
-}
-.poppedHint {
-  position: relative;
-  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: 100dvh;
   background-color: var(--sf-color-bg);
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
-}
-.poppedActions {
-  position: relative;
-  display: flex;
-  gap: calc(var(--sf-unit) / 2);
-  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
 }
 
 /* Drag ghost rendered in the DragOverlay portal: just the title bar — no full

@@ -198,10 +198,11 @@ export const FullscreenAndScrollingBodies: Story = () => <Demo longBodies />;
 export const SplitView: Story = () => <Demo splittable longBodies />;
 
 /** `popOutable` adds an external-window button to every window's chrome: it
- *  pops the content out into a separate browser window (roughly over its
- *  on-screen spot) and the strip keeps a placeholder with restore actions.
- *  Close the popup, press Escape in it, or hit "Bring back" to return the
- *  content; several windows can be popped at once (one per monitor). */
+ *  pops the whole window (title bar, custom actions and body) out into a
+ *  separate browser window, roughly over its on-screen spot, and the window
+ *  leaves the strip so the neighbours fill the freed space. Close the popup,
+ *  press Escape in it, or hit the pressed pop-out button to bring the window
+ *  back; several windows can be popped at once (one per monitor). */
 export const PopOutWindows: Story = () => <Demo popOutable splittable longBodies />;
 
 /** Custom title-bar actions: `WindowArray.WindowButton` shares the ✕/fullscreen

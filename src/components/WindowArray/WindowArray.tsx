@@ -375,13 +375,30 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const [splitPickerFor, setSplitPickerFor] = useState<string | null>(null);
   const [splitChoice, setSplitChoice] = useState<string | null>(null);
 
-  // A stale controlled id (window no longer exists) reads as null.
-  const resolvedActive = active != null && findWindow(model, active) ? active : null;
   // Stale popped ids read as absent.
   const resolvedPopped = useMemo(
     () => popped.filter((id) => findWindow(model, id) != null),
     [popped, model],
   );
+  // A popped window has left the strip for its own browser window, so it is
+  // absent from the strip model used for layout, roving focus and arrow
+  // navigation. The full `model` still lists it, because the consumer's array
+  // still contains it: `WindowMove` indices and the return-to-strip path stay
+  // in full-array terms.
+  const visibleModel = useMemo<StripModel>(
+    () => ({
+      columns: model.columns.map((c) => ({
+        id: c.id,
+        windowIds: c.windowIds.filter((id) => !resolvedPopped.includes(id)),
+      })),
+    }),
+    [model, resolvedPopped],
+  );
+  const visibleModelRef = useRef(visibleModel);
+  visibleModelRef.current = visibleModel;
+
+  // A stale controlled id (window gone or popped out) reads as null.
+  const resolvedActive = active != null && findWindow(visibleModel, active) != null ? active : null;
   // Pop-out wins over fullscreen/split for the same window: a popped window is
   // in another browser window, so it cannot also fill this container.
   const resolvedFullscreen =
@@ -400,8 +417,9 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     !resolvedPopped.includes(split[1])
       ? split
       : null;
-  // The single Tab stop: the active window's handle, else the first window's.
-  const rovingId = resolvedActive ?? edgeWindow(model, "first");
+  // The single Tab stop: the active window's handle, else the first visible
+  // window's (a popped window has no handle to land on).
+  const rovingId = resolvedActive ?? edgeWindow(visibleModel, "first");
 
   // --- Element registries ---------------------------------------------------
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -693,13 +711,16 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         const dir = vertical ? transposeDir(visualDir) : visualDir;
         if (event.shiftKey) {
           if (!onWindowMove) return;
+          // Moves report full-array indices (the consumer's array still holds
+          // any popped window), so Shift+move runs against the full model.
           const move = moveByKey(modelRef.current, id, dir);
           if (move) {
             pendingFocusRef.current = id;
             onWindowMove(move);
           }
         } else {
-          const next = neighbor(modelRef.current, id, dir);
+          // Arrow navigation skips popped windows (no handle to land on).
+          const next = neighbor(visibleModelRef.current, id, dir);
           if (next) {
             setActive(next);
             focusHandle(next);
@@ -707,7 +728,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         }
       } else if (event.key === "Home" || event.key === "End") {
         event.preventDefault();
-        const next = edgeWindow(modelRef.current, event.key === "Home" ? "first" : "last");
+        const next = edgeWindow(visibleModelRef.current, event.key === "Home" ? "first" : "last");
         if (next) {
           setActive(next);
           focusHandle(next);
@@ -757,10 +778,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       pendingFocusRef.current = null;
       focusHandle(pending);
     }
-    // The active window was removed: hand focus to its successor.
+    // The active window was removed: hand focus to its successor (a visible
+    // one — a popped window has no handle to receive focus).
     if (active != null && !findWindow(model, active) && findWindow(prev, active)) {
       const next = successor(prev, active);
-      const valid = next != null && findWindow(model, next) ? next : edgeWindow(model, "first");
+      const valid =
+        next != null && findWindow(visibleModel, next) != null
+          ? next
+          : edgeWindow(visibleModel, "first");
       setActive(valid);
       // Only steal focus if the removal actually dropped it on <body>.
       if (valid != null && (document.activeElement === document.body || !document.activeElement)) {
@@ -960,7 +985,20 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     vertical
       ? { gridRow: ci * 2 + 2, gridColumn: `${track.start} / span ${track.span}` }
       : { gridColumn: ci * 2 + 2, gridRow: `${track.start} / span ${track.span}` };
-  const subrows = subrowCount(columns.map((c) => c.windows.length));
+  // Popped-out windows have left the strip, so the remaining windows share each
+  // column's full height: the subrow math and every window's placement run on
+  // the visible windows only, keyed by id.
+  const placementById = new Map<string, CSSProperties>();
+  const visibleCounts = columns.map((col, ci) => {
+    const visible = col.windows.filter((w) => !resolvedPopped.includes(w.id));
+    return { ci, visible, count: visible.length };
+  });
+  const subrows = subrowCount(visibleCounts.map((c) => c.count));
+  for (const { ci, visible, count } of visibleCounts) {
+    visible.forEach((w, row) => {
+      placementById.set(w.id, windowPlacement(ci, rowTrack(row, count, subrows)));
+    });
+  }
   // Vertical band heights come from their own store (seeded from the width,
   // capped to the container — issue #31); widths stay untouched while
   // collapsed so expanding back restores them.
@@ -1062,14 +1100,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             {/* One flat keyed list for every window on the strip — the single
                 stable parent that makes cross-column moves state-preserving.
                 Do NOT nest these under per-column elements or fragments. */}
-            {columns.flatMap((col, ci) =>
+            {columns.flatMap((col) =>
               col.windows.map((win, row) => (
                 <WindowView
                   key={win.id}
                   win={win}
                   columnId={col.props.id}
                   row={row}
-                  placement={windowPlacement(ci, rowTrack(row, col.windows.length, subrows))}
+                  placement={placementById.get(win.id)}
                   active={resolvedActive === win.id}
                   fullscreen={resolvedFullscreen === win.id}
                   split={
@@ -1110,17 +1148,23 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   showPopOutButton={popOutable}
                   onPopOutChange={(open) => {
                     if (open) {
-                      setActive(win.id);
                       if (fullscreen === win.id) setFullscreen(null);
                       if (split != null && (split[0] === win.id || split[1] === win.id)) {
                         setSplit(null);
+                      }
+                      // The window leaves the strip: hand active focus to a
+                      // visible neighbour so the roving Tab stop stays real.
+                      if (resolvedActive === win.id) {
+                        const next = successor(visibleModel, win.id);
+                        setActive(next ?? edgeWindow(visibleModel, "first"));
                       }
                       if (!resolvedPopped.includes(win.id)) {
                         setPopped([...resolvedPopped, win.id]);
                       }
                     } else if (resolvedPopped.includes(win.id)) {
-                      // Focus returns to the window's handle once it is back.
+                      // Coming back: focus and activate the returning window.
                       pendingFocusRef.current = win.id;
+                      setActive(win.id);
                       setPopped(resolvedPopped.filter((p) => p !== win.id));
                     }
                   }}
@@ -1321,7 +1365,9 @@ interface WindowViewProps {
   win: WindowArrayWindowProps;
   columnId: string;
   row: number;
-  placement: CSSProperties;
+  /** Grid placement among the column's *visible* windows; absent while popped
+   *  (a popped window renders only its browser-window portal, not a cell). */
+  placement: CSSProperties | undefined;
   active: boolean;
   fullscreen: boolean;
   /** Which half this window fills while the strip is split, else null. */
@@ -1407,6 +1453,92 @@ function WindowView({
       height: Math.max(r.height, 240),
     };
   };
+
+  // The chrome buttons after the title. Split and fullscreen only make sense in
+  // the strip, so they drop out once popped; the pop-out button, any custom
+  // actions, and close travel into the popped window's title bar too.
+  const actionButtons = (
+    <div
+      className={styles.actions}
+      onPointerDown={(event) => {
+        // Buttons never start a drag (Dialog.Actions pattern).
+        event.stopPropagation();
+      }}
+    >
+      {actions}
+      {showPopOutButton && (
+        <button
+          type="button"
+          aria-label={popped ? "Bring the window back" : "Open in a separate window"}
+          aria-pressed={popped}
+          className={styles.iconButton}
+          onClick={() => {
+            if (!popped) measurePopRect();
+            onPopOutChange(!popped);
+          }}
+        >
+          <PopOutIcon />
+        </button>
+      )}
+      {showSplitButton && !popped && (
+        <button
+          type="button"
+          aria-label={split != null ? "Exit split view" : "Split view"}
+          aria-pressed={split != null}
+          className={styles.iconButton}
+          onClick={onSplitButton}
+        >
+          <SplitIcon />
+        </button>
+      )}
+      {maximizable && split == null && !popped && (
+        <button
+          type="button"
+          aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          aria-pressed={fullscreen}
+          className={styles.iconButton}
+          onClick={onToggleFullscreen}
+        >
+          {fullscreen ? <CollapseIcon /> : <ExpandIcon />}
+        </button>
+      )}
+      {onClose && (
+        <button type="button" aria-label="Close" className={styles.iconButton} onClick={onClose}>
+          <CloseIcon />
+        </button>
+      )}
+    </div>
+  );
+
+  // Popped out: nothing occupies the strip. The content and its chrome render
+  // in the separate browser window; closing it (or the return button) pops the
+  // window back into the strip.
+  if (popped) {
+    return (
+      <PopOut
+        open
+        onOpenChange={(next) => {
+          if (!next) onPopOutChange(false);
+        }}
+        title={typeof title === "string" ? title : id}
+        name={`sf-popout-${id}`}
+        rect={popRectRef.current}
+        windowRef={popWinRef}
+      >
+        {/* biome-ignore lint/a11y/useSemanticElements: same "group" rationale as the in-strip window. */}
+        <section role="group" aria-labelledby={titleId} className={styles.poppedWindow}>
+          <header className={styles.titlebar}>
+            <div id={titleId} className={styles.handle}>
+              {title}
+            </div>
+            {actionButtons}
+          </header>
+          <div className={styles.body}>{children}</div>
+        </section>
+      </PopOut>
+    );
+  }
+
   return (
     // biome-ignore lint/a11y/useSemanticElements: a window holds arbitrary interactive content — "group" labelled by its title fits; <fieldset> does not.
     <section
@@ -1425,7 +1557,6 @@ function WindowView({
       data-active={active ? "" : undefined}
       data-fullscreen={fullscreen ? "" : undefined}
       data-split={split ?? undefined}
-      data-popped={popped ? "" : undefined}
       data-dragging={dragging ? "" : undefined}
       data-drop-edge={dropEdge ?? undefined}
       onPointerDownCapture={onActivate}
@@ -1449,89 +1580,9 @@ function WindowView({
         >
           {title}
         </button>
-        <div
-          className={styles.actions}
-          onPointerDown={(event) => {
-            // Buttons never start a drag (Dialog.Actions pattern).
-            event.stopPropagation();
-          }}
-        >
-          {actions}
-          {showPopOutButton && (
-            <button
-              type="button"
-              aria-label={popped ? "Bring the window back" : "Open in a separate window"}
-              aria-pressed={popped}
-              className={styles.iconButton}
-              onClick={() => {
-                if (!popped) measurePopRect();
-                onPopOutChange(!popped);
-              }}
-            >
-              <PopOutIcon />
-            </button>
-          )}
-          {showSplitButton && !popped && (
-            <button
-              type="button"
-              aria-label={split != null ? "Exit split view" : "Split view"}
-              aria-pressed={split != null}
-              className={styles.iconButton}
-              onClick={onSplitButton}
-            >
-              <SplitIcon />
-            </button>
-          )}
-          {maximizable && split == null && !popped && (
-            <button
-              type="button"
-              aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-              aria-pressed={fullscreen}
-              className={styles.iconButton}
-              onClick={onToggleFullscreen}
-            >
-              {fullscreen ? <CollapseIcon /> : <ExpandIcon />}
-            </button>
-          )}
-          {onClose && (
-            <button
-              type="button"
-              aria-label="Close"
-              className={styles.iconButton}
-              onClick={onClose}
-            >
-              <CloseIcon />
-            </button>
-          )}
-        </div>
+        {actionButtons}
       </header>
-      <div className={styles.body}>
-        {popped && (
-          <div className={styles.poppedBody}>
-            <span className={styles.poppedHint}>Showing in a separate window</span>
-            <div className={styles.poppedActions}>
-              <Button variant="secondary" size="sm" onClick={() => onPopOutChange(false)}>
-                Bring back
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => popWinRef.current?.focus()}>
-                Show window
-              </Button>
-            </div>
-          </div>
-        )}
-        <PopOut
-          open={popped}
-          onOpenChange={(next) => {
-            if (next !== popped) onPopOutChange(next);
-          }}
-          title={typeof title === "string" ? title : id}
-          name={`sf-popout-${id}`}
-          rect={popRectRef.current}
-          windowRef={popWinRef}
-        >
-          {children}
-        </PopOut>
-      </div>
+      <div className={styles.body}>{children}</div>
     </section>
   );
 }

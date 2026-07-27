@@ -54,6 +54,7 @@ export function WindowArrayHarness({
   controls,
   splittable,
   popOutable,
+  withActions,
   apiHotkeys,
   orientation,
   verticalBelow,
@@ -68,6 +69,8 @@ export function WindowArrayHarness({
   controls?: boolean;
   splittable?: boolean;
   popOutable?: boolean;
+  /** Gives each window a custom title-bar action (a "Pin" WindowButton). */
+  withActions?: boolean;
   /** Simulates the consumer's central hotkey system: wires Alt+Arrow on the
    *  wrapping div to `apiRef.switchColumn` (WindowArray binds nothing itself
    *  now — issue #32). */
@@ -132,6 +135,13 @@ export function WindowArrayHarness({
                 key={win.id}
                 id={win.id}
                 title={win.title}
+                actions={
+                  withActions ? (
+                    <WindowArray.WindowButton aria-label={`Pin ${win.title}`}>
+                      +
+                    </WindowArray.WindowButton>
+                  ) : undefined
+                }
                 onClose={() =>
                   setColumns((cols) =>
                     cols

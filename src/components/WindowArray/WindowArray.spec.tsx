@@ -900,7 +900,7 @@ test("split view: a controlled splitIds pins the split", async ({ mount, page })
 
 // --- Pop-out windows (issue #84) --------------------------------------------
 
-test("pop-out opens the window's content in a popup and Bring back restores it", async ({
+test("pop-out moves the window (with its chrome) to a popup and leaves no strip cell", async ({
   mount,
   page,
 }) => {
@@ -910,18 +910,31 @@ test("pop-out opens the window's content in a popup and Bring back restores it",
     page.waitForEvent("popup"),
     win.getByRole("button", { name: "Open in a separate window" }).click(),
   ]);
+  // The popup carries the window's body AND its title-bar chrome.
   await expect(popup.getByText("Body of Window 1A")).toBeVisible();
-  await expect(win).toHaveAttribute("data-popped", "");
-  await expect(win.getByText("Showing in a separate window")).toBeVisible();
-  await expect(win.getByText("Body of Window 1A")).toHaveCount(0);
+  await expect(popup.getByText("Window 1A", { exact: true })).toBeVisible();
   await expect(c.getByTestId("popped-ids")).toHaveText('["w1a"]');
-  // The frame stays a strip citizen: title bar and close button remain.
-  await expect(win.getByRole("button", { name: "Window 1A" })).toBeVisible();
-  await win.getByRole("button", { name: "Bring back", exact: true }).click();
+  // No skeleton is left in the strip: the section is gone entirely.
+  await expect(win).toHaveCount(0);
+  await expect(c.getByText("Body of Window 1A")).toHaveCount(0);
+  // The pressed pop-out button in the popup returns it to the strip.
+  await popup.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(win).toHaveCount(1);
   await expect(win.getByText("Body of Window 1A")).toBeVisible();
-  await expect(win).not.toHaveAttribute("data-popped", "");
   await expect(c.getByTestId("popped-ids")).toHaveText("[]");
   await expect.poll(() => popup.isClosed()).toBe(true);
+});
+
+test("custom window actions travel into the popped-out window", async ({ mount, page }) => {
+  const c = await mount(<WindowArrayHarness popOutable withActions />);
+  const win = c.locator('[data-window-id="w1a"]');
+  await expect(win.getByRole("button", { name: "Pin Window 1A" })).toBeVisible();
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    win.getByRole("button", { name: "Open in a separate window" }).click(),
+  ]);
+  await expect(popup.getByRole("button", { name: "Pin Window 1A" })).toBeVisible();
+  await popup.close();
 });
 
 test("closing the popup returns the content to the strip", async ({ mount, page }) => {
@@ -952,7 +965,10 @@ test("Escape inside the popup returns the content", async ({ mount, page }) => {
   await expect(c.getByTestId("popped-ids")).toHaveText("[]");
 });
 
-test("popping a fullscreen window exits fullscreen first", async ({ mount, page }) => {
+test("popping a fullscreen window exits fullscreen and leaves no strip cell", async ({
+  mount,
+  page,
+}) => {
   const c = await mount(<WindowArrayHarness popOutable />);
   const win = c.locator('[data-window-id="w1a"]');
   await win.getByRole("button", { name: "Enter fullscreen" }).click();
@@ -962,11 +978,13 @@ test("popping a fullscreen window exits fullscreen first", async ({ mount, page 
     win.getByRole("button", { name: "Open in a separate window" }).click(),
   ]);
   await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  await expect(win).toHaveCount(0);
+  // Fullscreen and split controls are absent in the popped window; pop-out is
+  // the toggle back.
+  await expect(popup.getByRole("button", { name: "Enter fullscreen" })).toHaveCount(0);
+  await popup.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(win).toHaveCount(1);
   await expect(win).not.toHaveAttribute("data-fullscreen", "");
-  await expect(win).toHaveAttribute("data-popped", "");
-  // Fullscreen and split controls hide while popped; pop-out is the toggle.
-  await expect(win.getByRole("button", { name: "Enter fullscreen" })).toHaveCount(0);
-  await win.getByRole("button", { name: "Bring the window back" }).click();
   await expect(win.getByText("Body of Window 1A")).toBeVisible();
 });
 
@@ -983,6 +1001,6 @@ test("the split picker excludes popped-out windows", async ({ mount, page }) => 
   await expect(dialog.getByText("Window 2B")).toBeVisible();
   await expect(dialog.getByText("Window 1A")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel" }).click();
-  await w1a.getByRole("button", { name: "Bring the window back" }).click();
+  await popup.getByRole("button", { name: "Bring the window back" }).click();
   await expect(w1a.getByText("Body of Window 1A")).toBeVisible();
 });
