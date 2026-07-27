@@ -945,6 +945,43 @@ test("a column whose windows are all popped out collapses away", async ({ mount,
   await expect(c.locator("div[data-column-id]")).toHaveCount(3);
 });
 
+test("popping a window holds the strip's horizontal scroll position", async ({ mount, page }) => {
+  // Enough columns to overflow horizontally.
+  const c = await mount(
+    <WindowArrayHarness
+      popOutable
+      columnCount={8}
+      windowsPerColumn={1}
+      columnWidth={220}
+      width={500}
+    />,
+  );
+  const viewport = c.locator('[class*="viewport"]').first();
+  // Scroll right (instant, so no smooth-scroll animation confuses the read).
+  await viewport.evaluate((el) => el.scrollTo({ left: 300, behavior: "instant" }));
+  await page.waitForTimeout(150);
+  const before = await viewport.evaluate((el) => Math.round(el.scrollLeft));
+  expect(before).toBeGreaterThan(200);
+  // Pop a window whose button is on screen at this scroll (col-3), via a DOM
+  // click so the test harness doesn't auto-scroll it into view itself.
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c
+      .locator('[data-window-id="w3a"]')
+      .evaluate((el) =>
+        el
+          .querySelector<HTMLButtonElement>('button[aria-label="Open in a separate window"]')
+          ?.click(),
+      ),
+  ]);
+  await expect(popup.getByText("Body of Window 3A")).toBeVisible();
+  await page.waitForTimeout(300);
+  const after = await viewport.evaluate((el) => Math.round(el.scrollLeft));
+  // The strip did not jump (it used to reveal-scroll to the new active window).
+  expect(Math.abs(after - before)).toBeLessThan(20);
+  await popup.close();
+});
+
 test("custom window actions travel into the popped-out window", async ({ mount, page }) => {
   const c = await mount(<WindowArrayHarness popOutable withActions />);
   const win = c.locator('[data-window-id="w1a"]');

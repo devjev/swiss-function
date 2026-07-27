@@ -205,6 +205,19 @@ export const SplitView: Story = () => <Demo splittable longBodies />;
  *  back; several windows can be popped at once (one per monitor). */
 export const PopOutWindows: Story = () => <Demo popOutable splittable longBodies />;
 
+/** Many single-window columns (horizontal overflow) + `popOutable`: scroll the
+ *  strip sideways, then pop a window — the strip holds its scroll position
+ *  instead of jumping. */
+export const PopOutManyColumns: Story = () => (
+  <Demo
+    popOutable
+    columns={Array.from({ length: 8 }, (_, c) => ({
+      id: `col-${c + 1}`,
+      windows: [{ id: `win-${c + 1}`, title: `Window ${c + 1}`, body: `Column ${c + 1} of 8.` }],
+    }))}
+  />
+);
+
 /** Custom title-bar actions: `WindowArray.WindowButton` shares the ✕/fullscreen
  *  chrome exactly, so consumer buttons blend in. Rendered before the built-in
  *  pair; the actions row never starts a window drag. */

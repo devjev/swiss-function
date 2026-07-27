@@ -440,6 +440,12 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const columnRefs = useRef(new Map<string, HTMLDivElement>());
   const handleRefs = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocusRef = useRef<string | null>(null);
+  // Set before an active change that must NOT auto-scroll the strip: popping a
+  // window moves the active id to a neighbour so the roving Tab stop stays
+  // real, but the strip's scroll position should hold (the window left for its
+  // own browser window; jumping the strip is jarring). The reveal effect reads
+  // and clears this.
+  const skipRevealRef = useRef(false);
 
   const setRefs = useCallback(
     (node: HTMLElement | null) => {
@@ -827,6 +833,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // Axis follows the orientation (and re-reveals on an orientation flip).
   useEffect(() => {
     if (resolvedActive == null) return;
+    // A pop-out moved the active id but must not scroll the strip.
+    if (skipRevealRef.current) {
+      skipRevealRef.current = false;
+      return;
+    }
     const viewport = viewportRef.current;
     const pos = findWindow(modelRef.current, resolvedActive);
     const columnId = pos ? (modelRef.current.columns[pos.col]?.id ?? null) : null;
@@ -1158,7 +1169,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   dropEdge={dropEdgeFor(col.props.id, row, col.windows.length)}
                   moveEnabled={(win.movable ?? true) && onWindowMove != null}
                   onActivate={() => {
-                    if (resolvedActive !== win.id) setActive(win.id);
+                    // Pointer activation (clicking a window or its chrome): the
+                    // window is already on screen, so don't reveal-scroll the
+                    // strip. Keyboard nav and the paddles call setActive
+                    // directly and still scroll.
+                    if (resolvedActive !== win.id) {
+                      skipRevealRef.current = true;
+                      setActive(win.id);
+                    }
                   }}
                   onToggleFullscreen={() => {
                     setActive(win.id);
@@ -1187,8 +1205,10 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                         setSplit(null);
                       }
                       // The window leaves the strip: hand active focus to a
-                      // visible neighbour so the roving Tab stop stays real.
+                      // visible neighbour so the roving Tab stop stays real,
+                      // but hold the strip's scroll position (no reveal jump).
                       if (resolvedActive === win.id) {
+                        skipRevealRef.current = true;
                         const next = successor(visibleModel, win.id);
                         setActive(next ?? edgeWindow(visibleModel, "first"));
                       }
