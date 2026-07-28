@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.18.2 — 2026-07-28
+
+### Patch
+
+- ColorPicker: the chromaticity diagram ( / ColorPicker ) no longer spills past its frame. The plot domain now covers the full spectral locus (its green tip reaches y ≈ 0.83), so the horseshoe sits inside the axes box instead of overflowing the top edge.
+
 ## v2.18.1 — 2026-07-27
 
 ### Patch
