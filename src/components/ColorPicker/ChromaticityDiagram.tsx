@@ -38,9 +38,12 @@ export interface ChromaticityDiagramProps {
   style?: CSSProperties;
 }
 
-// Plot both axes over [0, 0.8] in a padded 100×100 space (aspect-preserved).
+// Plot both axes over [0, DOM] in a padded 100×100 space. DOM must cover the
+// full spectral locus (x to 0.7347, y to 0.8338) with the SAME scale on both
+// axes (a square container), or the horseshoe distorts / spills past the frame;
+// 0.85 contains it with a hair of margin.
 const PAD = 7;
-const DOM = 0.8;
+const DOM = 0.85;
 const S = 100 - 2 * PAD;
 const px = (x: number) => PAD + (x / DOM) * S;
 const py = (y: number) => 100 - PAD - (y / DOM) * S;

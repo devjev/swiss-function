@@ -60,6 +60,41 @@ test("standalone ChromaticityDiagram marks the colour with a filled dot", async 
   await expect(c.locator("circle").last()).toHaveAttribute("fill", "#3b82f6");
 });
 
+test("the spectral locus stays inside the frame (no out-of-bounds spill)", async ({ mount }) => {
+  // The green tip of the locus reaches y ≈ 0.83; the plot domain must contain
+  // it, or the horseshoe spills past the frame's top edge.
+  const c = await mount(<ChromaticityDiagram color="#3b82f6" />);
+  const bounds = await c.evaluate((root) => {
+    const svg = root.querySelector("svg")!;
+    const frame = svg.querySelector("rect")!;
+    const locus = svg.querySelector("polygon")!;
+    const fx = +frame.getAttribute("x")!;
+    const fy = +frame.getAttribute("y")!;
+    const fr = fx + +frame.getAttribute("width")!;
+    const fb = fy + +frame.getAttribute("height")!;
+    const pts = locus
+      .getAttribute("points")!
+      .split(" ")
+      .map((p) => p.split(",").map(Number) as [number, number]);
+    const xs = pts.map((p) => p[0]);
+    const ys = pts.map((p) => p[1]);
+    return {
+      fx,
+      fy,
+      fr,
+      fb,
+      minX: Math.min(...xs),
+      minY: Math.min(...ys),
+      maxX: Math.max(...xs),
+      maxY: Math.max(...ys),
+    };
+  });
+  expect(bounds.minX).toBeGreaterThanOrEqual(bounds.fx);
+  expect(bounds.minY).toBeGreaterThanOrEqual(bounds.fy);
+  expect(bounds.maxX).toBeLessThanOrEqual(bounds.fr);
+  expect(bounds.maxY).toBeLessThanOrEqual(bounds.fb);
+});
+
 test("clicking the chromaticity diagram picks the colour under the pointer", async ({
   mount,
   page,
@@ -69,7 +104,8 @@ test("clicking the chromaticity diagram picks the colour under the pointer", asy
   );
   const before = (await c.getByTestId("value").textContent()) ?? "";
   const box = await c.getByRole("img", { name: /chromaticity/i }).boundingBox();
-  if (box) await page.mouse.click(box.x + box.width * 0.75, box.y + box.height * 0.55);
+  // A point well inside the horseshoe (near the sRGB interior).
+  if (box) await page.mouse.click(box.x + box.width * 0.55, box.y + box.height * 0.5);
   await expect(c.getByTestId("value")).not.toHaveText(before);
 });
 
