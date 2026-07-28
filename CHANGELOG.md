@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.18.3 — 2026-07-28
+
+### Patch
+
+- VerticalForm: restore the Minimap rail density read. Field markers are sized by the real row height again (fields read as contiguous filled blocks), reverting the c532d9e label-height regression that made forms look super-sparse. A single outsized field (a tall TableInput) is now capped at a few label-heights instead, so it still can't dominate the rail scaling (#87).
+
 ## v2.18.2 — 2026-07-28
 
 ### Patch
