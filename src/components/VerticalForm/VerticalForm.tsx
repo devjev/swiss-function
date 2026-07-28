@@ -57,6 +57,12 @@ export interface VerticalFormEntry {
   emphasis?: boolean;
 }
 
+/** Cap for a field's rail span, in label-heights: a normal multi-line field
+ *  (a radio group, a short textarea) reads at its real height, but an outsized
+ *  control (a tall `TableInput`) is bounded here so it can't dominate Minimap's
+ *  block-size scaling and flatten every other field to a rule (issue #87). */
+const MAX_SPAN = 8;
+
 /** Turn measured entries into Minimap markers: sort by position (Map insertion
  *  order is not DOM order). Every row is a filled dither `block` span of its
  *  own height; a named row is additionally a `header`, so its label rides on
@@ -257,16 +263,17 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     const entries: VerticalFormEntry[] = [];
     entriesRef.current.forEach(({ node, meta }, id) => {
       const rect = node.getBoundingClientRect();
-      // The marker anchors at the row top (`top`), but its rail *span* is the
-      // field's LABEL height, not the whole control's. A field's control can be
-      // arbitrarily tall (a TableInput, a TextEdit) — measuring the full box
-      // would make that one marker a giant span that dominates Minimap's rail
-      // block-size scaling (`minBlock`/`maxBlock`): with a cap set, the rail
-      // shrinks to fit the table's block and every other marker compresses into
-      // the top. A label-sized span keeps every field an equal anchor; a tall
-      // field still reads as the gap to the next marker.
+      // The rail span is the field's real row height, so fields read as
+      // contiguous filled blocks proportional to their size (the density read).
+      // But a single arbitrarily tall control (a TableInput, a big TextEdit)
+      // must not dominate Minimap's block-size scaling and flatten every other
+      // field, so a field's span is capped at a few label-heights (`MAX_SPAN`).
+      // Normal multi-line fields keep their real height; only an outsized one
+      // is bounded. A section (no label child) keeps its title height.
       const label = node.querySelector<HTMLElement>(`.${styles.fieldLabel}`);
-      const height = label ? label.getBoundingClientRect().height : rect.height;
+      const height = label
+        ? Math.min(rect.height, label.getBoundingClientRect().height * MAX_SPAN)
+        : rect.height;
       entries.push({
         id,
         top: rect.top - base,

@@ -96,6 +96,28 @@ export function TallFieldForm() {
   );
 }
 
+/** Mixed field heights: a short field, a moderately tall one, and a giant one.
+ *  The rail must read the density (the tall field's block clearly bigger than
+ *  the short one's), while the giant field is capped so it doesn't dwarf the
+ *  rest (issue #87). */
+export function MixedHeightsForm() {
+  return (
+    <div style={{ height: 320, width: 560 }}>
+      <VerticalForm>
+        <VerticalForm.Field label="Short">
+          <Input />
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Tall">
+          <div style={{ height: 140, background: "var(--sf-color-bg-subtle)" }}>tall</div>
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Giant">
+          <div style={{ height: 1200, background: "var(--sf-color-bg-subtle)" }}>giant</div>
+        </VerticalForm.Field>
+      </VerticalForm>
+    </div>
+  );
+}
+
 /** Distinct single-word labels so a filter maps unambiguously to one option. */
 const NAV_FIELDS = [
   "Alfa",

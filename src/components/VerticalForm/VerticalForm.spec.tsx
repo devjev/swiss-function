@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { Basic, NavForm, Sections, TallFieldForm } from "./VerticalForm.harness";
+import { Basic, MixedHeightsForm, NavForm, Sections, TallFieldForm } from "./VerticalForm.harness";
 
 /** The scroll element is the target of the rail scrollbar's aria-controls. */
 async function scrollTopOf(c: { locator(selector: string): Locator; page(): Page }) {
@@ -41,8 +41,8 @@ test("section titles appear on the rail above their fields", async ({ mount }) =
 test("a tall field does not compress the other rail markers to the top", async ({ mount }) => {
   // A field with a very tall control (a TableInput in the wild) used to report
   // its full height as a rail span; with `maxBlock` set, Minimap shrank the
-  // whole rail to fit it and every marker bunched at the top. The marker span
-  // is now the field's label, so "Last" tracks its real (lower) position.
+  // whole rail to fit it and every marker bunched at the top. The span is now
+  // capped, so "Last" tracks its real (lower) position.
   const c = await mount(<TallFieldForm />);
   const rail = c.locator('[class*="rail"]').first();
   const railBox = await rail.boundingBox();
@@ -52,6 +52,32 @@ test("a tall field does not compress the other rail markers to the top", async (
   // (it bunched into the top ~third before the fix).
   const railFraction = (lastBox.y - railBox.y) / railBox.height;
   expect(railFraction).toBeGreaterThan(0.5);
+});
+
+test("rail blocks read the field density; a giant field is capped, not dominant", async ({
+  mount,
+}) => {
+  // Restores the density read (issue #87): each field's rail block is sized by
+  // its real height (not flattened to its label), while an outsized field is
+  // bounded so it doesn't dwarf the others.
+  const c = await mount(<MixedHeightsForm />);
+  // Block markers are `…_marker__…` (the container is `…_markers__…`, which the
+  // double underscore after "marker" excludes). They populate after a measure,
+  // so wait for the three.
+  const blocks = c.locator('[class*="marker__"]');
+  await expect(blocks).toHaveCount(3);
+  const heights = await blocks.evaluateAll((els) =>
+    els.map((e) => Math.round(e.getBoundingClientRect().height)),
+  );
+  const short = heights[0] ?? 0;
+  const tall = heights[1] ?? 0;
+  const giant = heights[2] ?? 0;
+  // Density: the moderately tall field reads clearly bigger than the short one
+  // (it was flattened to a label-sized rule before this fix).
+  expect(tall).toBeGreaterThan(short * 1.4);
+  // Cap: the 1200px giant does not dominate — its block is within a small
+  // factor of the tall field's, not many times larger.
+  expect(giant).toBeLessThan(tall * 2);
 });
 
 test("Tab moves focus field to field; Shift+Tab reverses", async ({ mount, page }) => {
