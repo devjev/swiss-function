@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.19.0 — 2026-08-10
+
+### Minor
+
+- Add AgentComposer (prototype): compose LLM agents as an instance tree of agents and tools (AGT/FNC/MCP), each with model, hyperparameters, and context; collapse-as-box disclosure, containment traces, and a drag drop target.
+- Add ContextEditor: assemble an LLM's context window as a budget gauge beside an editable, reorderable list of labelled context blocks (system prompt, docs, tool output, memory, history). Controlled value/onChange; drag-reorder (keyboard-operable, lazy dnd-kit), exclude/remove, pinned blocks resist; you supply token counts. The gauge stacks blocks by token share, marks an effective-context cutoff (the 'lost in the middle' degrade) and a cap danger zone, and flags each block strong/buried/wasted (attention = position x salience).
+
 ## v2.18.4 — 2026-08-10
 
 ### Patch
