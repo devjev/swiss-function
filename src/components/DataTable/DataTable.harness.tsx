@@ -96,6 +96,45 @@ export function DataTableHarness({
   return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
 }
 
+// --- Tall-header scroll-snap harness (issue #88) ---
+
+// A consumer that grows the header cell for a two-line label (human title over
+// technical name) with row scroll-snap on. The default header cell is a fixed
+// 1.5u, so the injected style releases it to auto height, mirroring the
+// real-world case where the taller header left the snap origin short and parked
+// the first row half-hidden under the sticky header.
+export function SnapTallHeaderHarness() {
+  const data: Row[] = Array.from({ length: 40 }, (_, i) => ({
+    name: `Name ${i}`,
+    age: 20 + i,
+    active: i % 2 === 0,
+  }));
+  const twoLine = (title: string, code: string) => (
+    <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+      <span>{title}</span>
+      <span style={{ opacity: 0.6 }}>{code}</span>
+    </span>
+  );
+  const columns: ColumnDef<Row>[] = [
+    { id: "name", header: twoLine("Full name", "name"), accessor: "name" },
+    { id: "age", header: twoLine("Age in years", "age"), accessor: "age", align: "end" },
+    { id: "active", header: "active", accessor: "active" },
+  ];
+  return (
+    <>
+      <style>{`
+        [class*="headerCell"] {
+          block-size: auto;
+          min-block-size: calc(var(--sf-unit) * 3);
+          align-items: stretch;
+          padding-block: calc(var(--sf-unit) / 2);
+        }
+      `}</style>
+      <DataTable<Row> data={data} columns={columns} height={200} scrollSnap="rows" />
+    </>
+  );
+}
+
 // --- Rich cell-editors harness (text / number / date / boolean / select) ---
 
 type EditRow = { name: string; score: number; joined: Date; active: boolean; role: string };

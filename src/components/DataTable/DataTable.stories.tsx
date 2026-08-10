@@ -140,6 +140,46 @@ export const SnapAndEdgeFade: Story = () => (
   <DataTable data={seed(50)} columns={baseColumns} height={240} scrollSnap="rows" edgeFade />
 );
 
+// Two-line headers (human title over the technical name) make the header taller
+// than a default 1.5u row. With row scroll-snap on, the snap origin is measured
+// from the real header height, so the first row rests fully below the header
+// instead of clipped behind it (issue #88).
+export const SnapTallHeader: Story = () => {
+  const twoLine = (title: string, code: string) => (
+    <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+      <span>{title}</span>
+      <span style={{ opacity: 0.6, fontWeight: 400 }}>{code}</span>
+    </span>
+  );
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: twoLine("Full name", "name"), accessor: "name" },
+    { id: "age", header: twoLine("Age in years", "age"), accessor: "age", align: "end", width: 8 },
+    { id: "role", header: twoLine("Access role", "role"), accessor: "role", width: 10 },
+    {
+      id: "score",
+      header: twoLine("Risk score", "score"),
+      accessor: "score",
+      align: "end",
+      width: 8,
+    },
+  ];
+  return (
+    <div className="sf-tall-header-demo">
+      {/* A consumer grows the header cell (default is a fixed 1.5u) to fit the
+          two-line label. */}
+      <style>{`
+        .sf-tall-header-demo [class*="headerCell"] {
+          block-size: auto;
+          min-block-size: calc(var(--sf-unit) * 3);
+          align-items: stretch;
+          padding-block: calc(var(--sf-unit) / 2);
+        }
+      `}</style>
+      <DataTable data={seed(50)} columns={columns} height={240} scrollSnap="rows" />
+    </div>
+  );
+};
+
 // A taller, gentler fade — 4 rows deep with a lower peak dot density.
 export const EdgeFadeTuned: Story = () => (
   <DataTable

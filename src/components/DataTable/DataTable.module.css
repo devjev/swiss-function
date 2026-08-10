@@ -47,9 +47,15 @@
    overlaps the top of the scrollport, so without offsetting the snap origin a
    row's `start` point lands *behind* the header — the first row can never settle
    and proximity snap bounces it to the second. `scroll-padding-top` pushes the
-   snap origin below the header (one 1.5u row per header group). */
+   snap origin below the header. DataTable measures the header's real height and
+   publishes it as `--sf-header-block-size` (a ResizeObserver, so a consumer-grown
+   header (a two-line label, a taller cell) is tracked, issue #88). The fallback
+   assumes one 1.5u row per header group, matching the pre-measurement frame. */
 .viewport[data-snap-rows] {
-  scroll-padding-top: calc(var(--sf-unit) * 1.5 * var(--sf-header-rows, 1));
+  scroll-padding-top: var(
+    --sf-header-block-size,
+    calc(var(--sf-unit) * 1.5 * var(--sf-header-rows, 1))
+  );
 }
 .viewport[data-snap-rows]:not([data-snap-cols]) {
   scroll-snap-type: y proximity;

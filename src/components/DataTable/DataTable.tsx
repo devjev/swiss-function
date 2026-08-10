@@ -23,7 +23,7 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -770,6 +770,46 @@ export function DataTable<T>(props: DataTableProps<T>) {
     ro.observe(hr);
     return () => ro.disconnect();
   }, []);
+
+  // Row scroll-snap needs the snap origin (`scroll-padding-top`) to clear the
+  // sticky header; otherwise row 1's `start` snap point lands behind it and
+  // proximity snap parks the table with the first row half-hidden, unrecoverably
+  // (issue #88). The CSS fallback assumes each header group is one 1.5u row, which
+  // a consumer-grown header (a two-line label, a taller cell) breaks. Measure
+  // the real header block and publish it as `--sf-header-block-size`, which the
+  // snap padding reads. A layout effect, so the correct padding is in place
+  // before the browser computes the initial rest position.
+  const headerGroupCount = table.getHeaderGroups().length;
+  const [headerBlockSize, setHeaderBlockSize] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const snapRows = scrollSnap === "rows" || scrollSnap === "both";
+    const first = headerRowRef.current;
+    if (!snapRows || !first) {
+      setHeaderBlockSize(null);
+      return;
+    }
+    // The header rows are the contiguous first siblings of the body; walk them so
+    // a multi-group header (or any header row growing) is measured, not just the
+    // first. The block height is the last row's bottom minus the first's top,
+    // which stays correct while the sticky header is pinned mid-scroll.
+    const rows: HTMLElement[] = [];
+    for (
+      let el: Element | null = first;
+      el && rows.length < headerGroupCount;
+      el = el.nextElementSibling
+    ) {
+      rows.push(el as HTMLElement);
+    }
+    const last = rows[rows.length - 1] ?? first;
+    const measure = () => {
+      const height = last.getBoundingClientRect().bottom - first.getBoundingClientRect().top;
+      setHeaderBlockSize(Math.round(height));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    for (const row of rows) ro.observe(row);
+    return () => ro.disconnect();
+  }, [scrollSnap, headerGroupCount]);
 
   // --- Selection ---
   const colCount = visibleLeaves.length;
@@ -1683,6 +1723,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
             maxHeight: fillHeight ? undefined : height,
             "--sf-row-height": `${rowHeight}px`,
             "--sf-header-rows": headerGroups.length,
+            // Measured sticky-header height for the scroll-snap origin (issue #88);
+            // absent before measurement, when the CSS fallback (1.5u per group) holds.
+            ...(headerBlockSize != null
+              ? { "--sf-header-block-size": `${headerBlockSize}px` }
+              : {}),
             // INTERNAL variable, not a consumer token: the single writer for
             // every row's grid-template-columns,
             // so a resize step mutates one element instead of every row.

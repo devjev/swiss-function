@@ -7,6 +7,7 @@ import {
   GroupsHarness,
   ManyValuesHarness,
   MergeHarness,
+  SnapTallHeaderHarness,
   TreeHarness,
 } from "./DataTable.harness";
 import { SortHarness } from "./DataTable.sortHarness";
@@ -620,6 +621,45 @@ test("scrollSnap sets the snap data-attributes on the viewport", async ({ mount 
   const vp = c.locator('[class*="viewport"]').first();
   await expect(vp).toHaveAttribute("data-snap-rows", "");
   await expect(vp).toHaveAttribute("data-snap-cols", "");
+});
+
+test("scrollSnap: the snap origin clears a header taller than the default 1.5u (issue #88)", async ({
+  mount,
+}) => {
+  const c = await mount(<SnapTallHeaderHarness />);
+  const vp = c.locator('[class*="viewport"]').first();
+  const header = vp.locator('[class*="headerRow"]').first();
+
+  // The two-line header is taller than a default 1.5u header row (~24px).
+  const headerH = await header.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  expect(headerH).toBeGreaterThan(30);
+
+  // The measured header height is published as `--sf-header-block-size` and the
+  // snap padding tracks it, instead of the 1.5u-per-group fallback that left the
+  // first row parked under the header.
+  const pad = await vp.evaluate((el) => Number.parseFloat(getComputedStyle(el).scrollPaddingTop));
+  expect(Math.abs(pad - headerH)).toBeLessThanOrEqual(1);
+
+  // End-to-end: the top of the scroll range is a valid snap rest, so the first
+  // data row sits fully below the sticky header rather than clipped behind it.
+  await vp.evaluate((el) => el.scrollTo({ top: 0 }));
+  const gap = await vp.evaluate((el) => {
+    const h = el.querySelector('[class*="headerRow"]') as HTMLElement;
+    const row = el.querySelector('[class*="body"] [role="row"]') as HTMLElement;
+    return Math.round(row.getBoundingClientRect().top - h.getBoundingClientRect().bottom);
+  });
+  expect(gap).toBeGreaterThanOrEqual(-1);
+});
+
+test("scrollSnap: a default header keeps the ~1.5u snap origin", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} scrollSnap="rows" />);
+  const vp = c.locator('[class*="viewport"]').first();
+  const header = vp.locator('[class*="headerRow"]').first();
+  const headerH = await header.evaluate((el) => Math.round(el.getBoundingClientRect().height));
+  const pad = await vp.evaluate((el) => Number.parseFloat(getComputedStyle(el).scrollPaddingTop));
+  // The measured origin matches the real (default-height) header, so the normal
+  // case is unchanged.
+  expect(Math.abs(pad - headerH)).toBeLessThanOrEqual(1);
 });
 
 test("edgeFade renders a bottom fade overlay (and none without it)", async ({ mount }) => {

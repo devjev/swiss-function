@@ -509,6 +509,14 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 - The range tint is a translucent overlay painted *on top* of cell content, so a
   consumer-set cell background never hides the highlight.
 
+With row snap (`scrollSnap="rows"`/`"both"`) the snap origin (`scroll-padding-top`)
+must clear the sticky header, or the first row parks half-hidden behind it. The
+header's real rendered height is measured (a `ResizeObserver`) and published as
+`--sf-header-block-size` on the viewport, which the snap padding reads, so a
+consumer-grown header (a two-line label, a taller cell) is tracked with no wiring.
+Before the first measurement, the padding falls back to `calc(var(--sf-unit) * 1.5
+* var(--sf-header-rows, 1))` (one 1.5u row per header group).
+
 ```tsx
 <DataTable data={rows} columns={columns} scrollSnap="rows"
            edgeFade={{ rows: 4, density: 0.6 }} />
