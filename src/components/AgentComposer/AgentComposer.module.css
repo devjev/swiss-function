@@ -1,0 +1,320 @@
+/* AgentComposer: an instance tree of agents and tools. Each node is a chassis
+   (hairline box) holding its parts (PRM, CTX) and its children; the root
+   chassis is the component's own frame (no outer container). Padding rides on
+   one knob: --ac-pad, 0.5u everywhere. */
+
+.root {
+  --ac-pad: calc(var(--sf-unit) / 2);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+}
+
+/* ---- One instance: the chassis ---------------------------------------- */
+
+/* A border marks a *closed* instance. A collapsed agent is a box (a capsule you
+   can open); an expanded one drops its frame and lets the L-traces and
+   indentation carry the structure. The border stays 1px (transparent when open)
+   so collapsing never shifts metrics and the traces stay aligned. */
+.node {
+  border: 1px solid transparent;
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+}
+
+.node[data-collapsed] {
+  border-color: var(--sf-color-border);
+}
+
+/* Cross-highlight every instance of the hovered catalog agent. */
+.node[data-shared-hover] {
+  outline: 1px solid color-mix(in srgb, var(--sf-color-primary) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* Quiet header: the chassis border and the primary name carry the hierarchy,
+   so the instance header is not a filled bar. */
+.head {
+  /* The chevron column is exactly 0.5u so the name lands on the same inline
+     edge as the PRM/CTX tags below (head pad + chevron = body pad + row pad). */
+  --sf-chevron-size: calc(var(--sf-unit) / 2);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: var(--ac-pad);
+  border-radius: var(--sf-radius-default);
+  cursor: default;
+}
+
+/* Hover/shared-hover fill is an inset layer (never the full head box), so it
+   reads as a thin highlight and never reaches the row below. */
+.head::before {
+  content: "";
+  position: absolute;
+  /* Collapsed (a box, header only): fill it, touching all four borders. */
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--sf-radius-default);
+  background-color: transparent;
+  pointer-events: none;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Expanded: the header is followed by part rows, so inset the fill at the
+   bottom only, keeping it off the MDL row below while still reaching the top
+   and sides. */
+.node:not([data-collapsed]) > .head::before {
+  inset-block-end: calc(var(--sf-unit) / 4);
+}
+
+.head:hover::before {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.node[data-shared-hover] > .head::before {
+  background-color: color-mix(in srgb, var(--sf-color-primary) 8%, transparent);
+}
+
+/* Tool leaves have no chevron; the spacer keeps their name on the same edge. */
+.caretSpacer {
+  flex: 0 0 auto;
+  inline-size: var(--sf-chevron-size, calc(var(--sf-unit) / 2));
+}
+
+.name {
+  color: var(--sf-color-primary);
+  font-weight: var(--sf-font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The catalog type beside the instance name (name = primary, type = muted). */
+.type {
+  flex: 0 1 auto;
+  margin-inline-start: calc(var(--sf-unit) / 2);
+  color: var(--sf-color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary {
+  margin-inline-start: calc(var(--sf-unit) / 4);
+  color: var(--sf-color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headEnd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ac-pad);
+  margin-inline-start: auto;
+}
+
+.sharedTag {
+  color: var(--sf-color-muted);
+}
+
+.kindTag {
+  flex: 0 0 auto;
+  color: var(--sf-color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: var(--ac-pad);
+  /* The header's own 0.5u bottom padding is the gap to the first part row; the
+     header highlight is an inset pill, so it never reaches down into that gap. */
+  padding-block-start: 0;
+}
+
+/* ---- Rows (parts) ------------------------------------------------------ */
+
+/* Part rows are native buttons; strip the UA chrome, keep the row look. */
+.rowButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size-adjust: inherit;
+  text-align: start;
+  inline-size: 100%;
+}
+
+.row {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: var(--ac-pad);
+  min-block-size: var(--sf-unit);
+  padding-inline: var(--ac-pad);
+  border-radius: var(--sf-radius-default);
+}
+
+/* Same pill treatment as the header: reaches the sides, inset top/bottom so
+   adjacent row highlights never touch. */
+.row::before {
+  content: "";
+  position: absolute;
+  inset: 2px 1px;
+  z-index: -1;
+  border-radius: var(--sf-radius-default);
+  background-color: transparent;
+  pointer-events: none;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.row:hover::before {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.partRow {
+  cursor: pointer;
+}
+
+.partTag {
+  flex: 0 0 auto;
+  inline-size: calc(var(--sf-unit) * 1.5);
+  color: var(--sf-color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rowText {
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kv {
+  margin-inline-end: var(--ac-pad);
+}
+
+.kvKey {
+  color: var(--sf-color-fg-subtle);
+}
+
+.kvVal {
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+.placeholder {
+  color: var(--sf-color-muted);
+}
+
+/* ---- Children region --------------------------------------------------- */
+
+.kids {
+  --kid-gap: calc(var(--sf-unit) / 6);
+  /* The elbow lands on the head's vertical centre: head padding plus half the
+     grid line box. */
+  --elbow-y: calc(var(--ac-pad) + 0.75rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--kid-gap);
+  margin-inline-start: var(--ac-pad);
+  padding-inline-start: var(--ac-pad);
+  margin-block-start: var(--kid-gap);
+}
+
+/* Containment traces: each child hangs off a light L that drops from above and
+   elbows into the middle of its header. The vertical continues through
+   intermediate children and stops at the last child's elbow. `.nodeLast` is
+   set from JSX (agent and tool chassis render as different elements, so
+   :last-of-type cannot identify the last child). */
+.kids > .node {
+  position: relative;
+}
+
+.kids > .node::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--ac-pad));
+  inset-block-start: calc(-1 * var(--kid-gap));
+  inset-block-end: calc(-1 * var(--kid-gap));
+  inline-size: 1px;
+  background-color: var(--sf-color-gridline);
+}
+
+.kids > .node::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--ac-pad));
+  inset-block-start: var(--elbow-y);
+  inline-size: var(--ac-pad);
+  block-size: 1px;
+  background-color: var(--sf-color-gridline);
+}
+
+.kids > .nodeLast::before {
+  inset-block-end: auto;
+  block-size: calc(var(--kid-gap) + var(--elbow-y));
+}
+
+/* An empty agent's drop zone: a dithered block onto which the app drops agents
+   or tools from its catalog (dnd is the next milestone). It is the visible drop
+   target and doubles as the "this agent has no children yet" empty state. The
+   negative margins cancel the body padding so it reaches the box's left, right
+   and bottom edges; only the top keeps a gap below the CTX row. */
+.dropzone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-block-size: calc(var(--sf-unit) * 1.5);
+  margin-block-start: calc(var(--sf-unit) / 2);
+  margin-inline: calc(-1 * var(--ac-pad));
+  margin-block-end: calc(-1 * var(--ac-pad));
+  padding: var(--ac-pad);
+  overflow: hidden;
+  border-end-start-radius: var(--sf-radius-default);
+  border-end-end-radius: var(--sf-radius-default);
+  text-align: center;
+  color: var(--sf-color-muted);
+}
+
+.dropzone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--sf-color-fg);
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+/* The bare "no composition" fallback (no root). */
+.empty {
+  padding: var(--ac-pad);
+  text-align: center;
+  color: var(--sf-color-fg-subtle);
+}
+
+/* ---- Focus ------------------------------------------------------------- */
+
+.head:focus-visible,
+.row:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head::before,
+  .row::before {
+    transition: none;
+  }
+}

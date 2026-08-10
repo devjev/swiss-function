@@ -45,6 +45,40 @@ Surface · Switch · Tabs · TextEdit · TextEditInline · Timeline · ToggleGro
 
 ---
 
+## AgentComposer
+
+`import { AgentComposer } from "@tarassov-ch/swiss-function/agent-composer"`
+
+**Prototype.** Compose LLM agents as an instance tree: each node is one use of
+a catalog agent and holds the agent it instantiates, the parameters for that
+use, a one-line context preview, and its children (agent instances or tool
+leaves tagged `AGT` / `FNC` / `MCP`). Agent instances are hairline chassis
+(borders mean "contains"); tool leaves share the same row anatomy without a
+frame; light L-traces connect each child to its parent's rail. Using the same
+agent twice creates two independent instances (hover cross-highlights all
+sites, `⧉ ×n`); collapse cascades to all descendants; cycles are
+unrepresentable by construction. There is no outer container and no add
+affordance: the root chassis is the frame, and composing happens by dragging
+from the app's catalog (dnd milestone pending). PRM/CTX rows fire
+`onRequestEdit`.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `value` / `defaultValue` | `AgentComposerAgent` | — | The root instance (controlled / uncontrolled). |
+| `onChange` | `(next: AgentComposerAgent) => void` | — | Fires after a structural edit (reorder, re-parent, remove). |
+| `collapsed` / `defaultCollapsed` | `string[]` | `[]` | Collapsed agent ids (controlled / uncontrolled). |
+| `onCollapsedChange` | `(ids: string[]) => void` | — | Collapse state changes (collapsing emits the whole cascaded set). |
+| `onRequestEdit` | `(nodeId, part: "params" \| "context") => void` | — | Open your parameter / context editor. |
+| `readOnly` | `boolean` | `false` | Static viewer: no structure edits. |
+| `kindLabel` | `(kind: string) => string` | AGT/FNC/MCP | Override the kind micro-tags. |
+
+Keyboard: `↑↓` move, `←→` collapse/expand or step in/out, `Alt+↑↓` reorder,
+`Alt+←` outdent, `Alt+→` indent into the previous agent sibling, `⌫` remove,
+`Enter` toggles an agent or opens the row's editor, `Home`/`End` jump.
+Pure tree helpers are exported from the same entry (`findPathById`,
+`moveSibling`, `indentNode`, `outdentNode`, `insertChild`, `removeNode`,
+`descendantAgentIds`, `composerStats`, `agentUseCounts`).
+
 ## BarChart
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
