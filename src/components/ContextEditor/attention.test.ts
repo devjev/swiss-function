@@ -60,6 +60,14 @@ describe("fmtTokens", () => {
     expect(fmtTokens(41_800)).toBe("41.8k");
     expect(fmtTokens(128_000)).toBe("128k");
   });
+
+  it("drops a bare .0 and scales to millions", () => {
+    expect(fmtTokens(32_000)).toBe("32k");
+    expect(fmtTokens(1_000)).toBe("1k");
+    expect(fmtTokens(1_000_000)).toBe("1M");
+    expect(fmtTokens(1_500_000)).toBe("1.5M");
+    expect(fmtTokens(-72_000)).toBe("-72k");
+  });
 });
 
 describe("flagFor", () => {

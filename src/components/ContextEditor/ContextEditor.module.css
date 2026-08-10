@@ -6,7 +6,7 @@
 
 .root {
   display: grid;
-  grid-template-columns: var(--sf-context-editor-left, 19rem) 1fr;
+  grid-template-columns: var(--sf-context-editor-left, 15rem) 1fr;
   grid-template-rows: minmax(0, 1fr);
   block-size: 100%;
   border: 1px solid var(--sf-color-border);
@@ -18,6 +18,9 @@
 }
 
 .gaugeCol {
+  /* Clamp the Pane's implicit column so its body can't grow to its content's
+     min-content and overflow (which was eating the gauge's right padding). */
+  grid-template-columns: minmax(0, 1fr);
   min-inline-size: 0;
   min-block-size: 0;
   overflow: hidden;
@@ -34,10 +37,10 @@
 
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: calc(var(--sf-unit) / 2);
-  block-size: calc(var(--sf-unit) * 1.75);
+  block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: var(--sf-unit);
   border-block-end: 1px solid var(--sf-color-border);
 }
@@ -56,18 +59,67 @@
   text-overflow: ellipsis;
 }
 
-.headerMeta {
+/* Right side of the list header: flag legend + optional model selector. */
+.headerTools {
+  display: flex;
+  align-items: center;
+  gap: var(--sf-unit);
+  min-inline-size: 0;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.headerMeta b {
-  font-weight: var(--sf-font-weight-medium);
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendDot {
+  inline-size: calc(var(--sf-unit) / 3);
+  block-size: calc(var(--sf-unit) / 3);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--tone, var(--sf-color-fg-subtle));
+}
+
+.modelTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 3);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding-inline: calc(var(--sf-unit) / 2);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.modelTrigger:hover {
+  background-color: var(--sf-color-input-bg);
+}
+
+.modelTrigger:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+.modelWindow {
+  color: var(--sf-color-muted);
 }
 
 /* ---- The editable block list ----------------------------------------- */
@@ -88,11 +140,11 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-/* Editable rows add a leading drag grip and trailing actions. */
+/* Editable rows add a leading drag grip for reordering. */
 .rowLive {
   grid-template-columns:
     calc(var(--sf-unit) / 1.5) calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto
-    calc(var(--sf-unit) * 2.5) auto;
+    calc(var(--sf-unit) * 3.5);
 }
 
 .row[data-hover] {
@@ -214,60 +266,24 @@
   opacity: 1;
 }
 
-.actions {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--sf-unit) / 4);
-}
-
-.iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: calc(var(--sf-unit) * 1.25);
-  block-size: calc(var(--sf-unit) * 1.25);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--sf-color-muted);
-  border-radius: var(--sf-radius-default);
-  cursor: pointer;
-  transition: color var(--sf-duration-fast) var(--sf-ease-out);
-}
-
-.iconBtn:hover {
-  color: var(--sf-color-fg);
-  background-color: var(--sf-color-input-bg);
-}
-
-.iconBtn:focus-visible {
-  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
-  outline-offset: var(--sf-focus-ring-offset, 1px);
-}
-
-.pinIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: calc(var(--sf-unit) * 1.25);
-  block-size: calc(var(--sf-unit) * 1.25);
-  color: var(--sf-color-muted);
-}
-
 /* ---- The budget gauge ------------------------------------------------- */
 
 .gaugeBody {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: calc(var(--sf-unit) / 2);
-  padding: calc(var(--sf-unit) * 0.75);
+  /* minmax(0, 1fr) lets the track shrink to the column so the body never
+     overflows (which was clipping the right padding under the column). */
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: calc(var(--sf-unit) / 3);
+  padding: calc(var(--sf-unit) / 2);
   block-size: 100%;
   min-block-size: 0;
+  min-inline-size: 0;
 }
 
 .gaugeAxis {
   position: relative;
-  inline-size: calc(var(--sf-unit) * 2);
+  /* Sized to the widest tick label ("100k"), which sits left-aligned. */
+  inline-size: 2.75em;
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
@@ -275,12 +291,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tick label spans the axis (so the number left-aligns) with a short mark at
+   the axis edge, bridging the gap to the track. */
 .gaugeTick {
   position: absolute;
-  inset-inline-end: 0;
+  inset-inline: 0;
   inset-block-start: var(--at);
   transform: translateY(-50%);
   white-space: nowrap;
+}
+
+.gaugeTick::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 100%;
+  inline-size: calc(var(--sf-unit) / 3);
+  border-block-start: 1px solid var(--sf-color-border);
+}
+
+/* Top/bottom ticks land on the track's own border; no bridging mark. */
+.gaugeTickEdge::after {
+  content: none;
 }
 
 .gaugeTrack {
@@ -289,7 +321,21 @@
   block-size: 100%;
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
+  /* Positional-attention gradient: strong at the two ends (primacy + recency,
+     `--ce-edge`), faded at the centre placed on the effective-context line
+     (`--ce-middle` at `--eff`) — the "lost in the middle" trough — with quarter
+     stops (`--ce-quarter` at `--q1`/`--q2`) between. Colours default to a
+     `--sf-color-primary` alpha ramp; `railColors` overrides them. The dithered
+     blocks render on top. */
   background-color: var(--sf-color-bg);
+  background-image: linear-gradient(
+    to bottom,
+    var(--ce-edge, color-mix(in srgb, var(--sf-color-primary) 26%, transparent)) 0%,
+    var(--ce-quarter, color-mix(in srgb, var(--sf-color-primary) 13%, transparent)) var(--q1, 25%),
+    var(--ce-middle, color-mix(in srgb, var(--sf-color-primary) 4%, transparent)) var(--eff, 50%),
+    var(--ce-quarter, color-mix(in srgb, var(--sf-color-primary) 13%, transparent)) var(--q2, 75%),
+    var(--ce-edge, color-mix(in srgb, var(--sf-color-primary) 26%, transparent)) 100%
+  );
   overflow: hidden;
 }
 
@@ -318,15 +364,20 @@
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* Inset the dither at the block's bottom so a 2px band of the gradient shows
+   through between stacked blocks: clearer separation than the hairline alone. */
 .gaugeSegDither {
   position: absolute;
   inset: 0;
+  inset-block-end: 2px;
   background-color: var(--sf-color-fg);
   -webkit-mask-image: var(--sf-dither);
   mask-image: var(--sf-dither);
-  -webkit-mask-size: 4px 4px;
-  mask-size: 4px 4px;
-  opacity: var(--attn);
+  /* Sparser tiling than the 4px default so more of the gradient shows between
+     the dots; scaled opacity keeps the blocks from covering it. */
+  -webkit-mask-size: 6px 6px;
+  mask-size: 6px 6px;
+  opacity: calc(var(--attn) * 0.6);
 }
 
 .gaugeSegFlag {
@@ -354,17 +405,18 @@
   pointer-events: none;
 }
 
-/* Danger zone: the last stretch before the cap. */
+/* Danger zone: the last tenth of the window by tokens (height supplied as
+   `--cap`, so on a log scale it stays a thin sliver at the cap). */
 .gaugeCapZone {
   position: absolute;
   inset-inline: 0;
   inset-block-end: 0;
-  block-size: 10%;
+  block-size: calc(var(--cap, 0.1) * 100%);
   background-color: color-mix(in srgb, var(--sf-color-danger) 10%, transparent);
   pointer-events: none;
 }
 
-/* The "effective context" cutoff: models degrade well before the hard cap. */
+/* The lowest-attention line: where positional attention bottoms out. */
 .gaugeCutoff {
   position: absolute;
   inset-inline: 0;
@@ -373,54 +425,21 @@
   pointer-events: none;
 }
 
+/* Its label, centred on the line (the dashed rule runs behind, broken by the
+   label's own background). */
 .gaugeCutoffTag {
   position: absolute;
-  inset-inline-end: calc(var(--sf-unit) / 4);
+  inset-inline-start: 50%;
   inset-block-start: var(--at);
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   padding: 0 calc(var(--sf-unit) / 4);
   background-color: var(--sf-color-bg);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-warning);
-  pointer-events: none;
-}
-
-/* Status line under the gauge: free budget + cutoff, or the hovered block. */
-.gaugeReadout {
-  display: flex;
-  justify-content: space-between;
-  gap: calc(var(--sf-unit) / 2);
-  align-items: center;
-  min-block-size: calc(var(--sf-unit) * 1.25);
-  padding: calc(var(--sf-unit) / 3) var(--sf-unit);
-  border-block-start: 1px solid var(--sf-color-border);
-  font-family: var(--sf-font-mono);
-  font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-fg-subtle);
-  font-variant-numeric: tabular-nums;
-}
-
-.gaugeReadout b {
-  color: var(--sf-color-fg);
-  font-weight: var(--sf-font-weight-medium);
-}
-
-.readoutWarn {
-  color: var(--sf-color-warning);
-}
-
-.readoutBad {
-  color: var(--sf-color-danger);
-}
-
-.readoutTitle {
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Visually hidden, still read by assistive tech: exposes the per-block flag and

@@ -1,7 +1,8 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, lazy, Suspense, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { Eye, EyeOff, Lock, Trash } from "../Icon";
+import { ChevronDown } from "../Icon";
+import { Menu } from "../Menu";
 import { Pane } from "../Pane";
 import {
   type AttentionFlag,
@@ -41,11 +42,46 @@ export interface ContextBlock {
   /** Relevance to the current request, 0..1 (a retrieval / rerank score). Omit
    *  and attention is positional only. */
   salience?: number;
-  /** Held in context regardless of edits; resists exclude and remove. */
+  /** Held in context regardless of `enabled`. */
   pinned?: boolean;
   /** Whether the block is packed into the context. Defaults to included; set
-   *  `false` to keep it in the list but out of the window. */
+   *  `false` to keep it in the list but out of the window (dimmed, struck). */
   enabled?: boolean;
+}
+
+/** A selectable model. Choosing it sets the gauge's window (and, if given,
+ *  scale). */
+export interface ContextModel {
+  /** Stable id (the controlled `model` value). */
+  id: string;
+  /** Shown in the selector. */
+  label: string;
+  /** The model's context window, in tokens. */
+  contextWindow: number;
+  /** Gauge scale for this model; falls back to the `scale` prop. */
+  scale?: "linear" | "log";
+}
+
+/** The rail's "lowest attention" marker: a line across the gauge, also the
+ *  gradient's faded centre (the "lost in the middle" trough). */
+export interface LowestAttention {
+  /** Token count where attention bottoms out; positioned on the rail via the
+   *  scale. Default `contextWindow / 2` (the token midpoint). */
+  at?: number;
+  /** The line's label. Default "lowest attention". */
+  label?: string;
+}
+
+/** The three key colours of the gauge's positional-attention gradient. Any CSS
+ *  colour; omit one to keep its default (a `--sf-color-primary` alpha ramp).
+ *  The stops are symmetric about the lowest-attention line. */
+export interface RailColors {
+  /** Top and bottom of the rail: primacy + recency, the strongest attention. */
+  edge?: string;
+  /** Midway between each edge and the middle. */
+  quarter?: string;
+  /** The rail centre, on the effective-context line: the "lost in the middle" trough. */
+  middle?: string;
 }
 
 export interface ContextEditorProps
@@ -54,14 +90,30 @@ export interface ContextEditorProps
   value?: ContextBlock[];
   /** Initial blocks (uncontrolled). */
   defaultValue?: ContextBlock[];
-  /** Called with the next blocks after any edit (reorder, exclude, remove). */
+  /** Called with the next blocks after a reorder. */
   onChange?: (blocks: ContextBlock[]) => void;
-  /** The model's context window, in tokens. Default 128000. */
+  /** The model's context window, in tokens. Default 128000. Overridden by the
+   *  selected `models` entry when a model selector is shown. */
   contextWindow?: number;
-  /** Tokens past which attention degrades ("lost in the middle"); drawn as a
-   *  dashed cutoff on the gauge. Default is half the window. */
-  effectiveContext?: number;
-  /** Show the context without editing controls (no reorder / exclude / remove). */
+  /** Models offered by a dropdown in the list header; selecting one sets the
+   *  gauge's window (and scale). Omit to hide the selector. */
+  models?: ContextModel[];
+  /** Selected model id (controlled). Pair with `onModelChange`. */
+  model?: string;
+  /** Initial selected model id (uncontrolled); defaults to the first model. */
+  defaultModel?: string;
+  /** Called when the selected model changes. */
+  onModelChange?: (id: string, model: ContextModel) => void;
+  /** The "lowest attention" line + gradient trough. Default `contextWindow/2`. */
+  lowestAttention?: LowestAttention;
+  /** Gauge scale. `"linear"` (default) is proportional to tokens; `"log"` gives
+   *  a small used fraction room to read against a very large window (spans three
+   *  decades, `contextWindow / 1000` up to the cap). */
+  scale?: "linear" | "log";
+  /** Colours of the rail's positional-attention gradient (edge / quarter /
+   *  middle). Omit to keep the default `--sf-color-primary` alpha ramp. */
+  railColors?: RailColors;
+  /** Show the context without the reorder grip (a static viewer). */
   readOnly?: boolean;
   /** Short uppercase tag for a kind. Default maps the known kinds
    *  (system → SYS, …) and falls back to the first four letters. */
@@ -83,13 +135,34 @@ const toneClass: Record<NonNullable<AttentionFlag>, string | undefined> = {
   wasted: styles.toneWasted,
 };
 
-const flagWord: Record<NonNullable<AttentionFlag>, string> = {
-  strong: "strong",
-  buried: "buried",
-  wasted: "wasted",
-};
-
 const v = (o: Record<string, number | string>) => o as CSSProperties;
+
+type Scale = "linear" | "log";
+
+/** Map a token count to its fraction down the gauge (0 = top/empty, 1 = cap).
+ *  Linear is proportional; log spans three decades (`contextWindow / 1000` up to
+ *  the cap) so a small used fraction still reads against a huge window. Values
+ *  at or below the log floor pin to the top. */
+function makePos(contextWindow: number, scale: Scale): (tokens: number) => number {
+  if (scale === "log" && contextWindow > 0) {
+    const floor = contextWindow / 1000;
+    const lo = Math.log(floor);
+    const span = Math.log(contextWindow) - lo;
+    return (t) =>
+      span <= 0 || t <= floor ? 0 : t >= contextWindow ? 1 : (Math.log(t) - lo) / span;
+  }
+  return (t) => (contextWindow > 0 ? Math.min(1, Math.max(0, t / contextWindow)) : 0);
+}
+
+/** Decade ticks (…, 10k, 100k, 1M) from the log floor up to the cap. */
+function logTicks(contextWindow: number): number[] {
+  const floor = contextWindow / 1000;
+  const ticks: number[] = [];
+  for (let t = 10 ** Math.floor(Math.log10(contextWindow)); t >= floor - 1e-6; t /= 10) {
+    ticks.push(t);
+  }
+  return ticks;
+}
 
 export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(function ContextEditor(
   {
@@ -97,7 +170,13 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
     defaultValue,
     onChange,
     contextWindow = 128_000,
-    effectiveContext,
+    models,
+    model,
+    defaultModel,
+    onModelChange,
+    lowestAttention,
+    scale = "linear",
+    railColors,
     readOnly = false,
     kindLabel,
     className,
@@ -115,39 +194,29 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
 
   const [hovered, setHovered] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const focusAfterRemove = useRef<string | null>(null);
+
+  // Model selector (optional). The chosen model overrides the window + scale.
+  const isModelControlled = model !== undefined;
+  const [internalModel, setInternalModel] = useState<string | undefined>(
+    defaultModel ?? models?.[0]?.id,
+  );
+  const modelId = isModelControlled ? model : internalModel;
+  const selectedModel = models?.find((m) => m.id === modelId);
+  const selectModel = (m: ContextModel) => {
+    if (!isModelControlled) setInternalModel(m.id);
+    onModelChange?.(m.id, m);
+  };
+  const window_ = selectedModel?.contextWindow ?? contextWindow;
+  const gaugeScale = selectedModel?.scale ?? scale;
 
   // A pinned block is held in context regardless of `enabled`.
   const active = useMemo(() => blocks.filter((b) => b.pinned || b.enabled !== false), [blocks]);
   const spans = useMemo(() => blockSpans(active), [active]);
   const spanById = useMemo(() => new Map(spans.map((s) => [s.block.id, s] as const)), [spans]);
   const used = sumTokens(active);
-  const pct = contextWindow > 0 ? Math.round((used / contextWindow) * 100) : 0;
-  const cutoff = effectiveContext ?? contextWindow / 2;
 
   const label = (kind: string) =>
     kindLabel?.(kind) ?? DEFAULT_KIND_LABEL[kind] ?? kind.slice(0, 4).toUpperCase();
-
-  const toggle = (id: string) =>
-    setBlocks(
-      blocks.map((b) => (b.id === id && !b.pinned ? { ...b, enabled: b.enabled === false } : b)),
-    );
-  const remove = (id: string) => {
-    const idx = blocks.findIndex((b) => b.id === id);
-    const next = blocks.filter((b) => b.id !== id || b.pinned);
-    // After the removed row unmounts, move focus to a neighbouring remove button
-    // rather than dropping it to the document body.
-    focusAfterRemove.current = (next[idx] ?? next[idx - 1])?.id ?? null;
-    setBlocks(next);
-  };
-
-  // Re-home focus after a removal (see `remove`).
-  useLayoutEffect(() => {
-    const id = focusAfterRemove.current;
-    if (!id) return;
-    focusAfterRemove.current = null;
-    rootRef.current?.querySelector<HTMLElement>(`[data-remove-id="${CSS.escape(id)}"]`)?.focus();
-  }, [blocks]);
 
   const cells = (block: ContextBlock, handle: ReactNode) => {
     const span = spanById.get(block.id);
@@ -176,37 +245,6 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
           )}
           <span className={styles.srOnly}>{attnText}</span>
         </div>
-        {!readOnly && (
-          <div className={styles.actions}>
-            {block.pinned ? (
-              <span className={styles.pinIcon} title="Pinned in context">
-                <Lock size={1} label="Pinned" />
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  onClick={() => toggle(block.id)}
-                  aria-label={disabled ? `Include ${block.title}` : `Exclude ${block.title}`}
-                  title={disabled ? "Include in context" : "Exclude from context"}
-                >
-                  {disabled ? <EyeOff size={1} /> : <Eye size={1} />}
-                </button>
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  data-remove-id={block.id}
-                  onClick={() => remove(block.id)}
-                  aria-label={`Remove ${block.title}`}
-                  title="Remove"
-                >
-                  <Trash size={1} />
-                </button>
-              </>
-            )}
-          </div>
-        )}
       </>
     );
   };
@@ -244,17 +282,56 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
           used={used}
           hovered={hovered}
           onHover={setHovered}
-          contextWindow={contextWindow}
-          cutoff={cutoff}
-          label={label}
+          contextWindow={window_}
+          scale={gaugeScale}
+          railColors={railColors}
+          lowestAttention={lowestAttention}
         />
       </Pane>
       <Pane className={styles.listCol}>
         <Pane.Header className={styles.header}>
-          <span className={styles.headerTitle}>Context</span>
-          <span className={styles.headerMeta}>
-            <b>{fmtTokens(used)}</b> / {fmtTokens(contextWindow)} · {pct}%
-          </span>
+          <span className={styles.headerTitle}>Contents</span>
+          <div className={styles.headerTools}>
+            <span className={styles.legend}>
+              <span className={styles.legendItem}>
+                <span className={cx(styles.legendDot, styles.toneStrong)} />
+                strong
+              </span>
+              <span className={styles.legendItem}>
+                <span className={cx(styles.legendDot, styles.toneBuried)} />
+                buried
+              </span>
+              <span className={styles.legendItem}>
+                <span className={cx(styles.legendDot, styles.toneWasted)} />
+                wasted
+              </span>
+            </span>
+            {models && models.length > 0 && (
+              <Menu.Root>
+                <Menu.Trigger
+                  render={
+                    <button type="button" className={styles.modelTrigger}>
+                      {selectedModel?.label ?? "Model"}
+                      <span className={styles.modelWindow}>{fmtTokens(window_)}</span>
+                      <ChevronDown size={1} />
+                    </button>
+                  }
+                />
+                <Menu.Portal>
+                  <Menu.Positioner sideOffset={4} align="end">
+                    <Menu.Popup>
+                      {models.map((m) => (
+                        <Menu.Item key={m.id} onClick={() => selectModel(m)}>
+                          {m.label}
+                          <span className={styles.modelWindow}>{fmtTokens(m.contextWindow)}</span>
+                        </Menu.Item>
+                      ))}
+                    </Menu.Popup>
+                  </Menu.Positioner>
+                </Menu.Portal>
+              </Menu.Root>
+            )}
+          </div>
         </Pane.Header>
         <Pane.Body className={styles.list}>
           {readOnly ? (
@@ -284,50 +361,78 @@ function Gauge({
   hovered,
   onHover,
   contextWindow,
-  cutoff,
-  label,
+  scale,
+  railColors,
+  lowestAttention,
 }: {
   spans: BlockSpan[];
   used: number;
   hovered: string | null;
   onHover: (id: string | null) => void;
   contextWindow: number;
-  cutoff: number;
-  label: (kind: string) => string;
+  scale: Scale;
+  railColors?: RailColors;
+  lowestAttention?: LowestAttention;
 }) {
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
-  const free = Math.max(0, contextWindow - used);
+  const pos = makePos(contextWindow, scale);
+  const ticks =
+    scale === "log"
+      ? logTicks(contextWindow).map((value) => ({ value, at: pos(value) }))
+      : [0, 0.25, 0.5, 0.75, 1].map((f) => ({ value: f * contextWindow, at: f }));
   const over = Math.max(0, used - contextWindow);
-  const pastCutoff = Math.max(0, used - cutoff);
-  const cutoffFrac = contextWindow > 0 ? cutoff / contextWindow : 0.5;
-  const hoveredSpan = spans.find((s) => s.block.id === hovered) ?? null;
-  const hoveredFlag = hoveredSpan ? flagFor(hoveredSpan) : null;
+  // The lowest-attention line + gradient trough: a token count (default the
+  // token midpoint) mapped onto the rail via the scale.
+  const trough = pos(lowestAttention?.at ?? contextWindow / 2);
+  const troughLabel = lowestAttention?.label ?? "lowest attention";
+  // Danger buffer: the last tenth of the window by tokens. Token-based (not a
+  // fixed slice of height) so on a log scale it stays a thin sliver at the cap
+  // instead of a tall band that collides with the line.
+  const dangerFrac = 1 - pos(0.9 * contextWindow);
+
+  // The attention gradient: its faded centre (`--eff`) sits on the lowest-
+  // attention line, with quarter stops halfway to each end. Colours come from
+  // `railColors` when given, else the CSS defaults (a `--sf-color-primary` ramp).
+  const railStyle: Record<string, number | string> = {
+    "--eff": `${trough * 100}%`,
+    "--q1": `${(trough / 2) * 100}%`,
+    "--q2": `${(trough + (1 - trough) / 2) * 100}%`,
+  };
+  if (railColors?.edge) railStyle["--ce-edge"] = railColors.edge;
+  if (railColors?.quarter) railStyle["--ce-quarter"] = railColors.quarter;
+  if (railColors?.middle) railStyle["--ce-middle"] = railColors.middle;
 
   return (
     <>
       <Pane.Header className={styles.header}>
-        <span className={styles.headerTitle}>Budget</span>
-        <span className={styles.headerMeta}>{fmtTokens(used)} used</span>
+        <span className={styles.headerTitle}>Context window</span>
       </Pane.Header>
       <Pane.Body className={styles.gaugeBody}>
         <div className={styles.gaugeAxis}>
           {ticks.map((t) => (
-            <span key={t} className={styles.gaugeTick} style={v({ "--at": `${t * 100}%` })}>
-              {fmtTokens(t * contextWindow)}
+            <span
+              key={t.value}
+              // The top/bottom ticks sit on the track's own border; a mark there
+              // would run collinear with it and read as a detached stub.
+              className={cx(
+                styles.gaugeTick,
+                (t.at <= 0.001 || t.at >= 0.999) && styles.gaugeTickEdge,
+              )}
+              style={v({ "--at": `${t.at * 100}%` })}
+            >
+              {fmtTokens(t.value)}
             </span>
           ))}
         </div>
         <div
           className={styles.gaugeTrack}
+          style={v(railStyle)}
           data-hovering={hovered ? "" : undefined}
           data-over={over > 0 ? "" : undefined}
         >
-          <div
-            className={styles.gaugeFree}
-            style={v({ "--free": contextWindow > 0 ? free / contextWindow : 0 })}
-          />
+          <div className={styles.gaugeFree} style={v({ "--free": 1 - pos(used) })} />
           {spans.map((s) => {
             const flag = flagFor(s);
+            const start = pos(s.start * used);
             return (
               // biome-ignore lint/a11y/noStaticElementInteractions: segment hover only cross-highlights the matching row; no behaviour is gated on it
               <div
@@ -338,8 +443,8 @@ function Gauge({
                   flag && toneClass[flag],
                 )}
                 style={v({
-                  "--start": contextWindow > 0 ? (s.start * used) / contextWindow : 0,
-                  "--frac": contextWindow > 0 ? s.block.tokens / contextWindow : 0,
+                  "--start": start,
+                  "--frac": Math.max(0, pos(s.end * used) - start),
                 })}
                 data-hover={hovered === s.block.id || undefined}
                 onMouseEnter={() => onHover(s.block.id)}
@@ -349,54 +454,13 @@ function Gauge({
               </div>
             );
           })}
-          <div className={styles.gaugeCapZone} />
-          <div className={styles.gaugeCutoff} style={v({ "--at": `${cutoffFrac * 100}%` })} />
-          <span className={styles.gaugeCutoffTag} style={v({ "--at": `${cutoffFrac * 100}%` })}>
-            eff.
+          <div className={styles.gaugeCapZone} style={v({ "--cap": dangerFrac })} />
+          <div className={styles.gaugeCutoff} style={v({ "--at": `${trough * 100}%` })} />
+          <span className={styles.gaugeCutoffTag} style={v({ "--at": `${trough * 100}%` })}>
+            {troughLabel}
           </span>
         </div>
       </Pane.Body>
-      <div className={styles.gaugeReadout}>
-        {hoveredSpan ? (
-          <>
-            <span className={styles.readoutTitle}>
-              <span className={styles.kindTag}>{label(hoveredSpan.block.kind)}</span>{" "}
-              {hoveredSpan.block.title}
-            </span>
-            <span>
-              <b>{fmtTokens(hoveredSpan.block.tokens)}</b>
-              {" · "}
-              <span className={hoveredFlag === "wasted" ? styles.readoutBad : undefined}>
-                {Math.round(hoveredSpan.effective * 100)}%
-                {hoveredFlag ? ` ${flagWord[hoveredFlag]}` : ""}
-              </span>
-            </span>
-          </>
-        ) : (
-          <>
-            <span>
-              {over > 0 ? (
-                <>
-                  <b className={styles.readoutBad}>over by {fmtTokens(over)}</b>
-                </>
-              ) : (
-                <>
-                  <b>{fmtTokens(free)}</b> free
-                </>
-              )}
-            </span>
-            <span>
-              {pastCutoff > 0 ? (
-                <>
-                  <b className={styles.readoutWarn}>{fmtTokens(pastCutoff)}</b> past cutoff
-                </>
-              ) : (
-                "within effective ctx"
-              )}
-            </span>
-          </>
-        )}
-      </div>
     </>
   );
 }

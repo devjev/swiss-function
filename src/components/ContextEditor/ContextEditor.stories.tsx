@@ -107,16 +107,34 @@ const frame = {
 } as const;
 const page = { padding: "calc(var(--sf-unit) * 1.5)" } as const;
 
-// Controlled: edit the list on the right, the budget gauge reacts.
-export const Playground: Story = () => {
+const MODELS = [
+  { id: "opus", label: "Claude Opus 4.8", contextWindow: 1_000_000 },
+  { id: "sonnet", label: "Claude Sonnet 5", contextWindow: 200_000 },
+  { id: "haiku", label: "Claude Haiku 4.5", contextWindow: 128_000 },
+];
+
+// Controlled: edit the list on the right, the budget gauge reacts. The header
+// carries a flag legend and a model selector (sets the window); toggle the
+// scale control to compare linear against log.
+export const Playground: Story<{ scale: "linear" | "log" }> = ({ scale }) => {
   const [blocks, setBlocks] = useState<ContextBlock[]>(SAMPLE);
   return (
     <div style={page}>
       <div style={frame}>
-        <ContextEditor value={blocks} onChange={setBlocks} />
+        <ContextEditor
+          value={blocks}
+          onChange={setBlocks}
+          models={MODELS}
+          defaultModel="opus"
+          scale={scale}
+        />
       </div>
     </div>
   );
+};
+Playground.args = { scale: "log" };
+Playground.argTypes = {
+  scale: { options: ["linear", "log"], control: { type: "radio" } },
 };
 
 // A read-only viewer: the gauge and blocks render, but there are no controls.
@@ -139,7 +157,7 @@ export const SmallContext: Story = () => {
           value={blocks}
           onChange={setBlocks}
           contextWindow={32_000}
-          effectiveContext={20_000}
+          lowestAttention={{ at: 20_000 }}
         />
       </div>
     </div>

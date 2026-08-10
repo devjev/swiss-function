@@ -4,13 +4,16 @@
 
 import type { ContextBlock } from "./ContextEditor";
 
-/** Compact token label: 41800 -> "41.8k", 900 -> "900", -72000 -> "-72k". */
+/** Compact token label: 41800 -> "41.8k", 32000 -> "32k", 1_000_000 -> "1M",
+ *  900 -> "900", -72000 -> "-72k". One decimal at most, and never a bare ".0". */
 export function fmtTokens(n: number): string {
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
   if (abs < 1_000) return sign + String(Math.round(abs));
-  const k = abs / 1_000;
-  return `${sign}${k >= 100 ? Math.round(k) : k.toFixed(1)}k`;
+  const { v, suffix } =
+    abs < 1_000_000 ? { v: abs / 1_000, suffix: "k" } : { v: abs / 1_000_000, suffix: "M" };
+  const s = v >= 100 ? String(Math.round(v)) : v.toFixed(1).replace(/\.0$/, "");
+  return `${sign}${s}${suffix}`;
 }
 
 /**

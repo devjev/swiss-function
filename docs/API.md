@@ -375,22 +375,29 @@ the left and an editable list of context blocks on the right. Extends
 is `{ id, kind, title, detail?, tokens, salience?, pinned?, enabled? }`: you
 supply the token count and (optionally) a `salience` rerank score. Blocks read
 in send order; drag the grip to reorder (keyboard-operable, dnd-kit loaded
-lazily), the eye to exclude a block from the packed window, the trash to remove
-it. `pinned` blocks resist both. The gauge stacks the enabled blocks by token
-share against the full window, marks an **effective-context** cutoff (attention
-degrades past it, the "lost in the middle" effect) and a danger zone near the
-cap, and flags each block **strong** / **buried** / **wasted** (attention =
-position × salience). The parent must constrain the height. Presentational:
-token counting and the model call are yours.
+lazily). Set `enabled: false` to keep a block in the list but out of the packed
+window (dimmed, struck); `pinned` holds a block regardless. The gauge stacks the
+enabled blocks by token share against the full window, paints a positional-
+attention gradient (strong at the two ends, faded at the **lowest-attention**
+line — the "lost in the middle" trough), marks a danger zone near the cap, and
+flags each block **strong** / **buried** / **wasted** (attention = position ×
+salience). The list header carries a flag legend and, when `models` is given, a
+model selector that sets the window. The parent must constrain the height.
+Presentational: token counting and the model call are yours.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `value` | `ContextBlock[]` | n/a | The blocks, in send order (controlled). Pass with `onChange`. |
 | `defaultValue` | `ContextBlock[]` | `[]` | Initial blocks (uncontrolled). |
-| `onChange` | `(blocks: ContextBlock[]) => void` | n/a | Fires after any edit: reorder, exclude/include, remove. |
-| `contextWindow` | `number` | `128000` | The model's window in tokens; the gauge's full scale. |
-| `effectiveContext` | `number` | `contextWindow / 2` | Tokens past which attention degrades; drawn as the dashed cutoff. |
-| `readOnly` | `boolean` | `false` | Render the context without editing controls (a viewer). |
+| `onChange` | `(blocks: ContextBlock[]) => void` | n/a | Fires after a reorder. |
+| `contextWindow` | `number` | `128000` | The model's window in tokens; the gauge's full scale. Overridden by the selected `models` entry. |
+| `models` | `ContextModel[]` | n/a | `{ id, label, contextWindow, scale? }[]` offered by a header dropdown; selecting one sets the window (and scale). Omit to hide the selector. |
+| `model` / `defaultModel` | `string` | first model | Selected model id (controlled / initial). |
+| `onModelChange` | `(id: string, model: ContextModel) => void` | n/a | Fires when the selected model changes. |
+| `scale` | `"linear" \| "log"` | `"linear"` | Gauge scale. `"log"` spans three decades (`contextWindow / 1000` up to the cap) so a small used fraction stays readable against a very large window. |
+| `lowestAttention` | `{ at?: number; label?: string }` | `{ at: contextWindow/2, label: "lowest attention" }` | The line + gradient trough: a token count mapped onto the rail, with a centred label. |
+| `railColors` | `{ edge?: string; quarter?: string; middle?: string }` | `--sf-color-primary` alpha ramp | Colours of the positional-attention gradient (edge = the two ends, middle = the lowest-attention line). |
+| `readOnly` | `boolean` | `false` | Render the context without the reorder grip (a static viewer). |
 | `kindLabel` | `(kind: string) => string` | known kinds → `SYS`/`DOC`/…, else first 4 letters | Short uppercase type tag per kind. |
 
 ```tsx
@@ -399,7 +406,7 @@ token counting and the model call are yours.
 </div>
 ```
 
-The gauge column width is `--sf-context-editor-left` (default `19rem`); set it on
+The gauge column width is `--sf-context-editor-left` (default `15rem`); set it on
 the root to widen or narrow the gauge. Not a `Chat` (that renders the message
 stream) and not a `CodeEditor` (that edits source text).
 
