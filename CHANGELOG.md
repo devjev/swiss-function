@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.18.4 — 2026-08-10
+
+### Patch
+
+- DataTable: row scroll-snap no longer parks the first row half-hidden behind a header taller than the default 1.5u (a two-line header, a taller cell). The snap origin (scroll-padding-top) is measured from the real sticky-header height and published as --sf-header-block-size, instead of a fixed count of 1.5u header rows (#88).
+
 ## v2.18.3 — 2026-07-28
 
 ### Patch
