@@ -45,6 +45,12 @@
   border-block-end: 1px solid var(--sf-color-border);
 }
 
+/* Gauge header: match the gauge body's padding so the title aligns with the
+   left-aligned axis labels below it (not the wider list-row inset). */
+.headerGauge {
+  padding-inline: calc(var(--sf-unit) / 2);
+}
+
 .headerTitle {
   min-inline-size: 0;
   font-family: var(--sf-font-mono);
@@ -119,7 +125,44 @@
 }
 
 .modelWindow {
+  margin-inline-start: calc(var(--sf-unit) / 2);
   color: var(--sf-color-muted);
+}
+
+/* Collapsed state: a square ⋯ button that opens legend + models in a menu. */
+.overflowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  cursor: pointer;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.overflowBtn:hover {
+  background-color: var(--sf-color-input-bg);
+}
+
+.overflowBtn:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+/* The legend when it sits inside the ⋯ menu: stack the entries. */
+.legendMenu {
+  padding: calc(var(--sf-unit) / 3) calc(var(--sf-unit) / 2);
+}
+
+.legendMenu .legend {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--sf-unit) / 4);
 }
 
 /* ---- The editable block list ----------------------------------------- */

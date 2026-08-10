@@ -1,7 +1,8 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, lazy, Suspense, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { ChevronDown } from "../Icon";
+import { useCollapse } from "../../lib/useCollapse";
+import { ChevronDown, MoreHorizontal } from "../Icon";
 import { Menu } from "../Menu";
 import { Pane } from "../Pane";
 import {
@@ -209,6 +210,12 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
   const window_ = selectedModel?.contextWindow ?? contextWindow;
   const gaugeScale = selectedModel?.scale ?? scale;
 
+  // Fold the header's legend + model selector into a ⋯ menu when the list
+  // column is too narrow to show them inline (container-width based).
+  const { ref: headerRef, collapsed: toolsCollapsed } = useCollapse<HTMLDivElement>({
+    collapseAt: 24,
+  });
+
   // A pinned block is held in context regardless of `enabled`.
   const active = useMemo(() => blocks.filter((b) => b.pinned || b.enabled !== false), [blocks]);
   const spans = useMemo(() => blockSpans(active), [active]);
@@ -274,6 +281,31 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
     else if (ref) ref.current = node;
   };
 
+  // Header tools (legend + model options), reused inline and inside the ⋯ menu.
+  const legend = (
+    <span className={styles.legend}>
+      <span className={styles.legendItem}>
+        <span className={cx(styles.legendDot, styles.toneStrong)} />
+        strong
+      </span>
+      <span className={styles.legendItem}>
+        <span className={cx(styles.legendDot, styles.toneBuried)} />
+        buried
+      </span>
+      <span className={styles.legendItem}>
+        <span className={cx(styles.legendDot, styles.toneWasted)} />
+        wasted
+      </span>
+    </span>
+  );
+  const hasModels = !!models && models.length > 0;
+  const modelItems = models?.map((m) => (
+    <Menu.Item key={m.id} onClick={() => selectModel(m)}>
+      {m.label}
+      <span className={styles.modelWindow}>{fmtTokens(m.contextWindow)}</span>
+    </Menu.Item>
+  ));
+
   return (
     <div {...rest} ref={setRoot} className={cx(styles.root, className)}>
       <Pane className={styles.gaugeCol}>
@@ -289,49 +321,54 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
         />
       </Pane>
       <Pane className={styles.listCol}>
-        <Pane.Header className={styles.header}>
+        <Pane.Header className={styles.header} ref={headerRef}>
           <span className={styles.headerTitle}>Contents</span>
-          <div className={styles.headerTools}>
-            <span className={styles.legend}>
-              <span className={styles.legendItem}>
-                <span className={cx(styles.legendDot, styles.toneStrong)} />
-                strong
-              </span>
-              <span className={styles.legendItem}>
-                <span className={cx(styles.legendDot, styles.toneBuried)} />
-                buried
-              </span>
-              <span className={styles.legendItem}>
-                <span className={cx(styles.legendDot, styles.toneWasted)} />
-                wasted
-              </span>
-            </span>
-            {models && models.length > 0 && (
-              <Menu.Root>
-                <Menu.Trigger
-                  render={
-                    <button type="button" className={styles.modelTrigger}>
-                      {selectedModel?.label ?? "Model"}
-                      <span className={styles.modelWindow}>{fmtTokens(window_)}</span>
-                      <ChevronDown size={1} />
-                    </button>
-                  }
-                />
-                <Menu.Portal>
-                  <Menu.Positioner sideOffset={4} align="end">
-                    <Menu.Popup>
-                      {models.map((m) => (
-                        <Menu.Item key={m.id} onClick={() => selectModel(m)}>
-                          {m.label}
-                          <span className={styles.modelWindow}>{fmtTokens(m.contextWindow)}</span>
-                        </Menu.Item>
-                      ))}
-                    </Menu.Popup>
-                  </Menu.Positioner>
-                </Menu.Portal>
-              </Menu.Root>
-            )}
-          </div>
+          {toolsCollapsed ? (
+            <Menu.Root>
+              <Menu.Trigger
+                render={
+                  <button
+                    type="button"
+                    className={styles.overflowBtn}
+                    aria-label="Legend and model"
+                  >
+                    <MoreHorizontal size={1} />
+                  </button>
+                }
+              />
+              <Menu.Portal>
+                <Menu.Positioner sideOffset={4} align="end">
+                  <Menu.Popup>
+                    {modelItems}
+                    {hasModels && <Menu.Separator />}
+                    <div className={styles.legendMenu}>{legend}</div>
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          ) : (
+            <div className={styles.headerTools}>
+              {legend}
+              {hasModels && (
+                <Menu.Root>
+                  <Menu.Trigger
+                    render={
+                      <button type="button" className={styles.modelTrigger}>
+                        {selectedModel?.label ?? "Model"}
+                        <span className={styles.modelWindow}>{fmtTokens(window_)}</span>
+                        <ChevronDown size={1} />
+                      </button>
+                    }
+                  />
+                  <Menu.Portal>
+                    <Menu.Positioner sideOffset={4} align="end">
+                      <Menu.Popup>{modelItems}</Menu.Popup>
+                    </Menu.Positioner>
+                  </Menu.Portal>
+                </Menu.Root>
+              )}
+            </div>
+          )}
         </Pane.Header>
         <Pane.Body className={styles.list}>
           {readOnly ? (
@@ -403,7 +440,7 @@ function Gauge({
 
   return (
     <>
-      <Pane.Header className={styles.header}>
+      <Pane.Header className={cx(styles.header, styles.headerGauge)}>
         <span className={styles.headerTitle}>Context window</span>
       </Pane.Header>
       <Pane.Body className={styles.gaugeBody}>
