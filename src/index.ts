@@ -11,6 +11,7 @@ export * from "./components/Chip";
 export * from "./components/CodeEditor";
 export * from "./components/CodeEditorInline";
 export * from "./components/ColorPicker";
+export * from "./components/ContextEditor";
 export * from "./components/ContextMenu";
 export * from "./components/DataTable";
 export * from "./components/DatePicker";

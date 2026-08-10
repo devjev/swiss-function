@@ -1,0 +1,452 @@
+/* ContextEditor: a budget gauge beside an editable list of context blocks.
+   Token-driven; data-bound values arrive as inline custom properties
+   (--attn, --frac, --start, --free, --at). */
+
+/* ---- Root: two columns, parent constrains the height ------------------ */
+
+.root {
+  display: grid;
+  grid-template-columns: var(--sf-context-editor-left, 19rem) 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  block-size: 100%;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+}
+
+.gaugeCol {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+  border-inline-end: 1px solid var(--sf-color-border);
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.listCol {
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+/* ---- Shared header (both columns line up on the same auto row) -------- */
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) * 1.75);
+  padding-inline: var(--sf-unit);
+  border-block-end: 1px solid var(--sf-color-border);
+}
+
+.headerTitle {
+  min-inline-size: 0;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headerMeta {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.headerMeta b {
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-fg);
+}
+
+/* ---- The editable block list ----------------------------------------- */
+
+.list {
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto calc(var(--sf-unit) * 3.5);
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  padding-inline: var(--sf-unit);
+  min-block-size: calc(var(--sf-unit) * 2);
+  padding-block: calc(var(--sf-unit) / 3);
+  border-block-end: 1px solid var(--sf-color-border);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Editable rows add a leading drag grip and trailing actions. */
+.rowLive {
+  grid-template-columns:
+    calc(var(--sf-unit) / 1.5) calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto
+    calc(var(--sf-unit) * 2.5) auto;
+}
+
+.row[data-hover] {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.row[data-disabled] {
+  opacity: 0.55;
+}
+
+.row[data-disabled] .rowTitle {
+  text-decoration: line-through;
+}
+
+.row[data-dragging] {
+  opacity: 0.35;
+}
+
+.kindTag {
+  flex: 0 0 auto;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rowMain {
+  min-inline-size: 0;
+}
+
+.rowTitle {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowDetail {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowTokens {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Compact attention read at the end of each row. */
+.meter {
+  position: relative;
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-input-bg);
+  overflow: hidden;
+}
+
+.meterFill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: calc(var(--attn) * 100%);
+  background-color: var(--tone, var(--sf-color-fg-subtle));
+}
+
+/* Flag tones, shared with the gauge so a flag means the same thing everywhere. */
+.toneStrong {
+  --tone: var(--sf-color-primary);
+}
+.toneBuried {
+  --tone: var(--sf-color-warning);
+}
+.toneWasted {
+  --tone: var(--sf-color-danger);
+}
+
+/* Drag grip: a dotted handle. `.grip` is the static (Suspense fallback) span;
+   `.gripButton` is the real focusable dnd handle. */
+.grip,
+.gripButton {
+  inline-size: 8px;
+  block-size: 14px;
+  color: var(--sf-color-muted);
+  background-image: radial-gradient(currentcolor 0.9px, transparent 1px);
+  background-size: 4px 4px;
+  background-position: center;
+  opacity: 0.6;
+}
+
+.gripButton {
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  border-radius: var(--sf-radius-default);
+  cursor: grab;
+  touch-action: none;
+}
+
+.gripButton:hover {
+  opacity: 1;
+}
+
+.gripButton:active {
+  cursor: grabbing;
+}
+
+.gripButton:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+  opacity: 1;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sf-color-muted);
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.iconBtn:hover {
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-input-bg);
+}
+
+.iconBtn:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+.pinIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  color: var(--sf-color-muted);
+}
+
+/* ---- The budget gauge ------------------------------------------------- */
+
+.gaugeBody {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) * 0.75);
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.gaugeAxis {
+  position: relative;
+  inline-size: calc(var(--sf-unit) * 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeTick {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: var(--at);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.gaugeTrack {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  overflow: hidden;
+}
+
+/* Free headroom below the packed context: a faint dither. */
+.gaugeFree {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: calc(var(--free) * 100%);
+  background-color: var(--sf-color-fg);
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+  opacity: 0.06;
+}
+
+.gaugeSeg {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(var(--start) * 100%);
+  block-size: calc(var(--frac) * 100%);
+  border-block-end: 1px solid var(--sf-color-border);
+  border-inline-start: 2px solid transparent;
+  overflow: hidden;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.gaugeSegDither {
+  position: absolute;
+  inset: 0;
+  background-color: var(--sf-color-fg);
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+  opacity: var(--attn);
+}
+
+.gaugeSegFlag {
+  border-inline-start-color: var(--tone, transparent);
+}
+
+/* Highlight the hovered segment: dim the others, draw a 1px ring over the fill.
+   The ring is a pseudo-element (inset, border-box), so it adds no size and can't
+   be hidden by the dither overlay. */
+.gaugeTrack[data-hovering] .gaugeSeg:not([data-hover]) {
+  opacity: 0.4;
+}
+
+.gaugeSeg[data-hover] {
+  z-index: 1;
+}
+
+.gaugeSeg[data-hover]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  border: 1px solid var(--sf-color-fg);
+  pointer-events: none;
+}
+
+/* Danger zone: the last stretch before the cap. */
+.gaugeCapZone {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 10%;
+  background-color: color-mix(in srgb, var(--sf-color-danger) 10%, transparent);
+  pointer-events: none;
+}
+
+/* The "effective context" cutoff: models degrade well before the hard cap. */
+.gaugeCutoff {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: var(--at);
+  border-block-start: 1px dashed var(--sf-color-warning);
+  pointer-events: none;
+}
+
+.gaugeCutoffTag {
+  position: absolute;
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  inset-block-start: var(--at);
+  transform: translateY(-50%);
+  padding: 0 calc(var(--sf-unit) / 4);
+  background-color: var(--sf-color-bg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-warning);
+  pointer-events: none;
+}
+
+/* Status line under the gauge: free budget + cutoff, or the hovered block. */
+.gaugeReadout {
+  display: flex;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+  align-items: center;
+  min-block-size: calc(var(--sf-unit) * 1.25);
+  padding: calc(var(--sf-unit) / 3) var(--sf-unit);
+  border-block-start: 1px solid var(--sf-color-border);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.gaugeReadout b {
+  color: var(--sf-color-fg);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.readoutWarn {
+  color: var(--sf-color-warning);
+}
+
+.readoutBad {
+  color: var(--sf-color-danger);
+}
+
+.readoutTitle {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Visually hidden, still read by assistive tech: exposes the per-block flag and
+   effective-% that are otherwise carried only by colour + hover. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Over budget: the packed context exceeds the window. */
+.gaugeTrack[data-over] {
+  border-color: var(--sf-color-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* `!important` so it also overrides dnd-kit's inline settle transition. */
+  .row,
+  .iconBtn,
+  .gaugeSeg {
+    transition: none !important;
+  }
+}

@@ -365,6 +365,44 @@ The one-line and `maxRows` heights are measured from the live editor's line
 height. Reach for this in dense forms/tables where a cell holds a short
 expression that occasionally needs room to read.
 
+## ContextEditor
+
+`import { ContextEditor } from "@tarassov-ch/swiss-function/context-editor"`
+
+Assemble the context window for an LLM: a `<div>` split into a budget gauge on
+the left and an editable list of context blocks on the right. Extends
+`HTMLAttributes<HTMLDivElement>` (minus `onChange` / `defaultValue`). Each block
+is `{ id, kind, title, detail?, tokens, salience?, pinned?, enabled? }`: you
+supply the token count and (optionally) a `salience` rerank score. Blocks read
+in send order; drag the grip to reorder (keyboard-operable, dnd-kit loaded
+lazily), the eye to exclude a block from the packed window, the trash to remove
+it. `pinned` blocks resist both. The gauge stacks the enabled blocks by token
+share against the full window, marks an **effective-context** cutoff (attention
+degrades past it, the "lost in the middle" effect) and a danger zone near the
+cap, and flags each block **strong** / **buried** / **wasted** (attention =
+position × salience). The parent must constrain the height. Presentational:
+token counting and the model call are yours.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` | `ContextBlock[]` | n/a | The blocks, in send order (controlled). Pass with `onChange`. |
+| `defaultValue` | `ContextBlock[]` | `[]` | Initial blocks (uncontrolled). |
+| `onChange` | `(blocks: ContextBlock[]) => void` | n/a | Fires after any edit: reorder, exclude/include, remove. |
+| `contextWindow` | `number` | `128000` | The model's window in tokens; the gauge's full scale. |
+| `effectiveContext` | `number` | `contextWindow / 2` | Tokens past which attention degrades; drawn as the dashed cutoff. |
+| `readOnly` | `boolean` | `false` | Render the context without editing controls (a viewer). |
+| `kindLabel` | `(kind: string) => string` | known kinds → `SYS`/`DOC`/…, else first 4 letters | Short uppercase type tag per kind. |
+
+```tsx
+<div style={{ blockSize: "40rem" }}>
+  <ContextEditor value={blocks} onChange={setBlocks} contextWindow={128000} />
+</div>
+```
+
+The gauge column width is `--sf-context-editor-left` (default `19rem`); set it on
+the root to widen or narrow the gauge. Not a `Chat` (that renders the message
+stream) and not a `CodeEditor` (that edits source text).
+
 ## ColorPicker
 
 `import { ColorPicker, ColorSwatch } from "@tarassov-ch/swiss-function/color-picker"`

@@ -259,6 +259,10 @@
       "types": "./dist/components/ContextMenu/index.d.ts",
       "import": "./dist/components/ContextMenu/index.js"
     },
+    "./context-editor": {
+      "types": "./dist/components/ContextEditor/index.d.ts",
+      "import": "./dist/components/ContextEditor/index.js"
+    },
     "./skeleton": {
       "types": "./dist/components/Skeleton/index.d.ts",
       "import": "./dist/components/Skeleton/index.js"
