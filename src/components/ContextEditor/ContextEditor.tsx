@@ -301,8 +301,10 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
   const hasModels = !!models && models.length > 0;
   const modelItems = models?.map((m) => (
     <Menu.Item key={m.id} onClick={() => selectModel(m)}>
-      {m.label}
-      <span className={styles.modelWindow}>{fmtTokens(m.contextWindow)}</span>
+      <span className={styles.modelItem}>
+        <span className={styles.modelLabel}>{m.label}</span>
+        <span className={styles.modelWindow}>{fmtTokens(m.contextWindow)}</span>
+      </span>
     </Menu.Item>
   ));
 
@@ -318,6 +320,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
           scale={gaugeScale}
           railColors={railColors}
           lowestAttention={lowestAttention}
+          label={label}
         />
       </Pane>
       <Pane className={styles.listCol}>
@@ -361,7 +364,10 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
                     }
                   />
                   <Menu.Portal>
-                    <Menu.Positioner sideOffset={4} align="end">
+                    {/* Left-align the popup to the trigger and offset by the
+                        popup+item inset so item text lines up with the trigger
+                        label. */}
+                    <Menu.Positioner sideOffset={4} align="start" alignOffset={-4}>
                       <Menu.Popup>{modelItems}</Menu.Popup>
                     </Menu.Positioner>
                   </Menu.Portal>
@@ -401,6 +407,7 @@ function Gauge({
   scale,
   railColors,
   lowestAttention,
+  label,
 }: {
   spans: BlockSpan[];
   used: number;
@@ -410,6 +417,7 @@ function Gauge({
   scale: Scale;
   railColors?: RailColors;
   lowestAttention?: LowestAttention;
+  label: (kind: string) => string;
 }) {
   const pos = makePos(contextWindow, scale);
   const ticks =
@@ -440,8 +448,10 @@ function Gauge({
 
   return (
     <>
-      <Pane.Header className={cx(styles.header, styles.headerGauge)}>
-        <span className={styles.headerTitle}>Context window</span>
+      <Pane.Header className={styles.header}>
+        <span className={styles.headerTitle}>
+          Context window <span className={styles.headerScale}>({scale} tkns)</span>
+        </span>
       </Pane.Header>
       <Pane.Body className={styles.gaugeBody}>
         <div className={styles.gaugeAxis}>
@@ -488,6 +498,7 @@ function Gauge({
                 onMouseLeave={() => onHover(null)}
               >
                 <div className={styles.gaugeSegDither} style={v({ "--attn": s.positional })} />
+                <span className={styles.gaugeSegLabel}>{label(s.block.kind)}</span>
               </div>
             );
           })}

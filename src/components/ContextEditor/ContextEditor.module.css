@@ -41,14 +41,9 @@
   justify-content: space-between;
   gap: calc(var(--sf-unit) / 2);
   block-size: calc(var(--sf-unit) * 1.5);
-  padding-inline: var(--sf-unit);
-  border-block-end: 1px solid var(--sf-color-border);
-}
-
-/* Gauge header: match the gauge body's padding so the title aligns with the
-   left-aligned axis labels below it (not the wider list-row inset). */
-.headerGauge {
+  /* Matches the gauge body + row inset (0.5u) so both columns line up. */
   padding-inline: calc(var(--sf-unit) / 2);
+  border-block-end: 1px solid var(--sf-color-border);
 }
 
 .headerTitle {
@@ -63,6 +58,16 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Scale qualifier after the title: muted, sans (proportional), not uppercased. */
+.headerScale {
+  font-family: var(--sf-font-sans);
+  font-size-adjust: none;
+  font-weight: var(--sf-font-weight-regular);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--sf-color-muted);
 }
 
 /* Right side of the list header: flag legend + optional model selector. */
@@ -129,6 +134,29 @@
   color: var(--sf-color-muted);
 }
 
+/* Dropdown item: label left, window token right-aligned into a clean column so
+   the tokens don't sit ragged after variable-length labels. */
+.modelItem {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sf-unit);
+  min-inline-size: 0;
+  inline-size: 100%;
+}
+
+.modelItem .modelWindow {
+  margin-inline-start: 0;
+}
+
+.modelLabel {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Collapsed state: a square ⋯ button that opens legend + models in a menu. */
 .overflowBtn {
   display: inline-flex;
@@ -176,7 +204,7 @@
   grid-template-columns: calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto calc(var(--sf-unit) * 3.5);
   align-items: center;
   gap: calc(var(--sf-unit) / 2);
-  padding-inline: var(--sf-unit);
+  padding-inline: calc(var(--sf-unit) / 2);
   min-block-size: calc(var(--sf-unit) * 2);
   padding-block: calc(var(--sf-unit) / 3);
   border-block-end: 1px solid var(--sf-color-border);
@@ -404,7 +432,31 @@
   border-block-end: 1px solid var(--sf-color-border);
   border-inline-start: 2px solid transparent;
   overflow: hidden;
+  /* A size container so the kind tag can reveal itself only when the block is
+     tall enough to hold it (see .gaugeSegLabel). */
+  container-type: size;
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Kind tag on the block, hidden by default and shown only once the block is
+   tall enough (container query) so short blocks stay clean. */
+.gaugeSegLabel {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-start: calc(var(--sf-unit) / 3);
+  display: none;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  letter-spacing: 0.04em;
+  color: var(--sf-color-fg-subtle);
+  pointer-events: none;
+}
+
+@container (min-height: 28px) {
+  .gaugeSegLabel {
+    display: block;
+  }
 }
 
 /* Inset the dither at the block's bottom so a 2px band of the gradient shows
