@@ -47,6 +47,10 @@
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"
     },
+    "./agent-composer": {
+      "types": "./dist/components/AgentComposer/index.d.ts",
+      "import": "./dist/components/AgentComposer/index.js"
+    },
     "./bar-chart": {
       "types": "./dist/components/BarChart/index.d.ts",
       "import": "./dist/components/BarChart/index.js"
