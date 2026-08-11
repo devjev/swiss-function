@@ -11,6 +11,7 @@ import {
   nodeAtPath,
   outdentNode,
   removeNode,
+  reorderSiblings,
 } from "./composer";
 
 const tree = (): AgentComposerAgent => ({
@@ -90,6 +91,27 @@ describe("indentNode / outdentNode", () => {
   it("keeps direct children of the root put", () => {
     const t = tree();
     expect(outdentNode(t, "faq")).toBe(t);
+  });
+});
+
+describe("reorderSiblings", () => {
+  it("moves a child to a later sibling's position within the same parent", () => {
+    // root children: [faq, researcher, sum-2] → move faq to sum-2's slot
+    const next = reorderSiblings(tree(), "faq", "sum-2");
+    expect(next.children.map((c) => c.id)).toEqual(["researcher", "sum-2", "faq"]);
+  });
+  it("moves earlier too (researcher before faq)", () => {
+    const next = reorderSiblings(tree(), "researcher", "faq");
+    expect(next.children.map((c) => c.id)).toEqual(["researcher", "faq", "sum-2"]);
+  });
+  it("is a no-op across different parents (identity)", () => {
+    const t = tree();
+    // web/sum-1 live under researcher; faq lives under root
+    expect(reorderSiblings(t, "web", "faq")).toBe(t);
+  });
+  it("is a no-op onto itself", () => {
+    const t = tree();
+    expect(reorderSiblings(t, "faq", "faq")).toBe(t);
   });
 });
 

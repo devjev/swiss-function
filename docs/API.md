@@ -57,10 +57,12 @@ leaves tagged `AGT` / `FNC` / `MCP`). Agent instances are hairline chassis
 frame; light L-traces connect each child to its parent's rail. Using the same
 agent twice creates two independent instances (hover cross-highlights all
 sites, `⧉ ×n`); collapse cascades to all descendants; cycles are
-unrepresentable by construction. There is no outer container and no add
-affordance: the root chassis is the frame, and composing happens by dragging
-from the app's catalog (dnd milestone pending). PRM/CTX rows fire
-`onRequestEdit`.
+unrepresentable by construction. There is no outer container: the root chassis
+is the frame. **Reorder siblings by dragging a node's header** (pointer;
+lazy-loaded dnd-kit) or with `Alt+↑/↓` (keyboard) — order is significant, it is
+the order the parent's model sees the tool specs. Drag is constrained to a
+node's own siblings (a node moves among its peers, never across parents).
+MDL/HPR/CTX rows fire `onRequestEdit`.
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -68,16 +70,17 @@ from the app's catalog (dnd milestone pending). PRM/CTX rows fire
 | `onChange` | `(next: AgentComposerAgent) => void` | — | Fires after a structural edit (reorder, re-parent, remove). |
 | `collapsed` / `defaultCollapsed` | `string[]` | `[]` | Collapsed agent ids (controlled / uncontrolled). |
 | `onCollapsedChange` | `(ids: string[]) => void` | — | Collapse state changes (collapsing emits the whole cascaded set). |
-| `onRequestEdit` | `(nodeId, part: "params" \| "context") => void` | — | Open your parameter / context editor. |
-| `readOnly` | `boolean` | `false` | Static viewer: no structure edits. |
+| `onRequestEdit` | `(nodeId, part: "model" \| "hyperparams" \| "context") => void` | — | Open your editor for the MDL / HPR / CTX row. |
+| `readOnly` | `boolean` | `false` | Static viewer: no structure edits, no drag. |
 | `kindLabel` | `(kind: string) => string` | AGT/FNC/MCP | Override the kind micro-tags. |
 
-Keyboard: `↑↓` move, `←→` collapse/expand or step in/out, `Alt+↑↓` reorder,
-`Alt+←` outdent, `Alt+→` indent into the previous agent sibling, `⌫` remove,
-`Enter` toggles an agent or opens the row's editor, `Home`/`End` jump.
-Pure tree helpers are exported from the same entry (`findPathById`,
-`moveSibling`, `indentNode`, `outdentNode`, `insertChild`, `removeNode`,
-`descendantAgentIds`, `composerStats`, `agentUseCounts`).
+Keyboard: `↑↓` move, `←→` collapse/expand or step in/out, `Alt+↑↓` reorder
+siblings, `Alt+←` outdent, `Alt+→` indent into the previous agent sibling,
+`⌫` remove, `Enter` toggles an agent or opens the row's editor, `Home`/`End`
+jump. Pure tree helpers are exported from the same entry (`findPathById`,
+`moveSibling`, `reorderSiblings`, `siblingIds`, `indentNode`, `outdentNode`,
+`insertChild`, `removeNode`, `descendantAgentIds`, `composerStats`,
+`agentUseCounts`).
 
 ## BarChart
 

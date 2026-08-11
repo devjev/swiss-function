@@ -33,6 +33,10 @@
   outline-offset: 1px;
 }
 
+.node[data-dragging] {
+  opacity: 0.4;
+}
+
 /* Quiet header: the chassis border and the primary name carry the hierarchy,
    so the instance header is not a filled bar. */
 .head {
@@ -126,6 +130,16 @@
   color: var(--sf-color-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* Drag-to-reorder: the header is the activator, so it shows the grab cursor;
+   grabbing while the node is lifted (it dims via .node[data-dragging]). */
+.node[data-draggable] > .head {
+  cursor: grab;
+}
+
+.node[data-dragging] > .head {
+  cursor: grabbing;
 }
 
 .body {
@@ -316,5 +330,9 @@
   .head::before,
   .row::before {
     transition: none;
+  }
+  /* `!important` overrides dnd-kit's inline sortable settle transition. */
+  .node {
+    transition: none !important;
   }
 }

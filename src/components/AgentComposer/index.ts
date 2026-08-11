@@ -11,4 +11,5 @@ export {
   nodeAtPath,
   outdentNode,
   removeNode,
+  reorderSiblings,
 } from "./composer";

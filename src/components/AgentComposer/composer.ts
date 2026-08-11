@@ -161,6 +161,42 @@ export function indentNode(root: AgentComposerAgent, id: string): AgentComposerA
   return withChildrenAt(removed, [...parentPath, index - 1], (cs) => [...cs, node]);
 }
 
+/** The ids of every child of `id`'s parent (siblings of `id`, `id` included).
+ *  Empty for the root or an unknown id. Used to constrain drag drop targets to
+ *  siblings so reordering stays within one parent. */
+export function siblingIds(root: AgentComposerAgent, id: string): string[] {
+  const path = findPathById(root, id);
+  if (!path || path.length === 0) return [];
+  const parent = nodeAtPath(root, path.slice(0, -1));
+  if (!parent || parent.kind !== "agent") return [];
+  return parent.children.map((c) => c.id);
+}
+
+/** Reorder within a parent: move `activeId` to `overId`'s position among their
+ *  shared siblings. Returns the SAME root (identity) when they are not siblings
+ *  of one common parent, so a cross-parent drop is a no-op the caller can skip. */
+export function reorderSiblings(
+  root: AgentComposerAgent,
+  activeId: string,
+  overId: string,
+): AgentComposerAgent {
+  if (activeId === overId) return root;
+  const ap = findPathById(root, activeId);
+  const op = findPathById(root, overId);
+  if (!ap || !op || ap.length === 0 || op.length === 0) return root;
+  const aParent = ap.slice(0, -1);
+  const oParent = op.slice(0, -1);
+  if (aParent.length !== oParent.length || aParent.some((v, i) => v !== oParent[i])) return root;
+  const from = ap[ap.length - 1] as number;
+  const to = op[op.length - 1] as number;
+  return withChildrenAt(root, aParent, (cs) => {
+    const next = [...cs];
+    const [moved] = next.splice(from, 1);
+    if (moved) next.splice(to, 0, moved);
+    return next;
+  });
+}
+
 /** Append a child to the agent with `parentId`. */
 export function insertChild(
   root: AgentComposerAgent,
