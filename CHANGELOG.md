@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.20.0 — 2026-08-11
+
+### Minor
+
+- AgentComposer: reorder sub-agents and tools by dragging a node's header (lazy dnd-kit), constrained to a node's own siblings; sibling order is significant (the order the parent's model sees the tool specs). Keyboard reorder (Alt+arrows) unchanged.
+
 ## v2.19.0 — 2026-08-10
 
 ### Minor
