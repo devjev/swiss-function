@@ -1,9 +1,11 @@
 import type { CSSProperties, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { useFullscreen } from "../../lib/useFullscreen";
 import type { ButtonVariant } from "../Button";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart, type ChatProps } from "../Chat";
+import { Collapse, Expand, X } from "../Icon";
 import { type EffectName, NonIdealState } from "../NonIdealState";
 import { SplitPane, type SplitSide, useSplitPane } from "../SplitPane";
 import { Tabs } from "../Tabs";
@@ -117,33 +119,9 @@ function toPadding(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
 }
 
-const ICON_PROPS = {
-  viewBox: "0 0 16 16",
-  width: 14,
-  height: 14,
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-} as const;
-
-const ExpandIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" strokeLinecap="square" />
-  </svg>
-);
-const CollapseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" strokeLinecap="square" />
-  </svg>
-);
-const CloseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
-  </svg>
-);
+/** Window-chrome glyph size. `--sf-unit` is 24px, so 14px is off-grid; a raw
+ *  length holds the chrome's established geometry exactly. */
+const CHROME_ICON_SIZE = "14px";
 
 /** Panel header: caption + optional view switcher on the left, custom actions
  *  and the fullscreen/close pair on the right. Rendered inside the SplitPane so
@@ -188,7 +166,11 @@ function PanelHeader({
           aria-label={expanded ? "Exit fullscreen" : "Enter fullscreen"}
           aria-pressed={expanded}
         >
-          {expanded ? <CollapseIcon /> : <ExpandIcon />}
+          {expanded ? (
+            <Glyph slot="collapse" fallback={Collapse} size={CHROME_ICON_SIZE} />
+          ) : (
+            <Glyph slot="expand" fallback={Expand} size={CHROME_ICON_SIZE} />
+          )}
         </button>
         <button
           type="button"
@@ -196,7 +178,7 @@ function PanelHeader({
           onClick={() => setOpen(false)}
           aria-label="Close"
         >
-          <CloseIcon />
+          <Glyph slot="close" fallback={X} size={CHROME_ICON_SIZE} />
         </button>
       </div>
     </div>

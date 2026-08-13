@@ -1,8 +1,10 @@
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import type { Basemap } from "../../lib/map/types";
 import { Button } from "../Button";
+import { Fit, ZoomIn, ZoomOut } from "../Icon";
 import { ToggleGroup } from "../ToggleGroup";
 import styles from "./Controls.module.css";
 import { useMapControls } from "./context";
@@ -36,7 +38,7 @@ export const MapControlsBar = forwardRef<HTMLDivElement, MapControlsProps>(funct
     >
       <div className={styles.cluster}>
         <Button variant="secondary" size="sm" aria-label="Zoom in" title="Zoom in" onClick={zoomIn}>
-          <ZoomInIcon />
+          <Glyph slot="zoomIn" fallback={ZoomIn} />
         </Button>
         <Button
           variant="secondary"
@@ -45,7 +47,7 @@ export const MapControlsBar = forwardRef<HTMLDivElement, MapControlsProps>(funct
           title="Zoom out"
           onClick={zoomOut}
         >
-          <ZoomOutIcon />
+          <Glyph slot="zoomOut" fallback={ZoomOut} />
         </Button>
         <Button
           variant="secondary"
@@ -54,7 +56,7 @@ export const MapControlsBar = forwardRef<HTMLDivElement, MapControlsProps>(funct
           title="Fit to overlays"
           onClick={() => fitBounds()}
         >
-          <FitIcon />
+          <Glyph slot="fit" fallback={Fit} />
         </Button>
         <Button
           variant="ghost"
@@ -85,51 +87,3 @@ export const MapControlsBar = forwardRef<HTMLDivElement, MapControlsProps>(funct
     </div>
   );
 });
-
-/* --- Icons. Sharp, single-stroke, sized to the current font; stroke is
-   `currentColor` so they inherit the Button's themed foreground. --- */
-
-const ICON_PROPS = {
-  width: "1em",
-  height: "1em",
-  viewBox: "0 0 16 16",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  "aria-hidden": true,
-} as const;
-
-function ZoomInIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom in</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="7" y1="5" x2="7" y2="9" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
-
-function ZoomOutIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom out</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
-
-function FitIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Fit to overlays</title>
-      <path d="M2 5V2h3" />
-      <path d="M14 5V2h-3" />
-      <path d="M2 11v3h3" />
-      <path d="M14 11v3h-3" />
-    </svg>
-  );
-}

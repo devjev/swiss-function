@@ -24,6 +24,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { MoreVertical } from "../Icon";
 import styles from "./TableInput.module.css";
 
@@ -105,7 +106,7 @@ function SortableRow({
       {...attributes}
       {...listeners}
     >
-      <MoreVertical />
+      <Glyph slot="moreVertical" fallback={MoreVertical} />
     </button>
   );
 

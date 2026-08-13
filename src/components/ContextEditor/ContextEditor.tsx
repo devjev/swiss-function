@@ -1,6 +1,7 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, lazy, Suspense, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { useCollapse } from "../../lib/useCollapse";
 import { ChevronDown, MoreHorizontal } from "../Icon";
 import { Menu } from "../Menu";
@@ -335,7 +336,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
                     className={styles.overflowBtn}
                     aria-label="Legend and model"
                   >
-                    <MoreHorizontal size={1} />
+                    <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size={1} />
                   </button>
                 }
               />
@@ -359,7 +360,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
                       <button type="button" className={styles.modelTrigger}>
                         {selectedModel?.label ?? "Model"}
                         <span className={styles.modelWindow}>{fmtTokens(window_)}</span>
-                        <ChevronDown size={1} />
+                        <Glyph slot="chevronDown" fallback={ChevronDown} size={1} />
                       </button>
                     }
                   />

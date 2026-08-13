@@ -12,6 +12,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode } from "react";
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
 import type { EditConfig } from "../DataTable";
@@ -242,7 +243,7 @@ function RowCells<T>({
           disabled={!canDelete}
           onClick={() => onDelete(rowIndex)}
         >
-          <Trash />
+          <Glyph slot="delete" fallback={Trash} />
         </Button>
       </div>
     </>
@@ -467,7 +468,7 @@ export function TableInput<T = Record<string, unknown>>({
           disabled={disabled || !canAdd}
           onClick={addRow}
         >
-          <Plus />
+          <Glyph slot="add" fallback={Plus} />
           {addLabel}
         </Button>
       </div>

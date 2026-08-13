@@ -136,6 +136,65 @@ test("the Connect toggle reflects pressed state when editable", async ({ mount }
   await expect(connect).toHaveAttribute("aria-pressed", "true");
 });
 
+test("hovering a node fires onNodeHover with its id, and null on leave", async ({
+  mount,
+  page,
+}) => {
+  // The probe reports each node's real viewport position (Sigma is WebGL, no
+  // per-node DOM); `grid` lays A/B out deterministically so we can aim at A.
+  const c = await mount(<GraphHarness data={pair} layout="grid" probe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  const probe = c.getByTestId("node-pos");
+  const parse = (s: string | null): { x: number; y: number } => {
+    const parts = (s ?? "").split(",");
+    const x = Number(parts[0]);
+    const y = Number(parts[1]);
+    if (Number.isNaN(x) || Number.isNaN(y)) throw new Error("no node position");
+    return { x: box.x + x, y: box.y + y };
+  };
+  const a = parse(await probe.getAttribute("data-pos-a"));
+
+  // Start in an empty corner, then step onto A so Sigma registers the hover-enter.
+  await page.mouse.move(box.x + 4, box.y + 4);
+  await page.mouse.move(a.x, a.y, { steps: 6 });
+  await expect(c.getByTestId("last-event")).toHaveText("hover:a");
+
+  // Move back off the node; the leave fires with null.
+  await page.mouse.move(box.x + 4, box.y + 4, { steps: 6 });
+  await expect(c.getByTestId("last-event")).toHaveText("hover:null");
+});
+
+test("layoutOptions.grid.columns changes the column count", async ({ mount }) => {
+  const parse = (s: string | null) => {
+    const [x, y] = (s ?? "").split(",").map(Number);
+    return { x: x ?? Number.NaN, y: y ?? Number.NaN };
+  };
+  const gap = async (c: Awaited<ReturnType<typeof mount>>) => {
+    const probe = c.getByTestId("node-pos");
+    const a = parse(await probe.getAttribute("data-pos-a"));
+    const b = parse(await probe.getAttribute("data-pos-b"));
+    return { x: Math.abs(a.x - b.x), y: Math.abs(a.y - b.y) };
+  };
+
+  // Default grid on two nodes = 2 columns: A and B sit side by side (different x).
+  const wide = await mount(<GraphHarness data={pair} layout="grid" probe />);
+  await expect(wide.locator("[data-graph-ready]")).toHaveCount(1);
+  expect((await gap(wide)).x).toBeGreaterThan(10);
+  await wide.unmount();
+
+  // Forcing a single column stacks them: (near) same x, different y.
+  const tall = await mount(
+    <GraphHarness data={pair} layout="grid" layoutOptions={{ grid: { columns: 1 } }} probe />,
+  );
+  await expect(tall.locator("[data-graph-ready]")).toHaveCount(1);
+  const d = await gap(tall);
+  expect(d.x).toBeLessThan(2);
+  expect(d.y).toBeGreaterThan(10);
+});
+
 test("dragging node→node in Connect mode fires onEdgeCreate", async ({ mount, page }) => {
   // The probe reports each node's real viewport position, so the drag targets the
   // actual nodes (Sigma paints to WebGL — there's no per-node DOM to aim at).

@@ -16,11 +16,13 @@ import {
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
+import { Collapse, Expand, ExternalLink, X } from "../Icon";
 import type { PopOutRect } from "../PopOut";
 import { PopOut as PopOutWindow } from "../PopOut";
 import styles from "./Dialog.module.css";
@@ -50,41 +52,9 @@ const Backdrop = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof Base
   },
 );
 
-/** Window-chrome icons — shared 16px line set, matching `ChatDrawer`. */
-const ICON_PROPS = {
-  viewBox: "0 0 16 16",
-  width: 14,
-  height: 14,
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-} as const;
-
-const ExpandIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" strokeLinecap="square" />
-  </svg>
-);
-const CollapseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" strokeLinecap="square" />
-  </svg>
-);
-const CloseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
-  </svg>
-);
-// The Icon set's ExternalLink path (arrow leaving a box); matches WindowArray.
-const PopOutIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" strokeLinecap="square" />
-  </svg>
-);
+/** Window-chrome glyph size. `--sf-unit` is 24px, so 14px is off-grid; a raw
+ *  length holds the chrome's established geometry exactly. */
+const CHROME_ICON_SIZE = "14px";
 
 /** Lets `Dialog.Handle` reach the popup's drag starter and `Dialog.Maximize`
  *  reach its fullscreen state without prop drilling. */
@@ -510,7 +480,11 @@ const Maximize = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"
           onPointerDown?.(event);
         }}
       >
-        {expanded ? <CollapseIcon /> : <ExpandIcon />}
+        {expanded ? (
+          <Glyph slot="collapse" fallback={Collapse} size={CHROME_ICON_SIZE} />
+        ) : (
+          <Glyph slot="expand" fallback={Expand} size={CHROME_ICON_SIZE} />
+        )}
       </button>
     );
   },
@@ -542,7 +516,7 @@ const PopOutButton = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"but
           onPointerDown?.(event);
         }}
       >
-        <PopOutIcon />
+        <Glyph slot="popOut" fallback={ExternalLink} size={CHROME_ICON_SIZE} />
       </button>
     );
   },
@@ -566,7 +540,7 @@ const CloseButton = forwardRef<
         onPointerDown?.(event);
       }}
     >
-      {children ?? <CloseIcon />}
+      {children ?? <Glyph slot="close" fallback={X} size={CHROME_ICON_SIZE} />}
     </BaseDialog.Close>
   );
 });

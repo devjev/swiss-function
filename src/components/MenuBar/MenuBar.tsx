@@ -3,12 +3,14 @@ import { Menubar as BaseMenubar } from "@base-ui/react/menubar";
 import type { ComponentPropsWithoutRef, HTMLAttributes, ReactNode, Ref } from "react";
 import { Children, createContext, forwardRef, isValidElement, useContext } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useCollapse } from "../../lib/useCollapse";
 import { useOverflow } from "../../lib/useOverflow";
 import { Box } from "../Box";
+import { Hamburger, MoreHorizontal } from "../Icon";
 import { Input, type InputProps } from "../Input";
 import { Popover } from "../Popover";
 import styles from "./MenuBar.module.css";
@@ -34,28 +36,9 @@ const SurfaceContext = createContext<MenuBarSurface>("row");
 // a bar rule.
 const InMenuContext = createContext(false);
 
-function HamburgerIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-      <path
-        d="M2 4h12M2 8h12M2 12h12"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="square"
-      />
-    </svg>
-  );
-}
-
-function OverflowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
-      <circle cx="3" cy="8" r="1.4" />
-      <circle cx="8" cy="8" r="1.4" />
-      <circle cx="13" cy="8" r="1.4" />
-    </svg>
-  );
-}
+// The ☰/⋯ menu glyphs render at a fixed 16px; `--sf-unit` is 24px, so 16 is
+// off-grid and a raw length holds the trigger's established size exactly.
+const MENU_ICON_SIZE = "16px";
 
 // The ☰/⋯ trigger + the Popover panel that renders the folded items. Shared by
 // both the all-at-once (`"all"`) and progressive (`"items"`) collapse modes.
@@ -208,7 +191,7 @@ const Root = forwardRef<HTMLDivElement, MenuBarRootProps>(function MenuBarRoot(
               </span>
             ))}
             <span data-overflow-trigger className={cx(styles.barTrigger, styles.ghostTrigger)}>
-              <OverflowIcon />
+              <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size={MENU_ICON_SIZE} />
             </span>
           </div>
           <BaseMenubar
@@ -225,7 +208,11 @@ const Root = forwardRef<HTMLDivElement, MenuBarRootProps>(function MenuBarRoot(
                 side={panelSide}
                 align="end"
                 label={menuLabel}
-                icon={menuIcon ?? <OverflowIcon />}
+                icon={
+                  menuIcon ?? (
+                    <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size={MENU_ICON_SIZE} />
+                  )
+                }
                 triggerClassName={cx(styles.barTrigger, styles.barTriggerEnd)}
               />
             ) : null}
@@ -253,7 +240,7 @@ const Root = forwardRef<HTMLDivElement, MenuBarRootProps>(function MenuBarRoot(
             side={panelSide}
             align={menuAlign}
             label={menuLabel}
-            icon={menuIcon ?? <HamburgerIcon />}
+            icon={menuIcon ?? <Glyph slot="menu" fallback={Hamburger} size={MENU_ICON_SIZE} />}
             triggerClassName={cx(styles.barTrigger, menuAlign === "end" && styles.barTriggerEnd)}
           />
         ) : (

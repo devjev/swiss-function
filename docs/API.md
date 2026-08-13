@@ -979,9 +979,12 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 | `data` | `GraphData` | n/a | `{ nodes, edges }` with arbitrary per-item data. |
 | `layout` | `LayoutKind` | n/a | Controlled layout (animated transition on change). |
 | `defaultLayout` | `"force" \| "tree" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
+| `layoutOptions` | `GraphLayoutOptions` | n/a | Per-layout tuning (only the active layout's block is read); each field defaults to the size-derived value. `force` (`iterations` plus the full ForceAtlas2 settings: `gravity`, `scalingRatio`, `strongGravityMode`, `linLogMode`, `outboundAttractionDistribution`, `adjustSizes`, `edgeWeightInfluence`, `slowDown`, `barnesHutOptimize`, `barnesHutTheta`), `radial`/`concentric` (`scale`), `tree` (`rootId`/`direction`/`levelGap`), `grid` (`columns`). Force settings override `forceAtlas2.inferSettings` (which auto-tunes gravity/scalingRatio/BarnesHut by node count). Changing it re-runs the current layout. |
 | `onLayoutChange` | `(next: LayoutKind) => void` | n/a | Layout changed (prop/toolbar/keyboard). |
 | `onNodeClick` / `onEdgeClick` | `(id: string) => void` | n/a | Clicks (edges clickable when `editable` or this is set). |
 | `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id. |
+| `highlightConnectionsOnHover` | `boolean` | `true` | On node hover, emphasize its incident edges (both directions) + neighbours and fade the rest, so a node's connections read at a glance. `false` keeps hover to just the label box. |
+| `onNodeHover` | `(id: string \| null) => void` | n/a | Pointer entered a node (`id`) or left it (`null`). Independent of `highlightConnectionsOnHover`. |
 | `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | n/a | Override visual attrs; omitted fields use defaults. |
 | `onNodeContextMenu` | `(id, event) => void` | n/a | Before right-click menu opens. |
 | `contextMenuItems` | `(target: GraphMenuTarget) => GraphMenuItem[]` | n/a | Custom menu (`[]` suppresses). |
@@ -1082,7 +1085,45 @@ A consistent, tree-shakeable icon set matched to the library's aesthetic (issue 
 
 Plus any `SVGProps` (e.g. `color`, `className`) spread to the `<svg>`.
 
-Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
+Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`), window chrome (`Expand`, `Collapse`, `Split`, `PopIn`), viewport controls (`ZoomIn`, `ZoomOut`, `Fit`, `Connect`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
+
+### Pluggable icons
+
+The bespoke set is the default, but a consumer can redirect the glyphs the library renders internally (a Dialog's close, a chart's zoom controls, a Picker chevron) to another set: Feather, Lucide, Tabler, or their own. The library takes no dependency on any icon package; a consumer who does nothing gets the bespoke set exactly as before.
+
+The mechanism is a React context, `IconProvider`, that maps **slots** (semantic names the library commits to) to components. Internally every glyph is rendered through `<Glyph slot="…" fallback={<Bespoke>} />`, so the slot resolves to the provider's override if present, else the bespoke fallback (which stays a static import, so unused icons still tree-shake).
+
+| Export | Kind | Notes |
+| --- | --- | --- |
+| `IconProvider` | component | `icons: IconOverrides`, `children`. Redirects glyphs for its subtree. Nested providers compose (the child wins per slot). |
+| `iconAdapter` | function | `iconAdapter(External)` wraps an external-library icon (Feather/Lucide/Tabler) so it satisfies the icon contract: normalizes `size` to the `--sf-unit` grid, preserves the `label` → `role="img"` / decorative → `aria-hidden` a11y. Caps and stroke weight stay the external library's own. |
+| `Glyph` | component | `slot`, `fallback`, plus `IconRenderProps`. The call-site form the library uses internally; also public for building parts in the library's vocabulary. |
+| `useIcon` | hook | `useIcon(slot, fallback)` returns the resolved renderer. The primitive under `Glyph`. |
+| `SF_ICON_SLOTS` / `IconSlot` | const / type | The slot vocabulary and its union type. |
+| `IconOverrides` / `IconRenderer` / `IconRenderProps` | types | The override-map, renderer, and render-prop types. |
+
+Slots: `chevronUp/Down/Left/Right`, `close`, `expand`, `collapse`, `split`, `popOut`, `popIn`, `zoomIn`, `zoomOut`, `fit`, `reset`, `connect`, `add`, `delete`, `search`, `check`, `menu`, `moreHorizontal`, `moreVertical`, `eye`, `eyeOff`, `lock`, `folder`, `file`, `eyedropper`. `SF_ICON_SLOTS` is **append-only**: adding a slot is additive (override maps are `Partial`, and each call site ships a fallback), so only renaming or removing one is a breaking change.
+
+Swap the whole set, or a single slot (unmapped slots stay bespoke):
+
+```tsx
+import { IconProvider } from "@tarassov-ch/swiss-function";
+import { iconAdapter } from "@tarassov-ch/swiss-function/icon";
+import { ChevronDown, X, Plus, Trash2 } from "lucide-react";
+
+<IconProvider
+  icons={{
+    chevronDown: iconAdapter(ChevronDown),
+    close: iconAdapter(X),
+    add: iconAdapter(Plus),
+    delete: iconAdapter(Trash2),
+  }}
+>
+  {app}
+</IconProvider>;
+```
+
+External sets render `24×24`, round-cap, `strokeWidth 2` glyphs; `iconAdapter` normalizes only the box size, so a swapped-in set reads in its own posture (that is the point of swapping). Slot → Lucide / Feather / Tabler name mappings are yours to write from the slot list above.
 
 ## Input
 

@@ -35,9 +35,22 @@ import {
   useState,
 } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
 import { Dialog } from "../Dialog";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Collapse,
+  Expand,
+  ExternalLink,
+  PopIn,
+  Split,
+  X,
+} from "../Icon";
 import type { PopOutRect } from "../PopOut";
 import { PopOut } from "../PopOut";
 import { RadioTable } from "../RadioTable";
@@ -74,78 +87,9 @@ function toUnit(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
 }
 
-/** Window-chrome icons — shared 16px line set, matching `Dialog`/`ChatDrawer`. */
-const ICON_PROPS = {
-  viewBox: "0 0 16 16",
-  width: 14,
-  height: 14,
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-} as const;
-
-const ExpandIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" strokeLinecap="square" />
-  </svg>
-);
-const CollapseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" strokeLinecap="square" />
-  </svg>
-);
-const SplitIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M2.5 3.5h4.25v9H2.5zM9.25 3.5h4.25v9h-4.25z" strokeLinecap="square" />
-  </svg>
-);
-const CloseIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" strokeLinecap="square" />
-  </svg>
-);
-// The Icon set's ExternalLink path (arrow leaving a box).
-const PopOutIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M9 3h4v4M13 3 7.5 8.5M11 9.5V13H3V5h3.5" strokeLinecap="square" />
-  </svg>
-);
-// The mirror: an arrow docking back INTO the box (return to the strip).
-const PopInIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M8 4v4h4M13 3 8 8M11 9.5V13H3V5h3.5" strokeLinecap="square" />
-  </svg>
-);
-const ChevronLeftIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M10 3L5 8l5 5" strokeLinecap="square" />
-  </svg>
-);
-const ChevronRightIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M6 3l5 5-5 5" strokeLinecap="square" />
-  </svg>
-);
-const ChevronUpIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M3 10l5-5 5 5" strokeLinecap="square" />
-  </svg>
-);
-const ChevronDownIcon = () => (
-  // biome-ignore lint/a11y/noSvgWithoutTitle: decorative; the button carries the label.
-  <svg {...ICON_PROPS}>
-    <path d="M3 6l5 5 5-5" strokeLinecap="square" />
-  </svg>
-);
+/** Window-chrome glyph size. `--sf-unit` is 24px, so 14px is off-grid; a raw
+ *  length holds the chrome's established geometry exactly. */
+const CHROME_ICON_SIZE = "14px";
 
 // --- Column / Window (data carriers; never rendered directly — Root projects
 // them, same contract as Reflow.Column) -------------------------------------
@@ -1244,7 +1188,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             disabled={switchTarget("left") == null}
             onClick={() => switchColumn("left", false)}
           >
-            {vertical ? <ChevronUpIcon /> : <ChevronLeftIcon />}
+            {vertical ? (
+              <Glyph slot="chevronUp" fallback={ChevronUp} size={CHROME_ICON_SIZE} />
+            ) : (
+              <Glyph slot="chevronLeft" fallback={ChevronLeft} size={CHROME_ICON_SIZE} />
+            )}
           </button>
           <button
             type="button"
@@ -1255,7 +1203,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             disabled={switchTarget("right") == null}
             onClick={() => switchColumn("right", false)}
           >
-            {vertical ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            {vertical ? (
+              <Glyph slot="chevronDown" fallback={ChevronDown} size={CHROME_ICON_SIZE} />
+            ) : (
+              <Glyph slot="chevronRight" fallback={ChevronRight} size={CHROME_ICON_SIZE} />
+            )}
           </button>
         </>
       )}
@@ -1534,7 +1486,11 @@ function WindowView({
             onPopOutChange(!popped);
           }}
         >
-          {popped ? <PopInIcon /> : <PopOutIcon />}
+          {popped ? (
+            <Glyph slot="popIn" fallback={PopIn} size={CHROME_ICON_SIZE} />
+          ) : (
+            <Glyph slot="popOut" fallback={ExternalLink} size={CHROME_ICON_SIZE} />
+          )}
         </button>
       )}
       {showSplitButton && !popped && (
@@ -1545,7 +1501,7 @@ function WindowView({
           className={styles.iconButton}
           onClick={onSplitButton}
         >
-          <SplitIcon />
+          <Glyph slot="split" fallback={Split} size={CHROME_ICON_SIZE} />
         </button>
       )}
       {maximizable && split == null && !popped && (
@@ -1556,12 +1512,16 @@ function WindowView({
           className={styles.iconButton}
           onClick={onToggleFullscreen}
         >
-          {fullscreen ? <CollapseIcon /> : <ExpandIcon />}
+          {fullscreen ? (
+            <Glyph slot="collapse" fallback={Collapse} size={CHROME_ICON_SIZE} />
+          ) : (
+            <Glyph slot="expand" fallback={Expand} size={CHROME_ICON_SIZE} />
+          )}
         </button>
       )}
       {onClose && (
         <button type="button" aria-label="Close" className={styles.iconButton} onClick={onClose}>
-          <CloseIcon />
+          <Glyph slot="close" fallback={X} size={CHROME_ICON_SIZE} />
         </button>
       )}
     </div>

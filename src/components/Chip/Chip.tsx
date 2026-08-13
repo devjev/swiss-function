@@ -1,6 +1,8 @@
 import type { HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
+import { X } from "../Icon";
 import styles from "./Chip.module.css";
 
 /** Neutral is the resting default; the semantic tones tint the chip only when
@@ -100,15 +102,7 @@ export const Chip = forwardRef<HTMLSpanElement, ChipProps>(function Chip(
           disabled={disabled}
           aria-label={removeLabel}
         >
-          <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-            <path
-              d="M3 3 9 9 M9 3 3 9"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="square"
-              fill="none"
-            />
-          </svg>
+          <Glyph slot="close" fallback={X} size="0.8em" />
         </button>
       ) : null}
     </span>

@@ -2,7 +2,9 @@ import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
 import type { LayoutKind } from "../../lib/graph/types";
+import { Glyph } from "../../lib/icons";
 import { Button } from "../Button";
+import { Connect, Fit, ZoomIn, ZoomOut } from "../Icon";
 import { ToggleGroup } from "../ToggleGroup";
 import styles from "./Controls.module.css";
 import { useGraphControls } from "./context";
@@ -52,7 +54,7 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
             title="Zoom in"
             onClick={zoomIn}
           >
-            <ZoomInIcon />
+            <Glyph slot="zoomIn" fallback={ZoomIn} />
           </Button>
           <Button
             variant="secondary"
@@ -61,7 +63,7 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
             title="Zoom out"
             onClick={zoomOut}
           >
-            <ZoomOutIcon />
+            <Glyph slot="zoomOut" fallback={ZoomOut} />
           </Button>
           <Button
             variant="secondary"
@@ -70,7 +72,7 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
             title="Fit to view"
             onClick={fitView}
           >
-            <FitIcon />
+            <Glyph slot="fit" fallback={Fit} />
           </Button>
           <Button
             variant="ghost"
@@ -93,7 +95,7 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
               data-pressed={connectMode ? "" : undefined}
               onClick={toggleConnect}
             >
-              <ConnectIcon />
+              <Glyph slot="connect" fallback={Connect} />
             </Button>
           )}
         </div>
@@ -118,63 +120,3 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
     );
   },
 );
-
-/* --- Icons. Sharp, single-stroke, sized to the current font; stroke is
-   `currentColor` so they inherit the Button's themed foreground. --- */
-
-const ICON_PROPS = {
-  width: "1em",
-  height: "1em",
-  viewBox: "0 0 16 16",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.5,
-  "aria-hidden": true,
-} as const;
-
-function ZoomInIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom in</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="7" y1="5" x2="7" y2="9" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
-
-function ZoomOutIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom out</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
-
-function FitIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Fit to view</title>
-      <path d="M2 5V2h3" />
-      <path d="M14 5V2h-3" />
-      <path d="M2 11v3h3" />
-      <path d="M14 11v3h-3" />
-    </svg>
-  );
-}
-
-/* Two nodes joined by an edge — the connect-mode affordance. */
-function ConnectIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Connect nodes</title>
-      <circle cx="4" cy="12" r="2.25" />
-      <circle cx="12" cy="4" r="2.25" />
-      <line x1="5.6" y1="10.4" x2="10.4" y2="5.6" />
-    </svg>
-  );
-}

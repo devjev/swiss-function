@@ -22,6 +22,7 @@ import {
   xyToDisplaySrgb,
 } from "../../lib/color";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { Button } from "../Button";
 import { Chip } from "../Chip";
 import { DigitInputMicro } from "../DigitInputMicro";
@@ -273,7 +274,7 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
         <Menu.Root>
           <Menu.Trigger className={styles.spaceBtn} disabled={disabled}>
             {SPACES[space].label}
-            <ChevronDown size={0.75} />
+            <Glyph slot="chevronDown" fallback={ChevronDown} size={0.75} />
           </Menu.Trigger>
           <Menu.Portal>
             {/* Rank the space menu above a containing Popover (the picker is
@@ -424,7 +425,7 @@ export const ColorPicker = forwardRef<HTMLDivElement, ColorPickerProps>(function
             disabled={disabled}
             aria-label="Pick colour from screen"
           >
-            <Eyedropper />
+            <Glyph slot="eyedropper" fallback={Eyedropper} />
           </Button>
         )}
       </div>

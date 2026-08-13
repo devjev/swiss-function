@@ -61,6 +61,7 @@ export function GraphHarness({ minimap, probe, ...graphProps }: HarnessProps) {
         renderNode={() => ({ size: 24 })}
         renderEdge={() => ({ size: 6 })}
         onNodeClick={(id) => setLast(`click:${id}`)}
+        onNodeHover={(id) => setLast(`hover:${id ?? "null"}`)}
         onEdgeClick={(id) => setLast(`edgeclick:${id}`)}
         onEdgeCreate={(e) => setLast(`create:${e.source}->${e.target}`)}
         onEdgeDelete={(id) => setLast(`delete:${id}`)}

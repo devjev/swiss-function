@@ -35,7 +35,13 @@ import {
   FORCE_ASYNC_MIN_ORDER,
   forceIterations,
 } from "../../lib/graph/forceLayout";
-import type { GraphData, GraphEdge, GraphNode, LayoutKind } from "../../lib/graph/types";
+import type {
+  GraphData,
+  GraphEdge,
+  GraphLayoutOptions,
+  GraphNode,
+  LayoutKind,
+} from "../../lib/graph/types";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { StackingProvider, useStackCeiling, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
@@ -90,6 +96,10 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   layout?: LayoutKind;
   /** Initial layout when `layout` is left uncontrolled. Defaults to `"force"`. */
   defaultLayout?: LayoutKind;
+  /** Per-layout tuning (only the active layout's block is read). Each field is
+   *  optional and defaults to the size-derived value, so omitting it keeps
+   *  today's behaviour. Changing it re-runs the current layout. */
+  layoutOptions?: GraphLayoutOptions;
   /** Fired whenever the layout changes — from the prop, `Graph.Controls`, or a
    *  keyboard switch. Required to observe switches when `layout` is controlled. */
   onLayoutChange?: (next: LayoutKind) => void;
@@ -99,6 +109,14 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   onEdgeClick?: (id: string) => void;
   /** Fired with the currently selected node `id` (or `null` when cleared). */
   onSelectionChange?: (id: string | null) => void;
+  /** On node hover, emphasize its incident edges (both directions) and its
+   *  neighbours while fading the rest of the graph, so a node's connections read
+   *  at a glance. Default `true`; set `false` to keep hover to just the label
+   *  box. */
+  highlightConnectionsOnHover?: boolean;
+  /** Fired with a node `id` when the pointer enters it, and `null` when it
+   *  leaves. Independent of `highlightConnectionsOnHover`. */
+  onNodeHover?: (id: string | null) => void;
   /** Escape hatch to override a node's visual attributes (label / color / size)
    *  from its data. Returned fields override the color-by-`kind` defaults; an
    *  omitted field (or a `falsy` return) keeps the default. */
@@ -232,21 +250,28 @@ function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
  *  on the row of its BFS depth and spread evenly across its row. No external
  *  layout engine (elkjs/dagre both blew the bundle + scale budgets — see §9).
  *  Scaled to roughly match the force layout's coordinate range. */
-function treeLayout(g: Graphology): LayoutMapping {
+function treeLayout(g: Graphology, options?: GraphLayoutOptions["tree"]): LayoutMapping {
   const depth = new Map<string, number>();
   const order = g.nodes();
-  // Seed roots: nodes with no incoming neighbor (treat undirected as in=out).
   const queue: string[] = [];
-  for (const n of order) {
-    if (g.inDegree(n) === 0) {
-      depth.set(n, 0);
-      queue.push(n);
+  const rootId = options?.rootId;
+  if (rootId !== undefined && g.hasNode(rootId)) {
+    // Explicit root: layer outward from it; everything else by BFS distance.
+    depth.set(rootId, 0);
+    queue.push(rootId);
+  } else {
+    // Seed roots: nodes with no incoming neighbor (treat undirected as in=out).
+    for (const n of order) {
+      if (g.inDegree(n) === 0) {
+        depth.set(n, 0);
+        queue.push(n);
+      }
     }
-  }
-  const root = order[0];
-  if (queue.length === 0 && root !== undefined) {
-    depth.set(root, 0);
-    queue.push(root);
+    const root = order[0];
+    if (queue.length === 0 && root !== undefined) {
+      depth.set(root, 0);
+      queue.push(root);
+    }
   }
   for (let i = 0; i < queue.length; i++) {
     const node = queue[i];
@@ -271,23 +296,32 @@ function treeLayout(g: Graphology): LayoutMapping {
     rows.set(d, row);
   }
   const span = Math.max(1, Math.sqrt(order.length));
+  const levelGap = options?.levelGap ?? 1;
+  const horizontal = options?.direction === "right";
+  const levelStep = (span / Math.max(1, orphanRow + 1)) * levelGap;
   const mapping: LayoutMapping = {};
   for (const [d, row] of rows) {
     const step = row.length > 1 ? span / (row.length - 1) : 0;
     const offset = row.length > 1 ? span / 2 : 0;
     row.forEach((n, idx) => {
-      mapping[n] = { x: idx * step - offset, y: -d * (span / Math.max(1, orphanRow + 1)) };
+      const along = idx * step - offset; // position within the level
+      const across = d * levelStep; // distance from the root by level
+      mapping[n] = horizontal ? { x: across, y: along } : { x: along, y: -across };
     });
   }
   return mapping;
 }
 
-/** Grid layout: place nodes on a √n × √n lattice, row-major. */
-function gridLayout(g: Graphology): LayoutMapping {
+/** Grid layout: place nodes on a `columns`-wide lattice (default √n), row-major. */
+function gridLayout(g: Graphology, options?: GraphLayoutOptions["grid"]): LayoutMapping {
   const order = g.nodes();
-  const cols = Math.max(1, Math.ceil(Math.sqrt(order.length)));
+  const cols = Math.max(1, Math.floor(options?.columns ?? Math.ceil(Math.sqrt(order.length))));
+  const rows = Math.max(1, Math.ceil(order.length / cols));
   const span = Math.max(1, Math.sqrt(order.length));
-  const step = cols > 1 ? span / (cols - 1) : 0;
+  // One uniform cell pitch from the larger axis, so a single row (or a forced
+  // 1-column grid) still stacks. For the default √n grid cols ≥ rows, so this is
+  // `span / (cols - 1)` — identical to before.
+  const step = span / Math.max(1, Math.max(cols, rows) - 1);
   const half = span / 2;
   const mapping: LayoutMapping = {};
   order.forEach((n, i) => {
@@ -305,16 +339,51 @@ function gridLayout(g: Graphology): LayoutMapping {
  *  - `concentric` → nested circles (`circlepack`)
  *  - `tree`    → layered BFS pass (manual — no elkjs/dagre, see §9)
  *  - `grid`    → √n lattice (manual) */
-function computeLayout(g: Graphology, layout: LayoutKind): LayoutMapping {
+/** The FA2 setting fields of `layoutOptions.force` (everything but `iterations`,
+ *  which is a run budget, not an FA2 setting). */
+const FORCE_SETTING_KEYS = [
+  "gravity",
+  "scalingRatio",
+  "strongGravityMode",
+  "linLogMode",
+  "outboundAttractionDistribution",
+  "adjustSizes",
+  "edgeWeightInfluence",
+  "slowDown",
+  "barnesHutOptimize",
+  "barnesHutTheta",
+] as const;
+
+/** FA2 settings for a graph, with any consumer-supplied fields overriding the
+ *  auto-inferred defaults. Shared by the sync block and the worker settle so
+ *  both paths use the same tuning. */
+function forceSettings(g: Graphology, force: GraphLayoutOptions["force"]) {
+  const settings = forceAtlas2.inferSettings(g);
+  for (const key of FORCE_SETTING_KEYS) {
+    const value = force?.[key];
+    if (value !== undefined) (settings as Record<string, unknown>)[key] = value;
+  }
+  return settings;
+}
+
+function computeLayout(
+  g: Graphology,
+  layout: LayoutKind,
+  options?: GraphLayoutOptions,
+): LayoutMapping {
   switch (layout) {
     case "radial":
-      return circular(g, { scale: Math.max(1, Math.sqrt(g.order)) }) as LayoutMapping;
+      return circular(g, {
+        scale: options?.radial?.scale ?? Math.max(1, Math.sqrt(g.order)),
+      }) as LayoutMapping;
     case "concentric":
-      return circlepack(g, { scale: Math.max(1, Math.sqrt(g.order)) }) as LayoutMapping;
+      return circlepack(g, {
+        scale: options?.concentric?.scale ?? Math.max(1, Math.sqrt(g.order)),
+      }) as LayoutMapping;
     case "tree":
-      return treeLayout(g);
+      return treeLayout(g, options?.tree);
     case "grid":
-      return gridLayout(g);
+      return gridLayout(g, options?.grid);
     default: {
       // forceAtlas2 has no pure (non-assign) form; snapshot, run, restore.
       const before: LayoutMapping = {};
@@ -327,8 +396,8 @@ function computeLayout(g: Graphology, layout: LayoutKind): LayoutMapping {
         // Graphs above FORCE_ASYNC_MIN_ORDER normally settle in the worker
         // instead (startForceSettle, mount + layout-switch); this block serves
         // small graphs and is the fallback when the worker can't spawn.
-        iterations: forceIterations(g.order),
-        settings: forceAtlas2.inferSettings(g),
+        iterations: options?.force?.iterations ?? forceIterations(g.order),
+        settings: forceSettings(g, options?.force),
       });
       const after: LayoutMapping = {};
       g.forEachNode((n, attr) => {
@@ -373,10 +442,13 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     data,
     layout: controlledLayout,
     defaultLayout = "force",
+    layoutOptions,
     onLayoutChange,
     onNodeClick,
     onEdgeClick,
     onSelectionChange,
+    highlightConnectionsOnHover = true,
+    onNodeHover,
     renderNode,
     renderEdge,
     onNodeContextMenu,
@@ -422,8 +494,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     [controlledLayout, onLayoutChange],
   );
   // The layout currently applied to the graph, so the layout effect only
-  // re-positions when it actually changes (not on every render).
+  // re-positions when it (or its options) actually change (not every render).
   const appliedLayoutRef = useRef<LayoutKind | null>(null);
+  // Latest layout options, read by the layout effects + the force settle
+  // (wired once) without re-subscribing. The serialized key drives re-layout on
+  // an options change; `appliedLayoutOptionsRef` gates that in the switch effect.
+  const layoutOptionsRef = useRef(layoutOptions);
+  layoutOptionsRef.current = layoutOptions;
+  const layoutOptionsKey = JSON.stringify(layoutOptions ?? {});
+  const appliedLayoutOptionsRef = useRef(layoutOptionsKey);
   // Cancels an in-flight `animateNodes` transition when a new one starts.
   const cancelAnimationRef = useRef<(() => void) | null>(null);
   // Cancels the in-flight background force settle (kills the FA2 worker).
@@ -434,10 +513,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     onNodeClick,
     onEdgeClick,
     onSelectionChange,
+    onNodeHover,
     onEdgeCreate,
     onEdgeDelete,
   });
-  handlersRef.current = { onNodeClick, onEdgeClick, onSelectionChange, onEdgeCreate, onEdgeDelete };
+  handlersRef.current = {
+    onNodeClick,
+    onEdgeClick,
+    onSelectionChange,
+    onNodeHover,
+    onEdgeCreate,
+    onEdgeDelete,
+  };
 
   // Right-click context menu: where it opened + what it acted on. `null` closed.
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -462,6 +549,17 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const connectTargetRef = useRef<string | null>(null);
   // Emphasis color for the selected edge + connect endpoints (resolved at mount).
   const selectColorRef = useRef("#2563eb");
+  // Hover highlight: the hovered node plus its incident edges + neighbour ids,
+  // precomputed on enter so the reducers stay O(1) per element (no graph query
+  // per edge per frame at 10k+ nodes). The fade colours de-emphasize the rest;
+  // resolved at mount and re-read on theme change alongside `selectColorRef`.
+  const highlightHoverRef = useRef(highlightConnectionsOnHover);
+  highlightHoverRef.current = highlightConnectionsOnHover;
+  const hoveredNodeRef = useRef<string | null>(null);
+  const incidentEdgesRef = useRef<Set<string>>(new Set());
+  const neighborsRef = useRef<Set<string>>(new Set());
+  const edgeFadeRef = useRef("#e5e7eb");
+  const nodeFadeRef = useRef("#6b7280");
 
   // Bumped whenever the graph is (re)built or a layout finishes applying, so the
   // minimap overlay knows to recompute its cached node geometry.
@@ -511,14 +609,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       stopForceRef.current?.();
       container.removeAttribute("data-graph-settled");
 
+      const force = layoutOptionsRef.current?.force;
       const copy = detachForLayout(g);
       let supervisor: FA2Layout;
       try {
-        supervisor = new FA2Layout(copy, { settings: forceAtlas2.inferSettings(copy) });
+        supervisor = new FA2Layout(copy, { settings: forceSettings(copy, force) });
       } catch {
         // Worker creation can be refused (e.g. a CSP without blob: in
         // worker-src) — fall back to the synchronous block.
-        assignPositions(g, computeLayout(g, "force"));
+        assignPositions(g, computeLayout(g, "force", layoutOptionsRef.current));
         renderer.refresh();
         container.setAttribute("data-graph-settled", "");
         bumpEpoch();
@@ -527,8 +626,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
 
       // The supervisor has no stop policy of its own: 1 worker message = 1 FA2
       // iteration = exactly one batched write onto the copy — count those to
-      // stop at the same budget as the sync path.
-      const budget = forceIterations(g.order);
+      // stop at the budget (the consumer's override, else the size-derived one).
+      const budget = force?.iterations ?? forceIterations(g.order);
       let iterations = 0;
       let dirty = false;
       let raf = 0;
@@ -604,6 +703,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     graphRef.current = g;
     appliedLayoutRef.current = initialLayout;
     selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
+    edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
+    nodeFadeRef.current = token("--sf-color-muted", "#6b7280", container);
 
     // Show edge labels only when at least one edge carries one — otherwise the
     // renderer pays for label layout it would never draw.
@@ -641,16 +742,33 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       // hit; give editable graphs a thicker floor so edges are easy to select /
       // right-click (and a touch more visible). Read-only graphs keep the default.
       minEdgeThickness: editableRef.current ? EDITABLE_MIN_EDGE_THICKNESS : 1.7,
-      // Emphasize the selected edge; brighten the connect-drag endpoints.
-      edgeReducer: (edge, attr) =>
-        selectedEdgeRef.current === edge
-          ? { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 }
-          : attr,
-      nodeReducer: (node, attr) =>
-        connectDrawingRef.current &&
-        (node === connectSourceRef.current || node === connectTargetRef.current)
-          ? { ...attr, color: selectColorRef.current, highlighted: true }
-          : attr,
+      // Emphasize the selected edge; brighten the connect-drag endpoints; on
+      // hover, light up the hovered node's incident edges + neighbours and fade
+      // the rest. Selection wins over hover; both key on refs so this reducer is
+      // wired once but always reads the latest state.
+      edgeReducer: (edge, attr) => {
+        if (selectedEdgeRef.current === edge)
+          return { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 };
+        if (hoveredNodeRef.current !== null)
+          return incidentEdgesRef.current.has(edge)
+            ? { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 }
+            : { ...attr, color: edgeFadeRef.current };
+        return attr;
+      },
+      nodeReducer: (node, attr) => {
+        if (
+          connectDrawingRef.current &&
+          (node === connectSourceRef.current || node === connectTargetRef.current)
+        )
+          return { ...attr, color: selectColorRef.current, highlighted: true };
+        if (
+          hoveredNodeRef.current !== null &&
+          node !== hoveredNodeRef.current &&
+          !neighborsRef.current.has(node)
+        )
+          return { ...attr, color: nodeFadeRef.current, label: "" };
+        return attr;
+      },
       allowInvalidContainer: true,
     });
     sigmaRef.current = renderer;
@@ -765,6 +883,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       connectDrawingRef.current = true;
       connectSourceRef.current = node;
       connectTargetRef.current = null;
+      // Drop any hover highlight so the connect drag reads cleanly.
+      hoveredNodeRef.current = null;
+      incidentEdgesRef.current = new Set();
+      neighborsRef.current = new Set();
       renderer.setSetting("enableCameraPanning", false);
       setLineTo(event.x, event.y);
       document.addEventListener("pointermove", onDocPointerMove);
@@ -773,16 +895,35 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       renderer.refresh(); // highlight the source endpoint
     });
     renderer.on("enterNode", ({ node }) => {
-      if (connectDrawingRef.current && node !== connectSourceRef.current) {
-        connectTargetRef.current = node;
-        renderer.refresh();
+      // Connect-mode drag targeting takes precedence over hover highlight.
+      if (connectDrawingRef.current) {
+        if (node !== connectSourceRef.current) {
+          connectTargetRef.current = node;
+          renderer.refresh();
+        }
+        return;
       }
+      handlersRef.current.onNodeHover?.(node);
+      if (!highlightHoverRef.current) return;
+      hoveredNodeRef.current = node;
+      incidentEdgesRef.current = new Set(g.edges(node));
+      neighborsRef.current = new Set(g.neighbors(node));
+      renderer.refresh();
     });
     renderer.on("leaveNode", ({ node }) => {
-      if (connectDrawingRef.current && connectTargetRef.current === node) {
-        connectTargetRef.current = null;
-        renderer.refresh();
+      if (connectDrawingRef.current) {
+        if (connectTargetRef.current === node) {
+          connectTargetRef.current = null;
+          renderer.refresh();
+        }
+        return;
       }
+      handlersRef.current.onNodeHover?.(null);
+      if (hoveredNodeRef.current === null) return;
+      hoveredNodeRef.current = null;
+      incidentEdgesRef.current = new Set();
+      neighborsRef.current = new Set();
+      renderer.refresh();
     });
 
     // Re-fit the WebGL canvas to its CONTAINER, not just the window: Sigma only
@@ -819,7 +960,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           startForceSettle(!prefersReducedMotion());
           return;
         }
-        assignPositions(g, computeLayout(g, initialLayout));
+        assignPositions(g, computeLayout(g, initialLayout, layoutOptionsRef.current));
         renderer.refresh();
         container.setAttribute("data-graph-ready", "");
         container.setAttribute("data-graph-settled", "");
@@ -923,6 +1064,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
     );
     selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
+    edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
+    nodeFadeRef.current = token("--sf-color-muted", "#6b7280", container);
     renderer.setSetting("defaultNodeColor", nodeColor("primary", container));
     renderer.setSetting("labelColor", { color: token("--sf-color-fg", "#0a0a0a", container) });
     renderer.setSetting("edgeLabelColor", {
@@ -958,8 +1101,12 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const g = graphRef.current;
     const renderer = sigmaRef.current;
     if (!g || !renderer) return;
-    if (appliedLayoutRef.current === layout) return;
+    // Re-run when the layout changes OR its options change (by value, so an
+    // inline `layoutOptions={{…}}` doesn't churn every render).
+    if (appliedLayoutRef.current === layout && appliedLayoutOptionsRef.current === layoutOptionsKey)
+      return;
     appliedLayoutRef.current = layout;
+    appliedLayoutOptionsRef.current = layoutOptionsKey;
 
     cancelAnimationRef.current?.();
     cancelAnimationRef.current = null;
@@ -970,7 +1117,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       return;
     }
 
-    const targets = computeLayout(g, layout);
+    const targets = computeLayout(g, layout, layoutOptionsRef.current);
     const surface = surfaceRef.current;
 
     if (prefersReducedMotion()) {
@@ -993,7 +1140,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
         bumpEpoch();
       },
     );
-  }, [layout, bumpEpoch, startForceSettle]);
+  }, [layout, layoutOptionsKey, bumpEpoch, startForceSettle]);
 
   // Camera controls. All animate, but collapse to an instant snap (duration 0)
   // under prefers-reduced-motion. Each is a no-op until Sigma has mounted.

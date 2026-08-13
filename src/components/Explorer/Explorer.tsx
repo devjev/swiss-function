@@ -30,8 +30,10 @@ import {
   type FilterOption,
 } from "../../lib/filter/ColumnFilter";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
+import { Glyph } from "../../lib/icons";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
+import { File, Folder } from "../Icon";
 import { Menu } from "../Menu";
 import type { FlatRow } from "./dnd";
 import { findNode, flatten, wouldCycle } from "./dnd";
@@ -63,27 +65,6 @@ type DropZone =
 
 /** Inferred filter UI for a column: its kind and (checklist) selectable values. */
 type FilterMeta = { kind: ColumnFilterKind; options: FilterOption[] };
-
-// --- Default folder / file glyphs ------------------------------------------
-
-function FolderGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <title>Folder</title>
-      <path d="M1.5 4 H6 L7 5.25 H14.5 V13 H1.5 Z" fill="none" stroke="currentColor" />
-    </svg>
-  );
-}
-
-function FileGlyph() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <title>File</title>
-      <path d="M3 1.5 H10 L13 4.5 V14.5 H3 Z" fill="none" stroke="currentColor" />
-      <path d="M10 1.5 V4.5 H13" fill="none" stroke="currentColor" />
-    </svg>
-  );
-}
 
 // --- Helpers ----------------------------------------------------------------
 
@@ -1288,7 +1269,12 @@ function TreeCellContent<M>({
       ))}
       <TreeChevron visible={folder} expanded={expanded} onToggle={onChevronToggle} />
       <span className={styles.icon}>
-        {customIcon ?? (folder ? <FolderGlyph /> : <FileGlyph />)}
+        {customIcon ??
+          (folder ? (
+            <Glyph slot="folder" fallback={Folder} />
+          ) : (
+            <Glyph slot="file" fallback={File} />
+          ))}
       </span>
       {editing ? (
         <RenameField initialValue={node.name} onCommit={onRenameCommit} onCancel={onRenameCancel} />

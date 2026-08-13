@@ -9,8 +9,10 @@ import {
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { useOverflow } from "../../lib/useOverflow";
+import { MoreHorizontal } from "../Icon";
 import { Menu } from "../Menu";
 import styles from "./Tabs.module.css";
 
@@ -56,16 +58,6 @@ const Panel = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseTab
     );
   },
 );
-
-function OverflowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
-      <circle cx="3" cy="8" r="1.4" />
-      <circle cx="8" cy="8" r="1.4" />
-      <circle cx="13" cy="8" r="1.4" />
-    </svg>
-  );
-}
 
 type TabElement = ReactElement<ComponentPropsWithoutRef<typeof Tab>>;
 
@@ -163,7 +155,7 @@ const OverflowList = forwardRef<HTMLDivElement, Omit<TabsListProps, "overflow">>
             data-overflow-trigger
             className={cx(styles.tab, styles.trigger, styles.ghostTrigger)}
           >
-            <OverflowIcon />
+            <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size="16px" />
           </span>
         </div>
         <BaseTabs.List
@@ -180,7 +172,7 @@ const OverflowList = forwardRef<HTMLDivElement, Omit<TabsListProps, "overflow">>
           {folding && foldedIdx.length > 0 && (
             <Menu.Root>
               <Menu.Trigger className={cx(styles.tab, styles.trigger)} aria-label={menuLabel}>
-                <OverflowIcon />
+                <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size="16px" />
               </Menu.Trigger>
               <Menu.Portal>
                 <Menu.Positioner side="bottom" align="end" sideOffset={4}>

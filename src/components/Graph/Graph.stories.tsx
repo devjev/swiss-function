@@ -85,6 +85,30 @@ export const Grid: Story = () => (
   </Frame>
 );
 
+// --- Layout options ---------------------------------------------------------
+// `layoutOptions` tunes the active layout in place (only the active layout's
+// block is read). Here the tree grows left-to-right with wider levels; a forced
+// 4-column grid and a spread-out force layout show the other knobs. Switching
+// layout from the toolbar keeps the options that apply to the new layout and
+// falls back to size-derived defaults for the rest.
+
+export const LayoutTuning: Story = () => (
+  <Frame>
+    <Graph
+      data={SMALL}
+      defaultLayout="tree"
+      layoutOptions={{
+        tree: { direction: "right", levelGap: 1.4 },
+        grid: { columns: 4 },
+        force: { scalingRatio: 20, gravity: 2 },
+      }}
+      style={{ blockSize: 520 }}
+    >
+      <Graph.Controls />
+    </Graph>
+  </Frame>
+);
+
 // --- Dense node content -----------------------------------------------------
 // Arbitrary structured `data` per node/edge, surfaced via the
 // `renderNode`/`renderEdge` escape hatches as visual attributes.
@@ -209,6 +233,33 @@ export const DenseContent: Story = () => (
         const rps = Number(node.data?.rps ?? 0);
         return { size: 6 + Math.round(rps / 1000) };
       }}
+    >
+      <Graph.Controls />
+    </Graph>
+  </Frame>
+);
+
+// --- Hover highlight --------------------------------------------------------
+// Hover a node: its incident edges (both directions) light up and its
+// neighbours stay lit while the rest of the graph fades, so a node's
+// connections read at a glance. On by default (`highlightConnectionsOnHover`);
+// the paired story turns it off to keep hover to just the label box.
+
+export const HoverHighlight: Story = () => (
+  <Frame>
+    <Graph data={services} layout="force" style={{ blockSize: 520 }}>
+      <Graph.Controls />
+    </Graph>
+  </Frame>
+);
+
+export const HoverHighlightOff: Story = () => (
+  <Frame>
+    <Graph
+      data={services}
+      layout="force"
+      highlightConnectionsOnHover={false}
+      style={{ blockSize: 520 }}
     >
       <Graph.Controls />
     </Graph>

@@ -6,8 +6,10 @@
 
 import type { ReactNode } from "react";
 import { Button } from "../../components/Button";
+import { Trash, ZoomIn, ZoomOut } from "../../components/Icon";
 import { ToggleGroup } from "../../components/ToggleGroup";
 import { cx } from "../cx";
+import { Glyph } from "../icons";
 import styles from "./ChartControls.module.css";
 import type { AnnotationEditor, AnnotationTool } from "./useAnnotationEditor";
 import type { Viewport } from "./useViewport";
@@ -55,7 +57,7 @@ export function ChartControls({ viewport, editor, className }: ChartControlsProp
               if (next) editor?.setTool("select");
             }}
           >
-            <ZoomInIcon />
+            <Glyph slot="zoomIn" fallback={ZoomIn} />
           </Button>
           <Button
             variant="secondary"
@@ -64,7 +66,7 @@ export function ChartControls({ viewport, editor, className }: ChartControlsProp
             title="Zoom out"
             onClick={viewport.zoomOut}
           >
-            <ZoomOutIcon />
+            <Glyph slot="zoomOut" fallback={ZoomOut} />
           </Button>
           <Button
             variant="ghost"
@@ -108,7 +110,7 @@ export function ChartControls({ viewport, editor, className }: ChartControlsProp
             onClick={editor.deleteSelected}
             disabled={editor.selectedIndex == null}
           >
-            <DeleteIcon />
+            <Glyph slot="delete" fallback={Trash} />
           </Button>
         </>
       ) : null}
@@ -129,29 +131,6 @@ const ICON_PROPS = {
   strokeWidth: 1.5,
   "aria-hidden": true,
 } as const;
-
-function ZoomInIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom in</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="7" y1="5" x2="7" y2="9" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
-
-function ZoomOutIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Zoom out</title>
-      <circle cx="7" cy="7" r="4.5" />
-      <line x1="10.5" y1="10.5" x2="14" y2="14" />
-      <line x1="5" y1="7" x2="9" y2="7" />
-    </svg>
-  );
-}
 
 function SelectIcon() {
   return (
@@ -218,17 +197,6 @@ function MeasureIcon() {
       <line x1="3.5" y1="12.5" x2="12.5" y2="3.5" />
       <line x1="2" y1="11" x2="5" y2="14" />
       <line x1="11" y1="2" x2="14" y2="5" />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg {...ICON_PROPS}>
-      <title>Delete annotation</title>
-      <path d="M4.5 4.5h7l-.7 9h-5.6z" />
-      <line x1="3" y1="4.5" x2="13" y2="4.5" />
-      <path d="M6.5 4.5V3h3v1.5" />
     </svg>
   );
 }
