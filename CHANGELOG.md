@@ -6,6 +6,14 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.21.0 — 2026-08-13
+
+### Minor
+
+- Graph: hovering a node highlights its incident edges (both directions) and neighbours while fading the rest, so a node's connections read at a glance. New highlightConnectionsOnHover prop (default on) and onNodeHover callback.
+- Graph: new layoutOptions prop to tune the active layout without leaving it, force layout accepts `iterations` plus the full ForceAtlas2 settings (gravity, scalingRatio, strongGravityMode, linLogMode, outboundAttractionDistribution, adjustSizes, edgeWeightInfluence, slowDown, barnesHutOptimize, barnesHutTheta), radial/concentric scale, tree rootId/direction/levelGap, and grid columns. Each field defaults to today's size-derived value; changing it re-runs the layout.
+- Pluggable icons: redirect the library's built-in glyphs (and your own) to Feather/Lucide/Tabler via IconProvider + iconAdapter, or keep the bespoke set (the default, still zero-dependency). Adds Glyph, useIcon, SF_ICON_SLOTS/IconSlot and eight new bundled glyphs (Expand, Collapse, Split, PopIn, ZoomIn, ZoomOut, Fit, Connect). Bundled icons are now individually tree-shakeable.
+
 ## v2.20.0 — 2026-08-11
 
 ### Minor
