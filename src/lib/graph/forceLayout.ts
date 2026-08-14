@@ -5,12 +5,6 @@
 
 import Graphology from "graphology";
 
-/** Above this many nodes the force layout runs in the FA2 worker supervisor
- *  instead of the synchronous `forceAtlas2.assign` block: at 10k nodes the sync
- *  block freezes the main thread for ~1.4s, while below this the whole run is
- *  a few tens of milliseconds and a worker round-trip is pure overhead. */
-export const FORCE_ASYNC_MIN_ORDER = 2000;
-
 /** FA2 iteration budget for a graph of `order` nodes. One source of truth for
  *  the sync block AND the worker settle (1 worker message = 1 iteration), so
  *  both paths converge on the same layout quality per size tier. */

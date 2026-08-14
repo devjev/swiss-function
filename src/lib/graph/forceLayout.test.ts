@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGraph } from "./build";
-import {
-  applyPositions,
-  detachForLayout,
-  FORCE_ASYNC_MIN_ORDER,
-  forceIterations,
-} from "./forceLayout";
+import { applyPositions, detachForLayout, forceIterations } from "./forceLayout";
 import type { GraphData } from "./types";
 
 const hooks = {};
@@ -34,12 +29,6 @@ describe("forceIterations", () => {
     expect(forceIterations(5000)).toBe(80);
     expect(forceIterations(5001)).toBe(30);
     expect(forceIterations(10000)).toBe(30);
-  });
-
-  it("aligns the async threshold with the sync tiers: at the gate the sync path still applies", () => {
-    // Order ≤ FORCE_ASYNC_MIN_ORDER stays synchronous, where the full 200
-    // iterations are the trivially-cheap small-graph budget.
-    expect(forceIterations(FORCE_ASYNC_MIN_ORDER)).toBe(200);
   });
 });
 

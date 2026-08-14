@@ -29,12 +29,7 @@ import {
   reconcile,
   token,
 } from "../../lib/graph/build";
-import {
-  applyPositions,
-  detachForLayout,
-  FORCE_ASYNC_MIN_ORDER,
-  forceIterations,
-} from "../../lib/graph/forceLayout";
+import { applyPositions, detachForLayout, forceIterations } from "../../lib/graph/forceLayout";
 import type {
   GraphData,
   GraphEdge,
@@ -393,9 +388,9 @@ function computeLayout(
       forceAtlas2.assign(g, {
         // Iterations time-box the SYNCHRONOUS main-thread FA2 block (~30ms per
         // iteration at 10k nodes in Node, roughly double in dev-mode Chromium).
-        // Graphs above FORCE_ASYNC_MIN_ORDER normally settle in the worker
-        // instead (startForceSettle, mount + layout-switch); this block serves
-        // small graphs and is the fallback when the worker can't spawn.
+        // Force layouts normally settle in the worker instead (startForceSettle,
+        // mount + layout-switch); this block is the fallback for when the
+        // worker can't spawn, or for the non-force layouts computed here too.
         iterations: options?.force?.iterations ?? forceIterations(g.order),
         settings: forceSettings(g, options?.force),
       });
@@ -430,11 +425,14 @@ interface ContextMenuState {
 }
 
 /** True when the force layout should settle in the FA2 worker instead of the
- *  synchronous block: big enough that the sync block would freeze the main
- *  thread, and Workers exist (the guard keeps worker-less environments on the
- *  sync path). */
-function shouldSettleAsync(order: number): boolean {
-  return order > FORCE_ASYNC_MIN_ORDER && typeof Worker !== "undefined";
+ *  synchronous block. Always prefer the worker when one can spawn: even a
+ *  small graph's sync run blocks the main thread and renders as a single
+ *  freeze-then-snap, while the worker settle animates in over
+ *  `requestAnimationFrame` and keeps the page interactive. Worker-less
+ *  environments (no `Worker` global) are the only case left on the sync
+ *  path. */
+function shouldSettleAsync(): boolean {
+  return typeof Worker !== "undefined";
 }
 
 const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
@@ -944,18 +942,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
 
     // Defer the initial layout behind the first paint. Sigma has already painted
     // the seed positions, so the layout runs after first paint instead of
-    // blocking it. Small graphs (and non-force layouts) compute synchronously
-    // and snap; `data-graph-ready` + `data-graph-settled` land together. Big
-    // force graphs hand off to the worker settle: `data-graph-ready` fires at
-    // the seed-position paint (the graph is already interactive) and
-    // `data-graph-settled` when the background settle finishes — the harness's
-    // two readiness signals.
+    // blocking it. Non-force layouts (and force layouts with no Worker
+    // available) compute synchronously and snap; `data-graph-ready` +
+    // `data-graph-settled` land together. Force layouts normally hand off to
+    // the worker settle: `data-graph-ready` fires at the seed-position paint
+    // (the graph is already interactive) and `data-graph-settled` when the
+    // background settle finishes — the harness's two readiness signals.
     container.removeAttribute("data-graph-ready");
     container.removeAttribute("data-graph-settled");
     let initialRaf = requestAnimationFrame(() => {
       initialRaf = requestAnimationFrame(() => {
         if (sigmaRef.current !== renderer) return;
-        if (initialLayout === "force" && shouldSettleAsync(g.order)) {
+        if (initialLayout === "force" && shouldSettleAsync()) {
           container.setAttribute("data-graph-ready", "");
           startForceSettle(!prefersReducedMotion());
           return;
@@ -1112,7 +1110,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     cancelAnimationRef.current = null;
     stopForceRef.current?.();
 
-    if (layout === "force" && shouldSettleAsync(g.order)) {
+    if (layout === "force" && shouldSettleAsync()) {
       startForceSettle(!prefersReducedMotion());
       return;
     }

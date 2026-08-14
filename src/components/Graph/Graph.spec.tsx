@@ -47,12 +47,12 @@ test("clicking a node fires onNodeClick with its id", async ({ mount }) => {
   await expect(c.getByTestId("last-event")).toHaveText("click:hub");
 });
 
-test("small graphs mark ready and settled together (synchronous layout path)", async ({
-  mount,
-}) => {
-  // Below the worker-settle threshold the deferred initial layout is computed
-  // synchronously, so the seed-paint (`ready`) and layout-at-rest (`settled`)
-  // signals land in the same frame.
+test("a force graph reaches both ready and settled (worker-settle path)", async ({ mount }) => {
+  // Force layouts always settle in the FA2 worker when one can spawn (real
+  // browsers, including this CT harness), so `ready` (seed-paint, the graph
+  // is already interactive) and `settled` (background settle finished) are
+  // two genuinely separate, sequential signals rather than one frame. This
+  // just checks both eventually land.
   const c = await mount(<GraphHarness />);
   await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
   await expect(c.locator("[data-graph-settled]")).toHaveCount(1);
