@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.23.0 — 2026-08-16
+
+### Minor
+
+- Add SfDndProvider (@tarassov-ch/swiss-function/lib/dnd): a shared drag-and-drop context so DataTable, Explorer, WindowArray, TableInput, ContextEditor and AgentComposer join one dnd-kit runtime instead of each owning its own (no nested DndContext). Auto-detected, existing call sites unchanged. The host can drag its own elements onto a widget's rows/nodes via the new per-widget onExternalDrop.
+
 ## v2.22.0 — 2026-08-16
 
 ### Minor
