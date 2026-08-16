@@ -1,4 +1,5 @@
 export * from "./components/AgentComposer";
+export * from "./components/AudioPlayer";
 export * from "./components/BarChart";
 export * from "./components/Box";
 export * from "./components/BridgeChart";

@@ -61,6 +61,10 @@ export const SF_ICON_SLOTS = [
   "folder",
   "file",
   "eyedropper",
+  // Media transport
+  "play",
+  "pause",
+  "stop",
 ] as const;
 
 /** One of the library's overridable icon slots. */

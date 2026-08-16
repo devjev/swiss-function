@@ -51,6 +51,10 @@
       "types": "./dist/components/AgentComposer/index.d.ts",
       "import": "./dist/components/AgentComposer/index.js"
     },
+    "./audio-player": {
+      "types": "./dist/components/AudioPlayer/index.d.ts",
+      "import": "./dist/components/AudioPlayer/index.js"
+    },
     "./bar-chart": {
       "types": "./dist/components/BarChart/index.d.ts",
       "import": "./dist/components/BarChart/index.js"

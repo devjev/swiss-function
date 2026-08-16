@@ -82,6 +82,79 @@ jump. Pure tree helpers are exported from the same entry (`findPathById`,
 `insertChild`, `removeNode`, `descendantAgentIds`, `composerStats`,
 `agentUseCounts`).
 
+## AudioPlayer
+
+`import { AudioPlayer } from "@tarassov-ch/swiss-function/audio-player"`
+
+A self-contained audio player: play / pause / stop transport, a quantized wave
+visualization, a monospace elapsed / total readout, and a cycling
+playback-rate button, in one dense instrument row. The component owns a hidden
+`<audio>` element: pass `src` and wire the callbacks (or `apiRef`) to
+integrate. Two layouts share the same parts: `"inline"` (default) is one dense
+instrument row; `"panel"` stacks a taller wave display over a control bar of
+raised buttons inside one bordered chassis (the Windows 95 Sound Recorder
+posture, restated in tokens). Two visualizations share one visual language of
+discrete 2px blocks: `"waveform"` (default) fetches and decodes the whole track once
+(`OfflineAudioContext`, no user gesture needed), draws its amplitude profile
+as mirrored quantized columns, fills the played prefix in accent, and doubles
+as the seek slider; `"bars"` draws live log-spaced analyser columns while
+playing (LED-meter stacks) and never fetches the file a second time — the mode
+for streams and very long files. An undecodable `src` (stream, missing CORS,
+unsupported codec) automatically falls back from `"waveform"` to `"bars"` with
+a dev warning. Renders a `<div role="group">`; extends
+`HTMLAttributes<HTMLDivElement>` (minus `color` and the callback names).
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `src` | `string` | — | Audio URL (http(s), blob, data). Changing it stops playback and reloads. |
+| `visualization` | `"waveform" \| "bars"` | `"waveform"` | Wave panel mode; waveform auto-falls back to bars when the file can't be fetched/decoded. |
+| `layout` | `"inline" \| "panel"` | `"inline"` | `"inline"` is one dense row; `"panel"` is the deck reading: a taller wave display stacked over a control bar of raised buttons in one bordered chassis. |
+| `color` | `string` | `--sf-color-primary` | Accent (any CSS colour or token): played columns, playhead, live bars. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Wave-panel height (1.5u / 2u / 3u) and transport density. |
+| `elevation` | `0..5` | — | Wave-panel depth on the `--sf-elevation-N` scale; omitted = flat. |
+| `rates` | `number[]` | `[1, 1.5, 2, 0.5]` | Rate-button cycle, starting at the first entry. `[]` hides the control. |
+| `loop` | `boolean` | `false` | Restart when the track ends. |
+| `autoPlay` | `boolean` | `false` | Best-effort: blocked autoplay leaves the player paused (and calls `onError`). |
+| `preload` | `"none" \| "metadata" \| "auto"` | `"metadata"` | The `<audio>` element's preload hint. |
+| `crossOrigin` | `"anonymous" \| "use-credentials"` | — | Applied to the element and the waveform fetch. Required to visualize cross-origin media (see below). |
+| `disabled` | `boolean` | `false` | Disables the transport and removes the seek slider from the tab order. |
+| `aria-label` | `string` | `"Audio player"` | Accessible name of the player group. |
+| `apiRef` | `RefObject<AudioPlayerApi>` | — | Imperative `play()` / `pause()` / `stop()` / `seek(seconds)` — e.g. to pause every other player. |
+| `onPlay` / `onPause` / `onEnded` | `() => void` | — | Element playback events. |
+| `onTimeUpdate` | `(currentTime, duration) => void` | — | The element's `timeupdate` (~4 Hz). |
+| `onRateChange` | `(rate: number) => void` | — | Fires when the rate button cycles. |
+| `onError` | `(error: MediaError \| Error) => void` | — | Media errors and rejected `play()` calls (e.g. blocked autoplay). |
+
+**Seek.** The waveform is the slider (`role="slider"`, `aria-valuetext`
+`"0:12 of 3:45"`): click/drag scrubs with pointer capture and commits live
+(throttled to one seek per frame); `←`/`→` step 5 s, `Home`/`End` jump,
+`Space`/`Enter` toggle playback. The playhead snaps to the value, never eases.
+Bars mode has no positional seek surface (keyboard still works).
+
+**CORS.** Playback of cross-origin media always works, but *visualizing* it
+requires CORS: without `crossOrigin` + permissive headers the waveform fetch
+fails (→ bars fallback) and the analyser reads silence. In waveform mode the
+file is fetched twice (element + decode); `preload="metadata"` keeps the
+element light and the second request normally hits the HTTP cache.
+
+**Reduced motion.** The playhead still moves (it is content) but updates at
+the element's own `timeupdate` cadence instead of every frame; live bars draw
+a single "signal present" frame per play instead of animating.
+
+**Corners:** the wave panel reads `--sf-audio-player-radius` (default
+`--sf-radius-default`), so it can be squared to sit with the dither family
+without touching the global radius.
+
+```tsx
+<AudioPlayer
+  src="/media/standup-2026-08-14.ogg"
+  onEnded={() => markListened(id)}
+/>
+
+// A stream: no decodable whole file, so ask for live bars directly.
+<AudioPlayer src={streamUrl} visualization="bars" rates={[]} />
+```
+
 ## BarChart
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`

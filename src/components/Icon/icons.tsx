@@ -247,3 +247,10 @@ export const Connect = /* @__PURE__ */ createIcon(
     <path d="M5.6 10.4 10.4 5.6" />
   </>,
 );
+
+// --- Media transport ---------------------------------------------------------
+// Stroked outlines, not filled solids: the same line weight as every other
+// glyph, so a transport row doesn't read heavier than the rest of the chrome.
+export const Play = /* @__PURE__ */ createIcon("Play", <path d="M5.5 3.5v9l8-4.5z" />);
+export const Pause = /* @__PURE__ */ createIcon("Pause", <path d="M5.5 3.5v9M10.5 3.5v9" />);
+export const Stop = /* @__PURE__ */ createIcon("Stop", <path d="M4.5 4.5h7v7h-7z" />);

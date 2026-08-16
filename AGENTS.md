@@ -244,6 +244,12 @@ zooms a vertical sub-range of rows. Only `Graph` and the 3D charts (`PointCloud`
 | `SplitPane`     | Resizable split layout: `SplitPane.Main` + a collapsible `SplitPane.Panel` that pushes content aside with a draggable divider (not an overlay). For overlay sheets use `Drawer` instead. |
 | `ContextEditor` | Assemble an LLM's context window: a budget gauge beside a reorderable list of labelled context blocks (system prompt, docs, tool output, memory, message history). Drag the grip to reorder (keyboard-operable, lazy dnd-kit); set `enabled: false` to drop a block from the packed window and `pinned` to hold it. The gauge stacks blocks by token share (`scale="log"` for a small used fraction against a huge window), marks an **effective-context** cutoff (the "lost in the middle" degrade) and a cap danger zone, and flags each block strong / buried / wasted (attention = position × salience). Controlled `value`/`onChange` (block array); you supply token counts and make the model call. Not a `Chat` (the message stream) and not a `CodeEditor` (source text). |
 
+### Media
+
+| Component     | Use for                                                  |
+| ------------- | -------------------------------------------------------- |
+| `AudioPlayer` | A self-contained audio player: play/pause/stop, a quantized wave visualization, a mono elapsed/total readout, and a cycling rate button. Pass `src`; it owns a hidden `<audio>` element and reports via callbacks / `apiRef` (`play`/`pause`/`stop`/`seek`). `visualization="waveform"` (default) decodes the track once and draws mirrored quantized columns that double as the seek slider (pointer scrub + `←`/`→`/`Home`/`End`/`Space`); `"bars"` draws live log-spaced analyser stacks while playing (for streams / very long files; waveform falls back to it automatically when the file can't be decoded). `layout="inline"` (default) is one dense row; `"panel"` is the deck reading: the wave display stacked over a control bar of raised buttons in one bordered chassis. `color`/`size`/`elevation`/`rates`/`loop`/`crossOrigin`; visualizing cross-origin media needs CORS. Reach for this over a bare `<audio controls>`. |
+
 ---
 
 ## Conventions
@@ -402,6 +408,7 @@ Common requests and the right component:
 | "an inline / one-line code field that expands" / "an editable expression in a form row or cell" | `CodeEditorInline` (rests at one line, expands over content on focus; `maxRows`) |
 | "a theme editor / token playground" / "customize the palette live" / "export a theme" | `ThemeBuilder` (edit `--sf-*` live, copy CSS/JSON; token pipeline emits `tokens.json`/`tokens.js`) |
 | "a notebook" / "notebook-like analysis over my data" / "SQL cells" / "in-app analysis over DuckDB" | `Notebook` (+ `createSqlCellType` wired to the app's engine; `proseCellType` for text cells) |
+| "an audio player" / "play a recording / voice note" / "audio with a waveform" / "podcast / voice-message playback" | `AudioPlayer` (waveform doubles as the seek slider; `visualization="bars"` for streams; never a bare `<audio controls>`) |
 | "chat UI"                                          | `Chat`                                           |
 | "a chat in a drawer / assistant side panel / chat that shows it's thinking" | `ChatDrawer` (`thinking` + `onThinkingStart`/`End`) |
 | "in-chat choice menu / decision tree / custom block in a chat reply" | `Chat` `parts` (+ `renderPart` for custom) + `onAction` |

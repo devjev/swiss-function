@@ -6,6 +6,7 @@ import { libInjectCss } from "vite-plugin-lib-inject-css";
 
 const componentNames = [
   "AgentComposer",
+  "AudioPlayer",
   "BarChart",
   "Box",
   "BridgeChart",
