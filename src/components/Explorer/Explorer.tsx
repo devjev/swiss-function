@@ -3,6 +3,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  rectIntersection,
   useDraggable,
   useDroppable,
   useSensor,
@@ -17,12 +18,22 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { resizeBoundary } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
+import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { useDitheredFill } from "../../lib/effects";
 import {
   ColumnFilter,
@@ -149,6 +160,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     onAdd,
     onMove,
     onDelete,
+    onExternalDrop,
     resizableColumns = false,
     columnWidths: controlledColumnWidths,
     defaultColumnWidths,
@@ -187,6 +199,11 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropZone, setDropZone] = useState<DropZone | null>(null);
   const [draggingColId, setDraggingColId] = useState<string | null>(null);
+
+  // Shared drag-and-drop (SfDndProvider): two regions, columns and the tree.
+  const shared = useSfDnd();
+  const colRegionId = useId();
+  const treeRegionId = useId();
 
   // --- Column state (widths / order), controlled or internal ----------------
   const { columnWidths, setColumnWidths } = useColumnWidths({
@@ -791,6 +808,47 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     setDraggingId(null);
   };
 
+  // The shared provider renders one DragOverlay per region during its own render
+  // pass (ahead of this one), so overlays and external-drop targets read through
+  // refs, not render-cycle state. The lists are stable during a drag.
+  const orderedColumnsRef = useRef(orderedColumns);
+  orderedColumnsRef.current = orderedColumns;
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const flatRowsRef = useRef(flatRows);
+  flatRowsRef.current = flatRows;
+
+  // Column region: default (rectIntersection) collision, header ghost overlay.
+  useSfDndRegion(reorderableColumns ? shared : null, {
+    id: colRegionId,
+    collisionDetection: rectIntersection,
+    onDragStart: (e) => setDraggingColId(String(e.active.id)),
+    onDragEnd: onColDragEnd,
+    onDragCancel: () => setDraggingColId(null),
+    renderOverlay: (activeId) => {
+      const header = orderedColumnsRef.current.find((c) => c.id === activeId)?.header;
+      return header ? <div className={styles.headerDragOverlay}>{header}</div> : null;
+    },
+  });
+
+  // Tree region: node drag/reorder plus host-item drops onto a row.
+  useSfDndRegion(shared, {
+    id: treeRegionId,
+    collisionDetection: rectIntersection,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onDragCancel,
+    onExternalDrop: ({ active, over }) => {
+      const rowIndex = (over?.data.current as { rowIndex?: number } | undefined)?.rowIndex;
+      const overNode = rowIndex != null ? (flatRowsRef.current[rowIndex]?.node ?? null) : null;
+      onExternalDrop?.({ active, overNode });
+    },
+    renderOverlay: (activeId) => (
+      <DragOverlayContent name={findNode(nodesRef.current, activeId)?.name ?? ""} />
+    ),
+  });
+
   // --- Context menu derived ----------------------------------------------
   const ctxTargetRow = ctx?.targetId != null ? flatRows[indexById.get(ctx.targetId) ?? -1] : null;
   const ctxTargetIsFolder = ctxTargetRow ? isFolder(ctxTargetRow.node) : false;
@@ -874,6 +932,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       <SortableHeaderCell
         key={col.id}
         id={col.id}
+        regionId={shared ? colRegionId : undefined}
         render={(dnd) => renderHeaderCell(col, i, dnd)}
       />
     ) : (
@@ -888,23 +947,30 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       style={{ gridTemplateColumns: gridTemplate }}
     >
       {reorderableColumns ? (
-        <DndContext
-          sensors={colSensors}
-          onDragStart={(e) => setDraggingColId(String(e.active.id))}
-          onDragEnd={onColDragEnd}
-          onDragCancel={() => setDraggingColId(null)}
-        >
+        shared ? (
+          // The provider owns the DndContext + overlay; render only the sortable.
           <SortableContext items={nonTreeIds} strategy={horizontalListSortingStrategy}>
             {headerCells}
           </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {draggingColId ? (
-              <div className={styles.headerDragOverlay}>
-                {orderedColumns.find((c) => c.id === draggingColId)?.header}
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        ) : (
+          <DndContext
+            sensors={colSensors}
+            onDragStart={(e) => setDraggingColId(String(e.active.id))}
+            onDragEnd={onColDragEnd}
+            onDragCancel={() => setDraggingColId(null)}
+          >
+            <SortableContext items={nonTreeIds} strategy={horizontalListSortingStrategy}>
+              {headerCells}
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {draggingColId ? (
+                <div className={styles.headerDragOverlay}>
+                  {orderedColumns.find((c) => c.id === draggingColId)?.header}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )
       ) : (
         headerCells
       )}
@@ -924,153 +990,166 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     >
       {header}
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={onDragStart}
-        onDragMove={onDragMove}
-        onDragEnd={onDragEnd}
-        onDragCancel={onDragCancel}
-      >
-        <div
-          ref={viewportRef}
-          role="treegrid"
-          aria-label="Explorer"
-          className={styles.viewport}
-          style={{ height: typeof height === "number" ? `${height}px` : height }}
-          tabIndex={0}
-          onKeyDown={handleKeyDown}
-          onContextMenu={handleViewportContextMenu}
-          onClick={handleViewportClick}
-        >
-          {showEmpty ? (
-            <div className={styles.empty}>{empty}</div>
-          ) : (
+      {(() => {
+        const body = (
+          <>
             <div
-              className={styles.body}
-              style={{
-                height: `${virtualizer.getTotalSize()}px`,
-                minWidth: contentWidth ?? undefined,
-              }}
+              ref={viewportRef}
+              role="treegrid"
+              aria-label="Explorer"
+              className={styles.viewport}
+              style={{ height: typeof height === "number" ? `${height}px` : height }}
+              tabIndex={0}
+              onKeyDown={handleKeyDown}
+              onContextMenu={handleViewportContextMenu}
+              onClick={handleViewportClick}
             >
-              {fillOn ? (
+              {showEmpty ? (
+                <div className={styles.empty}>{empty}</div>
+              ) : (
                 <div
-                  ref={
-                    fillAnimated
-                      ? (node) => {
-                          fillRootRef.current = node;
-                        }
-                      : undefined
-                  }
-                  className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+                  className={styles.body}
+                  style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    minWidth: contentWidth ?? undefined,
+                  }}
+                >
+                  {fillOn ? (
+                    <div
+                      ref={
+                        fillAnimated
+                          ? (node) => {
+                              fillRootRef.current = node;
+                            }
+                          : undefined
+                      }
+                      className={cx(styles.columnFill, fillAnimated && styles.columnFillAnimated)}
+                      aria-hidden="true"
+                      style={
+                        {
+                          height: fillHeight || "100%",
+                          "--sf-columns-width": `${columnsWidth}px`,
+                          ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
+                        } as CSSProperties
+                      }
+                    >
+                      {fillAnimated ? (
+                        <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} />
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {virtualizer.getVirtualItems().map((vRow) => {
+                    const row = flatRows[vRow.index];
+                    if (!row) return null;
+                    const id = row.node.id;
+                    const isLast = vRow.index === flatRows.length - 1;
+                    // Drop flags resolve to per-row booleans here so a drag-move
+                    // re-renders only the rows whose flags actually flipped.
+                    const dropInto = dropZone?.kind === "into" && dropZone.folderId === id;
+                    const dropBefore =
+                      dropZone?.kind === "before" && dropZone.flatIndex === vRow.index;
+                    const dropAfterLast =
+                      isLast &&
+                      (dropZone?.kind === "after-all" ||
+                        (dropZone?.kind === "before" && dropZone.flatIndex === vRow.index + 1));
+                    // Every non-primitive prop below must be reference-stable or
+                    // the row memo silently stops working — no inline closures.
+                    return (
+                      <MemoExplorerRow<M>
+                        key={id}
+                        row={row}
+                        rowIndex={vRow.index}
+                        top={vRow.start}
+                        rowHeight={rowHeight}
+                        columns={orderedColumns}
+                        gridTemplate={gridTemplate}
+                        isSelected={selectedIds.has(id)}
+                        isFocused={focusedId === id}
+                        isExpanded={effectiveExpandedIds.has(id)}
+                        isEditing={editingId === id}
+                        isDragging={draggingId === id}
+                        dropInto={dropInto}
+                        dropBefore={dropBefore}
+                        dropAfterLast={dropAfterLast}
+                        draggable={editable}
+                        regionId={treeRegionId}
+                        icon={icon}
+                        onChevronToggle={toggleExpand}
+                        onRowPointerDown={handleRowPointerDown}
+                        onRowDoubleClick={handleRowDoubleClick}
+                        onRowContextMenu={handleRowContextMenu}
+                        onRenameCommit={handleRenameCommit}
+                        onRenameCancel={handleRenameCancel}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {edgeFade && !showEmpty ? (
+                <div
+                  className={styles.edgeFade}
                   aria-hidden="true"
                   style={
                     {
-                      height: fillHeight || "100%",
-                      "--sf-columns-width": `${columnsWidth}px`,
-                      ...(fillOpts.color ? { "--sf-columnfill-color": fillOpts.color } : null),
+                      "--sf-row-height": `${rowHeight}px`,
+                      ...(typeof edgeFade === "object"
+                        ? {
+                            "--sf-datatable-fade-rows": edgeFade.rows,
+                            "--sf-datatable-fade-density": edgeFade.density,
+                          }
+                        : null),
                     } as CSSProperties
                   }
-                >
-                  {fillAnimated ? (
-                    <canvas ref={fillCanvasRef} className={styles.columnFillCanvas} />
-                  ) : null}
-                </div>
+                />
               ) : null}
-              {virtualizer.getVirtualItems().map((vRow) => {
-                const row = flatRows[vRow.index];
-                if (!row) return null;
-                const id = row.node.id;
-                const isLast = vRow.index === flatRows.length - 1;
-                // Drop flags resolve to per-row booleans here so a drag-move
-                // re-renders only the rows whose flags actually flipped.
-                const dropInto = dropZone?.kind === "into" && dropZone.folderId === id;
-                const dropBefore = dropZone?.kind === "before" && dropZone.flatIndex === vRow.index;
-                const dropAfterLast =
-                  isLast &&
-                  (dropZone?.kind === "after-all" ||
-                    (dropZone?.kind === "before" && dropZone.flatIndex === vRow.index + 1));
-                // Every non-primitive prop below must be reference-stable or
-                // the row memo silently stops working — no inline closures.
-                return (
-                  <MemoExplorerRow<M>
-                    key={id}
-                    row={row}
-                    rowIndex={vRow.index}
-                    top={vRow.start}
-                    rowHeight={rowHeight}
-                    columns={orderedColumns}
-                    gridTemplate={gridTemplate}
-                    isSelected={selectedIds.has(id)}
-                    isFocused={focusedId === id}
-                    isExpanded={effectiveExpandedIds.has(id)}
-                    isEditing={editingId === id}
-                    isDragging={draggingId === id}
-                    dropInto={dropInto}
-                    dropBefore={dropBefore}
-                    dropAfterLast={dropAfterLast}
-                    draggable={editable}
-                    icon={icon}
-                    onChevronToggle={toggleExpand}
-                    onRowPointerDown={handleRowPointerDown}
-                    onRowDoubleClick={handleRowDoubleClick}
-                    onRowContextMenu={handleRowContextMenu}
-                    onRenameCommit={handleRenameCommit}
-                    onRenameCancel={handleRenameCancel}
-                  />
-                );
-              })}
             </div>
-          )}
 
-          {edgeFade && !showEmpty ? (
-            <div
-              className={styles.edgeFade}
-              aria-hidden="true"
-              style={
-                {
-                  "--sf-row-height": `${rowHeight}px`,
-                  ...(typeof edgeFade === "object"
-                    ? {
-                        "--sf-datatable-fade-rows": edgeFade.rows,
-                        "--sf-datatable-fade-density": edgeFade.density,
-                      }
-                    : null),
-                } as CSSProperties
-              }
-            />
-          ) : null}
-        </div>
-
-        <DragOverlay dropAnimation={null}>
-          {draggingId ? (
-            <DragOverlayContent name={findNode(nodes, draggingId)?.name ?? ""} />
-          ) : null}
-        </DragOverlay>
-
-        {editable ? (
-          <ContextMenu
-            ctx={ctx}
-            onClose={() => setCtx(null)}
-            hasTarget={ctx?.targetId != null}
-            onNewFile={() => {
-              onAdd?.(addParentId, "file");
-              setCtx(null);
-            }}
-            onNewFolder={() => {
-              onAdd?.(addParentId, "folder");
-              setCtx(null);
-            }}
-            onRename={() => {
-              if (ctx?.targetId) setEditing(ctx.targetId);
-              setCtx(null);
-            }}
-            onDelete={() => {
-              if (ctx?.targetId) onDelete?.([ctx.targetId]);
-              setCtx(null);
-            }}
-          />
-        ) : null}
-      </DndContext>
+            {editable ? (
+              <ContextMenu
+                ctx={ctx}
+                onClose={() => setCtx(null)}
+                hasTarget={ctx?.targetId != null}
+                onNewFile={() => {
+                  onAdd?.(addParentId, "file");
+                  setCtx(null);
+                }}
+                onNewFolder={() => {
+                  onAdd?.(addParentId, "folder");
+                  setCtx(null);
+                }}
+                onRename={() => {
+                  if (ctx?.targetId) setEditing(ctx.targetId);
+                  setCtx(null);
+                }}
+                onDelete={() => {
+                  if (ctx?.targetId) onDelete?.([ctx.targetId]);
+                  setCtx(null);
+                }}
+              />
+            ) : null}
+          </>
+        );
+        // Under a shared provider, render only the body: the provider owns the
+        // single DndContext and DragOverlay for the whole subtree.
+        if (shared) return body;
+        return (
+          <DndContext
+            sensors={sensors}
+            onDragStart={onDragStart}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragCancel}
+          >
+            {body}
+            <DragOverlay dropAnimation={null}>
+              {draggingId ? (
+                <DragOverlayContent name={findNode(nodes, draggingId)?.name ?? ""} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        );
+      })()}
     </div>
   );
 }
@@ -1093,6 +1172,8 @@ interface ExplorerRowProps<M> {
   dropBefore: boolean;
   dropAfterLast: boolean;
   draggable: boolean;
+  /** Shared-dnd tree region id, stamped on this row's drag/drop data. */
+  regionId: string;
   icon?: (node: ExplorerNode<M>) => ReactNode;
   onChevronToggle: (id: string) => void;
   onRowPointerDown: (e: MouseEvent, row: FlatRow<M>) => void;
@@ -1119,6 +1200,7 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     dropBefore,
     dropAfterLast,
     draggable,
+    regionId,
     icon,
     onChevronToggle,
     onRowPointerDown,
@@ -1131,8 +1213,15 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
   const id = row.node.id;
   const folder = isFolder(row.node);
 
-  const draggableHook = useDraggable({ id, disabled: !draggable || isEditing });
-  const droppableHook = useDroppable({ id: `row-${id}`, data: { rowIndex } });
+  const draggableHook = useDraggable({
+    id,
+    disabled: !draggable || isEditing,
+    data: { [SF_REGION_KEY]: regionId },
+  });
+  const droppableHook = useDroppable({
+    id: `row-${id}`,
+    data: { [SF_REGION_KEY]: regionId, rowIndex },
+  });
 
   const setRef = (el: HTMLDivElement | null) => {
     draggableHook.setNodeRef(el);

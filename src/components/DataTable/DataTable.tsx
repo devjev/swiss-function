@@ -1,9 +1,11 @@
 import {
+  type Active,
   DndContext,
   type DragEndEvent,
   DragOverlay,
   type DragStartEvent,
   PointerSensor,
+  rectIntersection,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -23,11 +25,21 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
+import { useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import type { EffectName } from "../../lib/effects";
 import { useDitheredFill } from "../../lib/effects";
 import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
@@ -68,6 +80,14 @@ import { useTableClipboard } from "./useTableClipboard";
 import { useTableEdit } from "./useTableEdit";
 import { useTableSelection } from "./useTableSelection";
 import { useTreeExpansion } from "./useTreeExpansion";
+
+/** A host element dropped onto a column header (only fires under `SfDndProvider`). */
+export interface DataTableExternalDrop {
+  /** The dnd-kit active for the dragged host item; read your data off it. */
+  active: Active;
+  /** Id of the leaf column it was dropped on, or `null` if not over a header. */
+  overColumnId: string | null;
+}
 
 export interface DataTableProps<T>
   extends Omit<HTMLAttributes<HTMLElement>, "children" | "onChange"> {
@@ -200,6 +220,11 @@ export interface DataTableProps<T>
   defaultColumnOrder?: string[];
   /** Fired with the full order array whenever a column is dragged to a new spot. */
   onColumnOrderChange?: (order: string[]) => void;
+  /** Fires when a foreign element (dragged from the host under a shared
+   *  `SfDndProvider`) is dropped onto a column header. Only the header row is a
+   *  drop target; body rows are not droppable. Requires `reorderableColumns` and
+   *  a provider. */
+  onExternalDrop?: (drop: DataTableExternalDrop) => void;
   /** Show a per-column header filter (funnel) on leaf columns. The control type
    *  follows the column's `edit.type` (text/select/boolean → value checklist;
    *  number → min/max range). Exclude a column with `filterable: false`.
@@ -644,6 +669,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     columnOrder: controlledColumnOrder,
     defaultColumnOrder,
     onColumnOrderChange,
+    onExternalDrop,
     filterableColumns = false,
     columnFilters: controlledColumnFilters,
     defaultColumnFilters,
@@ -1646,6 +1672,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   // --- Column drag-to-reorder (reorderableColumns) ---
+  const shared = useSfDnd();
+  const regionId = useId();
   const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
   const leafParents = useMemo(() => leafParentMap(columns), [columns]);
   const reorderSensors = useSensors(
@@ -1675,6 +1703,33 @@ export function DataTable<T>(props: DataTableProps<T>) {
     },
     [leafParents, orderedLeafIds, setColumnOrder],
   );
+
+  // The header list is stable during a drag, so the shared provider (which
+  // renders the overlay from its own render pass, ahead of this one) can read
+  // the dragged column through a ref rather than render-cycle state.
+  const visibleLeavesRef = useRef(visibleLeaves);
+  visibleLeavesRef.current = visibleLeaves;
+  useSfDndRegion(reorderableColumns ? shared : null, {
+    id: regionId,
+    // dnd-kit's default collision is rectIntersection; keep it under the shared
+    // context so column reordering feels identical.
+    collisionDetection: rectIntersection,
+    onDragStart: onColumnDragStart,
+    onDragEnd: onColumnDragEnd,
+    onDragCancel: () => setDraggingColId(null),
+    onExternalDrop: ({ active, over }) => {
+      onExternalDrop?.({ active, overColumnId: over ? String(over.id) : null });
+    },
+    renderOverlay: (activeId) => {
+      const leaf = visibleLeavesRef.current.find((l) => l.id === activeId);
+      if (!leaf) return null;
+      return (
+        <div className={styles.headerDragOverlay}>
+          {typeof leaf.header === "string" ? leaf.header : leaf.id}
+        </div>
+      );
+    },
+  });
 
   // The single dither backdrop (see the `.content` / `.fill` layer notes above).
   // A `position: absolute; inset: 0` child of `.content`, painted behind the
@@ -1932,6 +1987,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     <SortableHeaderCell
                       key={header.id}
                       id={header.column.id}
+                      regionId={shared ? regionId : undefined}
                       render={(dnd) => renderHeaderCell(header, dnd)}
                     />
                   ) : (
@@ -1941,6 +1997,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
               </div>
             ));
             if (!reorderableColumns) return headerRows;
+            const sortable = (
+              <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
+                {headerRows}
+              </SortableContext>
+            );
+            // Under a shared provider the DndContext + DragOverlay are the
+            // provider's; here render only the SortableContext.
+            if (shared) return sortable;
             return (
               <DndContext
                 sensors={reorderSensors}
@@ -1948,9 +2012,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 onDragEnd={onColumnDragEnd}
                 onDragCancel={() => setDraggingColId(null)}
               >
-                <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
-                  {headerRows}
-                </SortableContext>
+                {sortable}
                 <DragOverlay dropAnimation={null}>
                   {draggingLeaf ? (
                     <div className={styles.headerDragOverlay}>

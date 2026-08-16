@@ -163,6 +163,8 @@ export default defineConfig({
         // is tree-shaken away unless it's an explicit entry, so list it here to
         // emit dist/lib/color/index.js (single-file libs don't need this).
         "lib/color/index": resolve(__dirname, "src/lib/color/index.ts"),
+        // The shared drag-and-drop context (`/lib/dnd`), same reasoning.
+        "lib/dnd/index": resolve(__dirname, "src/lib/dnd/index.ts"),
         "tokens/tokens": resolve(__dirname, "src/tokens/tokens.css"),
         "tokens/reset": resolve(__dirname, "src/tokens/reset.css"),
       },

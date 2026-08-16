@@ -2,6 +2,7 @@ export { Explorer } from "./Explorer";
 export type {
   ExplorerColumn,
   ExplorerColumnFill,
+  ExplorerExternalDrop,
   ExplorerNode,
   ExplorerProps,
   ExplorerSort,

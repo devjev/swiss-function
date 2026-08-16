@@ -2,6 +2,7 @@ import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import styles from "./AgentComposer.module.css";
+import type { AgentComposerExternalDrop } from "./AgentComposerTree";
 import {
   type AgentComposerAgent,
   type AgentComposerNode,
@@ -23,6 +24,7 @@ import {
   rowIdOf,
 } from "./renderNode";
 
+export type { AgentComposerExternalDrop } from "./AgentComposerTree";
 export type {
   AgentComposerAgent,
   AgentComposerNode,
@@ -51,6 +53,10 @@ export interface AgentComposerProps
   onCollapsedChange?: (ids: string[]) => void;
   /** A parameter row (MDL/HPR/CTX) pressed: open your editor for that part. */
   onRequestEdit?: (nodeId: string, part: AgentComposerPart) => void;
+  /** Fires when a foreign element (dragged from the host under a shared
+   *  `SfDndProvider`) is dropped onto a node. Only meaningful inside a provider
+   *  and when not `readOnly`. */
+  onExternalDrop?: (drop: AgentComposerExternalDrop) => void;
   /** Static viewer: no structure edits, no drag. */
   readOnly?: boolean;
   /** Short uppercase tag per kind. Default agent → AGT, fn → FNC, mcp → MCP. */
@@ -72,6 +78,7 @@ export const AgentComposer = forwardRef<HTMLDivElement, AgentComposerProps>(func
     defaultCollapsed,
     onCollapsedChange,
     onRequestEdit,
+    onExternalDrop,
     readOnly = false,
     kindLabel,
     className,
@@ -325,7 +332,12 @@ export const AgentComposer = forwardRef<HTMLDivElement, AgentComposerProps>(func
   } else {
     body = (
       <Suspense fallback={staticNode(root, 0, true)}>
-        <AgentComposerTree ctx={ctx} root={root} onReorder={onReorder} />
+        <AgentComposerTree
+          ctx={ctx}
+          root={root}
+          onReorder={onReorder}
+          onExternalDrop={onExternalDrop}
+        />
       </Suspense>
     );
   }

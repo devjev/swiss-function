@@ -1,3 +1,4 @@
+import type { Active } from "@dnd-kit/core";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { EffectName } from "../../lib/effects";
@@ -49,6 +50,14 @@ export interface ExplorerColumn<M = unknown> {
 /** Active sort: a column id and direction. `null` means unsorted. */
 export type ExplorerSort = { columnId: string; dir: "asc" | "desc" };
 
+/** A host element dropped onto a tree node (only fires under `SfDndProvider`). */
+export interface ExplorerExternalDrop<M = unknown> {
+  /** The dnd-kit active for the dragged host item; read your data off it. */
+  active: Active;
+  /** The node it was dropped on, or `null` if not over a row. */
+  overNode: ExplorerNode<M> | null;
+}
+
 /** Dither filler for the space to the right of fixed-width columns. Mirrors
  *  DataTable's `columnFill`. A no-op when the last column already stretches
  *  (the default), so it only bites when every column declares a fixed `width`. */
@@ -82,6 +91,10 @@ export interface ExplorerProps<M = unknown>
   onAdd?: (parentId: string | null, kind: "file" | "folder") => void;
   onMove?: (id: string, newParentId: string | null, beforeId?: string | null) => void;
   onDelete?: (ids: string[]) => void;
+  /** Fires when a foreign element (dragged from the host under a shared
+   *  `SfDndProvider`) is dropped onto a tree node. Only meaningful inside a
+   *  provider. */
+  onExternalDrop?: (drop: ExplorerExternalDrop<M>) => void;
 
   // --- Column resizing ---
   /** Enable drag-to-resize on column borders. Default false (the plain file-tree

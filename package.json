@@ -43,6 +43,10 @@
       "types": "./dist/lib/color/index.d.ts",
       "import": "./dist/lib/color/index.js"
     },
+    "./lib/dnd": {
+      "types": "./dist/lib/dnd/index.d.ts",
+      "import": "./dist/lib/dnd/index.js"
+    },
     "./button": {
       "types": "./dist/components/Button/index.d.ts",
       "import": "./dist/components/Button/index.js"

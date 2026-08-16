@@ -18,6 +18,9 @@ playwright/.cache
 .idea
 *.tsbuildinfo
 
+# Local git worktrees created by tooling; never committed.
+.claude/worktrees
+
 .direnv
 
 *.tgz

@@ -71,6 +71,7 @@ MDL/HPR/CTX rows fire `onRequestEdit`.
 | `collapsed` / `defaultCollapsed` | `string[]` | `[]` | Collapsed agent ids (controlled / uncontrolled). |
 | `onCollapsedChange` | `(ids: string[]) => void` | — | Collapse state changes (collapsing emits the whole cascaded set). |
 | `onRequestEdit` | `(nodeId, part: "model" \| "hyperparams" \| "context") => void` | — | Open your editor for the MDL / HPR / CTX row. |
+| `onExternalDrop` | `(drop: AgentComposerExternalDrop) => void` | — | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a node: `{ active, overId }`. See SfDndProvider. |
 | `readOnly` | `boolean` | `false` | Static viewer: no structure edits, no drag. |
 | `kindLabel` | `(kind: string) => string` | AGT/FNC/MCP | Override the kind micro-tags. |
 
@@ -500,6 +501,7 @@ Presentational: token counting and the model call are yours.
 | `value` | `ContextBlock[]` | n/a | The blocks, in send order (controlled). Pass with `onChange`. |
 | `defaultValue` | `ContextBlock[]` | `[]` | Initial blocks (uncontrolled). |
 | `onChange` | `(blocks: ContextBlock[]) => void` | n/a | Fires after a reorder. |
+| `onExternalDrop` | `(drop: ContextEditorExternalDrop) => void` | n/a | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a block row: `{ active, overId }`. See SfDndProvider. |
 | `contextWindow` | `number` | `128000` | The model's window in tokens; the gauge's full scale. Overridden by the selected `models` entry. |
 | `models` | `ContextModel[]` | n/a | `{ id, label, contextWindow, scale? }[]` offered by a header dropdown; selecting one sets the window (and scale). Omit to hide the selector. |
 | `model` / `defaultModel` | `string` | first model | Selected model id (controlled / initial). |
@@ -630,6 +632,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnOrder` | `string[]` | n/a | Controlled column order (leaf ids), with `onColumnOrderChange`. |
 | `defaultColumnOrder` | `string[]` | n/a | Uncontrolled initial order (e.g. restored from storage). |
 | `onColumnOrderChange` | `(order: string[]) => void` | n/a | Fired with the full order on each reorder. Persist to save it. |
+| `onExternalDrop` | `(drop: DataTableExternalDrop) => void` | n/a | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a column header: `{ active, overColumnId }`. Body rows are not droppable. See SfDndProvider. |
 | `columnWidths` | `Record<string, number>` | n/a | Controlled px width overrides by column id (with `onColumnWidthsChange`). |
 | `defaultColumnWidths` | `Record<string, number>` | n/a | Uncontrolled initial px overrides (e.g. restored from storage). |
 | `onColumnWidthsChange` | `(widths: Record<string, number>) => void` | n/a | Fired on resize/auto-fit. Persist it to "save" the user's widths. |
@@ -889,6 +892,7 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `onRename` | `(id, newName) => void` | n/a | Rename committed. |
 | `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | n/a | From context menu (null = root). |
 | `onMove` | `(id, newParentId, beforeId?) => void` | n/a | Drag drop; `beforeId` for order, null = append. |
+| `onExternalDrop` | `(drop: ExplorerExternalDrop) => void` | n/a | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a node: `{ active, overNode }`. See SfDndProvider. |
 | `onDelete` | `(ids: string[]) => void` | n/a | Context menu or Delete/Backspace. |
 | `resizableColumns` | `boolean` | `false` | Drag column borders to resize. Widths are **raw px** (unlike DataTable's `--sf-unit` multiples). |
 | `columnWidths` / `defaultColumnWidths` | `Record<string, number>` | n/a | Controlled / initial px width overrides, keyed by column id. |
@@ -2173,6 +2177,7 @@ JSX children).
 | `equalColumns` | `boolean` | `false` | Give every data column an equal share, ignoring per-column `width`. |
 | `minColumnWidth` | `number` | `6` | Default minimum width (in `--sf-unit` multiples) for text/select/date columns without their own `minWidth`. The table scrolls horizontally once columns can't all fit at their minimums. |
 | `reorderable` | `boolean` | `false` | Drag rows to reorder (adds a grip column; lazy-loads dnd-kit). |
+| `onExternalDrop` | `(drop: TableInputExternalDrop) => void` | n/a | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a row: `{ active, overIndex }`. Requires `reorderable`. See SfDndProvider. |
 | `addLabel` | `ReactNode` | `"Add row"` | Add-button label. |
 | `disabled` | `boolean` | `false` | Disable the whole control (the rows become `inert`). |
 | `size` | `"sm" \| "md"` | `"sm"` | Cell size, mirroring the inner controls. |
@@ -2417,6 +2422,7 @@ With `popOutable`, every window's chrome gains a pop-out button (external-window
 | `poppedIds` / `defaultPoppedIds` / `onPopOutChange` | `string[]` | `[]` | Popped-out window ids (several at once is fine). A popped window leaves the strip; its window (chrome + body) shows in a separate browser window. Stale ids read as absent; a vanished window drops out and its popup closes. Wins over fullscreen/split for the same window. |
 | `popOutPip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for pop-outs where supported (Chromium). Only one such window exists at a time, so best for popping one window at a time. See PopOut `pip`. |
 | `onWindowMove` | `(move: WindowMove) => void` | n/a | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |
+| `onExternalDrop` | `(drop: WindowArrayExternalDrop) => void` | n/a | Fires when a foreign element (from the host, under a shared `SfDndProvider`) is dropped onto a window, empty column, or gap. `{ active, over }` where `over` is `{ columnId, row } \| { columnId, row: null } \| { gapIndex }`. See SfDndProvider. |
 | `gap` | `number \| string` | `0.5` | Gap between columns/windows (`number` → `u` multiples); also the resize-gutter width. |
 | `columnMinWidth` | `number` | `240` | Default resize floor in px, per column overridable. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `1` | Resting shadow depth for the windows (`--sf-elevation-N`); fullscreen windows stay flat. |
@@ -2468,6 +2474,55 @@ const [columns, setColumns] = useState(initial);
 Keyboard (on a focused title bar; each window's title is a real button and the strip has a single roving Tab stop): Arrows move focus between windows (left/right clamp the row to the neighbour column), Home/End jump to the strip's first/last column, Shift+Arrow moves the window itself, Escape exits fullscreen or the split view. In the vertical orientation arrows follow the transposed layout (up/down switch bands, left/right walk within a band; same for Shift+moves). Column *switching* from anywhere (including focused window content) is no longer a built-in shortcut. Bind your own key via the central hotkey layer and call `apiRef.switchColumn(...)` (issue #32). Focus moves auto-scroll the strip (container-scoped; minimal reveal: the column lands flush with the nearest edge, its gutter kept in view); scrolling is smooth via CSS `scroll-behavior`, instant under `prefers-reduced-motion`. Gutters are `role="separator"` with `aria-valuenow/min`: arrows resize by 8px (Shift 24px), double-click resets. Windows are `role="group"` labelled by their title. When the active window closes, focus hands off to its successor (next in column, then previous, then the nearest column).
 
 Notes: windows render as flat, keyed siblings of one strip grid and are placed into columns purely by grid coordinates, so a move (any direction, including across columns) never remounts a window: React state and DOM state (inputs, scroll) survive; an `<iframe>` may still reload when a move reorders the DOM. The window body scrolls internally. Empty columns render as one full-height drop target; removing an emptied column is the consumer's call. The strip's background is the same muted dither as DataTable's `columnFill` (recolor via `--sf-wa-fill-color`), a stationary "desk" the windows slide over, visible in the gaps and wherever columns don't reach. Near-exact fits are forgiven: up to 8px of natural overflow is absorbed by narrowing the last column's rendered width (the width *state* is untouched), so a layout meant to fill 100% never grows a horizontal scrollbar.
+
+## SfDndProvider (shared drag-and-drop)
+
+`import { SfDndProvider } from "@tarassov-ch/swiss-function/lib/dnd"`
+
+Every drag-and-drop widget (`DataTable` column reorder, `Explorer`, `WindowArray`, `TableInput`, `ContextEditor`, `AgentComposer`) renders its **own** dnd-kit `DndContext` by default. Wrapping a subtree in `SfDndProvider` makes all of them join **one** dnd-kit context instead: a single runtime for the whole subtree (dnd-kit does not support nested `DndContext`s), and the host can drag its own elements onto a widget's rows/nodes. Adoption is **auto-detected**, existing call sites are unchanged; a widget only joins the shared context when a provider is an ancestor, otherwise it behaves exactly as before.
+
+The provider owns no drag behaviour of its own. Each widget registers a **region** (keyed by a per-instance id it stamps onto its draggable/droppable `data` under `sfRegionId`), and the provider routes each drag to the owning region: a widget's own drag reorders internally as before, and a foreign element (the host's, or any item without a region) dropped over a widget fires that widget's `onExternalDrop`. Drags claimed by no region fall through to the provider's own handler props, so a host can run its own sortables under the same context.
+
+To drag a host element into a widget, make it a dnd-kit `useDraggable` **inside** the provider (no region id needed) and read the drop from the target widget's `onExternalDrop`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | n/a | The subtree; library widgets in it join this context. |
+| `sensors` | `SensorDescriptor[]` | pointer (4px) + keyboard | Override the sensor set for the whole context. Per-widget sensor differences collapse to this union. |
+| `onDragStart` / `onDragMove` / `onDragOver` / `onDragEnd` / `onDragCancel` | dnd-kit event handlers | n/a | Fire for drags claimed by no region (the host's own sortables). |
+| `renderOverlay` | `(activeId: string) => ReactNode` | n/a | `DragOverlay` content for a dragged foreign item; region drags use the region's own overlay. |
+
+Also exported: `useSfDnd()` (returns the registry or `null`), `useSfDndRegion(registry, region)` (the register-for-lifetime helper widgets use), `SF_REGION_KEY` / `regionIdOf` (the `data` stamp and its reader), and `routeDragEnd` (the pure routing decision).
+
+Each participating widget exposes an `onExternalDrop` reporting where a foreign item landed (only fires under a provider):
+
+| Widget | Payload | Drop target |
+| --- | --- | --- |
+| `Explorer` | `{ active, overNode }` | a tree node |
+| `DataTable` | `{ active, overColumnId }` | a column header (body rows are not droppable) |
+| `TableInput` | `{ active, overIndex }` | a row |
+| `ContextEditor` | `{ active, overId }` | a block row |
+| `AgentComposer` | `{ active, overId }` | a tree node |
+| `WindowArray` | `{ active, over }` | a window / empty column / gap |
+
+`active` is the dnd-kit `Active` for the dragged host item; read your own payload off `active.data.current`.
+
+```tsx
+import { SfDndProvider } from "@tarassov-ch/swiss-function/lib/dnd";
+import { useDraggable } from "@dnd-kit/core";
+
+function HostChip({ id }: { id: string }) {
+  const { setNodeRef, listeners, attributes } = useDraggable({ id, data: { id } });
+  return <span ref={setNodeRef} {...listeners} {...attributes}><Chip>{id}</Chip></span>;
+}
+
+<SfDndProvider>
+  <HostChip id="task-42" />
+  <DataTable data={rows} columns={cols} reorderableColumns />
+  <Explorer nodes={tree} columns={cols} editable
+    onExternalDrop={({ active, overNode }) => attach(String(active.id), overNode?.id)} />
+</SfDndProvider>
+```
 
 ---
 

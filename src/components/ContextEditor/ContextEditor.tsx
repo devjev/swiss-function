@@ -15,6 +15,7 @@ import {
   sumTokens,
 } from "./attention";
 import styles from "./ContextEditor.module.css";
+import type { ContextEditorExternalDrop } from "./ContextEditorRows";
 
 // dnd-kit is pulled in only when the list is reorderable (the default). Lazy so
 // it lands in its own chunk and never weighs down a read-only ContextEditor.
@@ -94,6 +95,10 @@ export interface ContextEditorProps
   defaultValue?: ContextBlock[];
   /** Called with the next blocks after a reorder. */
   onChange?: (blocks: ContextBlock[]) => void;
+  /** Fires when a foreign element (dragged from the host under a shared
+   *  `SfDndProvider`) is dropped onto a block row. Only meaningful inside a
+   *  provider. */
+  onExternalDrop?: (drop: ContextEditorExternalDrop) => void;
   /** The model's context window, in tokens. Default 128000. Overridden by the
    *  selected `models` entry when a model selector is shown. */
   contextWindow?: number;
@@ -171,6 +176,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
     value,
     defaultValue,
     onChange,
+    onExternalDrop,
     contextWindow = 128_000,
     models,
     model,
@@ -385,6 +391,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
               <ContextEditorRows
                 blocks={blocks}
                 onReorder={setBlocks}
+                onExternalDrop={onExternalDrop}
                 rowClassName={cx(styles.row, styles.rowLive)}
                 handleClassName={styles.gripButton}
                 hovered={hovered}

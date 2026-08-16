@@ -6,6 +6,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { CSSProperties, ReactNode } from "react";
+import { SF_REGION_KEY } from "../dnd";
 
 /** Drag wiring handed to a header cell. Supplied by {@link SortableHeaderCell},
  *  omitted for static headers. */
@@ -21,13 +22,18 @@ export interface HeaderDnd {
 
 export function SortableHeaderCell({
   id,
+  regionId,
   render,
 }: {
   id: string;
+  /** Shared-dnd region id; stamped on the sortable's data so an `SfDndProvider`
+   *  can route this column's drags. Omitted in own-context mode. */
+  regionId?: string;
   render: (dnd: HeaderDnd) => ReactNode;
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
     id,
+    data: regionId ? { [SF_REGION_KEY]: regionId } : undefined,
   });
   return render({
     ref: setNodeRef,

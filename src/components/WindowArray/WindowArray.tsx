@@ -1,4 +1,5 @@
 import type {
+  Active,
   CollisionDetection,
   DragEndEvent,
   DragMoveEvent,
@@ -35,6 +36,7 @@ import {
   useState,
 } from "react";
 import { cx } from "../../lib/cx";
+import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { Glyph } from "../../lib/icons";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
@@ -156,6 +158,16 @@ export interface WindowArrayHandle {
   focusActive: () => void;
 }
 
+/** A host element dropped onto the strip (only fires under `SfDndProvider`). */
+export interface WindowArrayExternalDrop {
+  /** The dnd-kit active for the dragged host item; read your data off it. */
+  active: Active;
+  /** What it was dropped on: a window cell (`columnId` + `row`), an empty column
+   *  (`columnId`, `row` null), or a column gap (`gapIndex`). `null` if over
+   *  nothing droppable. */
+  over: { columnId?: string; row?: number | null; gapIndex?: number } | null;
+}
+
 export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Controlled active (focused) window id. */
   activeId?: string | null;
@@ -197,6 +209,10 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Enables rearranging (title-bar drag and Shift+Arrow). The component only
    *  reports the move — apply it to your own state. Absent → rearranging off. */
   onWindowMove?: (move: WindowMove) => void;
+  /** Fires when a foreign element (dragged from the host under a shared
+   *  `SfDndProvider`) is dropped onto a window, empty column, or column gap.
+   *  Only meaningful inside a provider. */
+  onExternalDrop?: (drop: WindowArrayExternalDrop) => void;
   /** Gap between columns and windows; `number` → `--sf-unit` multiples.
    *  Default `0.5`. Also the width of the resize gutters. */
   gap?: number | string;
@@ -245,6 +261,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onPopOutChange,
     popOutPip = false,
     onWindowMove,
+    onExternalDrop,
     gap = 0.5,
     columnMinWidth = 240,
     elevation = 1,
@@ -564,6 +581,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   }, []);
 
   // --- Drag-rearrange (dnd-kit core; Explorer precedent) --------------------
+  const shared = useSfDnd();
+  const regionId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropSlot, setDropSlot] = useState<DropSlot | null>(null);
 
@@ -913,6 +932,31 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const allWindows = columns.flatMap((c) => c.windows);
   const draggingProps = draggingId ? allWindows.find((w) => w.id === draggingId) : undefined;
 
+  // The shared provider renders one DragOverlay for every region, and computes
+  // it from the active id during its own render (which runs before this one). So
+  // the overlay reads the window list through a ref, not render-cycle state: the
+  // list is stable during a drag, so a one-render-old value still finds the
+  // dragged window.
+  const allWindowsRef = useRef(allWindows);
+  allWindowsRef.current = allWindows;
+
+  useSfDndRegion(shared, {
+    id: regionId,
+    collisionDetection,
+    onDragStart,
+    onDragMove,
+    onDragEnd,
+    onDragCancel,
+    onExternalDrop: ({ active, over }) => {
+      const data = (over?.data.current ?? null) as WindowArrayExternalDrop["over"];
+      onExternalDrop?.({ active, over: data });
+    },
+    renderOverlay: (activeId) => {
+      const w = allWindowsRef.current.find((x) => x.id === activeId);
+      return w ? <div className={styles.dragGhost}>{w.title}</div> : null;
+    },
+  });
+
   // --- Split view -------------------------------------------------------------
   // With fewer than two windows there is nothing to pick, so no button.
   // Popped-out windows are in another browser window and can't fill a half.
@@ -1023,160 +1067,176 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       onPointerMove={handleRootPointerMove}
       onPointerLeave={handleRootPointerLeave}
     >
-      <DndContext
-        sensors={sensors}
-        collisionDetection={collisionDetection}
-        onDragStart={onDragStart}
-        onDragMove={onDragMove}
-        onDragEnd={onDragEnd}
-        onDragCancel={onDragCancel}
-      >
-        <div ref={viewportRef} className={styles.viewport}>
-          <div className={styles.strip} style={stripStyle}>
-            {visibleColumns.map(({ col, mi, visible }, vci) => {
-              const before = vci > 0 ? visibleColumns[vci - 1] : undefined;
-              return (
-                <Fragment key={col.props.id}>
-                  <GutterView
-                    // Drop index is the model position (full-array terms); the
-                    // grid slot is the visible position, so collapsed columns
-                    // leave no gutter.
-                    index={mi}
-                    placement={gutterPlacement(vci)}
-                    vertical={vertical}
-                    leftColumn={before ? before.col.props : null}
-                    width={
-                      before
-                        ? vertical
-                          ? bandHeight(before.col.props)
-                          : columnWidth(before.col.props)
-                        : 0
-                    }
-                    minWidth={before ? (before.col.props.minWidth ?? columnMinWidth) : 0}
-                    resizing={before != null && resizingId === before.col.props.id}
-                    dropActive={dropSlot?.kind === "column" && dropSlot.index === mi}
-                    onPointerDown={onGutterPointerDown}
-                    onKeyDown={resizeByKey}
-                    onReset={resetWidth}
-                  />
-                  <ColumnBackdrop
-                    col={col.props}
-                    windowCount={visible.length}
-                    placement={backPlacement(vci)}
-                    registerColumn={columnRefs.current}
-                  />
-                </Fragment>
-              );
-            })}
-            {lastVisible && (
-              <GutterView
-                index={columns.length}
-                placement={gutterPlacement(visibleColumns.length)}
-                vertical={vertical}
-                leftColumn={lastVisible.col.props}
-                width={
-                  vertical ? bandHeight(lastVisible.col.props) : columnWidth(lastVisible.col.props)
-                }
-                minWidth={lastVisible.col.props.minWidth ?? columnMinWidth}
-                resizing={resizingId === lastVisible.col.props.id}
-                dropActive={dropSlot?.kind === "column" && dropSlot.index === columns.length}
-                onPointerDown={onGutterPointerDown}
-                onKeyDown={resizeByKey}
-                onReset={resetWidth}
-              />
-            )}
-            {/* One flat keyed list for every window on the strip — the single
+      {(() => {
+        const strip = (
+          <div ref={viewportRef} className={styles.viewport}>
+            <div className={styles.strip} style={stripStyle}>
+              {visibleColumns.map(({ col, mi, visible }, vci) => {
+                const before = vci > 0 ? visibleColumns[vci - 1] : undefined;
+                return (
+                  <Fragment key={col.props.id}>
+                    <GutterView
+                      // Drop index is the model position (full-array terms); the
+                      // grid slot is the visible position, so collapsed columns
+                      // leave no gutter.
+                      index={mi}
+                      placement={gutterPlacement(vci)}
+                      vertical={vertical}
+                      leftColumn={before ? before.col.props : null}
+                      width={
+                        before
+                          ? vertical
+                            ? bandHeight(before.col.props)
+                            : columnWidth(before.col.props)
+                          : 0
+                      }
+                      minWidth={before ? (before.col.props.minWidth ?? columnMinWidth) : 0}
+                      resizing={before != null && resizingId === before.col.props.id}
+                      dropActive={dropSlot?.kind === "column" && dropSlot.index === mi}
+                      onPointerDown={onGutterPointerDown}
+                      onKeyDown={resizeByKey}
+                      onReset={resetWidth}
+                      regionId={regionId}
+                    />
+                    <ColumnBackdrop
+                      col={col.props}
+                      windowCount={visible.length}
+                      placement={backPlacement(vci)}
+                      registerColumn={columnRefs.current}
+                      regionId={regionId}
+                    />
+                  </Fragment>
+                );
+              })}
+              {lastVisible && (
+                <GutterView
+                  index={columns.length}
+                  placement={gutterPlacement(visibleColumns.length)}
+                  vertical={vertical}
+                  leftColumn={lastVisible.col.props}
+                  width={
+                    vertical
+                      ? bandHeight(lastVisible.col.props)
+                      : columnWidth(lastVisible.col.props)
+                  }
+                  minWidth={lastVisible.col.props.minWidth ?? columnMinWidth}
+                  resizing={resizingId === lastVisible.col.props.id}
+                  dropActive={dropSlot?.kind === "column" && dropSlot.index === columns.length}
+                  onPointerDown={onGutterPointerDown}
+                  onKeyDown={resizeByKey}
+                  onReset={resetWidth}
+                  regionId={regionId}
+                />
+              )}
+              {/* One flat keyed list for every window on the strip — the single
                 stable parent that makes cross-column moves state-preserving.
                 Do NOT nest these under per-column elements or fragments. */}
-            {columns.flatMap((col) =>
-              col.windows.map((win, row) => (
-                <WindowView
-                  key={win.id}
-                  win={win}
-                  columnId={col.props.id}
-                  row={row}
-                  placement={placementById.get(win.id)}
-                  active={resolvedActive === win.id}
-                  fullscreen={resolvedFullscreen === win.id}
-                  split={
-                    resolvedSplit == null
-                      ? null
-                      : resolvedSplit[0] === win.id
-                        ? "1"
-                        : resolvedSplit[1] === win.id
-                          ? "2"
-                          : null
-                  }
-                  anyOverlay={resolvedFullscreen != null || resolvedSplit != null}
-                  rovingTab={rovingId === win.id}
-                  dragging={draggingId === win.id}
-                  dropEdge={dropEdgeFor(col.props.id, row, col.windows.length)}
-                  moveEnabled={(win.movable ?? true) && onWindowMove != null}
-                  onActivate={() => {
-                    // Pointer activation (clicking a window or its chrome): the
-                    // window is already on screen, so don't reveal-scroll the
-                    // strip. Keyboard nav and the paddles call setActive
-                    // directly and still scroll.
-                    if (resolvedActive !== win.id) {
-                      skipRevealRef.current = true;
-                      setActive(win.id);
+              {columns.flatMap((col) =>
+                col.windows.map((win, row) => (
+                  <WindowView
+                    key={win.id}
+                    regionId={regionId}
+                    win={win}
+                    columnId={col.props.id}
+                    row={row}
+                    placement={placementById.get(win.id)}
+                    active={resolvedActive === win.id}
+                    fullscreen={resolvedFullscreen === win.id}
+                    split={
+                      resolvedSplit == null
+                        ? null
+                        : resolvedSplit[0] === win.id
+                          ? "1"
+                          : resolvedSplit[1] === win.id
+                            ? "2"
+                            : null
                     }
-                  }}
-                  onToggleFullscreen={() => {
-                    setActive(win.id);
-                    if (resolvedSplit != null) setSplit(null);
-                    setFullscreen(resolvedFullscreen === win.id ? null : win.id);
-                  }}
-                  showSplitButton={showSplitButton}
-                  onSplitButton={() => {
-                    if (
-                      resolvedSplit != null &&
-                      (resolvedSplit[0] === win.id || resolvedSplit[1] === win.id)
-                    ) {
-                      setSplit(null);
-                    } else {
-                      setSplitChoice(null);
-                      setSplitPickerFor(win.id);
-                    }
-                  }}
-                  popped={resolvedPopped.includes(win.id)}
-                  showPopOutButton={popOutable}
-                  pip={popOutPip}
-                  onPopOutChange={(open) => {
-                    if (open) {
-                      if (fullscreen === win.id) setFullscreen(null);
-                      if (split != null && (split[0] === win.id || split[1] === win.id)) {
-                        setSplit(null);
-                      }
-                      // The window leaves the strip: hand active focus to a
-                      // visible neighbour so the roving Tab stop stays real,
-                      // but hold the strip's scroll position (no reveal jump).
-                      if (resolvedActive === win.id) {
+                    anyOverlay={resolvedFullscreen != null || resolvedSplit != null}
+                    rovingTab={rovingId === win.id}
+                    dragging={draggingId === win.id}
+                    dropEdge={dropEdgeFor(col.props.id, row, col.windows.length)}
+                    moveEnabled={(win.movable ?? true) && onWindowMove != null}
+                    onActivate={() => {
+                      // Pointer activation (clicking a window or its chrome): the
+                      // window is already on screen, so don't reveal-scroll the
+                      // strip. Keyboard nav and the paddles call setActive
+                      // directly and still scroll.
+                      if (resolvedActive !== win.id) {
                         skipRevealRef.current = true;
-                        const next = successor(visibleModel, win.id);
-                        setActive(next ?? edgeWindow(visibleModel, "first"));
+                        setActive(win.id);
                       }
-                      if (!resolvedPopped.includes(win.id)) {
-                        setPopped([...resolvedPopped, win.id]);
-                      }
-                    } else if (resolvedPopped.includes(win.id)) {
-                      // Coming back: focus and activate the returning window.
-                      pendingFocusRef.current = win.id;
+                    }}
+                    onToggleFullscreen={() => {
                       setActive(win.id);
-                      setPopped(resolvedPopped.filter((p) => p !== win.id));
-                    }
-                  }}
-                  onKeyDown={onHandleKeyDown(win.id)}
-                  registerHandle={handleRefs.current}
-                />
-              )),
-            )}
+                      if (resolvedSplit != null) setSplit(null);
+                      setFullscreen(resolvedFullscreen === win.id ? null : win.id);
+                    }}
+                    showSplitButton={showSplitButton}
+                    onSplitButton={() => {
+                      if (
+                        resolvedSplit != null &&
+                        (resolvedSplit[0] === win.id || resolvedSplit[1] === win.id)
+                      ) {
+                        setSplit(null);
+                      } else {
+                        setSplitChoice(null);
+                        setSplitPickerFor(win.id);
+                      }
+                    }}
+                    popped={resolvedPopped.includes(win.id)}
+                    showPopOutButton={popOutable}
+                    pip={popOutPip}
+                    onPopOutChange={(open) => {
+                      if (open) {
+                        if (fullscreen === win.id) setFullscreen(null);
+                        if (split != null && (split[0] === win.id || split[1] === win.id)) {
+                          setSplit(null);
+                        }
+                        // The window leaves the strip: hand active focus to a
+                        // visible neighbour so the roving Tab stop stays real,
+                        // but hold the strip's scroll position (no reveal jump).
+                        if (resolvedActive === win.id) {
+                          skipRevealRef.current = true;
+                          const next = successor(visibleModel, win.id);
+                          setActive(next ?? edgeWindow(visibleModel, "first"));
+                        }
+                        if (!resolvedPopped.includes(win.id)) {
+                          setPopped([...resolvedPopped, win.id]);
+                        }
+                      } else if (resolvedPopped.includes(win.id)) {
+                        // Coming back: focus and activate the returning window.
+                        pendingFocusRef.current = win.id;
+                        setActive(win.id);
+                        setPopped(resolvedPopped.filter((p) => p !== win.id));
+                      }
+                    }}
+                    onKeyDown={onHandleKeyDown(win.id)}
+                    registerHandle={handleRefs.current}
+                  />
+                )),
+              )}
+            </div>
           </div>
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {draggingProps ? <div className={styles.dragGhost}>{draggingProps.title}</div> : null}
-        </DragOverlay>
-      </DndContext>
+        );
+        // Under a shared provider, render only the strip: the provider owns the
+        // single DndContext and DragOverlay for the whole subtree.
+        if (shared) return strip;
+        return (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisionDetection}
+            onDragStart={onDragStart}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragCancel}
+          >
+            {strip}
+            <DragOverlay dropAnimation={null}>
+              {draggingProps ? <div className={styles.dragGhost}>{draggingProps.title}</div> : null}
+            </DragOverlay>
+          </DndContext>
+        );
+      })()}
       {controls && resolvedFullscreen == null && resolvedSplit == null && columns.length > 0 && (
         <>
           <button
@@ -1259,6 +1319,8 @@ interface ColumnBackdropProps {
   windowCount: number;
   placement: CSSProperties;
   registerColumn: Map<string, HTMLDivElement>;
+  /** The shared-dnd region id, stamped on this column's drop data. */
+  regionId: string;
 }
 
 /** Invisible grid item spanning a column's full track under its windows. It
@@ -1266,7 +1328,13 @@ interface ColumnBackdropProps {
  *  auto-scroll, and is the drop target for an empty column (occupied columns
  *  defer to their windows' droppables). The windows themselves are NOT its
  *  children. */
-function ColumnBackdrop({ col, windowCount, placement, registerColumn }: ColumnBackdropProps) {
+function ColumnBackdrop({
+  col,
+  windowCount,
+  placement,
+  registerColumn,
+  regionId,
+}: ColumnBackdropProps) {
   const {
     id,
     width: _width,
@@ -1281,7 +1349,7 @@ function ColumnBackdrop({ col, windowCount, placement, registerColumn }: ColumnB
   } = col;
   const { setNodeRef } = useDroppable({
     id: `col-${id}`,
-    data: { columnId: id, row: null },
+    data: { [SF_REGION_KEY]: regionId, columnId: id, row: null },
     disabled: windowCount > 0,
   });
   return (
@@ -1314,6 +1382,8 @@ interface GutterViewProps {
   onPointerDown: (event: React.PointerEvent) => void;
   onKeyDown: (col: WindowArrayColumnProps, event: ReactKeyboardEvent<HTMLDivElement>) => void;
   onReset: (col: WindowArrayColumnProps) => void;
+  /** The shared-dnd region id, stamped on this gap's drop data. */
+  regionId: string;
 }
 
 function GutterView({
@@ -1328,8 +1398,12 @@ function GutterView({
   onPointerDown,
   onKeyDown,
   onReset,
+  regionId,
 }: GutterViewProps) {
-  const { setNodeRef } = useDroppable({ id: `gap-${index}`, data: { gapIndex: index } });
+  const { setNodeRef } = useDroppable({
+    id: `gap-${index}`,
+    data: { [SF_REGION_KEY]: regionId, gapIndex: index },
+  });
   const resizable = leftColumn != null && (leftColumn.resizable ?? true);
   if (!resizable) {
     return (
@@ -1371,6 +1445,8 @@ interface WindowViewProps {
   win: WindowArrayWindowProps;
   columnId: string;
   row: number;
+  /** The shared-dnd region id, stamped on this window's drag/drop data. */
+  regionId: string;
   /** Grid placement among the column's *visible* windows; absent while popped
    *  (a popped window renders only its browser-window portal, not a cell). */
   placement: CSSProperties | undefined;
@@ -1403,6 +1479,7 @@ function WindowView({
   win,
   columnId,
   row,
+  regionId,
   placement,
   active,
   fullscreen,
@@ -1440,10 +1517,11 @@ function WindowView({
   const { setNodeRef: setDragRef, listeners } = useDraggable({
     id,
     disabled: !dragEnabled,
+    data: { [SF_REGION_KEY]: regionId },
   });
   const { setNodeRef: setDropRef } = useDroppable({
     id: `win-${id}`,
-    data: { columnId, row },
+    data: { [SF_REGION_KEY]: regionId, columnId, row },
   });
   const sectionRef = useRef<HTMLElement | null>(null);
   // The popup opens roughly over the window it came from: the rect is

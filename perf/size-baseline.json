@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-08-16T13:27:43.985Z"
+    "date": "2026-08-16T21:43:49.226Z"
   },
-  "totalGzip": 1165484,
+  "totalGzip": 1174408,
   "entries": {
     ".": {
-      "files": 290,
-      "jsRaw": 1079491,
-      "jsGzip": 324340,
+      "files": 292,
+      "jsRaw": 1089250,
+      "jsGzip": 327240,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 324340,
+      "gzip": 327240,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -143,6 +143,15 @@
       "gzip": 7319,
       "externals": []
     },
+    "./lib/dnd": {
+      "files": 3,
+      "jsRaw": 5601,
+      "jsGzip": 1849,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 1849,
+      "externals": ["@dnd-kit/core", "@dnd-kit/sortable", "react", "react/jsx-runtime"]
+    },
     "./button": {
       "files": 5,
       "jsRaw": 2519,
@@ -154,11 +163,11 @@
     },
     "./agent-composer": {
       "files": 8,
-      "jsRaw": 25103,
-      "jsGzip": 7841,
+      "jsRaw": 25193,
+      "jsGzip": 7862,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 7841,
+      "gzip": 7862,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./audio-player": {
@@ -296,12 +305,12 @@
       ]
     },
     "./explorer": {
-      "files": 39,
-      "jsRaw": 92879,
-      "jsGzip": 29483,
+      "files": 40,
+      "jsRaw": 96623,
+      "jsGzip": 30659,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 29483,
+      "gzip": 30659,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -591,12 +600,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./window-array": {
-      "files": 25,
-      "jsRaw": 100813,
-      "jsGzip": 27910,
+      "files": 26,
+      "jsRaw": 103276,
+      "jsGzip": 28812,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 27910,
+      "gzip": 28812,
       "externals": [
         "@base-ui/react/dialog",
         "@base-ui/react/radio",
@@ -679,12 +688,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./notebook": {
-      "files": 74,
-      "jsRaw": 225530,
-      "jsGzip": 68703,
+      "files": 75,
+      "jsRaw": 228575,
+      "jsGzip": 69725,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 68703,
+      "gzip": 69725,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -820,11 +829,11 @@
     },
     "./context-editor": {
       "files": 16,
-      "jsRaw": 39332,
-      "jsGzip": 12159,
+      "jsRaw": 39376,
+      "jsGzip": 12174,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 12159,
+      "gzip": 12174,
       "externals": ["@base-ui/react/menu", "react", "react/jsx-runtime"]
     },
     "./skeleton": {
@@ -891,12 +900,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 56,
-      "jsRaw": 177884,
-      "jsGzip": 52314,
+      "files": 57,
+      "jsRaw": 180929,
+      "jsGzip": 53336,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 52314,
+      "gzip": 53336,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -914,11 +923,11 @@
     },
     "./table-input": {
       "files": 29,
-      "jsRaw": 86526,
-      "jsGzip": 25342,
+      "jsRaw": 86578,
+      "jsGzip": 25359,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 25342,
+      "gzip": 25359,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

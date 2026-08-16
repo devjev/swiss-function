@@ -21,6 +21,7 @@ import { DigitInputMicro } from "../DigitInputMicro";
 import { Plus, Trash } from "../Icon";
 import { Picker } from "../Picker";
 import { TextEditInline } from "../TextEditInline";
+import type { TableInputExternalDrop } from "./SortableRows";
 import styles from "./TableInput.module.css";
 
 /** Reorderable rows pull in dnd-kit; load that only when asked. */
@@ -87,6 +88,10 @@ export interface TableInputProps<T = Record<string, unknown>>
   minColumnWidth?: number;
   /** Let rows be dragged to reorder (loads dnd-kit lazily). Default `false`. */
   reorderable?: boolean;
+  /** Fires when a foreign element (from the host, dragged under a shared
+   *  `SfDndProvider`) is dropped onto a row. Only meaningful inside a provider;
+   *  requires `reorderable`. */
+  onExternalDrop?: (drop: TableInputExternalDrop) => void;
   /** Window the rows with `@tanstack/react-virtual` so only the visible slice is
    *  in the DOM, for arrays past a few hundred rows. Requires a bounded height
    *  (set one via `style`); the header sticks while the body scrolls. Ignored
@@ -261,6 +266,7 @@ export function TableInput<T = Record<string, unknown>>({
   equalColumns = false,
   minColumnWidth = 6,
   reorderable = false,
+  onExternalDrop,
   virtualize = false,
   addLabel = "Add row",
   empty,
@@ -435,6 +441,7 @@ export function TableInput<T = Record<string, unknown>>({
               <SortableRows
                 rows={value}
                 onReorder={onChange as (rows: unknown[]) => void}
+                onExternalDrop={onExternalDrop}
                 rowClassName={styles.row}
                 handleClassName={styles.handle}
               >

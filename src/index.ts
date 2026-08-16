@@ -74,5 +74,6 @@ export * from "./components/ToggleGroup";
 export * from "./components/VerticalForm";
 export * from "./components/WindowArray";
 export type { Domain, GridData, Point3, PointSeries } from "./lib/chart3d/types";
+export * from "./lib/dnd";
 export * from "./lib/useCollapse";
 export * from "./lib/useOverflow";

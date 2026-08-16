@@ -334,6 +334,19 @@ className={cx(styles.root, isActive && styles.active, className)}
 
 There is no `clsx` / `classnames` dependency. Use the project's helper.
 
+### One drag-and-drop context: `SfDndProvider`
+
+Every widget with drag (`DataTable` column reorder, `Explorer`,
+`WindowArray`, `TableInput`, `ContextEditor`, `AgentComposer`) renders its
+own dnd-kit `DndContext` by default. If the host app runs its own dnd-kit,
+don't nest contexts (dnd-kit forbids it) and don't add a second DnD
+library. Instead wrap the subtree in `SfDndProvider` (from
+`@tarassov-ch/swiss-function/lib/dnd`): the widgets auto-detect the
+provider and join its single context, existing call sites are unchanged.
+The host can then drag its own `useDraggable` elements onto a widget's
+rows/nodes and read the drop from that widget's `onExternalDrop`. See
+[docs/API.md](./docs/API.md) → SfDndProvider.
+
 ### Sharp corners by default
 
 `--sf-radius-default` is 2px. Don't override to 8px / 12px / 16px to
