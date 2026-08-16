@@ -7,6 +7,7 @@ import {
   GroupsHarness,
   ManyValuesHarness,
   MergeHarness,
+  SelectionReportHarness,
   SnapTallHeaderHarness,
   TreeHarness,
 } from "./DataTable.harness";
@@ -1025,4 +1026,176 @@ test("highlights are positional: they stay on the same cells across a data chang
     .evaluate((el) => Math.round(el.getBoundingClientRect().top));
   const hlTop = await overlays.first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
   expect(Math.abs(hlTop - rowTop)).toBeLessThanOrEqual(1);
+});
+
+// --- Excel row/column selection (rowNumbers gutter + header select zones) ---
+
+test("rowNumbers renders a 1-based gutter and a select-all corner", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  await expect(c.getByRole("rowheader", { name: "Select row 1", exact: true })).toHaveText("1");
+  await expect(c.getByRole("rowheader", { name: "Select row 3", exact: true })).toHaveText("3");
+  await expect(c.getByRole("columnheader", { name: "Select all cells" })).toBeVisible();
+});
+
+test("clicking a row number selects the whole row", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  await c.getByRole("rowheader", { name: "Select row 2", exact: true }).click();
+  // 3 columns in range on row 1; the gutter cell is tinted.
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3);
+  await expect(c.getByRole("rowheader", { name: "Select row 2", exact: true })).toHaveAttribute(
+    "data-selected",
+    "true",
+  );
+  // Cells of other rows are untouched.
+  await expect(c.getByRole("gridcell").filter({ hasText: "Alice" })).not.toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+});
+
+test("Shift+click on a row number extends the row span", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  await c.getByRole("rowheader", { name: "Select row 1", exact: true }).click();
+  await c
+    .getByRole("rowheader", { name: "Select row 3", exact: true })
+    .click({ modifiers: ["Shift"] });
+  // 3 rows × 3 cols all in range.
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
+  expect(await c.locator('[role="rowheader"][data-selected]').count()).toBe(3);
+});
+
+test("dragging along the gutter sweeps a span of rows", async ({ mount, page }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  const r1 = await c.getByRole("rowheader", { name: "Select row 1", exact: true }).boundingBox();
+  const r2 = await c.getByRole("rowheader", { name: "Select row 2", exact: true }).boundingBox();
+  if (!r1 || !r2) throw new Error("missing gutter boxes");
+  await page.mouse.move(r1.x + r1.width / 2, r1.y + r1.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(r2.x + r2.width / 2, r2.y + r2.height / 2, { steps: 4 });
+  await page.mouse.up();
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(6);
+});
+
+test("the select-all corner selects the whole grid", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  await c.getByRole("columnheader", { name: "Select all cells" }).click();
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
+});
+
+test("the header select zone selects the whole column; the label still sorts", async ({
+  mount,
+  page,
+}) => {
+  // SortHarness: its columns are sortable, so it can prove the strip does NOT
+  // sort while the label click still does. 12 rows, height 300 shows them all.
+  const c = await mount(<SortHarness />);
+  const header = c.getByRole("columnheader", { name: "name" });
+  const box = await header.boundingBox();
+  if (!box) throw new Error("missing header box");
+  // Click the slim strip at the very top edge → column selection, no sort.
+  await page.mouse.click(box.x + box.width / 2, box.y + 2);
+  await expect(header).toHaveAttribute("data-selected", "true");
+  await expect(header).not.toContainText("↑");
+  // Click the label (mid-height) → sort, as before.
+  await page.mouse.click(box.x + 16, box.y + box.height / 2 + 4);
+  await expect(header).toContainText("↑");
+});
+
+test("Shift+Space selects the active row, Ctrl+Space the active column", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  await c.getByRole("gridcell").filter({ hasText: "Bob" }).click();
+  await page.keyboard.press("Shift+ ");
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3); // one row × 3 cols
+  await page.keyboard.press("Control+ ");
+  // The row span (row 1 only) widens to the full column height too: 3 rows × 3 cols.
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
+});
+
+test("full-row selection reports an ordinary CellRange through onSelectionChange", async ({
+  mount,
+}) => {
+  const c = await mount(<SelectionReportHarness />);
+  await c.getByRole("rowheader", { name: "Select row 2", exact: true }).click();
+  await expect(c.getByTestId("selection-report")).toHaveText(
+    '{"start":{"row":1,"col":0},"end":{"row":1,"col":2}}',
+  );
+});
+
+// --- selectionMode: row / column selection from a plain cell click ----------
+
+test("selectionMode='row': a cell click selects its whole row; arrows re-select", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} selectionMode="row" />);
+  const bob = c.getByRole("gridcell").filter({ hasText: "Bob" });
+  await bob.click();
+  // Full row 1 in range; the active cell stays the clicked one.
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3);
+  await expect(bob).toHaveAttribute("data-active", "true");
+  await expect(c.getByRole("gridcell").filter({ hasText: "Carol" })).not.toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+  // ArrowDown moves the active cell and the row selection follows.
+  await page.keyboard.press("ArrowDown");
+  await expect(c.getByRole("gridcell").filter({ hasText: "Carol" })).toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3);
+});
+
+test("selectionMode='row': Shift+click and drag sweep full-width row spans", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} selectionMode="row" />);
+  await c.getByRole("gridcell").filter({ hasText: "Alice" }).click();
+  await c
+    .getByRole("gridcell")
+    .filter({ hasText: "Carol" })
+    .click({ modifiers: ["Shift"] });
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
+  // Drag from Bob's row upward: rows 0-1 selected full width.
+  const bob = await c.getByRole("gridcell").filter({ hasText: "Bob" }).boundingBox();
+  const alice = await c.getByRole("gridcell").filter({ hasText: "Alice" }).boundingBox();
+  if (!bob || !alice) throw new Error("missing boxes");
+  await page.mouse.move(bob.x + bob.width / 2, bob.y + bob.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(alice.x + alice.width / 2, alice.y + alice.height / 2, { steps: 4 });
+  await page.mouse.up();
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(6);
+});
+
+test("selectionMode='column': a cell click selects its whole column and tints the header", async ({
+  mount,
+}) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} selectionMode="column" />);
+  await c.getByRole("gridcell").filter({ hasText: "Bob" }).click();
+  // Full "name" column: 3 rows in range.
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3);
+  await expect(c.getByRole("columnheader", { name: "name" })).toHaveAttribute(
+    "data-selected",
+    "true",
+  );
+  await expect(c.getByRole("gridcell").filter({ hasText: "30" })).not.toHaveAttribute(
+    "data-in-range",
+    "true",
+  );
+});
+
+test("selectionMode='row': the gutter and select-all keep their own shapes", async ({ mount }) => {
+  const c = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} selectionMode="row" rowNumbers />,
+  );
+  // The explicit gutter gesture still works and reports the same full row.
+  await c.getByRole("rowheader", { name: "Select row 2", exact: true }).click();
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(3);
+  // Select-all still selects the whole grid, not one row.
+  await c.getByRole("columnheader", { name: "Select all cells" }).click();
+  expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
 });

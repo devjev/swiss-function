@@ -102,6 +102,21 @@ export interface DataTableProps<T>
   cellFontSize?: "xs" | "sm" | "md" | "lg";
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
+  /** Excel-style row-number gutter: a slim, frozen leading track numbering the
+   *  visible rows (1-based display order, so numbers stay put on sort/filter).
+   *  Clicking a number selects the whole row, dragging sweeps a span of rows,
+   *  Shift+click extends, and the corner cell above the gutter selects the
+   *  whole grid. The gutter is not a data column: it doesn't shift `col`
+   *  coordinates in selections, highlights, or spans. Default `false`. */
+  rowNumbers?: boolean;
+  /** What a plain cell click selects. `"cell"` (default) is the spreadsheet
+   *  model. `"row"` widens every cell-driven selection to the full row (the
+   *  list/master-detail reading: click anywhere in a row, get the row) and
+   *  `"column"` to the full column — click, drag, Shift+click, and arrow keys
+   *  all produce full-axis ranges; the active cell stays the clicked cell.
+   *  Explicit gestures (row-number gutter, header select zones, Cmd/Ctrl+A)
+   *  keep their own shapes in every mode. */
+  selectionMode?: "cell" | "row" | "column";
   /** Persistent coloured range overlays (the Excel "coloured range reference"
    *  look). Positional, in visible coordinates. Use several distinct colours to
    *  mark separate ranges (e.g. charting series). Drive it yourself: capture the
@@ -395,6 +410,11 @@ interface DataTableRowProps<T> {
   registerCell: (row: number, col: number, el: HTMLDivElement | null) => void;
   onCellPointerDown: (cell: Cell, ev: { shiftKey: boolean }) => void;
   onCellPointerEnter: (cell: Cell) => void;
+  /** Row-number gutter (Excel row headers); null when `rowNumbers` is off. */
+  rowNumberHandlers: {
+    onPointerDown: (row: number, ev: { shiftKey: boolean }) => void;
+    onPointerEnter: (row: number) => void;
+  } | null;
   isColumnEditable: (col: number) => boolean;
   startEdit: (cell: Cell, initialText?: string) => void;
   resolveActivation: (
@@ -406,6 +426,40 @@ interface DataTableRowProps<T> {
   getValueAt: (rowIdx: number, colIdx: number) => unknown;
   commitEdit: (value: unknown, advance?: AdvanceHint) => void;
   cancelEdit: () => void;
+}
+
+/** The row-number gutter cell: 1-based display index, sticky left, whole-row
+ *  selection on click / Shift+click / drag (Excel's row header). Shared by the
+ *  flat and tree row paths. */
+function RowNumberCell({
+  displayIndex,
+  selected,
+  frozenEdge,
+  onPointerDown,
+  onPointerEnter,
+}: {
+  displayIndex: number;
+  selected: boolean;
+  /** The gutter is the frozen region's edge when no data columns are frozen. */
+  frozenEdge: boolean;
+  onPointerDown: (row: number, ev: { shiftKey: boolean }) => void;
+  onPointerEnter: (row: number) => void;
+}) {
+  return (
+    <div
+      role="rowheader"
+      aria-label={`Select row ${displayIndex + 1}`}
+      className={styles.rowNumberCell}
+      data-selected={selected || undefined}
+      data-frozen-edge={frozenEdge || undefined}
+      onPointerDown={(e) => {
+        if (e.button === 0) onPointerDown(displayIndex, { shiftKey: e.shiftKey });
+      }}
+      onPointerEnter={() => onPointerEnter(displayIndex)}
+    >
+      {displayIndex + 1}
+    </div>
+  );
 }
 
 /** One flat-mode body row, rendered straight from the raw data row (no
@@ -432,6 +486,7 @@ function DataTableRowInner<T>({
   registerCell,
   onCellPointerDown,
   onCellPointerEnter,
+  rowNumberHandlers,
   isColumnEditable,
   startEdit,
   resolveActivation,
@@ -456,6 +511,21 @@ function DataTableRowInner<T>({
           : { height }
       }
     >
+      {rowNumberHandlers && (
+        <RowNumberCell
+          displayIndex={displayIndex}
+          selected={
+            selectionRange != null &&
+            selectionRange.start.col === 0 &&
+            selectionRange.end.col === visibleLeaves.length - 1 &&
+            displayIndex >= selectionRange.start.row &&
+            displayIndex <= selectionRange.end.row
+          }
+          frozenEdge={frozenCount === 0}
+          onPointerDown={rowNumberHandlers.onPointerDown}
+          onPointerEnter={rowNumberHandlers.onPointerEnter}
+        />
+      )}
       {visibleLeaves.map((colDef, colIndex) => {
         const cell: Cell = { row: displayIndex, col: colIndex };
         const active = selectionActive?.row === displayIndex && selectionActive?.col === colIndex;
@@ -545,6 +615,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     cellPadding = "md",
     cellFontSize = "md",
     onSelectionChange,
+    rowNumbers = false,
+    selectionMode = "cell",
     highlights,
     paginate,
     rowHeight = DEFAULT_ROW_HEIGHT,
@@ -819,13 +891,43 @@ export function DataTable<T>(props: DataTableProps<T>) {
     isInRange,
     handleCellPointerDown,
     handleCellPointerEnter,
+    handleRowHeaderPointerDown,
+    handleRowHeaderPointerEnter,
+    handleColumnHeaderPointerDown,
+    handleColumnHeaderPointerEnter,
+    selectAll,
     handleKeyDown: handleSelectionKey,
     setActive,
   } = useTableSelection({
     rowCount: visibleRowCount,
     colCount,
+    mode: selectionMode === "column" ? "col" : selectionMode,
     onSelectionChange,
   });
+
+  // Whether the current range spans the full width / height — the state the
+  // row-number gutter and header select zones tint as "this line is selected".
+  const fullWidthRange =
+    selection.range != null &&
+    selection.range.start.col === 0 &&
+    selection.range.end.col === colCount - 1;
+  const fullHeightRange =
+    selection.range != null &&
+    selection.range.start.row === 0 &&
+    selection.range.end.row === visibleRowCount - 1;
+
+  // One stable object so the memoized flat rows don't re-render per selection
+  // tick just because the handler pair was rebuilt.
+  const rowNumberHandlers = useMemo(
+    () =>
+      rowNumbers
+        ? {
+            onPointerDown: handleRowHeaderPointerDown,
+            onPointerEnter: handleRowHeaderPointerEnter,
+          }
+        : null,
+    [rowNumbers, handleRowHeaderPointerDown, handleRowHeaderPointerEnter],
+  );
 
   // Move the active cell after an editor commits. Mirrors Excel's commit-then-advance.
   const advanceCell = useCallback(
@@ -1226,46 +1328,58 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [measureLeafWidths, applyResize, resolveResizeIdx],
   );
 
+  // --- Row-number gutter geometry ---
+  // A fixed leading track outside `visibleLeaves`, so it never shifts `col`
+  // coordinates. Width grows with the digit count (1.5u covers 3 digits at the
+  // sm mono size, +0.25u per further digit), as a calc() so it tracks the
+  // consumer's --sf-unit.
+  const gutterWidth = useMemo(() => {
+    if (!rowNumbers) return null;
+    const digits = String(Math.max(1, visibleRowCount)).length;
+    return `calc(var(--sf-unit) * ${1.5 + Math.max(0, digits - 3) * 0.25})`;
+  }, [rowNumbers, visibleRowCount]);
+
   // --- Frozen (pinned-left) columns ---
   // Clamp so at least one column still scrolls; counts leaf columns.
   const frozenCount = Math.max(0, Math.min(frozenColumns, visibleLeaves.length - 1));
   // CSS `left` per frozen column + the region's total width, as calc() strings so
-  // they track the consumer's --sf-unit without resolving px in JS.
-  const frozenLefts = useMemo(
-    () =>
-      frozenLeftOffsets(visibleLeaves, columnWidths, frozenCount, {
-        defaultWidth: defaultColumnWidth,
-      }),
-    [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth],
-  );
-  const frozenWidth = useMemo(
-    () =>
-      frozenTotalWidth(visibleLeaves, columnWidths, frozenCount, {
-        defaultWidth: defaultColumnWidth,
-      }),
-    [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth],
-  );
+  // they track the consumer's --sf-unit without resolving px in JS. The gutter
+  // (itself sticky at 0) pushes every frozen offset right by its width.
+  const frozenLefts = useMemo(() => {
+    const lefts = frozenLeftOffsets(visibleLeaves, columnWidths, frozenCount, {
+      defaultWidth: defaultColumnWidth,
+    });
+    if (!gutterWidth) return lefts;
+    return lefts.map((left) => (left === "0px" ? gutterWidth : `calc(${gutterWidth} + ${left})`));
+  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth]);
+  const frozenWidth = useMemo(() => {
+    const width = frozenTotalWidth(visibleLeaves, columnWidths, frozenCount, {
+      defaultWidth: defaultColumnWidth,
+    });
+    if (!gutterWidth) return width;
+    return width === "0px" ? gutterWidth : `calc(${gutterWidth} + ${width})`;
+  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth]);
   // Toggle a boundary shadow on the frozen edge once the body is scrolled right.
+  // The gutter is a frozen edge of its own when no data columns are frozen.
   const [frozenScrolled, setFrozenScrolled] = useState(false);
   const handleViewportScroll = useCallback(
     (e: UIEvent<HTMLDivElement>) => {
-      if (frozenCount === 0) return;
+      if (frozenCount === 0 && !rowNumbers) return;
       const next = e.currentTarget.scrollLeft > 0;
       setFrozenScrolled((prev) => (prev === next ? prev : next));
     },
-    [frozenCount],
+    [frozenCount, rowNumbers],
   );
 
   // --- Grid template (from visible leaves + runtime width overrides) ---
-  const gridTemplateColumns = useMemo(
-    () =>
-      buildColumnTemplate(visibleLeaves, columnWidths, {
-        stretchLast: !fillOn,
-        defaultWidth: defaultColumnWidth,
-        frozenCount,
-      }),
-    [visibleLeaves, columnWidths, fillOn, defaultColumnWidth, frozenCount],
-  );
+  const gridTemplateColumns = useMemo(() => {
+    const template = buildColumnTemplate(visibleLeaves, columnWidths, {
+      stretchLast: !fillOn,
+      defaultWidth: defaultColumnWidth,
+      frozenCount,
+    });
+    return gutterWidth ? `${gutterWidth} ${template}` : template;
+  }, [visibleLeaves, columnWidths, fillOn, defaultColumnWidth, frozenCount, gutterWidth]);
 
   // --- Fill backdrop ---
   // A single dither surface behind the grid content (see `.content` / `.fill`
@@ -1351,6 +1465,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     selectionActive: selection.active,
     selectionRange: selection.range,
     highlights: resolvedHighlights,
+    rowNumberHandlers,
     registerCell,
     onCellPointerDown: handleCellPointerDown,
     onCellPointerEnter: handleCellPointerEnter,
@@ -1613,6 +1728,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const fmeta = isLeafHeader ? filterMeta.get(header.column.id) : undefined;
     const filterValue = fmeta ? header.column.getFilterValue() : undefined;
     const isFiltered = filterValue != null;
+    const colSelected =
+      isLeafHeader &&
+      fullHeightRange &&
+      selection.range != null &&
+      leafStart >= selection.range.start.col &&
+      leafStart <= selection.range.end.col;
     return (
       <div
         key={header.id}
@@ -1635,6 +1756,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-frozen={isFrozen || undefined}
         data-frozen-edge={isFrozenEdge || undefined}
         data-filtered={isFiltered || undefined}
+        data-selected={colSelected || undefined}
         // A placeholder sits above an ungrouped leaf's real header — erase the seam
         // below it so the column reads as one full-height header.
         data-merge-bottom={header.isPlaceholder || undefined}
@@ -1672,6 +1794,25 @@ export function DataTable<T>(props: DataTableProps<T>) {
               />
             ) : null}
           </>
+        )}
+        {/* Excel's column-select zone: a slim strip along the header's top edge.
+            Click selects the whole column, Shift+click extends the column span,
+            drag sweeps several columns. Pointer-only (the keyboard path is
+            Ctrl+Space on a cell), so it's hidden from the tree; it stops
+            propagation so sort / drag-reorder don't also fire. */}
+        {isLeafHeader && leafStart >= 0 && (
+          <div
+            aria-hidden="true"
+            className={styles.selectZone}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              if (e.button === 0) {
+                handleColumnHeaderPointerDown(leafStart, { shiftKey: e.shiftKey });
+              }
+            }}
+            onPointerEnter={() => handleColumnHeaderPointerEnter(leafStart)}
+            onClick={(e) => e.stopPropagation()}
+          />
         )}
         {showResizeHandle && (
           <div
@@ -1732,11 +1873,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
             // every row's grid-template-columns,
             // so a resize step mutates one element instead of every row.
             "--sf-datatable-template": gridTemplateColumns,
-            ...(frozenCount > 0 ? { scrollPaddingInlineStart: frozenWidth } : {}),
+            ...(frozenCount > 0 || rowNumbers ? { scrollPaddingInlineStart: frozenWidth } : {}),
           } as CSSProperties
         }
         onKeyDown={handleKeyDown}
-        onScroll={frozenCount > 0 ? handleViewportScroll : undefined}
+        onScroll={frozenCount > 0 || rowNumbers ? handleViewportScroll : undefined}
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
@@ -1763,6 +1904,28 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 className={styles.headerRow}
                 role="row"
               >
+                {/* Corner cell over the row-number gutter. Only the leaf header
+                    row carries the select-all behavior; rows above it render a
+                    merged, inert continuation so the corner reads as one cell. */}
+                {rowNumbers &&
+                  (hgIndex === headerGroups.length - 1 ? (
+                    <div
+                      role="columnheader"
+                      aria-label="Select all cells"
+                      className={styles.cornerCell}
+                      data-frozen-edge={frozenCount === 0 || undefined}
+                      onPointerDown={(e) => {
+                        if (e.button === 0) selectAll();
+                      }}
+                    />
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      className={styles.cornerCell}
+                      data-merge-bottom
+                      data-frozen-edge={frozenCount === 0 || undefined}
+                    />
+                  ))}
                 {hg.headers.map((header) => {
                   const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
                   return reorderableColumns && isLeaf ? (
@@ -1824,6 +1987,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       className={styles.row}
                       style={{ height: rowHeight }}
                     >
+                      {rowNumberHandlers && (
+                        <RowNumberCell
+                          displayIndex={rowIndex}
+                          selected={
+                            fullWidthRange &&
+                            selection.range != null &&
+                            rowIndex >= selection.range.start.row &&
+                            rowIndex <= selection.range.end.row
+                          }
+                          frozenEdge={frozenCount === 0}
+                          onPointerDown={rowNumberHandlers.onPointerDown}
+                          onPointerEnter={rowNumberHandlers.onPointerEnter}
+                        />
+                      )}
                       {row
                         .getVisibleCells()
                         .map((_, colIndex) => renderCell(row, rowIndex, colIndex))}
@@ -1876,6 +2053,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       transform: `translateY(${vr.start}px)`,
                     }}
                   >
+                    {rowNumberHandlers && (
+                      <RowNumberCell
+                        displayIndex={vr.index}
+                        selected={
+                          fullWidthRange &&
+                          selection.range != null &&
+                          vr.index >= selection.range.start.row &&
+                          vr.index <= selection.range.end.row
+                        }
+                        frozenEdge={frozenCount === 0}
+                        onPointerDown={rowNumberHandlers.onPointerDown}
+                        onPointerEnter={rowNumberHandlers.onPointerEnter}
+                      />
+                    )}
                     {row
                       .getVisibleCells()
                       .map((_, colIndex) => renderCell(row, vr.index, colIndex))}

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DataTable, type DataTableProps } from "./DataTable";
 import type { CellChange, ColumnDef, EditActivation, PaginateConfig } from "./types";
 
@@ -26,6 +27,10 @@ interface HarnessProps {
   editOn?: EditActivation;
   /** Column ids that opt into single-click editing (`editOn: "single"`). */
   singleClickCols?: string[];
+  /** Excel-style row-number gutter + select-all corner. */
+  rowNumbers?: boolean;
+  /** What a plain cell click selects. */
+  selectionMode?: DataTableProps<Row>["selectionMode"];
 }
 
 // Playwright CT mounts must be top-level component invocations (no inline closures),
@@ -48,6 +53,8 @@ export function DataTableHarness({
   onCellChange,
   editOn,
   singleClickCols,
+  rowNumbers,
+  selectionMode,
 }: HarnessProps) {
   const columns: ColumnDef<Row>[] = cols.map((id) => {
     const locked = lockedCols?.includes(id) ? { resizable: false as const } : null;
@@ -89,6 +96,8 @@ export function DataTableHarness({
       reorderableColumns={reorderableColumns}
       filterableColumns={filterableColumns}
       editOn={editOn}
+      rowNumbers={rowNumbers}
+      selectionMode={selectionMode}
       height={300}
       onCellChange={onCellChange as ((changes: CellChange[]) => void) | undefined}
     />
@@ -333,4 +342,34 @@ export function ManyValuesHarness({ count = 500 }: { count?: number }) {
     { id: "age", header: "age", accessor: "age", align: "end" },
   ];
   return <DataTable<Row> data={data} columns={columns} height={300} filterableColumns />;
+}
+
+// --- Row/column selection reporting harness -------------------------------
+// Captures `onSelectionChange` into a readable node, so a spec can assert that
+// a full-row selection arrives as an ordinary CellRange (callbacks can't cross
+// the CT boundary).
+export function SelectionReportHarness() {
+  const [range, setRange] = useState("null");
+  const data: Row[] = [
+    { name: "Alice", age: 30, active: true },
+    { name: "Bob", age: 25, active: false },
+    { name: "Carol", age: 40, active: true },
+  ];
+  const columns: ColumnDef<Row>[] = [
+    { id: "name", header: "name", accessor: "name" },
+    { id: "age", header: "age", accessor: "age" },
+    { id: "active", header: "active", accessor: "active" },
+  ];
+  return (
+    <div>
+      <DataTable<Row>
+        data={data}
+        columns={columns}
+        rowNumbers
+        height={300}
+        onSelectionChange={(s) => setRange(JSON.stringify(s.range))}
+      />
+      <div data-testid="selection-report">{range}</div>
+    </div>
+  );
 }

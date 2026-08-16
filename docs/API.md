@@ -607,7 +607,9 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `copyWithHeaders` | `boolean` | `true` | Prepend the selected columns' header names as the first row when copying cells (Cmd/Ctrl+C), so a paste into a spreadsheet/doc is self-labelling. Set `false` for a values-only copy (e.g. pasting straight back into editable cells). A non-string (`ReactNode`) header copies as the column `id`. |
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
-| `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. |
+| `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. Full-row / full-column selections (see `rowNumbers` and the header select zones) arrive as ordinary `CellRange`s spanning the whole axis, so highlights and copy compose unchanged. |
+| `rowNumbers` | `boolean` | `false` | Excel-style row-number gutter: a slim frozen leading track numbering the visible rows (1-based display order — numbers stay put on sort/filter). Click a number to select the whole row, drag to sweep a span, Shift+click to extend; the corner cell above the gutter selects the whole grid. Not a data column: `col` coordinates in selections/highlights/spans are unshifted. |
+| `selectionMode` | `"cell" \| "row" \| "column"` | `"cell"` | What a plain cell click selects. `"row"` widens every cell-driven selection to the full row (list/master-detail: click anywhere in a row, get the row), `"column"` to the full column — click, drag, Shift+click and arrow keys all produce full-axis ranges, while the active cell stays the clicked cell. Explicit gestures (gutter, header select zones, Cmd/Ctrl+A) keep their own shapes. |
 | `highlights` | `DataTableHighlight[]` | n/a | Persistent coloured range overlays (the Excel "coloured range reference" look: a light fill plus a solid border around the block). Each is `{ id?, range: CellRange, color?, label? }`. **Positional** (visible coordinates, like the selection and cell spans): a highlight marks a screen region and stays put when data is sorted or filtered. `color` is any CSS colour/token; omit it and colours cycle the semantic tokens by array position. Use several distinct colours to mark separate ranges (e.g. charting series). Declarative: to add one "with the mouse", capture the selection via `onSelectionChange` and push a highlight with a colour. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
@@ -658,7 +660,13 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 **Keyboard / selection:**
 - With a selected cell, arrows move the active cell one cell and scroll it into
   view; Tab/Enter navigate Excel-style; Cmd/Ctrl+C/V copy/paste; Cmd/Ctrl+A
-  selects all.
+  selects all; Shift+Space selects the whole row(s) of the current range,
+  Ctrl+Space the whole column(s) — the active cell stays put.
+- Every leaf header carries a slim **select zone** along its top edge: click it
+  to select the whole column (Shift+click extends the column span, dragging
+  across zones sweeps several). The header label below it still sorts. A fully
+  selected column tints its header; with `rowNumbers`, selected rows tint
+  their number cells.
 - With **no** selected cell, arrows scroll the viewport exactly one row / one
   column, snapped to the row-height grid and leaf-column boundaries.
 - The range tint is a translucent overlay painted *on top* of cell content, so a

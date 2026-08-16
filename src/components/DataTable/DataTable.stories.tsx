@@ -352,6 +352,73 @@ export const Selection: Story = () => {
   );
 };
 
+// Excel row/column selection: `rowNumbers` adds the numbered gutter (click a
+// number = whole row, drag = a span of rows, the corner = everything), every
+// leaf header carries a slim select zone along its top edge (click = whole
+// column; the label below it still sorts), and Shift+Space / Ctrl+Space select
+// the active cell's row / column. Full rows and columns are ordinary ranges in
+// `onSelectionChange`, so highlights and copy compose unchanged.
+export const RowAndColumnSelection: Story = () => {
+  const [sel, setSel] = useState<string>("none");
+  return (
+    <div>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
+        Click a row number for the row, the strip on a header's top edge for the column, the corner
+        for everything. Shift+click extends, dragging sweeps. Shift+Space / Ctrl+Space from the
+        keyboard.
+      </p>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Selection: {sel}
+      </p>
+      <DataTable
+        data={seed(30)}
+        columns={baseColumns}
+        rowNumbers
+        height={360}
+        onSelectionChange={(s) => setSel(JSON.stringify(s))}
+      />
+    </div>
+  );
+};
+
+export const RowNumbersFrozen: Story = () => (
+  <DataTable data={seed(40)} columns={wideColumns} rowNumbers frozenColumns={2} height={360} />
+);
+
+// selectionMode changes what a plain cell click selects: "row" gives the
+// list/master-detail reading (click anywhere in a row, get the row), "column"
+// the analytic one. Drag, Shift+click and arrows all follow the mode; the
+// gutter, header zones and Cmd/Ctrl+A stay their explicit selves.
+export const SelectionModes: Story = () => {
+  const [rowSel, setRowSel] = useState<string>("none");
+  const [colSel, setColSel] = useState<string>("none");
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        selectionMode="row" — {rowSel}
+      </p>
+      <DataTable
+        data={seed(8)}
+        columns={baseColumns}
+        selectionMode="row"
+        rowNumbers
+        height={240}
+        onSelectionChange={(s) => setRowSel(JSON.stringify(s.range))}
+      />
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        selectionMode="column" — {colSel}
+      </p>
+      <DataTable
+        data={seed(8)}
+        columns={baseColumns}
+        selectionMode="column"
+        height={240}
+        onSelectionChange={(s) => setColSel(JSON.stringify(s.range))}
+      />
+    </div>
+  );
+};
+
 export const PasteIntoRange: Story = () => {
   const [data, setData] = useState<Person[]>(() => seed(10));
   const sample = "Pasty\t99\ttrue\tadmin\nNew\t30\tfalse\tuser";
