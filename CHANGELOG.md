@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.22.0 — 2026-08-16
+
+### Minor
+
+- AudioPlayer: a self-contained audio player with play/pause/stop transport, a quantized waveform that doubles as the seek slider (with live analyser bars for streams), a mono time readout, and a cycling playback-rate button. Two layouts: an inline strip (default) and a panel deck with the wave display stacked over a control bar. Adds Play/Pause/Stop icons and play/pause/stop icon slots.
+- DataTable: Excel-style full row/column selection. rowNumbers adds a frozen numbered gutter (click a number selects the row, drag sweeps a span, the corner selects everything), every leaf header gains a slim top-edge select zone (click selects the column; the label still sorts), and Shift+Space / Ctrl+Space select the active row/column. selectionMode="row"/"column" makes a plain cell click select its whole row or column instead of one cell. Full rows and columns report as ordinary ranges through onSelectionChange.
+
 ## v2.21.1 — 2026-08-14
 
 ### Patch
