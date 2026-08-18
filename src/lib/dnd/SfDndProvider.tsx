@@ -3,10 +3,12 @@
 // One `DndContext` + one `DragOverlay` serve every swiss-function widget in the
 // subtree plus the host's own draggables/droppables. The provider owns no drag
 // behaviour of its own; it dispatches each event to the region that owns the
-// active item (by `sfRegionId` in the item data), and routes a foreign item
-// dropped over a region to that region's `onExternalDrop`. Drags claimed by no
-// region fall through to the optional top-level handler props, so a host can run
-// its own sortables under the same context.
+// active item (by `sfRegionId` in the item data). A drop within the item's own
+// region reorders it there; a drop over a DIFFERENT region — or a foreign (host)
+// item dropped over a region — fires the TARGET region's `onExternalDrop`, so a
+// row can be dragged out of one widget onto another. Drags claimed by no region
+// fall through to the optional top-level handler props, so a host can run its own
+// sortables under the same context.
 
 import type {
   CollisionDetection,
@@ -131,18 +133,26 @@ export function SfDndProvider({
 
   const handleDragEnd = useCallback((e: DragEndEvent) => {
     setActive(null);
-    const route = routeDragEnd(regionIdOf(e.active), regionIdOf(e.over), (id) =>
-      regions.current.has(id),
-    );
+    const activeRegionId = regionIdOf(e.active);
+    const route = routeDragEnd(activeRegionId, regionIdOf(e.over), (id) => regions.current.has(id));
     if (route.kind === "internal") {
       // The region's handler reorders and cleans up (it self-guards on `over`,
       // so a drop over nothing or another region is a no-op).
       regions.current.get(route.regionId)?.onDragEnd?.(e);
       return;
     }
-    // Foreign item: hand it to the region it was dropped over (if any), then let
-    // the host handle its own drags too.
-    if (route.kind === "external") regions.current.get(route.regionId)?.onExternalDrop?.(e);
+    if (route.kind === "external") {
+      // A foreign item lands on the target region's `onExternalDrop`.
+      regions.current.get(route.regionId)?.onExternalDrop?.(e);
+      // On a cross-region drag-OUT (the item owns a different registered region),
+      // the source region got no terminal event for its own drag, so its
+      // transient drag state (the ghosted source row) would leak. Reset it via
+      // the source's cancel handler — a pure reset that runs no reorder. A host
+      // item (`activeRegionId === null`) has no source region to reset.
+      if (activeRegionId && activeRegionId !== route.regionId) {
+        regions.current.get(activeRegionId)?.onDragCancel?.(e);
+      }
+    }
     propsRef.current.onDragEnd?.(e);
   }, []);
 

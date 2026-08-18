@@ -344,7 +344,11 @@ library. Instead wrap the subtree in `SfDndProvider` (from
 `@tarassov-ch/swiss-function/lib/dnd`): the widgets auto-detect the
 provider and join its single context, existing call sites are unchanged.
 The host can then drag its own `useDraggable` elements onto a widget's
-rows/nodes and read the drop from that widget's `onExternalDrop`. See
+rows/nodes and read the drop from that widget's `onExternalDrop`. A row
+can also be dragged *out* of one widget onto another: a drop over a
+different registered region fires the target's `onExternalDrop` (the
+source's internal reorder is skipped), so widget-to-widget drag needs no
+wiring beyond the target's `onExternalDrop`. See
 [docs/API.md](./docs/API.md) → SfDndProvider.
 
 ### Sharp corners by default
@@ -487,8 +491,13 @@ between files (issue #89). The `slot` is what lets a consumer's
 `IconProvider` redirect it; a raw inline `<svg>` is invisible to that and
 drifts in stroke/size. If the glyph you need has no bespoke icon yet, add
 one to `components/Icon/icons.tsx` (its own named export, on the 16-grid,
-square cap) and a slot to `SF_ICON_SLOTS`. Chart bodies, canvas drawing,
-and interactive `lib/TreeChevron` are the exceptions (not icon glyphs).
+square cap) and a slot to `SF_ICON_SLOTS`. This applies to shared helpers
+too: `lib/TreeChevron` (tree/accordion expand-collapse) and the
+`lib/filter` funnel route their glyphs through the chevron / `filter`
+slots, so a consumer's `IconProvider` reaches every visible glyph. The
+only exceptions are chart bodies and canvas drawing (not glyphs), and a
+control's own animated indicator mark (the `Checkbox` check /
+indeterminate paths, whose CSS draws the stroke).
 
 ### Don't add personality
 

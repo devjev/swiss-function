@@ -1067,8 +1067,10 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 | `layoutOptions` | `GraphLayoutOptions` | n/a | Per-layout tuning (only the active layout's block is read); each field defaults to the size-derived value. `force` (`iterations` plus the full ForceAtlas2 settings: `gravity`, `scalingRatio`, `strongGravityMode`, `linLogMode`, `outboundAttractionDistribution`, `adjustSizes`, `edgeWeightInfluence`, `slowDown`, `barnesHutOptimize`, `barnesHutTheta`), `radial`/`concentric` (`scale`), `tree` (`rootId`/`direction`/`levelGap`), `grid` (`columns`). Force settings override `forceAtlas2.inferSettings` (which auto-tunes gravity/scalingRatio/BarnesHut by node count). Changing it re-runs the current layout. |
 | `onLayoutChange` | `(next: LayoutKind) => void` | n/a | Layout changed (prop/toolbar/keyboard). |
 | `onNodeClick` / `onEdgeClick` | `(id: string) => void` | n/a | Clicks (edges clickable when `editable` or this is set). |
-| `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id. |
-| `highlightConnectionsOnHover` | `boolean` | `true` | On node hover, emphasize its incident edges (both directions) + neighbours and fade the rest, so a node's connections read at a glance. `false` keeps hover to just the label box. |
+| `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id (or `null`). The selected node gets a built-in persistent emphasis — accent fill + Sigma's highlight ring/label box — the node analogue of the selected-edge double stroke. |
+| `selected` | `string \| null` | n/a | Controlled selected node id. When set, that node carries the emphasis and the component reflects the prop. Omit for uncontrolled selection (a node click selects, a stage click clears, both still reported via `onSelectionChange`). `null` selects nothing. |
+| `selectedNodeVisual` | `NodeVisual` | n/a | Override the built-in selected-node emphasis. Each returned field (accent `color`, `size`, `label`) replaces that part of the default; omitted fields keep it. `renderNode` still supplies the base attributes underneath. |
+| `highlightConnectionsOnHover` | `boolean` | `true` | On node hover, emphasize its incident edges (both directions) + neighbours and fade the rest, so a node's connections read at a glance. `false` keeps hover to just the label box. A selected node stays emphasized through the fade. |
 | `onNodeHover` | `(id: string \| null) => void` | n/a | Pointer entered a node (`id`) or left it (`null`). Independent of `highlightConnectionsOnHover`. |
 | `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | n/a | Override visual attrs; omitted fields use defaults. |
 | `onNodeContextMenu` | `(id, event) => void` | n/a | Before right-click menu opens. |
@@ -2481,9 +2483,14 @@ Notes: windows render as flat, keyed siblings of one strip grid and are placed i
 
 Every drag-and-drop widget (`DataTable` column reorder, `Explorer`, `WindowArray`, `TableInput`, `ContextEditor`, `AgentComposer`) renders its **own** dnd-kit `DndContext` by default. Wrapping a subtree in `SfDndProvider` makes all of them join **one** dnd-kit context instead: a single runtime for the whole subtree (dnd-kit does not support nested `DndContext`s), and the host can drag its own elements onto a widget's rows/nodes. Adoption is **auto-detected**, existing call sites are unchanged; a widget only joins the shared context when a provider is an ancestor, otherwise it behaves exactly as before.
 
-The provider owns no drag behaviour of its own. Each widget registers a **region** (keyed by a per-instance id it stamps onto its draggable/droppable `data` under `sfRegionId`), and the provider routes each drag to the owning region: a widget's own drag reorders internally as before, and a foreign element (the host's, or any item without a region) dropped over a widget fires that widget's `onExternalDrop`. Drags claimed by no region fall through to the provider's own handler props, so a host can run its own sortables under the same context.
+The provider owns no drag behaviour of its own. Each widget registers a **region** (keyed by a per-instance id it stamps onto its draggable/droppable `data` under `sfRegionId`), and the provider routes each drag by where it starts and lands:
 
-To drag a host element into a widget, make it a dnd-kit `useDraggable` **inside** the provider (no region id needed) and read the drop from the target widget's `onExternalDrop`.
+- Dropped **inside its own region** (or over nothing) → the source widget reorders internally, as before.
+- Dropped over a **different** registered region → that **target** region's `onExternalDrop` fires, and the source's internal reorder is skipped. This is what lets a row be dragged *out* of one widget onto another (e.g. an `Explorer` row onto an `AgentComposer` or a `ContextEditor`).
+- A foreign element with no region (the host's own draggable) dropped over a widget → that widget's `onExternalDrop`.
+- Claimed by no region → falls through to the provider's own handler props, so a host can run its own sortables under the same context.
+
+To drag a host element into a widget, make it a dnd-kit `useDraggable` **inside** the provider (no region id needed) and read the drop from the target widget's `onExternalDrop`. To drag one widget's row into another, no extra wiring is needed beyond the target's `onExternalDrop`: the source widget's drag already carries its region stamp, and the router directs a cross-region drop to the target.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -2505,7 +2512,7 @@ Each participating widget exposes an `onExternalDrop` reporting where a foreign 
 | `AgentComposer` | `{ active, overId }` | a tree node |
 | `WindowArray` | `{ active, over }` | a window / empty column / gap |
 
-`active` is the dnd-kit `Active` for the dragged host item; read your own payload off `active.data.current`.
+`active` is the dnd-kit `Active` for the dragged item — a host element, or a row from another widget (its `active.data.current` carries the source region's stamp plus whatever that widget put there); read your own payload off `active.data.current`.
 
 ```tsx
 import { SfDndProvider } from "@tarassov-ch/swiss-function/lib/dnd";

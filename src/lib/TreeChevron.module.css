@@ -19,6 +19,13 @@
   border-radius: var(--sf-radius-default);
 }
 
+/* Size the glyph to the button, proportional to --sf-chevron-size so it shrinks
+   with the button (Explorer). Overrides the icon's own width/height attrs. */
+.icon {
+  inline-size: calc(var(--sf-chevron-size, calc(var(--sf-unit) * 0.75)) * 0.72);
+  block-size: calc(var(--sf-chevron-size, calc(var(--sf-unit) * 0.75)) * 0.72);
+}
+
 .chevron:hover {
   background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
   color: var(--sf-color-fg);

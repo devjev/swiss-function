@@ -3,8 +3,11 @@ import {
   AdaptedDecorative,
   AdaptedLabelled,
   DefaultCheck,
+  FilterIconDefault,
+  FilterIconOverridden,
   NestedMerge,
   OverrideCheckOnly,
+  TreeChevronOverridden,
 } from "./icons.fixtures";
 
 test("no provider: a slot resolves to its bespoke fallback", async ({ mount }) => {
@@ -43,4 +46,23 @@ test("iconAdapter: decorative -> aria-hidden, default 1em", async ({ mount }) =>
   await expect(el).toHaveAttribute("aria-hidden", "true");
   await expect(el).not.toHaveAttribute("role", "img");
   await expect(el).toHaveAttribute("width", "1em");
+});
+
+// A provider override must reach real component glyphs, not just bare <Glyph>.
+
+test("the column filter funnel routes through the `filter` slot", async ({ mount }) => {
+  const def = await mount(<FilterIconDefault />);
+  // No provider: the bespoke funnel on the 16-grid.
+  await expect(def.locator('svg[viewBox="0 0 16 16"]')).toHaveCount(1);
+  await expect(def.getByTestId("external")).toHaveCount(0);
+  await def.unmount();
+
+  const over = await mount(<FilterIconOverridden />);
+  // Provider override: the swapped-in external icon replaces the funnel.
+  await expect(over.getByTestId("external")).toHaveCount(1);
+});
+
+test("the tree expand/collapse chevron routes through the chevron slots", async ({ mount }) => {
+  const el = await mount(<TreeChevronOverridden />);
+  await expect(el.getByTestId("external")).toHaveCount(1);
 });

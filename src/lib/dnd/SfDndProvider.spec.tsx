@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ExternalDropHarness, ProbeHarness, ReorderHarness } from "./SfDndProvider.harness";
+import {
+  CrossWidgetHarness,
+  ExternalDropHarness,
+  ProbeHarness,
+  ReorderHarness,
+  TwoTableHarness,
+} from "./SfDndProvider.harness";
 
 async function dragMouse(
   page: import("@playwright/test").Page,
@@ -41,6 +47,69 @@ test("reordering works when the widget joins the shared context", async ({ mount
   });
 
   await expect(c.getByTestId("order")).toHaveText("Second|Third|First");
+});
+
+test("an item dragged out of one region onto another fires the target's onExternalDrop", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<CrossWidgetHarness />);
+  await expect(c.getByTestId("event-a")).toHaveText("none");
+  await expect(c.getByTestId("event-b")).toHaveText("none");
+
+  const dragA = await c.getByTestId("drag-a").boundingBox();
+  const regionB = await c.getByTestId("region-b").boundingBox();
+  if (!dragA || !regionB) throw new Error("no boxes");
+
+  // Drag region A's item onto region B.
+  await dragMouse(page, center(dragA), center(regionB));
+
+  // B saw it as an external drop; A's own internal reorder never fired.
+  await expect(c.getByTestId("event-b")).toHaveText("external:a-item");
+  await expect(c.getByTestId("event-a")).toHaveText("none");
+  // The source region's transient drag state was reset (no ghosted row leak).
+  await expect(c.getByTestId("drag-state-a")).toHaveText("idle");
+});
+
+test("two TableInputs under one provider have namespaced row ids (no cross-table hijack)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<TwoTableHarness />);
+  await expect(c.getByTestId("order-a")).toHaveText("A1|A2|A3");
+  await expect(c.getByTestId("b-external")).toHaveText("none");
+
+  // Reorder within table A: drag its first row past its third.
+  const gripsA = c.getByTestId("table-a").getByRole("button", { name: "Drag to reorder" });
+  const firstA = await gripsA.first().boundingBox();
+  const thirdA = await gripsA.nth(2).boundingBox();
+  if (!firstA || !thirdA) throw new Error("no grips");
+  await dragMouse(page, center(firstA), { x: center(thirdA).x, y: thirdA.y + thirdA.height });
+
+  // A reordered; B was never touched (before namespacing, colliding "0"/"1" ids
+  // could route A's drag onto B's droppable and fire B's onExternalDrop).
+  await expect(c.getByTestId("order-a")).toHaveText("A2|A3|A1");
+  await expect(c.getByTestId("order-b")).toHaveText("B1|B2");
+  await expect(c.getByTestId("b-external")).toHaveText("none");
+});
+
+test("an item dropped back inside its own region routes internal, not external", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<CrossWidgetHarness />);
+  const dragA = await c.getByTestId("drag-a").boundingBox();
+  const regionA = await c.getByTestId("region-a").boundingBox();
+  if (!dragA || !regionA) throw new Error("no boxes");
+
+  // Drag A's item within A (down to the region's lower area, still inside A).
+  await dragMouse(page, center(dragA), {
+    x: regionA.x + regionA.width / 2,
+    y: regionA.y + regionA.height - 8,
+  });
+
+  await expect(c.getByTestId("event-a")).toHaveText("internal:a-item");
+  await expect(c.getByTestId("event-b")).toHaveText("none");
 });
 
 test("a host element dropped on a row fires onExternalDrop, without reordering", async ({

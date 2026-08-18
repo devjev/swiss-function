@@ -26,13 +26,22 @@ describe("routeDragEnd", () => {
     return (id: string) => set.has(id);
   };
 
-  it("routes a region's own drag as internal, regardless of the drop target", () => {
-    // over nothing
+  it("routes a region's own drag as internal when it stays in-region", () => {
+    // over nothing — the region's own append / cleanup case
     expect(routeDragEnd("r1", null, has("r1"))).toEqual({ kind: "internal", regionId: "r1" });
     // over its own region
     expect(routeDragEnd("r1", "r1", has("r1"))).toEqual({ kind: "internal", regionId: "r1" });
-    // over a different region — still internal to the source (its handler self-guards)
-    expect(routeDragEnd("r1", "r2", has("r1", "r2"))).toEqual({ kind: "internal", regionId: "r1" });
+    // over a droppable with no region (a bare host target) — still internal
+    expect(routeDragEnd("r1", "host-drop", has("r1"))).toEqual({
+      kind: "internal",
+      regionId: "r1",
+    });
+  });
+
+  it("routes a drop over a DIFFERENT registered region as external to the target", () => {
+    // A row dragged out of one widget onto another: the target's onExternalDrop
+    // handles it, the source's internal reorder never sees a foreign target.
+    expect(routeDragEnd("r1", "r2", has("r1", "r2"))).toEqual({ kind: "external", regionId: "r2" });
   });
 
   it("routes a foreign item dropped over a region as external to that region", () => {

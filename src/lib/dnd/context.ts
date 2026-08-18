@@ -44,18 +44,35 @@ export type DragRoute =
   | { kind: "none" };
 
 /** Decide the route for a drag from `activeRegionId`, dropped over
- *  `overRegionId`. A drag owned by a registered region is always internal (its
- *  handler self-guards on the drop target); otherwise a drop over a registered
- *  region is external; otherwise unclaimed. Pure, so it is unit-tested directly. */
+ *  `overRegionId`:
+ *
+ *  - Dropped over a **different** registered region than it started in →
+ *    `external` to the target (a genuine cross-widget drag out, e.g. an
+ *    Explorer row dropped onto another widget). The target's `onExternalDrop`
+ *    receives it; the source's internal reorder never sees a foreign target.
+ *  - Otherwise a drag owned by a registered region (same region, or dropped
+ *    over nothing) → `internal` reorder within it (its handler self-guards on
+ *    the drop target, and "over nothing" is its append/cleanup case).
+ *  - Otherwise a drop over a registered region by an unowned (host) item →
+ *    `external`; else unclaimed.
+ *
+ *  Pure, so it is unit-tested directly. */
 export function routeDragEnd(
   activeRegionId: string | null,
   overRegionId: string | null,
   hasRegion: (id: string) => boolean,
 ): DragRoute {
-  if (activeRegionId && hasRegion(activeRegionId)) {
+  const activeOwned = activeRegionId != null && hasRegion(activeRegionId);
+  const overOwned = overRegionId != null && hasRegion(overRegionId);
+  // Cross-region drop: the item belongs to one registered region but landed on
+  // another. Route it to the target so widget-to-widget drag-out works.
+  if (activeOwned && overOwned && activeRegionId !== overRegionId) {
+    return { kind: "external", regionId: overRegionId };
+  }
+  if (activeOwned) {
     return { kind: "internal", regionId: activeRegionId };
   }
-  if (overRegionId && hasRegion(overRegionId)) {
+  if (overOwned) {
     return { kind: "external", regionId: overRegionId };
   }
   return { kind: "none" };

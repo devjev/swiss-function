@@ -66,6 +66,10 @@
    used by TreeChevron throughout the rest of the system. */
 .icon {
   flex: none;
+  /* Size the glyph (bespoke or a consumer's swapped-in one), overriding its own
+     width/height attrs; the old inline triangle was a fixed 10px. */
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
   color: var(--sf-color-fg-subtle);
   transform: rotate(-90deg);
   transition: transform var(--sf-duration-base) var(--sf-ease-out);

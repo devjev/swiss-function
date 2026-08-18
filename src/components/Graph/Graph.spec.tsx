@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import type { GraphData } from "../../lib/graph/types";
-import { GraphHarness } from "./Graph.harness";
+import { GraphHarness, GraphRemovableHarness } from "./Graph.harness";
 
 // Two nodes, no edge. With `layout="grid"` they land left + right at the same
 // height (deterministic), so connect-drag / edge-click specs have stable hit
@@ -253,6 +254,95 @@ test("right-clicking an edge offers Delete which fires onEdgeDelete", async ({ m
   await expect(del).toBeVisible();
   await del.click();
   await expect(c.getByTestId("last-event")).toHaveText("delete:e1");
+});
+
+// --- Node selection (issue #91) -------------------------------------------
+
+// Read the surface origin + a node's probe position into an absolute click
+// point (Sigma is WebGL — no per-node DOM to target; the probe reports the
+// live viewport centre of each node).
+async function nodePoint(c: Locator, id: string): Promise<{ x: number; y: number }> {
+  const box = await c.locator("[data-graph-surface]").boundingBox();
+  if (!box) throw new Error("no surface box");
+  const parts = ((await c.getByTestId("node-pos").getAttribute(`data-pos-${id}`)) ?? "").split(",");
+  const x = Number(parts[0]);
+  const y = Number(parts[1]);
+  if (Number.isNaN(x) || Number.isNaN(y)) throw new Error("no node position");
+  return { x: box.x + x, y: box.y + y };
+}
+
+// Note: Sigma's mount inside CT captures the first canvas pointer interaction
+// and swallows a second in the same session (the existing specs likewise never
+// chain two canvas clicks — they select an edge then press Backspace, never
+// click-then-click). So each spec here exercises ONE canvas click; the chained
+// flows (select then move, select then clear on stage) are covered by the Ladle
+// end-to-end pass in a real browser.
+
+test("clicking a node fires onSelectionChange and gives it a persistent highlight", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<GraphHarness data={pair} layout="grid" probe selectionProbe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const probe = c.getByTestId("selection-probe");
+  // Nothing selected at rest.
+  await expect(probe).toHaveAttribute("data-hl-a", "0");
+
+  const a = await nodePoint(c, "a");
+  await page.mouse.click(a.x, a.y);
+  await expect(c.getByTestId("last-selection")).toHaveText("a");
+  // The selected node is highlighted; the other stays plain — no `renderNode`
+  // round-trip, the emphasis is built in.
+  await expect(probe).toHaveAttribute("data-hl-a", "1");
+  await expect(probe).toHaveAttribute("data-hl-b", "0");
+});
+
+test("the controlled `selected` prop drives the highlight without a click", async ({ mount }) => {
+  const c = await mount(<GraphHarness data={pair} layout="grid" selected="b" selectionProbe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const probe = c.getByTestId("selection-probe");
+  await expect(probe).toHaveAttribute("data-hl-b", "1");
+  await expect(probe).toHaveAttribute("data-hl-a", "0");
+});
+
+test("`selected={null}` selects nothing", async ({ mount }) => {
+  const c = await mount(<GraphHarness data={pair} layout="grid" selected={null} selectionProbe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await expect(c.getByTestId("selection-probe")).toHaveAttribute("data-hl-a", "0");
+  await expect(c.getByTestId("selection-probe")).toHaveAttribute("data-hl-b", "0");
+});
+
+test("uncontrolled: removing the selected node from data reports the clear", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<GraphRemovableHarness />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const a = await nodePoint(c, "a");
+  await page.mouse.click(a.x, a.y);
+  await expect(c.getByTestId("last-selection")).toHaveText("a");
+  // Removing the selected node from `data` clears the highlight AND reports it,
+  // so a consumer tracking selection via the callback doesn't keep a stale id.
+  await c.getByTestId("remove-a").click();
+  await expect(c.getByTestId("last-selection")).toHaveText("null");
+});
+
+test("controlled selection ignores a click the consumer doesn't apply", async ({ mount, page }) => {
+  // `selected="a"` fixed with no wiring back: clicking b reports the event but
+  // the highlight stays on a (the prop is the source of truth). One canvas click.
+  const c = await mount(
+    <GraphHarness data={pair} layout="grid" selected="a" probe selectionProbe />,
+  );
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const probe = c.getByTestId("selection-probe");
+  await expect(probe).toHaveAttribute("data-hl-a", "1");
+
+  const b = await nodePoint(c, "b");
+  await page.mouse.click(b.x, b.y);
+  await expect(c.getByTestId("last-selection")).toHaveText("b");
+  // Highlight did not move — a is still the selected node.
+  await expect(probe).toHaveAttribute("data-hl-a", "1");
+  await expect(probe).toHaveAttribute("data-hl-b", "0");
 });
 
 // --- Layout: fill + frame -------------------------------------------------

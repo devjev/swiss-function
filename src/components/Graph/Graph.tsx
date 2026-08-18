@@ -104,6 +104,17 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   onEdgeClick?: (id: string) => void;
   /** Fired with the currently selected node `id` (or `null` when cleared). */
   onSelectionChange?: (id: string | null) => void;
+  /** The selected node `id`, controlled. When set, that node carries a
+   *  persistent emphasis (accent fill + ring), the node analogue of the
+   *  selected-edge double stroke. Omit it for uncontrolled selection: a node
+   *  click selects that node and a stage click clears it, both still reported
+   *  through `onSelectionChange`. `null` selects nothing. */
+  selected?: string | null;
+  /** Override the built-in selected-node emphasis. Any `NodeVisual` field you
+   *  return replaces that field of the default (accent `color`, the node's own
+   *  `size`); omitted fields keep the default. `renderNode` still supplies the
+   *  base attributes underneath. */
+  selectedNodeVisual?: NodeVisual;
   /** On node hover, emphasize its incident edges (both directions) and its
    *  neighbours while fading the rest of the graph, so a node's connections read
    *  at a glance. Default `true`; set `false` to keep hover to just the label
@@ -445,6 +456,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     onNodeClick,
     onEdgeClick,
     onSelectionChange,
+    selected,
+    selectedNodeVisual,
     highlightConnectionsOnHover = true,
     onNodeHover,
     renderNode,
@@ -539,6 +552,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const connectModeRef = useRef(connectMode);
   connectModeRef.current = connectMode;
   const selectedEdgeRef = useRef<string | null>(null);
+  // Node selection: the ref the once-wired reducer reads to emphasize the
+  // selected node. Controlled by the `selected` prop when it is provided (the
+  // effect below syncs it), otherwise set by a node click / cleared by a stage
+  // click. `null` = nothing selected.
+  const selectedNodeRef = useRef<string | null>(selected ?? null);
+  // Whether selection is controlled — read inside the mount-wired click
+  // handlers so they only self-update the ref in the uncontrolled case.
+  const selectedControlledRef = useRef(selected !== undefined);
+  selectedControlledRef.current = selected !== undefined;
+  const selectedPropRef = useRef(selected);
+  selectedPropRef.current = selected;
+  // Latest selected-node emphasis override, read live by the reducer.
+  const selectedNodeVisualRef = useRef(selectedNodeVisual);
+  selectedNodeVisualRef.current = selectedNodeVisual;
   const generateEdgeIdRef = useRef(generateEdgeId);
   generateEdgeIdRef.current = generateEdgeId;
   // Drag bookkeeping: whether a draw is in progress and its source/target nodes.
@@ -759,6 +786,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           (node === connectSourceRef.current || node === connectTargetRef.current)
         )
           return { ...attr, color: selectColorRef.current, highlighted: true };
+        // Selection wins over the hover fade (a selected node stays emphasized
+        // even while another node is hovered), the node analogue of the
+        // selected-edge branch above. `highlighted` draws Sigma's ring + label
+        // box; `selectedNodeVisual` overrides the accent colour / size.
+        if (selectedNodeRef.current === node) {
+          const v = selectedNodeVisualRef.current;
+          return {
+            ...attr,
+            highlighted: true,
+            color: v?.color ?? selectColorRef.current,
+            ...(v?.size !== undefined ? { size: v.size } : {}),
+            ...(v?.label !== undefined ? { label: v.label } : {}),
+          };
+        }
         if (
           hoveredNodeRef.current !== null &&
           node !== hoveredNodeRef.current &&
@@ -771,18 +812,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     });
     sigmaRef.current = renderer;
 
-    // Clear any edge selection (on a node/stage click). The reducer repaints the
-    // de-emphasis on refresh.
-    const clearEdgeSelection = () => {
-      if (selectedEdgeRef.current === null) return;
-      selectedEdgeRef.current = null;
-      renderer.refresh();
-    };
-
     renderer.on("clickNode", ({ node }) => {
       handlersRef.current.onNodeClick?.(node);
       handlersRef.current.onSelectionChange?.(node);
-      clearEdgeSelection();
+      // Uncontrolled: reflect the selection so it highlights without the
+      // consumer round-tripping it through `selected`. Controlled: the prop is
+      // the source of truth (the effect below repaints on its change).
+      if (!selectedControlledRef.current) selectedNodeRef.current = node;
+      selectedEdgeRef.current = null;
+      renderer.refresh();
     });
     renderer.on("clickEdge", ({ edge }) => {
       handlersRef.current.onEdgeClick?.(edge);
@@ -794,7 +832,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     });
     renderer.on("clickStage", () => {
       handlersRef.current.onSelectionChange?.(null);
-      clearEdgeSelection();
+      if (!selectedControlledRef.current) selectedNodeRef.current = null;
+      selectedEdgeRef.current = null;
+      renderer.refresh();
     });
 
     // Right-click context menu. Suppress Sigma's own handling + the browser
@@ -1008,6 +1048,16 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     if (selectedEdgeRef.current !== null && !g.hasEdge(selectedEdgeRef.current)) {
       selectedEdgeRef.current = null;
     }
+    // Keep the node selection valid across the update. Controlled: re-derive
+    // from the prop (handles a selected node removed then re-added). Uncontrolled:
+    // drop a selection whose node is gone, and report the clear so a consumer
+    // tracking selection via `onSelectionChange` doesn't keep a stale id.
+    if (selectedControlledRef.current) {
+      selectedNodeRef.current = selectedPropRef.current ?? null;
+    } else if (selectedNodeRef.current !== null && !g.hasNode(selectedNodeRef.current)) {
+      selectedNodeRef.current = null;
+      handlersRef.current.onSelectionChange?.(null);
+    }
     // Label rendering tracks the (possibly changed) graph size / edge labels.
     renderer.setSetting("renderLabels", g.order <= 300);
     renderer.setSetting(
@@ -1026,6 +1076,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.refresh();
     if (changed) bumpEpoch();
   }, [data, editable, bumpEpoch]);
+
+  // Controlled selection: repaint when the `selected` prop changes. Uncontrolled
+  // (prop omitted) is a no-op here — the click handlers drive the ref directly.
+  useEffect(() => {
+    if (selected === undefined) return;
+    selectedNodeRef.current = selected;
+    sigmaRef.current?.refresh();
+  }, [selected]);
+
+  // Re-emphasize when the selected-node visual override changes (the reducer
+  // reads it through a ref, so a repaint is all that's needed).
+  useEffect(() => {
+    if (selectedNodeRef.current !== null) sigmaRef.current?.refresh();
+  }, [selectedNodeVisual]);
 
   // Re-theme in place when `renderNode`/`renderEdge` (or the editable node-size
   // boost) change, without rebuilding the renderer. `data` changes go through the

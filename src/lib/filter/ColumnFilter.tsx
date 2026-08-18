@@ -2,9 +2,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "../../components/Button";
 import { Checkbox } from "../../components/Checkbox";
+import { Filter } from "../../components/Icon";
 import { Input } from "../../components/Input";
 import { Popover } from "../../components/Popover";
 import { cx } from "../cx";
+import { Glyph } from "../icons";
 import styles from "./ColumnFilter.module.css";
 
 export type ColumnFilterKind = "checklist" | "range";
@@ -31,20 +33,6 @@ interface ColumnFilterProps {
 const OPTION_ROW_PX = 24;
 
 const NO_OPTIONS: FilterOption[] = [];
-
-function FunnelIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true" className={styles.funnel}>
-      <path
-        d="M2.5 3.5h11L9.5 8.5V12l-3 1.5V8.5z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.1"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function Checklist({
   options,
@@ -210,7 +198,11 @@ export function ColumnFilter({ label, kind, options, value, active, onChange }: 
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <FunnelIcon filled={active} />
+        {/* The funnel routes through the `filter` slot so a consumer's
+            `IconProvider` (Feather/Lucide/…) redirects it. The active state is
+            carried by `.buttonActive` (accent colour + a CSS fill on the glyph),
+            so the emphasis survives an icon swap. */}
+        <Glyph slot="filter" fallback={Filter} className={styles.funnel} />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={6}>

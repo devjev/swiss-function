@@ -64,7 +64,12 @@ export default function SortableRows({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const ids = rows.map((_, i) => String(i));
+  // Namespace the row ids by region. Row ids were positional (`"0"`, `"1"`, …),
+  // which collide across two TableInputs under one `SfDndProvider` (a single
+  // dnd-kit context, ids must be globally unique) — dnd-kit would resolve a drag
+  // to the wrong table's droppable. The region id is per-instance unique, so the
+  // ids are unique across tables while staying stable within one.
+  const ids = rows.map((_, i) => `${regionId}-${i}`);
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
@@ -89,7 +94,7 @@ export default function SortableRows({
       {rows.map((row, index) => (
         <SortableRow
           key={String(index)}
-          id={String(index)}
+          id={ids[index] as string}
           regionId={regionId}
           className={rowClassName}
           handleClassName={handleClassName}

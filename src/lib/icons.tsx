@@ -51,6 +51,7 @@ export const SF_ICON_SLOTS = [
   "search",
   "check",
   "menu",
+  "filter",
   // Overflow / drag (geometry-named — distinct affordances, 1:1 with external libs)
   "moreHorizontal",
   "moreVertical",

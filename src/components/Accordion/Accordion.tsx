@@ -2,6 +2,8 @@ import { Accordion as BaseAccordion } from "@base-ui/react/accordion";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
+import { ChevronDown } from "../Icon";
 import styles from "./Accordion.module.css";
 
 const Root = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseAccordion.Root>>(
@@ -44,13 +46,10 @@ const Trigger = forwardRef<
       className={mergeClassName(styles.trigger, className)}
     >
       <span className={styles.label}>{children}</span>
-      {/* SVG triangle — same geometry as src/lib/TreeChevron, inlined because
-          TreeChevron renders a <button> and we can't nest it inside the
-          Trigger button. Default orientation is "down" (= open); CSS rotates
-          it -90deg (= right-pointing ▸) when the panel is closed. */}
-      <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" className={styles.icon}>
-        <path d="M1.5 3.5 L5 7 L8.5 3.5 Z" fill="currentColor" />
-      </svg>
+      {/* Chevron routed through the `chevronDown` slot so a consumer's
+          `IconProvider` redirects it. Default orientation is "down" (= open);
+          CSS rotates it -90deg (= right-pointing) when the panel is closed. */}
+      <Glyph slot="chevronDown" fallback={ChevronDown} className={styles.icon} />
     </BaseAccordion.Trigger>
   );
 });

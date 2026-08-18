@@ -20,14 +20,21 @@
   color: var(--sf-color-fg);
   outline: none;
 }
-/* Active filter: solid funnel in the accent colour. */
+/* Active filter: solid funnel in the accent colour. The CSS `fill` overrides the
+   glyph's `fill="none"` presentation attribute, so the funnel reads as filled
+   whether it's the bespoke icon or a consumer's swapped-in one. */
 .buttonActive {
   opacity: 1;
   color: var(--sf-color-primary);
 }
+.buttonActive .funnel {
+  fill: currentColor;
+}
 
 .funnel {
   display: block;
+  inline-size: 1em;
+  block-size: 1em;
 }
 
 @media (prefers-reduced-motion: reduce) {

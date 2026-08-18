@@ -1,7 +1,9 @@
 import type { SVGProps } from "react";
 import { iconAdapter } from "../components/Icon/adapter";
 import { Check, Search, X } from "../components/Icon/icons";
+import { ColumnFilter } from "./filter/ColumnFilter";
 import { Glyph, IconProvider } from "./icons";
+import { TreeChevron } from "./TreeChevron";
 
 // Importable fixtures for `icons.spec.tsx`. Playwright CT serializes mounted
 // components across the Node/browser boundary, so a component built at runtime
@@ -62,4 +64,44 @@ export function AdaptedLabelled() {
 /** The adapter, decorative: aria-hidden, default 1em. */
 export function AdaptedDecorative() {
   return <Adapted />;
+}
+
+/** A real component site: the DataTable/Explorer column filter funnel. Its glyph
+ *  routes through the `filter` slot, so a provider override reaches it. */
+export function FilterIconDefault() {
+  return (
+    <ColumnFilter
+      label="Name"
+      kind="checklist"
+      options={[]}
+      value={undefined}
+      active={false}
+      onChange={() => {}}
+    />
+  );
+}
+
+export function FilterIconOverridden() {
+  return (
+    <IconProvider icons={{ filter: Adapted }}>
+      <ColumnFilter
+        label="Name"
+        kind="checklist"
+        options={[]}
+        value={undefined}
+        active={false}
+        onChange={() => {}}
+      />
+    </IconProvider>
+  );
+}
+
+/** The tree expand/collapse toggle. Its chevron routes through the chevron
+ *  slots, so a provider override reaches the tree toggles too. */
+export function TreeChevronOverridden() {
+  return (
+    <IconProvider icons={{ chevronDown: Adapted, chevronRight: Adapted }}>
+      <TreeChevron expanded onToggle={() => {}} />
+    </IconProvider>
+  );
 }

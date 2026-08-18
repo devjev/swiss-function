@@ -266,6 +266,52 @@ export const HoverHighlightOff: Story = () => (
   </Frame>
 );
 
+// --- Selection --------------------------------------------------------------
+// Clicking a node gives it a persistent emphasis (accent fill + ring), the node
+// analogue of the selected-edge double stroke — no `renderNode` round-trip
+// needed. Clicking the stage clears it. Uncontrolled here; `onSelectionChange`
+// still reports the id.
+
+export const SelectedNode: Story = () => (
+  <Frame>
+    <Graph data={services} layout="force" style={{ blockSize: 520 }}>
+      <Graph.Controls />
+    </Graph>
+  </Frame>
+);
+
+// Controlled selection: the `selected` prop drives the highlight (here from an
+// out-of-canvas list), and `selectedNodeVisual` retints the emphasis.
+export const ControlledSelection: Story = () => {
+  const [selected, setSelected] = useState<string | null>(services.nodes[0]?.id ?? null);
+  return (
+    <Frame>
+      <div style={{ display: "flex", gap: "var(--sf-unit)", flexWrap: "wrap" }}>
+        {services.nodes.slice(0, 6).map((n) => (
+          <button
+            key={n.id}
+            type="button"
+            onClick={() => setSelected(n.id)}
+            style={{ fontSize: "var(--sf-font-size-sm)" }}
+          >
+            {n.label ?? n.id}
+          </button>
+        ))}
+      </div>
+      <Graph
+        data={services}
+        layout="force"
+        selected={selected}
+        selectedNodeVisual={{ color: "var(--sf-color-success)" }}
+        onSelectionChange={setSelected}
+        style={{ blockSize: 480 }}
+      >
+        <Graph.Controls />
+      </Graph>
+    </Frame>
+  );
+};
+
 // --- Context menu -----------------------------------------------------------
 // Right-click a node for the built-in menu: Focus / Expand (camera), Pin label,
 // Hide. The `contextMenuItems` prop can replace these per target; this story
