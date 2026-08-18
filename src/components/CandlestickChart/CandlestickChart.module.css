@@ -144,6 +144,13 @@
   stroke-width: 2;
 }
 
+/* The pinned (frozen) selection: an accent ring so the candle the popover
+   belongs to reads as held, distinct from the transient hover brighten. */
+.candle[data-selected] .body {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .body {
     transition: none;

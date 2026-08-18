@@ -9,6 +9,7 @@ import {
   bandScale,
   ChartChrome,
   type ChartScaffoldingProps,
+  type ChartSelectionProps,
   Crosshair,
   FullscreenToggle,
   fitBandTicks,
@@ -19,11 +20,13 @@ import {
   niceDomain,
   niceTicks,
   resolveTickFont,
+  SelectionPopover,
   scaffoldStyles,
   snapFraction,
   snapHairline,
   Tooltip,
   useChartScaffold,
+  useChartSelection,
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
@@ -45,7 +48,8 @@ export interface BridgeTooltipDatum extends BridgeItem {
 
 export interface BridgeChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
-    ChartScaffoldingProps {
+    ChartScaffoldingProps,
+    ChartSelectionProps<BridgeTooltipDatum> {
   items: BridgeItem[];
   yDomain?: [number, number];
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
@@ -55,6 +59,8 @@ export interface BridgeChartProps
   /** Fires on every value-axis zoom/pan (`zoomable`); `null` = full range. The
    *  x axis is categorical, so it's the y (value) axis that windows. */
   onValueDomainChange?: (domain: [number, number] | null) => void;
+  /** Fires when a bar is clicked or activated via keyboard (Enter/Space). */
+  onPointActivate?: (datum: BridgeTooltipDatum) => void;
   renderTooltip?: (datum: BridgeTooltipDatum) => ReactNode;
 }
 
@@ -122,6 +128,24 @@ function formatBarValue(item: BridgeItem): string {
   return `${sign}${formatNumber(item.value)}`;
 }
 
+/** Stable identity of a bar across renders (for the pinned-selection match /
+ *  toggle) — category + value + kind, independent of object reference (the
+ *  selection is a spread copy). Bar labels are already unique (bandScale
+ *  requires it), so label alone would do, but the value/kind pair out is
+ *  included for parity with the other charts' composite keys. */
+function bridgeBarKey(item: BridgeItem): string {
+  return `${item.label}::${item.value}::${item.kind}`;
+}
+
+/** Domain-space top edge of a bar, re-derived from a `BridgeTooltipDatum`
+ *  alone (label/value/kind/cumulative) — the same arithmetic `resolveBars`
+ *  uses, so the pinned-selection anchor never needs a lookup into `bars`. */
+function topOf(d: BridgeTooltipDatum): number {
+  if (d.kind === "total") return Math.max(0, d.value);
+  const prev = d.cumulative - d.value;
+  return Math.max(prev, d.cumulative);
+}
+
 export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function BridgeChart(
   {
     items,
@@ -139,13 +163,25 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     annotations,
     onAnnotationsChange,
     onValueDomainChange,
+    onPointActivate,
     renderTooltip = defaultTooltip,
+    selectable = false,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+    renderSelection,
     className,
     style,
     ...rest
   },
   ref,
 ) {
+  const { selection, setSelection } = useChartSelection<BridgeTooltipDatum>({
+    selectable,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+  });
   const isTufte = scaffolding !== "full";
   const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   // Hover state at the root re-renders the whole chart per enter/leave. That
@@ -268,6 +304,33 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
   };
   const handleLeave = () => setHover(null);
 
+  // Click / Enter / Space on a bar: fires the activate callback and, when
+  // `selectable`, pins it (re-activating the pinned bar toggles it off). No
+  // memoized mark layer sits between this and JSX (bars render inline, per
+  // the note above), so reading `selection` straight from the closure is
+  // already live — no ref indirection needed to keep a memo bailing out.
+  const handleActivate = (bar: ResolvedBar) => {
+    const payload: BridgeTooltipDatum = { ...bar.item, cumulative: bar.cumulative };
+    onPointActivate?.(payload);
+    if (!selectable) return;
+    const same = selection != null && bridgeBarKey(selection) === bridgeBarKey(bar.item);
+    setSelection(same ? null : payload);
+  };
+  const canActivate = !!onPointActivate || selectable;
+
+  // The pinned popover's anchor, re-derived from the selected datum through
+  // the live scales every render (so it tracks zoom / pan / resize). `topOf`
+  // recomputes the bar's top edge straight from the stored datum's own
+  // fields — never a lookup into `bars` — the same arithmetic `resolveBars`
+  // uses to produce it in the first place.
+  const selectionPoint = useMemo(() => {
+    if (!selectable || !selection || plotSize.width <= 0 || plotSize.height <= 0) return null;
+    const left = xBand.position(selection.label);
+    if (left == null) return null;
+    return { x: left + xBand.bandwidth / 2, y: yScale(topOf(selection)) };
+  }, [selectable, selection, xBand, yScale, plotSize.width, plotSize.height]);
+  const selectedKey = selection ? bridgeBarKey(selection) : null;
+
   const wrapperStyle: CSSProperties = {
     ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
     // Inline height wins over the .expanded class, so drop it while maximized.
@@ -337,6 +400,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
               const cx_ = left + xBand.bandwidth / 2;
               // Crosshair anchor at the bar's TOP edge (where the value sits).
               const cy_ = yTop;
+              const selected = selectedKey != null && bridgeBarKey(b.item) === selectedKey;
               return (
                 <g key={`bar-${b.item.label}`}>
                   {/* biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback */}
@@ -346,11 +410,25 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                     width={xBand.bandwidth}
                     height={h}
                     className={cx(styles.bar, cls)}
+                    data-chart-mark=""
                     role="button"
                     tabIndex={0}
                     aria-label={`${b.item.label}: ${b.item.value}`}
                     onPointerEnter={(e) => handleEnter(e, b, cx_, cy_)}
                     onPointerLeave={handleLeave}
+                    onClick={canActivate ? () => handleActivate(b) : undefined}
+                    onKeyDown={
+                      canActivate
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleActivate(b);
+                            }
+                          }
+                        : undefined
+                    }
+                    data-activatable={canActivate ? "" : undefined}
+                    data-selected={selected || undefined}
                     onFocus={(e) => handleEnter(e, b, cx_, cy_)}
                     onBlur={handleLeave}
                   >
@@ -468,6 +546,18 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover ? renderTooltip({ ...hover.bar.item, cumulative: hover.bar.cumulative }) : null}
       </Tooltip>
+
+      {selectable ? (
+        <SelectionPopover
+          open={selection != null && selectionPoint != null}
+          plotEl={plotRef.current}
+          x={selectionPoint?.x ?? null}
+          y={selectionPoint?.y ?? null}
+          onClose={() => setSelection(null)}
+        >
+          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+        </SelectionPopover>
+      ) : null}
     </div>
   );
 });

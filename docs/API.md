@@ -160,7 +160,7 @@ without touching the global radius.
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
 
-Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, the same set as Scatterplot/CandlestickChart, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
+Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, the same set as Scatterplot/CandlestickChart, issue #35) plus `ChartSelectionProps` (`selectable` click-to-freeze selection + a pinned popover — see Scatterplot). Extends `HTMLAttributes<HTMLDivElement>`.
 
 All 2D charts share the measured-label behavior (chart-polish milestone): tick and category labels are measured with real text metrics, thinned until nothing collides (first and last always survive), and long categorical labels are ellipsized with the full text in a `title`, never rotated. The y-axis column auto-sizes to the widest measured label via `--sf-axis-label-width` on the chart root; set that variable yourself on a container to pin several stacked charts to one column width. Hairline chrome (gridlines, ticks, wicks, cell edges) is device-pixel-snapped; numerals are tabular; resize tracks 1:1 with coalesced recomputes and stable label sets (step hysteresis).
 
@@ -201,7 +201,7 @@ Flexible container with elevation, optional texture, and unit-based padding. Ext
 
 `import { BridgeChart } from "@tarassov-ch/swiss-function/bridge-chart"`
 
-Waterfall/bridge chart of cumulative deltas and totals. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>`.
+Waterfall/bridge chart of cumulative deltas and totals. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35) plus `ChartSelectionProps` (`selectable` click-to-freeze selection + a pinned popover — see Scatterplot; `onPointActivate` is also added here). Extends `HTMLAttributes<HTMLDivElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -257,7 +257,9 @@ Container (`role="group"`) that cascades a size to child Buttons. Extends `HTMLA
 
 OHLC financial candlestick chart. Candles are spaced evenly (index-based, no
 time gaps); up candles (`close >= open`) are success-coloured, down candles
-danger-coloured. Extends `HTMLAttributes<HTMLDivElement>`.
+danger-coloured. Mixes in `ChartSelectionProps` (`selectable` click-to-freeze
+selection + a pinned popover — see Scatterplot; the selection carries the
+candle and its index). Extends `HTMLAttributes<HTMLDivElement>`.
 `Candle = { x: number | Date; open; high; low; close }`.
 
 | Prop | Type | Default | Notes |
@@ -1130,7 +1132,7 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 marching-squares contour overlay. The flat, Swiss-friendly read of a 2-variable
 field; reach for this before a 3D `Surface`. Shares the `GridData` shape
 (`{ x: number[]; y: number[]; z: number[][] }`, `z[j][i]` at `x[i]`,`y[j]`) with
-`Surface`. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35). Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+`Surface`. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35) plus `ChartSelectionProps` (`selectable` click-to-freeze selection + a pinned popover — see Scatterplot; the selected cell is outlined). Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -1869,6 +1871,12 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | `frame` | `boolean` | `false` | 1px structural border + padding; the chart reads as a panel. |
 | `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | n/a | Click/Enter on a point, a drill-down hook. |
 | `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
+| `selectable` | `boolean` | `false` | Click-to-freeze selection: a click pins the mark and opens a popover anchored to it (unlike the hover tooltip, it stays open) that **tracks the mark through zoom/pan**; the mark keeps an accent ring. Dismiss by clicking the mark again, clicking away, Escape, or the popover's ✕. |
+| `selection` / `defaultSelection` | `ChartSelection \| null` | `null` | The pinned mark, controlled / uncontrolled. `ChartSelection` is the same datum-with-series object the chart's activate callback emits. |
+| `onSelectionChange` | `(selection: ChartSelection \| null) => void` | n/a | Fires when the pin changes (click pins/toggles it, or a dismissal clears it). |
+| `renderSelection` | `(selection: ChartSelection) => ReactNode` | falls back to `renderTooltip` | Popover body for the pinned mark — richer or interactive (links, buttons) than the hover tooltip. |
+
+**Chart selection** (`selectable`, the shared `ChartSelectionProps` mixin) is uniform across the 2D data charts — `Scatterplot`, `BarChart`, `CandlestickChart`, `BridgeChart`, and `Heatmap` — so "click a mark to pin an anchored popover" is a property of any of them, not a lucky few. The popover routes through the house `Popover` (so it clears a Dialog / Fullscreen and follows into a `PopOut`); its anchor is re-derived from the mark's data coordinates every render, which is what makes it track zoom/pan. Single-selection; supply `renderSelection` for interactive content.
 
 **Annotation editing** (`controls` + `onAnnotationsChange`): arm a tool in the toolbar: trend line, region and measure draw by drag (a stray click under 4px creates nothing), horizontal/vertical lines place on click, the text tool opens an inline note input (Enter commits, Escape cancels). After each draw the tool snaps back to *select* and the new annotation (with a generated `id`) is selected. In select mode, click an annotation to select it (endpoint drag handles appear; drag the body to move; drags commit once on pointerup), Delete removes, Escape cancels/disarms/deselects in that order, double-click a text note to re-edit it. While a tool is armed, drag-pan and double-click-reset are suspended (wheel zoom stays live); while editing is enabled, the wide hit strokes around annotations take hover precedence over nearby data points.
 

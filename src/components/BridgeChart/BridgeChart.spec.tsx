@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ChartAnnotation } from "../../lib/chart";
-import type { BridgeItem } from "./BridgeChart";
+import { BridgeChart, type BridgeItem } from "./BridgeChart";
 import { BridgeChartScaffoldHarness } from "./BridgeChart.harness";
 
 // Issue #35: the shared scaffolding on the categorical waterfall — controls,
@@ -62,4 +62,21 @@ test("hline reference level places on click at a data-space y", async ({ mount, 
   if (!drawn || drawn.type !== "hline") throw new Error(`expected an hline, got ${drawn?.type}`);
   expect(drawn.y).toBeGreaterThan(15);
   expect(drawn.y).toBeLessThan(35);
+});
+
+test("selectable: clicking a bar pins a popover + rings it; ✕ dismisses", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BridgeChart items={ITEMS} height={240} selectable />
+    </div>,
+  );
+  await c.locator("rect[data-chart-mark]").nth(1).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toBeVisible();
+  await expect(c.locator("rect[data-selected]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Dismiss selection" }).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+  await expect(c.locator("rect[data-selected]")).toHaveCount(0);
 });

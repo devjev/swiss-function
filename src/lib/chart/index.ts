@@ -32,9 +32,13 @@ export {
   niceTicks,
 } from "./numericTicks";
 export { snapEdges, snapFraction, snapHairline } from "./pixelSnap";
+export type { SelectionPopoverProps } from "./SelectionPopover";
+export { SelectionPopover } from "./SelectionPopover";
 export type { ChartScaffolding, ChartScaffoldingProps } from "./scaffolding";
 export type { BandScale } from "./scales";
 export { bandScale, invertLinear, linearScale, timeScale } from "./scales";
+export type { ChartSelectionProps } from "./selection";
+export { useChartSelection } from "./selection";
 export type { StepSession } from "./stableStep";
 export { domainKeyOf, stableValue } from "./stableStep";
 export type { TooltipProps } from "./Tooltip";

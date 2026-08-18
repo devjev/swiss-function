@@ -158,6 +158,13 @@
   stroke-width: 2;
 }
 
+/* The pinned (frozen) selection: an accent ring so the bar the popover
+   belongs to reads as held, distinct from the transient hover brighten. */
+.bar[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2.5;
+}
+
 .barTotal {
   fill: var(--sf-color-primary);
 }

@@ -190,6 +190,46 @@ export const ChartWindow: Story = () => {
   );
 };
 
+/**
+ * `selectable`: clicking a bar FREEZES it — a pinned popover opens anchored to
+ * the bar and stays open (unlike the hover tooltip), and the bar keeps an
+ * accent ring. The popover tracks the bar through zoom/pan (this chart is also
+ * `zoomable` on the value axis). Dismiss by clicking the bar again, clicking
+ * away, Escape, or the ✕. `renderSelection` supplies richer, interactive
+ * content than the hover tooltip; omit it and the tooltip body is reused.
+ */
+export const Selectable: Story = () => {
+  const [selected, setSelected] = useState<string>("none");
+  return (
+    <div style={{ width: "min(44rem, 100%)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Pinned: {selected}
+      </p>
+      <BarChart
+        categories={QUARTERS}
+        series={[{ name: "Revenue", values: [42, 58, 51, 73] }]}
+        xLabel="Quarter"
+        yLabel="Revenue (k)"
+        showLegend={false}
+        zoomable
+        selectable
+        onSelectionChange={(s) => setSelected(s ? `${s.category}: ${s.value}` : "none")}
+        renderSelection={(d) => (
+          <div style={{ display: "grid", gap: "calc(var(--sf-unit) / 4)" }}>
+            <strong>{d.category}</strong>
+            <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+              {d.series}: {d.value}
+            </span>
+            <a href="#top" style={{ fontSize: "var(--sf-font-size-sm)" }}>
+              Open {d.category} →
+            </a>
+          </div>
+        )}
+      />
+    </div>
+  );
+};
+
 // Narrow-container stress: long category names in 320px. The measured fitting
 // ladder ellipsizes (full text in the title attr) and, when bands get too
 // narrow, thins to a stride keeping first + last; the y column is sized to

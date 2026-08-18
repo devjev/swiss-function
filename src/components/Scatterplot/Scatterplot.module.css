@@ -148,6 +148,23 @@
   stroke-width: 2;
 }
 
+/* The pinned (frozen) selection: an accent ring so the point the popover
+   belongs to reads as held, distinct from the transient hover grow. */
+.point[data-selected] {
+  r: 6;
+  stroke: var(--sf-color-primary);
+  stroke-width: 2.5;
+}
+
+/* Standalone ring overlay for the pinned point — guarantees the emphasis even
+   when the datum is decimated out of the visible set under zoom. */
+.selectedRing {
+  fill: none;
+  stroke: var(--sf-color-primary);
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .point {
     transition: none;

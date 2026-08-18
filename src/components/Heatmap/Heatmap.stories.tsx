@@ -176,3 +176,45 @@ export const ChartWindow: Story = () => {
     </div>
   );
 };
+
+// Click-to-freeze selection (issue #19): a click pins a cell and opens a
+// popover anchored to it that tracks the cell through the row-window zoom.
+// Re-clicking the pinned cell clears it; clicking another moves the pin.
+export const Selectable: Story = () => {
+  const [selected, setSelected] = useState<string>("none");
+  const data = npvSensitivity(21);
+  return (
+    <div style={{ width: "min(40rem, 100%)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Pinned: {selected}
+      </p>
+      <Heatmap
+        data={data}
+        zDomain={symmetric(data)}
+        colorScale={RAMP}
+        xLabel="Revenue growth Δ (pp)"
+        yLabel="Discount rate Δ (pp)"
+        height={360}
+        zoomable
+        selectable
+        onSelectionChange={(s) =>
+          setSelected(s ? `growth Δ=${s.x}, rate Δ=${s.y} → ${s.z.toFixed(1)}%` : "none")
+        }
+        renderSelection={(d) => (
+          <div style={{ display: "grid", gap: "calc(var(--sf-unit) / 4)" }}>
+            <strong style={{ fontFamily: "var(--sf-font-mono)" }}>
+              {d.x} / {d.y}
+            </strong>
+            <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+              NPV change: {d.z > 0 ? "+" : ""}
+              {d.z.toFixed(1)}%
+            </span>
+            <a href="#top" style={{ fontSize: "var(--sf-font-size-sm)" }}>
+              Open scenario →
+            </a>
+          </div>
+        )}
+      />
+    </div>
+  );
+};

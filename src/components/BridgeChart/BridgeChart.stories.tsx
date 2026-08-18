@@ -1,7 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
 import type { ChartAnnotation } from "../../lib/chart";
-import { BridgeChart, type BridgeChartProps } from "./BridgeChart";
+import { BridgeChart, type BridgeChartProps, type BridgeTooltipDatum } from "./BridgeChart";
 
 export default { title: "Chart/BridgeChart" };
 
@@ -137,6 +137,46 @@ export const Narrow: Story = () => (
     />
   </div>
 );
+
+/**
+ * `selectable` pins a bar on click/Enter/Space: the popover stays open
+ * (tracking zoom/pan/resize) until the bar is re-activated or dismissed.
+ * `onSelectionChange` reports the pinned datum; `renderSelection` overrides
+ * the popover body (defaults to `renderTooltip`).
+ */
+export const Selectable: Story = () => {
+  const [selected, setSelected] = useState<string>("none");
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Pinned: {selected}
+      </p>
+      <BridgeChart
+        items={[
+          { label: "Q1", value: 100, kind: "total" },
+          { label: "Sales", value: 25, kind: "delta" },
+          { label: "Costs", value: -12, kind: "delta" },
+          { label: "Q2", value: 113, kind: "total" },
+        ]}
+        yLabel="Revenue (k)"
+        zoomable
+        selectable
+        onSelectionChange={(s) => setSelected(s ? `${s.label}: ${s.value}` : "none")}
+        renderSelection={(d: BridgeTooltipDatum) => (
+          <div style={{ display: "grid", gap: "calc(var(--sf-unit) / 4)" }}>
+            <strong>{d.label}</strong>
+            <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+              {d.value} → {d.cumulative}
+            </span>
+            <a href="#top" style={{ fontSize: "var(--sf-font-size-sm)" }}>
+              Open {d.label} →
+            </a>
+          </div>
+        )}
+      />
+    </div>
+  );
+};
 
 // The full interactive chart window — frame, fullscreen, controls, value-axis
 // (y) zoom (the waterfall's x is categorical, so the value axis windows) and an

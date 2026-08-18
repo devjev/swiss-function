@@ -282,3 +282,26 @@ test("y-axis column widens for wide domains (measured labels)", async ({ mount }
     .evaluate((el) => el.getBoundingClientRect().width);
   expect(wideWidth).toBeGreaterThan(smallWidth);
 });
+
+test("selectable: clicking a bar pins a popover + rings it; ✕ dismisses", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart
+        categories={CATEGORIES}
+        series={SERIES}
+        height={240}
+        showLegend={false}
+        selectable
+      />
+    </div>,
+  );
+  await c.locator("rect[data-chart-mark]").nth(1).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toBeVisible();
+  await expect(c.locator("rect[data-selected]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Dismiss selection" }).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+  await expect(c.locator("rect[data-selected]")).toHaveCount(0);
+});

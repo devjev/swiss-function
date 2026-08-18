@@ -1,6 +1,7 @@
 import type {
   CSSProperties,
   HTMLAttributes,
+  MouseEvent as ReactMouseEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
@@ -11,6 +12,7 @@ import {
   anchorRectFromPoint,
   ChartChrome,
   type ChartScaffoldingProps,
+  type ChartSelectionProps,
   FullscreenToggle,
   formatNumber,
   formatTickValue,
@@ -18,12 +20,14 @@ import {
   type LabelBox,
   maxLabelWidth,
   resolveTickFont,
+  SelectionPopover,
   scaffoldStyles,
   snapEdges,
   snapFraction,
   Tooltip,
   thinLabels,
   useChartScaffold,
+  useChartSelection,
   useMeasuredPlot,
 } from "../../lib/chart";
 import { contourLevels, marchingSquares } from "../../lib/chart/contours";
@@ -39,7 +43,8 @@ export interface HeatmapDatum {
 
 export interface HeatmapProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
-    ChartScaffoldingProps {
+    ChartScaffoldingProps,
+    ChartSelectionProps<HeatmapDatum> {
   /** Gridded values: `z[j][i]` at `x[i]`, `y[j]`. */
   data: GridData;
   /** Value (z) domain; defaults to the data's min/max. */
@@ -127,6 +132,11 @@ const HeatmapCells = memo(function HeatmapCells({
           width={c.width}
           height={c.height}
           style={{ fill: fills[c.j * nx + c.i] }}
+          // Tagged so SelectionPopover can tell a click that moves the pin to
+          // a different cell apart from a genuine outside press. Without it,
+          // the popover's own outside-press dismiss fires first and the pin
+          // flickers closed, then reopens.
+          data-chart-mark=""
         />
       ))}
     </>
@@ -182,6 +192,21 @@ const HeatmapValues = memo(function HeatmapValues({
   );
 });
 
+/** Shared by the hover tooltip and the pinned-selection popover, so a
+ *  consumer that supplies neither `renderTooltip` nor `renderSelection`
+ *  still gets a sensible default in both places. */
+function defaultTooltip(datum: HeatmapDatum): ReactNode {
+  return (
+    <span className={styles.tip}>
+      {datum.z}
+      <span className={styles.tipMeta}>
+        {" "}
+        ({datum.x}, {datum.y})
+      </span>
+    </span>
+  );
+}
+
 export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap(
   {
     data,
@@ -205,6 +230,11 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     onAnnotationsChange,
     onValueDomainChange,
     renderTooltip,
+    selectable = false,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+    renderSelection,
     className,
     style,
     ...rest
@@ -218,6 +248,15 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     i: number;
     row: number;
   } | null>(null);
+  // Cells render inline in this component's own render (no separate memoized
+  // mark layer, unlike Scatterplot's point layer), so the live `selection`
+  // can be closed over directly below. No selectionRef indirection needed.
+  const { selection, setSelection } = useChartSelection<HeatmapDatum>({
+    selectable,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+  });
   const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const nx = data.x.length;
@@ -231,6 +270,27 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
   const zDom = useMemo(() => zDomain ?? extent(data.z.flat()), [zDomain, data.z]);
   const xStep = useMemo(() => minStep(data.x), [data.x]);
   const yStep = useMemo(() => minStep(data.y), [data.y]);
+  // Value → grid-index lookups, so a stored selection (a plain HeatmapDatum,
+  // just x/y/z) can be mapped back to the column/row it came from on every
+  // render — the same round trip a controlled `selection` prop needs too.
+  // First occurrence wins: a heatmap's axis coordinates are expected to be
+  // distinct (a grid axis is a set of positions), so this maps a value to a
+  // single, deterministic column/row. With duplicate coordinates (degenerate
+  // input) the selection maps to the first matching cell.
+  const xIndex = useMemo(() => {
+    const m = new Map<number, number>();
+    data.x.forEach((v, i) => {
+      if (!m.has(v)) m.set(v, i);
+    });
+    return m;
+  }, [data.x]);
+  const yIndex = useMemo(() => {
+    const m = new Map<number, number>();
+    data.y.forEach((v, j) => {
+      if (!m.has(v)) m.set(v, j);
+    });
+    return m;
+  }, [data.y]);
 
   // Shared scaffolding: fullscreen, annotation editing, and value-axis (y) zoom.
   // The grid is categorical in both directions, so `zoomable` windows the
@@ -432,31 +492,98 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     [data.y, yStep, measure],
   );
 
-  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+  // Hit-test a client-space point to the grid cell under it — the single
+  // source of truth both the hover path and the click-to-select path resolve
+  // through, so they can never disagree about which cell is under the
+  // cursor. Maps through the zoomed row window to the drawn row, then to the
+  // data row.
+  const resolveCell = (
+    clientX: number,
+    clientY: number,
+  ): { i: number; row: number; j: number; datum: HeatmapDatum } | null => {
     const plotEl = plotRef.current;
-    if (!plotEl || plotSize.width <= 0 || plotSize.height <= 0) return;
+    if (!plotEl || plotSize.width <= 0 || plotSize.height <= 0) return null;
     const r = plotEl.getBoundingClientRect();
     // clientLeft/Top step inside the plot cell's 1px frame border.
-    const fx = (e.clientX - r.left - plotEl.clientLeft) / plotSize.width;
-    const fy = Math.min(1, Math.max(0, (e.clientY - r.top - plotEl.clientTop) / plotSize.height));
+    const fx = (clientX - r.left - plotEl.clientLeft) / plotSize.width;
+    const fy = Math.min(1, Math.max(0, (clientY - r.top - plotEl.clientTop) / plotSize.height));
     const i = Math.min(nx - 1, Math.max(0, Math.floor(fx * nx)));
-    // Map through the zoomed row window to the drawn row, then to the data row.
     const row = Math.min(ny - 1, Math.max(0, Math.floor(rowWinTop + fy * rowWinSpan)));
     const j = ny - 1 - row;
+    return { i, row, j, datum: { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z: data.z[j]?.[i] ?? 0 } };
+  };
+
+  const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
+    const plotEl = plotRef.current;
+    const hit = resolveCell(e.clientX, e.clientY);
+    if (!plotEl || !hit) return;
     setHover((prev) => {
       // Bail per cell: pointermoves inside one cell re-use the same state.
-      if (prev && prev.i === i && prev.row === row) return prev;
-      const anchorX = ((i + 0.5) / nx) * plotSize.width;
-      const anchorY = ((row + 0.5 - rowWinTop) / rowWinSpan) * plotSize.height;
+      if (prev && prev.i === hit.i && prev.row === hit.row) return prev;
+      const anchorX = ((hit.i + 0.5) / nx) * plotSize.width;
+      const anchorY = ((hit.row + 0.5 - rowWinTop) / rowWinSpan) * plotSize.height;
       return {
-        i,
-        row,
-        datum: { x: data.x[i] ?? 0, y: data.y[j] ?? 0, z: data.z[j]?.[i] ?? 0 },
+        i: hit.i,
+        row: hit.row,
+        datum: hit.datum,
         // The hovered cell's center in plot space is the single anchor source.
         rect: anchorRectFromPoint(plotEl, anchorX, anchorY),
       };
     });
   };
+
+  // Click-to-freeze: re-clicking the pinned cell clears it, any other cell
+  // moves the pin. Compared by grid indices, not object identity.
+  const onActivate = (e: ReactMouseEvent<SVGSVGElement>) => {
+    if (!selectable) return;
+    const hit = resolveCell(e.clientX, e.clientY);
+    if (!hit) return;
+    const curI = selection ? xIndex.get(selection.x) : undefined;
+    const curJ = selection ? yIndex.get(selection.y) : undefined;
+    const same = curI === hit.i && curJ === hit.j;
+    setSelection(same ? null : hit.datum);
+  };
+
+  // Grid indices of the pinned selection, re-derived from the stored datum's
+  // x/y through the index lookups every render (never a lookup into the
+  // currently drawn — and possibly row-windowed — cell list).
+  const selectionCell = useMemo(() => {
+    if (!selectable || !selection) return null;
+    const i = xIndex.get(selection.x);
+    const j = yIndex.get(selection.y);
+    if (i == null || j == null) return null;
+    return { i, row: ny - 1 - j };
+  }, [selectable, selection, xIndex, yIndex, ny]);
+
+  // The pinned popover's anchor: the same cx/cy derivation `onMove` uses for
+  // the hover rect, just from the selected cell's live indices every render
+  // instead of at hover time, so it tracks zoom/pan/resize.
+  const selectionPoint = useMemo(() => {
+    if (!selectionCell || plotSize.width <= 0 || plotSize.height <= 0) return null;
+    return {
+      x: ((selectionCell.i + 0.5) / nx) * plotSize.width,
+      y: ((selectionCell.row + 0.5 - rowWinTop) / rowWinSpan) * plotSize.height,
+    };
+  }, [selectionCell, nx, rowWinTop, rowWinSpan, plotSize.width, plotSize.height]);
+
+  // The selected cell's own pixel bounds (the same edge math `cellRects`
+  // uses), so the emphasis outline lines up exactly with the drawn cell.
+  // There is no per-cell DOM node to tag, so this draws as its own overlay.
+  const selectionRect = useMemo(() => {
+    if (!selectionCell || plotSize.width <= 0 || plotSize.height <= 0) return null;
+    const colEdge = snapEdges(
+      (selectionCell.i * plotSize.width) / nx,
+      ((selectionCell.i + 1) * plotSize.width) / nx,
+    );
+    const rowToPx = (r: number) => ((r - rowWinTop) / rowWinSpan) * plotSize.height;
+    const rowEdge = snapEdges(rowToPx(selectionCell.row), rowToPx(selectionCell.row + 1));
+    return {
+      x: colEdge.start,
+      y: rowEdge.start,
+      width: colEdge.end - colEdge.start,
+      height: rowEdge.end - rowEdge.start,
+    };
+  }, [selectionCell, nx, rowWinTop, rowWinSpan, plotSize.width, plotSize.height]);
 
   const hasAnnotations = scaffold.editingEnabled || (annotations != null && annotations.length > 0);
 
@@ -504,6 +631,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
               editor owns the pointer — matching the old overlay, which
               intercepted cell hover while armed. */}
           {plotSize.width > 0 && plotSize.height > 0 ? (
+            // biome-ignore lint/a11y/useKeyWithClickEvents: cells have no per-cell DOM node to focus (issue #35's hit-testing is coordinate math, not a scan of discrete marks) — there is no keyboard-reachable target to pair a key handler with; click-to-select is a pointer-only affordance here, same as the hover it pins.
             <svg
               {...scaffold.editor.surfaceProps}
               className={styles.svg}
@@ -520,9 +648,21 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
                 if (!scaffold.editingEnabled) onMove(e);
               }}
               onPointerLeave={() => setHover(null)}
+              onClick={(e) => {
+                if (!scaffold.editingEnabled) onActivate(e);
+              }}
             >
               <HeatmapCells rects={cellRects} fills={cellFills} nx={nx} />
               <HeatmapContours lines={isoLines} />
+              {selectionRect ? (
+                <rect
+                  x={selectionRect.x}
+                  y={selectionRect.y}
+                  width={selectionRect.width}
+                  height={selectionRect.height}
+                  className={styles.selectedCell}
+                />
+              ) : null}
               {hasAnnotations ? (
                 <AnnotationsLayer
                   annotations={
@@ -579,18 +719,20 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
         <FullscreenToggle expanded={scaffold.expanded} onToggle={scaffold.toggleExpanded} />
       ) : null}
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
-        {hover
-          ? (renderTooltip?.(hover.datum) ?? (
-              <span className={styles.tip}>
-                {hover.datum.z}
-                <span className={styles.tipMeta}>
-                  {" "}
-                  ({hover.datum.x}, {hover.datum.y})
-                </span>
-              </span>
-            ))
-          : null}
+        {hover ? (renderTooltip?.(hover.datum) ?? defaultTooltip(hover.datum)) : null}
       </Tooltip>
+
+      {selectable ? (
+        <SelectionPopover
+          open={selection != null && selectionPoint != null}
+          plotEl={plotRef.current}
+          x={selectionPoint?.x ?? null}
+          y={selectionPoint?.y ?? null}
+          onClose={() => setSelection(null)}
+        >
+          {selection ? (renderSelection ?? renderTooltip ?? defaultTooltip)(selection) : null}
+        </SelectionPopover>
+      ) : null}
     </div>
   );
 });

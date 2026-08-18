@@ -13,6 +13,7 @@ import {
   anchorRectFromPoint,
   ChartControls,
   type ChartScaffoldingProps,
+  type ChartSelectionProps,
   Crosshair,
   domainKeyOf,
   formatDateDelta,
@@ -26,6 +27,7 @@ import {
   niceDomain,
   niceTicks,
   resolveTickFont,
+  SelectionPopover,
   type StepSession,
   sliceRange,
   snapHairline,
@@ -35,6 +37,7 @@ import {
   timeScale,
   timeTicks,
   useAnnotationEditor,
+  useChartSelection,
   useMeasuredPlot,
   useViewport,
 } from "../../lib/chart";
@@ -65,9 +68,13 @@ export interface ScatterSeries {
   showPoints?: boolean;
 }
 
+/** The datum-with-series a Scatterplot emits on activate / selection. */
+export type ScatterPoint = ScatterDatum & { series: string };
+
 export interface ScatterplotProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
-    ChartScaffoldingProps {
+    ChartScaffoldingProps,
+    ChartSelectionProps<ScatterPoint> {
   series: ScatterSeries[];
   /** Fixes the x range. With `zoomable`, this is the *controlled visible
    *  window* — pair it with `onXDomainChange` (standard controlled pattern;
@@ -124,6 +131,7 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   onPointHover,
   onPointLeave,
   onPointActivate,
+  selectedKey,
 }: {
   series: ScatterSeries;
   xPx: (x: ScatterX) => number;
@@ -131,6 +139,8 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   onPointHover: (hit: PointHit) => void;
   onPointLeave: () => void;
   onPointActivate?: (hit: PointHit) => void;
+  /** Key of the pinned point, so its circle draws the frozen-selection ring. */
+  selectedKey?: string | null;
 }) {
   const resolvePoint = (target: EventTarget | null): PointHit | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
@@ -180,16 +190,20 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
       {series.data.map((d, i) => {
         const px = xPx(d.x);
         const py = yScale(d.y);
+        const selected =
+          selectedKey != null && scatterPointKey(series.name, d.x, d.y) === selectedKey;
         return (
           // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
           <circle
             key={`${series.name}-${String(d.x)}-${d.y}`}
             data-idx={i}
+            data-chart-mark=""
             cx={px}
             cy={py}
             r={4}
             className={styles.point}
             style={{ fill: series.color ?? "var(--sf-color-primary)" }}
+            data-selected={selected || undefined}
             role="button"
             tabIndex={0}
             aria-label={d.label ?? `${series.name}: ${d.y}`}
@@ -212,6 +226,12 @@ function getXNumber(d: ScatterDatum): number {
 
 function getY(d: ScatterDatum): number {
   return d.y;
+}
+
+/** Stable identity of a point across renders (for the pinned-selection match /
+ *  toggle), independent of object reference — the selection is a spread copy. */
+function scatterPointKey(series: string, x: ScatterX, y: number): string {
+  return `${series} ${toNumber(x)} ${y}`;
 }
 
 function defaultTooltip(d: ScatterDatum & { series: string }): ReactNode {
@@ -253,12 +273,27 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     frame = false,
     onPointActivate,
     renderTooltip = defaultTooltip,
+    selectable = false,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+    renderSelection,
     className,
     style,
     ...rest
   },
   ref,
 ) {
+  const { selection, setSelection } = useChartSelection<ScatterPoint>({
+    selectable,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+  });
+  // Read the live selection inside the once-built, memoized activate handler
+  // (kept referentially stable so the point layer's hover memo still bails).
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
   // Both minimal and hover modes share the dot-dash idle look; full mode
   // replaces it with nice-tick axes + gridlines.
   const isTufte = scaffolding !== "full";
@@ -612,13 +647,33 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     [plotRef],
   );
   const handlePointLeave = useCallback(() => setHover(null), []);
-  const handlePointActivate = useMemo(
-    () =>
-      onPointActivate
-        ? (hit: PointHit) => onPointActivate({ ...hit.datum, series: hit.series })
-        : undefined,
-    [onPointActivate],
-  );
+  const handlePointActivate = useMemo(() => {
+    if (!onPointActivate && !selectable) return undefined;
+    return (hit: PointHit) => {
+      const payload: ScatterPoint = { ...hit.datum, series: hit.series };
+      onPointActivate?.(payload);
+      if (!selectable) return;
+      // Re-clicking the pinned point toggles it off; any other point moves the pin.
+      const cur = selectionRef.current;
+      const same =
+        cur != null &&
+        cur.series === hit.series &&
+        toNumber(cur.x) === toNumber(hit.datum.x) &&
+        cur.y === hit.datum.y;
+      setSelection(same ? null : payload);
+    };
+  }, [onPointActivate, selectable, setSelection]);
+
+  // The pinned popover's anchor, re-derived from the selected datum through the
+  // live scales every render, so it tracks zoom / pan / resize. Never a lookup
+  // in the (decimated) visible set — the stored datum drives it directly.
+  const selectionPoint = useMemo(() => {
+    if (!selectable || !selection || plotSize.width <= 0 || plotSize.height <= 0) return null;
+    return { x: xPx(selection.x), y: yScale(selection.y) };
+  }, [selectable, selection, xPx, yScale, plotSize.width, plotSize.height]);
+  const selectedKey = selection
+    ? scatterPointKey(selection.series, selection.x, selection.y)
+    : null;
 
   const formatXDelta = useCallback(
     (a: ScatterX, b: ScatterX) =>
@@ -732,9 +787,24 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                   onPointHover={handlePointHover}
                   onPointLeave={handlePointLeave}
                   onPointActivate={handlePointActivate}
+                  selectedKey={selectedKey}
                 />
               ),
             )}
+
+            {/* Pinned-selection ring as a standalone overlay, so the emphasis
+                survives decimation: under zoom the pinned datum may drop out of
+                the (min/max-downsampled) visible points, but the popover stays
+                anchored — the ring must too. Drawn from the same plot-space
+                point the popover anchors to. */}
+            {selectable && selectionPoint ? (
+              <circle
+                cx={selectionPoint.x}
+                cy={selectionPoint.y}
+                r={6}
+                className={styles.selectedRing}
+              />
+            ) : null}
 
             {editingEnabled || (annotations && annotations.length > 0) ? (
               <AnnotationsLayer
@@ -844,6 +914,18 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover ? renderTooltip({ ...hover.datum, series: hover.series }) : null}
       </Tooltip>
+
+      {selectable ? (
+        <SelectionPopover
+          open={selection != null && selectionPoint != null}
+          plotEl={plotRef.current}
+          x={selectionPoint?.x ?? null}
+          y={selectionPoint?.y ?? null}
+          onClose={() => setSelection(null)}
+        >
+          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+        </SelectionPopover>
+      ) : null}
 
       {zoomable ? (
         <div className={styles.srOnly} aria-live="polite">

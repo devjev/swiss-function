@@ -70,3 +70,17 @@ test("fullscreen toggles the maximized data attribute", async ({ mount }) => {
   await c.getByRole("button", { name: /fullscreen/i }).click();
   await expect(root).toHaveAttribute("data-expanded", "");
 });
+
+test("selectable: clicking a cell pins a popover + outlines it; ✕ dismisses", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeatmapHarness n={5} selectable />);
+  await c.locator("rect[data-chart-mark]").nth(6).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toBeVisible();
+  // Heatmap has no per-cell DOM node, so the emphasis is an overlay rect.
+  await expect(c.locator('rect[class*="selectedCell"]')).toHaveCount(1);
+  await page.getByRole("button", { name: "Dismiss selection" }).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+  await expect(c.locator('rect[class*="selectedCell"]')).toHaveCount(0);
+});

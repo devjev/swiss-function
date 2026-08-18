@@ -171,3 +171,20 @@ test("vline drawn by click lands on an interpolated timestamp between candles", 
   expect(t).toBeGreaterThan(new Date(2026, 0, 26).getTime());
   expect(t).toBeLessThan(new Date(2026, 1, 4).getTime());
 });
+
+test("selectable: clicking a candle pins a popover + marks it; ✕ dismisses", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <CandlestickChart candles={CANDLES} height={240} selectable />
+    </div>,
+  );
+  await c.locator("g[data-chart-mark]").nth(2).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toBeVisible();
+  await expect(c.locator("[data-selected]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Dismiss selection" }).click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+  await expect(c.locator("[data-selected]")).toHaveCount(0);
+});

@@ -223,6 +223,15 @@ charts: `BarChart`/`BridgeChart` zoom y (via `onValueDomainChange`), `Heatmap`
 zooms a vertical sub-range of rows. Only `Graph` and the 3D charts (`PointCloud`,
 `Surface`) stay out; they have their own interaction models.
 
+Click-to-freeze selection is likewise uniform: the same `ChartSelectionProps`
+mixin (`selectable`, `selection`/`defaultSelection`/`onSelectionChange`,
+`renderSelection`) is accepted by all five 2D charts. `selectable` pins a
+popover to the clicked mark (a point, bar, candle, or heatmap cell) that stays
+open and tracks the mark through zoom/pan (the anchor is re-derived from the
+mark's data coordinates each render); `renderSelection` supplies interactive
+content, defaulting to the hover tooltip. Dismiss by clicking the mark again,
+clicking away, Escape, or the popover's ✕. Single-selection.
+
 ### Graphs & networks
 
 | Component | Use for                                                        |

@@ -9,6 +9,7 @@ import {
   bandScale,
   ChartChrome,
   type ChartScaffoldingProps,
+  type ChartSelectionProps,
   Crosshair,
   FullscreenToggle,
   fitBandTicks,
@@ -19,11 +20,13 @@ import {
   niceDomain,
   niceTicks,
   resolveTickFont,
+  SelectionPopover,
   scaffoldStyles,
   snapFraction,
   snapHairline,
   Tooltip,
   useChartScaffold,
+  useChartSelection,
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
@@ -39,6 +42,9 @@ export interface BarSeries {
   color?: string;
 }
 
+/** The datum a BarChart emits on activate / selection. Already carries
+ *  `series`, unlike Scatterplot's point datum, so it doubles as the
+ *  selection-with-series shape with no extra wrapper type. */
 export interface BarTooltipDatum {
   category: string;
   series: string;
@@ -47,7 +53,8 @@ export interface BarTooltipDatum {
 
 export interface BarChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
-    ChartScaffoldingProps {
+    ChartScaffoldingProps,
+    ChartSelectionProps<BarTooltipDatum> {
   categories: string[];
   series: BarSeries[];
   /** y-axis range. Auto-fit when omitted (zero anchored if all positive). */
@@ -74,6 +81,12 @@ interface HoverState {
   /** SVG-coords for the hovered bar's top-center — used to anchor crosshair. */
   cx: number;
   cy: number;
+}
+
+/** Stable identity of a bar across renders (for the pinned-selection match /
+ *  toggle), independent of object reference — the selection is a spread copy. */
+function barPointKey(category: string, series: string, value: number): string {
+  return `${category} ${series} ${value}`;
 }
 
 function defaultTooltip(d: BarTooltipDatum): ReactNode {
@@ -107,6 +120,11 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     onValueDomainChange,
     onPointActivate,
     renderTooltip = defaultTooltip,
+    selectable = false,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+    renderSelection,
     className,
     style,
     ...rest
@@ -119,6 +137,15 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
   const [hover, setHover] = useState<HoverState | null>(null);
   const measure = getTextMeasurer(resolveTickFont(plotRef.current));
+  // Unlike Scatterplot, bars render inline in this component's own render (no
+  // separate memoized mark layer), so the live `selection` can be closed over
+  // directly below with no staleness risk — no selectionRef indirection needed.
+  const { selection, setSelection } = useChartSelection<BarTooltipDatum>({
+    selectable,
+    selection: controlledSelection,
+    defaultSelection,
+    onSelectionChange,
+  });
 
   const resolvedYDomain: [number, number] = useMemo(() => {
     if (yDomain) return yDomain;
@@ -253,6 +280,46 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   const innerStep = xBand.bandwidth / nSeries;
   const innerBarWidth = innerStep * 0.85;
 
+  // Click/Enter on a bar: report the activate event, then (when selectable)
+  // toggle the pin — re-clicking the pinned bar clears it, any other bar
+  // moves the pin. Compared by the stable key, not object identity.
+  const activatable = !!onPointActivate || selectable;
+  const handleBarActivate = (payload: BarTooltipDatum) => {
+    onPointActivate?.(payload);
+    if (!selectable) return;
+    const same =
+      selection != null &&
+      barPointKey(selection.category, selection.series, selection.value) ===
+        barPointKey(payload.category, payload.series, payload.value);
+    setSelection(same ? null : payload);
+  };
+
+  // The pinned popover's anchor, re-derived from the selected datum through the
+  // live band/value scales every render, so it tracks zoom / resize. Never a
+  // lookup into the currently rendered bars — the stored datum drives it
+  // directly, the same cx/cy derivation `handleEnter` uses for the hover path.
+  const selectionPoint = useMemo(() => {
+    if (!selectable || !selection || plotSize.width <= 0 || plotSize.height <= 0) return null;
+    const bandLeft = xBand.position(selection.category);
+    const si = series.findIndex((s) => s.name === selection.series);
+    if (bandLeft == null || si < 0) return null;
+    const x = bandLeft + innerStep * si + (innerStep - innerBarWidth) / 2;
+    return { x: x + innerBarWidth / 2, y: yScale(selection.value) };
+  }, [
+    selectable,
+    selection,
+    xBand,
+    series,
+    innerStep,
+    innerBarWidth,
+    yScale,
+    plotSize.width,
+    plotSize.height,
+  ]);
+  const selectedKey = selection
+    ? barPointKey(selection.category, selection.series, selection.value)
+    : null;
+
   return (
     <div
       {...rest}
@@ -311,6 +378,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                 const h = Math.abs(yVal - baselineY);
                 const cx_ = x + innerBarWidth / 2;
                 const cy_ = yVal;
+                const selected = selectedKey != null && barPointKey(c, s.name, v) === selectedKey;
                 return (
                   <g key={`bar-${c}-${s.name}`}>
                     {/* biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback */}
@@ -321,27 +389,29 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                       height={h}
                       className={styles.bar}
                       style={{ fill: s.color ?? "var(--sf-color-primary)" }}
+                      data-chart-mark=""
                       role="button"
                       tabIndex={0}
                       aria-label={`${c} ${s.name}: ${v}`}
                       onPointerEnter={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
                       onPointerLeave={handleLeave}
                       onClick={
-                        onPointActivate
-                          ? () => onPointActivate({ category: c, series: s.name, value: v })
+                        activatable
+                          ? () => handleBarActivate({ category: c, series: s.name, value: v })
                           : undefined
                       }
                       onKeyDown={
-                        onPointActivate
+                        activatable
                           ? (e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                onPointActivate({ category: c, series: s.name, value: v });
+                                handleBarActivate({ category: c, series: s.name, value: v });
                               }
                             }
                           : undefined
                       }
-                      data-activatable={onPointActivate ? "" : undefined}
+                      data-activatable={activatable ? "" : undefined}
+                      data-selected={selected || undefined}
                       onFocus={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
                       onBlur={handleLeave}
                     >
@@ -457,6 +527,18 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
             })
           : null}
       </Tooltip>
+
+      {selectable ? (
+        <SelectionPopover
+          open={selection != null && selectionPoint != null}
+          plotEl={plotRef.current}
+          x={selectionPoint?.x ?? null}
+          y={selectionPoint?.y ?? null}
+          onClose={() => setSelection(null)}
+        >
+          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+        </SelectionPopover>
+      ) : null}
     </div>
   );
 });

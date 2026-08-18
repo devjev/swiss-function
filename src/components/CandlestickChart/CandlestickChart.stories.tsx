@@ -137,6 +137,46 @@ export const Zoomable: Story = () => {
 };
 
 /**
+ * `selectable`: click a candle to pin it — a popover anchored to its close
+ * price opens (`renderSelection`), re-clicking the pinned candle clears it,
+ * clicking another moves the pin. Combined with `zoomable`: the anchor is
+ * re-derived from the pinned candle's index through the live band/price
+ * scales every render, so it tracks the candle through zoom/pan.
+ */
+export const Selectable: Story = () => {
+  const candles = makeCandles(60);
+  const [selected, setSelected] = useState<string>("none");
+  return (
+    <div style={{ width: "min(48rem, 100%)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Pinned: {selected}
+      </p>
+      <CandlestickChart
+        candles={candles}
+        yLabel="USD"
+        zoomable
+        selectable
+        onSelectionChange={(s) =>
+          setSelected(s ? `#${s.index} close ${s.close.toFixed(2)}` : "none")
+        }
+        renderSelection={(c) => (
+          <div style={{ display: "grid", gap: "calc(var(--sf-unit) / 4)" }}>
+            <strong>{c.x instanceof Date ? c.x.toLocaleDateString() : String(c.x)}</strong>
+            <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+              O {c.open.toFixed(2)} H {c.high.toFixed(2)}
+              <br />L {c.low.toFixed(2)} C {c.close.toFixed(2)}
+            </span>
+            <a href="#top" style={{ fontSize: "var(--sf-font-size-sm)" }}>
+              Open candle #{c.index} →
+            </a>
+          </div>
+        )}
+      />
+    </div>
+  );
+};
+
+/**
  * The trading-terminal chart window: toolbar zoom, drawing tools (trend
  * line, levels, regions, notes, measure), selection with drag handles,
  * Delete/Escape — everything flows through `onAnnotationsChange`, so the

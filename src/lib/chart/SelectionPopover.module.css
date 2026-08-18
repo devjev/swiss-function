@@ -1,0 +1,49 @@
+/* The pinned selection popover: a compact card with a trailing close button.
+   Chrome (bg, border, radius, shadow, padding) comes from the Popover's Box
+   render; this only lays out the body + the ✕. */
+.popup {
+  position: relative;
+  max-inline-size: calc(var(--sf-unit) * 16);
+}
+
+.body {
+  /* Room for the close button in the top-right corner. */
+  padding-inline-end: calc(var(--sf-unit) * 0.75);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+
+.close {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / -4);
+  inset-inline-end: calc(var(--sf-unit) / -4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 0.75);
+  block-size: calc(var(--sf-unit) * 0.75);
+  padding: 0;
+  color: var(--sf-color-muted);
+  background: none;
+  border: none;
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.close:hover {
+  color: var(--sf-color-fg);
+}
+.close:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+.close svg {
+  inline-size: calc(var(--sf-unit) * 0.6);
+  block-size: calc(var(--sf-unit) * 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close {
+    transition: none;
+  }
+}

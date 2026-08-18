@@ -100,6 +100,18 @@
   fill: none;
 }
 
+/* The pinned (frozen) selection: an accent-stroked outline around the cell
+   the popover belongs to. No fill, so the cell's own colour reads through;
+   not a per-cell node, so this draws as a standalone overlay positioned
+   from the same cell geometry, and it never intercepts pointer events
+   (hit-testing for both hover and click is coordinate math, not DOM). */
+.selectedCell {
+  fill: none;
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
 .yAxis {
   grid-column: 2;
   grid-row: 1;

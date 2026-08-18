@@ -282,6 +282,44 @@ export const DrillDown: Story = () => {
 };
 
 /**
+ * `selectable`: clicking a point FREEZES it — a pinned popover opens anchored to
+ * the point and stays open (unlike the hover tooltip), and the point keeps an
+ * accent ring. The popover tracks the point through zoom/pan (this chart is also
+ * `zoomable`). Dismiss by clicking the point again, clicking away, Escape, or the
+ * ✕. `renderSelection` supplies richer, interactive content than the hover
+ * tooltip; omit it and the tooltip body is reused.
+ */
+export const Selectable: Story = () => {
+  const [selected, setSelected] = useState<string>("none");
+  return (
+    <div style={{ width: "min(44rem, 100%)" }}>
+      <p style={{ fontSize: "var(--sf-font-size-sm)", fontFamily: "var(--sf-font-mono)" }}>
+        Pinned: {selected}
+      </p>
+      <Scatterplot
+        series={[{ name: "Trials", data: samplePoints }]}
+        xLabel="Trial"
+        yLabel="Score"
+        zoomable
+        selectable
+        onSelectionChange={(s) => setSelected(s ? `x=${String(s.x)}, y=${s.y}` : "none")}
+        renderSelection={(d) => (
+          <div style={{ display: "grid", gap: "calc(var(--sf-unit) / 4)" }}>
+            <strong>{d.series}</strong>
+            <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+              trial {String(d.x)} → {d.y}
+            </span>
+            <a href="#top" style={{ fontSize: "var(--sf-font-size-sm)" }}>
+              Open trial {String(d.x)} →
+            </a>
+          </div>
+        )}
+      />
+    </div>
+  );
+};
+
+/**
  * The full chart window (issue #27 M3): `controls` renders the toolbar —
  * zoom in/out/reset plus, because `onAnnotationsChange` is wired, the
  * annotation tools. Arm a tool and drag to draw a trend line, region or

@@ -445,3 +445,71 @@ test("armed zoom mode owns the gesture: wheel, dblclick and toolbar presses are 
   await page.mouse.up();
   await expect(live).toContainText("Showing 25 to 75");
 });
+
+// --- Click-to-freeze selection + pinned popover ---------------------------
+
+test("selectable: clicking a point pins a popover and rings the point; ✕ dismisses", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <Scatterplot series={SERIES} height={240} showLegend={false} selectable />
+    </div>,
+  );
+  // Nothing pinned at rest.
+  await expect(c.locator("circle[data-selected]")).toHaveCount(0);
+
+  await c.locator("circle[data-idx='2']").click();
+  // The pinned popover (default body reuses the tooltip content) has a dismiss ✕.
+  const dismiss = page.getByRole("button", { name: "Dismiss selection" });
+  await expect(dismiss).toBeVisible();
+  // The clicked point carries the frozen ring.
+  await expect(c.locator("circle[data-selected]")).toHaveCount(1);
+
+  await dismiss.click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+  await expect(c.locator("circle[data-selected]")).toHaveCount(0);
+});
+
+test("selectable: re-clicking the pinned point toggles it off", async ({ mount, page }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <Scatterplot series={SERIES} height={240} showLegend={false} selectable />
+    </div>,
+  );
+  const point = c.locator("circle[data-idx='1']");
+  await point.click();
+  await expect(c.locator("circle[data-selected]")).toHaveCount(1);
+  // A second click on the same point clears the selection.
+  await point.click();
+  await expect(c.locator("circle[data-selected]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
+});
+
+test("selectable: a second chart's popover dismisses the first (scoped outside-press)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ display: "flex", gap: 16 }}>
+      <div style={{ width: 300 }} data-testid="a">
+        <Scatterplot series={SERIES} height={200} showLegend={false} selectable />
+      </div>
+      <div style={{ width: 300 }} data-testid="b">
+        <Scatterplot series={SERIES} height={200} showLegend={false} selectable />
+      </div>
+    </div>,
+  );
+  // Pin a point in chart A.
+  await c.getByTestId("a").locator("circle[data-idx='1']").click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(1);
+  await expect(c.getByTestId("a").locator("circle[data-selected]")).toHaveCount(1);
+
+  // Click a point in chart B: A's popover must dismiss (not stay orphaned), and
+  // B pins. Exactly one popover open, on B.
+  await c.getByTestId("b").locator("circle[data-idx='2']").click();
+  await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(1);
+  await expect(c.getByTestId("a").locator("circle[data-selected]")).toHaveCount(0);
+  await expect(c.getByTestId("b").locator("circle[data-selected]")).toHaveCount(1);
+});

@@ -173,6 +173,13 @@
   stroke-width: var(--sf-focus-ring-width, 2px);
 }
 
+/* The pinned (frozen) selection: an accent ring so the bar the popover
+   belongs to reads as held, distinct from the transient hover brighten. */
+.bar[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bar {
     transition: none;

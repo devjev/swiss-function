@@ -14,6 +14,7 @@ import {
   type BandScale,
   ChartControls,
   type ChartScaffoldingProps,
+  type ChartSelectionProps,
   Crosshair,
   domainKeyOf,
   formatDateDelta,
@@ -28,6 +29,7 @@ import {
   niceTicks,
   pickTimeUnit,
   resolveTickFont,
+  SelectionPopover,
   type StepSession,
   snapHairline,
   stableValue,
@@ -37,6 +39,7 @@ import {
   thinLabels,
   unitRank,
   useAnnotationEditor,
+  useChartSelection,
   useMeasuredPlot,
   useViewport,
   xToIndex,
@@ -58,9 +61,15 @@ export interface Candle {
   close: number;
 }
 
+/** The datum-with-index a CandlestickChart emits on selection: the candle
+ *  plus its index into the source `candles` array (survives aggregation),
+ *  so a `selection` round-trips through the consumer unchanged. */
+export type CandlePoint = Candle & { index: number };
+
 export interface CandlestickChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
-    ChartScaffoldingProps {
+    ChartScaffoldingProps,
+    ChartSelectionProps<CandlePoint> {
   /** OHLC bars in chronological order; spaced evenly (index-based), not by real time. */
   candles: Candle[];
   /** Price range. Auto-fit (padded, not zero-anchored) when omitted. */
@@ -189,6 +198,7 @@ const CandlesLayer = memo(function CandlesLayer({
   onCandleHover,
   onCandleLeave,
   onCandleActivate,
+  selectedKey,
 }: {
   candles: Candle[];
   keys: string[];
@@ -198,6 +208,10 @@ const CandlesLayer = memo(function CandlesLayer({
   onCandleHover: (hit: CandleHit) => void;
   onCandleLeave: () => void;
   onCandleActivate?: (candle: Candle, index: number) => void;
+  /** Source index of the pinned candle, so its group draws the frozen-selection
+   *  ring. `null`/`undefined` when nothing is pinned or the pinned index isn't
+   *  the representative candle of its (possibly aggregated) visible bar. */
+  selectedKey?: number | null;
 }) {
   const resolveCandle = (target: EventTarget | null): CandleHit | null => {
     const el = target instanceof Element ? target.closest("[data-idx]") : null;
@@ -259,11 +273,14 @@ const CandlesLayer = memo(function CandlesLayer({
         const yLow = yScale(c.low);
         const bodyTop = Math.min(yScale(c.open), yScale(c.close));
         const bodyH = Math.max(1, Math.abs(yScale(c.close) - yScale(c.open)));
+        const selected = selectedKey != null && Number(keys[i]) === selectedKey;
         return (
           // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
           <g
             key={keys[i]}
             data-idx={i}
+            data-chart-mark=""
+            data-selected={selected || undefined}
             className={cx(styles.candle, up ? styles.up : styles.down)}
             role="button"
             tabIndex={0}
@@ -312,6 +329,11 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       frame = false,
       onPointActivate,
       renderTooltip = defaultTooltip,
+      selectable = false,
+      selection: controlledSelection,
+      defaultSelection,
+      onSelectionChange,
+      renderSelection,
       className,
       style,
       ...rest
@@ -322,6 +344,17 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
     const [hover, setHover] = useState<HoverState | null>(null);
     const measure = getTextMeasurer(resolveTickFont(plotRef.current));
+
+    const { selection, setSelection } = useChartSelection<CandlePoint>({
+      selectable,
+      selection: controlledSelection,
+      defaultSelection,
+      onSelectionChange,
+    });
+    // Read the live selection inside the once-built, memoized activate handler
+    // (kept referentially stable so the candle layer's hover memo still bails).
+    const selectionRef = useRef(selection);
+    selectionRef.current = selection;
 
     // --- Viewport (bar-index space: the "logical range" model) ---
     const n = candles.length;
@@ -577,6 +610,34 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     );
     const handleLeave = useCallback(() => setHover(null), []);
 
+    const handleCandleActivate = useMemo(() => {
+      if (!onPointActivate && !selectable) return undefined;
+      return (candle: Candle, index: number) => {
+        onPointActivate?.(candle, index);
+        if (!selectable) return;
+        // Re-clicking the pinned candle toggles it off; any other candle moves the pin.
+        const cur = selectionRef.current;
+        setSelection(cur != null && cur.index === index ? null : { ...candle, index });
+      };
+    }, [onPointActivate, selectable, setSelection]);
+
+    // The pinned popover's anchor, re-derived from the selected candle's index
+    // through the live band/price scales every render, so it tracks zoom / pan /
+    // resize. `xBand.position` is a pure function of the index (it doesn't look
+    // up the visible/aggregated `keys` array), so this works even when the
+    // pinned candle currently sits inside an aggregated group. `y` uses the
+    // pinned candle's own `close`: if an aggregated candle is pinned and the
+    // user then zooms in until the group dissolves, the vertical anchor holds
+    // the aggregate's close until re-pinned (a minor drift at that LOD
+    // transition; the horizontal anchor stays correct).
+    const selectionPoint = useMemo(() => {
+      if (!selectable || !selection || plotSize.width <= 0 || plotSize.height <= 0) return null;
+      const left = xBand.position(String(selection.index));
+      if (left == null) return null;
+      return { x: left + xBand.bandwidth / 2, y: yScale(selection.close) };
+    }, [selectable, selection, xBand, yScale, plotSize.width, plotSize.height]);
+    const selectedKey = selection ? selection.index : null;
+
     const wrapperStyle: CSSProperties = {
       ...(yAxisWidth > 0 ? { "--sf-axis-label-width": `${yAxisWidth}px` } : {}),
       // The inline height would beat the fullscreen class; drop it while
@@ -648,7 +709,8 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
                 plotHeight={plotSize.height}
                 onCandleHover={handleCandleHover}
                 onCandleLeave={handleLeave}
-                onCandleActivate={onPointActivate}
+                onCandleActivate={handleCandleActivate}
+                selectedKey={selectedKey}
               />
 
               {editingEnabled || (annotations && annotations.length > 0) ? (
@@ -737,6 +799,18 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
         <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
           {hover ? renderTooltip(hover.candle) : null}
         </Tooltip>
+
+        {selectable ? (
+          <SelectionPopover
+            open={selection != null && selectionPoint != null}
+            plotEl={plotRef.current}
+            x={selectionPoint?.x ?? null}
+            y={selectionPoint?.y ?? null}
+            onClose={() => setSelection(null)}
+          >
+            {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+          </SelectionPopover>
+        ) : null}
 
         {zoomable ? (
           <div className={styles.srOnly} aria-live="polite">
