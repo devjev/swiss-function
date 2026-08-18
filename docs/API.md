@@ -55,8 +55,8 @@ use, a one-line context preview, and its children (agent instances or tool
 leaves tagged `AGT` / `FNC` / `MCP`). Agent instances are hairline chassis
 (borders mean "contains"); tool leaves share the same row anatomy without a
 frame; light L-traces connect each child to its parent's rail. Using the same
-agent twice creates two independent instances (hover cross-highlights all
-sites, `⧉ ×n`); collapse cascades to all descendants; cycles are
+agent twice creates two independent instances (hover one to cross-highlight its
+other sites); collapse cascades to all descendants; cycles are
 unrepresentable by construction. There is no outer container: the root chassis
 is the frame. **Reorder siblings by dragging a node's header** (pointer;
 lazy-loaded dnd-kit) or with `Alt+↑/↓` (keyboard) — order is significant, it is

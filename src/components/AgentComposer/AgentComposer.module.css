@@ -121,10 +121,6 @@
   margin-inline-start: auto;
 }
 
-.sharedTag {
-  color: var(--sf-color-muted);
-}
-
 .kindTag {
   flex: 0 0 auto;
   color: var(--sf-color-muted);

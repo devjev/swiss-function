@@ -6,7 +6,7 @@ export default { title: "AgentComposer" };
 
 // A support-desk composition: an orchestrator routing to three desks. Two
 // instances share the `summarizer` type under different names (bullet_summary,
-// exec_summary) — hover one to see both highlight (⧉ ×2). Adding children is a
+// exec_summary) — hover one to see both highlight. Adding children is a
 // consumer concern (drag from the app's catalog, dnd milestone); the composer
 // edits the structure that is already there.
 const SUPPORT_DESK: AgentComposerAgent = {
