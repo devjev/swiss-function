@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.24.0 — 2026-08-18
+
+### Minor
+
+- Graph: built-in persistent selected-node highlight (accent fill + ring), the node analogue of the selected-edge double stroke. New controlled 'selected' prop and 'selectedNodeVisual' override; a node click selects (uncontrolled), a stage click clears, both still reported via onSelectionChange. Closes #91.
+
+### Patch
+
+- Icons: the DataTable/Explorer filter funnel, the tree expand/collapse chevron, and the Accordion chevron now render through the Glyph slot system (new 'filter' slot), so a consumer IconProvider (Feather/Lucide/…) redirects them. Tree/accordion toggles now use the library's line chevron by default.
+- SfDndProvider: a row dragged out of one widget onto another now routes to the target region's onExternalDrop (a drop over a different registered region is external, not swallowed as an internal reorder of the source). Same-region drags and drops over nothing still reorder internally. Enables widget-to-widget drag under a shared provider. Closes #92.
+
 ## v2.23.0 — 2026-08-16
 
 ### Minor
