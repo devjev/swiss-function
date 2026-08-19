@@ -12,6 +12,7 @@ const componentNames = [
   "BridgeChart",
   "Button",
   "ButtonGroup",
+  "Calendar",
   "CandlestickChart",
   "Chat",
   "ChatDrawer",

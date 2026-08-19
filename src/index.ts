@@ -5,6 +5,17 @@ export * from "./components/Box";
 export * from "./components/BridgeChart";
 export * from "./components/Button";
 export * from "./components/ButtonGroup";
+// `Calendar` is also the name of an `Icon` glyph, so this is an explicit named
+// export (not `export *`): the component wins the bare name in the barrel, and
+// the glyph stays importable as `Calendar` from "@tarassov-ch/swiss-function/icon".
+export {
+  Calendar,
+  type CalendarEvent,
+  type CalendarEventTone,
+  type CalendarProps,
+  type CalendarView,
+  type CalendarViewProps,
+} from "./components/Calendar";
 export * from "./components/CandlestickChart";
 export * from "./components/Chat";
 export * from "./components/ChatDrawer";

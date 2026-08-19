@@ -22,8 +22,8 @@
  *  promotes a bare `2026`. Fragments are skipped at year precision.
  */
 
-import type { DatePickerPrecision } from "./dateMath";
-import { dateFromISOWeek, isoWeeksInYear, startOfPeriod } from "./dateMath";
+import type { DatePickerPrecision } from "../../lib/date";
+import { dateFromISOWeek, isoWeeksInYear, startOfPeriod } from "../../lib/date";
 
 export interface MonthView {
   year: number;

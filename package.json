@@ -75,6 +75,10 @@
       "types": "./dist/components/ButtonGroup/index.d.ts",
       "import": "./dist/components/ButtonGroup/index.js"
     },
+    "./calendar": {
+      "types": "./dist/components/Calendar/index.d.ts",
+      "import": "./dist/components/Calendar/index.js"
+    },
     "./candlestick-chart": {
       "types": "./dist/components/CandlestickChart/index.d.ts",
       "import": "./dist/components/CandlestickChart/index.js"

@@ -2,11 +2,7 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { FocusEvent, HTMLAttributes, KeyboardEvent } from "react";
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
-import type { BoxElevation } from "../Box";
-import styles from "./DatePicker.module.css";
-import type { DatePickerPrecision } from "./dateMath";
+import type { DatePickerPrecision } from "../../lib/date";
 import {
   addDays,
   addMonthsClamped,
@@ -26,10 +22,14 @@ import {
   startOfDay,
   startOfPeriod,
   yearPageStart,
-} from "./dateMath";
+} from "../../lib/date";
+import { usePortalContainer } from "../../lib/portalContainer";
+import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import type { BoxElevation } from "../Box";
+import styles from "./DatePicker.module.css";
 import { type MonthView, type ParsedText, parseDateText } from "./parseDateText";
 
-export type { DatePickerPrecision } from "./dateMath";
+export type { DatePickerPrecision } from "../../lib/date";
 
 const PLACEHOLDERS: Record<DatePickerPrecision, string> = {
   day: "YYYY-MM-DD",

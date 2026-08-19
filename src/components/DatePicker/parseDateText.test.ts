@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatISODate } from "./dateMath";
+import { formatISODate } from "../../lib/date";
 import { parseDateText } from "./parseDateText";
 
 const VIEW = { year: 2026, month: 6 }; // July 2026 on screen

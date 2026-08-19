@@ -251,6 +251,63 @@ Container (`role="group"`) that cascades a size to child Buttons. Extends `HTMLA
 | --- | --- | --- | --- |
 | `size` | `"sm" \| "md" \| "lg"` | n/a | Cascades to child Buttons; an explicit Button `size` wins. |
 
+## Calendar
+
+`import { Calendar } from "@tarassov-ch/swiss-function/calendar"`
+
+A scheduling calendar with **Month**, **Week**, and **Year** views, a
+prev / next / today toolbar, and a view switcher. Distinct from `DatePicker`
+(which picks a value into a field): this is a surface for reading a schedule and
+clicking into it. Weeks start on Monday (ISO 8601). Events carry an optional
+time; `allDay` events are day-granular. The week view lays overlapping timed
+events out in side-by-side columns and pins all-day / multi-day events in a strip
+above the 24-hour grid; multi-day events span as bars (month view and the strip)
+with continuation markers at week boundaries. Display + click only (v1): no drag
+or in-place authoring; wire `onEventClick` / `onDateClick`. Focused date and view
+are each controlled or uncontrolled. Renders a `<div role="group">`; extends
+`HTMLAttributes<HTMLDivElement>` (minus `onChange` / `defaultValue`). The parent
+must give it a height (the week view scrolls its hour grid inside it).
+
+`CalendarEvent = { id: string; start: Date; end?: Date; allDay?: boolean; title: string; tone?: "neutral" | "primary" | "success" | "warning" | "danger"; color?: string; data?: unknown }`.
+For a timed event `end` is the exclusive end (default `start` + 30 min); for an
+`allDay` event `end` is the **inclusive** last day. `tone` colours the event by
+status; `color` is the escape hatch for a consumer-owned category palette (a CSS
+colour, wins over `tone`). All dates are local-time.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `events` | `CalendarEvent[]` | n/a | The scheduled items. |
+| `value` | `Date` | uncontrolled | Focused date: which month / week / year is shown. |
+| `defaultValue` | `Date` | today | Uncontrolled focused date. |
+| `onNavigate` | `(date: Date) => void` | n/a | Fires when prev / next / today or a drill-down moves the focus. |
+| `view` | `"month" \| "week" \| "year"` | uncontrolled | Active view. |
+| `defaultView` | `"month" \| "week" \| "year"` | `"month"` | Uncontrolled view. |
+| `onViewChange` | `(view) => void` | n/a | Fires when the view switches. |
+| `onEventClick` | `(event, e: MouseEvent) => void` | n/a | Click on an event bar / block. |
+| `onDateClick` | `(date: Date) => void` | n/a | Click on an empty day cell (month/year) or hour slot (week); the create-here hook. |
+| `renderEvent` | `(event, ctx: { view }) => ReactNode` | title (+ time in week) | Custom event body. |
+| `showWeekNumbers` | `boolean` | `false` | ISO week-number column (month/week). |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 24)` | Component height; the week view scrolls inside it. |
+| `now` | `Date` | `new Date()` | Overrides the reference "now": its day is highlighted as today and it places the week view's now-line. Pass a fixed value to make the today marker deterministic (snapshot / visual tests). |
+
+```tsx
+<Calendar
+  events={[
+    { id: "1", title: "Standup", start: new Date(2026, 2, 11, 9, 0), end: new Date(2026, 2, 11, 9, 15) },
+    { id: "2", title: "Conference", allDay: true, start: new Date(2026, 2, 10), end: new Date(2026, 2, 12) },
+    { id: "3", title: "Ship v3", allDay: true, start: new Date(2026, 2, 13), tone: "danger" },
+  ]}
+  defaultView="month"
+  onEventClick={(event) => openEditor(event)}
+  onDateClick={(date) => createEventAt(date)}
+  height={640}
+/>
+```
+
+Note: `Calendar` is also the name of an `Icon` glyph. In the package barrel the
+component wins the bare name; import the glyph as `Calendar` from
+`@tarassov-ch/swiss-function/icon` (or via the `Icon` set) when you need it.
+
 ## CandlestickChart
 
 `import { CandlestickChart } from "@tarassov-ch/swiss-function/candlestick-chart"`

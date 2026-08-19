@@ -1,0 +1,579 @@
+.root {
+  --cal-bar-h: calc(var(--sf-unit) - 2px);
+  --cal-date-band: var(--sf-unit);
+  --cal-hour-h: calc(var(--sf-unit) * 1.75);
+  --cal-gutter: calc(var(--sf-unit) * 2);
+  --cal-weeknum: calc(var(--sf-unit) * 1.5);
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-block-size: 0;
+  block-size: 100%;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  overflow: hidden;
+}
+
+/* --- Toolbar --------------------------------------------------------------- */
+
+.toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sf-unit);
+  padding: calc(var(--sf-unit) / 2) var(--sf-unit);
+  border-block-end: 1px solid var(--sf-color-border);
+}
+
+.nav {
+  display: flex;
+  gap: calc(var(--sf-unit) / 4);
+  align-items: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sf-font-size-md);
+  font-weight: 600;
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.viewport {
+  position: relative;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+/* --- Shared event styling (bars + timed blocks) ---------------------------- */
+
+.bar,
+.block {
+  --cal-event-color: var(--sf-color-primary);
+  border: 1px solid color-mix(in oklab, var(--cal-event-color) 42%, transparent);
+  border-inline-start: 2px solid var(--cal-event-color);
+  border-radius: var(--sf-radius-default);
+  background: color-mix(in oklab, var(--cal-event-color) 15%, var(--sf-color-bg));
+  color: var(--sf-color-fg);
+  font-size: var(--sf-font-size-sm);
+  text-align: start;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.bar[data-tone="success"],
+.block[data-tone="success"] {
+  --cal-event-color: var(--sf-color-success);
+}
+.bar[data-tone="warning"],
+.block[data-tone="warning"] {
+  --cal-event-color: var(--sf-color-warning);
+}
+.bar[data-tone="danger"],
+.block[data-tone="danger"] {
+  --cal-event-color: var(--sf-color-danger);
+}
+.bar[data-tone="neutral"],
+.block[data-tone="neutral"] {
+  --cal-event-color: var(--sf-color-muted);
+}
+
+.bar:focus-visible,
+.block:focus-visible,
+.dayCell:focus-visible,
+.hourSlot:focus-visible,
+.more:focus-visible,
+.miniDay:focus-visible,
+.miniTitle:focus-visible,
+.weekDayHead:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-primary);
+  outline-offset: calc(var(--sf-focus-ring-offset, -1px) * -1);
+  z-index: 3;
+}
+
+/* --- Month view ------------------------------------------------------------ */
+
+.month {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.monthHead {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-block-end: 1px solid var(--sf-color-border);
+}
+.withWeekNum .monthHead {
+  grid-template-columns: var(--cal-weeknum) repeat(7, minmax(0, 1fr));
+}
+
+.weekNumHead {
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+
+.weekdayHead {
+  padding: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
+  text-align: center;
+}
+.weekdayHead[data-weekend] {
+  color: var(--sf-color-muted);
+}
+
+.monthBody {
+  display: grid;
+  /* Rows share the height evenly, but a busy week grows past its share and the
+     body scrolls rather than spilling into the next week. */
+  grid-template-rows: repeat(6, minmax(calc(var(--sf-unit) * 3.25), auto));
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.weekRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: var(--cal-date-band) repeat(3, auto) minmax(0, 1fr);
+  border-block-end: 1px solid var(--sf-color-border);
+}
+.withWeekNum .weekRow {
+  grid-template-columns: var(--cal-weeknum) repeat(7, minmax(0, 1fr));
+}
+.monthBody .weekRow:last-child {
+  border-block-end: none;
+}
+
+.weekNum {
+  display: flex;
+  justify-content: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: calc(var(--sf-unit) / 4);
+  border: none;
+  border-inline-start: 1px solid var(--sf-color-border);
+  background: transparent;
+  cursor: pointer;
+  min-inline-size: 0;
+  z-index: 0;
+}
+.dayCell:first-of-type {
+  border-inline-start: none;
+}
+.dayCell[data-weekend] {
+  background: var(--sf-color-bg-subtle);
+}
+.dayCell:hover {
+  background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+}
+
+.dayNum {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  line-height: 1.4;
+  padding-inline: calc(var(--sf-unit) / 4);
+}
+.dayCell[data-outside] .dayNum {
+  color: var(--sf-color-muted);
+}
+.dayCell[data-today] .dayNum {
+  background: var(--sf-color-primary);
+  color: var(--sf-color-bg);
+  border-radius: var(--sf-radius-default);
+  font-weight: 600;
+}
+
+/* Month bars sit above the day-cell backgrounds. */
+.weekRow .bar {
+  z-index: 1;
+  align-self: center;
+  margin-block: 1px;
+  margin-inline: 1px;
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: var(--cal-bar-h);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  white-space: nowrap;
+}
+.bar[data-continues-before] {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-inline-start-style: dashed;
+}
+.bar[data-continues-after] {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.barLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+  flex: 1;
+}
+.barArrow {
+  flex: none;
+  color: var(--cal-event-color);
+  font-weight: 700;
+}
+
+.more {
+  z-index: 1;
+  align-self: start;
+  justify-self: start;
+  margin-inline: calc(var(--sf-unit) / 4);
+  padding: 0 calc(var(--sf-unit) / 2);
+  border: none;
+  background: transparent;
+  color: var(--sf-color-muted);
+  font-size: var(--sf-font-size-sm);
+  cursor: pointer;
+}
+.more:hover {
+  color: var(--sf-color-fg);
+  text-decoration: underline;
+}
+
+/* --- Week view ------------------------------------------------------------- */
+
+.week {
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.weekHead {
+  border-block-end: 1px solid var(--sf-color-border);
+}
+
+.weekHeadRow {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+}
+
+.timeGutterHead {
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+
+.weekDayHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 2);
+  border-inline-start: 1px solid var(--sf-color-border);
+}
+.weekDayHead[data-weekend] {
+  background: var(--sf-color-bg-subtle);
+}
+
+.weekDayName {
+  font-size: var(--sf-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
+}
+.weekDayNum {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  color: var(--sf-color-fg);
+}
+.weekDayHead[data-today] .weekDayNum {
+  background: var(--sf-color-primary);
+  color: var(--sf-color-bg);
+  border-radius: var(--sf-radius-default);
+  padding-inline: calc(var(--sf-unit) / 2);
+  font-weight: 700;
+}
+
+.allDayStrip {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--cal-strip-lanes, 1), var(--cal-bar-h));
+  gap: 1px 0;
+  padding-block: 1px;
+  border-block-start: 1px solid var(--sf-color-border);
+}
+
+.allDayLabel {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+
+.allDayStrip .bar {
+  align-self: center;
+  margin-inline: 1px;
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: var(--cal-bar-h);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  white-space: nowrap;
+}
+
+.weekBody {
+  min-block-size: 0;
+}
+
+.hourGrid {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+}
+
+.timeGutter {
+  display: grid;
+  grid-template-rows: repeat(24, var(--cal-hour-h));
+  border-inline-end: 1px solid var(--sf-color-border);
+}
+.hourLabel {
+  position: relative;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  text-align: end;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+}
+.hourLabel span {
+  position: relative;
+  top: -0.6em;
+}
+.hourLabel:first-child span {
+  top: 0;
+}
+
+.dayColumn {
+  position: relative;
+  border-inline-start: 1px solid var(--sf-color-border);
+  min-inline-size: 0;
+}
+.dayColumn[data-today] {
+  background: color-mix(in oklab, var(--sf-color-primary) 5%, transparent);
+}
+
+.hourSlot {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--cal-hour-h);
+  border: none;
+  border-block-end: 1px solid var(--sf-color-border);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.hourSlot:hover {
+  background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+}
+
+.block {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  min-block-size: 0;
+}
+.blockTiny {
+  flex-direction: row;
+  align-items: baseline;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block: 0;
+}
+.blockTime {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  flex: none;
+}
+.blockTitle {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowLine {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 2;
+  block-size: 0;
+  border-block-start: 1px solid var(--sf-color-danger);
+  pointer-events: none;
+}
+.nowLine::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: -3px;
+  inline-size: 5px;
+  block-size: 5px;
+  border-radius: var(--sf-radius-full);
+  background: var(--sf-color-danger);
+}
+
+/* --- Year view ------------------------------------------------------------- */
+
+.year {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--sf-unit) * 8), 1fr));
+  gap: calc(var(--sf-unit) * 1.5);
+  padding: var(--sf-unit);
+  block-size: 100%;
+  overflow: auto;
+  align-content: start;
+}
+
+.miniMonth {
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  align-content: start;
+}
+
+.miniTitle {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--sf-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
+  cursor: pointer;
+}
+.miniTitle:hover {
+  color: var(--sf-color-primary);
+}
+
+.miniWeekdays,
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.miniWeekdays {
+  gap: 1px;
+}
+.miniWeekdays span {
+  text-align: center;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+.miniGrid {
+  gap: 1px;
+}
+
+.miniDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--sf-radius-default);
+}
+.miniDay:hover {
+  background: color-mix(in oklab, var(--sf-color-primary) 10%, transparent);
+}
+.miniDayNum {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  line-height: 1;
+}
+.miniDay[data-outside] .miniDayNum {
+  color: color-mix(in oklab, var(--sf-color-muted) 55%, transparent);
+}
+.miniDay[data-today] {
+  background: var(--sf-color-primary);
+}
+.miniDay[data-today] .miniDayNum {
+  color: var(--sf-color-bg);
+  font-weight: 700;
+}
+
+/* An in-flow dot directly under the day number (its slot is always reserved, so
+   numbers stay aligned across cells); hidden when the day has no events. */
+.densityDot {
+  flex: none;
+  inline-size: calc(var(--sf-unit) / 4);
+  block-size: calc(var(--sf-unit) / 4);
+  border-radius: var(--sf-radius-full);
+  background: var(--sf-color-primary);
+}
+.densityDot[data-density="0"] {
+  visibility: hidden;
+}
+.densityDot[data-density="1"] {
+  opacity: 0.4;
+}
+.densityDot[data-density="2"] {
+  opacity: 0.7;
+}
+.densityDot[data-density="3"] {
+  opacity: 1;
+}
+.miniDay[data-today] .densityDot {
+  background: var(--sf-color-bg);
+}
+
+/* --- Motion ---------------------------------------------------------------- */
+
+.dayCell,
+.hourSlot,
+.miniDay,
+.more,
+.miniTitle {
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayCell,
+  .hourSlot,
+  .miniDay,
+  .more,
+  .miniTitle {
+    transition: none;
+  }
+}

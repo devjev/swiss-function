@@ -1,7 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
+import { type DatePickerPrecision, formatISODate, formatPeriod } from "../../lib/date";
 import { DatePicker, type DatePickerProps } from "./DatePicker";
-import { type DatePickerPrecision, formatISODate, formatPeriod } from "./dateMath";
 
 export default { title: "DatePicker" };
 
