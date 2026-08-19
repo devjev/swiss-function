@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.26.0 — 2026-08-19
+
+### Minor
+
+- Add Stat: a statistic/KPI card with a labelled tabular-mono value, an optional delta (arrow + good/bad colour via goodDirection, so a churn drop reads green), a line/bar sparkline, a leading icon, and a caption. tone colours a status value; elevation makes a standalone card. Stat.Group lays cards out in a responsive, hairline-divided panel that reflows as it narrows.
+
 ## v2.25.0 — 2026-08-19
 
 ### Minor
