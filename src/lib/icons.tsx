@@ -66,6 +66,10 @@ export const SF_ICON_SLOTS = [
   "play",
   "pause",
   "stop",
+  // Stat / KPI delta direction
+  "trendUp",
+  "trendDown",
+  "trendFlat",
 ] as const;
 
 /** One of the library's overridable icon slots. */

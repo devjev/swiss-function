@@ -2158,6 +2158,57 @@ dialogs are unchanged.
 For a header + a single scrollable body, reach for `Pane` (the fixed "auto / 1fr"
 recipe) instead.
 
+## Stat
+
+`import { Stat } from "@tarassov-ch/swiss-function/stat"`
+
+A statistic / KPI card: a labelled figure with an optional change indicator,
+sparkline, leading icon, and caption. For dashboards, in the house aesthetic
+(tabular mono value, sharp corners, colour only where it means a status). Renders
+a `<div>`; extends `HTMLAttributes<HTMLDivElement>` (minus `title`). Colour is
+reserved for the delta (good / bad) and an optional status `tone`; the value and
+label are never greyed (only the caption is). Lay several out with `Stat.Group`.
+
+The **delta** encodes a change: its sign picks the arrow (up / down / flat) and
+`goodDirection` decides the good/bad colour, so an increase in a "lower is
+better" metric (churn, latency) reads red. The arrow carries direction, so the
+default delta text is the unsigned magnitude (`12.5%`).
+
+| Prop (`Stat`) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `label` | `ReactNode` | n/a | The metric name (rendered compact + uppercase). |
+| `value` | `ReactNode` | n/a | The figure; format it yourself. Set in tabular mono. |
+| `delta` | `number` | n/a | Signed change vs the previous period. |
+| `deltaLabel` | `ReactNode` | magnitude + `deltaUnit` | Override the delta text. |
+| `deltaUnit` | `string` | `"%"` | Appended to the default delta text; `""` for absolute. |
+| `goodDirection` | `"up" \| "down"` | `"up"` | Which direction reads as good (`"down"` for churn / latency / cost). |
+| `caption` | `ReactNode` | n/a | A secondary line under the value (muted). |
+| `icon` | `ReactNode` | n/a | A leading glyph beside the label (pass an `Icon` element). |
+| `trend` | `number[]` | n/a | A sparkline series (needs 2+ points). |
+| `trendType` | `"line" \| "bar"` | `"line"` | Sparkline shape. |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Colours the value for a status metric. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Value scale. |
+| `elevation` | `0..5` | n/a | Render as a standalone card (border + surface + depth). Omit inside a `Stat.Group`. |
+| `align` | `"start" \| "center"` | `"start"` | Content alignment. |
+
+`Stat.Group` is a responsive, hairline-divided panel; the cards reflow as it
+narrows (container-driven, no media queries).
+
+| Prop (`Stat.Group`) | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `columns` | `number` | auto | Fixed column count. Omit for a responsive `auto-fit` grid. |
+| `minColumnWidth` | `number` | `12` | Min column width in `--sf-unit` multiples (responsive grid only). |
+| `dividers` | `boolean` | `true` | Hairline dividers between cards. |
+| `elevation` | `0..5` | `1` | Panel depth. |
+
+```tsx
+<Stat.Group>
+  <Stat label="Revenue" value="1.28M CHF" delta={12.5} caption="vs last month" trend={revenue} />
+  <Stat label="Active users" value="8,204" delta={8.1} icon={<User />} />
+  <Stat label="Churn" value="2.1%" delta={-0.3} goodDirection="down" trend={churn} />
+</Stat.Group>
+```
+
 ## StreamingTerminalText
 
 `import { StreamingTerminalText } from "@tarassov-ch/swiss-function/streaming-terminal-text"`

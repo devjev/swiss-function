@@ -1,0 +1,207 @@
+.root {
+  --stat-value-size: calc(var(--sf-unit) * 1.5);
+
+  display: grid;
+  gap: calc(var(--sf-unit) / 2);
+  padding: var(--sf-unit);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  min-inline-size: 0;
+}
+.root[data-align="center"] {
+  justify-items: center;
+  text-align: center;
+}
+.root[data-size="sm"] {
+  --stat-value-size: calc(var(--sf-unit) * 1.25);
+}
+.root[data-size="lg"] {
+  --stat-value-size: calc(var(--sf-unit) * 2);
+}
+
+/* Standalone card: border + surface + optional depth. */
+.root[data-card] {
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+}
+.root[data-card][data-elevation="1"] {
+  box-shadow: var(--sf-elevation-1);
+}
+.root[data-card][data-elevation="2"] {
+  box-shadow: var(--sf-elevation-2);
+}
+.root[data-card][data-elevation="3"] {
+  box-shadow: var(--sf-elevation-3);
+}
+.root[data-card][data-elevation="4"] {
+  box-shadow: var(--sf-elevation-4);
+}
+.root[data-card][data-elevation="5"] {
+  box-shadow: var(--sf-elevation-5);
+}
+
+/* --- Header (icon + label) ------------------------------------------------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 2);
+  min-inline-size: 0;
+}
+.icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--sf-color-muted);
+}
+.label {
+  font-size: var(--sf-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sf-color-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Value ----------------------------------------------------------------- */
+
+.value {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--stat-value-size);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--sf-color-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.root[data-tone="primary"] .value {
+  color: var(--sf-color-primary);
+}
+.root[data-tone="success"] .value {
+  color: var(--sf-color-success);
+}
+.root[data-tone="warning"] .value {
+  color: var(--sf-color-warning);
+}
+.root[data-tone="danger"] .value {
+  color: var(--sf-color-danger);
+}
+
+/* --- Footer (delta + caption) ---------------------------------------------- */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--sf-unit) / 2);
+  min-inline-size: 0;
+}
+.root[data-align="center"] .footer {
+  justify-content: center;
+}
+
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  flex: none;
+}
+.delta[data-trend="good"] {
+  color: var(--sf-color-success);
+}
+.delta[data-trend="bad"] {
+  color: var(--sf-color-danger);
+}
+.delta[data-trend="flat"] {
+  color: var(--sf-color-muted);
+}
+.deltaArrow {
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.caption {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+
+/* --- Sparkline ------------------------------------------------------------- */
+
+.spark {
+  --spark-color: var(--sf-color-primary);
+  inline-size: 100%;
+  block-size: calc(var(--sf-unit) * 1.5);
+  display: block;
+  overflow: visible;
+}
+.spark[data-trend="good"] {
+  --spark-color: var(--sf-color-success);
+}
+.spark[data-trend="bad"] {
+  --spark-color: var(--sf-color-danger);
+}
+.spark[data-trend="flat"] {
+  --spark-color: var(--sf-color-muted);
+}
+.sparkLine {
+  fill: none;
+  stroke: var(--spark-color);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.sparkBar {
+  fill: var(--spark-color);
+}
+
+/* --- Group ----------------------------------------------------------------- */
+
+.group {
+  display: grid;
+  gap: 0;
+  background: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  overflow: hidden;
+}
+.group > .root {
+  background: var(--sf-color-bg);
+}
+/* Dividers as collapsing top/left borders pulled 1px under the panel edge: inner
+   boundaries read as hairlines, the outer ones hide behind the panel border, and
+   any empty trailing cell (a non-multiple in the responsive grid) stays blank
+   instead of showing a grey block. */
+.group.dividers > .root {
+  border-inline-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border);
+  margin-inline-start: -1px;
+  margin-block-start: -1px;
+}
+.group[data-elevation="1"] {
+  box-shadow: var(--sf-elevation-1);
+}
+.group[data-elevation="2"] {
+  box-shadow: var(--sf-elevation-2);
+}
+.group[data-elevation="3"] {
+  box-shadow: var(--sf-elevation-3);
+}
+.group[data-elevation="4"] {
+  box-shadow: var(--sf-elevation-4);
+}
+.group[data-elevation="5"] {
+  box-shadow: var(--sf-elevation-5);
+}

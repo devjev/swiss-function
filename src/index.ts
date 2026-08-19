@@ -72,6 +72,7 @@ export * from "./components/Slider";
 export * from "./components/Spinner";
 export * from "./components/SplitPane";
 export * from "./components/Stack";
+export * from "./components/Stat";
 export * from "./components/StreamingTerminalText";
 export * from "./components/Surface";
 export * from "./components/Switch";
