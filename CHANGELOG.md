@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.25.0 — 2026-08-19
+
+### Minor
+
+- Add Calendar: a scheduling calendar with Month, Week, and Year views. Events carry optional times (allDay for whole-day items); the week view splits overlapping timed events into side-by-side columns and pins all-day/multi-day events in a strip above a scrollable 24-hour grid, and multi-day events span as bars with continuation markers. tone/color per event, showWeekNumbers, onEventClick/onDateClick, and an optional now override to fix the today marker (deterministic snapshots); distinct from DatePicker.
+- Charts: click-to-freeze selection with a pinned popover. selectable makes a click on a mark pin it and open a popover anchored to it that stays open (unlike the hover tooltip) and tracks the mark through zoom/pan; the mark keeps an accent emphasis. Uniform across the 2D charts (Scatterplot, BarChart, CandlestickChart, BridgeChart, Heatmap) via the shared ChartSelectionProps mixin. Controlled/uncontrolled via selection/defaultSelection/onSelectionChange; renderSelection supplies the popover body (defaults to the tooltip). BridgeChart also gains onPointActivate. Dismiss by clicking the mark again, clicking away, scrolling, Escape, or the popover close button.
+
+### Patch
+
+- AgentComposer: drop the reuse-count badge (⧉ ×n) from node rows; the row end now shows only the kind tag (AGT/FNC/MCP). Hovering an instance still cross-highlights its other sites.
+
 ## v2.24.0 — 2026-08-18
 
 ### Minor
