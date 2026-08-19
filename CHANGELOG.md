@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.27.0 — 2026-08-19
+
+### Minor
+
+- Scatterplot: per-series line style. ScatterSeries gains lineStyle ("solid" | "dashed" | "dotted", default solid; dashes are screen px so they stay constant through zoom) and lineWidth (px, default 1.5).
+- Stat: format numbers in Swiss typography. A numeric value prop is rendered with an apostrophe thousands separator (1'284'500) via a new exported formatNumber helper (also at /lib/format; decimals/valueUnit shape it). The delta magnitude groups the same way. Adds xs and xl sizes (xs/sm/md/lg/xl) for dense grids and hero metrics.
+
 ## v2.26.0 — 2026-08-19
 
 ### Minor
