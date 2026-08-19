@@ -66,10 +66,24 @@ export interface ScatterSeries {
   showLine?: boolean;
   /** Render point markers. Default true. */
   showPoints?: boolean;
+  /** Line style when `showLine`. Default `"solid"`. Dashes are in screen pixels
+   *  (they don't stretch with zoom). */
+  lineStyle?: "solid" | "dashed" | "dotted";
+  /** Line width in px. Default `1.5`. */
+  lineWidth?: number;
 }
 
 /** The datum-with-series a Scatterplot emits on activate / selection. */
 export type ScatterPoint = ScatterDatum & { series: string };
+
+/** Stroke attributes for a series line style. Dotted uses round caps so the
+ *  dashes read as dots; dash lengths are screen px (`vector-effect:
+ *  non-scaling-stroke` keeps them constant through zoom). */
+function lineStyleAttrs(style: ScatterSeries["lineStyle"]): CSSProperties {
+  if (style === "dashed") return { strokeDasharray: "6 4" };
+  if (style === "dotted") return { strokeDasharray: "1 4", strokeLinecap: "round" };
+  return {};
+}
 
 export interface ScatterplotProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
@@ -770,7 +784,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                   key={`line-${s.name}`}
                   points={points}
                   className={styles.line}
-                  style={{ stroke: s.color ?? "var(--sf-color-primary)" }}
+                  style={{
+                    stroke: s.color ?? "var(--sf-color-primary)",
+                    ...lineStyleAttrs(s.lineStyle),
+                    ...(s.lineWidth != null ? { strokeWidth: s.lineWidth } : {}),
+                  }}
                 />
               );
             })}

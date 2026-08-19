@@ -66,6 +66,41 @@ export const Line: Story = () => (
   </div>
 );
 
+export const LineStyles: Story = () => (
+  <div style={{ width: "min(40rem, 100%)" }}>
+    <Scatterplot
+      series={[
+        {
+          name: "Solid",
+          data: samplePoints,
+          showLine: true,
+          showPoints: false,
+          lineStyle: "solid",
+          color: "var(--sf-color-primary)",
+        },
+        {
+          name: "Dashed",
+          data: samplePoints.map((d) => ({ ...d, y: d.y + 6 })),
+          showLine: true,
+          showPoints: false,
+          lineStyle: "dashed",
+          color: "var(--sf-color-success)",
+        },
+        {
+          name: "Dotted",
+          data: samplePoints.map((d) => ({ ...d, y: d.y - 6 })),
+          showLine: true,
+          showPoints: false,
+          lineStyle: "dotted",
+          color: "var(--sf-color-warning)",
+        },
+      ]}
+      xLabel="Quarter"
+      yLabel="Revenue (k)"
+    />
+  </div>
+);
+
 export const PointsAndLine: Story = () => (
   <div style={{ width: "min(40rem, 100%)" }}>
     <Scatterplot

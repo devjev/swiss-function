@@ -87,5 +87,6 @@ export * from "./components/VerticalForm";
 export * from "./components/WindowArray";
 export type { Domain, GridData, Point3, PointSeries } from "./lib/chart3d/types";
 export * from "./lib/dnd";
+export { type FormatNumberOptions, formatNumber } from "./lib/format";
 export * from "./lib/useCollapse";
 export * from "./lib/useOverflow";

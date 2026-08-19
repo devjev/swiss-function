@@ -12,11 +12,20 @@
   justify-items: center;
   text-align: center;
 }
+.root[data-size="xs"] {
+  --stat-value-size: var(--sf-unit);
+  padding: calc(var(--sf-unit) * 0.75);
+  gap: calc(var(--sf-unit) / 4);
+}
 .root[data-size="sm"] {
   --stat-value-size: calc(var(--sf-unit) * 1.25);
 }
 .root[data-size="lg"] {
   --stat-value-size: calc(var(--sf-unit) * 2);
+}
+.root[data-size="xl"] {
+  --stat-value-size: calc(var(--sf-unit) * 2.75);
+  padding: calc(var(--sf-unit) * 1.25);
 }
 
 /* Standalone card: border + surface + optional depth. */

@@ -65,6 +65,7 @@
   "chart--scatterplot--drill-down",
   "chart--scatterplot--full-scaffolding",
   "chart--scatterplot--line",
+  "chart--scatterplot--line-styles",
   "chart--scatterplot--multi-series",
   "chart--scatterplot--narrow",
   "chart--scatterplot--playground",

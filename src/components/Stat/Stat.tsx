@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { formatNumber } from "../../lib/format";
 import { Glyph } from "../../lib/icons";
 import type { BoxElevation } from "../Box";
 import { ArrowDown, ArrowUp, Minus } from "../Icon";
@@ -8,14 +9,19 @@ import styles from "./Stat.module.css";
 import { sparklineBars, sparklinePointsAttr } from "./sparkline";
 
 export type StatTone = "neutral" | "primary" | "success" | "warning" | "danger";
-export type StatSize = "sm" | "md" | "lg";
+export type StatSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export interface StatProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** The metric name (rendered as a compact, uppercase label). */
   label: ReactNode;
-  /** The figure. Format it yourself (currency, thousands, unit); the card just
-   *  sets it in tabular mono. */
-  value: ReactNode;
+  /** The figure. A `number` is formatted in Swiss typography (`1'284'500`, see
+   *  `decimals` / `valueUnit`); pass a `ReactNode` to format it yourself. Set in
+   *  tabular mono either way. */
+  value: number | ReactNode;
+  /** Decimal places for a numeric `value` (fixed, zero-padded). */
+  decimals?: number;
+  /** A unit appended to a numeric `value` (e.g. `"CHF"`), after a no-break space. */
+  valueUnit?: string;
   /** Signed change vs the previous period. Its sign picks the arrow (up / down /
    *  flat); its good/bad colour is decided with `goodDirection`. */
   delta?: number;
@@ -58,9 +64,22 @@ function defaultDeltaText(delta: number, unit: string): string {
   const abs = Math.abs(delta);
   // One decimal for a normal delta; more precision below 0.05 so a small but
   // nonzero change never collapses to "0" (which would contradict the arrow).
-  const opts: Intl.NumberFormatOptions =
-    abs > 0 && abs < 0.05 ? { maximumSignificantDigits: 1 } : { maximumFractionDigits: 1 };
-  return `${abs.toLocaleString(undefined, opts)}${unit}`;
+  const maxFrac = abs > 0 && abs < 0.05 ? 3 : 1;
+  return `${formatNumber(abs, { maximumFractionDigits: maxFrac })}${unit}`;
+}
+
+/** Join a Swiss-formatted number with its unit: attach a symbol unit directly
+ *  (`2.1%`, `20°C`), but keep a no-break space before a word / currency unit
+ *  (`1'284'500 CHF`). */
+function formatValue(
+  value: number,
+  decimals: number | undefined,
+  unit: string | undefined,
+): string {
+  const num = formatNumber(value, { decimals });
+  if (!unit) return num;
+  const symbol = /^[^\p{L}\p{N}]/u.test(unit);
+  return symbol ? `${num}${unit}` : `${num}\u00A0${unit}`;
 }
 
 function Sparkline({
@@ -72,7 +91,6 @@ function Sparkline({
   const W = 100;
   const H = 30;
   return (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: decorative trend spark; the value + delta carry the meaning.
     <svg
       {...rest}
       className={cx(styles.spark, className)}
@@ -113,6 +131,8 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
   {
     label,
     value,
+    decimals,
+    valueUnit,
     delta,
     deltaLabel,
     deltaUnit = "%",
@@ -130,6 +150,7 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
   },
   ref,
 ) {
+  const renderedValue = typeof value === "number" ? formatValue(value, decimals, valueUnit) : value;
   const hasDelta = delta != null && Number.isFinite(delta);
   const verdict = hasDelta ? deltaVerdict(delta, goodDirection) : null;
   const arrow = !hasDelta ? null : delta > 0 ? "trendUp" : delta < 0 ? "trendDown" : "trendFlat";
@@ -157,7 +178,7 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
         )}
         <span className={styles.label}>{label}</span>
       </div>
-      <div className={styles.value}>{value}</div>
+      <div className={styles.value}>{renderedValue}</div>
       {(hasDelta || caption) && (
         <div className={styles.footer}>
           {hasDelta && arrow && (

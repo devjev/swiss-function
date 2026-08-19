@@ -7,6 +7,30 @@ test("renders the label and value", async ({ mount }) => {
   await expect(c.getByText("1,284,500")).toBeVisible();
 });
 
+test("formats a numeric value in Swiss typography with an apostrophe separator", async ({
+  mount,
+}) => {
+  const c = await mount(<StatHarness value={1284500} valueUnit="CHF" />);
+  await expect(c.getByText("1'284'500 CHF")).toBeVisible();
+});
+
+test("attaches a symbol unit tight (2.1%) but spaces a word unit", async ({ mount }) => {
+  const pct = await mount(<StatHarness value={2.1} decimals={1} valueUnit="%" />);
+  // No space before % (normalized text match would still hit "2.1 %" only if spaced).
+  await expect(pct.getByText("2.1%", { exact: true })).toBeVisible();
+  await expect(pct.getByText("2.1 %", { exact: true })).toHaveCount(0);
+});
+
+test("a numeric delta with an absolute unit is grouped too", async ({ mount }) => {
+  const c = await mount(<StatHarness delta={1240} deltaUnit="" />);
+  await expect(c.locator("[data-trend]").first()).toContainText("1'240");
+});
+
+test("supports xs through xl sizes", async ({ mount }) => {
+  const c = await mount(<StatHarness value={1000} size="xl" />);
+  await expect(c.locator('[data-size="xl"]')).toBeVisible();
+});
+
 test("a positive delta with up-is-good reads good and shows the up arrow", async ({ mount }) => {
   const c = await mount(<StatHarness delta={12.5} />);
   const delta = c.locator("[data-trend]").first();

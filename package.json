@@ -35,6 +35,10 @@
       "types": "./dist/lib/cx.d.ts",
       "import": "./dist/lib/cx.js"
     },
+    "./lib/format": {
+      "types": "./dist/lib/format.d.ts",
+      "import": "./dist/lib/format.js"
+    },
     "./lib/from-arrow": {
       "types": "./dist/lib/fromArrow.d.ts",
       "import": "./dist/lib/fromArrow.js"

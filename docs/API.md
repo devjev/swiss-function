@@ -1911,7 +1911,7 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `series` | `ScatterSeries[]` | n/a | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints? }`. |
+| `series` | `ScatterSeries[]` | n/a | `{ name, data: { x: number\|Date, y, label? }[], color?, showLine?, showPoints?, lineStyle?, lineWidth? }`. `lineStyle` is `"solid"` (default) / `"dashed"` / `"dotted"` (dashes are screen px, constant through zoom); `lineWidth` in px (default `1.5`). |
 | `xDomain` | `[number, number] \| [Date, Date]` | auto-fit | Detects date vs numeric. With `zoomable`, this is the controlled visible window (pair with `onXDomainChange`). |
 | `yDomain` | `[number, number]` | auto-fit | Y range. While zoomed, auto-fit follows the visible window (padded, not zero-anchored). |
 | `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
@@ -2169,27 +2169,40 @@ a `<div>`; extends `HTMLAttributes<HTMLDivElement>` (minus `title`). Colour is
 reserved for the delta (good / bad) and an optional status `tone`; the value and
 label are never greyed (only the caption is). Lay several out with `Stat.Group`.
 
+A **numeric `value`** is formatted in Swiss typography (apostrophe thousands
+separator, period decimal: `1'284'500`) via the exported `formatNumber` helper;
+`decimals` and `valueUnit` shape it. Pass a `ReactNode` instead to format it
+yourself.
+
 The **delta** encodes a change: its sign picks the arrow (up / down / flat) and
 `goodDirection` decides the good/bad colour, so an increase in a "lower is
 better" metric (churn, latency) reads red. The arrow carries direction, so the
-default delta text is the unsigned magnitude (`12.5%`).
+default delta text is the unsigned, Swiss-formatted magnitude (`12.5%`). A
+non-finite `delta` renders no indicator.
 
 | Prop (`Stat`) | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `label` | `ReactNode` | n/a | The metric name (rendered compact + uppercase). |
-| `value` | `ReactNode` | n/a | The figure; format it yourself. Set in tabular mono. |
-| `delta` | `number` | n/a | Signed change vs the previous period. |
+| `value` | `number \| ReactNode` | n/a | The figure. A `number` is Swiss-formatted (`1'284'500`); a `ReactNode` is rendered as-is. Tabular mono either way. |
+| `decimals` | `number` | n/a | Fixed decimal places for a numeric `value`. |
+| `valueUnit` | `string` | n/a | Unit appended to a numeric `value` (e.g. `"CHF"`), after a no-break space. |
+| `delta` | `number` | n/a | Signed change vs the previous period (non-finite → no indicator). |
 | `deltaLabel` | `ReactNode` | magnitude + `deltaUnit` | Override the delta text. |
 | `deltaUnit` | `string` | `"%"` | Appended to the default delta text; `""` for absolute. |
 | `goodDirection` | `"up" \| "down"` | `"up"` | Which direction reads as good (`"down"` for churn / latency / cost). |
 | `caption` | `ReactNode` | n/a | A secondary line under the value (muted). |
 | `icon` | `ReactNode` | n/a | A leading glyph beside the label (pass an `Icon` element). |
-| `trend` | `number[]` | n/a | A sparkline series (needs 2+ points). |
-| `trendType` | `"line" \| "bar"` | `"line"` | Sparkline shape. |
+| `trend` | `number[]` | n/a | A sparkline series (needs 2+ finite points; non-finite dropped). |
+| `trendType` | `"line" \| "bar"` | `"line"` | Sparkline shape (bars measure from a zero baseline). |
 | `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Colours the value for a status metric. |
-| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Value scale. |
+| `size` | `"xs" \| "sm" \| "md" \| "lg" \| "xl"` | `"md"` | Value scale (`xs` for dense grids, `xl` for a hero metric). |
 | `elevation` | `0..5` | n/a | Render as a standalone card (border + surface + depth). Omit inside a `Stat.Group`. |
 | `align` | `"start" \| "center"` | `"start"` | Content alignment. |
+
+`formatNumber(value, { decimals?, maximumFractionDigits? })` (from
+`@tarassov-ch/swiss-function` or `.../lib/format`) is the standalone Swiss number
+formatter: apostrophe thousands, period decimal, deterministic (no `Intl`/ICU
+dependency). Use it anywhere you render a number.
 
 `Stat.Group` is a responsive, hairline-divided panel; the cards reflow as it
 narrows (container-driven, no media queries).

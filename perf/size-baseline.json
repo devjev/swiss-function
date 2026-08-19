@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-08-19T11:22:55.073Z"
+    "date": "2026-08-19T12:59:11.325Z"
   },
-  "totalGzip": 1247104,
+  "totalGzip": 1249047,
   "entries": {
     ".": {
-      "files": 304,
-      "jsRaw": 1142962,
-      "jsGzip": 343141,
+      "files": 305,
+      "jsRaw": 1144744,
+      "jsGzip": 343848,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 343141,
+      "gzip": 343848,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -123,6 +123,15 @@
       "cssRaw": 0,
       "cssGzip": 0,
       "gzip": 198,
+      "externals": []
+    },
+    "./lib/format": {
+      "files": 1,
+      "jsRaw": 1115,
+      "jsGzip": 546,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 546,
       "externals": []
     },
     "./lib/from-arrow": {
@@ -550,11 +559,11 @@
     },
     "./scatterplot": {
       "files": 48,
-      "jsRaw": 126419,
-      "jsGzip": 38688,
+      "jsRaw": 126807,
+      "jsGzip": 38797,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 38688,
+      "gzip": 38797,
       "externals": [
         "@base-ui/react/popover",
         "@base-ui/react/toggle",
@@ -906,12 +915,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./stat": {
-      "files": 9,
-      "jsRaw": 20218,
-      "jsGzip": 6455,
+      "files": 10,
+      "jsRaw": 21548,
+      "jsGzip": 7036,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 6455,
+      "gzip": 7036,
       "externals": ["react", "react/jsx-runtime"]
     },
     "./streaming-terminal-text": {

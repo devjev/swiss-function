@@ -513,3 +513,27 @@ test("selectable: a second chart's popover dismisses the first (scoped outside-p
   await expect(c.getByTestId("a").locator("circle[data-selected]")).toHaveCount(0);
   await expect(c.getByTestId("b").locator("circle[data-selected]")).toHaveCount(1);
 });
+
+test("applies dashed and dotted stroke patterns to series lines", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <Scatterplot
+        height={240}
+        showLegend={false}
+        series={[
+          { name: "solid", data: DATA, showLine: true, showPoints: false },
+          { name: "dashed", data: DATA, showLine: true, showPoints: false, lineStyle: "dashed" },
+          { name: "dotted", data: DATA, showLine: true, showPoints: false, lineStyle: "dotted" },
+        ]}
+      />
+    </div>,
+  );
+  const lines = c.locator("polyline");
+  await expect(lines).toHaveCount(3);
+  const dash = (n: number) => lines.nth(n).evaluate((el) => getComputedStyle(el).strokeDasharray);
+  const cap = (n: number) => lines.nth(n).evaluate((el) => getComputedStyle(el).strokeLinecap);
+  expect(await dash(0)).toBe("none"); // solid
+  expect(await dash(1)).not.toBe("none"); // dashed
+  expect(await dash(2)).not.toBe("none"); // dotted
+  expect(await cap(2)).toBe("round"); // dotted uses round caps to read as dots
+});
