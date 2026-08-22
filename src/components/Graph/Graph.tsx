@@ -19,6 +19,7 @@ import type { NodeDisplayData, PartialButFor } from "sigma/types";
 import { animateNodes } from "sigma/utils";
 import { cx } from "../../lib/cx";
 import {
+  ARROW_MAX_EDGES,
   applyVisuals,
   buildGraph,
   type EdgeVisual,
@@ -29,7 +30,16 @@ import {
   reconcile,
   token,
 } from "../../lib/graph/build";
+import { applyCardAttributes } from "../../lib/graph/cardMetrics";
+import { NodeCardHoverProgram, NodeCardProgram } from "../../lib/graph/cardProgram";
+import { EdgeElbowProgram } from "../../lib/graph/elbowEdgeProgram";
 import { applyPositions, detachForLayout, forceIterations } from "../../lib/graph/forceLayout";
+import { orgLayout } from "../../lib/graph/orgLayout";
+import {
+  type EdgeStyle,
+  EdgeStyledArrowProgram,
+  EdgeStyledProgram,
+} from "../../lib/graph/styledEdgeProgram";
 import type {
   GraphData,
   GraphEdge,
@@ -60,7 +70,18 @@ type LayoutMapping = Record<string, { x: number; y: number }>;
 // `NodeVisual` / `EdgeVisual` (the `renderNode`/`renderEdge` return shapes) live
 // in `lib/graph/build` alongside the graph construction they feed; re-exported
 // here so they remain part of the component's public surface.
-export type { EdgeVisual, NodeVisual };
+export type { EdgeStyle, EdgeVisual, NodeVisual };
+
+/** Per-state edge visual overrides (see the `edgeStateVisuals` prop). */
+export interface EdgeStateVisuals {
+  /** The selected edge. Defaults: accent color, doubled thickness. */
+  selected?: EdgeVisual;
+  /** Edges incident to the hovered node. Defaults: accent color, doubled
+   *  thickness. */
+  incident?: EdgeVisual;
+  /** The rest of the graph while a node is hovered. Default: faded color. */
+  faded?: EdgeVisual;
+}
 
 /** What a right-click landed on: a node, an edge, or the empty stage. */
 export interface GraphMenuTarget {
@@ -98,6 +119,13 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
   /** Fired whenever the layout changes — from the prop, `Graph.Controls`, or a
    *  keyboard switch. Required to observe switches when `layout` is controlled. */
   onLayoutChange?: (next: LayoutKind) => void;
+  /** Node rendering style: `"disc"` (default, WebGL discs with labels beside
+   *  them) or `"card"` (rectangular org-chart cards with the name and an
+   *  optional `sublabel` drawn inside, a kind-coloured accent stripe on the
+   *  leading edge). Independent of `layout`, but designed for `layout="org"`.
+   *  Card labels bypass the ≤300-node hard label gate — Sigma's density and
+   *  on-screen-size culling still bound the per-frame text cost. */
+  nodeStyle?: "disc" | "card";
   /** Fired with the node `id` when a node is clicked. */
   onNodeClick?: (id: string) => void;
   /** Fired with the edge `id` when an edge is clicked. */
@@ -115,6 +143,12 @@ export interface GraphProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChan
    *  `size`); omitted fields keep the default. `renderNode` still supplies the
    *  base attributes underneath. */
   selectedNodeVisual?: NodeVisual;
+  /** Override the built-in per-state edge treatments (`selected` edge,
+   *  hover-`incident` edges, the `faded` rest during hover). Each field is an
+   *  `EdgeVisual` merged over that state's default — e.g.
+   *  `{ selected: { style: "dashed", color: "..." } }`. `renderEdge` supplies
+   *  the base attributes underneath. */
+  edgeStateVisuals?: EdgeStateVisuals;
   /** On node hover, emphasize its incident edges (both directions) and its
    *  neighbours while fading the rest of the graph, so a node's connections read
    *  at a glance. Default `true`; set `false` to keep hover to just the label
@@ -207,11 +241,10 @@ interface ConnectLine {
   y2: number;
 }
 
-/** Theme-aware replacement for Sigma's default node-hover renderer. The built-in
- *  one hard-codes a white (`#FFF`) label-background box, so in dark mode the white
- *  label text (`labelColor` = `--sf-color-fg`) lands on a white box and vanishes.
- *  This paints the box with `--sf-color-bg` plus a `--sf-color-border` hairline —
- *  legible in both themes — then defers to Sigma to draw the label text itself.
+/** Theme-aware replacement for Sigma's default node-hover renderer, INVERTED
+ *  for prominence: the label box fills with `--sf-color-fg` and the label text
+ *  paints in `--sf-color-bg` (via the per-node `labelColor` attribute the
+ *  label renderer reads) — the terminal-selection read, in both themes.
  *  Geometry mirrors Sigma's `drawDiscNodeHover`. */
 function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
   return (
@@ -220,34 +253,36 @@ function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
     settings,
   ) => {
     context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
-    context.fillStyle = token("--sf-color-bg", "#ffffff", el);
-    context.strokeStyle = token("--sf-color-border", "#e5e7eb", el);
-    context.lineWidth = 1;
+    context.fillStyle = token("--sf-color-fg", "#0a0a0a", el);
 
+    // Sigma's stock pill path (box outline + junction chord + cap arc in one
+    // self-intersecting path) leaves an unfilled seam at the cap/box junction
+    // — invisible white-on-white, glaring on the inverted fill (edges below
+    // showed through it). Fill the union as two overlapping primitives
+    // instead: seamless by construction. The inverted mass needs no stroke.
     const PADDING = 2;
     if (typeof data.label === "string") {
       const textWidth = context.measureText(data.label).width;
       const boxWidth = Math.round(textWidth + 5);
       const boxHeight = Math.round(settings.labelSize + 2 * PADDING);
       const radius = Math.max(data.size, settings.labelSize / 2) + PADDING;
-      const angleRadian = Math.asin(boxHeight / 2 / radius);
-      const xDeltaCoord = Math.sqrt(Math.abs(radius ** 2 - (boxHeight / 2) ** 2));
       context.beginPath();
-      context.moveTo(data.x + xDeltaCoord, data.y + boxHeight / 2);
-      context.lineTo(data.x + radius + boxWidth, data.y + boxHeight / 2);
-      context.lineTo(data.x + radius + boxWidth, data.y - boxHeight / 2);
-      context.lineTo(data.x + xDeltaCoord, data.y - boxHeight / 2);
-      context.arc(data.x, data.y, radius, angleRadian, -angleRadian);
-      context.closePath();
+      context.arc(data.x, data.y, radius, 0, Math.PI * 2);
+      context.fill();
+      context.fillRect(data.x, data.y - boxHeight / 2, radius + boxWidth, boxHeight);
     } else {
       context.beginPath();
       context.arc(data.x, data.y, data.size + PADDING, 0, Math.PI * 2);
-      context.closePath();
+      context.fill();
     }
-    context.fill();
-    context.stroke();
 
-    drawDiscNodeLabel(context, data, settings);
+    // Text in the background colour on the inverted box; the label renderer
+    // reads the per-node `labelColor` attribute (see the Sigma settings).
+    drawDiscNodeLabel(
+      context,
+      { ...data, labelColor: token("--sf-color-bg", "#ffffff", el) },
+      settings,
+    );
   };
 }
 
@@ -376,8 +411,36 @@ function computeLayout(
   g: Graphology,
   layout: LayoutKind,
   options?: GraphLayoutOptions,
+  env?: { dimensions?: { width: number; height: number } },
 ): LayoutMapping {
   switch (layout) {
+    case "org": {
+      // Space by the stamped card boxes; the disc fallback keeps
+      // `layout="org"` + `nodeStyle="disc"` laying out sanely.
+      const measure = (id: string) => {
+        if (g.getNodeAttribute(id, "type") === "card") {
+          const w = g.getNodeAttribute(id, "cardWidth") as number | undefined;
+          const h = g.getNodeAttribute(id, "cardHeight") as number | undefined;
+          if (typeof w === "number" && typeof h === "number") return { width: w, height: h };
+        }
+        const size = (g.getNodeAttribute(id, "size") as number | undefined) ?? 4;
+        return { width: size * 2 + 8, height: size * 2 + 8 };
+      };
+      let stacks: Map<string, number> | undefined;
+      const mapping = orgLayout(g, options?.org, {
+        measure,
+        container: env?.dimensions,
+        reportStacks: (m) => {
+          stacks = m;
+        },
+      });
+      // Stamp spine offsets so the elbow program draws file-tree side-entry
+      // connectors into stacked members (cleared on non-members).
+      g.forEachNode((n) => {
+        g.setNodeAttribute(n, "orgStacked", stacks?.get(n));
+      });
+      return mapping;
+    }
     case "radial":
       return circular(g, {
         scale: options?.radial?.scale ?? Math.max(1, Math.sqrt(g.order)),
@@ -458,12 +521,14 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     onSelectionChange,
     selected,
     selectedNodeVisual,
+    edgeStateVisuals,
     highlightConnectionsOnHover = true,
     onNodeHover,
     renderNode,
     renderEdge,
     onNodeContextMenu,
     contextMenuItems,
+    nodeStyle = "disc",
     editable = false,
     onEdgeCreate,
     onEdgeDelete,
@@ -512,6 +577,16 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // an options change; `appliedLayoutOptionsRef` gates that in the switch effect.
   const layoutOptionsRef = useRef(layoutOptions);
   layoutOptionsRef.current = layoutOptions;
+  // Latest node style, read by the effects that re-stamp visuals (wired once).
+  const nodeStyleRef = useRef(nodeStyle);
+  nodeStyleRef.current = nodeStyle;
+  // Org-chart mode (org layout + cards): edges render as orthogonal elbow
+  // connectors instead of straight center-to-center lines.
+  const orgCardsRef = useRef(false);
+  orgCardsRef.current = layout === "org" && nodeStyle === "card";
+  // Latest per-state edge visual overrides, read by the edge reducer.
+  const edgeStateVisualsRef = useRef(edgeStateVisuals);
+  edgeStateVisualsRef.current = edgeStateVisuals;
   const layoutOptionsKey = JSON.stringify(layoutOptions ?? {});
   const appliedLayoutOptionsRef = useRef(layoutOptionsKey);
   // Cancels an in-flight `animateNodes` transition when a new one starts.
@@ -726,6 +801,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
     );
     graphRef.current = g;
+    applyCardAttributes(g, initialData, container, nodeStyleRef.current === "card");
     appliedLayoutRef.current = initialLayout;
     selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
     edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
@@ -745,18 +821,42 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       // software GL). No edge carries its own `type`, so this default governs
       // them all; retyped on reconcile + interactivity toggles (see
       // edgeTypeFor).
-      defaultEdgeType: edgeTypeFor(g.size, edgesInteractive),
+      defaultEdgeType: orgCardsRef.current ? "elbow" : edgeTypeFor(g.size, edgesInteractive),
       // The GL_LINES program behind "thinline" for big read-only graphs;
       // "arrow"/"line" are Sigma built-ins (merged, not replaced, by this).
-      edgeProgramClasses: { thinline: EdgeLineProgram },
-      labelColor: { color: token("--sf-color-fg", "#0a0a0a", container) },
+      edgeProgramClasses: {
+        thinline: EdgeLineProgram,
+        elbow: EdgeElbowProgram,
+        // Dash-capable programs; edges route to them per-edge via the reducer
+        // when they carry a non-solid `edgeStyle`.
+        styled: EdgeStyledProgram,
+        styledArrow: EdgeStyledArrowProgram,
+      },
+      // The org-chart card rect (merged over the built-ins; nodes opt in via
+      // `type: "card"`, stamped by applyCardAttributes). The hover variant is
+      // a no-op WebGL render: hovered cards re-paint fully in 2D so their
+      // in-card text isn't buried under the hoverNodes canvas.
+      nodeProgramClasses: { card: NodeCardProgram },
+      nodeHoverProgramClasses: { card: NodeCardHoverProgram },
+      // Per-node override with a themed fallback: the hover-fade reducer mutes
+      // de-emphasized nodes' text via a `labelColor` attribute instead of
+      // hiding it (a text-less card reads as a glitch, and vanishing labels
+      // are jumpier than a contrast drop for discs too).
+      labelColor: { attribute: "labelColor", color: token("--sf-color-fg", "#0a0a0a", container) },
       labelFont: token("--sf-font-sans", "system-ui", container),
       // Theme-aware hover box; Sigma's default hard-codes a white background that
       // hides white dark-mode label text.
       defaultDrawNodeHover: makeNodeHoverRenderer(container),
       edgeLabelColor: { color: token("--sf-color-fg-subtle", "#737373", container) },
       edgeLabelFont: token("--sf-font-sans", "system-ui", container),
-      renderLabels: g.order <= 300,
+      // Cards bypass the hard gate (a card without text is pointless); Sigma's
+      // label-grid density + on-screen-size culling still bound per-frame cost.
+      renderLabels: nodeStyleRef.current === "card" || g.order <= 300,
+      // Cards carry their text inside, so the default grid dedup (one label
+      // per 100px cell) blanks closely stacked cards. A denser grid lets every
+      // on-screen card keep its text; `labelRenderedSizeThreshold` still culls
+      // when cards shrink below legibility on zoom-out.
+      ...(nodeStyleRef.current === "card" ? { labelDensity: 8, labelGridCellSize: 40 } : {}),
       renderEdgeLabels: hasEdgeLabels && g.order <= 300,
       hideEdgesOnMove: g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES,
       // Edge events (click/right-click/hover) only fire when enabled; needed for
@@ -772,13 +872,42 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       // the rest. Selection wins over hover; both key on refs so this reducer is
       // wired once but always reads the latest state.
       edgeReducer: (edge, attr) => {
-        if (selectedEdgeRef.current === edge)
-          return { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 };
-        if (hoveredNodeRef.current !== null)
-          return incidentEdgesRef.current.has(edge)
-            ? { ...attr, color: selectColorRef.current, size: ((attr.size as number) ?? 1) * 2 }
-            : { ...attr, color: edgeFadeRef.current };
-        return attr;
+        // Per-state treatment: the built-in defaults (accent + double
+        // thickness for selected/incident, fade for the rest during hover),
+        // each overridable field-by-field via `edgeStateVisuals`.
+        const visuals = edgeStateVisualsRef.current;
+        const applyState = (v: EdgeVisual | undefined, color: string, size?: number) => ({
+          ...attr,
+          color: v?.color ?? color,
+          ...(v?.size !== undefined || size !== undefined ? { size: v?.size ?? size } : {}),
+          ...(v?.label !== undefined ? { label: v.label } : {}),
+          ...(v?.style !== undefined ? { edgeStyle: v.style } : {}),
+        });
+        let out = attr;
+        if (selectedEdgeRef.current === edge) {
+          out = applyState(
+            visuals?.selected,
+            selectColorRef.current,
+            ((attr.size as number) ?? 1) * 2,
+          );
+        } else if (hoveredNodeRef.current !== null) {
+          out = incidentEdgesRef.current.has(edge)
+            ? applyState(
+                visuals?.incident,
+                selectColorRef.current,
+                ((attr.size as number) ?? 1) * 2,
+              )
+            : applyState(visuals?.faded, edgeFadeRef.current);
+        }
+        // A non-solid style routes the edge to a dash-capable program. In
+        // org+card mode the elbow program reads `edgeStyle` directly, so the
+        // type stays the elbow default.
+        const style = (out as { edgeStyle?: EdgeStyle }).edgeStyle;
+        if (style !== undefined && style !== "solid" && !orgCardsRef.current) {
+          const arrows = (graphRef.current?.size ?? 0) <= ARROW_MAX_EDGES;
+          return { ...out, type: arrows ? "styledArrow" : "styled" };
+        }
+        return out;
       },
       nodeReducer: (node, attr) => {
         if (
@@ -805,7 +934,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           node !== hoveredNodeRef.current &&
           !neighborsRef.current.has(node)
         )
-          return { ...attr, color: nodeFadeRef.current, label: "" };
+          // De-emphasize by contrast: fade the fill/stripe and mute the text
+          // rather than hiding it — structure stays readable under the fade.
+          return { ...attr, color: nodeFadeRef.current, labelColor: nodeFadeRef.current };
         return attr;
       },
       allowInvalidContainer: true,
@@ -998,7 +1129,12 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           startForceSettle(!prefersReducedMotion());
           return;
         }
-        assignPositions(g, computeLayout(g, initialLayout, layoutOptionsRef.current));
+        assignPositions(
+          g,
+          computeLayout(g, initialLayout, layoutOptionsRef.current, {
+            dimensions: renderer.getDimensions(),
+          }),
+        );
         renderer.refresh();
         container.setAttribute("data-graph-ready", "");
         container.setAttribute("data-graph-settled", "");
@@ -1058,8 +1194,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       selectedNodeRef.current = null;
       handlersRef.current.onSelectionChange?.(null);
     }
+    applyCardAttributes(g, data, surfaceRef.current, nodeStyleRef.current === "card");
     // Label rendering tracks the (possibly changed) graph size / edge labels.
-    renderer.setSetting("renderLabels", g.order <= 300);
+    renderer.setSetting("renderLabels", nodeStyleRef.current === "card" || g.order <= 300);
     renderer.setSetting(
       "renderEdgeLabels",
       g.someEdge((_e, attr) => attr.label != null) && g.order <= 300,
@@ -1071,7 +1208,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.setSetting("hideEdgesOnMove", g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES);
     renderer.setSetting(
       "defaultEdgeType",
-      edgeTypeFor(g.size, editable || handlersRef.current.onEdgeClick != null),
+      orgCardsRef.current
+        ? "elbow"
+        : edgeTypeFor(g.size, editable || handlersRef.current.onEdgeClick != null),
     );
     renderer.refresh();
     if (changed) bumpEpoch();
@@ -1105,8 +1244,54 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       surfaceRef.current,
       editable ? EDITABLE_NODE_SIZE_BOOST : 0,
     );
+    applyCardAttributes(g, dataRef.current, surfaceRef.current, nodeStyleRef.current === "card");
     renderer.refresh();
   }, [renderNode, renderEdge, editable]);
+
+  // Under org + cards, node sizes reference graph POSITIONS (not screen px):
+  // cards then scale 1:1 with the layout gaps at every zoom, so they can never
+  // overlap on zoom-out and fitView frames the whole chart. Other layouts keep
+  // Sigma's screen-referenced defaults.
+  useEffect(() => {
+    const renderer = sigmaRef.current;
+    if (!renderer) return;
+    const positionsRef = nodeStyle === "card" && layout === "org";
+    renderer.setSetting("itemSizesReference", positionsRef ? "positions" : "screen");
+    renderer.setSetting("zoomToSizeRatioFunction", positionsRef ? (r: number) => r : Math.sqrt);
+    // Org-chart wiring: orthogonal elbow connectors; other modes restore the
+    // size/interactivity-gated straight edge type.
+    const g = graphRef.current;
+    if (g) {
+      renderer.setSetting(
+        "defaultEdgeType",
+        positionsRef
+          ? "elbow"
+          : edgeTypeFor(g.size, editableRef.current || handlersRef.current.onEdgeClick != null),
+      );
+    }
+    renderer.refresh();
+  }, [nodeStyle, layout]);
+
+  // Runtime `nodeStyle` flips: re-stamp node types/sizes and rescope the label
+  // gate. `applyVisuals` first restores the disc size baseline that card
+  // stamping overrides (or that a card→disc flip must return to).
+  useEffect(() => {
+    const g = graphRef.current;
+    const renderer = sigmaRef.current;
+    if (!g || !renderer) return;
+    applyVisuals(
+      g,
+      dataRef.current,
+      renderHooksRef.current,
+      surfaceRef.current,
+      editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+    );
+    applyCardAttributes(g, dataRef.current, surfaceRef.current, nodeStyle === "card");
+    renderer.setSetting("renderLabels", nodeStyle === "card" || g.order <= 300);
+    renderer.setSetting("labelDensity", nodeStyle === "card" ? 8 : 1);
+    renderer.setSetting("labelGridCellSize", nodeStyle === "card" ? 40 : 100);
+    renderer.refresh();
+  }, [nodeStyle]);
 
   // Re-theme on a live light↔dark switch. Node/edge fills re-tint via
   // applyVisuals; the label + default-node colors were captured into Sigma
@@ -1125,11 +1310,15 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       container,
       editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
     );
+    applyCardAttributes(g, dataRef.current, container, nodeStyleRef.current === "card");
     selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
     edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
     nodeFadeRef.current = token("--sf-color-muted", "#6b7280", container);
     renderer.setSetting("defaultNodeColor", nodeColor("primary", container));
-    renderer.setSetting("labelColor", { color: token("--sf-color-fg", "#0a0a0a", container) });
+    renderer.setSetting("labelColor", {
+      attribute: "labelColor",
+      color: token("--sf-color-fg", "#0a0a0a", container),
+    });
     renderer.setSetting("edgeLabelColor", {
       color: token("--sf-color-fg-subtle", "#737373", container),
     });
@@ -1150,7 +1339,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // grabbable thickness, GL_LINES are ~1px and unclickable — retype when the
     // flag flips at runtime (`setSetting` schedules the repaint).
     if (renderer && g) {
-      renderer.setSetting("defaultEdgeType", edgeTypeFor(g.size, edgesInteractive));
+      renderer.setSetting(
+        "defaultEdgeType",
+        orgCardsRef.current ? "elbow" : edgeTypeFor(g.size, edgesInteractive),
+      );
     }
     if (!editable && connectMode) setConnectMode(false);
   }, [editable, onEdgeClick, connectMode]);
@@ -1179,7 +1371,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       return;
     }
 
-    const targets = computeLayout(g, layout, layoutOptionsRef.current);
+    const targets = computeLayout(g, layout, layoutOptionsRef.current, {
+      dimensions: renderer.getDimensions(),
+    });
     const surface = surfaceRef.current;
 
     if (prefersReducedMotion()) {

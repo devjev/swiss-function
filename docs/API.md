@@ -1116,22 +1116,24 @@ Container that toggles into a fixed CSS viewport overlay (not OS fullscreen); Es
 
 `import { Graph } from "@tarassov-ch/swiss-function/graph"`
 
-Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and optional drag-to-connect editing.
+Network graph (Sigma.js) with force/tree/org/radial/concentric/grid layouts and optional drag-to-connect editing. `layout="org"` + `nodeStyle="card"` is the org-chart mode: a tidy hierarchical layout spaced by real card sizes, with stacking strategies for horizontal space.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `data` | `GraphData` | n/a | `{ nodes, edges }` with arbitrary per-item data. |
 | `layout` | `LayoutKind` | n/a | Controlled layout (animated transition on change). |
-| `defaultLayout` | `"force" \| "tree" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
-| `layoutOptions` | `GraphLayoutOptions` | n/a | Per-layout tuning (only the active layout's block is read); each field defaults to the size-derived value. `force` (`iterations` plus the full ForceAtlas2 settings: `gravity`, `scalingRatio`, `strongGravityMode`, `linLogMode`, `outboundAttractionDistribution`, `adjustSizes`, `edgeWeightInfluence`, `slowDown`, `barnesHutOptimize`, `barnesHutTheta`), `radial`/`concentric` (`scale`), `tree` (`rootId`/`direction`/`levelGap`), `grid` (`columns`). Force settings override `forceAtlas2.inferSettings` (which auto-tunes gravity/scalingRatio/BarnesHut by node count). Changing it re-runs the current layout. |
+| `defaultLayout` | `"force" \| "tree" \| "org" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
+| `layoutOptions` | `GraphLayoutOptions` | n/a | Per-layout tuning (only the active layout's block is read); each field defaults to the size-derived value. `force` (`iterations` plus the full ForceAtlas2 settings: `gravity`, `scalingRatio`, `strongGravityMode`, `linLogMode`, `outboundAttractionDistribution`, `adjustSizes`, `edgeWeightInfluence`, `slowDown`, `barnesHutOptimize`, `barnesHutTheta`), `radial`/`concentric` (`scale`), `tree` (`rootId`/`direction`/`levelGap`), `grid` (`columns`), `org` (`rootId`/`direction`/`levelGap`/`nodeGap`/`stack`/`stackIndent` — gaps in absolute card px; `stack` is `"none"` (default) / `"leaves"` (leaf children as an indented vertical list under their parent, the org-chart IC list) / `{ depth: n }` (whole subtrees below that depth as nested lists) / `"auto"` (least stacking whose bounding box fits the container's aspect)). Force settings override `forceAtlas2.inferSettings` (which auto-tunes gravity/scalingRatio/BarnesHut by node count). Changing it re-runs the current layout. |
 | `onLayoutChange` | `(next: LayoutKind) => void` | n/a | Layout changed (prop/toolbar/keyboard). |
+| `nodeStyle` | `"disc" \| "card"` | `"disc"` | `"card"` renders rectangular org-chart cards: the node `label` (semibold) and optional `sublabel` (subtle) inside, a kind-coloured accent stripe on the leading edge, sized by measured text (72–224 card px). Cards bypass the 300-node label gate (density + on-screen-size culling still bound cost) and the whole card is the hover/click target. Under `layout="org"` card sizes reference graph positions, so cards keep exact proportion to the layout gaps at every zoom; under other layouts they keep Sigma's screen-referenced sizing. |
 | `onNodeClick` / `onEdgeClick` | `(id: string) => void` | n/a | Clicks (edges clickable when `editable` or this is set). |
 | `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id (or `null`). The selected node gets a built-in persistent emphasis — accent fill + Sigma's highlight ring/label box — the node analogue of the selected-edge double stroke. |
 | `selected` | `string \| null` | n/a | Controlled selected node id. When set, that node carries the emphasis and the component reflects the prop. Omit for uncontrolled selection (a node click selects, a stage click clears, both still reported via `onSelectionChange`). `null` selects nothing. |
 | `selectedNodeVisual` | `NodeVisual` | n/a | Override the built-in selected-node emphasis. Each returned field (accent `color`, `size`, `label`) replaces that part of the default; omitted fields keep it. `renderNode` still supplies the base attributes underneath. |
 | `highlightConnectionsOnHover` | `boolean` | `true` | On node hover, emphasize its incident edges (both directions) + neighbours and fade the rest, so a node's connections read at a glance. `false` keeps hover to just the label box. A selected node stays emphasized through the fade. |
 | `onNodeHover` | `(id: string \| null) => void` | n/a | Pointer entered a node (`id`) or left it (`null`). Independent of `highlightConnectionsOnHover`. |
-| `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | n/a | Override visual attrs; omitted fields use defaults. |
+| `renderNode` / `renderEdge` | `(item) => NodeVisual \| EdgeVisual \| undefined` | n/a | Override visual attrs; omitted fields use defaults. `EdgeVisual.style` (`"solid" \| "dashed" \| "dotted"`) picks the line style per edge — dashed/dotted render through dash-capable WebGL programs on straight, arrow, and elbow edges alike (straight styled edges keep their arrowheads; hit targets stay continuous). The edge's first in-edge in data order marks its primary parent for the org layout, so later cross-link edges (e.g. dotted-line reporting) never re-home a node. |
+| `edgeStateVisuals` | `{ selected?, incident?, faded?: EdgeVisual }` | n/a | Override the built-in per-state edge treatments: the `selected` edge and hover-`incident` edges default to accent color + doubled thickness, the `faded` rest to the fade color. Each field merges over that state's default (e.g. `{ incident: { style: "dashed" } }`). |
 | `onNodeContextMenu` | `(id, event) => void` | n/a | Before right-click menu opens. |
 | `contextMenuItems` | `(target: GraphMenuTarget) => GraphMenuItem[]` | n/a | Custom menu (`[]` suppresses). |
 | `editable` | `boolean` | `false` | Connect-mode edge creation + deletion. |
@@ -1144,8 +1146,24 @@ Network graph (Sigma.js) with force/tree/radial/concentric/grid layouts and opti
 | `fill` | `boolean` | `false` | Fill parent height (parent must set height). |
 | `frame` | `boolean` | `true` | Border + corner; false when nested in a frame. |
 
+**Org layout** (`layout="org"`): a hand-rolled linear-time tidy pass
+(Buchheim/Walker adapted to variable node widths) over a spanning forest —
+directed edges define parentage (`manager → report`), extra parents/cycle
+edges still render but don't nest, unreached nodes seed further trees laid
+side by side. Ranks top-align; parents centre over their children's span.
+Stacked groups leave the rank grid and list vertically (indented) under their
+parent. `stack: "auto"` measures the drawable container and applies the least
+stacking whose aspect fits (≤ 12 passes). A `data` change does not re-run the
+layout (positions/camera are preserved, like every non-force layout);
+re-trigger via `layoutOptions` or a layout switch. Under org + cards, edges
+render as **orthogonal elbow connectors** (parent bottom → vertical drop →
+horizontal bus → drop into the child's top; side-edge routing between
+vertically overlapping boxes under `direction: "right"`), meeting the card
+edges exactly; hover/click follow the elbow path. Other layouts keep straight
+center-to-center edges.
+
 **Scale gates** (automatic, from the live graph size): node/edge labels render
-only up to 300 nodes. Above 5,000 edges, edges are hidden while the camera is
+only up to 300 nodes (except card labels, see `nodeStyle`). Above 5,000 edges, edges are hidden while the camera is
 moving (they reappear at rest) and arrowheads are dropped, edges render as
 thickness-preserving quads when interactive (`editable` or `onEdgeClick`), else
 as 1-device-pixel GL lines: thickness then ignores per-edge `size` *and* zoom,
@@ -1154,7 +1172,9 @@ and hover/selection emphasis degrades to color-only. Above 2,000 nodes the
 seed positions immediately and the layout streams in (one final snap instead
 under `prefers-reduced-motion`).
 
-**Elements / Parts:** `Graph.Controls` (zoom/fit/reset/layout/Connect toolbar),
+**Elements / Parts:** `Graph.Controls` (zoom/fit/reset/layout/Connect toolbar;
+`layouts` restricts which layouts the switcher offers, in the given order —
+`layouts={[]}` removes the switcher entirely while zoom/fit/reset stay),
 `Graph.Minimap` (viewport overlay).
 
 ## Grid
@@ -1298,6 +1318,40 @@ Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Ex
 ```tsx
 <Kbd combo="mod+k" />            // ⌘K on macOS, Ctrl+K elsewhere
 <Kbd combo="mod+shift+enter" />
+```
+
+## LaunchButton
+
+`import { LaunchButton } from "@tarassov-ch/swiss-function/launch-button"`
+
+A guarded, missile-launch-style two-step control: a hinged protective lid over a recessed well holding the activation control. The guard must be flipped open (click, or Enter/Space) before the action can fire — a physical-feeling confirm for destructive or irreversible actions. Extends `HTMLAttributes<HTMLDivElement>` (except `onClick`, which is repurposed for the revealed control).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `mode` | `"button" \| "switch"` | `"button"` | `"button"`: open → press → `onClick` fires once → the guard snaps shut on its own. `"switch"`: an on/off armed state under the guard. |
+| `onClick` | `(event) => void` | n/a | Button mode: fires once per open/press cycle. |
+| `checked` / `defaultChecked` / `onCheckedChange` | `boolean` / `boolean` / `(checked) => void` | n/a / `false` / n/a | Switch mode: the armed state (controlled or uncontrolled). |
+| `open` / `defaultOpen` / `onOpenChange` | `boolean` / `boolean` / `(open, reason) => void` | n/a / `false` / n/a | Guard state (controlled or uncontrolled). Reasons: `"toggle"`, `"escape"`, `"focus"`, `"pointer"`, `"fired"`. |
+| `guardLabel` | `string` | n/a | Legend engraved on the lid (e.g. `"ARM"`); also names the guard for assistive tech (`"<guardLabel> guard"`). Omit → stripes only. |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Vertical is the fighter-panel column: in switch mode a bat-handle toggle lever (3D flip, danger tip when armed) between engraved ON/OFF marks, `children` as the panel legend below; in button mode a covered push-button column. |
+| `children` | `ReactNode` | required | Action label on the revealed control (Button label / armed-switch label / vertical panel legend). |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Horizontal: tracks Button sizes, well block-size 1.5u / 2u / 2.5u. Vertical: sizes the column — minimum width 2u / 3u / 4u with the lever and legend scaled to match (`sm` is the narrow column). |
+| `tone` | `"danger" \| "primary"` | `"danger"` | Danger: hazard-striped lid + danger action (the default; the component exists for destructive actions). Primary: plain lid, for deliberate but non-destructive actions. |
+| `disabled` | `boolean` | `false` | Disables the guard and the covered control. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth of the lid — same scale as Box. |
+
+Behavior contract:
+
+- **Button mode.** Escape and focus leaving the component close the guard **without firing**; after a fire the guard snaps shut on its own (reason `"fired"`). A keyboard open (Enter/Space on the guard) moves focus to the revealed control; Escape returns it to the guard.
+- **Switch mode: the slam.** While checked, the open lid is the status display — blur never closes it and never changes state. Closing the guard (clicking the raised lid, or Escape) while checked **forces the switch off first**, like the physical guard it emulates. With controlled `checked`, the slam emits `onCheckedChange(false)`; a consumer who ignores it gets a closed guard rendered over a checked switch.
+- The covered well is `inert`, so assistive tech can never reach a control a sighted user would have to uncover.
+- The open lid changes no layout: it flips up over the top hinge and rests as a slim strip projected above the component's top edge (an ancestor with `overflow: hidden` will clip it).
+
+```tsx
+<LaunchButton guardLabel="ARM" onClick={launchMissile}>Launch</LaunchButton>
+<LaunchButton mode="switch" guardLabel="ARM" checked={armed} onCheckedChange={setArmed}>
+  Autopilot override
+</LaunchButton>
 ```
 
 ## Login

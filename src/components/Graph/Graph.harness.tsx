@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { GraphData } from "../../lib/graph/types";
+import type { GraphData, LayoutKind } from "../../lib/graph/types";
 import { useGraphInternals } from "./context";
 import { Graph, type GraphProps } from "./Graph";
 
@@ -74,6 +74,32 @@ function SelectionProbe() {
   return <div data-testid="selection-probe" {...attrs} />;
 }
 
+/** Reports each node's post-reducer display `type` (e.g. `"card"` under
+ *  `nodeStyle="card"`) onto a `data-type-<id>` attribute — the WebGL program a
+ *  node renders with has no DOM footprint to assert on otherwise. */
+function DisplayProbe() {
+  const { getRenderer, getGraph, epoch } = useGraphInternals();
+  const [types, setTypes] = useState<Record<string, string>>({});
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read on every `epoch` bump; the getters are stable.
+  useEffect(() => {
+    const renderer = getRenderer();
+    const g = getGraph();
+    if (!renderer || !g) return;
+    const next: Record<string, string> = {};
+    g.forEachNode((id) => {
+      next[id] = renderer.getNodeDisplayData(id)?.type ?? "";
+    });
+    g.forEachEdge((id) => {
+      next[`e-${id}`] = renderer.getEdgeDisplayData(id)?.type ?? "";
+    });
+    setTypes(next);
+  }, [epoch]);
+
+  const attrs: Record<string, string> = {};
+  for (const [id, type] of Object.entries(types)) attrs[`data-type-${id}`] = type;
+  return <div data-testid="display-probe" {...attrs} />;
+}
+
 interface HarnessProps extends Partial<GraphProps> {
   /** Also render the minimap overlay. */
   minimap?: boolean;
@@ -81,6 +107,14 @@ interface HarnessProps extends Partial<GraphProps> {
   probe?: boolean;
   /** Render the selection probe (`data-hl-<id>` per-node highlight flags). */
   selectionProbe?: boolean;
+  /** Render the display probe (`data-type-<id>` per-node program type). */
+  displayProbe?: boolean;
+  /** Apply this line style to every edge via a browser-side `renderEdge`.
+   *  (A `renderEdge` passed from a CT test file is proxied async across the
+   *  Node/browser boundary and can't return values synchronously.) */
+  edgeStyleAll?: "dashed" | "dotted";
+  /** Forwarded to `Graph.Controls`' `layouts` prop. */
+  controlsLayouts?: LayoutKind[];
 }
 
 /** Test harness for `Graph`: a single big centered node by default, the controls
@@ -124,7 +158,15 @@ export function GraphRemovableHarness() {
   );
 }
 
-export function GraphHarness({ minimap, probe, selectionProbe, ...graphProps }: HarnessProps) {
+export function GraphHarness({
+  minimap,
+  probe,
+  selectionProbe,
+  displayProbe,
+  edgeStyleAll,
+  controlsLayouts,
+  ...graphProps
+}: HarnessProps) {
   const [last, setLast] = useState("");
   const [lastSelection, setLastSelection] = useState("none");
   return (
@@ -134,7 +176,7 @@ export function GraphHarness({ minimap, probe, selectionProbe, ...graphProps }: 
       <Graph
         data={single}
         renderNode={() => ({ size: 24 })}
-        renderEdge={() => ({ size: 6 })}
+        renderEdge={() => ({ size: 6, ...(edgeStyleAll ? { style: edgeStyleAll } : {}) })}
         onNodeClick={(id) => setLast(`click:${id}`)}
         onNodeHover={(id) => setLast(`hover:${id ?? "null"}`)}
         onEdgeClick={(id) => setLast(`edgeclick:${id}`)}
@@ -144,10 +186,11 @@ export function GraphHarness({ minimap, probe, selectionProbe, ...graphProps }: 
         onSelectionChange={(id) => setLastSelection(id ?? "null")}
         {...graphProps}
       >
-        <Graph.Controls />
+        <Graph.Controls layouts={controlsLayouts} />
         {minimap ? <Graph.Minimap /> : null}
         {probe ? <NodeProbe /> : null}
         {selectionProbe ? <SelectionProbe /> : null}
+        {displayProbe ? <DisplayProbe /> : null}
       </Graph>
     </div>
   );

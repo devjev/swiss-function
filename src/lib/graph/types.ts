@@ -6,6 +6,9 @@ export interface GraphNode {
   id: string;
   /** Human-readable label; falls back to `id` when absent. */
   label?: string;
+  /** Secondary line (e.g. an org-chart job title) drawn inside card-style
+   *  nodes, smaller and subtler than the name. Ignored by disc nodes. */
+  sublabel?: string;
   /** Optional category used for color/shape grouping (color-by-`kind`). */
   kind?: string;
   /** Arbitrary structured payload shown in tooltips/inspectors. */
@@ -39,7 +42,17 @@ export interface GraphData {
 }
 
 /** The layout algorithms the `Graph` component can switch between. */
-export type LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid";
+export type LayoutKind = "force" | "tree" | "radial" | "concentric" | "grid" | "org";
+
+/** How the `org` layout compresses horizontal space.
+ *  - `"none"`: pure tidy layout, every node a card in its rank.
+ *  - `"leaves"`: leaf children collapse into an indented vertical list under
+ *    their parent (the classic org-chart IC list).
+ *  - `{ depth }`: every subtree hanging below that depth collapses into one
+ *    nested, indented vertical list per parent (the file-tree read).
+ *  - `"auto"`: the least stacking whose bounding box fits the container's
+ *    aspect ratio (tries `"none"`, `"leaves"`, then decreasing depths). */
+export type OrgStack = "none" | "leaves" | "auto" | { depth: number };
 
 /** Optional per-layout tuning for `Graph`'s `layoutOptions` prop. Every field is
  *  optional and defaults to the component's size-derived value, so `{}` (or
@@ -103,5 +116,26 @@ export interface GraphLayoutOptions {
   grid?: {
     /** Fixed column count. Default `⌈√n⌉`. */
     columns?: number;
+  };
+  /** The hierarchical `org` layout: a tidy org chart spaced by real node
+   *  footprints (card sizes), with stacking strategies for horizontal space.
+   *  Unlike `tree.levelGap` (a multiplier), org gaps are absolute units in the
+   *  same coordinate space as the measured card boxes. */
+  org?: {
+    /** Node `id` to root the hierarchy at. Default: every zero-in-degree node
+     *  (a forest laid side by side); remaining unreached nodes seed further
+     *  trees by smallest in-degree. */
+    rootId?: string;
+    /** Growth direction. Default `"down"`. */
+    direction?: "down" | "right";
+    /** Gap between successive ranks. Default `40`. */
+    levelGap?: number;
+    /** Gap between sibling footprints along a rank. Default `12`. */
+    nodeGap?: number;
+    /** Horizontal-space strategy. Default `"none"`. */
+    stack?: OrgStack;
+    /** Indent per nesting level of stacked members, from the stack's left
+     *  edge. Default `16`. */
+    stackIndent?: number;
   };
 }

@@ -7,6 +7,7 @@
  *  and `reconcile` stays unit-testable — without a DOM. */
 
 import Graphology from "graphology";
+import type { EdgeStyle } from "./styledEdgeProgram";
 import type { GraphData, GraphNode } from "./types";
 
 /** Visual overrides a `renderNode` callback may return. Sigma paints to WebGL
@@ -16,7 +17,11 @@ import type { GraphData, GraphNode } from "./types";
 export interface NodeVisual {
   /** Text drawn beside the node; defaults to the node `label` or `id`. */
   label?: string;
-  /** Fill color; should be a `--sf-*`-derived value. Defaults to color-by-`kind`. */
+  /** Secondary line inside card-style nodes (`nodeStyle="card"`); defaults to
+   *  the node `sublabel`. Ignored by disc nodes. */
+  sublabel?: string;
+  /** Fill color; should be a `--sf-*`-derived value. Defaults to color-by-`kind`.
+   *  On cards this colours the accent stripe. */
   color?: string;
   /** Node radius in graph units; defaults to a `kind`-derived size. */
   size?: number;
@@ -30,6 +35,10 @@ export interface EdgeVisual {
   color?: string;
   /** Stroke thickness in graph units; defaults to a `weight`-derived size. */
   size?: number;
+  /** Line style. `"dashed"`/`"dotted"` render through the styled edge
+   *  programs (straight, arrow, and elbow alike); styled straight edges keep
+   *  their arrowheads. Default `"solid"`. */
+  style?: EdgeStyle;
 }
 
 /** The visual hooks `buildGraph`/`reconcile` apply on top of the color-by-`kind`
@@ -128,6 +137,7 @@ export function applyVisuals(
     const custom = hooks.renderNode?.(n);
     g.mergeNodeAttributes(n.id, {
       label: custom?.label ?? n.label ?? n.id,
+      sublabel: custom?.sublabel ?? n.sublabel,
       size: custom?.size ?? nodeSize(n.kind) + Math.max(0, nodeSizeBoost),
       color: custom?.color ?? nodeColor(n.kind, el),
     });
@@ -139,6 +149,7 @@ export function applyVisuals(
       label: custom?.label ?? e.label,
       size: custom?.size ?? edgeSize(e.weight),
       color: custom?.color ?? edgeColor,
+      edgeStyle: custom?.style,
     });
   }
 }

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-08-19T12:59:11.325Z"
+    "date": "2026-08-22T13:17:14.219Z"
   },
-  "totalGzip": 1249047,
+  "totalGzip": 1282916,
   "entries": {
     ".": {
-      "files": 305,
-      "jsRaw": 1144744,
-      "jsGzip": 343848,
+      "files": 312,
+      "jsRaw": 1195921,
+      "jsGzip": 359798,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 343848,
+      "gzip": 359798,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -405,12 +405,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./graph": {
-      "files": 30,
-      "jsRaw": 81822,
-      "jsGzip": 24832,
+      "files": 35,
+      "jsRaw": 124871,
+      "jsGzip": 38504,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24832,
+      "gzip": 38504,
       "externals": [
         "@base-ui/react/menu",
         "@base-ui/react/toggle",
@@ -477,6 +477,15 @@
       "cssGzip": 0,
       "gzip": 1604,
       "externals": ["react", "react/jsx-runtime"]
+    },
+    "./launch-button": {
+      "files": 10,
+      "jsRaw": 11731,
+      "jsGzip": 4247,
+      "cssRaw": 0,
+      "cssGzip": 0,
+      "gzip": 4247,
+      "externals": ["@base-ui/react/switch", "react", "react/jsx-runtime"]
     },
     "./login": {
       "files": 15,

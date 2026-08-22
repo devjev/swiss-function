@@ -48,6 +48,19 @@ test("clicking a node fires onNodeClick with its id", async ({ mount }) => {
   await expect(c.getByTestId("last-event")).toHaveText("click:hub");
 });
 
+test("nodeStyle=card renders nodes through the card program", async ({ mount }) => {
+  const c = await mount(<GraphHarness nodeStyle="card" displayProbe />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await expect(c.getByTestId("display-probe")).toHaveAttribute("data-type-hub", "card");
+});
+
+test("clicking a card fires onNodeClick (GPU picking over the rect)", async ({ mount }) => {
+  const c = await mount(<GraphHarness nodeStyle="card" />);
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await c.locator("[data-graph-surface]").click();
+  await expect(c.getByTestId("last-event")).toHaveText("click:hub");
+});
+
 test("a force graph reaches both ready and settled (worker-settle path)", async ({ mount }) => {
   // Force layouts always settle in the FA2 worker when one can spawn (real
   // browsers, including this CT harness), so `ready` (seed-paint, the graph
@@ -194,6 +207,126 @@ test("layoutOptions.grid.columns changes the column count", async ({ mount }) =>
   const d = await gap(tall);
   expect(d.x).toBeLessThan(2);
   expect(d.y).toBeGreaterThan(10);
+});
+
+// Boss with a manager subtree and three leaf ICs — the org-layout fixture.
+const orgData: GraphData = {
+  nodes: [
+    { id: "boss", label: "Boss", sublabel: "CEO", kind: "primary" },
+    { id: "mgr", label: "Manager", sublabel: "VP", kind: "secondary" },
+    { id: "report", label: "Report", kind: "tertiary" },
+    // Short labels all clamp to the minimum card width, so the stacked
+    // members' centres align exactly (members are left-aligned; different
+    // widths would offset the centres the probe reports).
+    { id: "ic1", label: "IC 1", kind: "quaternary" },
+    { id: "ic2", label: "IC 2", kind: "quaternary" },
+    { id: "ic3", label: "IC 3", kind: "quaternary" },
+  ],
+  edges: [
+    { id: "o1", source: "boss", target: "mgr" },
+    { id: "o2", source: "mgr", target: "report" },
+    { id: "o3", source: "boss", target: "ic1" },
+    { id: "o4", source: "boss", target: "ic2" },
+    { id: "o5", source: "boss", target: "ic3" },
+  ],
+};
+
+test("Controls layouts prop restricts the switcher to the given layouts", async ({ mount }) => {
+  const c = await mount(<GraphHarness controlsLayouts={["tree", "grid"]} />);
+  await expect(c.getByRole("button", { name: "Tree" })).toBeVisible();
+  await expect(c.getByRole("button", { name: "Grid" })).toBeVisible();
+  await expect(c.getByRole("button", { name: "Force" })).toHaveCount(0);
+  await expect(c.getByRole("button", { name: "Org" })).toHaveCount(0);
+});
+
+test("Controls layouts={[]} removes the layout switcher entirely", async ({ mount }) => {
+  const c = await mount(<GraphHarness controlsLayouts={[]} />);
+  // The rest of the toolbar stays.
+  await expect(c.getByRole("button", { name: "Reset view" })).toBeVisible();
+  await expect(c.getByRole("group", { name: "Layout" })).toHaveCount(0);
+});
+
+test("renderEdge style routes the edge to the dash-capable arrow program", async ({ mount }) => {
+  const c = await mount(
+    <GraphHarness data={pairLinked} layout="grid" edgeStyleAll="dashed" displayProbe />,
+  );
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  await expect(c.getByTestId("display-probe")).toHaveAttribute("data-type-e-e1", "styledArrow");
+});
+
+test("the Org layout toggle fires onLayoutChange and marks itself pressed", async ({ mount }) => {
+  const c = await mount(<GraphHarness />);
+  await c.getByRole("button", { name: "Org" }).click();
+  await expect(c.getByTestId("last-event")).toHaveText("layout:org");
+  await expect(c.getByRole("button", { name: "Org" })).toHaveAttribute("data-pressed", "");
+});
+
+test("org layout stacks leaf children into one x column under their parent", async ({ mount }) => {
+  const c = await mount(
+    <GraphHarness
+      data={orgData}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{ org: { rootId: "boss", stack: "leaves" } }}
+      probe
+    />,
+  );
+  await expect(c.locator("[data-graph-ready]")).toHaveCount(1);
+  const probe = c.getByTestId("node-pos");
+  const parse = (s: string | null) => {
+    const [x, y] = (s ?? "").split(",").map(Number);
+    return { x: x ?? Number.NaN, y: y ?? Number.NaN };
+  };
+  const ic1 = parse(await probe.getAttribute("data-pos-ic1"));
+  const ic2 = parse(await probe.getAttribute("data-pos-ic2"));
+  const ic3 = parse(await probe.getAttribute("data-pos-ic3"));
+  // Same-width leaf cards list in one column…
+  expect(Math.abs(ic1.x - ic2.x)).toBeLessThan(2);
+  expect(Math.abs(ic2.x - ic3.x)).toBeLessThan(2);
+  // …top to bottom.
+  expect(ic2.y).toBeGreaterThan(ic1.y);
+  expect(ic3.y).toBeGreaterThan(ic2.y);
+  // The manager stays a regular card on its rank, above the boss's IC list end.
+  const boss = parse(await probe.getAttribute("data-pos-boss"));
+  const mgr = parse(await probe.getAttribute("data-pos-mgr"));
+  expect(mgr.y).toBeGreaterThan(boss.y);
+});
+
+test("layoutOptions.org.levelGap re-lays out the chart", async ({ mount }) => {
+  const parse = (s: string | null) => {
+    const [x, y] = (s ?? "").split(",").map(Number);
+    return { x: x ?? Number.NaN, y: y ?? Number.NaN };
+  };
+  const rankGap = async (c: Awaited<ReturnType<typeof mount>>) => {
+    const probe = c.getByTestId("node-pos");
+    const boss = parse(await probe.getAttribute("data-pos-boss"));
+    const mgr = parse(await probe.getAttribute("data-pos-mgr"));
+    return mgr.y - boss.y;
+  };
+  const tight = await mount(
+    <GraphHarness
+      data={orgData}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{ org: { rootId: "boss", levelGap: 20 } }}
+      probe
+    />,
+  );
+  await expect(tight.locator("[data-graph-ready]")).toHaveCount(1);
+  const tightGap = await rankGap(tight);
+  await tight.unmount();
+
+  const loose = await mount(
+    <GraphHarness
+      data={orgData}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{ org: { rootId: "boss", levelGap: 120 } }}
+      probe
+    />,
+  );
+  await expect(loose.locator("[data-graph-ready]")).toHaveCount(1);
+  expect(await rankGap(loose)).toBeGreaterThan(tightGap);
 });
 
 test("dragging node→node in Connect mode fires onEdgeCreate", async ({ mount, page }) => {

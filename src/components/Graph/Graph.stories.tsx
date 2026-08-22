@@ -6,7 +6,47 @@ import { Graph } from "./Graph";
 
 export default { title: "Graph" };
 
-const LAYOUTS: LayoutKind[] = ["force", "tree", "radial", "concentric", "grid"];
+const LAYOUTS: LayoutKind[] = ["force", "tree", "org", "radial", "concentric", "grid"];
+
+// --- Org-chart fixture ------------------------------------------------------
+// A deterministic ~40-person org with titles: CEO → 4 departments → teams with
+// IC lists of varying size, so leaf stacking has something to compress.
+function makeOrg(deep = false): GraphData {
+  const nodes: GraphData["nodes"] = [];
+  const edges: GraphData["edges"] = [];
+  let e = 0;
+  const add = (id: string, label: string, sublabel: string, kind: string, parent?: string) => {
+    nodes.push({ id, label, sublabel, kind });
+    if (parent) edges.push({ id: `e${e++}`, source: parent, target: id });
+  };
+  add("ceo", "Vera Meier", "Chief Executive", "primary");
+  const departments: Array<[string, string, number, number]> = [
+    ["eng", "Engineering", 3, 4],
+    ["ops", "Operations", 2, 3],
+    ["fin", "Finance", 1, 3],
+    ["sales", "Sales", 2, 5],
+  ];
+  for (const [dept, deptName, teams, icsPerTeam] of departments) {
+    add(dept, `${deptName} Lead`, `VP ${deptName}`, "secondary", "ceo");
+    for (let t = 0; t < teams; t++) {
+      const teamId = `${dept}-t${t}`;
+      add(teamId, `${deptName} Team ${t + 1}`, "Team Lead", "tertiary", dept);
+      const ics = deep ? icsPerTeam * 4 : icsPerTeam;
+      for (let i = 0; i < ics; i++) {
+        add(`${teamId}-p${i}`, `Person ${dept}.${t}.${i}`, "Engineer", "quaternary", teamId);
+      }
+    }
+  }
+  return { nodes, edges };
+}
+const ORG = makeOrg();
+const ORG_DEEP = makeOrg(true);
+// The org plus one dotted-line reporting relationship (a non-tree edge: the
+// engineer also reports to the Operations lead).
+const ORG_DOTTED: GraphData = {
+  ...ORG,
+  edges: [...ORG.edges, { id: "dotline", source: "ops", target: "eng-t0-p0" }],
+};
 
 /** Frame wrapper: a sized box so the graph has room. The Graph root has its own
  *  default height; we give it a taller one here for a fuller view. */
@@ -80,6 +120,117 @@ export const Concentric: Story = () => (
 export const Grid: Story = () => (
   <Frame>
     <Graph data={SMALL} layout="grid" style={{ blockSize: 520 }}>
+      <Graph.Controls />
+    </Graph>
+  </Frame>
+);
+
+// --- Org chart --------------------------------------------------------------
+// The hierarchical layout with card nodes: name + title inside each card, a
+// kind-coloured accent stripe, tidy spacing by real card widths, and the IC
+// lists compressed via leaf stacking.
+
+export const OrgChart: Story = () => (
+  <Frame>
+    <Graph
+      data={ORG_DOTTED}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{ org: { rootId: "ceo", stack: "leaves" } }}
+      renderEdge={(e) => (e.id === "dotline" ? { style: "dotted" } : undefined)}
+      style={{ blockSize: 560 }}
+    >
+      <Graph.Controls />
+      <Graph.Minimap />
+    </Graph>
+  </Frame>
+);
+
+interface OrgDeepArgs {
+  stack: "none" | "leaves" | "depth2" | "auto";
+}
+
+/** The same org with 4× the ICs — flip `stack` to compare the horizontal-space
+ *  strategies (pure tidy vs IC lists vs depth stacking vs container-fit). */
+export const OrgChartDeep: Story<OrgDeepArgs> = ({ stack }) => (
+  <Frame>
+    <Graph
+      data={ORG_DEEP}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{
+        org: {
+          rootId: "ceo",
+          stack: stack === "depth2" ? { depth: 2 } : stack,
+        },
+      }}
+      style={{ blockSize: 560 }}
+    >
+      <Graph.Controls />
+      <Graph.Minimap />
+    </Graph>
+  </Frame>
+);
+OrgChartDeep.args = { stack: "leaves" };
+OrgChartDeep.argTypes = {
+  stack: { options: ["none", "leaves", "depth2", "auto"], control: { type: "radio" } },
+};
+
+/** `stack: "auto"` in a narrow container: the layout measures the viewport and
+ *  stacks progressively until the chart's aspect fits. */
+export const OrgChartAuto: Story = () => (
+  <div style={{ inlineSize: 420 }}>
+    <Graph
+      data={ORG_DEEP}
+      layout="org"
+      nodeStyle="card"
+      layoutOptions={{ org: { rootId: "ceo", stack: "auto" } }}
+      style={{ blockSize: 640 }}
+    >
+      {/* Narrow container: keep zoom/fit/reset, drop the layout switcher. */}
+      <Graph.Controls layouts={[]} />
+    </Graph>
+  </div>
+);
+
+// --- Edge styles ------------------------------------------------------------
+// Per-edge line styles via `renderEdge` (solid / dashed / dotted, arrowheads
+// kept), and per-state overrides via `edgeStateVisuals` (here: the hovered
+// node's incident edges go dashed).
+
+const styleTrio: GraphData = {
+  nodes: [
+    { id: "s1", label: "Solid", kind: "primary" },
+    { id: "s2", label: "solid →", kind: "secondary" },
+    { id: "d1", label: "Dashed", kind: "primary" },
+    { id: "d2", label: "dashed →", kind: "secondary" },
+    { id: "o1", label: "Dotted", kind: "primary" },
+    { id: "o2", label: "dotted →", kind: "secondary" },
+  ],
+  edges: [
+    { id: "es", source: "s1", target: "s2", data: { style: "solid" } },
+    { id: "ed", source: "d1", target: "d2", data: { style: "dashed" } },
+    { id: "eo", source: "o1", target: "o2", data: { style: "dotted" } },
+  ],
+};
+
+export const EdgeStyles: Story = () => (
+  <Frame>
+    <Graph
+      data={styleTrio}
+      layout="grid"
+      layoutOptions={{ grid: { columns: 2 } }}
+      renderEdge={(e) => ({ style: e.data?.style as "solid" | "dashed" | "dotted" })}
+      edgeStateVisuals={{ incident: { style: "dashed" } }}
+      style={{ blockSize: 420 }}
+    />
+  </Frame>
+);
+
+/** Cards under a non-org layout: screen-referenced sizing, same program. */
+export const Cards: Story = () => (
+  <Frame>
+    <Graph data={ORG} layout="tree" nodeStyle="card" style={{ blockSize: 520 }}>
       <Graph.Controls />
     </Graph>
   </Frame>

@@ -17,10 +17,13 @@ function token(name: string, fallback: string, el?: Element | null): string {
 
 /** The linear map from framed graph coordinates (the space shared by
  *  `getNodeDisplayData` and `viewportToFramedGraph`) to minimap CSS pixels.
+ *  Framed y grows UPWARD while canvas y grows downward, so the y axis maps
+ *  from `maxY` down — without the flip the miniature (and the viewport
+ *  rectangle's motion) renders vertically mirrored against the main view.
  *  Inverting it turns a minimap click back into a framed point to center on. */
 interface Transform {
   minX: number;
-  minY: number;
+  maxY: number;
   scale: number;
   offX: number;
   offY: number;
@@ -67,9 +70,9 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     const tl = renderer.viewportToFramedGraph({ x: 0, y: 0 });
     const br = renderer.viewportToFramedGraph({ x: dim.width, y: dim.height });
     const x1 = tf.offX + (tl.x - tf.minX) * tf.scale;
-    const y1 = tf.offY + (tl.y - tf.minY) * tf.scale;
+    const y1 = tf.offY + (tf.maxY - tl.y) * tf.scale;
     const x2 = tf.offX + (br.x - tf.minX) * tf.scale;
-    const y2 = tf.offY + (br.y - tf.minY) * tf.scale;
+    const y2 = tf.offY + (tf.maxY - br.y) * tf.scale;
     ctx.strokeStyle = token("--sf-color-primary", "#2563eb", canvas);
     ctx.lineWidth = 1.5;
     ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
@@ -112,7 +115,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     const scale = Math.min((w - 2 * pad) / spanX, (h - 2 * pad) / spanY);
     const offX = (w - spanX * scale) / 2;
     const offY = (h - spanY * scale) / 2;
-    tfRef.current = { minX, minY, scale, offX, offY };
+    tfRef.current = { minX, maxY, scale, offX, offY };
 
     let layer = layerRef.current;
     if (!layer) {
@@ -126,7 +129,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     lc.scale(dpr, dpr);
     lc.fillStyle = token("--sf-color-fg-subtle", "#737373", canvas);
     for (const p of pts) {
-      lc.fillRect(offX + (p.x - minX) * scale, offY + (p.y - minY) * scale, 1.2, 1.2);
+      lc.fillRect(offX + (p.x - minX) * scale, offY + (maxY - p.y) * scale, 1.2, 1.2);
     }
     drawViewport();
   }, [getRenderer, getGraph, drawViewport]);
@@ -172,7 +175,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
       const py = event.clientY - box.top;
       renderer.getCamera().setState({
         x: (px - tf.offX) / tf.scale + tf.minX,
-        y: (py - tf.offY) / tf.scale + tf.minY,
+        y: tf.maxY - (py - tf.offY) / tf.scale,
       });
     },
     [getRenderer],

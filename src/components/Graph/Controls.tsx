@@ -13,19 +13,26 @@ import { useGraphControls } from "./context";
 const LAYOUTS: ReadonlyArray<{ value: LayoutKind; label: string }> = [
   { value: "force", label: "Force" },
   { value: "tree", label: "Tree" },
+  { value: "org", label: "Org" },
   { value: "radial", label: "Radial" },
   { value: "concentric", label: "Concentric" },
   { value: "grid", label: "Grid" },
 ];
 
-export interface GraphControlsProps extends ComponentPropsWithoutRef<"div"> {}
+export interface GraphControlsProps extends ComponentPropsWithoutRef<"div"> {
+  /** Which layouts the switcher offers, in this order. Omit for the full set;
+   *  `[]` removes the layout switcher entirely (zoom/fit/reset stay). A
+   *  layout can still be active without appearing here — the switcher then
+   *  just shows nothing pressed. */
+  layouts?: LayoutKind[];
+}
 
 /** Navigation toolbar for an enclosing `<Graph>`: zoom in/out, fit-to-view,
  *  reset, and a layout selector. Reads the camera/layout handle from
  *  `GraphContext`, so it must be rendered as a child of `<Graph>`. Reuses the
  *  library `Button` and `ToggleGroup`; all visuals via `--sf-*` tokens. */
 export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
-  function GraphControls({ className, ...rest }, ref) {
+  function GraphControls({ className, layouts, ...rest }, ref) {
     const {
       zoomIn,
       zoomOut,
@@ -99,23 +106,34 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
             </Button>
           )}
         </div>
-        <ToggleGroup
-          size="sm"
-          aria-label="Layout"
-          value={[layout]}
-          onValueChange={(value) => {
-            const next = (value as LayoutKind[])[0];
-            // ToggleGroup is single-select here; ignore an empty toggle-off so
-            // the active layout always stays selected.
-            if (next) setLayout(next);
-          }}
-        >
-          {LAYOUTS.map(({ value, label }) => (
-            <ToggleGroup.Item key={value} value={value}>
-              {label}
-            </ToggleGroup.Item>
-          ))}
-        </ToggleGroup>
+        {(() => {
+          const offered =
+            layouts === undefined
+              ? LAYOUTS
+              : layouts
+                  .map((v) => LAYOUTS.find((l) => l.value === v))
+                  .filter((l): l is (typeof LAYOUTS)[number] => l !== undefined);
+          if (offered.length === 0) return null;
+          return (
+            <ToggleGroup
+              size="sm"
+              aria-label="Layout"
+              value={[layout]}
+              onValueChange={(value) => {
+                const next = (value as LayoutKind[])[0];
+                // ToggleGroup is single-select here; ignore an empty toggle-off
+                // so the active layout always stays selected.
+                if (next) setLayout(next);
+              }}
+            >
+              {offered.map(({ value, label }) => (
+                <ToggleGroup.Item key={value} value={value}>
+                  {label}
+                </ToggleGroup.Item>
+              ))}
+            </ToggleGroup>
+          );
+        })()}
       </div>
     );
   },
