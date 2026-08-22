@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.28.0 — 2026-08-22
+
+### Minor
+
+- Graph: org-chart layout (tidy hierarchy) with card nodes and leaf/depth/auto stacking
+- LaunchButton: guarded two-step control (button + switch modes)
+
 ## v2.27.0 — 2026-08-19
 
 ### Minor
