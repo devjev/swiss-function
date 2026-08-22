@@ -290,6 +290,21 @@
   --sf-cell-edge-r: 0 0 transparent;
 }
 
+/* On the last column the trailing border is the table's right edge: the
+   straddling overhang would poke past the grid and count as scrollable
+   overflow, giving a fitting table a phantom ~unit/4 horizontal scrollbar
+   (issue #94). Clamp the markers (and their hover hairlines) flush with the
+   edge; the leading-edge handle variant straddles an inner boundary and needs
+   no clamp. */
+.headerCell:last-child .lockedEdge,
+.headerCell:last-child .resizeHandle:not(.resizeHandleStart) {
+  inset-inline-end: 0;
+}
+.headerCell:last-child .lockedEdge::after,
+.headerCell:last-child .resizeHandle:not(.resizeHandleStart)::after {
+  inset-inline-end: 0;
+}
+
 .headerCell[data-align="end"] {
   justify-content: flex-end;
 }

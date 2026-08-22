@@ -27,6 +27,20 @@ test("renders header + body cells from data", async ({ mount }) => {
   await expect(component.getByRole("gridcell").filter({ hasText: "Carol" })).toBeVisible();
 });
 
+test("a locked last column causes no phantom horizontal scrollbar", async ({ mount }) => {
+  // The trailing lockedEdge/resizeHandle markers straddle the column border;
+  // on the last column that overhang poked past the grid and registered as
+  // ~unit/4 of scrollable overflow on a table that fits (issue #94).
+  const component = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} lockedCols={["active"]} />,
+  );
+  await expect(component.getByRole("columnheader", { name: "active" })).toBeVisible();
+  const overflow = await component
+    .getByRole("grid")
+    .evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBe(0);
+});
+
 test("click on a cell marks it active", async ({ mount }) => {
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
   const cell = component.getByRole("gridcell").filter({ hasText: "Bob" });
