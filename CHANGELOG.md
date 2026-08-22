@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.28.1 — 2026-08-22
+
+### Patch
+
+- DataTable: no phantom horizontal scrollbar when the last column is locked or carries a resize handle
+
 ## v2.28.0 — 2026-08-22
 
 ### Minor
