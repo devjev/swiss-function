@@ -29,6 +29,7 @@ const componentNames = [
   "Icon",
   "Input",
   "Kbd",
+  "LaunchButton",
   "Login",
   "Map",
   "Markdown",

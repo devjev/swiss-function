@@ -1,0 +1,549 @@
+/* A guarded, missile-launch-style control: a hinged protective lid over a
+   recessed well holding the activation control. The lid reuses the Kbd keycap
+   recipe (body + raised ::before face with bevel/sheen, strengths as vars so
+   dark mode can dial them down) and flips open on a 3D X-rotation — the
+   library's first 3D transform, kept to one property on one element. */
+
+.root {
+  /* Specular-highlight strength for the metal parts (lever, boss, chamfer
+     catch-lights); dark mode dials it down like the Kbd tunables. */
+  --lb-spec: 0.5;
+
+  position: relative;
+  display: inline-grid;
+}
+
+/* ---------------------------------------------------------------- guard */
+
+/* The guard is a full-footprint disclosure button; the lid inside it is the
+   visible, rotating part. Perspective lives here (its child is the lid). */
+.guard {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  /* 24u: enough depth for the flip to foreshorten, without ballooning a tall
+     vertical lid (whose free edge swings close to the camera at 108°). */
+  perspective: calc(var(--sf-unit) * 24);
+  /* Cast shadow of the raised lid, applied here (not on .lid): a filter on
+     .lid would flatten its preserve-3d context and break the backface
+     handling of the face layers. On the guard it shadows the *projected*
+     lid, a true screen-space cast. Zero-alpha at rest so it transitions. */
+  filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+  transition: filter var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-open] .guard {
+  filter: drop-shadow(0 6px 5px rgb(0 0 0 / 0.35));
+}
+
+.guard:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 2px);
+}
+
+/* While open the well must be fully interactive; only the raised lid itself
+   stays clickable (to slam the guard shut). */
+.root[data-open] .guard {
+  pointer-events: none;
+}
+.root[data-open] .lid {
+  pointer-events: auto;
+}
+
+.root[data-disabled] .guard {
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ lid */
+
+.lid {
+  --lb-bevel: 0.6; /* top bevel highlight alpha */
+  --lb-sheen: 0.5; /* radial top sheen alpha */
+  --lb-face: 40%; /* how much lighter the top face is than the surface */
+  --lb-engrave: 0.55; /* engraved-legend highlight alpha */
+  --lb-gloss: 0.14; /* diagonal gloss-streak alpha on the face plate */
+
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sf-radius-default);
+  /* Full 1px edge: a rim on the closed lid, and a crisp silhouette for the
+     open flap (which otherwise reads as an edgeless slab in light mode). */
+  border: 1px solid color-mix(in srgb, var(--sf-color-bg-subtle), black 45%);
+  /* Body / sides (Kbd recipe). Shaded darker toward the hinge: when the lid
+     stands open past vertical this is the visible underside, and the
+     darkening reads as occlusion near the hinge under top light. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sf-color-bg-subtle), black 42%),
+    color-mix(in srgb, var(--sf-color-bg-subtle), black 20%)
+  );
+  /* Tactile signature: inset top highlight + the shared elevation scale. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-2);
+  transform-origin: top center;
+  /* The lid's own backface stays visible: past vertical its flat body colour
+     IS the honest underside, and (unlike a backface-hidden element, which
+     Chromium refuses to hit-test from behind) the raised lid stays clickable
+     to slam the guard shut. preserve-3d keeps the face layers (::before,
+     .lidFace) in the lid's 3D context so THEIR hidden backfaces take effect
+     — the sheen, stripes and legend vanish past vertical instead of
+     mirroring. */
+  transform-style: preserve-3d;
+  rotate: x 0deg;
+  /* Close: a decisive shut — snap easing here would overshoot through the
+     closed plane into the well, which is physically wrong. */
+  transition: rotate var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Raised top face: larger bottom inset exposes the body as the front lip
+   (where a thumb would flick the lid up). */
+.lid::before {
+  content: "";
+  position: absolute;
+  inset: 1px 1px 3px;
+  border-radius: 1px;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 32%,
+      rgb(255 255 255 / var(--lb-gloss)) 40%,
+      rgb(255 255 255 / calc(var(--lb-gloss) / 3)) 48%,
+      transparent 56%
+    ),
+    radial-gradient(125% 85% at 50% 0%, rgb(255 255 255 / var(--lb-sheen)), transparent 62%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sf-color-bg-subtle), white var(--lb-face)),
+      var(--sf-color-bg-subtle)
+    );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / var(--lb-bevel)),
+    inset 0 -2px 2px rgb(0 0 0 / 0.1);
+  /* Real thickness: the face plate floats above the body plane, so hover and
+     the flip get genuine parallax between plate and body rim. */
+  transform: translateZ(4px);
+  backface-visibility: hidden;
+}
+
+/* Danger tone: hazard stripes on the face, derived from the danger token —
+   bolder pitch than ColorPicker's out-of-gamut hatch because a lid is signage.
+   The sheen is toned down so it doesn't wash the upper stripes out. */
+.root[data-tone="danger"] .lid {
+  --lb-sheen: 0.3;
+}
+.root[data-tone="danger"] .lid::before {
+  background:
+    linear-gradient(
+      115deg,
+      transparent 32%,
+      rgb(255 255 255 / var(--lb-gloss)) 40%,
+      rgb(255 255 255 / calc(var(--lb-gloss) / 3)) 48%,
+      transparent 56%
+    ),
+    radial-gradient(125% 85% at 50% 0%, rgb(255 255 255 / var(--lb-sheen)), transparent 62%),
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--sf-color-danger), transparent 25%) 0 calc(var(--sf-unit) / 4),
+      transparent calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2)
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--sf-color-bg-subtle), white var(--lb-face)),
+      var(--sf-color-bg-subtle)
+    );
+}
+
+/* Engraved legend. On the striped lid it sits on a small label plate in the
+   body colour so the text clears the stripes. */
+.lidFace {
+  position: relative;
+  z-index: 1;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--sf-color-fg);
+  text-shadow: 0 1px 0 rgb(255 255 255 / var(--lb-engrave));
+  user-select: none;
+  /* Rides just above the lifted face plate. */
+  transform: translateZ(6px);
+  backface-visibility: hidden;
+}
+.root[data-tone="danger"] .lidFace:not(:empty) {
+  padding-inline: calc(var(--sf-unit) / 4);
+  background: color-mix(in srgb, var(--sf-color-bg-subtle), black 16%);
+}
+
+/* Hover hint: the bottom lip cracks toward the viewer, the way a thumb would
+   start the flip. Positive rotation brings the bottom edge closer, so it
+   projects slightly larger — the lid reads as lifting, never shrinking. */
+.root:not([data-open]):not([data-disabled]) .guard:hover .lid {
+  rotate: x 8deg;
+}
+
+/* Open: up and over the top hinge toward the viewer, past vertical, resting
+   above the panel showing its underside — the physically correct arc for a
+   front-facing panel cover. Snap easing is the sanctioned mechanical pop for
+   exactly this kind of deliberate moment; the overshoot swings into free air,
+   never through the panel. */
+.root[data-open] .lid {
+  rotate: x 108deg;
+  /* The flat elevation shadow would paint as a warped sliver on the rotated
+     plane; the cast shadow comes from the guard's drop-shadow instead. */
+  box-shadow: none;
+  transition:
+    rotate var(--sf-duration-base) var(--sf-ease-snap),
+    box-shadow var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* Elevation overrides for the lid (default is elevation-2 on .lid). */
+.root[data-elevation="0"] .lid {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.root[data-elevation="1"] .lid {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-1);
+}
+.root[data-elevation="3"] .lid {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-3);
+}
+.root[data-elevation="4"] .lid {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-4);
+}
+.root[data-elevation="5"] .lid {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    var(--sf-elevation-5);
+}
+
+/* Dim the whole control, not the lid alone — a translucent lid would let the
+   covered control ghost through. */
+.root[data-disabled] {
+  opacity: 0.5;
+}
+.root[data-disabled] .lid {
+  box-shadow: none;
+}
+
+/* ----------------------------------------------------------------- well */
+
+.well {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--sf-unit) / 2);
+  min-inline-size: calc(var(--sf-unit) * 4);
+  padding: calc(var(--sf-unit) / 4);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  /* The recessed slot: one shade below the page, sunken via the recess scale,
+     with a chamfer catch-light on the bottom rim. */
+  background: var(--sf-color-input-bg);
+  box-shadow:
+    var(--sf-recess-2),
+    0 1px 0 rgb(255 255 255 / var(--lb-spec));
+  transition: box-shadow var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* With the lid standing open the cavity deepens: the raised cover shades the
+   top of the well. */
+.root[data-open] .well {
+  box-shadow:
+    var(--sf-recess-3),
+    inset 0 12px 12px -10px rgb(0 0 0 / 0.4),
+    0 1px 0 rgb(255 255 255 / var(--lb-spec));
+}
+
+/* The hinge barrel, revealed as the lid lifts off it. */
+.well::before {
+  content: "";
+  position: absolute;
+  inset-inline: calc(var(--sf-unit) / 4);
+  inset-block-start: 2px;
+  block-size: 3px;
+  border-radius: var(--sf-radius-full);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--sf-color-bg-subtle), black 45%),
+    color-mix(in srgb, var(--sf-color-bg-subtle), white 30%) 45%,
+    color-mix(in srgb, var(--sf-color-bg-subtle), black 50%)
+  );
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+  pointer-events: none;
+}
+.root[data-open] .well::before {
+  opacity: 1;
+}
+
+/* Block-size lands on the unit grid: inner Button (1u / 1.5u / 2u) + 0.25u
+   well padding each side. The footprint never changes when the lid opens. */
+.root[data-size="sm"] .well {
+  block-size: calc(var(--sf-unit) * 1.5);
+}
+.root[data-size="md"] .well {
+  block-size: calc(var(--sf-unit) * 2);
+}
+.root[data-size="lg"] .well {
+  block-size: calc(var(--sf-unit) * 2.5);
+}
+
+/* Armed (switch mode, checked): the open lid + danger rim is the status
+   display. The scoped primary→danger override re-tints the checked Switch
+   without touching Switch.module.css; focus rings stay on their own token. */
+.root[data-tone="danger"] .well {
+  --sf-color-primary: var(--sf-color-danger);
+  --sf-color-primary-hover: var(--sf-color-danger-hover);
+  --sf-color-primary-fg: var(--sf-color-danger-fg);
+}
+.root[data-armed] .well {
+  border-color: var(--sf-color-danger);
+  background: color-mix(in srgb, var(--sf-color-danger) 8%, var(--sf-color-input-bg));
+}
+
+.armLabel {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------- vertical */
+
+/* The fighter-panel column: engraved ON/OFF marks around a bat-handle toggle
+   lever, panel legend below. `size` sizes the column: the minimum width and
+   the lever scale (via --lb-scale), so `sm` is a genuinely narrow column.
+   Comes after the size rules so the auto block-size wins the specificity tie
+   with the per-size fixed heights. */
+.root[data-orientation="vertical"] {
+  --lb-scale: 1;
+}
+.root[data-orientation="vertical"][data-size="sm"] {
+  --lb-scale: 0.8;
+}
+.root[data-orientation="vertical"][data-size="lg"] {
+  --lb-scale: 1.2;
+}
+
+.root[data-orientation="vertical"] .well {
+  grid-auto-flow: row;
+  justify-items: center;
+  gap: calc(var(--sf-unit) / 8);
+  min-inline-size: calc(var(--sf-unit) * 3);
+  block-size: auto;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) / 2) calc(var(--sf-unit) / 4);
+}
+.root[data-orientation="vertical"][data-size="sm"] .well {
+  min-inline-size: calc(var(--sf-unit) * 2);
+  padding-inline: calc(var(--sf-unit) / 4);
+}
+.root[data-orientation="vertical"][data-size="lg"] .well {
+  min-inline-size: calc(var(--sf-unit) * 4);
+}
+
+/* Engraved panel markings — genuinely secondary, so the subtle tier is right. */
+.mark {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: calc(var(--sf-font-size-sm) * 0.84);
+  letter-spacing: 0.08em;
+  color: var(--sf-color-fg-subtle);
+  user-select: none;
+}
+
+.root[data-orientation="vertical"] .armLabel {
+  margin-block-start: calc(var(--sf-unit) / 8);
+  max-inline-size: calc(var(--sf-unit) * 5 * var(--lb-scale));
+  white-space: normal;
+  text-align: center;
+  line-height: var(--sf-line-height-tight);
+}
+
+/* The lever: a panel bushing (boss) with a metal arm that flips through the
+   panel normal — hanging down-and-out when off, up-and-out when on. The 3D
+   rotation under perspective is what makes the flick read as physical. */
+.lever {
+  position: relative;
+  inline-size: calc(var(--sf-unit) * 1.25 * var(--lb-scale, 1));
+  block-size: calc(var(--sf-unit) * 1.5 * var(--lb-scale, 1));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  perspective: calc(var(--sf-unit) * 12);
+}
+
+.lever:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 2px);
+}
+
+.leverBoss {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: calc(var(--sf-unit) * 0.625 * var(--lb-scale, 1));
+  block-size: calc(var(--sf-unit) * 0.625 * var(--lb-scale, 1));
+  translate: -50% -50%;
+  border-radius: var(--sf-radius-full);
+  /* Machined bushing: a ring groove over the shaded dome, a darker rim, and a
+     catch-light under the bottom edge. */
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 54%, rgb(0 0 0 / 0.25) 62%, transparent 68%),
+    radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--sf-color-bg-subtle), white 25%),
+      color-mix(in srgb, var(--sf-color-bg-subtle), black 45%)
+    );
+  border: 1px solid color-mix(in srgb, var(--sf-color-bg-subtle), black 45%);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.4),
+    0 1px 0 rgb(255 255 255 / var(--lb-spec));
+}
+
+.leverArm {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  inline-size: calc(var(--sf-unit) * 0.375 * var(--lb-scale, 1));
+  block-size: calc(var(--sf-unit) * 0.875 * var(--lb-scale, 1));
+  margin-inline-start: calc(var(--sf-unit) * -0.1875 * var(--lb-scale, 1));
+  transform-origin: top center;
+  border-radius: calc(var(--sf-unit) * 0.125 * var(--lb-scale, 1));
+  /* Cylindrical metal: off-centre bright spine (light from upper-left), dark
+     flanks, faint top sheen. The cast shadow is a drop-shadow, so it follows
+     the arm's *projected* pose instead of its untransformed box. */
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 40%),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--sf-color-bg-subtle), black 45%),
+      color-mix(in srgb, var(--sf-color-bg-subtle), white 40%) 42%,
+      color-mix(in srgb, var(--sf-color-bg-subtle), white 12%) 58%,
+      color-mix(in srgb, var(--sf-color-bg-subtle), black 50%)
+    );
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.35));
+  rotate: x 30deg;
+  transition: rotate var(--sf-duration-base) var(--sf-ease-snap);
+}
+
+/* The wider handle tip. Danger colour only when armed — colour means status. */
+.leverArm::after {
+  content: "";
+  position: absolute;
+  inset-inline: calc(var(--sf-unit) * -0.09375 * var(--lb-scale, 1));
+  inset-block-end: calc(var(--sf-unit) * -0.125 * var(--lb-scale, 1));
+  block-size: calc(var(--sf-unit) * 0.5 * var(--lb-scale, 1));
+  border-radius: var(--sf-radius-full);
+  /* Sphere-shaded handle tip: hard specular dot over a lit dome. */
+  background:
+    radial-gradient(circle at 32% 26%, rgb(255 255 255 / var(--lb-spec)) 0 8%, transparent 26%),
+    radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--sf-color-bg-subtle), white 45%),
+      color-mix(in srgb, var(--sf-color-bg-subtle), black 15%) 60%,
+      color-mix(in srgb, var(--sf-color-bg-subtle), black 55%)
+    );
+  box-shadow: inset 0 -2px 2px rgb(0 0 0 / 0.3);
+}
+
+.lever[data-checked] .leverArm {
+  rotate: x 160deg;
+}
+.lever[data-checked] .leverArm::after {
+  background:
+    radial-gradient(circle at 32% 26%, rgb(255 255 255 / var(--lb-spec)) 0 8%, transparent 26%),
+    radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--sf-color-danger), white 40%),
+      var(--sf-color-danger) 55%,
+      color-mix(in srgb, var(--sf-color-danger), black 40%)
+    );
+}
+
+.lever[data-disabled] {
+  cursor: not-allowed;
+}
+
+/* Fired: hold the inner Button's pressed signature as a flash until the guard
+   snaps shut. Root-qualified so it outlasts Button's own :active rule. */
+.root[data-fired] .actionFired {
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.16);
+  transform: translateY(2px);
+  pointer-events: none;
+}
+
+/* ----------------------------------------------------------------- dark */
+
+/* Bright highlights glare on a dark surface: soften the Kbd-style tunables
+   (same values as Kbd's dark block). */
+[data-theme="dark"] .root {
+  --lb-spec: 0.18;
+}
+[data-theme="dark"] .lid {
+  --lb-bevel: 0.14;
+  --lb-sheen: 0.1;
+  --lb-face: 15%;
+  --lb-engrave: 0.06;
+  --lb-gloss: 0.05;
+}
+/* The danger-tone sheen override above is more specific; re-assert dark. */
+[data-theme="dark"] .root[data-tone="danger"] .lid {
+  --lb-sheen: 0.1;
+}
+
+/* The dark elevation scale is a hard zero-blur cast (right for large surfaces);
+   on a small lid it reads as a misaligned rectangle (issue #78, same call as
+   Switch) — swap in a soft resting shadow. Disabled keeps none. */
+[data-theme="dark"] .root:not([data-disabled]) .lid {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* --------------------------------------------------------- reduced motion */
+
+/* No rotation: the lid simply fades out (and becomes non-interactive via
+   visibility) so it never obscures the revealed control. The fired flash keeps
+   its inset shadow but loses the press travel — same trade Button makes. */
+@media (prefers-reduced-motion: reduce) {
+  .lid {
+    transition:
+      opacity var(--sf-duration-fast) var(--sf-ease-out),
+      visibility 0s;
+  }
+  .root:not([data-open]):not([data-disabled]) .guard:hover .lid {
+    rotate: none;
+  }
+  .root[data-open] .lid {
+    rotate: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--sf-duration-fast) var(--sf-ease-out),
+      visibility 0s var(--sf-duration-fast);
+  }
+  .root[data-fired] .actionFired {
+    transform: none;
+  }
+  /* The lever's rest poses are static state; only the flip motion goes. */
+  .leverArm {
+    transition: none;
+  }
+}
