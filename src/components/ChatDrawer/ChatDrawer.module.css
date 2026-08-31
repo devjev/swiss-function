@@ -1,8 +1,13 @@
 /* The chat fills the SplitPane panel as a flex column. (SplitPane's `.panel`
-   already provides the size, `position: relative`, and `overflow: hidden`.) */
+   already provides the size, `position: relative`, and `overflow: hidden`.)
+   `isolation` keeps the wash/bg/content/recess z-indexes inside the panel:
+   without it the content layer (z-index 2) beats SplitPane's divider (z-index
+   1) in the root stacking context, and the divider's panel-side half loses the
+   hit test, so grabbing the seam starts a text selection instead of a resize. */
 .panel {
   display: flex;
   flex-direction: column;
+  isolation: isolate;
 }
 
 /* Recess overlay: casts an inset shadow over the whole panel (above the content)
@@ -175,6 +180,83 @@
 .chatWrap {
   flex: 1 1 auto;
   min-block-size: 0;
+}
+
+/* Centered mode: the body is a 5-track grid (margin, edge handle, the centered
+   column, edge handle, margin). The column caps at --cd-chat-width and shrinks
+   when the panel is narrower; the margins split the leftover equally
+   (minmax(0, 1fr), base 0 so wide margin content can never squeeze the
+   column), which keeps the column on the centre axis. The handles have zero
+   net layout width (negative margins cancel their box, SplitPane's divider
+   trick), so the column's content reaches the hairline and the gutters stay
+   symmetric. */
+.centerBody {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) auto minmax(0, var(--cd-chat-width, 640px)) auto
+    minmax(0, 1fr);
+}
+
+/* Margin container: stays in the grid even when its content hides (it carries
+   the fr track and the ResizeObserver). Clips so app content can never overlap
+   the column or the handle hairline. */
+.margin {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+/* App-populated margin content. The inline padding clears the edge handle's
+   6px straddle, keeping app content out of the resize grab zone. */
+.marginContent {
+  block-size: 100%;
+  box-sizing: border-box;
+  padding-inline: calc(var(--sf-unit) / 4);
+}
+
+.marginHidden {
+  display: none;
+}
+
+/* The column carries the chatWrap/views layout so the chat (height: 100%) and
+   the active view panel (flex: 1) fill it top to bottom. */
+.centerColumn {
+  min-inline-size: 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edge handle: the SplitPane divider look, a hairline with a wider grab box,
+   straddling the column edge; highlights primary on hover / focus / drag. */
+.edgeHandle {
+  position: relative;
+  z-index: 1;
+  touch-action: none;
+  inline-size: calc(var(--sf-unit) / 2);
+  margin-inline: calc(var(--sf-unit) / -4);
+  cursor: col-resize;
+}
+.edgeHandle::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 50%;
+  inline-size: 1px;
+  transform: translateX(-50%);
+  background-color: var(--sf-color-border-subtle);
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.edgeHandle:hover::after,
+.edgeHandle:focus-visible::after,
+.centerBody[data-dragging] .edgeHandle::after {
+  background-color: var(--sf-color-primary);
+}
+.edgeHandle:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
 /* Views mode: the Tabs.Root replaces the content's flex column, so it carries

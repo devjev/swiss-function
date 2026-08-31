@@ -1,8 +1,10 @@
-import type { CSSProperties, ReactNode } from "react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
+import { useCollapse } from "../../lib/useCollapse";
 import { useFullscreen } from "../../lib/useFullscreen";
+import { type DragDelta, usePointerDrag } from "../../lib/usePointerDrag";
 import type { ButtonVariant } from "../Button";
 import { Chat, type ChatAction, type ChatMessage, type ChatPart, type ChatProps } from "../Chat";
 import { Collapse, Expand, X } from "../Icon";
@@ -44,6 +46,33 @@ export interface ChatDrawerProps {
   maxSize?: number;
   /** Fired with the new panel size (px) when a resize settles. */
   onSizeChange?: (size: number) => void;
+
+  /** Center the panel body: the chat (or the active view) becomes a centered
+   *  column of draggable width instead of filling the panel edge-to-edge. Drag
+   *  either edge (or arrow-key it) and the opposite edge mirrors the move, so
+   *  the column stays centered. Matters when the panel is wide (a large split,
+   *  or fullscreen). Default `false`. */
+  centered?: boolean;
+  /** Centered-column width in px (uncontrolled; only with `centered`).
+   *  Default 640. */
+  defaultChatWidth?: number;
+  /** Min / max centered-column width in px. The rendered column is also capped
+   *  to the panel's content width. Default min 240. */
+  minChatWidth?: number;
+  maxChatWidth?: number;
+  /** Fired with the new column width (px) when a centered resize settles or a
+   *  keyboard step lands. */
+  onChatWidthChange?: (width: number) => void;
+  /** Populate the centered mode's side margins with app content: parked
+   *  widgets, notes, anything the user set aside. Each side renders in the
+   *  gutter beside the centered column and takes whatever width the column
+   *  leaves. When the margins get narrower than `marginMinWidth`, their
+   *  content hides (it stays mounted, so its state survives) and reappears
+   *  once there is room again. Only rendered with `centered`. */
+  margins?: { left?: ReactNode; right?: ReactNode };
+  /** Hide the margin content when a margin is narrower than this (px).
+   *  Default 160. */
+  marginMinWidth?: number;
 
   /** Padding around the chat — the gutter the thinking effect fills.
    *  `number` → multiples of `--sf-unit` (default `1`); `string` → raw CSS. */
@@ -114,6 +143,10 @@ export interface ChatDrawerProps {
 /** Roughly matches `--sf-duration-slow`; used to unmount the effect after its
  *  collapse animation when thinking ends. */
 const COLLAPSE_MS = 500;
+
+/** Keyboard resize step for a centered-column edge (px). The opposite edge
+ *  mirrors it, so one press changes the width by twice this. */
+const EDGE_KEY_STEP = 24;
 
 function toPadding(value: number | string): string {
   return typeof value === "number" ? `calc(var(--sf-unit) * ${value})` : value;
@@ -201,6 +234,13 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     minSize,
     maxSize,
     onSizeChange,
+    centered = false,
+    defaultChatWidth = 640,
+    minChatWidth = 240,
+    maxChatWidth,
+    onChatWidthChange,
+    margins,
+    marginMinWidth = 160,
     padding = 1,
     thinking = false,
     onThinkingStart,
@@ -263,7 +303,145 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
   // Fullscreen: the panel pops out to a viewport overlay; Escape exits.
   const { expanded, toggle } = useFullscreen();
 
+  // Centered mode: the body column's width. Dragging an edge keeps that edge
+  // under the pointer while the opposite edge mirrors the move, so the column
+  // stays centered and the width changes by twice the pointer delta.
+  const [chatWidth, setChatWidth] = useState(defaultChatWidth);
+  const [edgeDragging, setEdgeDragging] = useState(false);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const startChatWidth = useRef(chatWidth);
+
+  const clampChatWidth = useCallback(
+    (raw: number) => {
+      let max = maxChatWidth ?? Number.POSITIVE_INFINITY;
+      const el = bodyRef.current;
+      if (el) max = Math.min(max, el.clientWidth);
+      return Math.max(minChatWidth, Math.min(max, raw));
+    },
+    [minChatWidth, maxChatWidth],
+  );
+
+  const widthFromDelta = useCallback(
+    (edge: "left" | "right", d: DragDelta) =>
+      edge === "left" ? startChatWidth.current - 2 * d.dx : startChatWidth.current + 2 * d.dx,
+    [],
+  );
+
+  const edgeDragOptions = (edge: "left" | "right") => ({
+    onStart: () => {
+      // Re-clamp on pickup so a stale width (e.g. after the panel shrank)
+      // doesn't jump when the first move lands.
+      startChatWidth.current = clampChatWidth(chatWidth);
+      setEdgeDragging(true);
+    },
+    onMove: (d: DragDelta) => setChatWidth(clampChatWidth(widthFromDelta(edge, d))),
+    onEnd: (d: DragDelta) => {
+      const final = clampChatWidth(widthFromDelta(edge, d));
+      setChatWidth(final);
+      setEdgeDragging(false);
+      onChatWidthChange?.(final);
+    },
+  });
+  const leftEdgeDrag = usePointerDrag(edgeDragOptions("left"));
+  const rightEdgeDrag = usePointerDrag(edgeDragOptions("right"));
+
+  const onEdgeKey = (edge: "left" | "right") => (e: KeyboardEvent<HTMLDivElement>) => {
+    // The arrow moves the pressed edge outward/inward; the mirror doubles it.
+    const grow = edge === "left" ? "ArrowLeft" : "ArrowRight";
+    const shrink = edge === "left" ? "ArrowRight" : "ArrowLeft";
+    let next: number;
+    if (e.key === grow) next = chatWidth + 2 * EDGE_KEY_STEP;
+    else if (e.key === shrink) next = chatWidth - 2 * EDGE_KEY_STEP;
+    else return;
+    e.preventDefault();
+    const c = clampChatWidth(next);
+    setChatWidth(c);
+    onChatWidthChange?.(c);
+  };
+
+  const edgeHandle = (edge: "left" | "right") => (
+    // biome-ignore lint/a11y/useSemanticElements: ARIA splitter pattern, a focusable, draggable resize separator (same as SplitPane's divider).
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize chat (${edge} edge)`}
+      aria-valuenow={Math.round(chatWidth)}
+      aria-valuemin={minChatWidth}
+      aria-valuemax={maxChatWidth}
+      tabIndex={0}
+      className={styles.edgeHandle}
+      onPointerDown={(edge === "left" ? leftEdgeDrag : rightEdgeDrag).onPointerDown}
+      onKeyDown={onEdgeKey(edge)}
+    />
+  );
+
+  // Margin content hides when the gutters get too narrow for it. Both gutters
+  // are equal by construction (the mirrored resize), so one observer on the
+  // left container drives both; the observed container itself stays in the
+  // grid (hiding only the inner content), or the observer would read 0 and
+  // never un-collapse.
+  const { ref: marginProbeRef, collapsed: marginsCollapsed } = useCollapse<HTMLDivElement>({
+    collapseAt: `${marginMinWidth}px`,
+  });
+
+  const marginCell = (side: "left" | "right") => {
+    const inner = side === "left" ? margins?.left : margins?.right;
+    return (
+      <div className={styles.margin} ref={side === "left" ? marginProbeRef : undefined}>
+        {inner != null ? (
+          <div className={cx(styles.marginContent, marginsCollapsed && styles.marginHidden)}>
+            {inner}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  /** Wraps the panel body (the chat, or the view panels) as the centered,
+   *  edge-resizable column, flanked by the app-populated margins. */
+  const centeredBody = (inner: ReactNode) => (
+    <div
+      ref={bodyRef}
+      className={styles.centerBody}
+      data-dragging={edgeDragging || undefined}
+      style={{ "--cd-chat-width": `${chatWidth}px` } as CSSProperties}
+    >
+      {marginCell("left")}
+      {edgeHandle("left")}
+      <div className={styles.centerColumn}>{inner}</div>
+      {edgeHandle("right")}
+      {marginCell("right")}
+    </div>
+  );
+
   const contentStyle: CSSProperties = { padding: toPadding(padding) };
+
+  const viewPanels =
+    views && views.length > 0
+      ? views.map((view) => (
+          <Tabs.Panel key={view.id} value={view.id} keepMounted className={styles.viewPanel}>
+            {view.content}
+          </Tabs.Panel>
+        ))
+      : null;
+
+  const chat = (
+    <Chat
+      className={styles.chat}
+      height="100%"
+      messages={messages ?? []}
+      onSubmit={onSubmit ?? (() => {})}
+      onAction={onAction}
+      onError={onError}
+      renderPart={renderPart}
+      placeholder={placeholder}
+      sendLabel={sendLabel}
+      sendVariant={sendVariant}
+      borderColor={borderColor}
+      reveal={reveal}
+      disabled={disabled ?? thinking}
+    />
+  );
 
   // `--cd-effect-color` tints the default wash; `--cd-wash` (set only when the
   // consumer customizes it) overrides the whole wash colour, or disables it.
@@ -323,11 +501,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
                 expanded={expanded}
                 onToggleFullscreen={toggle}
               />
-              {views.map((view) => (
-                <Tabs.Panel key={view.id} value={view.id} keepMounted className={styles.viewPanel}>
-                  {view.content}
-                </Tabs.Panel>
-              ))}
+              {centered ? centeredBody(viewPanels) : viewPanels}
             </Tabs.Root>
           ) : (
             <>
@@ -337,23 +511,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
                 expanded={expanded}
                 onToggleFullscreen={toggle}
               />
-              <div className={styles.chatWrap}>
-                <Chat
-                  className={styles.chat}
-                  height="100%"
-                  messages={messages ?? []}
-                  onSubmit={onSubmit ?? (() => {})}
-                  onAction={onAction}
-                  onError={onError}
-                  renderPart={renderPart}
-                  placeholder={placeholder}
-                  sendLabel={sendLabel}
-                  sendVariant={sendVariant}
-                  borderColor={borderColor}
-                  reveal={reveal}
-                  disabled={disabled ?? thinking}
-                />
-              </div>
+              {centered ? centeredBody(chat) : <div className={styles.chatWrap}>{chat}</div>}
             </>
           )}
         </div>
