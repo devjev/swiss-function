@@ -385,28 +385,51 @@
   pointer-events: none;
 }
 
-/* Diamond marker centered on the axis line (1.5u from bottom of container). */
+/* Event mark: a short vertical stroke crossing the axis, centered on the axis
+   line (1.5u from bottom of container). The tick vocabulary at content weight:
+   date ticks are 1px hairlines below the axis, events are 2px fg strokes
+   through it, the playhead is the full-height line. The visible stroke is a
+   ::before inside a wider transparent box, so the hit target doesn't depend on
+   the 2px mark. Marks are content (fg); the accent stays reserved for the
+   playhead/range and the one active mark. */
 .eventMarker {
   position: absolute;
   bottom: calc(var(--sf-unit) * 1.5);
   left: 50%;
-  inline-size: 8px;
-  block-size: 8px;
+  inline-size: 10px;
+  block-size: 14px;
   margin: 0;
   padding: 0;
-  background-color: var(--sf-timeline-color);
+  background: none;
   border: none;
-  transform: translate(-50%, 50%) rotate(45deg);
+  transform: translate(-50%, 50%);
   pointer-events: auto;
-  transition: transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+.eventMarker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  inline-size: 2px;
+  block-size: 10px;
+  transform: translate(-50%, -50%);
+  background-color: var(--sf-color-fg);
+  transition:
+    block-size var(--sf-duration-fast) var(--sf-ease-out),
+    background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .eventMarkerInteractive {
   cursor: pointer;
 }
 
-.eventMarkerInteractive:hover {
-  transform: translate(-50%, 50%) rotate(45deg) scale(1.25);
+/* Hovered/focused interactive mark, and the active mark (nearest the playhead
+   while scrubbing a strip or with snap="events"): accent + taller. */
+.eventMarkerInteractive:hover::before,
+.eventMarkerInteractive:focus-visible::before,
+.event[data-active] .eventMarker::before {
+  block-size: 14px;
+  background-color: var(--sf-timeline-color);
 }
 
 .eventMarkerInteractive:focus-visible {
@@ -416,7 +439,7 @@
 
 /* Overflowed labels (flagged by lane assignment: no collision-free slot within
    maxLanes) reuse the compact-strip reveal — label + its connector hidden at
-   rest, shown on hover/focus. The diamond marker always stays visible. */
+   rest, shown on hover/focus. The stroke mark always stays visible. */
 .event[data-overflow] .eventLabel,
 .event[data-overflow] .eventConnector {
   opacity: 0;
@@ -436,14 +459,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eventMarker {
+  /* States still land (accent + taller), just without the animated grow. */
+  .eventMarker::before {
     transition: none;
-  }
-  .eventMarkerInteractive:hover {
-    transform: translate(-50%, 50%) rotate(45deg);
-    /* No scale cue under reduced motion, so darken the accent for hover feedback
-       — derived from the (possibly custom) timeline colour. */
-    background-color: color-mix(in srgb, var(--sf-timeline-color), var(--sf-color-fg) 20%);
   }
   /* Keep the opacity reveal but drop the springy scale "pop". */
   .scrubValue {

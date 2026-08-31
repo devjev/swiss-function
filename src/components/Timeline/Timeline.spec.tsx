@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { Timeline } from "./Timeline";
+import { TimelineScrubHarness } from "./Timeline.harness";
 
 test("renders events as children inside the track", async ({ mount }) => {
   const c = await mount(
@@ -151,7 +152,7 @@ test("overflowed labels hide at rest and reveal on hover; markers stay visible",
   await expect(flagged).toHaveAttribute("data-overflow", "true");
   const label = c.getByText("Long label two here");
   await expect(label).toHaveCSS("opacity", "0");
-  // The diamond marker (here the interactive button) is always visible.
+  // The stroke mark (here the interactive button) is always visible.
   const marker = c.getByRole("button", { name: "Long label two here" });
   await expect(marker).toBeVisible();
   // :hover on the marker bubbles to the event wrapper and reveals the label.
@@ -296,6 +297,38 @@ test('snap="events" snaps the playhead to the nearest event date', async ({ moun
     // Should snap to Jun 3 (the nearest event).
     expect((received as Date).getTime()).toBe(eventDate.getTime());
   }
+});
+
+test('snap="events": the nearest event mark goes active while scrubbing', async ({
+  mount,
+  page,
+}) => {
+  const start = new Date(2026, 5, 1);
+  const end = new Date(2026, 5, 14);
+  const c = await mount(
+    <TimelineScrubHarness start={start} end={end} snap="events" initial={new Date(2026, 5, 7)}>
+      <Timeline.Event date={new Date(2026, 5, 3)}>One</Timeline.Event>
+      <Timeline.Event date={new Date(2026, 5, 11)}>Two</Timeline.Event>
+    </TimelineScrubHarness>,
+  );
+  const box = await c.boundingBox();
+  if (!box) throw new Error("no bounding box");
+  const active = c.locator("[data-event][data-active]");
+
+  // Press near the first event and hold: the playhead snaps to it and its
+  // stroke mark takes the accent emphasis.
+  await page.mouse.move(box.x + box.width * (2 / 14), box.y + box.height / 2);
+  await page.mouse.down();
+  await expect(active).toHaveCount(1);
+  await expect(active).toContainText("One");
+
+  // Drag toward the second event: the emphasis follows the snap target.
+  await page.mouse.move(box.x + box.width * (11 / 14), box.y + box.height / 2, { steps: 4 });
+  await expect(active).toContainText("Two");
+
+  // Release: scrubbing ends and the emphasis clears.
+  await page.mouse.up();
+  await expect(active).toHaveCount(0);
 });
 
 test('snap="ticks" snaps the playhead to a tick boundary', async ({ mount, page }) => {

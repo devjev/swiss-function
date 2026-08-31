@@ -146,8 +146,9 @@ export const StackedLanes: Story = () => (
 );
 
 /**
- * The accent — playhead, now line, markers, range band and value tag — is set
- * with the `color` prop. Accepts any CSS colour or a token reference.
+ * The accent (playhead, now line, range band, value tag and the active event
+ * mark) is set with the `color` prop. Accepts any CSS colour or a token
+ * reference. Event marks themselves stay fg: they are content.
  */
 export const CustomColor: Story = () => {
   const start = new Date("2026-06-01");
@@ -184,7 +185,7 @@ export const CustomColor: Story = () => {
 // Narrow-container stress: 12 long-label events over 3 months in 320px with
 // maxLanes 2. Labels the measured lane pass can't place collision-free are
 // flagged data-overflow — hidden at rest, revealed on hover/focus while the
-// diamond markers stay visible. Pinned dates + no now-line keep it
+// stroke marks stay visible. Pinned dates + no now-line keep it
 // deterministic — this is a VRT surface.
 export const Narrow: Story = () => (
   <div style={{ width: 320 }}>

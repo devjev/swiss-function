@@ -91,9 +91,10 @@ export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   valueLabel?: boolean;
   /** Format a scrub-head value for its tag. Default: `YYYY-MM-DD`. */
   formatValue?: (date: Date) => ReactNode;
-  /** Accent colour for the playhead, now line, markers, range band and value
-   *  tag. Any CSS colour (or a token reference like `var(--sf-color-success)`).
-   *  Defaults to the primary token. */
+  /** Accent colour for the playhead, now line, range band, value tag and the
+   *  active event mark. Any CSS colour (or a token reference like
+   *  `var(--sf-color-success)`). Defaults to the primary token. Event marks
+   *  themselves are content and stay `--sf-color-fg`. */
   color?: string;
   /** Opacity (0–1) of the range-selection highlight band's fill. The band border
    *  tracks it but stays a touch more opaque. Default 0.12. */
@@ -355,10 +356,12 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     [eventInputs, start, layoutPxPerDay, effectiveMaxLanes, measureLabel, totalDays],
   );
 
-  // While scrubbing a compact timeline, reveal the label of the event nearest
-  // the playhead so the scrub has context.
+  // While scrubbing, emphasize the event nearest the playhead: a compact strip
+  // reveals its label (labels are hidden at rest there), and with
+  // snap="events" the mark itself takes the accent, so the snap target reads.
   const activeEventIdx = useMemo(() => {
-    if (!stripMode || !scrubbing || value == null || eventInputs.length === 0) return -1;
+    const emphasize = scrubbing && (stripMode || snap === "events");
+    if (!emphasize || value == null || eventInputs.length === 0) return -1;
     let best = -1;
     let bestDiff = Number.POSITIVE_INFINITY;
     eventInputs.forEach((e, i) => {
@@ -369,7 +372,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
       }
     });
     return best;
-  }, [stripMode, scrubbing, value, eventInputs]);
+  }, [stripMode, snap, scrubbing, value, eventInputs]);
 
   // Decorate each Event child with its assigned lane index (+ active/overflow flags).
   const decoratedChildren = useMemo(() => {
