@@ -52,8 +52,6 @@
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--sf-color-fg);
   white-space: nowrap;
   overflow: hidden;
@@ -239,9 +237,7 @@
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
 }
 
 .rowMain {
@@ -258,7 +254,7 @@
 
 .rowDetail {
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

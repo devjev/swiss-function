@@ -218,7 +218,7 @@
   vertical-align: middle;
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
 }
 
 .weekNumber {

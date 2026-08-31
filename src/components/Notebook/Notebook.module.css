@@ -68,7 +68,7 @@
 
 .cellTypeTag {
   margin-left: var(--sf-unit);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
   font-family: var(--sf-font-sans);
 }
@@ -123,7 +123,7 @@
 }
 
 .live {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);

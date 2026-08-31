@@ -60,7 +60,7 @@
 
 .description {
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 /* Visually-hidden native file input — triggered programmatically from the zone. */

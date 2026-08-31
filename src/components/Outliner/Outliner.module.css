@@ -122,7 +122,7 @@
 .blockRefMissing {
   display: inline-block;
   padding: 0 calc(var(--sf-unit) / 3);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);

@@ -65,8 +65,6 @@
 .label {
   font-size: var(--sf-font-size-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--sf-color-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -130,7 +128,7 @@
   color: var(--sf-color-danger);
 }
 .delta[data-trend="flat"] {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 .deltaArrow {
   inline-size: 1em;

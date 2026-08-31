@@ -76,7 +76,7 @@
 /* Metadata note — legitimately secondary, so muted is allowed here. */
 .agnostic {
   font-weight: var(--sf-font-weight-regular);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 .editor {
@@ -129,7 +129,7 @@
 
 .previewLabel {
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 /* The themed scope: it reads the (possibly overridden) tokens, so the sample

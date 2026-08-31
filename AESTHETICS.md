@@ -87,7 +87,11 @@ ones recede.
   Save `--sf-color-fg-subtle` and `--sf-color-muted` for genuinely
   secondary metadata: timestamps next to a username, byte counts beside a
   filename, axis labels under a chart. Never for the sentence you want
-  the reader to read.
+  the reader to read. Labels sit in the reading class, not the metadata
+  class: control captions, column titles, tags, group/section headers,
+  and descriptions stay full-strength. State (weekend, pending, inactive)
+  is signalled by an indicator or a background tint, never by graying
+  the label.
 - **One accent**, primary blue (`--sf-color-primary: #2563eb`). It marks
   what's interactive and what's focused. Everything else is neutral.
 - **Semantic colors are reserved.** `--sf-color-danger`, `-success`,
@@ -277,6 +281,14 @@ secondary content (metadata, captions, axis labels) and even there it
 should be `--sf-color-fg-subtle` (#4b5563), not the lighter `--sf-color-muted`
 (#6b7280) unless there's a contrast-tier reason. If your text looks
 "too strong", the problem is typographic hierarchy, not color value.
+
+### All-caps text
+
+Never. No `text-transform: uppercase`, no letterspaced caps headings,
+no caps section labels. A heading differentiates itself by size,
+weight, and rule lines; caps add shout, not hierarchy. Strings that
+are inherently acronyms or tickers (MCP, FX, EUR/CHF) render as-is;
+it is the transform of ordinary words that is banned.
 
 ### Social-network signifiers
 

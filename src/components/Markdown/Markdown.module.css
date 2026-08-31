@@ -57,7 +57,7 @@
 .rendered h6 {
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
 }
 
 .rendered p {
@@ -104,7 +104,7 @@
   font-style: italic;
 }
 .rendered del {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 /* Inline code */
@@ -148,7 +148,7 @@
   margin: 0 0 var(--sf-prose-paragraph-spacing);
   padding: 0 var(--sf-unit);
   border-inline-start: 2px solid var(--sf-color-border-subtle);
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
   text-wrap: pretty;
 }
 
@@ -182,7 +182,7 @@
 
 /* Empty-state placeholder when no content. */
 .empty {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   font-style: italic;
 }
 

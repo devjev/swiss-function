@@ -100,7 +100,7 @@
 .type {
   flex: 0 1 auto;
   margin-inline-start: calc(var(--sf-unit) / 2);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -108,7 +108,7 @@
 
 .summary {
   margin-inline-start: calc(var(--sf-unit) / 4);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -123,9 +123,7 @@
 
 .kindTag {
   flex: 0 0 auto;
-  color: var(--sf-color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
 }
 
 /* Drag-to-reorder: the header is the activator, so it shows the grab cursor;
@@ -196,9 +194,7 @@
 .partTag {
   flex: 0 0 auto;
   inline-size: calc(var(--sf-unit) * 1.5);
-  color: var(--sf-color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--sf-color-fg);
 }
 
 .rowText {
@@ -213,7 +209,7 @@
 }
 
 .kvKey {
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
 }
 
 .kvVal {
@@ -291,7 +287,7 @@
   border-end-start-radius: var(--sf-radius-default);
   border-end-end-radius: var(--sf-radius-default);
   text-align: center;
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 .dropzone::before {
@@ -311,7 +307,7 @@
 .empty {
   padding: var(--ac-pad);
   text-align: center;
-  color: var(--sf-color-fg-subtle);
+  color: var(--sf-color-fg);
 }
 
 /* ---- Focus ------------------------------------------------------------- */

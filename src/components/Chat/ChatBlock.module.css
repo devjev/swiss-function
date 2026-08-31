@@ -16,7 +16,7 @@
 .title {
   display: block;
   padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   border-block-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
 }

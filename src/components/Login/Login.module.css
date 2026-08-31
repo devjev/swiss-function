@@ -26,8 +26,6 @@
 .title {
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 .dither {
@@ -111,9 +109,7 @@
 }
 .dividerLabel {
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--sf-color-fg);
 }
 
 .alternatives {

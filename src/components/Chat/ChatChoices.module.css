@@ -60,7 +60,7 @@ button.choice:focus-visible .caret {
 }
 
 .comment {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 button.confirm {

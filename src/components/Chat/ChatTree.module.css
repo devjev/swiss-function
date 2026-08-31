@@ -23,7 +23,7 @@
   color: var(--sf-color-primary);
 }
 .pending {
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 .done {
   color: var(--sf-color-success);

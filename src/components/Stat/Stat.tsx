@@ -12,7 +12,7 @@ export type StatTone = "neutral" | "primary" | "success" | "warning" | "danger";
 export type StatSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export interface StatProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
-  /** The metric name (rendered as a compact, uppercase label). */
+  /** The metric name (rendered as a compact label). */
   label: ReactNode;
   /** The figure. A `number` is formatted in Swiss typography (`1'284'500`, see
    *  `decimals` / `valueUnit`); pass a `ReactNode` to format it yourself. Set in
