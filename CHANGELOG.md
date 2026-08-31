@@ -6,6 +6,21 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.29.0 — 2026-08-31
+
+### Minor
+
+- ChatDrawer: opt-in `centered` mode floats the chat (or the active view) as a centered column resized symmetrically from either edge, by pointer or arrow keys (`defaultChatWidth`, `minChatWidth`/`maxChatWidth`, `onChatWidthChange`); the side margins are app-ownable slots (`margins={{ left, right }}`, e.g. park zones for widgets dragged out of the chat) whose content auto-hides, mounted, below `marginMinWidth`; also fixed the SplitPane divider losing the seam hit test to the panel content layer, which made the panel-side half of the divider start a text selection instead of a resize
+- Minimap: maxMarkerSize now caps each block individually (a gap follows the capped block) instead of rescaling the whole rail; VerticalForm rail blocks span each field's real row height, so a tall TableInput reads as a proportionally tall dither block and grows with its rows (previously capped at 8 label-heights, which rendered unequal tall fields identical and shrank them as the form grew)
+- Selector and Picker: items take an optional group that files them under section headers in the dropdown, their items indented one unit (groups cluster in first-appearance order, ungrouped items list first; a group disappears with its last filtered-out item; keyboard navigation skips the headers); in Selector, clicking a header selects or deselects the whole group over its visible items
+
+### Patch
+
+- Column resizing: resizing a rowNumbers DataTable no longer scrambles widths (the corner cell shifted every measurement); the resize cascade clamps at each column's own minWidth; auto-fit no longer reverts earlier resizes in controlled mode; RTL drags and arrow keys follow the pointer; Explorer gains double-click auto-fit, handle ARIA values, a leading-edge handle next to a locked column, columnFill compatibility, and the shared keyboard steps (8px, Shift 24px)
+- Drag and drop: SfDndProvider host handlers and overlay fire only for host-owned drags; widget dnd ids are namespaced per instance so equal consumer ids cannot collide under one provider; Explorer's column and tree regions no longer cross-talk, rows are not draggable while sorted, and releasing a drag outside the tree cancels instead of appending to root; a collapsed DataTable column group drags as one unit and keeps its position on expand; AgentComposer keeps its keyboard model under a provider and can drag out to other widgets; TableInput and Explorer drag activators set touch-action; drag settle animations respect prefers-reduced-motion; WindowArray shows the drop indicator next to popped-out windows
+- Timeline: event markers redesigned from accent-filled diamonds to stroke marks, 2px full-foreground vertical strokes crossing the axis (the tick vocabulary at content weight), with a wider invisible hit target on clickable events; the accent is now reserved for the playhead, now line, range band, value tag and the active event, and while scrubbing with snap set to events the snapped event's mark takes the accent and grows so the snap target reads
+- Typography: removed every all-caps text style (Stat label, Calendar weekday and mini-month titles, ContextEditor header and kind tags, Login title and divider, AgentComposer kind and part tags, Menu group labels, Selector and Picker group headers) and switched every gray label to full foreground (control captions like PasswordInput's show toggle and Calendar's +N more, column titles in TableInput, tags and type labels in Notebook/AgentComposer/ChatBlock/ThemeBuilder, descriptions in Popover/Dropzone/ContextEditor rows, empty-state messages, Markdown h6/del/blockquote, DatePicker and Calendar weekday names including weekends, Stat flat deltas, Outliner missing refs, the Combobox Clear button); scale metadata (row/week numbers, axis and hour labels, timestamps, counts, shortcut hints, captions), placeholders and glyphs stay muted per AESTHETICS.md; headings differentiate by size and weight only
+
 ## v2.28.1 — 2026-08-22
 
 ### Patch

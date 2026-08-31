@@ -1,4 +1,0 @@
----
-bump: patch
----
-Typography: removed every all-caps text style (Stat label, Calendar weekday and mini-month titles, ContextEditor header and kind tags, Login title and divider, AgentComposer kind and part tags, Menu group labels, Selector and Picker group headers) and switched every gray label to full foreground (control captions like PasswordInput's show toggle and Calendar's +N more, column titles in TableInput, tags and type labels in Notebook/AgentComposer/ChatBlock/ThemeBuilder, descriptions in Popover/Dropzone/ContextEditor rows, empty-state messages, Markdown h6/del/blockquote, DatePicker and Calendar weekday names including weekends, Stat flat deltas, Outliner missing refs, the Combobox Clear button); scale metadata (row/week numbers, axis and hour labels, timestamps, counts, shortcut hints, captions), placeholders and glyphs stay muted per AESTHETICS.md; headings differentiate by size and weight only
