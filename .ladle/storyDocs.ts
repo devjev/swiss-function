@@ -161,6 +161,10 @@ export const storyDocs: Record<string, string> = {
     'A scripted `thinking` part: a bare "Thinking\u2026" spinner expands into a live orchestration fan-out that fills in step by step, collapses to a `summary` when done, then appends the final answer. Drive it by updating the message `status` and `steps`, the way you drive `isStreaming`.',
   "chat--thinking-error":
     "A `thinking` part in the `error` state, expanded via `defaultExpanded` to show which step failed (build done, push registry errored). Use it when an orchestration run stops partway and the failing branch should stay visible.",
+  "chatdrawer--centered":
+    "Centered mode: `centered` floats the chat as a centered column instead of filling the panel, with a resize handle on each edge. Dragging one edge (or arrow-keying it) mirrors on the other, so the column stays on the panel's centre axis; the width clamps between `minChatWidth`/`maxChatWidth` and the panel's content width. Reach for it when the panel gets wide, above all in fullscreen.",
+  "chatdrawer--centered-margins":
+    "Centered mode with app-populated `margins`: each side of the centered column is a slot the app fills, here as park zones for widgets dragged out of the chat reply (custom parts via `renderPart`, native drag-and-drop wired by the consumer). The margins take whatever width the column leaves; below `marginMinWidth` their content hides, mounted, and returns with its state once there is room. Widen the chat or shrink the panel to watch it fold.",
   "chatdrawer--coarse-grain":
     "Same drawer with a chunkier thinking effect: `cellSize={14}` doubles the shade-block size (default 7), so the dither reads coarser. Send a message to compare the grain. Reach for a larger `cellSize` when the fine default dither is too busy for the panel width.",
   "chatdrawer--default":
@@ -609,6 +613,8 @@ export const storyDocs: Record<string, string> = {
     "A Picker locked with `disabled`, preselected via `defaultValue`. Use it to show a non-editable choice while the field still reads its label.",
   "picker--object-items":
     "Items given as `{ value, label }` objects, so the field displays the human `label` while `onChange` reports the stable `value` id. Reach for object items when the display text differs from the value you store.",
+  "picker--grouped":
+    "Items carrying a `group` render under section headers (Switzerland, Germany, France), groups in first-appearance order with ungrouped items listed first. Filtering hides a group with its last matching item and keyboard navigation skips the headers. Reach for `group` when the list has natural subsections, like offices by country.",
   "picker--playground":
     "The full prop surface wired to Ladle controls: `items`, `placeholder`, `size`, `clearable`, and `disabled`, over a controlled value. Use it to try prop combinations before settling on one.",
   "picker--sizes":
@@ -671,6 +677,8 @@ export const storyDocs: Record<string, string> = {
     "A tall column of rows scrolling on the y axis (`overflowY: auto`): the thumb stays invisible at rest and appears in the primary color when you hover the surface. The common case for reviewing the vertical scrollbar.",
   "selector--compact":
     'Two `layout="compact"` selectors that collapse to an "N selected" count plus Clear, sized to their content. Reach for this in a toolbar or filter bar where space is tight; the second one uses `compactLabel` to reword the count, and the full set is reviewed and unchecked in the dropdown.',
+  "selector--grouped":
+    "Instruments carrying a `group` render under section headers (FX, Indices, Commodities) in the dropdown, with the ungrouped Cash listed first; picks from any section land in the same Watchlist bucket, and clicking a header selects or deselects the whole group at once. Reach for `group` when a multi-select list has natural subsections, like instruments by asset class.",
   "selector--inline":
     '`layout="inline"`: the chosen chips sit inside the search field, tag-input style. Reach for this when you want one self-contained control rather than a separate bucket panel.',
   "selector--inline-overflow":
@@ -794,7 +802,7 @@ export const storyDocs: Record<string, string> = {
   "timeline--compact":
     "The condensed control strip: a thin `compact` `bordered` row where event labels stay hidden until you hover a marker or scrub the playhead near one, then float above the box. Reach for this when the timeline is a control rather than a display.",
   "timeline--custom-color":
-    "Sets the accent for the playhead, now line, markers, range band and value tag with the `color` prop. Takes any CSS colour or a token reference like `var(--sf-color-success)`.",
+    "Sets the accent for the playhead, now line, range band, value tag and the active event mark with the `color` prop; the event stroke marks themselves stay full-strength fg. Takes any CSS colour or a token reference like `var(--sf-color-success)`.",
   "timeline--daily-ticks":
     "A one-week span where the axis picks day-level ticks automatically. Shows how the tick unit adapts to a short range.",
   "timeline--hourly-ticks":
@@ -814,7 +822,7 @@ export const storyDocs: Record<string, string> = {
   "timeline--sizes":
     "The three strip heights `sm`, `md` and `lg` (24 / 36 / 48px), matching Input and Selector; `compact` is an alias for `md`. At `sm` the floating value labels shrink to stay proportionate.",
   "timeline--snap-to-events":
-    'With `snap="events"`, the playhead jumps to the nearest `Timeline.Event` date as you scrub. Use this to lock a scrub to real data points.',
+    'With `snap="events"`, the playhead jumps to the nearest `Timeline.Event` date as you scrub, and the snapped event\'s stroke mark takes the accent while you drag. Use this to lock a scrub to real data points.',
   "timeline--snap-to-ticks":
     'With `snap="ticks"`, the playhead jumps to the nearest tick boundary, here daily. Use this to constrain a scrub to whole time units.',
   "timeline--stacked-lanes":
@@ -839,8 +847,8 @@ export const storyDocs: Record<string, string> = {
     "Two fields that fit the frame with no overflow, so the Minimap rail stays hidden. Shows that the rail appears only when the content actually scrolls.",
   "vertical-form--long-form":
     "24 uniform fields, each with a label and description, scrolling inside the frame with the rail alongside. The baseline case for a plain long form: no sections, no nav, just enough rows to make the rail earn its place.",
-  "vertical-form--max-block-compressed":
-    "A small `maxBlock` (0.75u) caps how tall each rail block grows, so a sparse form's density strip packs into the top of the rail rather than spreading over its full height. Use `maxBlock` when you want the overview compact even with few fields; `minBlock` still floors dense forms.",
+  "vertical-form--max-block-capped":
+    "A small `maxBlock` (0.75u) caps how tall each rail block renders. The cap is per block: every marker keeps its proportional position over the full rail, and only blocks over the cap are clipped (a gap follows them). Use it to bound an outsized field (a tall `TableInput`); `minBlock` still floors dense forms.",
   "vertical-form--playground":
     "The interactive story: controls for `elevation`, `side`, `padding`, and `minimapWidth` over a mixed form of Inputs and a TextEdit. Start here to feel out the props before wiring a real form.",
   "vertical-form--reserved-error":

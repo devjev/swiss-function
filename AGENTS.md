@@ -106,8 +106,8 @@ Ladle (`npm run dev`).
 | `Switch`        | Binary on/off for a setting, with an immediate effect.    |
 | `Slider`        | Pick a value (or a `[start, end]` range) along a scale by dragging: a recessed slot with an accent fill and a square, raised fader-cap thumb. `tone`/`color`/`fill="dither"`, `size`, `marks` (ticks), a `valueLabel` bubble, `orientation="vertical"`, and range (array value = two thumbs). Drop it in a `Field`. For a typed number / PIN reach for `DigitInput` instead (this is for a *dragged* value). |
 | `ToggleGroup`   | Mutually-exclusive segmented control.                     |
-| `Selector`      | Search + multi-select with a visible "bucket" of chosen items as removable chips. `layout="panel"` (separate bucket, default) or `"inline"` (tag-input). High-level: `<Selector items value onChange />`. |
-| `Picker`        | Search + single-select, the one-choice sibling of `Selector` (same item shape, `value` is one string). The field shows the chosen label and doubles as the filter. High-level: `<Picker items value onChange />`. |
+| `Selector`      | Search + multi-select with a visible "bucket" of chosen items as removable chips. `layout="panel"` (separate bucket, default) or `"inline"` (tag-input). An item's optional `group` files it under a section header in the dropdown (groups cluster in first-appearance order; ungrouped items list first), and clicking a header selects/deselects the whole group. High-level: `<Selector items value onChange />`. |
+| `Picker`        | Search + single-select, the one-choice sibling of `Selector` (same item shape, `value` is one string; `group` sections work the same). The field shows the chosen label and doubles as the filter. High-level: `<Picker items value onChange />`. |
 | `Dropzone`      | File drag-and-drop zone (+ click-to-browse) that surfaces files via `onFilesChange` and renders them as a removable list. Presentational: the upload itself is yours; feed per-file progress/error through the `fileStatus` slot. |
 | `TableInput`    | A compact editable table used as a **form control**, for entering an **array of objects** (one row per object). `columns` name a row property and pick a cell editor via DataTable's `edit` config (text→`TextEditInline`, number→`DigitInputMicro`, boolean→`Checkbox`, select/date→`Picker`/`DatePicker`), cells are always-on editors. A footer button adds a blank row, a per-row trash deletes; opt-in `reorderable` drags to reorder (lazy dnd-kit), `minRows`/`maxRows` bound the count, `equalColumns` evens the widths. Controlled `value`/`onChange`. Drop it in a `Field`. Not `DataTable` (that's a display grid at scale, no add/remove-row UI). |
 
@@ -169,7 +169,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Explorer`      | File-tree-style hierarchical navigation: virtualized tree grid with rename-in-place, row drag-to-reorder, and DataTable's column affordances (sort/filter/resize/reorder). `gridLines` gives it full spreadsheet borders. **Explorer vs DataTable**: reach for Explorer when the data is inherently a tree the user *manipulates* (rename/move/reorder rows); reach for DataTable for tabular data at scale (cell selection/editing, column groups, frozen columns, pagination, 100k+ rows). They share their column machinery (`src/lib/columns`, `src/lib/filter`) by design, but don't merge them further: the tree-vs-flat data pipelines, row-vs-cell selection and rename-vs-cell-editor models are deliberately separate (issue #28). |
-| `Outliner`      | Outline editor with drag-reordering (dnd-kit underneath). |
+| `Outliner`      | Outline editor with keyboard reordering (Ctrl/Cmd+Shift+Arrows move, Tab/Shift+Tab indent). No drag. |
 
 ### Charts
 
@@ -252,7 +252,7 @@ clicking away, Escape, or the popover's ✕. Single-selection.
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Chat`          | Message-stream UI for chat-style interfaces. Assistant messages can carry rich `parts` rendered in a terminal (TUI) style: text, a monospace choices menu, a directory-tree decision/orchestration tree, a **`thinking`** block (a spinner that expands into a live orchestration fan-out, a status tree, then collapses to a summary), an **`error`** block (a small glitch-effect micro-element for a backend error, with a `message`/`requestId` and an optional Retry; `onError` fires when it appears, Retry via `onAction`), or custom blocks via `renderPart` (wrap them in `ChatBlock`). Tree nodes take a `status` (pending/running/done/error) → per-node spinner/✓/✗. Interactions report through `onAction`. Streaming assistant text reveals through `StreamingTerminalText`; tune it with `reveal` (for a **live token stream** pass `reveal={{ mode: "stream" }}` so it tracks the tokens instead of lagging then bursting; `reveal={false}` renders plain Markdown as tokens arrive). |
-| `ChatDrawer`    | A `Chat` in a resizable side panel that **pushes** the app content aside (built on `SplitPane`). Pass the app as `children`. While `thinking`, an animated effect blooms and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. The header is an icon bar: add your own buttons with `actions`, or pass `views` (`{ id, icon, label, content }[]`) to host multiple icon-switched panels, so chat becomes just one view. |
+| `ChatDrawer`    | A `Chat` in a resizable side panel that **pushes** the app content aside (built on `SplitPane`). Pass the app as `children`. While `thinking`, an animated effect blooms and fills the padding gutter; `onThinkingStart`/`onThinkingEnd` fire on the transitions. The header is an icon bar: add your own buttons with `actions`, or pass `views` (`{ id, icon, label, content }[]`) to host multiple icon-switched panels, so chat becomes just one view. Opt-in `centered` floats the chat (or the active view) as a centered column whose width you drag from either edge, mirrored so it stays on the panel's centre axis (`defaultChatWidth`/`minChatWidth`/`maxChatWidth`/`onChatWidthChange`); for wide panels and fullscreen. Centered mode's side margins are app-ownable slots (`margins={{ left, right }}`): park widgets dragged out of the chat, notes, reminders; their content auto-hides (mounted, state kept) when the margins drop under `marginMinWidth`. |
 | `SplitPane`     | Resizable split layout: `SplitPane.Main` + a collapsible `SplitPane.Panel` that pushes content aside with a draggable divider (not an overlay). For overlay sheets use `Drawer` instead. |
 | `ContextEditor` | Assemble an LLM's context window: a budget gauge beside a reorderable list of labelled context blocks (system prompt, docs, tool output, memory, message history). Drag the grip to reorder (keyboard-operable, lazy dnd-kit); set `enabled: false` to drop a block from the packed window and `pinned` to hold it. The gauge stacks blocks by token share (`scale="log"` for a small used fraction against a huge window), marks an **effective-context** cutoff (the "lost in the middle" degrade) and a cap danger zone, and flags each block strong / buried / wasted (attention = position × salience). Controlled `value`/`onChange` (block array); you supply token counts and make the model call. Not a `Chat` (the message stream) and not a `CodeEditor` (source text). |
 
@@ -310,8 +310,17 @@ These are not suggestions.
 This is the project's most-cited anti-pattern. Default to
 `--sf-color-fg`. Reach for `--sf-color-fg-subtle` (#4b5563) or
 `--sf-color-muted` (#6b7280) only for legitimately secondary metadata
-(timestamps, axis labels, captions). Never for prose the user is meant
-to read.
+(timestamps, axis labels, row/week numbers, byte counts, captions).
+Never for prose the user is meant to read, and never for **labels**:
+control captions, column titles, tags, group/section headers, and
+descriptions are reading text and stay full-strength. Don't gray a
+label to signal state (weekend, pending, inactive); use an indicator
+or a background tint. Placeholders (`::placeholder`) and non-text
+glyphs may be subtle.
+
+**And never all-caps**: no `text-transform: uppercase` anywhere.
+Differentiate a heading or label by size and weight, not caps.
+Acronym/ticker strings (MCP, FX) are fine as data.
 
 If the user explicitly asks for muted text, do it. Otherwise, don't.
 
@@ -363,6 +372,20 @@ source's internal reorder is skipped), so widget-to-widget drag needs no
 wiring beyond the target's `onExternalDrop`. See
 [docs/API.md](./docs/API.md) → SfDndProvider.
 
+Keyboard reorder is deliberately not uniform: it works through a focusable
+grip (`TableInput`, `ContextEditor`) or a component-owned chord
+(`WindowArray` Shift+Arrows, `AgentComposer` Alt+Arrows, `Outliner`
+Ctrl/Cmd+Shift+Arrows). Header cells (`DataTable`/`Explorer` column
+reorder) are pointer-drag only: Enter/Space on a header belongs to
+sorting, so headers spread dnd-kit's `listeners` but never its
+`attributes` (announcing an inoperable keyboard pickup is worse than none).
+
+Bundle note: `TableInput`, `ContextEditor` and `AgentComposer` load
+dnd-kit lazily (only when their drag feature is on); `DataTable`,
+`Explorer` and `WindowArray` still import it statically, so their entries
+carry dnd-kit in the consumer bundle even with drag off. Unifying on the
+lazy pattern is issue #93.
+
 ### Sharp corners by default
 
 `--sf-radius-default` is 2px. Don't override to 8px / 12px / 16px to
@@ -389,8 +412,8 @@ Common requests and the right component:
 | "a tooltip" / "hover info"                         | `Popover` (or chart components' built-in tooltip) |
 | "a dropdown" / "a menu off a button"               | `Menu`                                           |
 | "a right-click menu" / "context menu"              | `ContextMenu`                                    |
-| "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` |
-| "single-select" / "pick one from a searchable list" / "searchable dropdown" | `Picker` |
+| "multi-select" / "pick several from a list" / "tag input" / "add items to a bucket" | `Selector` (items take `group` for section headers) |
+| "single-select" / "pick one from a searchable list" / "searchable dropdown" / "options grouped in sections" | `Picker` (items take `group` for section headers) |
 | "radio options with descriptions" / "a plan picker" / "pick one, each with a title and detail" / "settings-style option table" | `RadioTable` (+ `.Option`); bare `Radio`/`RadioGroup` when there are no descriptions |
 | "file upload" / "drop files here" / "drag-and-drop files" / "attach files" | `Dropzone` |
 | "an app menu bar" / "File/Edit/View menus" / "toolbar of controls" | `MenuBar` (no dedicated Cmd-K palette exists; use `Dialog` + `Picker`/`Selector` for a quick switcher) |

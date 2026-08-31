@@ -411,6 +411,12 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
 | `minSize` / `maxSize` | `number` | n/a | px clamps. |
 | `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles; persist it. |
+| `centered` | `boolean` | `false` | Center the panel body: the chat (or the active view) becomes a centered column of draggable width instead of filling the panel edge-to-edge. A resize handle sits on each edge of the column; dragging one (or arrow-keying it) mirrors on the other, so the column stays on the panel's centre axis. Matters when the panel is wide, above all in fullscreen. |
+| `defaultChatWidth` | `number` | `640` | Centered-column width in px (uncontrolled, like `defaultSize`). |
+| `minChatWidth` / `maxChatWidth` | `number` | min `240` | px clamps for the centered column; the rendered column is also capped to the panel's content width. |
+| `onChatWidthChange` | `(px: number) => void` | n/a | Fired when a centered resize settles or a keyboard step lands; persist it. |
+| `margins` | `{ left?: ReactNode; right?: ReactNode }` | n/a | App-owned content for the centered mode's side margins (parked widgets, notes). Each side renders in the gutter beside the column and takes whatever width the column leaves (it can never squeeze the column; overflow is clipped). When the margins get narrower than `marginMinWidth`, their content hides but stays mounted (state survives) and reappears with room. Ignored without `centered`. A margin is a plain slot: for drag-to-park, make your chat widgets draggable and put your own drop target in the slot (see the CenteredMargins story). |
+| `marginMinWidth` | `number` | `160` | Hide the margin content when a margin is narrower than this (px). |
 | `padding` | `number \| string` | `1` | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
 | `thinking` | `boolean` | `false` | While true, the effect blooms behind the chat. |
 | `onThinkingStart` / `onThinkingEnd` | `() => void` | n/a | Fired on the `thinking` false↔true transitions. |
@@ -676,14 +682,14 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
 | `empty` | `ReactNode` | n/a | Empty-state slot. |
-| `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. |
+| `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. Arrows on a focused handle nudge 8px, Shift 24px; double-click auto-fits. Gestures are physical-direction in RTL (the edge follows the pointer / the arrow's direction). The handle is a `role="separator"` with `aria-valuemin` from the measured `--sf-datatable-col-min`; `aria-valuenow` appears once a px override exists. |
 | `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0 to 1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `fillHeight` | `boolean` | `false` | Hold the full `height` even with too few rows (instead of shrinking to content), and dither the empty band below the last row — so a sparse table reads as one filled panel. Uses `columnFill`'s look when set, else a static dither; together with `columnFill` it fills both the right gutter and the bottom band. |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
-| `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. |
+| `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. A collapsed group drags as one unit and keeps its position on expand; order arrays always carry real leaf ids, never a collapsed group's placeholder id. |
 | `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean/date → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
 | `columnFilters` | `ColumnFiltersState` | n/a | Controlled filters (TanStack), with `onColumnFiltersChange`. |
 | `defaultColumnFilters` | `ColumnFiltersState` | n/a | Uncontrolled initial filters. |
@@ -947,13 +953,13 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `onExpandedChange` | `(ids: Set<string>) => void` | n/a | Chevron click or Left/Right arrow. |
 | `editingId` | `string \| null` | `null` | Controlled edit mode (one row at a time). |
 | `onEditingChange` | `(id: string \| null) => void` | n/a | Double-click or F2/Enter. |
-| `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. |
+| `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. Row drag is disabled while a `sort` is active (the visual order is the sort's, not the tree's). |
 | `onRename` | `(id, newName) => void` | n/a | Rename committed. |
 | `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | n/a | From context menu (null = root). |
-| `onMove` | `(id, newParentId, beforeId?) => void` | n/a | Drag drop; `beforeId` for order, null = append. |
+| `onMove` | `(id, newParentId, beforeId?) => void` | n/a | Drag drop; `beforeId` for order, null = append. Append-to-root requires dropping inside the tree below the last row; releasing the drag outside the widget cancels. |
 | `onExternalDrop` | `(drop: ExplorerExternalDrop) => void` | n/a | Under a shared `SfDndProvider`, fires when a foreign element is dropped onto a node: `{ active, overNode }`. See SfDndProvider. |
 | `onDelete` | `(ids: string[]) => void` | n/a | Context menu or Delete/Backspace. |
-| `resizableColumns` | `boolean` | `false` | Drag column borders to resize. Widths are **raw px** (unlike DataTable's `--sf-unit` multiples). |
+| `resizableColumns` | `boolean` | `false` | Drag column borders to resize. Widths are **raw px** (unlike DataTable's `--sf-unit` multiples). Arrows on a focused handle nudge 8px, Shift 24px (shared with DataTable); double-click auto-fits; the handle carries `aria-valuemin`/`aria-valuenow` like DataTable's. Composes with `columnFill` (the last track stays fixed and the filler absorbs slack; a resize then sets just the dragged column). A locked (`resizable: false`) next-to-last column no longer strands the last column: it gets a leading-edge handle remapped to the nearest resizable column. |
 | `columnWidths` / `defaultColumnWidths` | `Record<string, number>` | n/a | Controlled / initial px width overrides, keyed by column id. |
 | `onColumnWidthsChange` | `(widths) => void` | n/a | Fires on resize; persist for sticky widths. |
 | `reorderableColumns` | `boolean` | `false` | Drag metadata headers to reorder. The tree column stays pinned at index 0. |
@@ -1370,7 +1376,7 @@ type="password" />`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `onSubmit` | `(c: { identifier, password }) => void` | n/a | Called with the typed credentials on submit. Drive `loading`/`error` from the result. |
-| `title` | `ReactNode` | `"Sign in"` | Text in the dithered title bar (rendered uppercase). |
+| `title` | `ReactNode` | `"Sign in"` | Text in the dithered title bar. |
 | `identifierLabel` | `ReactNode` | `"User"` | Label for the first field. |
 | `identifierType` | `"text" \| "email"` | `"text"` | `"email"` sets the email keyboard, validation, and autocomplete. |
 | `passwordLabel` | `ReactNode` | `"Password"` | Label for the password field. |
@@ -1602,7 +1608,7 @@ external host-owned scroller is a planned follow-up.
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
 | `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, auto-following the viewport band (and more labels survive). Unset keeps the fit-everything proportional overview. |
-| `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples. Caps how tall any one block renders (a sparse document otherwise gives a few very tall blocks); the capped block leaves a gap after it. |
+| `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples. Caps how tall any one block renders (a sparse document otherwise gives a few very tall blocks); the capped block leaves a gap after it, while every other marker keeps its proportional size and position (a per-block cap, never a rescale of the whole rail). |
 | `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
@@ -1752,7 +1758,9 @@ field.
 
 `import { Picker } from "@tarassov-ch/swiss-function/picker"`
 
-Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label; opening the dropdown clears it to a fresh search box (the whole list is offered, not filtered to the current selection) and restores the label if dismissed without choosing. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label }`.
+Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label; opening the dropdown clears it to a fresh search box (the whole list is offered, not filtered to the current selection) and restores the label if dismissed without choosing. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label, group? }`.
+
+**Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header). Items sharing a `group` cluster together (groups in order of first appearance); ungrouped items list first, headerless. Filtering hides a group along with its last matching item; keyboard navigation skips the headers. The headers are visual (the windowed listbox stays flat for assistive tech).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -1995,7 +2003,9 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 
 `import { Selector } from "@tarassov-ch/swiss-function/selector"`
 
-Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label }`.
+Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label, group? }`.
+
+**Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header), exactly as in [Picker](#picker): same-group items cluster (groups in first-appearance order), ungrouped items list first headerless, a group disappears with its last filtered-out item, and keyboard navigation skips the headers (which are visual only; the windowed listbox stays flat for assistive tech). **Clicking a header toggles the whole group** over its currently visible (filtered) items: it selects the missing ones, or deselects them all when every one is selected. This is a pointer shortcut; keyboard selection stays per item.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -2236,7 +2246,7 @@ non-finite `delta` renders no indicator.
 
 | Prop (`Stat`) | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `label` | `ReactNode` | n/a | The metric name (rendered compact + uppercase). |
+| `label` | `ReactNode` | n/a | The metric name (rendered as a compact label). |
 | `value` | `number \| ReactNode` | n/a | The figure. A `number` is Swiss-formatted (`1'284'500`); a `ReactNode` is rendered as-is. Tabular mono either way. |
 | `decimals` | `number` | n/a | Fixed decimal places for a numeric `value`. |
 | `valueUnit` | `string` | n/a | Unit appended to a numeric `value` (e.g. `"CHF"`), after a no-break space. |
@@ -2482,7 +2492,7 @@ Horizontal time axis with ticks, event markers, optional scrubbing/range selecti
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `0` | Resting depth; pairs with `bordered`. |
 | `valueLabel` | `boolean` | `false` | Floating value tag above playhead/handles. |
 | `formatValue` | `(date: Date) => ReactNode` | ISO `YYYY-MM-DD` | Value-tag formatter. |
-| `color` | `string` | `var(--sf-color-primary)` | Accent (playhead, now line, markers, range band, value tag). |
+| `color` | `string` | `var(--sf-color-primary)` | Accent (playhead, now line, range band, value tag, and the active event mark while scrubbing). Event marks themselves are content: 2px fg strokes crossing the axis. |
 | `rangeOpacity` | `number` | `0.12` | Opacity (0 to 1) of the range-selection highlight band's fill (border tracks it, slightly more opaque). |
 
 **Elements / Parts:** `Timeline.Event`: `{ date: Date; onClick?: () => void; children }`.
@@ -2540,9 +2550,14 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `nav` | `Root` | `boolean` | `false` | Show a bottom navigation bar: a searchable `Picker` of every title (sections and indented fields). Selecting one centers it in the viewport; scrolling updates the Picker to the title at the viewport centre (the first at rest, so it is never empty). |
 | `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
 | `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
-| `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples (caps a sparse form's tall blocks). Forwarded to `Minimap`'s `maxMarkerSize`. |
+| `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples: caps that one block on the rail (a gap follows it) while the others keep their proportional size and position. Forwarded to `Minimap`'s `maxMarkerSize`. |
 
-A field's rail marker is anchored at the row top and spans the field's **label** height, not the whole control's, so a field with a tall control (a `TableInput`, an expanded `TextEdit`) reads as a normal marker with a larger gap to the next one, rather than a giant block that dominates the rail's `minBlock`/`maxBlock` sizing.
+A field's rail marker is anchored at the row top and spans the field's **real
+row height**, so the rail reads the form's density honestly: a tall control (a
+`TableInput` with several rows, an expanded `TextEdit`) is a proportionally
+tall dither block, and grows as the control grows. Set `maxBlock` to bound an
+outsized field; the cap clips only that block (Minimap's per-block cap), so
+the other markers never compress or shift.
 | `bare` | `Root` | `boolean` | `false` | Render rows without the surrounding `Box` (no surface, no box padding) for a minimal look. The `elevation` props are then ignored. |
 | `reserveError` | `Root` | `boolean` | `false` | Reserve a one-line error slot under every field so an appearing validation error fills it in place rather than inserting a line and reflowing the rows below. Off keeps a display-only form compact. |
 | `title` | `Section` | `ReactNode` | n/a | Section heading; a string also becomes a level-1 rail label. |
@@ -2697,6 +2712,8 @@ Each participating widget exposes an `onExternalDrop` reporting where a foreign 
 
 `active` is the dnd-kit `Active` for the dragged item — a host element, or a row from another widget (its `active.data.current` carries the source region's stamp plus whatever that widget put there); read your own payload off `active.data.current`.
 
+Widget dnd ids are **namespaced per instance** (`` `${regionId}:${id}` `` style), so two widgets sharing consumer ids (two ContextEditors both holding a `"system"` block, two trees with node `"1"`) can never collide in the one shared context. Consequently, for a widget-sourced drag `active.id` is the namespaced string, not the consumer id: read the real id off `active.data.current` — `blockId` for a ContextEditor block, `nodeId` for an Explorer row or AgentComposer node, `columnId` for a DataTable/Explorer column (a TableInput row is positional; the target's `overIndex` locates it). A host element's `active.id` is whatever the host registered.
+
 ```tsx
 import { SfDndProvider } from "@tarassov-ch/swiss-function/lib/dnd";
 import { useDraggable } from "@dnd-kit/core";
@@ -2710,6 +2727,9 @@ function HostChip({ id }: { id: string }) {
   <HostChip id="task-42" />
   <DataTable data={rows} columns={cols} reorderableColumns />
   <Explorer nodes={tree} columns={cols} editable
+    // A host chip's active.id is the host's own id. A drag arriving from
+    // another widget carries a namespaced active.id; its real id is in
+    // active.data.current (blockId / nodeId / columnId per widget).
     onExternalDrop={({ active, overNode }) => attach(String(active.id), overNode?.id)} />
 </SfDndProvider>
 ```
