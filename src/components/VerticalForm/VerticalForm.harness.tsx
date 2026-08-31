@@ -97,13 +97,34 @@ export function TallFieldForm() {
 }
 
 /** Mixed field heights: a short field, a moderately tall one, and a giant one.
- *  The rail must read the density (the tall field's block clearly bigger than
- *  the short one's), while the giant field is capped so it doesn't dwarf the
- *  rest (issue #87). */
+ *  By default the rail is honest: every block spans its field's real share of
+ *  the document, so the giant field (a TableInput in the wild) reads as a
+ *  proportionally giant dither block. */
 export function MixedHeightsForm() {
   return (
     <div style={{ height: 320, width: 560 }}>
       <VerticalForm>
+        <VerticalForm.Field label="Short">
+          <Input />
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Tall">
+          <div style={{ height: 140, background: "var(--sf-color-bg-subtle)" }}>tall</div>
+        </VerticalForm.Field>
+        <VerticalForm.Field label="Giant">
+          <div style={{ height: 1200, background: "var(--sf-color-bg-subtle)" }}>giant</div>
+        </VerticalForm.Field>
+      </VerticalForm>
+    </div>
+  );
+}
+
+/** The same mixed heights with `maxBlock` set: only the giant field's block is
+ *  clipped at the cap (a gap follows it); the short and tall blocks keep their
+ *  proportional sizes and every marker keeps its position (issue #87). */
+export function MixedHeightsCappedForm() {
+  return (
+    <div style={{ height: 320, width: 560 }}>
+      <VerticalForm maxBlock={2}>
         <VerticalForm.Field label="Short">
           <Input />
         </VerticalForm.Field>

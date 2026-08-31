@@ -64,33 +64,68 @@ export function findNode<M>(nodes: ExplorerNode<M>[], id: string): ExplorerNode<
   return null;
 }
 
+/** Where a dragged row would land. `after-all` = append to the root (only
+ *  produced by Explorer when the drop is over the viewport below the rows). */
 export type DropZone =
-  | { kind: "before"; rowId: string }
-  | { kind: "after-last"; rowId: string }
-  | { kind: "into"; folderId: string };
+  | { kind: "into"; folderId: string }
+  | { kind: "before"; flatIndex: number }
+  | { kind: "after-all" };
 
 /**
- * Resolve a drop given the target row, the y-position within the row (0..rowHeight),
- * and whether the target is a folder.
+ * Resolve where `draggedNode` would land when hovered over row `rowIndex` at
+ * `yWithinRow` px into it (the shipping logic behind Explorer's drop
+ * indicators and `onMove`):
  *
- * - Top quarter:    "before"   (insert above this row at the same depth)
- * - Bottom quarter: "after"    (insert below this row at the same depth — same as "before" the next row)
- * - Middle (folder only): "into" (nest as last child)
- * - Middle (file):  "before"   (files have no body to drop into; treat as adjacent)
+ * - Top quarter:    "before" this row (insert above, at the row's depth)
+ * - Bottom quarter: "before" the next row (insert below)
+ * - Middle (folder): "into"   (nest as last child)
+ * - Middle (file):  "before"  (files have no body to drop into)
+ *
+ * Returns `null` when the drop is invalid: no such row, or the prospective
+ * parent is the dragged node itself / one of its descendants (a cycle).
+ * Pure over `FlatRow[]`, so it is unit-tested and benched directly.
  */
-export function resolveDropZone(args: {
-  rowId: string;
-  isFolderTarget: boolean;
+export function computeDropZone<M>(args: {
+  draggedNode: ExplorerNode<M>;
+  flatRows: FlatRow<M>[];
+  rowIndex: number;
   yWithinRow: number;
   rowHeight: number;
-  isLastVisibleRow: boolean;
-}): DropZone {
-  const { rowId, isFolderTarget, yWithinRow, rowHeight, isLastVisibleRow } = args;
+}): DropZone | null {
+  const { draggedNode, flatRows, rowIndex, yWithinRow, rowHeight } = args;
+  const targetRow = flatRows[rowIndex];
+  if (!targetRow) return null;
+
   const quarter = rowHeight / 4;
-  if (yWithinRow < quarter) return { kind: "before", rowId };
-  if (yWithinRow > rowHeight - quarter) {
-    return isLastVisibleRow ? { kind: "after-last", rowId } : { kind: "before", rowId: ":next:" };
+  let zone: DropZone;
+  if (yWithinRow < quarter) {
+    zone = { kind: "before", flatIndex: rowIndex };
+  } else if (yWithinRow > rowHeight - quarter) {
+    zone = { kind: "before", flatIndex: rowIndex + 1 };
+  } else if (isFolder(targetRow.node)) {
+    zone = { kind: "into", folderId: targetRow.node.id };
+  } else {
+    zone = { kind: "before", flatIndex: rowIndex };
   }
-  if (isFolderTarget) return { kind: "into", folderId: rowId };
-  return { kind: "before", rowId };
+
+  // Cycle prevention: reject if the prospective parent is the dragged node
+  // itself or any of its descendants.
+  let prospectiveParent: string | null = null;
+  if (zone.kind === "into") prospectiveParent = zone.folderId;
+  else {
+    const tgt = flatRows[zone.flatIndex];
+    prospectiveParent = tgt ? tgt.parentId : null;
+  }
+  if (wouldCycle(draggedNode, prospectiveParent)) return null;
+  return zone;
+}
+
+/** Structural equality for drop zones, so a per-pointermove recompute can bail
+ *  out of a state write (and a re-render) when the zone didn't change. */
+export function dropZoneEqual(a: DropZone | null, b: DropZone | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.kind === "into" && b.kind === "into") return a.folderId === b.folderId;
+  if (a.kind === "before" && b.kind === "before") return a.flatIndex === b.flatIndex;
+  return a.kind === "after-all" && b.kind === "after-all";
 }

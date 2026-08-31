@@ -24,6 +24,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useId } from "react";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import type { ContextBlock } from "./ContextEditor";
 
 /** A host element dropped onto a block row (only fires under `SfDndProvider`). */
@@ -62,12 +63,17 @@ export default function ContextEditorRows({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  // Namespace the dnd ids per region: under one `SfDndProvider` every widget
+  // shares a single dnd-kit context, so two ContextEditors both holding a block
+  // with the same id (e.g. "system") would resolve a drag to the wrong widget.
+  // Consumer-facing payloads (onReorder, onExternalDrop.overId) stay real ids.
   const ids = blocks.map((b) => b.id);
+  const dndIds = ids.map((id) => `${regionId}:${id}`);
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const from = ids.indexOf(String(active.id));
-    const to = ids.indexOf(String(over.id));
+    const from = dndIds.indexOf(String(active.id));
+    const to = dndIds.indexOf(String(over.id));
     if (from < 0 || to < 0) return;
     onReorder(arrayMove(blocks, from, to));
   };
@@ -77,17 +83,18 @@ export default function ContextEditorRows({
     collisionDetection: closestCenter,
     onDragEnd,
     onExternalDrop: ({ active, over }) => {
-      const overId = over && ids.includes(String(over.id)) ? String(over.id) : null;
-      onExternalDrop?.({ active, overId });
+      const to = over ? dndIds.indexOf(String(over.id)) : -1;
+      onExternalDrop?.({ active, overId: to >= 0 ? (ids[to] as string) : null });
     },
   });
 
   const list = (
-    <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-      {blocks.map((block) => (
+    <SortableContext items={dndIds} strategy={verticalListSortingStrategy}>
+      {blocks.map((block, index) => (
         <SortableRow
           key={block.id}
           block={block}
+          dndId={dndIds[index] as string}
           regionId={regionId}
           rowClassName={rowClassName}
           handleClassName={handleClassName}
@@ -110,6 +117,7 @@ export default function ContextEditorRows({
 
 function SortableRow({
   block,
+  dndId,
   regionId,
   rowClassName,
   handleClassName,
@@ -118,6 +126,7 @@ function SortableRow({
   renderCells,
 }: {
   block: ContextBlock;
+  dndId: string;
   regionId: string;
   rowClassName?: string;
   handleClassName?: string;
@@ -125,6 +134,8 @@ function SortableRow({
   onHover: (id: string | null) => void;
   renderCells: (block: ContextBlock, handle: ReactNode) => ReactNode;
 }) {
+  // The real block id rides in `data` so a foreign drop target can identify
+  // the dragged block behind the namespaced dnd id.
   const {
     setNodeRef,
     setActivatorNodeRef,
@@ -133,7 +144,7 @@ function SortableRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: block.id, data: { [SF_REGION_KEY]: regionId } });
+  } = useSortable({ id: dndId, data: { [SF_REGION_KEY]: regionId, blockId: block.id } });
 
   const handle = (
     <button
@@ -160,7 +171,12 @@ function SortableRow({
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onHover(null);
       }}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        // dnd-kit's settle transition is an inline style, so it must be gated
+        // here; the reduced-motion media query cannot reach it.
+        transition: prefersReducedMotion() ? undefined : transition,
+      }}
     >
       {renderCells(block, handle)}
     </div>

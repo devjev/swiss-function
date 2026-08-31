@@ -4,6 +4,7 @@ import {
   type DragEndEvent,
   DragOverlay,
   type DragStartEvent,
+  type Over,
   PointerSensor,
   rectIntersection,
   useSensor,
@@ -35,6 +36,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -49,7 +51,6 @@ import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
 import {
   buildColumnTemplate,
-  COLUMN_MIN_UNITS,
   frozenLeftOffsets,
   frozenTotalWidth,
   resizeBoundary,
@@ -75,7 +76,11 @@ import type {
   Selection,
 } from "./types";
 import { isGroup } from "./types";
-import { useColumnGroupCollapse } from "./useColumnGroupCollapse";
+import {
+  expandPlaceholderOrder,
+  toEffectiveOrder,
+  useColumnGroupCollapse,
+} from "./useColumnGroupCollapse";
 import { useTableClipboard } from "./useTableClipboard";
 import { useTableEdit } from "./useTableEdit";
 import { useTableSelection } from "./useTableSelection";
@@ -686,6 +691,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Column-group collapse ---
   const {
+    collapsed: groupsCollapsed,
     toggle: toggleGroup,
     effectiveColumns,
     version: groupsVersion,
@@ -711,11 +717,21 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   /** Flat visible leaf columns in display order (with any drag-reorder applied).
    *  Drives cell indexing everywhere; the TanStack `columnOrder` state below keeps
-   *  the header in lockstep. */
+   *  the header in lockstep. `columnOrder` holds REAL leaf ids only, so it is
+   *  first projected onto the effective tree (a collapsed group's leaf ids
+   *  become its placeholder id) before positions are applied. */
   const visibleLeaves = useMemo(
-    () => applyOrder(flatLeaves(effectiveColumns), columnOrder),
-    [effectiveColumns, columnOrder],
+    () =>
+      applyOrder(
+        flatLeaves(effectiveColumns),
+        toEffectiveOrder(columnOrder, columns, groupsCollapsed),
+      ),
+    [effectiveColumns, columnOrder, columns, groupsCollapsed],
   );
+  /** Effective leaf ids in display order. Feeds the TanStack `columnOrder`
+   *  state (so its header groups track `visibleLeaves`, placeholders included)
+   *  and the drag-reorder index math. */
+  const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
 
   // --- Tree expansion ---
   const {
@@ -778,12 +794,22 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const table = useReactTable({
     data: treeMeta ? treeMeta.data : sniffData,
     columns: tsColumns,
-    state: { sorting, expanded: expandedState, columnOrder, columnFilters },
+    // TanStack orders its (effective) leaf columns, so it gets the derived
+    // effective order, not the raw real-id state (which a collapsed group's
+    // placeholder is absent from).
+    state: { sorting, expanded: expandedState, columnOrder: orderedLeafIds, columnFilters },
     manualSorting: flatMode,
     manualFiltering: flatMode,
     onSortingChange: setSorting,
     onColumnOrderChange: (updater) =>
-      setColumnOrder((typeof updater === "function" ? updater(columnOrder) : updater) as string[]),
+      // Persisted order carries real leaf ids only (see expandPlaceholderOrder).
+      setColumnOrder(
+        expandPlaceholderOrder(
+          (typeof updater === "function" ? updater(orderedLeafIds) : updater) as string[],
+          columns,
+          columnOrder,
+        ),
+      ),
     onColumnFiltersChange: (updater) =>
       setColumnFilters(
         (typeof updater === "function" ? updater(columnFilters) : updater) as ColumnFiltersState,
@@ -1074,6 +1100,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
     el?.focus({ preventScroll: false });
   }, [selection.active, editing]);
 
+  // --- Column-width overrides (px), set by dragging the resize handle ---
+  // Controlled/uncontrolled with an onChange so resized widths can be persisted.
+  const { columnWidths, setColumnWidths } = useColumnWidths({
+    columnWidths: controlledColumnWidths,
+    defaultColumnWidths,
+    onColumnWidthsChange,
+  });
+
   // Auto-fit: size a column to its widest currently-mounted content. `scrollWidth`
   // reports the full natural width even though cells clip with ellipsis.
   const autoFitColumn = useCallback(
@@ -1088,13 +1122,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
         const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
         widest = Math.max(widest, body ? body.scrollWidth : el.scrollWidth);
       }
-      // Header + cell horizontal padding (calc(--sf-unit / 2) each side) plus slack.
-      const PADDING = 24 + 8;
+      // Header + cell horizontal padding is calc(--sf-unit / 2) per side, so one
+      // measured unit total (tracks a consumer-resized --sf-unit), plus slack.
+      const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
       const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
-      const next = Math.max(minPx, Math.ceil(widest + PADDING));
+      const next = Math.max(minPx, Math.ceil(widest + padding));
       setColumnWidths((prev) => (prev[columnId] === next ? prev : { ...prev, [columnId]: next }));
     },
-    [visibleLeaves],
+    [visibleLeaves, setColumnWidths],
   );
 
   // Left edges of every leaf column (plus the trailing right edge), in content
@@ -1201,13 +1236,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
     ],
   );
 
-  // --- Column-width overrides (px), set by dragging the resize handle ---
-  // Controlled/uncontrolled with an onChange so resized widths can be persisted.
-  const { columnWidths, setColumnWidths } = useColumnWidths({
-    columnWidths: controlledColumnWidths,
-    defaultColumnWidths,
-    onColumnWidthsChange,
-  });
+  // Measured px of `--sf-datatable-col-min` for the resize handles'
+  // aria-valuemin: once per mount (the token is static for the table's life),
+  // never per render.
+  const [colMinPx, setColMinPx] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const vp = containerRef.current;
+    if (vp) setColMinPx(Math.round(measureCssWidth(vp, "var(--sf-datatable-col-min)")));
+  }, []);
 
   /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
   const resizableColumnIds = useMemo(() => {
@@ -1219,11 +1255,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   }, [resizableColumns, visibleLeaves]);
 
   // Snapshot the column widths from the (bottom) header row a handle lives in,
-  // indexed to match `visibleLeaves`.
+  // indexed to match `visibleLeaves`. Only real header cells count: with
+  // `rowNumbers` the row's first child is the select-all corner cell, which
+  // would shift every measured index by one.
   const measureLeafWidths = useCallback((headerCell: HTMLElement): number[] | null => {
     const row = headerCell.parentElement;
     if (!row) return null;
-    return Array.from(row.children).map((el) => el.getBoundingClientRect().width);
+    return Array.from(row.children)
+      .filter((el) => el.classList.contains(styles.headerCell as string))
+      .map((el) => el.getBoundingClientRect().width);
   }, []);
 
   // The last column is resized via the boundary on its left — normally that's
@@ -1300,6 +1340,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     idx: number;
     startWidths: number[];
     minPx: number;
+    /** Physical-direction semantics: in RTL the trailing edge sits on the
+     *  column's left, so a leftward pointer move grows the column. Read once
+     *  per gesture. */
+    rtl: boolean;
     handle: HTMLElement;
   } | null>(null);
   const { onPointerDown: onColumnResizeDown } = usePointerDrag({
@@ -1316,13 +1360,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
         idx,
         startWidths,
         minPx: measureCssWidth(headerCell, "var(--sf-datatable-col-min)"),
+        rtl: getComputedStyle(handle).direction === "rtl",
         handle,
       };
     },
     onMove: (delta) => {
       const r = resizeRef.current;
       if (!r) return;
-      applyResize(r.idx, r.startWidths, delta.dx, r.minPx);
+      // The edge follows the pointer: physical +dx grows the column in LTR,
+      // shrinks it in RTL.
+      applyResize(r.idx, r.startWidths, r.rtl ? -delta.dx : delta.dx, r.minPx);
     },
     onEnd: () => {
       const r = resizeRef.current;
@@ -1348,7 +1395,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
         keyResizeMinPx.current = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
       }
       const minPx = keyResizeMinPx.current;
-      const dx = (ev.key === "ArrowRight" ? 1 : -1) * (ev.shiftKey ? 24 : 8);
+      // Physical-direction semantics: the edge moves in the arrow's direction,
+      // so in RTL (trailing edge on the column's left) ArrowRight shrinks.
+      const rtl = getComputedStyle(headerCell).direction === "rtl";
+      const step = ev.shiftKey ? KEY_RESIZE_STEP_COARSE_PX : KEY_RESIZE_STEP_PX;
+      const dx = (ev.key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1) * step;
       applyResize(idx, startWidths, dx, minPx);
     },
     [measureLeafWidths, applyResize, resolveResizeIdx],
@@ -1674,8 +1725,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // --- Column drag-to-reorder (reorderableColumns) ---
   const shared = useSfDnd();
   const regionId = useId();
-  const orderedLeafIds = useMemo(() => visibleLeaves.map((l) => l.id), [visibleLeaves]);
-  const leafParents = useMemo(() => leafParentMap(columns), [columns]);
+  // Parents from the EFFECTIVE tree, so a collapsed group's placeholder leaf has
+  // a parent entry and reorders as one unit under the same-parent guard below.
+  const leafParents = useMemo(() => leafParentMap(effectiveColumns), [effectiveColumns]);
   const reorderSensors = useSensors(
     // 4px threshold so a plain click still sorts and the resize handle still resizes.
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -1685,23 +1737,53 @@ export function DataTable<T>(props: DataTableProps<T>) {
     ? visibleLeaves.find((l) => l.id === draggingColId)
     : undefined;
 
-  const onColumnDragStart = useCallback((e: DragStartEvent) => {
-    setDraggingColId(String(e.active.id));
-  }, []);
+  // Header sortables carry a per-instance namespaced dnd id
+  // (`${regionId}:${columnId}`), so column ids can't collide across
+  // widgets/instances sharing one `SfDndProvider`; the real column id rides in
+  // the sortable's `data` and every consumer-facing payload uses it.
+  const sortableId = useCallback((columnId: string) => `${regionId}:${columnId}`, [regionId]);
+  const sortableIds = useMemo(
+    () => orderedLeafIds.map((id) => `${regionId}:${id}`),
+    [orderedLeafIds, regionId],
+  );
+  const columnIdOf = useCallback(
+    (node: Active | Over): string | null => {
+      const cid = node.data.current?.columnId;
+      if (typeof cid === "string") return cid;
+      // Fallback for a payload without `data` (shouldn't happen for our headers).
+      const raw = String(node.id);
+      const prefix = `${regionId}:`;
+      return raw.startsWith(prefix) ? raw.slice(prefix.length) : null;
+    },
+    [regionId],
+  );
+
+  const onColumnDragStart = useCallback(
+    (e: DragStartEvent) => {
+      setDraggingColId(columnIdOf(e.active));
+    },
+    [columnIdOf],
+  );
   const onColumnDragEnd = useCallback(
     (e: DragEndEvent) => {
       setDraggingColId(null);
-      const activeId = String(e.active.id);
-      const overId = e.over ? String(e.over.id) : null;
-      if (!overId || activeId === overId) return;
-      // A leaf may only reorder within its own parent group.
+      const activeId = columnIdOf(e.active);
+      const overId = e.over ? columnIdOf(e.over) : null;
+      if (!activeId || !overId || activeId === overId) return;
+      // A leaf (or a collapsed group's placeholder) may only reorder within its
+      // own parent group.
       if (leafParents.get(activeId) !== leafParents.get(overId)) return;
       const from = orderedLeafIds.indexOf(activeId);
       const to = orderedLeafIds.indexOf(overId);
       if (from < 0 || to < 0) return;
-      setColumnOrder(arrayMove(orderedLeafIds, from, to));
+      // Persist REAL leaf ids only: a moved placeholder expands into the
+      // group's leaves, so expanding the group later keeps it where it was
+      // dropped instead of dumping its leaves at the tail.
+      setColumnOrder(
+        expandPlaceholderOrder(arrayMove(orderedLeafIds, from, to), columns, columnOrder),
+      );
     },
-    [leafParents, orderedLeafIds, setColumnOrder],
+    [columnIdOf, leafParents, orderedLeafIds, setColumnOrder, columns, columnOrder],
   );
 
   // The header list is stable during a drag, so the shared provider (which
@@ -1718,10 +1800,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onDragEnd: onColumnDragEnd,
     onDragCancel: () => setDraggingColId(null),
     onExternalDrop: ({ active, over }) => {
-      onExternalDrop?.({ active, overColumnId: over ? String(over.id) : null });
+      // Unwrap the namespaced dnd id so consumers get the real column id.
+      onExternalDrop?.({ active, overColumnId: over ? columnIdOf(over) : null });
     },
     renderOverlay: (activeId) => {
-      const leaf = visibleLeavesRef.current.find((l) => l.id === activeId);
+      // The provider hands back the namespaced dnd id; strip our prefix.
+      const prefix = `${regionId}:`;
+      const columnId = activeId.startsWith(prefix) ? activeId.slice(prefix.length) : activeId;
+      const leaf = visibleLeavesRef.current.find((l) => l.id === columnId);
       if (!leaf) return null;
       return (
         <div className={styles.headerDragOverlay}>
@@ -1874,8 +1960,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
             role="separator"
             aria-orientation="vertical"
             aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
-            aria-valuenow={Math.round(columnWidths[header.column.id] ?? 0)}
-            aria-valuemin={COLUMN_MIN_UNITS * 24}
+            // No override yet = no known px width; omit rather than announce an
+            // invalid 0 below the minimum. The min is the measured col-min token.
+            aria-valuenow={
+              columnWidths[header.column.id] != null
+                ? Math.round(columnWidths[header.column.id] as number)
+                : undefined
+            }
+            aria-valuemin={colMinPx ?? undefined}
             tabIndex={0}
             data-column-id={header.column.id}
             className={cx(styles.resizeHandle, showLeadingHandle && styles.resizeHandleStart)}
@@ -1986,8 +2078,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
                   return reorderableColumns && isLeaf ? (
                     <SortableHeaderCell
                       key={header.id}
-                      id={header.column.id}
+                      // Namespaced in own-context mode too: one code path, and
+                      // ids stay collision-free if a provider appears later.
+                      id={sortableId(header.column.id)}
                       regionId={shared ? regionId : undefined}
+                      data={{ columnId: header.column.id }}
                       render={(dnd) => renderHeaderCell(header, dnd)}
                     />
                   ) : (
@@ -1998,7 +2093,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             ));
             if (!reorderableColumns) return headerRows;
             const sortable = (
-              <SortableContext items={orderedLeafIds} strategy={horizontalListSortingStrategy}>
+              <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>
                 {headerRows}
               </SortableContext>
             );

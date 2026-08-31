@@ -344,6 +344,52 @@ test("groups: defaultCollapsed mounts collapsed", async ({ mount }) => {
   await expect(component.getByRole("button", { name: "Expand group" })).toBeVisible();
 });
 
+test("groups: a collapsed group drags as one unit and expands at its new position", async ({
+  mount,
+  page,
+}) => {
+  // Columns: Name | Address (collapsed placeholder) | Age.
+  const c = await mount(<GroupsHarness defaultCollapsed reorderableColumns />);
+  const headers = c.getByRole("columnheader");
+  await expect(headers.first()).toHaveText(/Name/);
+
+  const addrBox = await c.getByRole("columnheader", { name: /Address/ }).boundingBox();
+  const nameBox = await c.getByRole("columnheader", { name: /Name/ }).boundingBox();
+  if (!addrBox || !nameBox) throw new Error("missing header boxes");
+
+  // Drag the collapsed Address placeholder left past Name. Before the fix this
+  // was a dead grab (the same-parent guard knew no parent for the placeholder).
+  // The waits let dnd-kit's sensor activate and the last collision settle;
+  // without them the drop no-ops under full-suite parallel load.
+  await page.mouse.move(addrBox.x + addrBox.width / 2, addrBox.y + addrBox.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(50);
+  await page.mouse.move(addrBox.x + addrBox.width / 2 - 12, addrBox.y + addrBox.height / 2, {
+    steps: 4,
+  });
+  await page.mouse.move(nameBox.x + nameBox.width * 0.2, nameBox.y + nameBox.height / 2, {
+    steps: 10,
+  });
+  await page.waitForTimeout(50);
+  await page.mouse.up();
+  await expect(headers.first()).toHaveText(/Address/);
+  // Let dnd-kit's ~250ms drop animation settle: while it runs, the header
+  // subtree re-renders and a click's mousedown/mouseup can land on different
+  // nodes, retargeting the click past the expand button (a no-op toggle).
+  await page.waitForTimeout(300);
+
+  // Expanding must keep the group's leaves at the dragged position (before the
+  // fix the persisted order held the placeholder id, so the real leaves fell
+  // to the tail on expand).
+  await c.getByRole("button", { name: "Expand group" }).click();
+  const cells = c.getByRole("gridcell");
+  await expect(cells.nth(0)).toHaveText("12 Main");
+  await expect(cells.nth(1)).toHaveText("NYC");
+  await expect(cells.nth(2)).toHaveText("10001");
+  await expect(cells.nth(3)).toHaveText("Alice");
+  await expect(cells.nth(4)).toHaveText("30");
+});
+
 test("pagination shows pageSize rows and 'Page 1 of N'", async ({ mount }) => {
   const data = Array.from({ length: 12 }, (_, i) => ({
     name: `r${i}`,
@@ -429,6 +475,30 @@ test("resizableColumns={false} renders no resize handles", async ({ mount }) => 
   );
   await expect(component.getByRole("columnheader", { name: "name" })).toBeVisible();
   expect(await component.locator("[data-column-id]").count()).toBe(0);
+});
+
+test("rowNumbers: dragging a resize handle resizes the dragged column, not its neighbours", async ({
+  mount,
+  page,
+}) => {
+  // The gutter's corner cell precedes the leaf headers in the header row, so
+  // the measured start widths must skip it; before the fix every measured
+  // width was shifted by one and the first pointermove scrambled all columns.
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} rowNumbers />);
+  const nameHeader = c.getByRole("columnheader", { name: "name" });
+  const ageHeader = c.getByRole("columnheader", { name: "age" });
+  const nameBefore = await nameHeader.boundingBox();
+  const ageBefore = await ageHeader.boundingBox();
+  if (!nameBefore || !ageBefore) throw new Error("missing header bounding box");
+  await dragHandle(page, c.locator('[data-column-id="name"]'), 60);
+  const nameAfter = await nameHeader.boundingBox();
+  const ageAfter = await ageHeader.boundingBox();
+  if (!nameAfter || !ageAfter) throw new Error("missing header bounding box");
+  // The dragged column grows by roughly the drag distance; its right neighbour
+  // donates it (the cascade). A shifted measurement instead snaps "name" to
+  // the corner cell's width.
+  expect(nameAfter.width).toBeGreaterThan(nameBefore.width + 40);
+  expect(ageAfter.width).toBeLessThan(ageBefore.width - 40);
 });
 
 test("the last column is the filler and has no resize handle", async ({ mount }) => {

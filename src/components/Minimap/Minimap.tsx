@@ -87,8 +87,9 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   minMarkerSize?: number;
   /** Maximum block-marker height in `--sf-unit` multiples. Caps how tall any one
    *  block renders (a sparse document otherwise gives a few very tall blocks);
-   *  the capped block leaves a gap after it rather than overlapping. Unset =
-   *  no cap. */
+   *  the capped block leaves a gap after it rather than overlapping, while every
+   *  other marker keeps its proportional size and position (the cap is per
+   *  block, never a rescale of the whole rail). Unset = no cap. */
   maxMarkerSize?: number;
   /** Where a label-click jump lands the target in the viewport: `"start"`
    *  (default, at the top) or `"center"` (in the middle). Also anchors which
@@ -178,14 +179,12 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   // content height, which the drag math and the rail auto-scroll both need.
   const markerListRef = useRef<MinimapMarker[]>([]);
   const minMarkerSizeRef = useRef<number | undefined>(undefined);
-  const maxMarkerSizeRef = useRef<number | undefined>(undefined);
   const railContentHRef = useRef(0);
   const draggingRef = useRef(false);
   /** Fraction of the viewport a jump lands the target at (and the active-heading
    *  anchor): 0 = top, 0.5 = center. */
   const anchorFracRef = useRef(0);
   minMarkerSizeRef.current = minMarkerSize;
-  maxMarkerSizeRef.current = maxMarkerSize;
   anchorFracRef.current = jumpAlign === "center" ? 0.5 : 0;
 
   /** Single read path: one measurement per frame drives the thumb (imperative
@@ -211,25 +210,20 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       setUnitPx((prev) => (prev === unit ? prev : unit));
     }
 
-    // Effective rail content height (min/max block mode): grow so the smallest
-    // span reaches minMarkerSize (dense → scroll) and shrink so the largest fits
-    // maxMarkerSize (sparse → compress); otherwise the rail is its own height.
+    // Effective rail content height (min block mode): grow so the smallest span
+    // reaches minMarkerSize (dense → the rail scrolls); otherwise the rail is
+    // its own height. maxMarkerSize is deliberately not a scale: it caps each
+    // block at render time (resolvedMarkers), so one outsized block never
+    // compresses the other markers toward the top.
     let railContentH = railHeight;
     const minMarker = minMarkerSizeRef.current;
-    const maxMarker = maxMarkerSizeRef.current;
-    if ((minMarker || maxMarker) && scrollHeight > 0 && railHeight > 0) {
+    if (minMarker && scrollHeight > 0 && railHeight > 0) {
       const spans: number[] = [];
       for (const marker of markerListRef.current) {
         const extent = resolveMarkerHeight(marker, scrollHeight);
         if (extent > 0) spans.push((extent / scrollHeight) * railHeight);
       }
-      railContentH = railContentHeight(
-        spans,
-        railHeight,
-        (minMarker ?? 0) * unit,
-        (maxMarker ?? 0) * unit,
-        MAX_RAIL_SCALE,
-      );
+      railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
     }
     railContentHRef.current = railContentH;
 
@@ -610,6 +604,9 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       tone: MinimapMarker["tone"];
     }> = [];
     let dropped = 0;
+    // Per-block cap (maxMarkerSize): the capped block renders at the cap and
+    // leaves a gap after it; positions and every other size stay proportional.
+    const maxPx = (maxMarkerSize ?? 0) * unitPx;
     markerList.forEach((marker, index) => {
       const top = resolveMarkerTop(marker, scrollHeight);
       if (top === null) {
@@ -617,7 +614,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
         return;
       }
       const extent = resolveMarkerHeight(marker, scrollHeight);
-      const railH = markerRailHeight(extent, scrollHeight, railContentH, MIN_MARKER_PX);
+      const railH = markerRailHeight(extent, scrollHeight, railContentH, MIN_MARKER_PX, maxPx);
       resolved.push({
         key: marker.id ?? `sf-minimap-${index}`,
         y: markerRailY(top, scrollHeight, railContentH),
@@ -632,7 +629,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       console.warn(`Minimap: ${dropped} marker(s) dropped; each marker needs top or topFraction.`);
     }
     return resolved;
-  }, [markerList, sizes]);
+  }, [markerList, sizes, maxMarkerSize, unitPx]);
 
   /** Header labels: one clickable, level-indented, truncated button per
    *  header marker, at the marker's rail position (centered on its rule,

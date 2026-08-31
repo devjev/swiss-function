@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
 import { BENCH, seededRandom } from "../../../perf/benchOptions";
-import { flatten, resolveDropZone, wouldCycle } from "./dnd";
+import { computeDropZone, flatten, wouldCycle } from "./dnd";
 import type { ExplorerNode } from "./types";
 
 // Same shape as transform.bench: ~11k nodes, depth 4, breadth 10.
@@ -33,6 +33,10 @@ const visit = (nodes: ExplorerNode[]) => {
 visit(tree);
 // Worst case for wouldCycle: the root of the deepest chain vs a leaf inside it.
 const deepRoot = tree[0] as ExplorerNode;
+// A mid-tree subtree (~111 nodes) as the dragged node: computeDropZone runs a
+// cycle check per call, so the dragged subtree's size is part of the cost.
+const draggedNode = deepRoot.children?.[0] as ExplorerNode;
+const flatRows = flatten(tree, expanded);
 
 describe("Explorer dnd (~11k-node tree)", () => {
   bench(
@@ -52,15 +56,15 @@ describe("Explorer dnd (~11k-node tree)", () => {
   );
 
   bench(
-    "resolveDropZone sweep across zones ×10k",
+    "computeDropZone sweep across zones ×10k",
     () => {
       for (let i = 0; i < 10_000; i++) {
-        resolveDropZone({
-          rowId: "n-1",
-          isFolderTarget: i % 2 === 0,
+        computeDropZone({
+          draggedNode,
+          flatRows,
+          rowIndex: i % flatRows.length,
           yWithinRow: i % 32,
           rowHeight: 32,
-          isLastVisibleRow: i % 100 === 0,
         });
       }
     },

@@ -70,6 +70,11 @@ function collectDefaults<T>(defs: ColumnDef<T>[]): Record<string, boolean> {
   return out;
 }
 
+/** The synthetic leaf id a collapsed group renders as in the effective tree. */
+export function placeholderId(groupId: string): string {
+  return `${groupId}::placeholder`;
+}
+
 export function buildEffectiveColumns<T>(
   defs: ColumnDef<T>[],
   collapsed: Record<string, boolean>,
@@ -80,7 +85,7 @@ export function buildEffectiveColumns<T>(
       // Collapsed group → single placeholder leaf. Same id so the header still
       // identifies the group and the chevron can re-expand it.
       return {
-        id: `${def.id}::placeholder`,
+        id: placeholderId(def.id),
         header: def.header,
         accessor: () => null,
         width: 4,
@@ -103,4 +108,113 @@ export type PlaceholderLeaf<T> = import("./types").LeafColumnDef<T> & {
 export function getCollapsedGroupId<T>(col: ColumnDef<T>): string | undefined {
   if (isGroup(col)) return undefined;
   return (col as PlaceholderLeaf<T>).meta?.collapsedGroupId;
+}
+
+/** Leaf ids of a group's whole subtree, in definition order. */
+function subtreeLeafIds<T>(defs: ColumnDef<T>[], out: string[] = []): string[] {
+  for (const d of defs) {
+    if (isGroup(d)) subtreeLeafIds(d.columns, out);
+    else out.push(d.id);
+  }
+  return out;
+}
+
+/** Sort `ids` by their position in `prior` (ids absent from `prior` keep their
+ *  relative order at the tail), so a group's leaves reappear in the order the
+ *  user last gave them. */
+function orderIdsBy(ids: string[], prior: string[]): string[] {
+  if (prior.length === 0) return ids;
+  const pending = new Set(ids);
+  const out: string[] = [];
+  for (const id of prior) {
+    if (pending.has(id)) {
+      out.push(id);
+      pending.delete(id);
+    }
+  }
+  for (const id of ids) if (pending.has(id)) out.push(id);
+  return out;
+}
+
+/**
+ * Replace each collapsed-group placeholder id in a visible-leaf order with the
+ * group's real leaf ids, so the persisted column order (the consumer-facing
+ * `onColumnOrderChange` payload) only ever carries real ids. Without this, a
+ * reorder while a group is collapsed persists `<groupId>::placeholder` and
+ * omits the group's leaves, which then jump to the tail on expand. The leaves'
+ * relative order within the group comes from `priorOrder` (the order state
+ * before the drag), falling back to definition order. Pure.
+ */
+export function expandPlaceholderOrder<T>(
+  order: string[],
+  columns: ColumnDef<T>[],
+  priorOrder: string[] = [],
+): string[] {
+  // Every group's placeholder id → its subtree leaf ids (a placeholder only
+  // exists while the group is collapsed, so mapping all groups is harmless).
+  const groups = new Map<string, string[]>();
+  const walk = (defs: ColumnDef<T>[]) => {
+    for (const d of defs) {
+      if (isGroup(d)) {
+        groups.set(placeholderId(d.id), subtreeLeafIds(d.columns));
+        walk(d.columns);
+      }
+    }
+  };
+  walk(columns);
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (id: string) => {
+    if (!seen.has(id)) {
+      out.push(id);
+      seen.add(id);
+    }
+  };
+  for (const id of order) {
+    const leafIds = groups.get(id);
+    if (leafIds) for (const leafId of orderIdsBy(leafIds, priorOrder)) push(leafId);
+    else push(id);
+  }
+  return out;
+}
+
+/**
+ * Project a real-leaf-id order onto the effective (collapse-applied) tree: the
+ * leaf ids of a collapsed group collapse to the group's placeholder id at the
+ * first leaf's position (an outermost collapsed ancestor wins over a nested
+ * one). The inverse of {@link expandPlaceholderOrder}: together they let the
+ * order state hold real ids while a collapsed group still reorders (and stays
+ * put) as one placeholder unit. Ids of expanded leaves pass through. Pure.
+ */
+export function toEffectiveOrder<T>(
+  order: string[],
+  columns: ColumnDef<T>[],
+  collapsed: Record<string, boolean>,
+): string[] {
+  if (order.length === 0) return order;
+  // Real leaf id → owning collapsed group's placeholder id.
+  const toPlaceholder = new Map<string, string>();
+  const walk = (defs: ColumnDef<T>[], collapsedAncestor: string | null) => {
+    for (const d of defs) {
+      if (isGroup(d)) {
+        walk(d.columns, collapsedAncestor ?? (collapsed[d.id] ? d.id : null));
+      } else if (collapsedAncestor) {
+        toPlaceholder.set(d.id, placeholderId(collapsedAncestor));
+      }
+    }
+  };
+  walk(columns, null);
+  if (toPlaceholder.size === 0) return order;
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const id of order) {
+    const mapped = toPlaceholder.get(id) ?? id;
+    if (!seen.has(mapped)) {
+      out.push(mapped);
+      seen.add(mapped);
+    }
+  }
+  return out;
 }

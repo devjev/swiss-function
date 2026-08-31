@@ -325,10 +325,11 @@ export const Dense: Story = () => (
   </div>
 );
 
-export const MaxBlockCompressed: Story = () => (
-  // A small maxBlock caps the rail blocks and compresses the rail vertically:
-  // the density strip packs into the top rather than spreading over the full
-  // rail. (minBlock still floors dense forms; here max is the binding one.)
+export const MaxBlockCapped: Story = () => (
+  // A small maxBlock caps how tall each rail block renders. The cap is per
+  // block: every marker keeps its proportional position over the full rail,
+  // and only blocks over the cap are clipped (a gap follows them). minBlock
+  // still floors dense forms; here max is the binding one.
   <div style={{ ...frame, height: "22rem" }}>
     <VerticalForm maxBlock={0.75}>
       {Array.from({ length: 12 }, (_, i) => (

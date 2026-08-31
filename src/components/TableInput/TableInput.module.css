@@ -70,7 +70,7 @@
   padding: var(--sf-unit);
 }
 
-/* Header: quiet column titles. Not body copy, so muted is fine here. */
+/* Header: column titles are labels, so full fg (never gray) here. */
 .headerCell {
   padding-inline: var(--sf-cell-pad-x);
   padding-block-start: calc(var(--sf-unit) / 2);
@@ -78,7 +78,7 @@
   font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-grid);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -154,13 +154,19 @@
   color: var(--sf-color-muted);
 }
 
-/* The drag handle is a bare button: a grip glyph, grab cursor, no chrome. */
+/* The drag handle is a bare button: a grip glyph, grab cursor, no chrome.
+   It is the PointerSensor activator, so touch-action: none keeps the browser
+   from claiming touch moves for scrolling before the drag starts. */
 .handle {
   border: 0;
   background: none;
   cursor: grab;
+  touch-action: none;
   padding: calc(var(--sf-unit) / 4);
   border-radius: var(--sf-radius-default);
+}
+.handle:active {
+  cursor: grabbing;
 }
 .handle:hover {
   color: var(--sf-color-fg);

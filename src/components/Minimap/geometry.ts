@@ -72,15 +72,20 @@ export function markerRailY(top: number, scrollHeight: number, railHeight: numbe
 }
 
 /** A content extent's height on the rail (proportional scale), floored so a
- *  short block still reads as a rule. */
+ *  short block still reads as a rule, and capped per block when `maxPx` is set
+ *  (`maxMarkerSize`): the capped block renders at the cap and leaves a gap
+ *  after it, while every OTHER marker keeps its proportional size and position.
+ *  The cap never undercuts the floor. */
 export function markerRailHeight(
   height: number,
   scrollHeight: number,
   railHeight: number,
   minPx: number,
+  maxPx = 0,
 ): number {
   if (scrollHeight <= 0) return minPx;
-  return Math.max((height / scrollHeight) * railHeight, minPx);
+  const proportional = Math.max((height / scrollHeight) * railHeight, minPx);
+  return maxPx > 0 ? Math.min(proportional, Math.max(maxPx, minPx)) : proportional;
 }
 
 export interface ThumbGeometry {
@@ -198,41 +203,34 @@ export function decimateLabels(labels: readonly LabelCandidate[], minSpacing: nu
   return visible;
 }
 
-/** Effective rail content height for the min/max block-size mode. The rail's
- *  inner content is scaled so span blocks land in `[minBlockPx, maxBlockPx]`:
- *  it *grows* so the smallest span reaches `minBlockPx` (dense → the rail
- *  scrolls), and *shrinks* so the largest span fits `maxBlockPx` (sparse → the
- *  rail compresses below its own height). Everything stays proportional (mapped
- *  into this height). `spanRailHeights` are the markers' unfloored proportional
- *  heights at the natural `railHeight` (extent-bearing markers only). Returns
- *  `railHeight` when nothing binds. `maxScale` bounds the scale both ways
- *  (`[1/maxScale, maxScale]`), so a pathological input cannot explode or vanish
- *  the rail. `minBlockPx`/`maxBlockPx` of 0 mean "no floor / no cap"; an
- *  effective max is never taken below the min. */
+/** Effective rail content height for the min block-size mode. The rail's inner
+ *  content *grows* so the smallest span reaches `minBlockPx` (dense → the rail
+ *  scrolls); everything stays proportional (mapped into this height).
+ *  `spanRailHeights` are the markers' unfloored proportional heights at the
+ *  natural `railHeight` (extent-bearing markers only). Returns `railHeight`
+ *  when nothing binds. `maxScale` bounds the growth so a pathological tiny
+ *  span cannot explode the rail. `minBlockPx` of 0 means "no floor".
+ *
+ *  The max-block cap is deliberately NOT a scale here: shrinking the whole
+ *  rail so the largest span fits would compress every other marker toward the
+ *  top (the issue-#87 bunching). `maxMarkerSize` instead caps each block at
+ *  render time (see markerRailHeight), leaving a gap after the capped block
+ *  while positions and every other size stay proportional. */
 export function railContentHeight(
   spanRailHeights: readonly number[],
   railHeight: number,
   minBlockPx: number,
-  maxBlockPx: number,
   maxScale: number,
 ): number {
   if (railHeight <= 0) return railHeight;
   let smallest = Number.POSITIVE_INFINITY;
-  let largest = 0;
   for (const h of spanRailHeights) {
-    if (h > 0) {
-      if (h < smallest) smallest = h;
-      if (h > largest) largest = h;
-    }
+    if (h > 0 && h < smallest) smallest = h;
   }
   if (!Number.isFinite(smallest)) return railHeight;
-  const effMax = maxBlockPx > 0 ? Math.max(maxBlockPx, minBlockPx) : Number.POSITIVE_INFINITY;
-  let scale = 1;
   // Grow so the smallest span reaches the floor (the dense, scrollable case).
-  if (minBlockPx > 0 && smallest < minBlockPx) scale = minBlockPx / smallest;
-  // Shrink so the largest span fits the cap (the sparse, compressing case).
-  if (largest * scale > effMax) scale = effMax / largest;
-  return railHeight * clamp(scale, 1 / maxScale, maxScale);
+  const scale = minBlockPx > 0 && smallest < minBlockPx ? minBlockPx / smallest : 1;
+  return railHeight * clamp(scale, 1, maxScale);
 }
 
 /** Edge-triggered scroll-into-view for the rail when its content is taller than

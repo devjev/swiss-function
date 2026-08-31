@@ -57,12 +57,6 @@ export interface VerticalFormEntry {
   emphasis?: boolean;
 }
 
-/** Cap for a field's rail span, in label-heights: a normal multi-line field
- *  (a radio group, a short textarea) reads at its real height, but an outsized
- *  control (a tall `TableInput`) is bounded here so it can't dominate Minimap's
- *  block-size scaling and flatten every other field to a rule (issue #87). */
-const MAX_SPAN = 8;
-
 /** Turn measured entries into Minimap markers: sort by position (Map insertion
  *  order is not DOM order). Every row is a filled dither `block` span of its
  *  own height; a named row is additionally a `header`, so its label rides on
@@ -206,8 +200,10 @@ export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
   /** Minimum rail block height per field, in `--sf-unit` multiples. Blocks never
    *  compress below this; a denser form scrolls its rail instead. Default `0.5`. */
   minBlock?: number;
-  /** Maximum rail block height per field, in `--sf-unit` multiples. Caps how
-   *  tall a block grows in a sparse form. Unset = no cap. */
+  /** Maximum rail block height per field, in `--sf-unit` multiples. Caps that
+   *  one block on the rail (a gap follows it); the other blocks keep their
+   *  proportional size and position. Unset = no cap: an outsized field (a tall
+   *  `TableInput`) reads honestly tall. */
   maxBlock?: number;
   /** Render rows without the surrounding Box: no surface (border/shadow) and no
    *  box padding, for a minimal look. The `elevation` prop is then ignored.
@@ -264,20 +260,16 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     entriesRef.current.forEach(({ node, meta }, id) => {
       const rect = node.getBoundingClientRect();
       // The rail span is the field's real row height, so fields read as
-      // contiguous filled blocks proportional to their size (the density read).
-      // But a single arbitrarily tall control (a TableInput, a big TextEdit)
-      // must not dominate Minimap's block-size scaling and flatten every other
-      // field, so a field's span is capped at a few label-heights (`MAX_SPAN`).
-      // Normal multi-line fields keep their real height; only an outsized one
-      // is bounded. A section (no label child) keeps its title height.
-      const label = node.querySelector<HTMLElement>(`.${styles.fieldLabel}`);
-      const height = label
-        ? Math.min(rect.height, label.getBoundingClientRect().height * MAX_SPAN)
-        : rect.height;
+      // contiguous filled blocks proportional to their size (the density read):
+      // a tall TableInput's block is honestly tall, and grows as rows are
+      // added. Bounding an outsized block is Minimap's job (`maxBlock` caps
+      // that one block on the rail, per issue #87, without touching the rest),
+      // never a lie in the measured content height, which would shrink the
+      // block as the form grows and render unequal tall fields identical.
       entries.push({
         id,
         top: rect.top - base,
-        height,
+        height: rect.height,
         label: meta.label,
         level: meta.level,
         tone: meta.tone,

@@ -11,7 +11,8 @@ import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from 
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useId } from "react";
-import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { type AgentComposerAgent, type AgentComposerNode, siblingIds } from "./composer";
 import { type NodeCtx, renderNode } from "./renderNode";
 
@@ -30,8 +31,13 @@ interface AgentComposerTreeProps {
   onExternalDrop?: (drop: AgentComposerExternalDrop) => void;
 }
 
-const wrapGroup = (childIds: string[], children: ReactNode) => (
-  <SortableContext items={childIds} strategy={verticalListSortingStrategy}>
+// SortableContext items must match the sortables' namespaced dnd ids, so the
+// group wrapper is built per instance from its region id.
+const wrapGroupFor = (regionId: string) => (childIds: string[], children: ReactNode) => (
+  <SortableContext
+    items={childIds.map((id) => `${regionId}:${id}`)}
+    strategy={verticalListSortingStrategy}
+  >
     {children}
   </SortableContext>
 );
@@ -46,19 +52,38 @@ export default function AgentComposerTree({
   const regionId = useId();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  // Namespace the dnd ids per region: under one `SfDndProvider` every widget
+  // shares a single dnd-kit context, so two composers holding the same node id
+  // would resolve a drag to the wrong widget. Consumer-facing payloads
+  // (onReorder, onExternalDrop.overId) stay real node ids.
+  const prefix = `${regionId}:`;
+  const realId = (dndId: unknown): string | null => {
+    const s = String(dndId);
+    return s.startsWith(prefix) ? s.slice(prefix.length) : null;
+  };
+
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    onReorder(String(active.id), String(over.id));
+    const activeId = realId(active.id);
+    const overId = realId(over.id);
+    if (activeId == null || overId == null) return;
+    onReorder(activeId, overId);
   };
 
   // Restrict drop targets to the dragged node's siblings, so an expanded
   // target's children can't win the collision and reordering stays within one
-  // parent (the honest read: a node moves among its peers, never across).
+  // parent (the honest read: a node moves among its peers, never across). The
+  // sibling filter only applies to this region's own containers: foreign ones
+  // (another widget's rows, a host droppable) stay in, so a drag out of the
+  // tree can land on them under a shared provider. Own-context mode only ever
+  // registers this region's containers, so it behaves as before.
   const collisionDetection: CollisionDetection = (args) => {
-    const activeId = args.active?.id != null ? String(args.active.id) : null;
-    if (!activeId) return closestCenter(args);
-    const sibs = new Set(siblingIds(root, activeId));
-    const droppableContainers = args.droppableContainers.filter((c) => sibs.has(String(c.id)));
+    const activeId = args.active?.id != null ? realId(args.active.id) : null;
+    if (activeId == null) return closestCenter(args);
+    const sibs = new Set(siblingIds(root, activeId).map((id) => `${prefix}${id}`));
+    const droppableContainers = args.droppableContainers.filter(
+      (c) => sibs.has(String(c.id)) || regionIdOf(c) !== regionId,
+    );
     return closestCenter({ ...args, droppableContainers });
   };
 
@@ -67,7 +92,7 @@ export default function AgentComposerTree({
     collisionDetection,
     onDragEnd,
     onExternalDrop: ({ active, over }) => {
-      onExternalDrop?.({ active, overId: over ? String(over.id) : null });
+      onExternalDrop?.({ active, overId: over ? realId(over.id) : null });
     },
   });
 
@@ -87,7 +112,7 @@ export default function AgentComposerTree({
         isLast={last}
       />
     ),
-    wrapGroup,
+    wrapGroupFor(regionId),
   );
 
   if (shared) return <>{tree}</>;
@@ -112,8 +137,13 @@ function SortableNode({
   regionId: string;
   isLast: boolean;
 }) {
+  // The real node id rides in `data` so a foreign drop target can identify
+  // the dragged node behind the namespaced dnd id.
   const { setNodeRef, setActivatorNodeRef, listeners, transform, transition, isDragging } =
-    useSortable({ id: node.id, data: { [SF_REGION_KEY]: regionId } });
+    useSortable({
+      id: `${regionId}:${node.id}`,
+      data: { [SF_REGION_KEY]: regionId, nodeId: node.id },
+    });
 
   return renderNode(
     ctx,
@@ -130,11 +160,16 @@ function SortableNode({
         isLast={last}
       />
     ),
-    wrapGroup,
+    wrapGroupFor(regionId),
     {
       section: {
         ref: setNodeRef,
-        style: { transform: CSS.Transform.toString(transform), transition },
+        style: {
+          transform: CSS.Transform.toString(transform),
+          // dnd-kit's settle transition is an inline style, so it must be
+          // gated here; the reduced-motion media query cannot reach it.
+          transition: prefersReducedMotion() ? undefined : transition,
+        },
         dragging: isDragging,
       },
       head: { ref: setActivatorNodeRef, listeners },

@@ -1,4 +1,9 @@
-import type { DragEndEvent, DragMoveEvent, DragStartEvent } from "@dnd-kit/core";
+import type {
+  CollisionDetection,
+  DragEndEvent,
+  DragMoveEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +22,7 @@ import type {
   MouseEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
+  RefObject,
 } from "react";
 import {
   memo,
@@ -28,12 +34,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { resizeBoundary } from "../../lib/columns/resizeBoundary";
+import {
+  KEY_RESIZE_STEP_COARSE_PX,
+  KEY_RESIZE_STEP_PX,
+  resizeBoundary,
+} from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { cx } from "../../lib/cx";
-import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { useDitheredFill } from "../../lib/effects";
 import {
   ColumnFilter,
@@ -46,8 +56,8 @@ import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { File, Folder } from "../Icon";
 import { Menu } from "../Menu";
-import type { FlatRow } from "./dnd";
-import { findNode, flatten, wouldCycle } from "./dnd";
+import type { DropZone, FlatRow } from "./dnd";
+import { computeDropZone, dropZoneEqual, findNode, flatten } from "./dnd";
 import styles from "./Explorer.module.css";
 import { RenameField } from "./RenameField";
 import {
@@ -68,11 +78,8 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
 const MIN_COL_PX = 48;
 /** Preferred width for a resizable column that declares no numeric `width`. */
 const DEFAULT_COL_PX = 120;
-
-type DropZone =
-  | { kind: "into"; folderId: string }
-  | { kind: "before"; flatIndex: number }
-  | { kind: "after-all" };
+/** Extra px added past the widest measured content on double-click auto-fit. */
+const AUTOFIT_SLACK_PX = 8;
 
 /** Inferred filter UI for a column: its kind and (checklist) selectable values. */
 type FilterMeta = { kind: ColumnFilterKind; options: FilterOption[] };
@@ -107,15 +114,40 @@ function forEachNode<M>(nodes: ExplorerNode<M>[], fn: (n: ExplorerNode<M>) => vo
   }
 }
 
+/** Strip this instance's region prefix off a dnd id, recovering the real
+ *  node/column id. Ids are namespaced `${regionId}:${realId}` so two instances
+ *  under one `SfDndProvider` never collide. */
+function unwrapDndId(dndId: string, regionId: string): string {
+  return dndId.startsWith(`${regionId}:`) ? dndId.slice(regionId.length + 1) : dndId;
+}
+
+/** Collision detection for one of this widget's two regions (columns / tree):
+ *  drop the sibling region's droppables before intersecting, so a header drag
+ *  never resolves over a tree row (and vice versa). Droppables of other
+ *  widgets and of the host stay in, which is what makes cross-widget drag-out
+ *  and host drops keep working. */
+function excludeRegionCollision(excludedRegionId: string): CollisionDetection {
+  return (args) =>
+    rectIntersection({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(
+        (c) => c.data.current?.[SF_REGION_KEY] !== excludedRegionId,
+      ),
+    });
+}
+
 /** Build the `grid-template-columns` string shared by the header and every row.
  *  Without resizing it keeps Explorer's original semantics (number→px, string
  *  as-is, undefined→`1fr`). With resizing on it mirrors DataTable: every track
  *  is `minmax(min, preferred)` and the last stretches, so `resizeBoundary`'s px
- *  overrides cascade into the flexible filler. */
+ *  overrides cascade into the flexible filler. In fill mode (`columnFill`) the
+ *  last track keeps a fixed preferred width too, so the dither panel has slack
+ *  to paint into instead of being crushed by a stretched last column. */
 function buildGridTemplate<M>(
   columns: ExplorerColumn<M>[],
   overrides: Record<string, number>,
   resizable: boolean,
+  fill: boolean,
 ): string {
   if (!resizable) {
     return columns
@@ -130,7 +162,7 @@ function buildGridTemplate<M>(
   return columns
     .map((c, i) => {
       const min = `${c.minWidth ?? MIN_COL_PX}px`;
-      if (i === lastIdx) return `minmax(${min}, 1fr)`;
+      if (i === lastIdx && !fill) return `minmax(${min}, 1fr)`;
       const ov = overrides[c.id];
       const preferred =
         ov != null
@@ -252,9 +284,16 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   }, [columns, columnOrder, reorderableColumns]);
 
   const treeColId = orderedColumns[0]?.id;
+
+  // Fill flags resolved here (not in the dither section below) because the
+  // grid template and the resize logic both branch on fill mode.
+  const fillOn = columnFill !== false;
+  const fillOpts = typeof columnFill === "object" ? columnFill : {};
+  const fillAnimated = fillOpts.animated === true;
+
   const gridTemplate = useMemo(
-    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns),
-    [orderedColumns, columnWidths, resizableColumns],
+    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns, fillOn),
+    [orderedColumns, columnWidths, resizableColumns, fillOn],
   );
 
   // --- Filtering: infer each filterable column's UI + build active filters ---
@@ -476,18 +515,70 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     return Array.from(row.children).map((el) => (el as HTMLElement).getBoundingClientRect().width);
   };
 
-  const applyResize = (idx: number, startWidths: number[], dx: number, minPx: number) => {
+  /** Column ids that may be resized (table opt-in × per-column opt-out). */
+  const resizableColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (resizableColumns) {
+      for (const c of orderedColumns) if (c.resizable !== false) ids.add(c.id);
+    }
+    return ids;
+  }, [resizableColumns, orderedColumns]);
+
+  // The last column is resized via the boundary on its left, normally the
+  // previous column's trailing handle. If the previous column is locked it has
+  // no handle, so the last column would be stuck: give it its own leading-edge
+  // handle that trades width with the nearest resizable column to the left.
+  const lastColLeadingTarget = useMemo(() => {
+    // In fill mode the last column has its own trailing handle, so the
+    // leading-edge workaround never applies.
+    if (fillOn) return null;
+    const n = orderedColumns.length;
+    const last = orderedColumns[n - 1];
+    const prev = orderedColumns[n - 2];
+    if (!last || !resizableColumnIds.has(last.id)) return null;
+    if (!prev || resizableColumnIds.has(prev.id)) return null; // prev's handle already serves
+    for (let k = n - 2; k >= 0; k--) {
+      const c = orderedColumns[k];
+      if (c && resizableColumnIds.has(c.id)) return c.id;
+    }
+    return null;
+  }, [orderedColumns, resizableColumnIds, fillOn]);
+
+  // The handle id → the column its drag actually grows. A leading handle (on
+  // the last column) is remapped to the nearest resizable column on the left;
+  // every other handle resizes its own column.
+  const resolveResizeIdx = (id: string): number => {
+    const idx = orderedColumns.findIndex((c) => c.id === id);
+    if (idx === orderedColumns.length - 1 && lastColLeadingTarget) {
+      return orderedColumns.findIndex((c) => c.id === lastColLeadingTarget);
+    }
+    return idx;
+  };
+
+  const applyResize = (idx: number, startWidths: number[], dx: number) => {
+    const col = orderedColumns[idx];
+    if (!col) return;
+    // Fill mode: columns are independent (the dither filler absorbs slack), so
+    // a drag just sets this one column's width, no cascade.
+    if (fillOn) {
+      const v = Math.max(col.minWidth ?? MIN_COL_PX, Math.round((startWidths[idx] ?? 0) + dx));
+      setColumnWidths((prev) => (prev[col.id] === v ? prev : { ...prev, [col.id]: v }));
+      return;
+    }
     const resizable = orderedColumns.map((c) => c.resizable !== false);
-    const out = resizeBoundary(startWidths, resizable, idx, dx, minPx);
+    // Per-column floors: the CSS tracks clamp at each column's own min, so the
+    // cascade must clamp at the same floors or overrides desync from render.
+    const mins = orderedColumns.map((c) => c.minWidth ?? MIN_COL_PX);
+    const out = resizeBoundary(startWidths, resizable, idx, dx, mins);
     setColumnWidths((prev) => {
       let changed = false;
       const next = { ...prev };
       for (let k = 0; k < out.length - 1; k++) {
-        const col = orderedColumns[k];
-        if (!col) continue;
+        const c = orderedColumns[k];
+        if (!c) continue;
         const v = Math.round(out[k] as number);
-        if (next[col.id] !== v) {
-          next[col.id] = v;
+        if (next[c.id] !== v) {
+          next[c.id] = v;
           changed = true;
         }
       }
@@ -498,7 +589,9 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const resizeRef = useRef<{
     idx: number;
     startWidths: number[];
-    minPx: number;
+    /** +1 in LTR, -1 in RTL: pointer dx is physical, the boundary math is
+     *  logical (positive = grow), so an RTL container flips the sign. */
+    dir: 1 | -1;
     handle: HTMLElement;
   } | null>(null);
   const { onPointerDown: onColumnResizeDown } = usePointerDrag({
@@ -506,20 +599,21 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       const handle = event.currentTarget as HTMLElement;
       const id = handle.dataset.columnId;
       if (!id) return;
-      const idx = orderedColumns.findIndex((c) => c.id === id);
+      const idx = resolveResizeIdx(id);
       const startWidths = measureHeaderWidths();
       if (idx < 0 || !startWidths) return;
       handle.dataset.dragging = "true";
       resizeRef.current = {
         idx,
         startWidths,
-        minPx: orderedColumns[idx]?.minWidth ?? MIN_COL_PX,
+        // Read once per gesture; direction cannot change mid-drag.
+        dir: getComputedStyle(handle).direction === "rtl" ? -1 : 1,
         handle,
       };
     },
     onMove: (delta) => {
       const r = resizeRef.current;
-      if (r) applyResize(r.idx, r.startWidths, delta.dx, r.minPx);
+      if (r) applyResize(r.idx, r.startWidths, r.dir * delta.dx);
     },
     onEnd: () => {
       const r = resizeRef.current;
@@ -528,11 +622,44 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     },
   });
 
-  const nudgeResize = (colId: string, delta: number) => {
-    const idx = orderedColumns.findIndex((c) => c.id === colId);
+  const nudgeResize = (colId: string, dx: number) => {
+    const idx = resolveResizeIdx(colId);
     const widths = measureHeaderWidths();
     if (idx < 0 || !widths) return;
-    applyResize(idx, widths, delta, orderedColumns[idx]?.minWidth ?? MIN_COL_PX);
+    applyResize(idx, widths, dx);
+  };
+
+  // Auto-fit (double-click a handle): size the column to its widest currently
+  // mounted content. Cells clip with ellipsis, so the content span's
+  // scrollWidth reports the natural width; the tree column's leading
+  // indent/chevron/icon run is included via the content's offset in the cell.
+  const autoFitColumn = (colId: string) => {
+    const idx = orderedColumns.findIndex((c) => c.id === colId);
+    const headerCell = headerRowRef.current?.children[idx] as HTMLElement | undefined;
+    const vp = viewportRef.current;
+    if (idx < 0 || !headerCell || !vp) return;
+    // The leading offset (indent/chevron/icon run before the content) is on
+    // the inline-start side, which in RTL is the cell's right edge.
+    const rtl = getComputedStyle(vp).direction === "rtl";
+    const measure = (cell: HTMLElement, content: HTMLElement): number => {
+      const cellRect = cell.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      const leading = rtl ? cellRect.right - contentRect.right : contentRect.left - cellRect.left;
+      return leading + content.scrollWidth;
+    };
+    const label = headerCell.querySelector<HTMLElement>("span");
+    let widest = label ? measure(headerCell, label) : 0;
+    for (const row of Array.from(vp.querySelectorAll<HTMLElement>("[data-row-id]"))) {
+      const cell = row.children[idx] as HTMLElement | undefined;
+      if (!cell) continue;
+      const content = cell.querySelector<HTMLElement>(`.${styles.cellContent}`);
+      widest = Math.max(widest, content ? measure(cell, content) : cell.scrollWidth);
+    }
+    // Trailing cell padding (the leading one is inside the measured offset).
+    const padEnd = Number.parseFloat(getComputedStyle(headerCell).paddingInlineEnd) || 0;
+    const min = orderedColumns[idx]?.minWidth ?? MIN_COL_PX;
+    const next = Math.max(min, Math.ceil(widest + padEnd + AUTOFIT_SLACK_PX));
+    setColumnWidths((prev) => (prev[colId] === next ? prev : { ...prev, [colId]: next }));
   };
 
   // --- Sorting header interaction -------------------------------------------
@@ -547,11 +674,24 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const nonTreeIds = useMemo(() => orderedColumns.slice(1).map((c) => c.id), [orderedColumns]);
+  // Sortable ids are namespaced per instance; the real column id travels in
+  // the item data (read back below and in the overlay).
+  const nonTreeDndIds = useMemo(
+    () => nonTreeIds.map((id) => `${colRegionId}:${id}`),
+    [nonTreeIds, colRegionId],
+  );
+  const realColumnId = (item: {
+    data: { current?: Record<string, unknown> | undefined };
+  }): string | null => {
+    const id = item.data.current?.columnId;
+    return typeof id === "string" ? id : null;
+  };
+  const onColDragStart = (e: DragStartEvent) => setDraggingColId(realColumnId(e.active));
   const onColDragEnd = (e: DragEndEvent) => {
     setDraggingColId(null);
-    const activeId = String(e.active.id);
-    const overId = e.over ? String(e.over.id) : null;
-    if (!overId || activeId === overId) return;
+    const activeId = realColumnId(e.active);
+    const overId = e.over ? realColumnId(e.over) : null;
+    if (!activeId || !overId || activeId === overId) return;
     const from = nonTreeIds.indexOf(activeId);
     const to = nonTreeIds.indexOf(overId);
     if (from < 0 || to < 0) return;
@@ -559,9 +699,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   };
 
   // --- Column-fill dither ---------------------------------------------------
-  const fillOn = columnFill !== false;
-  const fillOpts = typeof columnFill === "object" ? columnFill : {};
-  const fillAnimated = fillOpts.animated === true;
   const [columnsWidth, setColumnsWidth] = useState(0);
   const [fillHeight, setFillHeight] = useState(0);
   useEffect(() => {
@@ -735,64 +872,54 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // --- Row DnD ------------------------------------------------------------
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
-  const computeDropZone = (e: DragMoveEvent | DragEndEvent): DropZone | null => {
+  const dropZoneFromEvent = (e: DragMoveEvent | DragEndEvent): DropZone | null => {
     if (!draggingId) return null;
-    if (!e.over) return { kind: "after-all" };
+    // Released over nothing (or another widget's droppable): cancel, never
+    // reorganize the tree from a drop outside it.
+    if (!e.over || regionIdOf(e.over) !== treeRegionId) return null;
 
-    const data = e.over.data.current as { rowIndex?: number } | undefined;
+    const data = e.over.data.current as { rowIndex?: number; viewport?: boolean } | undefined;
+    // The scroll viewport itself is a droppable: a drop inside the tree but
+    // below the last row appends to the root.
+    if (data?.viewport) return { kind: "after-all" };
     const rowIdx = data?.rowIndex;
     if (rowIdx == null) return null;
 
-    const overRect = e.over.rect;
     const activator = e.activatorEvent as PointerEvent | null;
     if (!activator) return null;
     const currentY = activator.clientY + e.delta.y;
-    const yWithin = currentY - overRect.top;
-    const q = rowHeight / 4;
-    const targetRow = flatRows[rowIdx];
-    if (!targetRow) return null;
-
     const draggedNode = findNode(nodes, draggingId);
     if (!draggedNode) return null;
 
-    let zone: DropZone;
-    if (yWithin < q) {
-      zone = { kind: "before", flatIndex: rowIdx };
-    } else if (yWithin > rowHeight - q) {
-      zone = { kind: "before", flatIndex: rowIdx + 1 };
-    } else if (isFolder(targetRow.node)) {
-      zone = { kind: "into", folderId: targetRow.node.id };
-    } else {
-      zone = { kind: "before", flatIndex: rowIdx };
-    }
-
-    // Cycle prevention: compute prospective parent and reject if it's the
-    // dragged node itself or any of its descendants.
-    let prospectiveParent: string | null = null;
-    if (zone.kind === "into") prospectiveParent = zone.folderId;
-    else if (zone.kind === "before") {
-      const tgt = flatRows[zone.flatIndex];
-      prospectiveParent = tgt ? tgt.parentId : null;
-    }
-    if (wouldCycle(draggedNode, prospectiveParent)) return null;
-    return zone;
+    return computeDropZone({
+      draggedNode,
+      flatRows,
+      rowIndex: rowIdx,
+      yWithinRow: currentY - e.over.rect.top,
+      rowHeight,
+    });
   };
 
-  const onDragStart = (e: DragStartEvent) => setDraggingId(String(e.active.id));
+  const onDragStart = (e: DragStartEvent) =>
+    setDraggingId((e.active.data.current as { nodeId?: string } | undefined)?.nodeId ?? null);
 
   const onDragMove = (e: DragMoveEvent) => {
     if (!editable) return;
-    setDropZone(computeDropZone(e));
+    const next = dropZoneFromEvent(e);
+    // Equality bail: a pointermove that resolves to the same zone must not
+    // allocate a new state object and re-render the whole tree.
+    setDropZone((prev) => (dropZoneEqual(prev, next) ? prev : next));
   };
 
   const onDragEnd = (e: DragEndEvent) => {
-    const zone = computeDropZone(e);
+    const zone = dropZoneFromEvent(e);
     const id = draggingId;
     setDropZone(null);
     setDraggingId(null);
     if (!zone || !id) return;
-    // A reorder while sorted would compute `beforeId` from the sorted order,
-    // not the persisted one — ignore drops until the sort is cleared.
+    // Defense in depth: rows aren't draggable while sorted (see the row's
+    // `draggable`), but a sort applied mid-drag via controlled props would
+    // still compute `beforeId` from the sorted order, not the persisted one.
     if (sort) return;
     if (zone.kind === "into") onMove?.(id, zone.folderId, null);
     else if (zone.kind === "after-all") onMove?.(id, null, null);
@@ -818,15 +945,22 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const flatRowsRef = useRef(flatRows);
   flatRowsRef.current = flatRows;
 
-  // Column region: default (rectIntersection) collision, header ghost overlay.
+  // Each region's collision detection ignores the sibling region's droppables,
+  // so the two regions of one instance never cross-talk (a header drag can't
+  // resolve over a tree row, a row drag can't land on a header).
+  const colCollision = useMemo(() => excludeRegionCollision(treeRegionId), [treeRegionId]);
+  const treeCollision = useMemo(() => excludeRegionCollision(colRegionId), [colRegionId]);
+
+  // Column region: header ghost overlay.
   useSfDndRegion(reorderableColumns ? shared : null, {
     id: colRegionId,
-    collisionDetection: rectIntersection,
-    onDragStart: (e) => setDraggingColId(String(e.active.id)),
+    collisionDetection: colCollision,
+    onDragStart: onColDragStart,
     onDragEnd: onColDragEnd,
     onDragCancel: () => setDraggingColId(null),
     renderOverlay: (activeId) => {
-      const header = orderedColumnsRef.current.find((c) => c.id === activeId)?.header;
+      const colId = unwrapDndId(activeId, colRegionId);
+      const header = orderedColumnsRef.current.find((c) => c.id === colId)?.header;
       return header ? <div className={styles.headerDragOverlay}>{header}</div> : null;
     },
   });
@@ -834,18 +968,23 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // Tree region: node drag/reorder plus host-item drops onto a row.
   useSfDndRegion(shared, {
     id: treeRegionId,
-    collisionDetection: rectIntersection,
+    collisionDetection: treeCollision,
     onDragStart,
     onDragMove,
     onDragEnd,
     onDragCancel,
-    onExternalDrop: ({ active, over }) => {
-      const rowIndex = (over?.data.current as { rowIndex?: number } | undefined)?.rowIndex;
+    onExternalDrop: (e) => {
+      // Guard against this instance's own header drags resolving here.
+      if (regionIdOf(e.active) === colRegionId) return;
+      const rowIndex = (e.over?.data.current as { rowIndex?: number } | undefined)?.rowIndex;
       const overNode = rowIndex != null ? (flatRowsRef.current[rowIndex]?.node ?? null) : null;
-      onExternalDrop?.({ active, overNode });
+      onExternalDrop?.({ active: e.active, overNode });
     },
     renderOverlay: (activeId) => (
-      <DragOverlayContent name={findNode(nodesRef.current, activeId)?.name ?? ""} />
+      <DragOverlayContent
+        name={findNode(nodesRef.current, unwrapDndId(activeId, treeRegionId))?.name ?? ""}
+        height={rowHeight}
+      />
     ),
   });
 
@@ -864,7 +1003,13 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     const isSorted = sort?.columnId === col.id;
     const meta = filterableColumns ? filterMeta.get(col.id) : undefined;
     const filterValue = columnFilters.find((f) => f.id === col.id)?.value;
+    const showTrailingHandle = resizableColumnIds.has(col.id) && (!isLast || fillOn);
+    const showLeadingHandle = isLast && lastColLeadingTarget != null;
+    const showResizeHandle = showTrailingHandle || showLeadingHandle;
+    const widthOverride = columnWidths[col.id];
     return (
+      // Headers are pointer-drag-only (Enter/Space belongs to sorting), so only
+      // dnd listeners are spread (on the label), never dnd.attributes.
       <div
         key={col.id}
         ref={dnd?.ref}
@@ -873,7 +1018,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
         data-sortable={col.sortable || undefined}
         style={dnd?.style}
         onClick={col.sortable ? () => cycleSort(col.id) : undefined}
-        {...(dnd?.attributes ?? {})}
       >
         <span
           className={cx(styles.headerLabel, dnd && styles.headerDraggable)}
@@ -901,25 +1045,35 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             }
           />
         ) : null}
-        {resizableColumns && !isLast && col.resizable !== false ? (
+        {showResizeHandle ? (
           <div
             role="separator"
             aria-orientation="vertical"
             aria-label={`Resize ${col.header}`}
+            aria-valuemin={col.minWidth ?? MIN_COL_PX}
+            aria-valuenow={widthOverride != null ? Math.round(widthOverride) : undefined}
             tabIndex={0}
             data-column-id={col.id}
-            className={styles.resizeHandle}
+            className={cx(styles.resizeHandle, showLeadingHandle && styles.resizeHandleStart)}
             onPointerDown={(e: ReactPointerEvent) => {
               e.stopPropagation();
               onColumnResizeDown(e);
             }}
             onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              // A leading handle resizes a different column; auto-fit only
+              // makes sense on a column's own trailing handle.
+              if (!showLeadingHandle) autoFitColumn(col.id);
+            }}
             onKeyDown={(e) => {
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
               e.preventDefault();
               e.stopPropagation();
-              const step = (e.shiftKey ? 1 : 8) * (e.key === "ArrowRight" ? 1 : -1);
-              nudgeResize(col.id, step);
+              const step = e.shiftKey ? KEY_RESIZE_STEP_COARSE_PX : KEY_RESIZE_STEP_PX;
+              // Arrow keys are physical directions: in RTL "right" shrinks.
+              const dir = getComputedStyle(e.currentTarget).direction === "rtl" ? -1 : 1;
+              nudgeResize(col.id, (e.key === "ArrowRight" ? 1 : -1) * step * dir);
             }}
           />
         ) : null}
@@ -931,8 +1085,9 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     reorderableColumns && i > 0 ? (
       <SortableHeaderCell
         key={col.id}
-        id={col.id}
+        id={`${colRegionId}:${col.id}`}
         regionId={shared ? colRegionId : undefined}
+        data={{ columnId: col.id }}
         render={(dnd) => renderHeaderCell(col, i, dnd)}
       />
     ) : (
@@ -949,17 +1104,17 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       {reorderableColumns ? (
         shared ? (
           // The provider owns the DndContext + overlay; render only the sortable.
-          <SortableContext items={nonTreeIds} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
             {headerCells}
           </SortableContext>
         ) : (
           <DndContext
             sensors={colSensors}
-            onDragStart={(e) => setDraggingColId(String(e.active.id))}
+            onDragStart={onColDragStart}
             onDragEnd={onColDragEnd}
             onDragCancel={() => setDraggingColId(null)}
           >
-            <SortableContext items={nonTreeIds} strategy={horizontalListSortingStrategy}>
+            <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
               {headerCells}
             </SortableContext>
             <DragOverlay dropAnimation={null}>
@@ -1004,6 +1159,11 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
               onContextMenu={handleViewportContextMenu}
               onClick={handleViewportClick}
             >
+              <ViewportDroppable
+                regionId={treeRegionId}
+                viewportRef={viewportRef}
+                disabled={draggingId == null}
+              />
               {showEmpty ? (
                 <div className={styles.empty}>{empty}</div>
               ) : (
@@ -1071,7 +1231,9 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                         dropInto={dropInto}
                         dropBefore={dropBefore}
                         dropAfterLast={dropAfterLast}
-                        draggable={editable}
+                        // While sorted, a reorder can't be applied (beforeId
+                        // would come from the sorted order), so no drag starts.
+                        draggable={editable && !sort}
                         regionId={treeRegionId}
                         icon={icon}
                         onChevronToggle={toggleExpand}
@@ -1144,7 +1306,10 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             {body}
             <DragOverlay dropAnimation={null}>
               {draggingId ? (
-                <DragOverlayContent name={findNode(nodes, draggingId)?.name ?? ""} />
+                <DragOverlayContent
+                  name={findNode(nodes, draggingId)?.name ?? ""}
+                  height={rowHeight}
+                />
               ) : null}
             </DragOverlay>
           </DndContext>
@@ -1213,13 +1378,15 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
   const id = row.node.id;
   const folder = isFolder(row.node);
 
+  // Dnd ids are namespaced per region so two Explorer instances under one
+  // `SfDndProvider` can't collide; the real node id travels in the data.
   const draggableHook = useDraggable({
-    id,
+    id: `${regionId}:${id}`,
     disabled: !draggable || isEditing,
-    data: { [SF_REGION_KEY]: regionId },
+    data: { [SF_REGION_KEY]: regionId, nodeId: id },
   });
   const droppableHook = useDroppable({
-    id: `row-${id}`,
+    id: `${regionId}:row-${id}`,
     data: { [SF_REGION_KEY]: regionId, rowIndex },
   });
 
@@ -1244,9 +1411,11 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: rendering a treegrid row as a div, not a table tr
+    // dnd-kit's `attributes` are deliberately NOT spread: they announce a
+    // Space/Enter pickup that can never activate on a tabIndex=-1 row (rows
+    // are pointer-drag-only).
     <div
       ref={setRef}
-      {...(draggable && !isEditing ? draggableHook.attributes : {})}
       role="row"
       tabIndex={-1}
       aria-level={row.depth + 1}
@@ -1255,6 +1424,7 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
       data-row-id={id}
       data-selected={isSelected}
       data-focused={isFocused}
+      data-draggable={(draggable && !isEditing) || undefined}
       data-dragging={isDragging || undefined}
       data-drop-into={dropInto || undefined}
       data-drop-before={dropBefore || undefined}
@@ -1374,19 +1544,45 @@ function TreeCellContent<M>({
   );
 }
 
+// --- Viewport droppable -----------------------------------------------------
+
+/** Registers the scroll viewport itself as a droppable (attached to the
+ *  already-rendered node via `viewportRef`), so append-to-root fires only for
+ *  drops inside the tree but below the rows. Rendered inside the viewport so
+ *  the hook sits under the owning DndContext in own-context mode.
+ *
+ *  Disabled unless one of THIS tree's rows is being dragged: the viewport rect
+ *  spans the whole tree, so under closestCenter (foreign drags, whose collision
+ *  detection this widget does not own) its center would outrank a row's center
+ *  for drops near the tree's vertical middle and steal row-targeted drops. */
+function ViewportDroppable({
+  regionId,
+  viewportRef,
+  disabled,
+}: {
+  regionId: string;
+  viewportRef: RefObject<HTMLDivElement | null>;
+  disabled: boolean;
+}) {
+  const { setNodeRef } = useDroppable({
+    id: `${regionId}:viewport`,
+    disabled,
+    data: { [SF_REGION_KEY]: regionId, viewport: true },
+  });
+  // Attach once per mount: setNodeRef is identity-stable, and re-attaching per
+  // render would re-fire dnd-kit's node-change handler (a rect recompute).
+  useLayoutEffect(() => {
+    setNodeRef(viewportRef.current);
+    return () => setNodeRef(null);
+  }, [setNodeRef, viewportRef]);
+  return null;
+}
+
 // --- Drag overlay ----------------------------------------------------------
 
-function DragOverlayContent({ name }: { name: string }) {
+function DragOverlayContent({ name, height }: { name: string; height: number }) {
   return (
-    <div
-      className={styles.dragOverlay}
-      style={{
-        padding: "0 calc(var(--sf-unit) / 2)",
-        height: "32px",
-        boxShadow: "var(--sf-elevation-3)",
-        border: "1px solid var(--sf-color-border-subtle)",
-      }}
-    >
+    <div className={styles.dragOverlay} style={{ height: `${height}px` }}>
       {name}
     </div>
   );

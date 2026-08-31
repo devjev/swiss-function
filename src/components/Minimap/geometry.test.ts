@@ -14,37 +14,32 @@ import {
   thumbGeometry,
 } from "./geometry";
 
-describe("railContentHeight (min/max block sizing)", () => {
-  // Args: (spanRailHeights, railHeight, minBlockPx, maxBlockPx, maxScale)
+describe("railContentHeight (min block sizing)", () => {
+  // Args: (spanRailHeights, railHeight, minBlockPx, maxScale)
   it("returns the rail height when nothing binds", () => {
-    // Smallest 20 >= floor 12, largest 80 <= no cap → scale 1.
-    expect(railContentHeight([20, 40, 80], 400, 12, 0, 40)).toBe(400);
+    // Smallest 20 >= floor 12 → scale 1.
+    expect(railContentHeight([20, 40, 80], 400, 12, 40)).toBe(400);
   });
 
   it("grows so the smallest span reaches the floor (dense → scroll)", () => {
     // Smallest 6, floor 12 → scale 2 → 800.
-    expect(railContentHeight([6, 30], 400, 12, 0, 40)).toBe(800);
+    expect(railContentHeight([6, 30], 400, 12, 40)).toBe(800);
   });
 
-  it("shrinks so the largest span fits the cap (sparse → compress)", () => {
-    // Largest 130, cap 24 → scale 24/130 → content < railHeight.
-    expect(railContentHeight([130], 400, 0, 24, 40)).toBeCloseTo(400 * (24 / 130), 5);
-    expect(railContentHeight([130], 400, 0, 24, 40)).toBeLessThan(400);
+  it("never shrinks: a large span compresses per block, not the whole rail", () => {
+    // Shrinking the rail to fit the largest span would bunch every other
+    // marker toward the top (issue #87); the cap lives in markerRailHeight.
+    expect(railContentHeight([130], 400, 0, 40)).toBe(400);
+    expect(railContentHeight([130], 400, 12, 40)).toBe(400);
   });
 
-  it("never lets the cap undercut the floor", () => {
-    // Cap 8 < floor 12 → effective max 12; uniform span meets both at scale 1.
-    expect(railContentHeight([12], 400, 12, 8, 40)).toBe(400);
-  });
-
-  it("caps the scale both ways so a pathological input cannot explode or vanish", () => {
-    expect(railContentHeight([0.1], 400, 12, 0, 40)).toBe(400 * 40); // grow cap
-    expect(railContentHeight([100000], 400, 0, 1, 40)).toBe(400 / 40); // shrink cap
+  it("caps the growth so a pathological input cannot explode the rail", () => {
+    expect(railContentHeight([0.1], 400, 12, 40)).toBe(400 * 40);
   });
 
   it("ignores zero-extent markers and returns rail height when there are no spans", () => {
-    expect(railContentHeight([0, 0], 400, 12, 0, 40)).toBe(400);
-    expect(railContentHeight([], 400, 12, 0, 40)).toBe(400);
+    expect(railContentHeight([0, 0], 400, 12, 40)).toBe(400);
+    expect(railContentHeight([], 400, 12, 40)).toBe(400);
   });
 });
 
@@ -111,6 +106,17 @@ describe("markerRailHeight", () => {
   it("scales proportionally with a floor", () => {
     expect(markerRailHeight(1000, 10000, 400, 2)).toBe(40);
     expect(markerRailHeight(10, 10000, 400, 2)).toBe(2);
+  });
+
+  it("caps a single block at maxPx, leaving other markers untouched", () => {
+    // 5000 of 10000 content in a 400 rail is 200 proportional px; cap at 48.
+    expect(markerRailHeight(5000, 10000, 400, 2, 48)).toBe(48);
+    // A block under the cap keeps its proportional size.
+    expect(markerRailHeight(1000, 10000, 400, 2, 48)).toBe(40);
+  });
+
+  it("the cap never undercuts the floor", () => {
+    expect(markerRailHeight(1000, 10000, 400, 12, 8)).toBe(12);
   });
 });
 

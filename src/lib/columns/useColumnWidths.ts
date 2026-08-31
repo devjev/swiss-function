@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 type WidthMap = Record<string, number>;
 
@@ -20,6 +20,11 @@ interface UseColumnWidthsParams {
  * `setColumnWidths` accepts a value or an updater; updaters that return the
  * previous map unchanged (same reference) don't emit, matching how the resize
  * and auto-fit writers already bail out on no-ops.
+ *
+ * The setter is identity-stable (it reads the live `controlled` map and change
+ * callback through a ref), so callbacks that close over it (drag handlers,
+ * double-click auto-fit) never act on a stale controlled map — a stale closure
+ * here silently reverted earlier resizes in controlled mode.
  */
 export function useColumnWidths({
   columnWidths: controlled,
@@ -29,21 +34,22 @@ export function useColumnWidths({
   const [internal, setInternal] = useState<WidthMap>(defaultColumnWidths ?? {});
   const columnWidths = controlled ?? internal;
 
-  const setColumnWidths = useCallback(
-    (updater: WidthMap | ((prev: WidthMap) => WidthMap)) => {
-      if (controlled !== undefined) {
-        const next = typeof updater === "function" ? updater(controlled) : updater;
-        if (next !== controlled) onColumnWidthsChange?.(next);
-      } else {
-        setInternal((prev) => {
-          const next = typeof updater === "function" ? updater(prev) : updater;
-          if (next !== prev) onColumnWidthsChange?.(next);
-          return next;
-        });
-      }
-    },
-    [controlled, onColumnWidthsChange],
-  );
+  const latest = useRef({ controlled, onColumnWidthsChange });
+  latest.current = { controlled, onColumnWidthsChange };
+
+  const setColumnWidths = useCallback((updater: WidthMap | ((prev: WidthMap) => WidthMap)) => {
+    const { controlled, onColumnWidthsChange } = latest.current;
+    if (controlled !== undefined) {
+      const next = typeof updater === "function" ? updater(controlled) : updater;
+      if (next !== controlled) onColumnWidthsChange?.(next);
+    } else {
+      setInternal((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        if (next !== prev) latest.current.onColumnWidthsChange?.(next);
+        return next;
+      });
+    }
+  }, []);
 
   return { columnWidths, setColumnWidths };
 }

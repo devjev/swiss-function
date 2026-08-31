@@ -29,6 +29,7 @@ import { type ReactNode, useId } from "react";
 import { cx } from "../../lib/cx";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { Glyph } from "../../lib/icons";
+import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { MoreVertical } from "../Icon";
 import styles from "./TableInput.module.css";
 
@@ -154,7 +155,12 @@ function SortableRow({
     <div
       ref={setNodeRef}
       className={cx(className, isDragging && styles.dragging)}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        // dnd-kit's settle transition is an inline style, so it must be gated
+        // here; the reduced-motion media query cannot reach it.
+        transition: prefersReducedMotion() ? undefined : transition,
+      }}
     >
       {children(handle)}
     </div>

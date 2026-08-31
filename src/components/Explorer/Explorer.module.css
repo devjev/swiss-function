@@ -161,6 +161,18 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
+/* Leading-edge variant: sits on the last column's left border when the
+   neighbour is locked, remapped to the nearest resizable column. */
+.resizeHandleStart {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--sf-unit) / -4);
+}
+
+.resizeHandleStart::after {
+  inset-inline-end: auto;
+  inset-inline-start: calc(var(--sf-unit) / 4 - 1px);
+}
+
 .headerCell:hover .resizeHandle::after,
 .resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after,
@@ -177,7 +189,7 @@
   display: grid;
   place-items: center;
   padding: var(--sf-unit);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
 }
 
@@ -254,6 +266,12 @@
   position: absolute;
   inset-inline: 0;
   outline: none;
+}
+
+/* Only rows that can start a drag give up touch scrolling; read-only trees
+   keep native touch panning. */
+.row[data-draggable] {
+  touch-action: none;
 }
 
 .row:hover {
@@ -387,14 +405,17 @@
   pointer-events: none;
 }
 
-/* --- Drag overlay row --- */
+/* --- Drag overlay row (height comes from the rowHeight prop, inline) --- */
 .dragOverlay {
   display: grid;
   align-items: center;
+  padding: 0 calc(var(--sf-unit) / 2);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-elevation-3);
   pointer-events: none;
 }
 

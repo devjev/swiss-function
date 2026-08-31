@@ -152,4 +152,30 @@ describe("resizeBoundary", () => {
   it("is a no-op on the last column (it has no trailing handle)", () => {
     expect(resizeBoundary([100, 100, 100, 100], ALL, 3, 30, MIN)).toEqual([100, 100, 100, 100]);
   });
+
+  it("clamps each cascade column at its own min (per-column mins)", () => {
+    // col1 declares a larger min (80): it gives only 20, col2 absorbs the rest.
+    const out = resizeBoundary([100, 100, 100, 100], ALL, 0, 50, [20, 80, 20, 20]);
+    expect(out).toEqual([150, 80, 70, 100]);
+    expect(sum(out)).toBe(400);
+  });
+
+  it("clamps the dragged column's shrink at its own min (per-column mins)", () => {
+    const out = resizeBoundary([100, 100, 100, 100], ALL, 0, -50, [80, 20, 20, 20]);
+    expect(out).toEqual([80, 120, 100, 100]); // col0 can only give 20
+    expect(sum(out)).toBe(400);
+  });
+
+  it("a column measured below its min gives nothing instead of a negative amount", () => {
+    // col1 renders at 10 under a min of 20; it must not grow (negative take)
+    // or inflate the remaining shrink demand.
+    const out = resizeBoundary([100, 10, 100, 100], ALL, 0, 30, MIN);
+    expect(out).toEqual([130, 10, 70, 100]);
+    expect(sum(out)).toBe(310);
+  });
+
+  it("a dragged column below its min gives nothing on shrink", () => {
+    const out = resizeBoundary([10, 100, 100, 100], ALL, 0, -30, MIN);
+    expect(out).toEqual([10, 100, 100, 100]);
+  });
 });

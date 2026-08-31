@@ -945,6 +945,42 @@ test("a column whose windows are all popped out collapses away", async ({ mount,
   await expect(c.locator("div[data-column-id]")).toHaveCount(3);
 });
 
+test("the after drop line renders on the last visible window when the one below is popped out", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<WindowArrayHarness popOutable />);
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c
+      .locator('[data-window-id="w2b"]')
+      .getByRole("button", { name: "Open in a separate window" })
+      .click(),
+  ]);
+  await expect(popup.getByText("Body of Window 2B")).toBeVisible();
+  // w2a is column 2's only visible window now. Dragging onto its lower half
+  // targets the slot after it (full-array index 1, before the popped w2b);
+  // the indicator must render even though w2a is not the full-array last row.
+  const handle = page.getByRole("button", { name: "Window 1A" });
+  const target = page.locator('[data-window-id="w2a"]');
+  const hb = await handle.boundingBox();
+  const tb = await target.boundingBox();
+  if (!hb || !tb) throw new Error("missing bounding boxes");
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height * 0.8, { steps: 10 });
+  await expect(target).toHaveAttribute("data-drop-edge", "after");
+  await page.mouse.up();
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 0 },
+      to: { type: "cell", columnId: "col-2", index: 1 },
+    }),
+  );
+  await popup.close();
+});
+
 test("popping a window holds the strip's horizontal scroll position", async ({ mount, page }) => {
   // Enough columns to overflow horizontally.
   const c = await mount(

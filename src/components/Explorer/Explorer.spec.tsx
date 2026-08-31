@@ -227,15 +227,37 @@ test("sort cycles asc → desc → none, showing/removing the arrow", async ({ m
   await expect(name.locator("xpath=..").getByText("↓")).toHaveCount(0);
 });
 
-test("keyboard resize widens a column (ArrowRight on its separator)", async ({ mount }) => {
+test("keyboard resize steps 8px per arrow, 24px with Shift (shared constants)", async ({
+  mount,
+}) => {
   const c = await mount(<ExplorerHarness grid />);
   const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
-  const before = (await nameCell.boundingBox())!.width;
   const handle = c.getByRole("separator", { name: "Resize Name" });
   await handle.focus();
-  for (let i = 0; i < 6; i++) await handle.press("ArrowRight");
-  const after = (await nameCell.boundingBox())!.width;
-  expect(after).toBeGreaterThan(before);
+  const before = (await nameCell.boundingBox())!.width;
+  await handle.press("ArrowRight");
+  const afterPlain = (await nameCell.boundingBox())!.width;
+  expect(Math.round(afterPlain - before)).toBe(8);
+  await handle.press("Shift+ArrowRight");
+  const afterCoarse = (await nameCell.boundingBox())!.width;
+  expect(Math.round(afterCoarse - afterPlain)).toBe(24);
+});
+
+test("resize handle exposes ARIA value semantics; double-click auto-fits the column", async ({
+  mount,
+}) => {
+  const c = await mount(<ExplorerHarness grid />);
+  const handle = c.getByRole("separator", { name: "Resize Name" });
+  // Min is the default 48px floor; no override yet, so valuenow is absent.
+  await expect(handle).toHaveAttribute("aria-valuemin", "48");
+  await expect(handle).not.toHaveAttribute("aria-valuenow", /.*/);
+  await handle.dblclick();
+  // Auto-fit writes a px override, which then surfaces as aria-valuenow.
+  const valuenow = await handle.getAttribute("aria-valuenow");
+  expect(Number(valuenow)).toBeGreaterThanOrEqual(48);
+  const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
+  const width = (await nameCell.boundingBox())!.width;
+  expect(Math.round(width)).toBe(Number(valuenow));
 });
 
 test("filter funnel prunes to matches and keeps the ancestor path", async ({ mount, page }) => {

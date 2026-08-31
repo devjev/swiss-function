@@ -920,12 +920,18 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   };
 
   // --- Drop-indicator resolution --------------------------------------------
-  const dropEdgeFor = (columnId: string, row: number, count: number): "before" | "after" | null => {
+  const dropEdgeFor = (
+    columnId: string,
+    row: number,
+    lastVisibleRow: number,
+  ): "before" | "after" | null => {
     if (dropSlot?.kind !== "cell" || dropSlot.columnId !== columnId) return null;
     if (dropSlot.index === row) return "before";
-    // Only the last window shows an "after" line — for every other slot the
-    // next window's "before" line is the same boundary.
-    if (dropSlot.index === row + 1 && row === count - 1) return "after";
+    // Only the last VISIBLE window shows an "after" line: for every other slot
+    // the next window's "before" line is the same boundary. Slot indices are
+    // full-array, but a popped window past the last visible one renders no
+    // cell to carry the line, so the check runs against the last visible row.
+    if (dropSlot.index === row + 1 && row === lastVisibleRow) return "after";
     return null;
   };
 
@@ -948,8 +954,23 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     onDragEnd,
     onDragCancel,
     onExternalDrop: ({ active, over }) => {
-      const data = (over?.data.current ?? null) as WindowArrayExternalDrop["over"];
-      onExternalDrop?.({ active, over: data });
+      // Pick the public fields explicitly: the raw drop data also carries the
+      // internal region-routing key, which must not leak into the payload.
+      // Include each key only when present, so a consumer discriminating the
+      // documented union by key presence ("gapIndex" in over) keeps working.
+      const data = over?.data.current as
+        | { columnId?: string; row?: number | null; gapIndex?: number }
+        | undefined;
+      onExternalDrop?.({
+        active,
+        over: data
+          ? {
+              ...(data.columnId !== undefined ? { columnId: data.columnId } : null),
+              ...(data.row !== undefined ? { row: data.row } : null),
+              ...(data.gapIndex !== undefined ? { gapIndex: data.gapIndex } : null),
+            }
+          : null,
+      });
     },
     renderOverlay: (activeId) => {
       const w = allWindowsRef.current.find((x) => x.id === activeId);
@@ -1131,8 +1152,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
               {/* One flat keyed list for every window on the strip — the single
                 stable parent that makes cross-column moves state-preserving.
                 Do NOT nest these under per-column elements or fragments. */}
-              {columns.flatMap((col) =>
-                col.windows.map((win, row) => (
+              {columns.flatMap((col) => {
+                // Full-array row of the column's last visible window (-1 when
+                // all are popped), for the "after" drop-line check.
+                let lastVisibleRow = -1;
+                col.windows.forEach((w, i) => {
+                  if (!resolvedPopped.includes(w.id)) lastVisibleRow = i;
+                });
+                return col.windows.map((win, row) => (
                   <WindowView
                     key={win.id}
                     regionId={regionId}
@@ -1154,7 +1181,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     anyOverlay={resolvedFullscreen != null || resolvedSplit != null}
                     rovingTab={rovingId === win.id}
                     dragging={draggingId === win.id}
-                    dropEdge={dropEdgeFor(col.props.id, row, col.windows.length)}
+                    dropEdge={dropEdgeFor(col.props.id, row, lastVisibleRow)}
                     moveEnabled={(win.movable ?? true) && onWindowMove != null}
                     onActivate={() => {
                       // Pointer activation (clicking a window or its chrome): the
@@ -1213,8 +1240,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     onKeyDown={onHandleKeyDown(win.id)}
                     registerHandle={handleRefs.current}
                   />
-                )),
-              )}
+                ));
+              })}
             </div>
           </div>
         );
@@ -1348,7 +1375,10 @@ function ColumnBackdrop({
     ...rest
   } = col;
   const { setNodeRef } = useDroppable({
-    id: `col-${id}`,
+    // Region-prefixed: dnd-kit's droppable registry is id-keyed, so two
+    // WindowArrays under one SfDndProvider would clobber each other's
+    // droppables on bare ids. Routing reads the data, never parses the id.
+    id: `${regionId}:col-${id}`,
     data: { [SF_REGION_KEY]: regionId, columnId: id, row: null },
     disabled: windowCount > 0,
   });
@@ -1401,7 +1431,9 @@ function GutterView({
   regionId,
 }: GutterViewProps) {
   const { setNodeRef } = useDroppable({
-    id: `gap-${index}`,
+    // Region-prefixed so two WindowArrays under one provider can't clobber
+    // each other's gap droppables (routing reads the data, not the id).
+    id: `${regionId}:gap-${index}`,
     data: { [SF_REGION_KEY]: regionId, gapIndex: index },
   });
   const resizable = leftColumn != null && (leftColumn.resizable ?? true);
@@ -1520,7 +1552,9 @@ function WindowView({
     data: { [SF_REGION_KEY]: regionId },
   });
   const { setNodeRef: setDropRef } = useDroppable({
-    id: `win-${id}`,
+    // Region-prefixed so two WindowArrays under one provider can't clobber
+    // each other's window droppables (routing reads the data, not the id).
+    id: `${regionId}:win-${id}`,
     data: { [SF_REGION_KEY]: regionId, columnId, row },
   });
   const sectionRef = useRef<HTMLElement | null>(null);

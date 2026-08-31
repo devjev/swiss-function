@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { Basic, MixedHeightsForm, NavForm, Sections, TallFieldForm } from "./VerticalForm.harness";
+import {
+  Basic,
+  MixedHeightsCappedForm,
+  MixedHeightsForm,
+  NavForm,
+  Sections,
+  TallFieldForm,
+} from "./VerticalForm.harness";
 
 /** The scroll element is the target of the rail scrollbar's aria-controls. */
 async function scrollTopOf(c: { locator(selector: string): Locator; page(): Page }) {
@@ -39,10 +46,10 @@ test("section titles appear on the rail above their fields", async ({ mount }) =
 });
 
 test("a tall field does not compress the other rail markers to the top", async ({ mount }) => {
-  // A field with a very tall control (a TableInput in the wild) used to report
-  // its full height as a rail span; with `maxBlock` set, Minimap shrank the
-  // whole rail to fit it and every marker bunched at the top. The span is now
-  // capped, so "Last" tracks its real (lower) position.
+  // A field with a very tall control (a TableInput in the wild) once made
+  // Minimap shrink the whole rail to fit it under `maxBlock`, bunching every
+  // marker at the top. The cap is per block now, so "Last" tracks its real
+  // (lower) position.
   const c = await mount(<TallFieldForm />);
   const rail = c.locator('[class*="rail"]').first();
   const railBox = await rail.boundingBox();
@@ -54,12 +61,14 @@ test("a tall field does not compress the other rail markers to the top", async (
   expect(railFraction).toBeGreaterThan(0.5);
 });
 
-test("rail blocks read the field density; a giant field is capped, not dominant", async ({
+test("rail blocks are honest: each spans its field's real share of the document", async ({
   mount,
 }) => {
-  // Restores the density read (issue #87): each field's rail block is sized by
-  // its real height (not flattened to its label), while an outsized field is
-  // bounded so it doesn't dwarf the others.
+  // The density read (issue #87) with honest proportions: the moderately tall
+  // field reads clearly bigger than the short one, and the giant field (a
+  // TableInput in the wild) reads as a proportionally giant block. It was
+  // silently capped at 8 label-heights before, which rendered a 300px table
+  // and a 1200px table as identical short blocks.
   const c = await mount(<MixedHeightsForm />);
   // Block markers are `…_marker__…` (the container is `…_markers__…`, which the
   // double underscore after "marker" excludes). They populate after a measure,
@@ -72,11 +81,26 @@ test("rail blocks read the field density; a giant field is capped, not dominant"
   const short = heights[0] ?? 0;
   const tall = heights[1] ?? 0;
   const giant = heights[2] ?? 0;
-  // Density: the moderately tall field reads clearly bigger than the short one
-  // (it was flattened to a label-sized rule before this fix).
+  // Density: the moderately tall field reads clearly bigger than the short one.
   expect(tall).toBeGreaterThan(short * 1.4);
-  // Cap: the 1200px giant does not dominate — its block is within a small
-  // factor of the tall field's, not many times larger.
+  // Honesty: the 1200px giant reads far bigger than the 140px tall field.
+  expect(giant).toBeGreaterThan(tall * 2);
+});
+
+test("maxBlock caps only the outsized block; the rest stay proportional", async ({ mount }) => {
+  const c = await mount(<MixedHeightsCappedForm />);
+  const blocks = c.locator('[class*="marker__"]');
+  await expect(blocks).toHaveCount(3);
+  const heights = await blocks.evaluateAll((els) =>
+    els.map((e) => Math.round(e.getBoundingClientRect().height)),
+  );
+  const short = heights[0] ?? 0;
+  const tall = heights[1] ?? 0;
+  const giant = heights[2] ?? 0;
+  // The giant block is clipped at the cap (2 units = 48px; allow rounding).
+  expect(giant).toBeLessThanOrEqual(49);
+  // The others keep their proportional read, unaffected by the cap.
+  expect(tall).toBeGreaterThan(short * 1.4);
   expect(giant).toBeLessThan(tall * 2);
 });
 

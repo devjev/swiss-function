@@ -305,7 +305,13 @@ export function MergeHarness() {
 
 type AddrRow = { name: string; street: string; city: string; zip: string; age: number };
 
-export function GroupsHarness({ defaultCollapsed }: { defaultCollapsed?: boolean }) {
+export function GroupsHarness({
+  defaultCollapsed,
+  reorderableColumns,
+}: {
+  defaultCollapsed?: boolean;
+  reorderableColumns?: boolean;
+}) {
   const data: AddrRow[] = [
     { name: "Alice", street: "12 Main", city: "NYC", zip: "10001", age: 30 },
     { name: "Bob", street: "34 Oak", city: "SFO", zip: "94110", age: 25 },
@@ -324,7 +330,14 @@ export function GroupsHarness({ defaultCollapsed }: { defaultCollapsed?: boolean
     },
     { id: "age", header: "Age", accessor: "age", align: "end" },
   ];
-  return <DataTable<AddrRow> data={data} columns={columns} height={300} />;
+  return (
+    <DataTable<AddrRow>
+      data={data}
+      columns={columns}
+      height={300}
+      reorderableColumns={reorderableColumns}
+    />
+  );
 }
 
 // --- High-cardinality filter harness ---

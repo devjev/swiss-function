@@ -112,63 +112,94 @@ export function SfDndProvider({
     return (region?.collisionDetection ?? closestCenter)(args);
   }, []);
 
-  const handleDragStart = useCallback((e: DragStartEvent) => {
-    const regionId = regionIdOf(e.active);
-    setActive({ id: String(e.active.id), regionId });
-    if (regionId) regions.current.get(regionId)?.onDragStart?.(e);
-    propsRef.current.onDragStart?.(e);
+  /** A drag is claimed when its active item carries a registered region id.
+   *  The top-level handler props are documented to fire only for unclaimed
+   *  (host-owned) drags, so every dispatch below gates on this — a host that
+   *  tracks drag state via onDragStart/onDragEnd must see a consistent
+   *  start/move/over/end/cancel set, never a start with no end. */
+  const isClaimed = useCallback((regionId: string | null): regionId is string => {
+    return regionId != null && regions.current.has(regionId);
   }, []);
 
-  const handleDragMove = useCallback((e: DragMoveEvent) => {
-    const regionId = regionIdOf(e.active);
-    if (regionId) regions.current.get(regionId)?.onDragMove?.(e);
-    propsRef.current.onDragMove?.(e);
-  }, []);
+  const handleDragStart = useCallback(
+    (e: DragStartEvent) => {
+      const regionId = regionIdOf(e.active);
+      setActive({ id: String(e.active.id), regionId });
+      if (isClaimed(regionId)) regions.current.get(regionId)?.onDragStart?.(e);
+      else propsRef.current.onDragStart?.(e);
+    },
+    [isClaimed],
+  );
 
-  const handleDragOver = useCallback((e: DragOverEvent) => {
-    const regionId = regionIdOf(e.active);
-    if (regionId) regions.current.get(regionId)?.onDragOver?.(e);
-    propsRef.current.onDragOver?.(e);
-  }, []);
+  const handleDragMove = useCallback(
+    (e: DragMoveEvent) => {
+      const regionId = regionIdOf(e.active);
+      if (isClaimed(regionId)) regions.current.get(regionId)?.onDragMove?.(e);
+      else propsRef.current.onDragMove?.(e);
+    },
+    [isClaimed],
+  );
 
-  const handleDragEnd = useCallback((e: DragEndEvent) => {
-    setActive(null);
-    const activeRegionId = regionIdOf(e.active);
-    const route = routeDragEnd(activeRegionId, regionIdOf(e.over), (id) => regions.current.has(id));
-    if (route.kind === "internal") {
-      // The region's handler reorders and cleans up (it self-guards on `over`,
-      // so a drop over nothing or another region is a no-op).
-      regions.current.get(route.regionId)?.onDragEnd?.(e);
-      return;
-    }
-    if (route.kind === "external") {
-      // A foreign item lands on the target region's `onExternalDrop`.
-      regions.current.get(route.regionId)?.onExternalDrop?.(e);
-      // On a cross-region drag-OUT (the item owns a different registered region),
-      // the source region got no terminal event for its own drag, so its
-      // transient drag state (the ghosted source row) would leak. Reset it via
-      // the source's cancel handler — a pure reset that runs no reorder. A host
-      // item (`activeRegionId === null`) has no source region to reset.
-      if (activeRegionId && activeRegionId !== route.regionId) {
-        regions.current.get(activeRegionId)?.onDragCancel?.(e);
+  const handleDragOver = useCallback(
+    (e: DragOverEvent) => {
+      const regionId = regionIdOf(e.active);
+      if (isClaimed(regionId)) regions.current.get(regionId)?.onDragOver?.(e);
+      else propsRef.current.onDragOver?.(e);
+    },
+    [isClaimed],
+  );
+
+  const handleDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      setActive(null);
+      const activeRegionId = regionIdOf(e.active);
+      const claimed = isClaimed(activeRegionId);
+      const route = routeDragEnd(activeRegionId, regionIdOf(e.over), (id) =>
+        regions.current.has(id),
+      );
+      if (route.kind === "internal") {
+        // The region's handler reorders and cleans up (it self-guards on `over`,
+        // so a drop over nothing or another region is a no-op).
+        regions.current.get(route.regionId)?.onDragEnd?.(e);
+        return;
       }
-    }
-    propsRef.current.onDragEnd?.(e);
-  }, []);
+      if (route.kind === "external") {
+        // A foreign item lands on the target region's `onExternalDrop`.
+        regions.current.get(route.regionId)?.onExternalDrop?.(e);
+        // On a cross-region drag-OUT (the item owns a different registered region),
+        // the source region got no terminal event for its own drag, so its
+        // transient drag state (the ghosted source row) would leak. Reset it via
+        // the source's cancel handler — a pure reset that runs no reorder. A host
+        // item (`activeRegionId === null`) has no source region to reset.
+        if (claimed && activeRegionId !== route.regionId) {
+          regions.current.get(activeRegionId)?.onDragCancel?.(e);
+        }
+      }
+      // The host's terminal event, for host-owned drags only: a widget-internal
+      // reorder or drag-out never leaks to the host handlers.
+      if (!claimed) propsRef.current.onDragEnd?.(e);
+    },
+    [isClaimed],
+  );
 
-  const handleDragCancel = useCallback((e: DragCancelEvent) => {
-    setActive(null);
-    const regionId = regionIdOf(e.active);
-    if (regionId) regions.current.get(regionId)?.onDragCancel?.(e);
-    propsRef.current.onDragCancel?.(e);
-  }, []);
+  const handleDragCancel = useCallback(
+    (e: DragCancelEvent) => {
+      setActive(null);
+      const regionId = regionIdOf(e.active);
+      if (isClaimed(regionId)) regions.current.get(regionId)?.onDragCancel?.(e);
+      else propsRef.current.onDragCancel?.(e);
+    },
+    [isClaimed],
+  );
 
+  // The host's renderOverlay serves unclaimed (host-owned) drags only. A region
+  // drag whose widget registered no overlay renders nothing — those widgets
+  // drag via an in-place sortable transform, and the host's foreign-item ghost
+  // (built from an id the host never issued) must not shadow it.
   const overlay = active
-    ? ((active.regionId
-        ? regions.current.get(active.regionId)?.renderOverlay?.(active.id)
-        : null) ??
-      propsRef.current.renderOverlay?.(active.id) ??
-      null)
+    ? active.regionId
+      ? (regions.current.get(active.regionId)?.renderOverlay?.(active.id) ?? null)
+      : (propsRef.current.renderOverlay?.(active.id) ?? null)
     : null;
 
   return (
