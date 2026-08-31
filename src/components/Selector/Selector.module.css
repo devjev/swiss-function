@@ -49,6 +49,37 @@
   width: 100%;
 }
 
+/* Items under a group header indent one unit past their header. */
+.virtualItem[data-grouped] {
+  padding-inline-start: calc(var(--sf-unit) + var(--sf-space-3));
+}
+
+/* Group section header: a windowed row like .virtualItem, styled to match
+   Menu's group labels. Presentational (not focusable, skipped by keyboard
+   navigation); bottom-aligned so the label reads as heading the items below. */
+.groupHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-end;
+  padding: var(--sf-space-2) var(--sf-space-3) var(--sf-space-1);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+}
+
+/* Clickable header (group toggle): hover feedback is a bg tint, the label
+   stays full-strength fg. */
+.groupHeader[data-toggleable] {
+  cursor: pointer;
+}
+.groupHeader[data-toggleable]:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
 /* The "bucket": a bordered container collecting the chosen items. */
 .bucket {
   display: grid;
@@ -80,7 +111,7 @@
 
 .bucketEmpty {
   font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-muted);
+  color: var(--sf-color-fg);
 }
 
 /* --- Inline & compact layouts: a strict single row that never grows vertically --- */

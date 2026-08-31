@@ -357,3 +357,92 @@ test("compact layout stays fit-content in a shrink-to-fit parent (floor does not
   if (!box) throw new Error("missing bounding box");
   expect(box.width).toBeLessThan(190);
 });
+
+/* --- Grouped items --- */
+
+test("grouped items render section headers; selecting across groups fills the bucket", async ({
+  mount,
+  page,
+}) => {
+  let last: string[] = [];
+  const component = await mount(
+    <Selector
+      items={[
+        { value: "bern", label: "Bern", group: "Switzerland" },
+        { value: "zurich", label: "Zurich", group: "Switzerland" },
+        { value: "berlin", label: "Berlin", group: "Germany" },
+      ]}
+      onChange={(v) => (last = v)}
+    />,
+  );
+  await component.getByRole("combobox").click();
+  const listbox = page.getByRole("listbox");
+  await expect(listbox.getByText("Switzerland")).toBeVisible();
+  await expect(listbox.getByText("Germany")).toBeVisible();
+
+  await page.getByRole("option", { name: "Bern" }).click();
+  await page.getByRole("option", { name: "Berlin" }).click();
+  expect(last).toEqual(["bern", "berlin"]);
+  // Close the popup first: while it is open Base UI aria-hides the outside
+  // content (the bucket included), so the chips have no accessible role yet.
+  await page.keyboard.press("Escape");
+  await expect(component.getByRole("button", { name: "Remove Bern" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Remove Berlin" })).toBeVisible();
+});
+
+test("clicking a group header selects all its items; clicking again deselects them", async ({
+  mount,
+  page,
+}) => {
+  let last: string[] = [];
+  const component = await mount(
+    <Selector
+      items={[
+        { value: "bern", label: "Bern", group: "Switzerland" },
+        { value: "zurich", label: "Zurich", group: "Switzerland" },
+        { value: "berlin", label: "Berlin", group: "Germany" },
+      ]}
+      onChange={(v) => (last = v)}
+    />,
+  );
+  await component.getByRole("combobox").click();
+  const header = page.getByRole("listbox").getByText("Switzerland");
+  await header.click();
+  expect(last).toEqual(["bern", "zurich"]);
+  // All selected → the same click deselects the whole group.
+  await header.click();
+  expect(last).toEqual([]);
+  // The other group was never touched, and the popup stayed open.
+  await expect(page.getByRole("option", { name: "Berlin" })).toBeVisible();
+});
+
+test("group header toggle completes a partial selection and respects the filter", async ({
+  mount,
+  page,
+}) => {
+  let last: string[] = [];
+  const component = await mount(
+    <Selector
+      items={[
+        { value: "bern", label: "Bern", group: "Switzerland" },
+        { value: "zurich", label: "Zurich", group: "Switzerland" },
+        { value: "berlin", label: "Berlin", group: "Germany" },
+      ]}
+      onChange={(v) => (last = v)}
+    />,
+  );
+  const input = component.getByRole("combobox");
+  await input.click();
+  // Partial selection: header click selects the missing items, not a toggle-off.
+  await page.getByRole("option", { name: "Bern" }).click();
+  expect(last).toEqual(["bern"]);
+  await page.getByRole("listbox").getByText("Switzerland").click();
+  expect(last).toEqual(["bern", "zurich"]);
+
+  // Filtered: the header acts only on its visible items. With just Bern
+  // matching, the group counts as fully selected, so the click drops Bern
+  // and leaves the filtered-out Zurich alone.
+  await input.fill("Bern");
+  await page.getByRole("listbox").getByText("Switzerland").click();
+  expect(last).toEqual(["zurich"]);
+});

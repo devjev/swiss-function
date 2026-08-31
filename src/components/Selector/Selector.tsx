@@ -2,13 +2,18 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode, RefObject } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { buildOptionRows, clusterOptions } from "../../lib/optionGroups";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
 import styles from "./Selector.module.css";
 
-/** A selectable item: a bare string, or an object with a separate display label. */
+/** A selectable item: a bare string, or an object with a separate display label.
+ *  An optional `group` names the section the item renders under: items sharing
+ *  a `group` cluster below one header (in order of each group's first
+ *  appearance), ungrouped items list first, headerless. A group whose items
+ *  are all filtered out disappears with them. */
 export type SelectorItem = string | SelectorOption;
-export type SelectorOption = { value: string; label: string };
+export type SelectorOption = { value: string; label: string; group?: string };
 
 export interface SelectorProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** The items to search and choose from. */
@@ -56,45 +61,85 @@ function normalize(item: SelectorItem): SelectorOption {
  *  scroll the active index into view via `scrollToIndexRef`. */
 function VirtualOptions({
   scrollToIndexRef,
+  onGroupToggle,
 }: {
   scrollToIndexRef: RefObject<((index: number) => void) | null>;
+  /** Fired with the values of a header's currently filtered items when the
+   *  header is clicked. */
+  onGroupToggle?: (values: string[]) => void;
 }) {
   const filtered = Combobox.useFilteredItems<SelectorOption>();
   const listRef = useRef<HTMLDivElement>(null);
+  // Interleave group header rows: virtual rows = headers + items, while Base UI
+  // keeps navigating the flat filtered items (headers are not focusable).
+  const { rows, itemRowIndex } = useMemo(() => buildOptionRows(filtered), [filtered]);
   const virtualizer = useVirtualizer({
-    count: filtered.length,
+    count: rows.length,
     getScrollElement: () => listRef.current,
-    estimateSize: () => 40,
+    estimateSize: (i) => (rows[i]?.kind === "header" ? 28 : 40),
     overscan: 8,
   });
   // Layout effect (not render) for render purity; child layout effects run
   // before ancestors', so the ref is set before Base UI's open-time
-  // onItemHighlighted needs it.
+  // onItemHighlighted needs it. Base UI hands us item indexes; map to rows.
   useLayoutEffect(() => {
-    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(index);
+    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(itemRowIndex[index] ?? index);
     return () => {
       scrollToIndexRef.current = null;
     };
-  }, [scrollToIndexRef, virtualizer]);
+  }, [scrollToIndexRef, virtualizer, itemRowIndex]);
   return (
     <Combobox.List ref={listRef} className={styles.virtualList} data-virtualized-list="">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-        {virtualizer.getVirtualItems().map((row) => {
-          const option = filtered[row.index] as SelectorOption;
+        {virtualizer.getVirtualItems().map((vrow) => {
+          const row = rows[vrow.index];
+          if (!row) return null;
+          if (row.kind === "header") {
+            // Presentational: the listbox stays flat for AT (the APG-nestable
+            // role="group" can't wrap absolutely-positioned windowed rows).
+            // Clicking is a pointer-only shortcut over the group's visible
+            // items; keyboard selection stays per item. preventDefault on
+            // pointerdown keeps focus in the input so the popup stays open.
+            return (
+              <div
+                key={`#${row.group}`}
+                ref={virtualizer.measureElement}
+                data-index={vrow.index}
+                aria-hidden="true"
+                data-toggleable={onGroupToggle ? "" : undefined}
+                className={styles.groupHeader}
+                style={{ transform: `translateY(${vrow.start}px)` }}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={
+                  onGroupToggle
+                    ? () =>
+                        onGroupToggle(
+                          filtered.filter((o) => o.group === row.group).map((o) => o.value),
+                        )
+                    : undefined
+                }
+              >
+                {row.group}
+              </div>
+            );
+          }
+          const option = row.option;
           return (
             // aria-setsize/posinset: Base UI emits neither, and without them
             // screen readers announce only the mounted window as the whole
             // list (WAI-ARIA APG requirement for partially rendered listboxes).
+            // They count items only, so headers don't skew the announced size.
             <Combobox.Item
               key={option.value}
               value={option}
               index={row.index}
               ref={virtualizer.measureElement}
-              data-index={row.index}
+              data-index={vrow.index}
+              data-grouped={option.group ? "" : undefined}
               aria-setsize={filtered.length}
               aria-posinset={row.index + 1}
               className={styles.virtualItem}
-              style={{ transform: `translateY(${row.start}px)` }}
+              style={{ transform: `translateY(${vrow.start}px)` }}
             >
               <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
               {option.label}
@@ -130,7 +175,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
   },
   ref,
 ) {
-  const options = useMemo(() => items.map(normalize), [items]);
+  const options = useMemo(() => clusterOptions(items.map(normalize)), [items]);
   const byValue = useMemo(() => new Map(options.map((o) => [o.value, o])), [options]);
 
   // Controlled/uncontrolled: we always track the selection internally so the
@@ -184,6 +229,19 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
 
   const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
 
+  // Clicking a group header toggles its visible items as one: select the
+  // missing ones, or deselect them all when every one is already selected.
+  const toggleGroup = (values: string[]) => {
+    if (values.length === 0) return;
+    const set = new Set(selected);
+    if (values.every((v) => set.has(v))) {
+      const drop = new Set(values);
+      setSelected(selected.filter((v) => !drop.has(v)));
+    } else {
+      setSelected([...selected, ...values.filter((v) => !set.has(v))]);
+    }
+  };
+
   const dropdown = (
     <Combobox.Portal>
       <Combobox.Positioner sideOffset={4}>
@@ -191,7 +249,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
           <Combobox.Empty>
             <div className={styles.empty}>{emptyMessage}</div>
           </Combobox.Empty>
-          <VirtualOptions scrollToIndexRef={scrollToIndexRef} />
+          <VirtualOptions scrollToIndexRef={scrollToIndexRef} onGroupToggle={toggleGroup} />
         </Combobox.Popup>
       </Combobox.Positioner>
     </Combobox.Portal>

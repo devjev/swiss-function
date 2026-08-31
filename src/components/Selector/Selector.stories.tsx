@@ -132,3 +132,33 @@ export const ObjectItems: Story = () => {
     />
   );
 };
+
+const groupedInstruments = [
+  { value: "eurchf", label: "EUR/CHF", group: "FX" },
+  { value: "eurusd", label: "EUR/USD", group: "FX" },
+  { value: "usdjpy", label: "USD/JPY", group: "FX" },
+  { value: "smi", label: "SMI", group: "Indices" },
+  { value: "spx", label: "S&P 500", group: "Indices" },
+  { value: "gold", label: "Gold", group: "Commodities" },
+  { value: "brent", label: "Brent", group: "Commodities" },
+  { value: "cash", label: "Cash" },
+];
+
+/** Grouped items: a `group` on an item files it under that section header in
+ *  the dropdown. Groups appear in first-appearance order; ungrouped items list
+ *  first, headerless. Filtering hides a group along with its last matching
+ *  item; keyboard navigation skips the headers. Clicking a header toggles the
+ *  whole group: it selects the missing visible items, or deselects them all
+ *  when every one is already selected. */
+export const Grouped: Story = () => {
+  const [value, setValue] = useState<string[]>(["smi"]);
+  return (
+    <Selector
+      items={groupedInstruments}
+      value={value}
+      onChange={setValue}
+      placeholder="Search instruments…"
+      bucketLabel="Watchlist"
+    />
+  );
+};

@@ -182,6 +182,82 @@ test("keyboard highlight survives its row scrolling out of the virtual window", 
   await expect(highlighted).toBeVisible(); // and was scrolled back into view
 });
 
+/* --- Grouped items --- */
+
+const groupedItems = [
+  { value: "bern", label: "Bern", group: "Switzerland" },
+  { value: "zurich", label: "Zurich", group: "Switzerland" },
+  { value: "berlin", label: "Berlin", group: "Germany" },
+  { value: "remote", label: "Remote" },
+];
+
+test("grouped items render section headers, ungrouped first", async ({ mount, page }) => {
+  const component = await mount(<Picker items={groupedItems} />);
+  await component.getByRole("combobox").click();
+  await expect(page.getByRole("option")).toHaveCount(4);
+  const listbox = page.getByRole("listbox");
+  await expect(listbox.getByText("Switzerland")).toBeVisible();
+  await expect(listbox.getByText("Germany")).toBeVisible();
+
+  // Clustered order: the ungrouped item first, then the groups.
+  const remote = await page.getByRole("option", { name: "Remote" }).boundingBox();
+  const bern = await page.getByRole("option", { name: "Bern" }).boundingBox();
+  const berlin = await page.getByRole("option", { name: "Berlin" }).boundingBox();
+  if (!remote || !bern || !berlin) throw new Error("missing boxes");
+  expect(remote.y).toBeLessThan(bern.y);
+  expect(bern.y).toBeLessThan(berlin.y);
+});
+
+test("filtering drops a group's header with its last matching item", async ({ mount, page }) => {
+  const component = await mount(<Picker items={groupedItems} />);
+  const input = component.getByRole("combobox");
+  await input.click();
+  await input.fill("Berl");
+  await expect(page.getByRole("option")).toHaveCount(1);
+  const listbox = page.getByRole("listbox");
+  await expect(listbox.getByText("Germany")).toBeVisible();
+  await expect(listbox.getByText("Switzerland")).toHaveCount(0);
+});
+
+test("keyboard navigation skips group headers and selects across sections", async ({
+  mount,
+  page,
+}) => {
+  let last = "";
+  const component = await mount(<Picker items={groupedItems} onChange={(v) => (last = v)} />);
+  const input = component.getByRole("combobox");
+  await input.click();
+  // Clustered order: Remote, [Switzerland] Bern, Zurich, [Germany] Berlin —
+  // four presses land on Berlin, straight across both headers.
+  for (let i = 0; i < 4; i++) await input.press("ArrowDown");
+  const highlighted = page.locator('[role="option"][data-highlighted]');
+  await expect(highlighted).toHaveText("Berlin");
+  await input.press("Enter");
+  expect(last).toBe("berlin");
+});
+
+test("grouped virtualization keeps a far keyboard highlight in the scrollport", async ({
+  mount,
+  page,
+}) => {
+  // Headers shift rows below their flat item indexes, so this pins the
+  // item-index → row-index mapping behind scrollToIndex.
+  const manyGrouped = Array.from({ length: 100 }, (_, i) => ({
+    value: `i${i}`,
+    label: `Item ${String(i).padStart(3, "0")}`,
+    group: `Group ${Math.floor(i / 10)}`,
+  }));
+  const component = await mount(<Picker items={manyGrouped} />);
+  const input = component.getByRole("combobox");
+  await input.click();
+  await expect(page.getByRole("option", { name: "Item 000" })).toBeVisible();
+  for (let i = 0; i < 35; i++) await input.press("ArrowDown");
+  const highlighted = page.locator('[role="option"][data-highlighted]');
+  await expect(highlighted).toHaveText("Item 034");
+  await expect(highlighted).toBeVisible();
+  expect(await inScrollport(page, "Item 034")).toBe(true);
+});
+
 test("fits inside a grid cell narrower than the input's 20-char default (issue #25)", async ({
   mount,
 }) => {

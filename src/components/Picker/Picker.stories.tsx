@@ -85,3 +85,35 @@ export const Disabled: Story = () => (
     <Picker items={cities} defaultValue="Bern" disabled />
   </div>
 );
+
+const groupedCities = [
+  { value: "bern", label: "Bern", group: "Switzerland" },
+  { value: "geneva", label: "Geneva", group: "Switzerland" },
+  { value: "zurich", label: "Zurich", group: "Switzerland" },
+  { value: "berlin", label: "Berlin", group: "Germany" },
+  { value: "hamburg", label: "Hamburg", group: "Germany" },
+  { value: "lyon", label: "Lyon", group: "France" },
+  { value: "paris", label: "Paris", group: "France" },
+  { value: "remote", label: "Remote" },
+];
+
+/** Grouped items: a `group` on an item files it under that section header in
+ *  the dropdown. Groups appear in first-appearance order; ungrouped items list
+ *  first, headerless. Filtering hides a group along with its last matching
+ *  item; keyboard navigation skips the headers. */
+export const Grouped: Story = () => {
+  const [value, setValue] = useState("");
+  return (
+    <div style={{ maxWidth: "20rem" }}>
+      <Picker
+        items={groupedCities}
+        value={value}
+        onChange={setValue}
+        placeholder="Search offices…"
+      />
+      <p style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
+        value: <code>{value || "—"}</code>
+      </p>
+    </div>
+  );
+};
