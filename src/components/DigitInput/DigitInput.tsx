@@ -10,6 +10,8 @@ import type {
 } from "react";
 import { Fragment, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
 import styles from "./DigitInput.module.css";
 import type { DigitConfig, Sign } from "./digitMath";
@@ -66,8 +68,16 @@ export interface DigitInputProps
   onValueChange?: (value: number | null) => void;
   /** Control size, mirroring `Input`. Default `md`. */
   size?: DigitInputSize;
-  /** Resting cell depth — same `--sf-elevation-N` scale as Box. Default 2. */
+  /** A cast below every cell (`--sf-elevation-N`); omitted, the cells sit flush
+   *  as grooves. */
   elevation?: BoxElevation;
+  /** The floor of each cell: `"concave"` (default), a floor scooped into the
+   *  page, `"dome"`, a convex pad rising in its slot, or `"flat"`. */
+  surface?: ControlSurface;
+  /** Amplitude of the face ramp as a multiple of the system `--sf-curve`.
+   *  DigitInput defaults to 2: a cell is a small deep window and the system
+   *  ramp reads flat across it. 0 flattens the face. */
+  curve?: number;
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
@@ -117,6 +127,9 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     onValueChange,
     size = "md",
     elevation,
+    surface = "concave",
+    curve,
+    style,
     disabled,
     readOnly,
     required,
@@ -291,6 +304,7 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
     <span
       {...rest}
       ref={ref}
+      style={curveStyle(curve, style)}
       className={cx(styles.root, sizeClass[size], className)}
       data-elevation={elevation}
       data-disabled={disabled || undefined}
@@ -300,7 +314,7 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
         {signed && (
           // biome-ignore lint/a11y/noStaticElementInteractions: a mouse-only affordance inside the aria-hidden cells; the keyboard path is the spinbutton input's -/+ handling, which carries all a11y.
           <span
-            className={cx(styles.cell, styles.signCell)}
+            className={cx(styles.cell, styles.signCell, surfaceClass[surface])}
             data-cell=""
             data-sign={sign < 0 ? "minus" : "plus"}
             // Mouse affordance for the sign (keyboard types -/+). mousedown so
@@ -323,7 +337,11 @@ const PushDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function PushDi
             )}
             <span
               key={i === total - 1 ? `lsd-${editStamp}` : `cell-${i}`}
-              className={cx(styles.cell, i === total - 1 && editStamp > 0 && styles.bump)}
+              className={cx(
+                styles.cell,
+                surfaceClass[surface],
+                i === total - 1 && editStamp > 0 && styles.bump,
+              )}
               data-cell=""
               data-active={i === total - 1 || undefined}
               data-empty={cells === null || undefined}
@@ -376,6 +394,9 @@ const MaskDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function MaskDi
     onValueChange,
     size = "md",
     elevation,
+    surface = "concave",
+    curve,
+    style,
     disabled,
     readOnly,
     required,
@@ -453,6 +474,7 @@ const MaskDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function MaskDi
   return (
     <OTPField.Root
       {...rest}
+      style={curveStyle(curve, style)}
       render={<span />}
       // The render override makes the real node a span; Base UI's types don't
       // parametrize the ref by the render element.
@@ -479,7 +501,7 @@ const MaskDigitInput = forwardRef<HTMLSpanElement, VariantProps>(function MaskDi
             </span>
           )}
           <OTPField.Input
-            className={cx(styles.cell, styles.maskCell)}
+            className={cx(styles.cell, styles.maskCell, surfaceClass[surface])}
             data-cell=""
             placeholder="_"
           />

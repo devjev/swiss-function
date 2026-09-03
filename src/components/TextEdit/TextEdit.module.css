@@ -5,11 +5,13 @@
      single-line TextEdit matches Button md and Input md heights exactly.
      The `-1px` compensates for the 1px border on each side. */
   padding: calc(var(--sf-unit) / 4 - 1px) calc(var(--sf-unit) / 2);
-  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29).
+     The groove recipe cuts the slot, as on Input. */
   background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-groove);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-md);

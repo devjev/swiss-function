@@ -70,10 +70,19 @@
   border-inline-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
   background-color: var(--sf-color-bg-subtle);
+  /* A raised key (the material layer's edge bands), flush: the header is part
+     of the panel. The sorted column's key sits pressed, as in DataTable. */
+  box-shadow: var(--sf-edge);
 }
 
 .headerCell:last-child {
   border-inline-end: none;
+}
+
+.headerCell[data-sorted],
+.headerCell[data-sortable]:active {
+  box-shadow: var(--sf-groove);
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
 .headerCell[data-align="end"] {

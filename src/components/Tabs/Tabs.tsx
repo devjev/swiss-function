@@ -3,14 +3,18 @@ import type { ComponentPropsWithoutRef, ReactElement } from "react";
 import {
   Children,
   cloneElement,
+  createContext,
   forwardRef,
   isValidElement,
+  useContext,
   useLayoutEffect,
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import { useOverflow } from "../../lib/useOverflow";
 import { MoreHorizontal } from "../Icon";
 import { Menu } from "../Menu";
@@ -22,6 +26,9 @@ const Root = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseTabs
   },
 );
 
+/** The face of every tab, set on `Tabs.List` (`surface`), read by each tab. */
+const SurfaceContext = createContext<ControlSurface>("flat");
+
 const Tab = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof BaseTabs.Tab>>(
   function TabsTab({ className, children, ...rest }, ref) {
     // Selecting a tab bolds its caption; bold text is wider, so without a width
@@ -30,7 +37,14 @@ const Tab = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof BaseTa
     // the tab always sizes to its bold width, so weight can change with no jump.
     const label = typeof children === "string" ? children : undefined;
     return (
-      <BaseTabs.Tab {...rest} ref={ref} className={mergeClassName(styles.tab, className)}>
+      <BaseTabs.Tab
+        {...rest}
+        ref={ref}
+        className={mergeClassName(
+          cx(styles.tab, surfaceClass[useContext(SurfaceContext)]),
+          className,
+        )}
+      >
         <span className={styles.label} data-text={label}>
           {children}
         </span>
@@ -72,22 +86,41 @@ export interface TabsListProps extends ComponentPropsWithoutRef<typeof BaseTabs.
   overflow?: boolean;
   /** Accessible name for the `⋯` overflow trigger. Default `"More tabs"`. */
   menuLabel?: string;
+  /** The face of every tab (`lib/surface`): `"flat"` (default, a folder tab is
+   *  a flat card), `"dish"`, `"dome"` or `"concave"`. */
+  surface?: ControlSurface;
+  /** Amplitude of the tabs' face ramp as a multiple of `--sf-curve`. */
+  curve?: number;
 }
 
 const List = forwardRef<HTMLDivElement, TabsListProps>(function TabsList(
-  { overflow, menuLabel, ...rest },
+  { overflow, menuLabel, surface = "flat", curve, style, ...rest },
   ref,
 ) {
+  const listStyle = curveStyle(curve, style);
+  let list: ReactElement;
   if (overflow) {
-    return <OverflowList {...rest} ref={ref} menuLabel={menuLabel ?? "More tabs"} />;
+    list = (
+      <OverflowList {...rest} ref={ref} style={listStyle} menuLabel={menuLabel ?? "More tabs"} />
+    );
+  } else {
+    const { className, ...bare } = rest;
+    list = (
+      <BaseTabs.List
+        {...bare}
+        ref={ref}
+        style={listStyle}
+        className={mergeClassName(styles.list, className)}
+      />
+    );
   }
-  const { className, ...bare } = rest;
-  return <BaseTabs.List {...bare} ref={ref} className={mergeClassName(styles.list, className)} />;
+  return <SurfaceContext.Provider value={surface}>{list}</SurfaceContext.Provider>;
 });
 
 const OverflowList = forwardRef<HTMLDivElement, Omit<TabsListProps, "overflow">>(
   function TabsOverflowList({ className, children, menuLabel = "More tabs", ...rest }, ref) {
     const { rootRef, ghostRef, visibleCount } = useOverflow<HTMLDivElement>();
+    const surface = useContext(SurfaceContext);
     const [activeIndex, setActiveIndex] = useState(-1);
 
     // Tabs fold; anything else (typically the Indicator) rides along untouched.
@@ -171,7 +204,10 @@ const OverflowList = forwardRef<HTMLDivElement, Omit<TabsListProps, "overflow">>
           {otherEls}
           {folding && foldedIdx.length > 0 && (
             <Menu.Root>
-              <Menu.Trigger className={cx(styles.tab, styles.trigger)} aria-label={menuLabel}>
+              <Menu.Trigger
+                className={cx(styles.tab, styles.trigger, surfaceClass[surface])}
+                aria-label={menuLabel}
+              >
                 <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size="16px" />
               </Menu.Trigger>
               <Menu.Portal>

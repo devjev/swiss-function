@@ -2,6 +2,8 @@ import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
 import { resolveMarks, type SliderMarks } from "./Slider.math";
 import styles from "./Slider.module.css";
@@ -66,6 +68,12 @@ export interface SliderProps
   /** Resting depth of the thumb on the `--sf-elevation-N` scale (as Box/Switch).
    *  Default `2`. */
   elevation?: BoxElevation;
+  /** The face of the thumb cap: `"flat"` (default, a fader cap is flat-topped),
+   *  `"dome"` a rounded cap, `"dish"` a scooped one. */
+  surface?: ControlSurface;
+  /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
+   *  (1 = the token, 2 doubles it, 0 flattens the face). */
+  curve?: number;
   /** Discrete ticks along the track: `true` for one per step (capped), or an
    *  array of values / `{ value, label }`. */
   marks?: SliderMarks;
@@ -114,6 +122,8 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
     color,
     fill = "color",
     elevation,
+    surface = "flat",
+    curve,
     marks,
     valueLabel = "hover",
     formatValue,
@@ -129,7 +139,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
 
   const ticks = resolveMarks(marks, min, max, step);
 
-  const rootStyle = { ...style, "--slider-accent": color } as CSSProperties;
+  const rootStyle = curveStyle(curve, { ...style, "--slider-accent": color } as CSSProperties);
 
   return (
     <BaseSlider.Root
@@ -164,7 +174,7 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
         </BaseSlider.Track>
         {Array.from({ length: thumbCount }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set
-          <BaseSlider.Thumb key={i} index={i} className={styles.thumb}>
+          <BaseSlider.Thumb key={i} index={i} className={cx(styles.thumb, surfaceClass[surface])}>
             {valueLabel !== "off" && (
               <BaseSlider.Value className={styles.bubble}>
                 {(formatted, values) => {

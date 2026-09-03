@@ -134,10 +134,17 @@
    its own right + bottom separator via two custom properties, so a seam can be
    erased per-column — e.g. an ungrouped leaf merging up through its empty
    placeholder cell to fill the full header height. The bottom edge of the last
-   header row is the header/body divider. */
+   header row is the header/body divider.
+
+   Each header is a raised key (the material layer's lit and shade bands, one
+   per custom property so a merged pair can drop the band on its shared edge);
+   the sorted column's key sits pressed. Flush, no cast: the header is part of
+   the panel, not a control floating over it. */
 .headerCell {
   --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
   --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
+  --sf-hdr-lit: var(--sf-edge-lit);
+  --sf-hdr-shade: var(--sf-edge-shade);
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
@@ -146,15 +153,20 @@
   font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
-  box-shadow: var(--sf-cell-edge-r), var(--sf-cell-edge-b);
+  box-shadow: var(--sf-hdr-lit), var(--sf-hdr-shade), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
   user-select: none;
   position: relative;
 }
 
-/* Placeholder above an ungrouped leaf: erase the seam below it so the empty top
-   cell reads as one full-height header with the titled leaf underneath. */
+/* Placeholder above an ungrouped leaf: erase the seam (and the key's shade
+   band) below it so the empty top cell reads as one full-height header with
+   the titled leaf underneath, which drops its lit band in turn. */
 .headerCell[data-merge-bottom] {
   --sf-cell-edge-b: 0 0 transparent;
+  --sf-hdr-shade: 0 0 transparent;
+}
+.headerCell[data-merge-top] {
+  --sf-hdr-lit: 0 0 transparent;
 }
 
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
@@ -318,6 +330,14 @@
 
 .headerCell[data-sortable]:hover {
   background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+}
+
+/* The sorted column's key is held down (and a sortable key goes down while
+   pressed): the bands give way to the groove, a shade deeper than hover. */
+.headerCell[data-sorted],
+.headerCell[data-sortable]:active {
+  box-shadow: var(--sf-groove), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
+  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
 /* Group parent header — slightly heavier background; chevron sits at the end. */

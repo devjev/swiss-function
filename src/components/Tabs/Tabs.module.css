@@ -3,26 +3,48 @@
   flex-direction: column;
 }
 
+/* Folder tabs. The list is the top edge of a sheet: a hairline the tabs stand
+   on. Each tab is a raised card from the material layer (edge bands from the
+   shared light, a square-cornered top, an open bottom); the unselected tabs
+   sit a step lower and a shade darker, behind, and the selected tab stands
+   at full height in the panel's own colour and rides 1px over the sheet's
+   edge line, so tab and panel read as one folded sheet. `--sf-cap` is the
+   face colour the optional `surface` ramp derives from. */
 .list {
   position: relative;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
+  gap: calc(var(--sf-unit) / 8);
+  padding-inline-start: calc(var(--sf-unit) / 4);
   border-bottom: 1px solid var(--sf-color-border);
 }
 
 .tab {
+  position: relative;
   display: inline-flex;
   align-items: center;
   padding: var(--sf-space-2) var(--sf-space-4);
-  background: none;
-  border: none;
+  /* A step down for the tabs behind, and 1px over the sheet's edge line. */
+  margin-block-start: calc(var(--sf-unit) / 8);
+  margin-block-end: -1px;
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
+  border: 1px solid var(--sf-color-border);
+  border-block-end: 0;
+  border-start-start-radius: var(--sf-radius-default);
+  border-start-end-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-edge);
   color: var(--sf-color-fg);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
   cursor: pointer;
-  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    --sf-cap var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out),
+    margin-block-start var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 /* The label reserves its own bold width: a flex column stacks the visible
@@ -54,25 +76,40 @@
   border-radius: var(--sf-radius-default);
 }
 
-.tab:hover {
-  background-color: var(--sf-color-bg-subtle);
+/* Hover: the tab behind lifts a shade toward the sheet. */
+.tab:hover:not([aria-selected="true"]) {
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-bg) 60%);
 }
 
 /* Base UI marks the active tab with aria-selected (the older data-selected
    attribute it once emitted is gone — that stale selector meant the active tab
-   wasn't even getting its primary colour). */
+   wasn't even getting its primary colour). The selected tab stands at full
+   height in the sheet's colour, above its neighbours, its bottom open onto the
+   panel (only the lit band remains: the shade band would draw a floor under a
+   tab that has none). */
 .tab[aria-selected="true"] {
+  margin-block-start: 0;
+  z-index: 1;
+  --sf-cap: var(--sf-color-bg);
+  box-shadow: var(--sf-edge-lit);
   color: var(--sf-color-primary);
   /* Bold reads as the active caption; the width is already reserved above, so
      this no longer moves neighbouring tabs. */
   font-weight: var(--sf-font-weight-bold);
 }
 
+/* The indicator is the coloured index strip along the selected tab's top
+   edge, the sticker on a folder tab, and slides with the selection. Base UI
+   publishes the active tab's inline geometry; the selected tab stands at the
+   list's top, so the strip sits at 0. */
 .indicator {
   position: absolute;
-  bottom: -1px;
+  top: 0;
   height: 2px;
+  z-index: 2;
   background-color: var(--sf-color-primary);
+  border-start-start-radius: var(--sf-radius-default);
+  border-start-end-radius: var(--sf-radius-default);
   transition:
     left var(--sf-duration-base) var(--sf-ease-out),
     width var(--sf-duration-base) var(--sf-ease-out);
@@ -127,6 +164,13 @@
 }
 .trigger:hover {
   color: var(--sf-color-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .indicator {
+    transition: none;
+  }
 }
 
 /* Trigger stand-in in the ghost: off-flow so it never shifts item offsets. */

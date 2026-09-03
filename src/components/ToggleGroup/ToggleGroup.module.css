@@ -1,6 +1,8 @@
-/* Root mirrors ButtonGroup's seam treatment but the items are flatter than
-   a regular Button — no shadow stack, no active-press translate, because the
-   pressed STATE already does the visual lifting. */
+/* Root mirrors ButtonGroup's seam treatment. The items are keys like Button
+   (edge bands, cast, the dish face from lib/surface); the pressed STATE is the
+   key held down: it drops to the panel (edge bands only, no cast) and takes
+   the accent. There is no press travel transform, since the keys share their
+   seams and a moving key would open a gap in the row. */
 .root {
   display: inline-flex;
   gap: 0;
@@ -25,7 +27,10 @@
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) * 2 / 3);
   gap: calc(var(--sf-unit) / 3);
-  background-color: var(--sf-color-bg);
+  /* The face colour lives in --sf-cap (registered in lib/surface): hover and
+     the pressed state swap it, and the dish ramp derives from it. */
+  --sf-cap: var(--sf-color-bg);
+  background-color: var(--sf-cap);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
@@ -36,14 +41,18 @@
   cursor: pointer;
   user-select: none;
   outline: none;
+  /* A raised key: the shared edge bands + the same cast as Button. */
+  box-shadow: var(--sf-edge), var(--sf-elevation-2);
   transition:
     background-color var(--sf-duration-fast) var(--sf-ease-out),
+    --sf-cap var(--sf-duration-fast) var(--sf-ease-out),
     color var(--sf-duration-fast) var(--sf-ease-out),
-    border-color var(--sf-duration-fast) var(--sf-ease-out);
+    border-color var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
 
 .item:hover:not([data-disabled]):not([data-pressed]) {
-  background-color: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-color-bg-subtle);
 }
 
 .item:focus-visible {
@@ -51,19 +60,27 @@
   outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
+/* Held down: the cast goes, the key sits at panel level. Also the transient
+   press, so a click reads as the key going down before it latches. */
+.item:active:not([data-disabled]),
 .item[data-pressed] {
-  background-color: var(--sf-color-primary);
+  box-shadow: var(--sf-edge);
+}
+
+.item[data-pressed] {
+  --sf-cap: var(--sf-color-primary);
   color: var(--sf-color-primary-fg);
   border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
 
 .item[data-pressed]:hover:not([data-disabled]) {
-  background-color: var(--sf-color-primary-hover);
+  --sf-cap: var(--sf-color-primary-hover);
 }
 
 .item[data-disabled] {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Sizes — match Button's heights for visual rhythm consistency. */

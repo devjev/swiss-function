@@ -320,6 +320,8 @@
   "login--playground",
   "login--with-alternatives",
   "login--with-error",
+  "materials--controls",
+  "materials--recipes",
   "map--areas-and-vectors",
   "map--default",
   "map--fill-in-container",

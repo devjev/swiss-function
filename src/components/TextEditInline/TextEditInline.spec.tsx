@@ -22,11 +22,12 @@ test("hover expands to the elevated overlay, then collapses on leave", async ({ 
   const component = await mount(<TextEditInline defaultValue={LONG} />);
   await component.hover();
   await expect(component).toHaveAttribute("data-expanded", "true");
-  // Elevation-3 lifts the textarea (a box-shadow, absent at rest).
+  // Elevation-3 lifts the textarea: a drop-shadow layer, where at rest the
+  // field carries only the groove's inset bands.
   const shadow = await component
     .locator("textarea")
     .evaluate((el) => getComputedStyle(el).boxShadow);
-  expect(shadow).not.toBe("none");
+  expect(shadow.split(/,\s*(?=rgb)/).some((layer) => !layer.includes("inset"))).toBe(true);
   // Move well below the 1-line root (full-width, top-anchored) so pointer-out
   // lands on <body>, not inside the strip or its overlay.
   await page.mouse.move(5, 600);

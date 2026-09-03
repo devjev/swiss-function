@@ -287,9 +287,10 @@ test("elevation cascades to the cells via data-elevation", async ({ mount }) => 
     .locator("[data-cell]")
     .first()
     .evaluate((el) => getComputedStyle(el).boxShadow);
-  // elevation 0 keeps only the inset highlight — no drop shadow component.
-  expect(shadow).toContain("inset");
-  expect(shadow.split("inset").length).toBe(2);
+  // elevation 0 keeps only the groove (two inset bands) — no drop shadow layer.
+  const layers = shadow.split(/,\s*(?=rgb)/);
+  expect(layers.length).toBe(2);
+  for (const layer of layers) expect(layer).toContain("inset");
 });
 
 /* --- Mask mode (2FA style, mode="mask") --- */

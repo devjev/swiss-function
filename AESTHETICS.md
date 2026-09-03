@@ -164,16 +164,36 @@ Depth indicates layer, not personality.
   and kept subtle); and a 1px inset edge that brightens with the level,
   so a bordered surface's rim reads progressively lighter and a
   borderless one gains a faint lit edge.
-- **Controls get a tactile cue**: `inset 0 1px 0 rgb(255 255 255 /
-  0.18)` along the top edge, plus their elevation drop shadow. Together
-  they read as a slightly raised key on an instrument panel. Buttons,
-  inputs, switches all share this signature.
+- **Controls are lit by one light.** `--sf-light-x` / `-y` (from the top
+  left by default, the classic bevel) drives every tactile recipe in
+  `tokens.css` and the elevation and recess casts, so a surface, a key, a
+  slot and a cap agree on where the light is. A key wears
+  `--sf-edge`, a 1px lit band on the side facing the light and a 1px
+  shade band opposite, plus its elevation cast. A slot (a text field, a
+  slider track, a switch rail) wears `--sf-groove`, a shadow band under
+  the lit wall and a bounce off the far wall, and sits flush: a slot does
+  not float. A small cap (checkbox, radio, thumb) takes `--sf-cap-rest`.
+  Pressed is travel: the face stays, the cast drops a step and the key
+  moves 1px. Never an inverted dent, which reads as a hollow tile. The
+  geometry and alphas are Ambient CSS's Blender-fitted constants (MIT),
+  rescaled to the 24px unit, with the lamp's colour cast removed. The
+  dark theme re-declares the tokens (a dimmer lit band, a deeper shade
+  band, a soft cast under small caps), so components carry no dark
+  overrides of their own.
+- **Keys have a face.** A Button, a Kbd cap and the LaunchButton lid
+  carry the keycap dish from `lib/surface`: a little dark at the lit
+  rim, the floor at 20%, brightest at the far rim, about 0.055 OKLCH
+  lightness end to end (`--sf-curve`). The stops derive from the key's
+  own colour, so a white, a primary and a near-black key read the same
+  way in either theme, and a white rim simply stays white. A Switch thumb
+  is a dome. Faces stay on actuators: Box, Pane, Dialog and Popover are
+  flat planes. `surface="flat"` turns a face off.
 - **Text-entry surfaces rest one shade below the page**
-  (`--sf-color-input-bg`) and lift to `--sf-color-bg` on focus. An empty
-  field reads as a recessed slot, not a bare rectangle on the page; the
-  moment you type into it, it becomes the page-coloured writing surface
-  with full text contrast. Input, TextEdit, Combobox and DigitInput all
-  share this behavior.
+  (`--sf-color-input-bg`), sit in a groove, and lift to `--sf-color-bg`
+  on focus. An empty field reads as a recessed slot, not a bare rectangle
+  on the page; the moment you type into it, it becomes the page-coloured
+  writing surface with full text contrast. Input, TextEdit, Combobox and
+  DigitInput all share this behavior.
 - **No glassmorphism**, no backdrop blur, no semi-transparent overlays
   pretending to be physical. We are not simulating frosted plastic. We
   are stacking flat planes.

@@ -55,26 +55,53 @@ export interface VerticalFormEntry {
   tone?: MinimapMarker["tone"];
   /** Section titles are emphasized (italic) on the rail; fields are not. */
   emphasis?: boolean;
+  /** Where the row's caption (the field name) sits, in content px. The rail
+   *  label anchors on the caption's centre line rather than at the row's top
+   *  edge, so it lines up with the caption the user sees, which sits below
+   *  the box padding. Omitted, the row's own span is the header (a section
+   *  title is its own caption). */
+  captionTop?: number;
+  captionHeight?: number;
 }
 
 /** Turn measured entries into Minimap markers: sort by position (Map insertion
  *  order is not DOM order). Every row is a filled dither `block` span of its
  *  own height; a named row is additionally a `header`, so its label rides on
- *  top of the block. */
+ *  top of the block. When the entry carries a caption position, the header is
+ *  a separate bare marker (no extent) on the caption's centre line, so the
+ *  rail pill centres where the caption sits on screen, while the block keeps
+ *  the row's full span. */
 export function buildMarkers(entries: VerticalFormEntry[]): MinimapMarker[] {
-  return entries
-    .slice()
-    .sort((a, b) => a.top - b.top)
-    .map((entry) => ({
+  const sorted = entries.slice().sort((a, b) => a.top - b.top);
+  const markers: MinimapMarker[] = [];
+  for (const entry of sorted) {
+    const captioned =
+      entry.label != null &&
+      entry.captionTop != null &&
+      (entry.captionTop !== entry.top || (entry.captionHeight ?? entry.height) !== entry.height);
+    if (captioned) {
+      markers.push({
+        id: `${entry.id}:block`,
+        top: entry.top,
+        height: entry.height,
+        kind: "block",
+        tone: entry.tone,
+      });
+    }
+    markers.push({
       id: entry.id,
-      top: entry.top,
-      height: entry.height,
+      top: captioned
+        ? (entry.captionTop as number) + (entry.captionHeight ?? entry.height) / 2
+        : entry.top,
+      height: captioned ? 0 : entry.height,
       kind: entry.label ? "header" : "block",
       label: entry.label,
       level: entry.level,
       tone: entry.tone,
       emphasis: entry.emphasis,
-    }));
+    });
+  }
+  return markers;
 }
 
 function sameMarkers(a: MinimapMarker[], b: MinimapMarker[]): boolean {
@@ -245,6 +272,9 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
   // the title at the viewport top (the Picker's value).
   const scrollElRef = useRef<HTMLDivElement | null>(null);
   const titlesRef = useRef<VerticalFormTitle[]>([]);
+  /** Each row's own span (the caption-anchored title carries only the caption),
+   *  so a jump centres the row, not its caption line. */
+  const rowsRef = useRef<Map<string, { top: number; height: number }>>(new Map());
   const activeRafRef = useRef(0);
   const [activeId, setActiveId] = useState("");
 
@@ -257,8 +287,14 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     if (!content) return;
     const base = content.getBoundingClientRect().top;
     const entries: VerticalFormEntry[] = [];
+    const rows = new Map<string, { top: number; height: number }>();
     entriesRef.current.forEach(({ node, meta }, id) => {
       const rect = node.getBoundingClientRect();
+      rows.set(id, { top: rect.top - base, height: rect.height });
+      // A field's caption is its <label>; the rail label anchors there. A
+      // section registers its title node, which is its own caption.
+      const caption = meta.kind === "field" ? node.querySelector("label") : null;
+      const captionRect = caption?.getBoundingClientRect();
       // The rail span is the field's real row height, so fields read as
       // contiguous filled blocks proportional to their size (the density read):
       // a tall TableInput's block is honestly tall, and grows as rows are
@@ -274,8 +310,11 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
         level: meta.level,
         tone: meta.tone,
         emphasis: meta.kind === "section",
+        captionTop: captionRect ? captionRect.top - base : undefined,
+        captionHeight: captionRect ? captionRect.height : undefined,
       });
     });
+    rowsRef.current = rows;
     const next = buildMarkers(entries);
     setMarkers((prev) => (sameMarkers(prev, next) ? prev : next));
   }, []);
@@ -395,8 +434,9 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     // already the form's visible height (nav excluded); adding the row's own
     // half-height puts the row centre — not its top — on the centre line.
     // scrollTo clamps a negative top to 0.
+    const row = rowsRef.current.get(selected) ?? title;
     el.scrollTo({
-      top: title.top + title.height / 2 - el.clientHeight / 2,
+      top: row.top + row.height / 2 - el.clientHeight / 2,
       behavior: prefersReducedMotion() ? "instant" : "smooth",
     });
   }, []);
@@ -410,6 +450,11 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
       minMarkerSize={minBlock}
       maxMarkerSize={maxBlock}
       jumpAlign="center"
+      // A rail label click centres the row, like the nav Picker (the label
+      // marker itself spans only the caption).
+      onJump={(marker) => {
+        if (marker.id) handleSelect(marker.id);
+      }}
       {...(nav ? {} : { ...rest, className, style })}
     >
       <div

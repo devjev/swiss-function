@@ -1,6 +1,8 @@
 import type { HTMLAttributes } from "react";
 import { Fragment, forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import styles from "./Kbd.module.css";
 
 /** Best-effort macOS detection. Client-only libraries can read this
@@ -88,12 +90,18 @@ export interface KbdProps extends HTMLAttributes<HTMLSpanElement> {
   /** Force macOS rendering. Auto-detected from the browser otherwise; pass this
    *  for SSR/stories/tests to keep output deterministic. */
   mac?: boolean;
+  /** The face of each keycap: `"dish"` (default) the scoop of a real key,
+   *  `"dome"` a rounded cap, `"flat"` no ramp. */
+  surface?: ControlSurface;
+  /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
+   *  (1 = the token, 2 doubles it, 0 flattens the face). */
+  curve?: number;
 }
 
 /** Renders a keyboard shortcut as OS-aware keycaps — ⌘⇧K on macOS,
  *  Ctrl + Shift + K elsewhere — for labels, menus, and tooltips. */
 export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
-  { combo, mac, className, ...rest },
+  { combo, mac, surface = "dish", curve, style, className, ...rest },
   ref,
 ) {
   const isMac = mac ?? detectMac();
@@ -106,6 +114,7 @@ export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
     <span
       ref={ref}
       {...rest}
+      style={curveStyle(curve, style)}
       className={cx(styles.root, className)}
       data-platform={isMac ? "mac" : "other"}
     >
@@ -115,6 +124,7 @@ export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
           {/* Off-Mac, separate the word-modifiers with a "+"; macOS glyphs read as a unit. */}
           {i > 0 && !isMac ? <span className={styles.sep}>+</span> : null}
           <kbd className={styles.key}>
+            <span className={cx(styles.face, surfaceClass[surface])} />
             <span className={styles.legend}>{renderKey(k, isMac)}</span>
           </kbd>
         </Fragment>

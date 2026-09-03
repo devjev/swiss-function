@@ -159,23 +159,132 @@
     /* Elevation scale (used by <Box>, available to any component). Six
        discrete steps from flat (0) to deeply floating (5). Each layer
        roughly doubles the previous offset/blur so the progression reads
-       as distinct steps. */
+       as distinct steps. The cast falls away from the shared light
+       (--sf-light-x / -y, declared with the material layer below): each
+       offset is the light vector times the step's reach, so a surface and a
+       key agree on where the light is. */
     --sf-elevation-0: none;
-    --sf-elevation-1: 0 1px 1px rgb(0 0 0 / 0.06);
-    --sf-elevation-2: 0 1px 2px rgb(0 0 0 / 0.05), 0 2px 4px rgb(0 0 0 / 0.05);
-    --sf-elevation-3: 0 2px 4px rgb(0 0 0 / 0.06), 0 4px 8px rgb(0 0 0 / 0.07);
-    --sf-elevation-4: 0 4px 8px rgb(0 0 0 / 0.07), 0 8px 16px rgb(0 0 0 / 0.09);
-    --sf-elevation-5: 0 8px 16px rgb(0 0 0 / 0.08), 0 16px 32px rgb(0 0 0 / 0.12);
+    --sf-elevation-1: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px
+      rgb(0 0 0 / 0.06);
+    --sf-elevation-2:
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.05),
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.05);
+    --sf-elevation-3:
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.06),
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07);
+    --sf-elevation-4:
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07),
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.09);
+    --sf-elevation-5:
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.08),
+      calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 32px rgb(0 0 0 / 0.12);
 
     /* Recess scale — the elevation scale inverted (inset shadows), so an element
        reads as sunken *into* the surface rather than floating above it. Same six
-       steps; pair with a surface that's slightly darker/tinted than its frame. */
+       steps, the shadow cast by the wall on the lit side (it follows the light
+       vector like the casts above); pair with a surface that's slightly
+       darker/tinted than its frame. */
     --sf-recess-0: none;
-    --sf-recess-1: inset 0 1px 1px rgb(0 0 0 / 0.06);
-    --sf-recess-2: inset 0 1px 2px rgb(0 0 0 / 0.05), inset 0 2px 4px rgb(0 0 0 / 0.05);
-    --sf-recess-3: inset 0 2px 4px rgb(0 0 0 / 0.06), inset 0 4px 8px rgb(0 0 0 / 0.07);
-    --sf-recess-4: inset 0 4px 8px rgb(0 0 0 / 0.07), inset 0 8px 16px rgb(0 0 0 / 0.09);
-    --sf-recess-5: inset 0 8px 16px rgb(0 0 0 / 0.08), inset 0 16px 32px rgb(0 0 0 / 0.12);
+    --sf-recess-1: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px
+      rgb(0 0 0 / 0.06);
+    --sf-recess-2:
+      inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.05),
+      inset calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.05);
+    --sf-recess-3:
+      inset calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.06),
+      inset calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07);
+    --sf-recess-4:
+      inset calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07),
+      inset calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.09);
+    --sf-recess-5:
+      inset calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.08),
+      inset calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 32px rgb(0 0 0 / 0.12);
+
+    /* Material layer: one light for every control, and the tactile recipes
+       derived from it, so a key, a slot and a cap agree on where the light
+       is. The geometry and alphas come from Ambient CSS's Blender-fitted
+       model (MIT, github.com/kikkupico/ambientcss, ambient3d/derived),
+       rescaled from its 1px = 1mm hardware scale to this system's 24px unit
+       (bands stay 1px, everything else roughly halved) and with the lamp's
+       colour cast removed: the light is neutral.
+
+       --sf-light-x / -y is the light direction, -1..1 on each axis; the
+       default is from the top left, the classic bevel (a lit band on the top
+       and left edges, shade on the bottom and right, casts falling to the
+       lower right). It is a DOCUMENT setting: the recipes here and the
+       elevation / recess scales above substitute their var()s where they
+       are declared (on the root / theme element) and descendants inherit the
+       finished value, so set the direction on :root or the theme element,
+       never on a subtree.
+       --sf-light-angle is the same vector as a gradient angle (0% of the
+       gradient lands on the lit edge); the curved faces in lib/surface read
+       it. */
+    --sf-light-x: -1;
+    --sf-light-y: -1;
+    --sf-light-angle: calc(atan2(var(--sf-light-y), var(--sf-light-x)) + 270deg);
+
+    /* Edge: a lit band on the side facing the light and a shade band on the
+       side away from it, 1px each and hard, the cut of a chamfer. This is
+       the raised-key signature (it replaces the lone top highlight every
+       control used to carry); compose it with a cast:
+       `box-shadow: var(--sf-edge), var(--sf-elevation-2)`. Alphas: the
+       chamfer fit gives a 0.98 white band for a fully lit facet, scaled to
+       0.3 for a 1px band on a 24px key; the shade band is the fit's 0.28
+       trimmed to 0.18. The two bands are also available on their own
+       (--sf-edge-lit, --sf-edge-shade) for a cell that shares one edge with a
+       neighbour. --sf-edge-soft is the same pair as a round-over (fillet:
+       1.4px reach, 2px blur) for round caps. */
+    --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
+      rgb(255 255 255 / 0.3);
+    --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
+      rgb(0 0 0 / 0.18);
+    --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
+    --sf-edge-soft:
+      inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
+      rgb(255 255 255 / 0.3),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.18);
+
+    /* Groove: a slot cut into the surface. The wall facing the light casts a
+       band onto the floor; the far wall catches the light and bounces it
+       back as a soft lift, the physical origin of the classic inset
+       highlight. For text fields, slider tracks and switch rails; pair with
+       --sf-color-input-bg. From the groove fit at a shallow recess (band
+       reach 1.5px, bounce reach 1px), alphas softened for the Swiss
+       posture. Unlike --sf-recess-N it is directional and it never floats:
+       compose an --sf-elevation-N after it only when a consumer asks for a
+       raised field. */
+    --sf-groove:
+      inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 1px 0
+      rgb(0 0 0 / 0.12),
+      inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 2px 0 rgb(255 255 255 / 0.7);
+
+    /* Cap: the resting and pressed depth of a small control face (a
+       checkbox, a radio, a switch thumb, a slider cap), square (-edge) or
+       round (-edge-soft). Pressed is travel: the cap keeps its face and
+       drops one step, never an inverted dent. The dark theme swaps the
+       hard cast (right for a surface, a misaligned rectangle under a 16px
+       cap, issue #78) for a soft one, so components need no dark override. */
+    --sf-cap-rest: var(--sf-edge), var(--sf-elevation-2);
+    --sf-cap-pressed: var(--sf-edge), var(--sf-elevation-1);
+    --sf-cap-rest-round: var(--sf-edge-soft), var(--sf-elevation-2);
+    --sf-cap-pressed-round: var(--sf-edge-soft), var(--sf-elevation-1);
+
+    /* Curve: how far a curved face departs from its flat tone at the rim,
+       in OKLCH lightness (0..1). The keycap dish and the domed cap in
+       lib/surface read it. From the curved-surface fit (about 4.4 points of
+       lightness at the reference lights), raised for 24 to 48px caps, where
+       the ramp has no room to build, then eased back a step for the Swiss
+       posture. */
+    --sf-curve: 0.055;
+    /* Its multiplier: 1 is the system amplitude. Unlike the recipes above it
+       is read where the face is painted, so it can be set on any subtree, an
+       element, or through a component's `curve` prop. */
+    --sf-curve-scale: 1;
+
+    /* Engrave: the text-shadow of a legend cut into a cap, a lit lip on the
+       side away from the light. */
+    --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
+      rgb(255 255 255 / 0.55);
 
     /* Motion */
     --sf-duration-fast: 120ms;
@@ -257,7 +366,8 @@
        three ways, all carried by the shadow so every consumer of
        `--sf-elevation-N` gets them with no component change:
        (1) the brutalist hard cast — a single zero-blur offset in the border
-       colour, stepping to the lower-right and growing with the level, so the
+       colour, stepping away from the shared light (to the lower right under
+       the default top-left light) and growing with the level, so the
        surface reads like its border cast off the edge;
        (2) a full-bleed white film that lifts the surface a little above the page
        bg — engaged only above level 1, and staying slight; and
@@ -265,26 +375,71 @@
        rim reads progressively brighter (a borderless one gains a faint lit edge).
        Insets are listed before the cast; the edge before the film so it paints
        over it at the rim. */
-    --sf-elevation-1: inset 0 0 0 1px rgb(255 255 255 / 0.06), 2px 2px 0 0 var(--sf-color-border);
+    --sf-elevation-1:
+      inset 0 0 0 1px rgb(255 255 255 / 0.06),
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 var(--sf-color-border);
     --sf-elevation-2:
       inset 0 0 0 1px rgb(255 255 255 / 0.1), inset 0 0 0 9999px rgb(255 255 255 / 0.03),
-      3px 3px 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -3px) calc(var(--sf-light-y) * -3px) 0 0 var(--sf-color-border);
     --sf-elevation-3:
       inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 0 0 9999px rgb(255 255 255 / 0.04),
-      4px 4px 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 0 0 var(--sf-color-border);
     --sf-elevation-4:
       inset 0 0 0 1px rgb(255 255 255 / 0.22), inset 0 0 0 9999px rgb(255 255 255 / 0.05),
-      6px 6px 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -6px) calc(var(--sf-light-y) * -6px) 0 0 var(--sf-color-border);
     --sf-elevation-5:
       inset 0 0 0 1px rgb(255 255 255 / 0.3), inset 0 0 0 9999px rgb(255 255 255 / 0.06),
-      8px 8px 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 0 0 var(--sf-color-border);
 
     /* Recess (dark): sunken surfaces darken instead of lighten; the inset
        blacks need real alpha to register on #0a0a0a. */
-    --sf-recess-1: inset 0 1px 2px rgb(0 0 0 / 0.5);
-    --sf-recess-2: inset 0 1px 3px rgb(0 0 0 / 0.5), inset 0 2px 6px rgb(0 0 0 / 0.45);
-    --sf-recess-3: inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 4px 12px rgb(0 0 0 / 0.5);
-    --sf-recess-4: inset 0 4px 10px rgb(0 0 0 / 0.6), inset 0 8px 20px rgb(0 0 0 / 0.55);
-    --sf-recess-5: inset 0 8px 18px rgb(0 0 0 / 0.65), inset 0 16px 36px rgb(0 0 0 / 0.6);
+    --sf-recess-1: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px
+      rgb(0 0 0 / 0.5);
+    --sf-recess-2:
+      inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 3px rgb(0 0 0 / 0.5),
+      inset calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 6px rgb(0 0 0 / 0.45);
+    --sf-recess-3:
+      inset calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 6px rgb(0 0 0 / 0.55),
+      inset calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 12px rgb(0 0 0 / 0.5);
+    --sf-recess-4:
+      inset calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 10px rgb(0 0 0 / 0.6),
+      inset calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 20px rgb(0 0 0 / 0.55);
+    --sf-recess-5:
+      inset calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 18px rgb(0 0 0 / 0.65),
+      inset calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 36px rgb(0 0 0 / 0.6);
+
+    /* Material layer (dark). Re-declared, not just re-tuned: a custom
+       property substitutes its var()s where it is declared, so the light
+       block's finished values would otherwise inherit into a dark subtree.
+       A bright lit band glares on a near-black key, so the lit alpha drops
+       and the shade band deepens; the groove's bounce becomes a faint lit
+       lip; the caps take a soft cast instead of the hard one. */
+    --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
+      rgb(255 255 255 / 0.1);
+    --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
+      rgb(0 0 0 / 0.45);
+    --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
+    --sf-edge-soft:
+      inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
+      rgb(255 255 255 / 0.1),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.45);
+    --sf-groove:
+      inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 2px 0 rgb(0 0 0 / 0.5),
+      inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px 0
+      rgb(255 255 255 / 0.06);
+    --sf-cap-rest:
+      var(--sf-edge),
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.45);
+    --sf-cap-pressed:
+      var(--sf-edge),
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.45);
+    --sf-cap-rest-round:
+      var(--sf-edge-soft),
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.45);
+    --sf-cap-pressed-round:
+      var(--sf-edge-soft),
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.45);
+    --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
+      rgb(255 255 255 / 0.06);
   }
 }

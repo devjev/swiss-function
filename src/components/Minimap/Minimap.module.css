@@ -87,6 +87,15 @@
   block-size: var(--sf-unit);
 }
 
+/* The label pill's height (see .label), for the JS label math. */
+.labelProbe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  inline-size: 0;
+  block-size: calc(var(--sf-minimap-label-size) + 2px);
+}
+
 /* Decorative layer holding the block markers. */
 .markers {
   position: absolute;

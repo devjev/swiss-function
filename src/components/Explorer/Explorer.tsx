@@ -1016,6 +1016,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
         className={cx(styles.headerCell, dnd?.dragging && styles.headerDragging)}
         data-align={col.align ?? "start"}
         data-sortable={col.sortable || undefined}
+        data-sorted={(col.sortable && isSorted) || undefined}
         style={dnd?.style}
         onClick={col.sortable ? () => cycleSort(col.id) : undefined}
       >

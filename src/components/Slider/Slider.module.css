@@ -57,8 +57,8 @@
 }
 
 /* The recessed slot. An inset ring gives the edge with no layout impact (so it
-   never shifts the fill by a border width), and the recess shadow sinks it into
-   the surface. `overflow: hidden` clips the fill (and its dither) to the slot
+   never shifts the fill by a border width), and the groove recipe (the shared
+   light's wall shadow + far-wall bounce) sinks it into the panel. `overflow: hidden` clips the fill (and its dither) to the slot
    corners; the thumb lives in the Control, not here, so it is never clipped.
    `--sf-slider-track-bg` (a `background`, so it accepts a gradient) and
    `--sf-slider-track-shadow` let a consumer repaint the slot, e.g. a colour
@@ -71,7 +71,7 @@
   border-radius: var(--sf-slider-radius, var(--sf-radius-default));
   box-shadow: var(
     --sf-slider-track-shadow,
-    var(--sf-recess-1),
+    var(--sf-groove),
     inset 0 0 0 1px var(--sf-color-border)
   );
   overflow: hidden;
@@ -109,21 +109,22 @@
   mask-size: 4px 4px;
 }
 
-/* The square fader-cap thumb: a raised key on an instrument panel (top-edge inset
-   highlight + elevation), sharp 2px corners, with a faint centre grip line. Base
-   UI positions it inline via `inset-inline-start`/`translate`, so we must not
-   transition position; only depth and colour animate. */
+/* The square fader-cap thumb: a raised key on an instrument panel (the shared
+   edge bands + cast, via the theme-aware cap token), sharp 2px corners, with a
+   faint centre grip line. Flat-topped by default, as a fader cap is; the
+   `surface` prop can dome it (`--sf-cap` is the base the ramp derives from).
+   Base UI positions it inline via `inset-inline-start`/`translate`, so we must
+   not transition position; only depth and colour animate. */
 .thumb {
   inline-size: var(--sf-slider-thumb-size);
   block-size: var(--sf-slider-thumb-size);
-  background-color: var(--sf-color-bg);
+  --sf-cap: var(--sf-color-bg);
+  background-color: var(--sf-cap);
   /* A hairline edge so the white cap reads against a white page (border-box, so
      the outer size stays put and the thumb centre is unaffected). */
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-slider-radius, var(--sf-radius-default));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-2);
+  box-shadow: var(--sf-cap-rest);
   cursor: grab;
   transition:
     box-shadow var(--sf-duration-fast) var(--sf-ease-out),
@@ -143,17 +144,16 @@
 }
 
 .thumb:hover {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-3);
+  box-shadow: var(--sf-edge), var(--sf-elevation-3);
 }
 
-/* The pressed thumb dips 1px. `transform` (not `translate`) composes with Base
-   UI's inline `translate` used for positioning. */
+/* The pressed thumb travels: the same face, one step lower and 1px down.
+   `transform` (not `translate`) composes with Base UI's inline `translate` used
+   for positioning. */
 .thumb:active {
   cursor: grabbing;
   transform: translateY(1px);
-  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.16);
+  box-shadow: var(--sf-cap-pressed);
 }
 
 /* Focus ring on the visible cap. The real focus target is the nested, hidden
@@ -164,29 +164,21 @@
   outline-offset: var(--sf-focus-ring-offset, 2px);
 }
 
-/* Thumb depth override matrix (default is elevation-2, baked into .thumb). */
+/* Thumb depth override matrix (default is the --sf-cap-rest depth, baked into .thumb). */
 .root[data-elevation="0"] .thumb {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+  box-shadow: var(--sf-edge);
 }
 .root[data-elevation="1"] .thumb {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-1);
+  box-shadow: var(--sf-edge), var(--sf-elevation-1);
 }
 .root[data-elevation="3"] .thumb {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-3);
+  box-shadow: var(--sf-edge), var(--sf-elevation-3);
 }
 .root[data-elevation="4"] .thumb {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-4);
+  box-shadow: var(--sf-edge), var(--sf-elevation-4);
 }
 .root[data-elevation="5"] .thumb {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-5);
+  box-shadow: var(--sf-edge), var(--sf-elevation-5);
 }
 
 /* The floating value bubble, a child of each thumb so it tracks it 1:1. Mono +
@@ -271,7 +263,7 @@
 }
 .root[data-disabled] .thumb {
   cursor: not-allowed;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+  box-shadow: var(--sf-edge);
 }
 
 /* --- Vertical orientation. Base UI already swaps the thumb/fill axis; we swap
@@ -334,16 +326,6 @@
 .root[data-orientation="vertical"] .tickMark {
   inline-size: calc(var(--sf-unit) / 4);
   block-size: 1px;
-}
-
-/* Dark mode: the elevation scale is a hard, zero-blur cast tuned for large
-   surfaces; on the small thumb cap it reads as a misaligned rectangle (issue
-   #78, as Switch), so swap in a soft resting shadow. Pressed/disabled keep their
-   own. */
-[data-theme="dark"] .root:not([data-disabled]) .thumb:not(:active) {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    0 1px 3px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {

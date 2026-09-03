@@ -187,15 +187,18 @@
 .group > .root {
   background: var(--sf-color-bg);
 }
-/* Dividers as collapsing top/left borders pulled 1px under the panel edge: inner
-   boundaries read as hairlines, the outer ones hide behind the panel border, and
-   any empty trailing cell (a non-multiple in the responsive grid) stays blank
-   instead of showing a grey block. */
+/* Dividers: every card casts a 1px hairline along its right and bottom edges
+   into the neighbouring cell (an offset shadow, no spread, no layout impact),
+   and the cards are transparent over the panel's own background so a
+   neighbour's line shows through its first pixel row / column. Each seam is
+   therefore drawn by exactly one card on exactly one side, so the lines of one
+   column stay on the same pixel across rows, an incomplete last row keeps its
+   bottom and right lines (they fall on the empty cell), the empty cell itself
+   stays blank, and the outermost lines land in the panel's border area, which
+   the group clips at its padding edge. */
 .group.dividers > .root {
-  border-inline-start: 1px solid var(--sf-color-border);
-  border-block-start: 1px solid var(--sf-color-border);
-  margin-inline-start: -1px;
-  margin-block-start: -1px;
+  background: transparent;
+  box-shadow: 1px 1px 0 0 var(--sf-color-border);
 }
 .group[data-elevation="1"] {
   box-shadow: var(--sf-elevation-1);

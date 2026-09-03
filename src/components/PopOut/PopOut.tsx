@@ -1,7 +1,9 @@
 import type { HTMLAttributes, ReactNode, Ref } from "react";
 import {
+  createContext,
   forwardRef,
   useCallback,
+  useContext,
   useEffect,
   useId,
   useLayoutEffect,
@@ -11,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   buildFeatures,
+  isPipWindow,
   openChildWindow,
   openPipWindow,
   type PopOutRect,
@@ -21,8 +24,10 @@ import {
   watchChildClosed,
 } from "../../lib/childWindow";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { PortalContainerProvider } from "../../lib/portalContainer";
 import { StackingProvider } from "../../lib/stacking";
+import { Collapse, Expand } from "../Icon";
 import styles from "./PopOut.module.css";
 
 export type { PopOutRect } from "../../lib/childWindow";
@@ -60,6 +65,15 @@ export interface PopOutProps extends HTMLAttributes<HTMLDivElement> {
   pip?: boolean;
   /** Escape inside the popup closes it (reason `"escape"`). Default `true`. */
   closeOnEscape?: boolean;
+  /** A Picture-in-Picture window has no OS chrome, so it cannot be maximized
+   *  the way a normal window can. With this on (default) the popped content
+   *  gets a corner button that toggles the window between its size and the
+   *  screen's work area (`resizeTo`, which needs a click inside the popup, so
+   *  the button lives there). A host that draws its own title bar in the popup
+   *  (WindowArray) passes `false` and renders the toggle itself through
+   *  `usePopOutWindow()`. No effect on a `window.open` popup, which has the
+   *  OS maximize. */
+  maximizable?: boolean;
   /** The live child `Window`, `null` while closed. */
   windowRef?: Ref<Window | null>;
   children?: ReactNode;
@@ -82,6 +96,28 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T) {
   else if (ref) (ref as { current: T }).current = value;
 }
 
+/** What a popped window's own chrome needs to know: the live `Window`, whether
+ *  it is the chromeless Picture-in-Picture window, and the maximize toggle
+ *  (see `maximizable`). `null` outside a popped-out subtree. */
+export interface PopOutWindowState {
+  window: Window;
+  /** The chromeless Picture-in-Picture window (no OS title bar or maximize). */
+  pip: boolean;
+  maximized: boolean;
+  /** Toggle between the window's own size and the screen's work area. Only
+   *  works from a click inside the popup (the browser wants a user gesture
+   *  there); a no-op otherwise. */
+  toggleMaximize: () => void;
+}
+
+const PopOutWindowContext = createContext<PopOutWindowState | null>(null);
+
+/** The enclosing popped window's state, for chrome rendered inside a `PopOut`
+ *  (WindowArray's popped title bar renders its maximize toggle from this). */
+export function usePopOutWindow(): PopOutWindowState | null {
+  return useContext(PopOutWindowContext);
+}
+
 /** Pop content out into a separate browser window. Closed, it renders its
  *  children in place; open, it opens a same-origin popup, clones the opener's
  *  stylesheets into it (and keeps them and the opener's root theme/palette
@@ -100,6 +136,7 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
     features,
     pip = false,
     closeOnEscape = true,
+    maximizable = true,
     windowRef,
     className,
     children,
@@ -257,6 +294,35 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
     if (childWin && !childWin.closed) childWin.document.title = title;
   }, [childWin, title]);
 
+  // Maximize (Picture-in-Picture only: a normal popup has the OS control).
+  // `resizeTo` needs transient activation in the popup itself, which the
+  // button inside it supplies; the size it grows to is the screen's work area
+  // as the popup sees it, and the previous size is kept for the way back.
+  const isPip = isPipWindow(childWin);
+  const [maximized, setMaximized] = useState(false);
+  const restoreSizeRef = useRef<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    setMaximized(false);
+    restoreSizeRef.current = null;
+  }, [childWin]);
+  const toggleMaximize = useCallback(() => {
+    const w = childWin;
+    if (!w || w.closed) return;
+    try {
+      if (!maximized) {
+        restoreSizeRef.current = { width: w.outerWidth, height: w.outerHeight };
+        w.resizeTo(w.screen.availWidth, w.screen.availHeight);
+        setMaximized(true);
+      } else {
+        const prev = restoreSizeRef.current;
+        if (prev) w.resizeTo(prev.width, prev.height);
+        setMaximized(false);
+      }
+    } catch {
+      // Refused without a user gesture in the popup; nothing to do.
+    }
+  }, [childWin, maximized]);
+
   useEffect(() => {
     if (!windowRef) return;
     assignRef(windowRef, childWin);
@@ -264,15 +330,38 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
   }, [windowRef, childWin]);
 
   if (!open || !childWin || childWin.closed) return <>{children}</>;
+  const windowState: PopOutWindowState = {
+    window: childWin,
+    pip: isPip,
+    maximized,
+    toggleMaximize,
+  };
   return createPortal(
     // A popped window is a fresh document and a fresh stacking root; do not
     // inherit an opener overlay's ceiling. Publish the popup body so library
     // floaters opened inside portal into this window, not the opener's.
     <StackingProvider ceiling={0}>
       <PortalContainerProvider container={childWin.document.body}>
-        <div ref={ref} className={cx(styles.root, className)} {...rest}>
-          {children}
-        </div>
+        <PopOutWindowContext.Provider value={windowState}>
+          <div ref={ref} className={cx(styles.root, className)} {...rest}>
+            {children}
+            {maximizable && isPip ? (
+              <button
+                type="button"
+                className={styles.maximize}
+                aria-label={maximized ? "Restore window size" : "Maximize window"}
+                aria-pressed={maximized}
+                onClick={toggleMaximize}
+              >
+                {maximized ? (
+                  <Glyph slot="collapse" fallback={Collapse} size="14px" />
+                ) : (
+                  <Glyph slot="expand" fallback={Expand} size="14px" />
+                )}
+              </button>
+            ) : null}
+          </div>
+        </PopOutWindowContext.Provider>
       </PortalContainerProvider>
     </StackingProvider>,
     childWin.document.body,

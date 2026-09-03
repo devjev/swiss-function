@@ -2,6 +2,8 @@ import { Input as BaseInput } from "@base-ui/react/input";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
 import styles from "./DigitInputMicro.module.css";
 import { clamp, formatValue, parseDraft, sanitizeDraft } from "./digitInputMicroFormat";
@@ -45,8 +47,15 @@ export interface DigitInputMicroProps
   max?: number;
   /** Control size, mirroring `Input`. Default `md`. */
   size?: DigitInputMicroSize;
-  /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
+  /** A cast below the field (`--sf-elevation-N`); omitted, the field sits flush
+   *  as a groove. */
   elevation?: BoxElevation;
+  /** The floor of the slot: `"flat"` (default) or `"concave"`, a floor scooped
+   *  into the page. */
+  surface?: ControlSurface;
+  /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
+   *  (1 = the token, 2 doubles it, 0 flattens the face). */
+  curve?: number;
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
@@ -86,6 +95,9 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
       max,
       size = "md",
       elevation,
+      surface = "flat",
+      curve,
+      style,
       disabled,
       readOnly,
       required,
@@ -163,7 +175,8 @@ export const DigitInputMicro = forwardRef<HTMLSpanElement, DigitInputMicroProps>
       <span
         {...rest}
         ref={ref}
-        className={cx(styles.root, sizeClass[size], className)}
+        style={curveStyle(curve, style)}
+        className={cx(styles.root, sizeClass[size], surfaceClass[surface], className)}
         data-elevation={elevation}
         data-disabled={disabled || undefined}
         data-readonly={readOnly || undefined}

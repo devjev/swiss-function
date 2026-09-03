@@ -71,6 +71,12 @@ export function supportsPip(): boolean {
   return typeof window !== "undefined" && documentPip() != null;
 }
 
+/** Whether `win` is the browser's Picture-in-Picture window (chromeless: it
+ *  has no title bar and no maximize control of its own). */
+export function isPipWindow(win: Window | null): boolean {
+  return win != null && documentPip()?.window === win;
+}
+
 /** Open a chromeless Picture-in-Picture window. Must be called in a user
  *  gesture. Rejects if unsupported or refused. Only one such window can exist
  *  at a time — opening a second closes the first. */

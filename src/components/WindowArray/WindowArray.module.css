@@ -313,16 +313,28 @@
   inset-inline-end: 0;
 }
 
+/* The title bar is a raised key: the material layer's edge bands over a
+   dished face (the `surface` class from lib/surface, set by the array's
+   `surface` prop; `--sf-cap` is the base the ramp derives from). It is the
+   grip you drag the window by, so while the handle is held the bar sits down
+   in a groove, and it comes back up when you let go. */
 .titlebar {
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 4);
-  background-color: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
   border-block-end: 1px solid var(--sf-color-border);
+  box-shadow: var(--sf-edge);
   user-select: none;
   touch-action: none;
+  transition: box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+}
+.titlebar:has(.handle:active),
+.window[data-dragging] .titlebar {
+  box-shadow: var(--sf-groove);
 }
 
 /* The title doubles as the window's single Tab stop and drag grip. */
@@ -532,6 +544,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .titlebar {
+    transition: none;
+  }
   .viewport {
     scroll-behavior: auto;
   }

@@ -1,0 +1,75 @@
+/* Curved control faces: the keycap dish and the domed cap (AESTHETICS.md →
+   Depth). A face is one element whose base colour is `--sf-cap`; set the
+   property on that element and add `.dish` or `.dome`. The property is
+   registered non-inheriting so a control's children keep their own faces,
+   and registered as a colour so a hover recolour (Button) transitions.
+
+   The gradient rides `--sf-light-angle` and `--sf-curve` (times
+   `--sf-curve-scale`, see below) from tokens.css. Each
+   stop is the base colour shifted in OKLCH lightness, so one class fits a
+   white key, a primary key and a near-black key in either theme with no
+   per-theme tuning; a base that cannot get brighter (white) simply clips,
+   and the rim of a white cap stays white, as it does in life.
+
+   Dish: the scoop of a keycap. Profile from a photographed dished key
+   (Ambient CSS, ambient-components `.amb-button-cap`): a little dark at the
+   lit rim, the floor at 20%, neutral at 62.5%, brightest at the far rim,
+   which is the wall that tilts into the light. Dome: the symmetric
+   round-over, brightest toward the light. Concave: the dome's mirror, a
+   floor scooped into the surface, darkest toward the light, for a recessed
+   slot (a DigitInput cell). Flat: no face, for a fader cap or a control too
+   small to carry a ramp. */
+
+@property --sf-cap {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+/* The amplitude every ramp reads: the system's --sf-curve times
+   --sf-curve-scale, a plain multiplier that inherits, so one element, a
+   component's `curve` prop, or a whole subtree can turn a face up or down
+   without touching the token (1 = the system amplitude, 0 flattens). */
+.dish,
+.dome,
+.concave {
+  --_sf-curve: calc(var(--sf-curve) * var(--sf-curve-scale, 1));
+}
+
+.flat {
+  background-image: none;
+}
+
+.dish {
+  background-image: linear-gradient(
+    var(--sf-light-angle),
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.42) c h) 0%,
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.73) c h) 20%,
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.47) c h) 40%,
+    oklch(from var(--sf-cap) l c h) 62.5%,
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve) * 0.44) c h) 80%,
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve)) c h) 100%
+  );
+}
+
+.dome {
+  background-image: linear-gradient(
+    var(--sf-light-angle),
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve)) c h) 0%,
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve) * 0.33) c h) 35%,
+    oklch(from var(--sf-cap) l c h) 50%,
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.33) c h) 65%,
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve)) c h) 100%
+  );
+}
+
+.concave {
+  background-image: linear-gradient(
+    var(--sf-light-angle),
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve)) c h) 0%,
+    oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.33) c h) 35%,
+    oklch(from var(--sf-cap) l c h) 50%,
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve) * 0.33) c h) 65%,
+    oklch(from var(--sf-cap) calc(l + var(--_sf-curve)) c h) 100%
+  );
+}

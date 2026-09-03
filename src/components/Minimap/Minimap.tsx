@@ -4,7 +4,7 @@ import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { usePointerDrag } from "../../lib/usePointerDrag";
-import type { MinimapMarker } from "./geometry";
+import type { MinimapMarker, MinimapMarkerKind } from "./geometry";
 import {
   decimateLabels,
   grabZone,
@@ -164,6 +164,13 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
    *  step), measured through the probe below; 24 only until measured. */
   const [unitPx, setUnitPx] = useState(MIN_TARGET_PX);
   const unitProbeRef = useRef<HTMLDivElement>(null);
+  /** The label pill's rendered height (the CSS `--sf-minimap-label-size` plus
+   *  its 2px of leading), measured through its own probe. Label decimation
+   *  keeps labels this far apart, not a whole unit, so every block that has
+   *  room for its pill keeps its label and the rail names what the screen
+   *  shows; 14 only until measured. */
+  const [labelPx, setLabelPx] = useState(14);
+  const labelProbeRef = useRef<HTMLDivElement>(null);
   /** Rendered (decimation-surviving) header labels as (key, content top),
    *  sorted, read by the rAF recompute for active tracking without retying
    *  the callback. Survivors only: aria-current must land on a label that is
@@ -208,6 +215,11 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     const unit = probe && probe.offsetHeight > 0 ? probe.offsetHeight : MIN_TARGET_PX;
     if (probe && probe.offsetHeight > 0) {
       setUnitPx((prev) => (prev === unit ? prev : unit));
+    }
+    const labelProbe = labelProbeRef.current;
+    if (labelProbe && labelProbe.offsetHeight > 0) {
+      const label = labelProbe.offsetHeight;
+      setLabelPx((prev) => (prev === label ? prev : label));
     }
 
     // Effective rail content height (min block mode): grow so the smallest span
@@ -602,6 +614,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       y: number;
       height: number;
       tone: MinimapMarker["tone"];
+      kind: MinimapMarkerKind;
     }> = [];
     let dropped = 0;
     // Per-block cap (maxMarkerSize): the capped block renders at the cap and
@@ -622,6 +635,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
         // leave bare rules (no extent) at their floored height.
         height: extent > 0 && !scrollMode ? Math.max(MIN_MARKER_PX, railH - MARKER_GAP_PX) : railH,
         tone: marker.tone,
+        kind: marker.kind ?? "block",
       });
     });
     if (dropped > 0 && !warnedRef.current && process.env.NODE_ENV !== "production") {
@@ -654,24 +668,27 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       const top = resolveMarkerTop(marker, scrollHeight);
       if (top === null) return;
       const y = markerRailY(top, scrollHeight, railContentH);
-      // A header with a real extent is a block span: put the label at the
-      // block's top, so it lines up with the block (and with the viewport band
-      // when that content is scrolled to the top). A bare header rule has no
-      // extent, so center the one-unit label box on the rule instead. unitPx is
-      // the measured var(--sf-unit).
+      // A header with a real extent is a block span: put the label pill at the
+      // span's top, so it lines up with what it names on screen (VerticalForm
+      // anchors a field's header at its caption, so the pill sits where the
+      // caption sits in the viewport band). A bare header rule has no extent,
+      // so center the pill on the rule instead. labelPx is the pill's measured
+      // height.
       const hasSpan = resolveMarkerHeight(marker, scrollHeight) > 0;
-      const rawLabelTop = hasSpan ? y : y - unitPx / 2;
+      const rawLabelTop = hasSpan ? y : y - labelPx / 2;
       headers.push({
         key: marker.id ?? `sf-minimap-h-${index}`,
         marker,
         contentTop: top,
-        labelTop: clampNumber(rawLabelTop, 0, Math.max(railContentH - unitPx, 0)),
+        labelTop: clampNumber(rawLabelTop, 0, Math.max(railContentH - labelPx, 0)),
         level: clampNumber(marker.level ?? 1, 1, 6),
       });
     });
+    // Labels collide when their pills would touch: the pill height plus a
+    // hair, not a whole unit, so a dense rail keeps as many names as fit.
     const visible = decimateLabels(
       headers.map((h) => ({ y: h.labelTop, level: h.level })),
-      unitPx,
+      labelPx + 2,
     );
     const survivors = headers.filter((_, i) => visible[i]);
     // Active tracking runs over the survivors, so aria-current always lands
@@ -680,7 +697,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       .map((h) => ({ key: h.key, top: h.contentTop }))
       .sort((a, b) => a.top - b.top);
     return survivors;
-  }, [markerList, sizes, unitPx]);
+  }, [markerList, sizes, labelPx]);
 
   // Re-run active tracking whenever the marker set changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies(markerList): the dependency is the trigger, not an input — headersRef is derived from it during render.
@@ -758,6 +775,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       >
         {/* Measures the rendered var(--sf-unit) for the JS label math. */}
         <div ref={unitProbeRef} className={styles.unitProbe} aria-hidden="true" />
+        <div ref={labelProbeRef} className={styles.labelProbe} aria-hidden="true" />
         {/* Inner content: the rail's own height in fit mode, taller and
             scrollable when minMarkerSize keeps blocks at their floor. Markers,
             indicator, zone and labels are positioned within it. */}
@@ -768,6 +786,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
                 key={marker.key}
                 className={styles.marker}
                 data-tone={marker.tone}
+                data-kind={marker.kind}
                 style={{ top: marker.y, height: marker.height }}
               />
             ))}

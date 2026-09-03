@@ -7,3 +7,39 @@
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
 }
+
+/* The maximize toggle of a Picture-in-Picture window (the browser draws no
+   chrome for it): a small raised key pinned to the top-right corner of the
+   popup, above the content. Square, like the window-chrome icon buttons. */
+.maximize {
+  position: fixed;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  z-index: var(--sf-z-tooltip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.25);
+  padding: 0;
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-cap-rest);
+  cursor: pointer;
+  transition: box-shadow var(--sf-duration-fast) var(--sf-ease-out);
+}
+.maximize:active {
+  box-shadow: var(--sf-cap-pressed);
+}
+.maximize:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .maximize {
+    transition: none;
+  }
+}

@@ -469,6 +469,10 @@ export const storyDocs: Record<string, string> = {
     "One row of combos (`mod+k`, `alt+enter`, `shift+arrowup`, `esc`\u2026) rendered three ways: auto-detected for your OS, then forced macOS and Windows/Linux via the `mac` prop. Shows how `mod` resolves to \u2318 on Mac and Ctrl elsewhere, and how off-Mac keys join with a `+` separator.",
   "kbd--in-context":
     "Keycaps sitting inline at the right of menu-style rows, each `combo` paired with its action label. Reach for this to see how `Kbd` reads next to text in menus, tooltips, and command lists.",
+  "materials--controls":
+    "Every control that wears the material layer, each in its three faces where it has one: Button, Kbd and the LaunchButton lid (dish by default), Switch (dome), Slider (flat), plus the groove slots and the caps. Read it in both themes: the tokens carry their own dark values.",
+  "materials--recipes":
+    "The material layer's recipes on bare boxes: the edge bands, the groove, the cap depths, and the dish / dome faces over a neutral and a primary base. A change to a token in tokens.css can be read across the whole lattice here.",
   "map--areas-and-vectors":
     "Draws all three overlay types at once: a filled `areas` polygon, two `vectors` poly-lines (one `arrow`-headed, one `dashed` and success-colored), and `points`. Reach for it to see how regions, routes, and markers layer together with token-tinted defaults.",
   "map--default":

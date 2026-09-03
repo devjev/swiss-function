@@ -28,7 +28,9 @@ test("an errored field marks its rail block and label danger", async ({ mount })
   const c = await mount(<Basic />);
   // Field 4 (index 3) carries an error; both its block marker and its label
   // take the danger tone.
-  await expect(c.locator('[class*="marker"][data-tone="danger"]')).toHaveCount(1);
+  await expect(c.locator('[class*="marker"][data-kind="block"][data-tone="danger"]')).toHaveCount(
+    1,
+  );
   await expect(c.locator('[class*="label"][data-tone="danger"]')).toHaveCount(1);
 });
 
@@ -71,9 +73,10 @@ test("rail blocks are honest: each spans its field's real share of the document"
   // and a 1200px table as identical short blocks.
   const c = await mount(<MixedHeightsForm />);
   // Block markers are `…_marker__…` (the container is `…_markers__…`, which the
-  // double underscore after "marker" excludes). They populate after a measure,
-  // so wait for the three.
-  const blocks = c.locator('[class*="marker__"]');
+  // double underscore after "marker" excludes) tagged kind block (a captioned
+  // field also carries a bare header rule for its label). They populate after
+  // a measure, so wait for the three.
+  const blocks = c.locator('[class*="marker__"][data-kind="block"]');
   await expect(blocks).toHaveCount(3);
   const heights = await blocks.evaluateAll((els) =>
     els.map((e) => Math.round(e.getBoundingClientRect().height)),
@@ -89,7 +92,7 @@ test("rail blocks are honest: each spans its field's real share of the document"
 
 test("maxBlock caps only the outsized block; the rest stay proportional", async ({ mount }) => {
   const c = await mount(<MixedHeightsCappedForm />);
-  const blocks = c.locator('[class*="marker__"]');
+  const blocks = c.locator('[class*="marker__"][data-kind="block"]');
   await expect(blocks).toHaveCount(3);
   const heights = await blocks.evaluateAll((els) =>
     els.map((e) => Math.round(e.getBoundingClientRect().height)),
@@ -154,6 +157,10 @@ test("nav: selecting a title in the bottom picker scrolls to it", async ({ mount
 test("nav: scrolling updates the picker to the title at the top", async ({ mount, page }) => {
   const c = await mount(<NavForm />);
   const field = c.getByPlaceholder("Jump to a field…");
+  // Wait for the rail to be measured (the last label is up) before scrolling:
+  // a scroll that lands before layout settles is no longer at the bottom once
+  // the rows finish sizing, and the at-bottom clamp would not apply.
+  await expect(c.getByRole("button", { name: "Juliet" })).toBeVisible();
   // Scroll the form so a Profile field is at the top.
   const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
   await page.evaluate((sel) => {

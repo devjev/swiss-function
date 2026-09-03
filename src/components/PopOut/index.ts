@@ -1,2 +1,2 @@
-export type { PopOutCloseReason, PopOutProps, PopOutRect } from "./PopOut";
-export { PopOut } from "./PopOut";
+export type { PopOutCloseReason, PopOutProps, PopOutRect, PopOutWindowState } from "./PopOut";
+export { PopOut, usePopOutWindow } from "./PopOut";

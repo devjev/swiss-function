@@ -38,6 +38,8 @@ import {
 import { cx } from "../../lib/cx";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { Glyph } from "../../lib/icons";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
 import { Dialog } from "../Dialog";
@@ -54,7 +56,7 @@ import {
   X,
 } from "../Icon";
 import type { PopOutRect } from "../PopOut";
-import { PopOut } from "../PopOut";
+import { PopOut, usePopOutWindow } from "../PopOut";
 import { RadioTable } from "../RadioTable";
 import type { DropSlot, NavDirection, StripModel, WindowMove } from "./layout";
 import {
@@ -195,6 +197,12 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
    *  exclusive with fullscreen/split per window; pop-out wins. Default
    *  `false`. */
   popOutable?: boolean;
+  /** The face of every window's title bar, a raised key from lib/surface:
+   *  `"dish"` (default), `"dome"`, `"concave"` or `"flat"`. */
+  surface?: ControlSurface;
+  /** Amplitude of the title bars' face ramp as a multiple of `--sf-curve`
+   *  (1 = the token, 0 flattens). */
+  curve?: number;
   /** Controlled list of popped-out window ids (several may be popped at
    *  once — one per monitor is the point). */
   poppedIds?: string[];
@@ -265,6 +273,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     gap = 0.5,
     columnMinWidth = 240,
     elevation = 1,
+    surface = "dish",
+    curve,
     snap = false,
     controls = false,
     apiRef,
@@ -1071,13 +1081,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       {...rest}
       ref={setRefs}
       className={cx(styles.root, className)}
-      style={
-        {
-          "--sf-wa-gap": gapSize,
-          "--sf-wa-elevation": `var(--sf-elevation-${elevation})`,
-          ...style,
-        } as CSSProperties
-      }
+      style={curveStyle(curve, {
+        "--sf-wa-gap": gapSize,
+        "--sf-wa-elevation": `var(--sf-elevation-${elevation})`,
+        ...style,
+      } as CSSProperties)}
       data-orientation={vertical ? "vertical" : "horizontal"}
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
       data-has-split={resolvedSplit != null ? "" : undefined}
@@ -1164,6 +1172,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     key={win.id}
                     regionId={regionId}
                     win={win}
+                    surface={surface}
                     columnId={col.props.id}
                     row={row}
                     placement={placementById.get(win.id)}
@@ -1475,6 +1484,7 @@ function GutterView({
 
 interface WindowViewProps {
   win: WindowArrayWindowProps;
+  surface: ControlSurface;
   columnId: string;
   row: number;
   /** The shared-dnd region id, stamped on this window's drag/drop data. */
@@ -1509,6 +1519,7 @@ interface WindowViewProps {
 
 function WindowView({
   win,
+  surface,
   columnId,
   row,
   regionId,
@@ -1587,6 +1598,7 @@ function WindowView({
       }}
     >
       {actions}
+      {popped && <PopOutMaximizeButton />}
       {showPopOutButton && (
         <button
           type="button"
@@ -1654,10 +1666,12 @@ function WindowView({
         rect={popRectRef.current}
         pip={pip}
         windowRef={popWinRef}
+        // The title bar below carries the maximize toggle; no corner button.
+        maximizable={false}
       >
         {/* biome-ignore lint/a11y/useSemanticElements: same "group" rationale as the in-strip window. */}
         <section role="group" aria-labelledby={titleId} className={styles.poppedWindow}>
-          <header className={styles.titlebar}>
+          <header className={cx(styles.titlebar, surfaceClass[surface])}>
             {/* Not the draggable handle button (a lone window doesn't drag), so
                 a plain element that still centres and ellipsizes the title. */}
             <div id={titleId} className={styles.poppedTitle}>
@@ -1693,7 +1707,10 @@ function WindowView({
       data-drop-edge={dropEdge ?? undefined}
       onPointerDownCapture={onActivate}
     >
-      <header className={styles.titlebar} data-movable={dragEnabled ? "" : undefined}>
+      <header
+        className={cx(styles.titlebar, surfaceClass[surface])}
+        data-movable={dragEnabled ? "" : undefined}
+      >
         {/* The handle button is the window's single roving Tab stop: its text
             is the accessible name, arrows navigate, Shift+arrows move, and the
             dnd-kit pointer listeners make it the drag grip. */}
@@ -1716,6 +1733,30 @@ function WindowView({
       </header>
       <div className={styles.body}>{children}</div>
     </section>
+  );
+}
+
+/** The popped title bar's maximize toggle. Only a chromeless Picture-in-Picture
+ *  window needs one (a `window.open` popup has the OS control), so it renders
+ *  nothing otherwise. Lives inside the PopOut, where the click counts as the
+ *  user gesture the browser wants for `resizeTo`. */
+function PopOutMaximizeButton() {
+  const popWindow = usePopOutWindow();
+  if (!popWindow?.pip) return null;
+  return (
+    <button
+      type="button"
+      aria-label={popWindow.maximized ? "Restore window size" : "Maximize window"}
+      aria-pressed={popWindow.maximized}
+      className={styles.iconButton}
+      onClick={popWindow.toggleMaximize}
+    >
+      {popWindow.maximized ? (
+        <Glyph slot="collapse" fallback={Collapse} size={CHROME_ICON_SIZE} />
+      ) : (
+        <Glyph slot="expand" fallback={Expand} size={CHROME_ICON_SIZE} />
+      )}
+    </button>
   );
 }
 

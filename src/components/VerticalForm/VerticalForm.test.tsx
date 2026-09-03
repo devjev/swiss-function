@@ -41,6 +41,25 @@ describe("buildMarkers", () => {
     expect(marker?.tone).toBe("danger");
   });
 
+  it("anchors a captioned entry's header on the caption's centre line and keeps the row as a block", () => {
+    const markers = buildMarkers([
+      {
+        id: "f",
+        top: 100,
+        height: 120,
+        label: "Field",
+        level: 2,
+        captionTop: 124,
+        captionHeight: 24,
+      },
+    ]);
+    expect(markers.map((m) => [m.id, m.kind, m.top, m.height])).toEqual([
+      ["f:block", "block", 100, 120],
+      ["f", "header", 136, 0],
+    ]);
+    expect(markers[1]?.label).toBe("Field");
+  });
+
   it("does not mutate the input array", () => {
     const entries: VerticalFormEntry[] = [
       { id: "b", top: 200, height: 80, label: "B", level: 1 },

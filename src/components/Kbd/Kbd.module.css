@@ -15,17 +15,13 @@
 
 /* A skeuomorphic 3D keycap — a deliberate, old-school departure from the flat
    default (sanctioned in AESTHETICS.md). `.key` is the darker BODY (its lower
-   edge reads as the keycap's front lip); `::before` is the lighter, raised TOP
-   FACE with a sheen + bevel + dish; `.legend` rides on top. Scales to any key
-   width without distortion (unlike a stretched SVG). Theme-aware via color-mix.
-   The highlight strengths are vars so dark mode can dial them down — a bright
-   white bevel glares on a dark surface. */
+   edge reads as the keycap's front lip); `.face` is the raised TOP FACE, a
+   dished cap from lib/surface (the `surface` prop picks dish / dome / flat)
+   with the shared soft edge bands; `.legend` rides on top. Scales to any key
+   width without distortion (unlike a stretched SVG). Every strength comes from
+   the material tokens, which carry their own dark values, so there is no
+   dark-mode tuning here. */
 .key {
-  --kbd-bevel: 0.6; /* top bevel highlight alpha */
-  --kbd-sheen: 0.5; /* radial top sheen alpha */
-  --kbd-face: 40%; /* how much lighter the top face is than the surface */
-  --kbd-engrave: 0.55; /* engraved-legend highlight alpha */
-
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -38,39 +34,22 @@
   background: color-mix(in srgb, var(--sf-color-bg-subtle), black 16%);
   color: var(--sf-color-fg);
   box-shadow:
-    0 2px 3px rgb(0 0 0 / 0.28),
-    inset 0 -1px 1px rgb(0 0 0 / 0.18);
-  text-shadow: 0 1px 0 rgb(255 255 255 / var(--kbd-engrave));
+    calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 3px rgb(0 0 0 / 0.28),
+    inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px rgb(0 0 0 / 0.18);
+  text-shadow: var(--sf-engrave);
   font: inherit;
   line-height: 1;
 }
 
 /* Raised top face — inset, with a larger bottom inset so the body shows through
-   as the front lip. Top sheen + bevel highlight + a subtle concave dish. */
-.key::before {
-  content: "";
+   as the front lip. `--sf-cap` is the base the dish ramp derives from. */
+.face {
   position: absolute;
   inset: 1px 1px 3px;
   border-radius: calc(var(--sf-unit) / 4.5);
-  background:
-    radial-gradient(125% 85% at 50% 0%, rgb(255 255 255 / var(--kbd-sheen)), transparent 62%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--sf-color-bg-subtle), white var(--kbd-face)),
-      var(--sf-color-bg-subtle)
-    );
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / var(--kbd-bevel)),
-    inset 0 -2px 2px rgb(0 0 0 / 0.1);
-}
-
-/* Dark mode: a bright highlight reads as glare, so make the cap subtle — soften
-   the bevel/sheen and the top-face lift. */
-[data-theme="dark"] .key {
-  --kbd-bevel: 0.14;
-  --kbd-sheen: 0.1;
-  --kbd-face: 15%;
-  --kbd-engrave: 0.06;
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
+  box-shadow: var(--sf-edge-soft);
 }
 
 .legend {

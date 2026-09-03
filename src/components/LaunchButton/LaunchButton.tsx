@@ -10,6 +10,8 @@ import type {
 import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
+import type { ControlSurface } from "../../lib/surface";
+import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
 import { Button } from "../Button";
 import { Switch } from "../Switch";
@@ -62,6 +64,12 @@ export interface LaunchButtonProps extends Omit<HTMLAttributes<HTMLDivElement>, 
   disabled?: boolean;
   /** Resting depth of the lid — same `--sf-elevation-N` scale as Box. Default 2. */
   elevation?: BoxElevation;
+  /** The face of the lid plate: `"dish"` (default) a scooped keycap, `"dome"` a
+   *  rounded one, `"flat"` no ramp. */
+  surface?: ControlSurface;
+  /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
+   *  (1 = the token, 2 doubles it, 0 flattens the face). */
+  curve?: number;
 }
 
 export const LaunchButton = forwardRef<HTMLDivElement, LaunchButtonProps>(function LaunchButton(
@@ -81,6 +89,9 @@ export const LaunchButton = forwardRef<HTMLDivElement, LaunchButtonProps>(functi
     tone = "danger",
     disabled,
     elevation,
+    surface = "dish",
+    curve,
+    style,
     className,
     onKeyDown,
     onBlur,
@@ -233,6 +244,7 @@ export const LaunchButton = forwardRef<HTMLDivElement, LaunchButtonProps>(functi
     <div
       {...rest}
       ref={mergeRefs(rootRef, ref)}
+      style={curveStyle(curve, style)}
       role="group"
       className={cx(styles.root, className)}
       data-mode={mode}
@@ -259,6 +271,7 @@ export const LaunchButton = forwardRef<HTMLDivElement, LaunchButtonProps>(functi
         onClick={handleGuardClick}
       >
         <span className={styles.lid} aria-hidden="true">
+          <span className={cx(styles.lidPlate, surfaceClass[surface])} />
           <span className={styles.lidFace}>{guardLabel}</span>
         </span>
       </button>

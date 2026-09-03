@@ -19,6 +19,20 @@ Per-component prop/element reference for every exported component in the library
 - "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
   JS. Dark mode is `[data-theme="dark"]` on any ancestor.
+- Depth on controls comes from the **material layer** in `tokens.css`: one light
+  (`--sf-light-x` / `-y`, from the top left by default; a document-level
+  setting, set it on `:root` or the theme element) and the recipes derived from
+  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key),
+  `--sf-groove` (a flush slot for fields, tracks and rails), `--sf-cap-rest` /
+  `--sf-cap-pressed` (+ `-round`) for small caps, `--sf-curve` (the amplitude of
+  a curved face; `--sf-curve-scale` multiplies it per subtree, which is what a
+  component's `curve` prop sets) and `--sf-engrave` (a legend cut into a cap). The dark theme
+  re-declares them with its own values. Curved faces live in
+  `@tarassov-ch/swiss-function/lib/surface`: `surfaceClass.dish` / `.dome` /
+  `.concave` / `.flat`, painted over the element's `--sf-cap` colour, exposed by
+  Button, Kbd, Switch, Slider, LaunchButton and ToggleGroup (keys) and by
+  DigitInput, Input and DigitInputMicro (slots, `concave`) as `surface`; the `ControlSurface` type is
+  exported from `/button` and the barrel.
 - Text-entry controls (Input, TextEdit, Combobox, DigitInput) rest on
   `--sf-color-input-bg` (a shade below the page) and lift to `--sf-color-bg` on
   focus. Override `--sf-color-input-bg` on any ancestor to retint or flatten
@@ -232,7 +246,9 @@ A single `<button>`. Extends `ButtonHTMLAttributes<HTMLButtonElement>`.
 | `variant` | `"primary" \| "secondary" \| "ghost" \| "danger"` | `"primary"` | Colour role. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Height + font. Inherits from an enclosing `<ButtonGroup size>`; explicit `size` wins. |
 | `tight` | `boolean` | `false` | Compact horizontal padding (`3/16u`) + `0.25u` icon/text gap. Height still comes from `size`, so tight buttons line up with peers. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). `ghost` is always flat. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth: the shared edge bands (`--sf-edge`) plus the `--sf-elevation-N` cast. Pressed drops one step and 1px (travel, never a dent). `ghost` is always flat. |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of the key (`lib/surface`): the scoop of a keycap, a rounded cap, or no ramp. `ghost` is always flat. |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 ```tsx
 <Button variant="secondary" size="sm" tight>
@@ -775,7 +791,7 @@ Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`
 | `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. Day precision only; ignored at coarser precisions. |
 | `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. Forced on at week precision. |
 | `formatValue` | `(date: Date) => string` | precision's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | flat | Resting depth of the field (`--sf-elevation-N`). |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | A cast below the field (`--sf-elevation-N`). Omitted, the field sits flush as a groove (`--sf-groove`). |
 | `aria-label` | `string` | n/a | Accessible name when not wrapped in a `Field`. |
 
 ## Dialog
@@ -836,7 +852,9 @@ Fixed-capacity numeric input rendered as individual digit cells (`[0][4][2].[5][
 | `signed` | `boolean` | `false` | Allow negatives: a leading `+`/`-` cell (click to toggle, or type `-`/`+`), ArrowDown crosses zero, and the value + form string carry the sign. **`push` mode only** (mask has no sign position; dev-warns and ignores it there). |
 | `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | `null` = pristine mask. Reported values are always complete (untyped positions are 0). Controlled values clamp to capacity + round to `decimals` (dev-warn on clamp). With `signed`, a negative value shows the minus; without it, negatives clamp to 0. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cell heights 1u / 1.5u / 2u (Input parity). |
-| `elevation` | `0` to `5` | `2` | Resting cell depth, cascading to every cell. |
+| `elevation` | `0` to `5` | n/a | A cast below every cell (`--sf-elevation-N`). Omitted, the cells sit flush as grooves (`--sf-groove`). |
+| `surface` | `"flat" \| "concave" \| "dome"` (+ `"dish"`) | `"concave"` | The floor of each cell (`lib/surface`): scooped into the page by default; `dome` makes it a convex pad. |
+| `curve` | `number` | `2` | Amplitude of the face ramp as a multiple of `--sf-curve` (a cell is a small deep window, so it defaults to twice the token; 0 flattens). Sets `--sf-curve-scale` on the root. |
 | `name` | `string` | n/a | Form participation; submits the canonical string (e.g. `"4.25"`). |
 
 Keyboard (`push`): **0 to 9** push in from the right; **Backspace** pops (last digit → pristine `null`); **Delete** clears to pristine in one keystroke; **ArrowUp/Down** step ±1 least-significant unit, clamped to `[0, max]` (from pristine: down → 0, up → 1 ulp); Enter/Tab/Escape pass through (form submit, Field validation). Typing at full significant capacity is ignored. No wheel handling (deliberate). Paste/autofill parse free-form text (`"42 %"`, `"1,234.56"`, comma separators); a leading `-` in pasted text sets the sign when `signed`, otherwise negatives clamp to 0. With `signed`, `-`/`+` set the sign, ArrowDown steps below zero, and the ± magnitude clamps to capacity in both directions.
@@ -876,7 +894,9 @@ hint, not a contract; reach for `DigitInput` when the capacity IS the contract
 | `value` / `defaultValue` / `onValueChange` | `number \| null` | `null` | Lossy-controlled: an incomplete draft (`"1."`) stays local until `value` reports a different number. |
 | `min` / `max` | `number` | n/a | Bounds; clamp on blur. A negative or absent `min` also enables typing a leading `-`. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Heights 1u / 1.5u / 2u (Input parity). |
-| `elevation` | `0` to `5` | `2` | Resting depth. |
+| `elevation` | `0` to `5` | n/a | A cast below the field (`--sf-elevation-N`). Omitted, the field sits flush as a groove (`--sf-groove`). |
+| `surface` | `"flat" \| "concave"` (+ `"dish"` / `"dome"`) | `"flat"` | The floor of the slot (`lib/surface`); concave scoops it into the page. |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 | `name` | `string` | n/a | Form participation; submits the canonical numeric string. |
 
 Non-numeric characters are rejected; a second decimal point and extra decimal
@@ -1306,7 +1326,9 @@ Text input wrapping Base UI's Input. Extends `HTMLAttributes<HTMLInputElement>` 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `inputSize` | `"sm" \| "md" \| "lg"` | `"md"` | Visual size. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth (`--sf-elevation-N`). |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | A cast below the field (`--sf-elevation-N`). Omitted, the field sits flush as a groove cut into the page (`--sf-groove`). |
+| `surface` | `"flat" \| "concave"` (+ `"dish"` / `"dome"`) | `"flat"` | The floor of the slot (`lib/surface`); concave scoops it into the page. |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 ## Kbd
 
@@ -1318,6 +1340,8 @@ Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Ex
 | --- | --- | --- | --- |
 | `combo` | `string` | n/a | `+`-separated combination, e.g. `"mod+shift+k"`, `"alt+enter"`. |
 | `mac` | `boolean` | auto | Force macOS rendering. Auto-detected from the browser otherwise; pass it for SSR/tests so output is deterministic. |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of each keycap (`lib/surface`). |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 `mod` is the **primary modifier**: `⌘` on macOS, `Ctrl` elsewhere (its aliases `cmd`/`command`/`meta` follow suit, so a "cmd" shortcut never shows `⌘` off-Mac). Other modifiers: `ctrl` (`⌃`/Ctrl), `alt`/`opt` (`⌥`/Alt), `shift` (`⇧`/Shift). Named keys resolve to glyphs (`enter` → `↵`, `esc` → `Esc`, `tab` → `⇥`, `arrowup` → `↑`, …); single letters uppercase. On macOS the glyphs render adjacent (`⌘⇧K`); elsewhere modifiers join with `+` (`Ctrl + Shift + K`).
 
@@ -1345,6 +1369,8 @@ A guarded, missile-launch-style two-step control: a hinged protective lid over a
 | `tone` | `"danger" \| "primary"` | `"danger"` | Danger: hazard-striped lid + danger action (the default; the component exists for destructive actions). Primary: plain lid, for deliberate but non-destructive actions. |
 | `disabled` | `boolean` | `false` | Disables the guard and the covered control. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth of the lid — same scale as Box. |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of the lid plate (`lib/surface`). |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 Behavior contract:
 
@@ -1773,7 +1799,7 @@ Search a list and choose exactly one: the single-selection sibling of [Selector]
 | `disabled` | `boolean` | n/a | Disable the control. |
 | `clearable` | `boolean` | `true` | Show a clear button once selected. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flat (its default); set it to raise the control. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flush as a groove (its default); set it to raise the control. |
 
 **Width:** fills its container and clamps to a narrow *definite* cell (like
 [Selector](#selector)). In a shrink-to-fit parent it holds a `12rem` floor
@@ -1818,6 +1844,9 @@ Opening must be triggered from a user gesture (toggle `open` in a click handler)
 | `pip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) where supported (Chromium, secure context); falls back to `window.open` otherwise. A `window.open` popup always shows an `about:blank` address bar that browsers do not allow hiding — this is the only way to drop it. Trade-offs: only one PiP window can exist at a time (a second pop-out closes the first), it is always-on-top, and the browser places it (so `rect`/`features` and `name` reuse do not apply). |
 | `closeOnEscape` | `boolean` | `true` | Escape inside the popup closes it (reason `"escape"`). |
 | `windowRef` | `Ref<Window \| null>` | n/a | The live child `Window` (`null` while closed), e.g. to `focus()` it. |
+| `maximizable` | `boolean` | `true` | A Picture-in-Picture window has no OS chrome, so it cannot be maximized like a normal window. With this on, the popped content gets a corner button toggling the window between its size and the screen's work area (`resizeTo`; needs a click inside the popup, so the button lives there). A host drawing its own title bar in the popup (WindowArray) passes `false` and renders the toggle from `usePopOutWindow()`. No effect on a `window.open` popup. |
+
+`usePopOutWindow()` returns the enclosing popped window's state for chrome rendered inside a `PopOut` (`{ window, pip, maximized, toggleMaximize }`), or `null` outside one.
 
 Notes: the subtree **remounts** on every pop-out and return (the portal target changes documents), so lift any state you need to keep. Constructable `adoptedStyleSheets` cannot cross documents; they are serialized to text once at open, with no live sync. Library floating overlays (Menu, ContextMenu, Popover, MenuBar dropdowns, Picker/Selector, DatePicker calendar, nested Dialogs, Drawer) opened from inside popped-out content portal into the popup window, not the opener: `PopOut` publishes its body through a `PortalContainerProvider` that each overlay reads. The opener closes the popup when the `PopOut` unmounts, `open` flips off, or the opener page unloads.
 
@@ -2018,7 +2047,7 @@ Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLA
 | `layout` | `"panel" \| "inline" \| "compact"` | `"panel"` | See below. |
 | `disabled` | `boolean` | n/a | Disable the control. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box); applies in every `layout`. Omitted leaves the field flat; set it to raise the control. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box); applies in every `layout`. Omitted leaves the field flush as a groove; set it to raise the control. |
 | `bucketLabel` | `ReactNode` | `"Selected"` | Bucket heading, `panel` only. |
 | `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording, `compact` only. |
 
@@ -2094,6 +2123,8 @@ reach for `DigitInput`; this is for a dragged value.
 | `format` / `locale` | `Intl.NumberFormatOptions` / `Intl.LocalesArgument` | n/a | Intl formatting for the value bubble / aria text. |
 | `name` / `form` | `string` | n/a | Form integration (submits the value). |
 | `thumbCollisionBehavior` | `"push" \| "swap" \| "none"` | `"push"` | How range thumbs behave when they meet. |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"flat"` | The face of the thumb cap (`lib/surface`); a fader cap is flat-topped by default. |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 The thumb tracks the pointer 1:1 (no easing on position); only depth, colour, and
 the value bubble animate, and all motion respects `prefers-reduced-motion`. The
@@ -2333,7 +2364,9 @@ Toggle switch (Base UI Switch.Root + Thumb). Forwards Base UI Switch props (`che
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth; sets `data-elevation`. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | A cast below the rail (`--sf-elevation-N`). Omitted, the rail sits flush as a groove cut into the panel (`--sf-groove`). |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"dome"` | The face of the thumb (`lib/surface`). |
+| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 ## TableInput
 
@@ -2402,9 +2435,9 @@ default (no explicit `align` needed), so decimals line up.
 
 `import { Tabs } from "@tarassov-ch/swiss-function/tabs"`
 
-Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props. The active tab reads as the primary colour + **bold** caption + the underline `Indicator`; the bold width is reserved (a hidden bold copy of the label), so selecting a tab never reflows the row (issue #41). The active state is keyed off `aria-selected`.
+Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI props. Folder tabs: the list is the top edge of a sheet, each tab a raised card from the material layer (edge bands, square top corners, open bottom); the tabs behind sit a step lower and a shade darker, and the selected tab stands at full height in the panel's colour, riding over the sheet's edge line so tab and panel read as one folded sheet. The active tab also reads as the primary colour + **bold** caption + the `Indicator`, the coloured index strip along its top edge; the bold width is reserved (a hidden bold copy of the label), so selecting a tab never reflows the row (issue #41). The active state is keyed off `aria-selected`.
 
-**Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve, pass plain-text labels to get it), `Indicator` (active underline), `Panel` (paired by index).
+**Elements / Parts:** `Root`, `List`, `Tab` (wraps its label in a `.label` span for the width reserve, pass plain-text labels to get it), `Indicator` (the index strip on the active tab), `Panel` (paired by index).
 
 `Tabs.List` can fold tabs that don't fit into a trailing `⋯` overflow menu instead of overrunning the row (the priority-plus `useOverflow` pattern, container-width based, so it works in split panes/sidebars). The selected tab is always kept visible, so choosing one from the `⋯` menu pulls it into the row.
 
@@ -2412,6 +2445,8 @@ Tabbed navigation exposing Base UI's Tabs compound API. Parts forward Base UI pr
 | --- | --- | --- | --- | --- |
 | `overflow` | `List` | `boolean` | `false` | Fold overflowing tabs into a `⋯` menu (keeps the selected tab visible). |
 | `menuLabel` | `List` | `string` | `"More tabs"` | Accessible name for the `⋯` trigger. |
+| `surface` | `List` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of every tab (`lib/surface`); a folder tab is a flat card by default. |
+| `curve` | `List` | `number` | `1` | Amplitude of the tabs' face ramp as a multiple of `--sf-curve`. |
 
 ```tsx
 <Tabs.List overflow>
@@ -2516,6 +2551,8 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
+| `surface` | `Root` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of every key (`lib/surface`); cascades to all items. Items are raised keys like Button; the pressed item sits down at panel level. |
+| `curve` | `Root` | `number` | `1` | Amplitude of the face ramps as a multiple of `--sf-curve`; cascades to all items. |
 
 ## VerticalForm
 
@@ -2619,6 +2656,8 @@ With `popOutable`, every window's chrome gains a pop-out button (external-window
 | `splittable` | `boolean` | `false` | Adds the split button (two-panes icon) to every window's chrome (with at least two windows). |
 | `splitIds` / `defaultSplitIds` / `onSplitChange` | `[string, string] \| null` | `null` | Split pair in order `[half 1, half 2]`: the two windows fill the container as halves along the layout axis. Escape exits. Mutually exclusive with fullscreen; when both are set, fullscreen wins. |
 | `popOutable` | `boolean` | `false` | Adds the pop-out button (external-window icon) to every window's chrome: the content opens alone in a separate browser window and the strip keeps a placeholder. Toggle from the button (a user gesture), or popup blockers refuse the window. |
+| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"dish"` | The face of every window's title bar (`lib/surface`): the bar is a raised key with the shared edge bands, and it sits down in a groove while its handle is held. |
+| `curve` | `number` | `1` | Amplitude of the title bars' face ramp as a multiple of `--sf-curve` (0 flattens). |
 | `poppedIds` / `defaultPoppedIds` / `onPopOutChange` | `string[]` | `[]` | Popped-out window ids (several at once is fine). A popped window leaves the strip; its window (chrome + body) shows in a separate browser window. Stale ids read as absent; a vanished window drops out and its popup closes. Wins over fullscreen/split for the same window. |
 | `popOutPip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for pop-outs where supported (Chromium). Only one such window exists at a time, so best for popping one window at a time. See PopOut `pip`. |
 | `onWindowMove` | `(move: WindowMove) => void` | n/a | Enables rearranging (title-bar drag and Shift+Arrow). Absent → rearranging off. |

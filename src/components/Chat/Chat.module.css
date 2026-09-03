@@ -73,7 +73,7 @@
   background-color: var(--sf-color-bg);
 }
 
-/* Chat-specific overrides on TextEdit: auto-grow, elevation, and a neutral
+/* Chat-specific overrides on TextEdit: auto-grow, the groove slot, and a neutral
    border (TextEdit defaults to a primary border — Chat de-accents it via the
    `--sf-chat-input-border` custom property). Monospace + block caret +
    padding-inline still come from TextEdit. Single-line height matches Button md
@@ -86,9 +86,8 @@
   resize: none;
   min-block-size: calc(var(--sf-unit) * 1.5);
   max-block-size: calc(var(--sf-unit) * 8);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    var(--sf-elevation-1);
+  /* The slot: the groove recipe, as Input. */
+  box-shadow: var(--sf-groove);
 }
 /* Override TextEdit's primary `border` shorthand — needs the extra `.inputRow`
    specificity to beat it regardless of stylesheet order. Hover stays neutral too. */

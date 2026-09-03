@@ -35,6 +35,10 @@
       "types": "./dist/lib/cx.d.ts",
       "import": "./dist/lib/cx.js"
     },
+    "./lib/surface": {
+      "types": "./dist/lib/surface.d.ts",
+      "import": "./dist/lib/surface.js"
+    },
     "./lib/format": {
       "types": "./dist/lib/format.d.ts",
       "import": "./dist/lib/format.js"
