@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.31.0 — 2026-09-04
+
+### Minor
+
+- DataTable and Explorer column headers get a slightly scooped face: a concave ramp at 0.6 of the system amplitude (`--sf-curve-scale` on the header row) plus the scoop's wall shadow along the lit edges inside the rim (the groove's wall layer, now its own token `--sf-groove-wall` beside `--sf-groove-bounce`), with a `headerSurface` prop to pick `dome`, `dish` or `flat` instead. A merged placeholder-plus-leaf header shows one unbroken ramp. Header states (hover, sorted, group, frozen, selected, column-fill) move the key's base colour, so the face follows them. The whole material layer is trimmed by about a fifth again (edge bands 0.24/0.14, groove wall 0.1 and bounce 0.55, curve 0.045, engrave 0.45; the dark theme in step), for a quieter read. Keys in a joined row (ButtonGroup, ToggleGroup) drop their side bands and run their face ramp vertically (`--sf-edge-row`), so the seams no longer step from dark to light. The group itself carries the one elevation cast and the keys inside none, so a white key and a coloured key in one row sit at the same height; the light theme's shade band is capped at the subtle border's darkness for the same reason. A pressed or latched key inside a row sinks in place (the groove on its face, no travel) instead of changing its box or cast, so the row's outline holds while it is down.
+
 ## v2.30.0 — 2026-09-03
 
 ### Minor
