@@ -6,6 +6,17 @@
 .root {
   display: inline-flex;
   gap: 0;
+  /* Joined keys: a vertical face ramp and top/bottom bands only, so the seams
+     stay flat (see ButtonGroup). */
+  --sf-light-angle: calc(atan2(var(--sf-light-y), 0) + 270deg);
+  /* One bar of keys, one cast (see ButtonGroup). */
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-2);
+}
+.root > .item {
+  --sf-edge: var(--sf-edge-row);
+  --sf-elevation-1: 0 0 0 0 transparent;
+  --sf-elevation-2: 0 0 0 0 transparent;
 }
 
 .root > .item:not(:first-child) {
@@ -60,11 +71,13 @@
   outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
-/* Held down: the cast goes, the key sits at panel level. Also the transient
-   press, so a click reads as the key going down before it latches. */
+/* Held down: the key sits sunk in the row, so the walls of the keys around it
+   shade its face (the groove recipe, in place: the box and the row's outline
+   never move, which is what keeps a bank of keys reading as one bar). Also the
+   transient press, so a click reads as the key going down before it latches. */
 .item:active:not([data-disabled]),
 .item[data-pressed] {
-  box-shadow: var(--sf-edge);
+  box-shadow: var(--sf-groove);
 }
 
 .item[data-pressed] {

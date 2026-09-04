@@ -50,9 +50,12 @@
 .root:active:not([data-disabled]) {
   /* Pressed is travel: the key keeps its face and drops one elevation step
      and 1px, the way a real key sinks toward the panel. Never an inverted
-     dent, which would read as a hollow tile rather than a lower key. */
-  box-shadow: var(--sf-edge), var(--sf-elevation-1);
-  transform: translateY(1px);
+     dent, which would read as a hollow tile rather than a lower key. Inside a
+     joined row (ButtonGroup) the key must not leave the row's outline, so the
+     group swaps both through these two variables: a sunk face in place (the
+     groove) and no travel. */
+  box-shadow: var(--sf-key-pressed, var(--sf-edge)), var(--sf-elevation-1);
+  transform: var(--sf-key-travel, translateY(1px));
 }
 
 /* --- Elevation overrides (default is elevation-2 on .root) --- */

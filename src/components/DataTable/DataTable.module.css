@@ -116,6 +116,10 @@
    they can't all fit — so on horizontal scroll the header background extends
    across every column instead of clipping at the viewport edge. */
 .headerRow {
+  /* The header keys' face (the `headerSurface` prop, a concave scoop by
+     default) at a touch over half the system amplitude: slight, enough to
+     read as a key next to the flat body cells. */
+  --sf-curve-scale: 0.6;
   display: grid;
   /* Column tracks come from --sf-datatable-template, set inline on the viewport
      (an INTERNAL variable, not a consumer token). One writer instead of a
@@ -145,6 +149,14 @@
   --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   --sf-hdr-lit: var(--sf-edge-lit);
   --sf-hdr-shade: var(--sf-edge-shade);
+  /* A scooped face (concave, dish) casts its wall's shadow onto the floor just
+     inside the lit rim; a dome or a flat face has no wall. */
+  --sf-hdr-wall: 0 0 transparent;
+  /* The key's base colour: every state below moves this, never the
+     background itself, because the face ramp (lib/surface) derives from it
+     and paints over the background. */
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
@@ -153,9 +165,15 @@
   font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
-  box-shadow: var(--sf-hdr-lit), var(--sf-hdr-shade), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
+  box-shadow:
+    var(--sf-hdr-lit), var(--sf-hdr-wall), var(--sf-hdr-shade), var(--sf-cell-edge-r),
+    var(--sf-cell-edge-b);
   user-select: none;
   position: relative;
+}
+.headerCell[data-surface="concave"],
+.headerCell[data-surface="dish"] {
+  --sf-hdr-wall: var(--sf-groove-wall);
 }
 
 /* Placeholder above an ungrouped leaf: erase the seam (and the key's shade
@@ -164,9 +182,16 @@
 .headerCell[data-merge-bottom] {
   --sf-cell-edge-b: 0 0 transparent;
   --sf-hdr-shade: 0 0 transparent;
+  /* One face across the merged pair: each half shows its half of a ramp
+     drawn at twice the height, so the crown runs top to bottom unbroken. */
+  background-size: 100% 200%;
+  background-position: top;
 }
 .headerCell[data-merge-top] {
   --sf-hdr-lit: 0 0 transparent;
+  --sf-hdr-wall: 0 0 transparent;
+  background-size: 100% 200%;
+  background-position: bottom;
 }
 
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
@@ -329,7 +354,7 @@
 }
 
 .headerCell[data-sortable]:hover {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
 }
 
 /* The sorted column's key is held down (and a sortable key goes down while
@@ -337,13 +362,13 @@
 .headerCell[data-sorted],
 .headerCell[data-sortable]:active {
   box-shadow: var(--sf-groove), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
 /* Group parent header — slightly heavier background; chevron sits at the end. */
 .headerCellGroup {
   justify-content: space-between;
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
 }
 
 /* Body wrapper — either plain flow (paginated) or relative + spacer (virtualized) */
@@ -362,10 +387,10 @@
   min-width: max-content;
 }
 .viewport[data-column-fill] .headerCell {
-  background-color: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-color-bg-subtle);
 }
 .viewport[data-column-fill] .headerCellGroup {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
 }
 .viewport[data-column-fill] .body {
   min-width: max-content;
@@ -526,7 +551,7 @@
 .headerCell[data-frozen] {
   position: sticky;
   z-index: 2;
-  background-color: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-color-bg-subtle);
 }
 
 /* The trailing edge of the frozen region gains a soft shadow once the body is
@@ -608,7 +633,7 @@
 
 /* A fully selected column tints its header, mirroring the gutter's row tint. */
 .headerCell[data-selected] {
-  background-color: color-mix(in srgb, var(--sf-color-primary) 18%, var(--sf-color-bg-subtle));
+  --sf-cap: color-mix(in srgb, var(--sf-color-primary) 18%, var(--sf-color-bg-subtle));
 }
 
 .cell[data-align="end"] {

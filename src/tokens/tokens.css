@@ -229,20 +229,28 @@
        control used to carry); compose it with a cast:
        `box-shadow: var(--sf-edge), var(--sf-elevation-2)`. Alphas: the
        chamfer fit gives a 0.98 white band for a fully lit facet, scaled to
-       0.3 for a 1px band on a 24px key; the shade band is the fit's 0.28
-       trimmed to 0.18. The two bands are also available on their own
+       0.24 for a 1px band on a 24px key; the shade band is the fit's 0.28
+       trimmed to 0.1, which keeps it no darker than the subtle border on a
+       white key, so the key's outline stays its outer row and a white key
+       and a coloured one in the same row read the same height. The two bands are also available on their own
        (--sf-edge-lit, --sf-edge-shade) for a cell that shares one edge with a
        neighbour. --sf-edge-soft is the same pair as a round-over (fillet:
        1.4px reach, 2px blur) for round caps. */
     --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
-      rgb(255 255 255 / 0.3);
+      rgb(255 255 255 / 0.24);
     --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
-      rgb(0 0 0 / 0.18);
+      rgb(0 0 0 / 0.1);
     --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
+    /* A key in a joined row (ButtonGroup, ToggleGroup) has no exposed sides:
+       only the top and bottom bands, from the light's vertical component, so
+       the seams between keys stay flat instead of stepping light to dark. */
+    --sf-edge-row:
+      inset 0 calc(var(--sf-light-y) * -1px) 0 0 rgb(255 255 255 / 0.24),
+      inset 0 calc(var(--sf-light-y) * 1px) 0 0 rgb(0 0 0 / 0.1);
     --sf-edge-soft:
       inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
-      rgb(255 255 255 / 0.3),
-      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.18);
+      rgb(255 255 255 / 0.24),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.1);
 
     /* Groove: a slot cut into the surface. The wall facing the light casts a
        band onto the floor; the far wall catches the light and bounces it
@@ -252,11 +260,14 @@
        reach 1.5px, bounce reach 1px), alphas softened for the Swiss
        posture. Unlike --sf-recess-N it is directional and it never floats:
        compose an --sf-elevation-N after it only when a consumer asks for a
-       raised field. */
-    --sf-groove:
-      inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 1px 0
-      rgb(0 0 0 / 0.12),
-      inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 2px 0 rgb(255 255 255 / 0.7);
+       raised field. The two layers are also available on their own
+       (--sf-groove-wall, --sf-groove-bounce): a scooped face on a raised key
+       takes the wall shadow alone, inside its lit rim. */
+    --sf-groove-wall: inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 1px 0
+      rgb(0 0 0 / 0.1);
+    --sf-groove-bounce: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 2px 0
+      rgb(255 255 255 / 0.55);
+    --sf-groove: var(--sf-groove-wall), var(--sf-groove-bounce);
 
     /* Cap: the resting and pressed depth of a small control face (a
        checkbox, a radio, a switch thumb, a slider cap), square (-edge) or
@@ -275,7 +286,7 @@
        lightness at the reference lights), raised for 24 to 48px caps, where
        the ramp has no room to build, then eased back a step for the Swiss
        posture. */
-    --sf-curve: 0.055;
+    --sf-curve: 0.045;
     /* Its multiplier: 1 is the system amplitude. Unlike the recipes above it
        is read where the face is painted, so it can be set on any subtree, an
        element, or through a component's `curve` prop. */
@@ -284,7 +295,7 @@
     /* Engrave: the text-shadow of a legend cut into a cap, a lit lip on the
        side away from the light. */
     --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
-      rgb(255 255 255 / 0.55);
+      rgb(255 255 255 / 0.45);
 
     /* Motion */
     --sf-duration-fast: 120ms;
@@ -415,31 +426,35 @@
        and the shade band deepens; the groove's bounce becomes a faint lit
        lip; the caps take a soft cast instead of the hard one. */
     --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
-      rgb(255 255 255 / 0.1);
+      rgb(255 255 255 / 0.08);
     --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
-      rgb(0 0 0 / 0.45);
+      rgb(0 0 0 / 0.36);
     --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
+    --sf-edge-row:
+      inset 0 calc(var(--sf-light-y) * -1px) 0 0 rgb(255 255 255 / 0.08),
+      inset 0 calc(var(--sf-light-y) * 1px) 0 0 rgb(0 0 0 / 0.36);
     --sf-edge-soft:
       inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
-      rgb(255 255 255 / 0.1),
-      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.45);
-    --sf-groove:
-      inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 2px 0 rgb(0 0 0 / 0.5),
-      inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px 0
-      rgb(255 255 255 / 0.06);
+      rgb(255 255 255 / 0.08),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.36);
+    --sf-groove-wall: inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 2px 0
+      rgb(0 0 0 / 0.4);
+    --sf-groove-bounce: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px 0
+      rgb(255 255 255 / 0.05);
+    --sf-groove: var(--sf-groove-wall), var(--sf-groove-bounce);
     --sf-cap-rest:
       var(--sf-edge),
-      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.45);
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.4);
     --sf-cap-pressed:
       var(--sf-edge),
-      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.45);
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.4);
     --sf-cap-rest-round:
       var(--sf-edge-soft),
-      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.45);
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.4);
     --sf-cap-pressed-round:
       var(--sf-edge-soft),
-      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.45);
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.4);
     --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
-      rgb(255 255 255 / 0.06);
+      rgb(255 255 255 / 0.05);
   }
 }

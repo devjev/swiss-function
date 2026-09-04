@@ -3,6 +3,31 @@
 .root {
   display: inline-flex;
   gap: 0;
+  /* Joined keys share their sides, so the face ramp runs straight down the
+     row (the light's vertical component only) instead of diagonally per key,
+     which would step light to dark at every seam. Read by lib/surface on each
+     child; --sf-light-y inherits from the root. */
+  --sf-light-angle: calc(atan2(var(--sf-light-y), 0) + 270deg);
+  /* One bar of keys, one cast: the group carries the elevation and the keys
+     inside carry none. A cast per key read as each key at its own height,
+     and a white key next to a dark-bordered one read as sitting lower. */
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-2);
+}
+/* And only the top and bottom edge bands: a side band would draw a ridge at
+   each seam. The children read --sf-edge and --sf-elevation-N in their own
+   box-shadow; a transparent cast layer keeps their declarations valid. */
+.root > * {
+  --sf-edge: var(--sf-edge-row);
+  /* A press sinks the key in place: the groove on its face, no travel, so the
+     row's outline holds (Button reads these two in its :active rule). */
+  --sf-key-pressed: var(--sf-groove);
+  --sf-key-travel: none;
+  --sf-elevation-1: 0 0 0 0 transparent;
+  --sf-elevation-2: 0 0 0 0 transparent;
+  --sf-elevation-3: 0 0 0 0 transparent;
+  --sf-elevation-4: 0 0 0 0 transparent;
+  --sf-elevation-5: 0 0 0 0 transparent;
 }
 
 /* Middle and last children share their inline-start edge with the previous

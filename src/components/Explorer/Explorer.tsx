@@ -52,6 +52,7 @@ import {
 } from "../../lib/filter/ColumnFilter";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { Glyph } from "../../lib/icons";
+import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { File, Folder } from "../Icon";
@@ -214,6 +215,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     empty = "No data",
     edgeFade = false,
     gridLines = false,
+    headerSurface = "concave",
     columnFill = false,
     cellPadding = "md",
     cellFontSize = "md",
@@ -1013,8 +1015,13 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       <div
         key={col.id}
         ref={dnd?.ref}
-        className={cx(styles.headerCell, dnd?.dragging && styles.headerDragging)}
+        className={cx(
+          styles.headerCell,
+          surfaceClass[headerSurface],
+          dnd?.dragging && styles.headerDragging,
+        )}
         data-align={col.align ?? "start"}
+        data-surface={headerSurface}
         data-sortable={col.sortable || undefined}
         data-sorted={(col.sortable && isSorted) || undefined}
         style={dnd?.style}

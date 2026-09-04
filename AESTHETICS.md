@@ -182,7 +182,7 @@ Depth indicates layer, not personality.
   overrides of their own.
 - **Keys have a face.** A Button, a Kbd cap and the LaunchButton lid
   carry the keycap dish from `lib/surface`: a little dark at the lit
-  rim, the floor at 20%, brightest at the far rim, about 0.055 OKLCH
+  rim, the floor at 20%, brightest at the far rim, about 0.045 OKLCH
   lightness end to end (`--sf-curve`). The stops derive from the key's
   own colour, so a white, a primary and a near-black key read the same
   way in either theme, and a white rim simply stays white. A Switch thumb

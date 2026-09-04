@@ -3,6 +3,7 @@ import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { EffectName } from "../../lib/effects";
 import type { FilterOption } from "../../lib/filter/ColumnFilter";
+import type { ControlSurface } from "../../lib/surface";
 
 export type ExplorerNode<M = unknown> = {
   id: string;
@@ -152,6 +153,9 @@ export interface ExplorerProps<M = unknown>
    *  are visually indistinguishable at the grid level. Default `false`
    *  (Explorer's resting look is borderless rows). */
   gridLines?: boolean;
+  /** The face of the column-header keys (`lib/surface`): `"concave"` (default,
+   *  a slight scoop), `"dome"`, `"dish"` or `"flat"`. */
+  headerSurface?: ControlSurface;
 
   /** Horizontal padding inside cells — the cell "margins". `md` is the default;
    *  `xs`/`sm` tighten a dense tree, `lg` loosens it. Applies to header + body. */

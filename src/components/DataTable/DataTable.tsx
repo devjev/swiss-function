@@ -46,6 +46,8 @@ import type { EffectName } from "../../lib/effects";
 import { useDitheredFill } from "../../lib/effects";
 import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
+import type { ControlSurface } from "../../lib/surface";
+import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
@@ -165,6 +167,10 @@ export interface DataTableProps<T>
    *  keep a fixed width and never shrink. A column group is pinned only when its
    *  whole span is inside the frozen region. Default `0` (off). */
   frozenColumns?: number;
+  /** The face of the column-header keys (`lib/surface`): `"concave"` (default),
+   *  a slight scoop at 0.6 of the system amplitude, `"dome"`, `"dish"` or
+   *  `"flat"`. Set `--sf-curve-scale` on the table to retune the amplitude. */
+  headerSurface?: ControlSurface;
   /** Elastically snap scrolling to row and/or column edges (CSS `proximity`
    *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
   scrollSnap?: "none" | "rows" | "columns" | "both";
@@ -654,6 +660,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     empty,
     resizableColumns = true,
     frozenColumns = 0,
+    headerSurface = "concave",
     scrollSnap = "none",
     edgeFade = false,
     getCellSpan,
@@ -1882,6 +1889,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         role="columnheader"
         className={cx(
           styles.headerCell,
+          surfaceClass[headerSurface],
           isGroupHeader && styles.headerCellGroup,
           dnd?.listeners && styles.headerDraggable,
           dnd?.dragging && styles.headerDragging,
@@ -1892,6 +1900,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
           ...dnd?.style,
         }}
         data-align={isGroupHeader ? "center" : "start"}
+        data-surface={headerSurface}
         data-sortable={canSort || undefined}
         data-locked={isLocked || undefined}
         data-frozen={isFrozen || undefined}

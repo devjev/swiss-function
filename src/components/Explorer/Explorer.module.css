@@ -49,6 +49,8 @@
 
 /* --- Header --- */
 .headerRow {
+  /* The header keys' face amplitude (see DataTable): a slight scoop. */
+  --sf-curve-scale: 0.6;
   display: grid;
   position: sticky;
   top: 0;
@@ -69,10 +71,18 @@
   color: var(--sf-color-fg);
   border-inline-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
-  background-color: var(--sf-color-bg-subtle);
+  /* The key's base colour; states move it, the face ramp derives from it. */
+  --sf-cap: var(--sf-color-bg-subtle);
+  background-color: var(--sf-cap);
   /* A raised key (the material layer's edge bands), flush: the header is part
-     of the panel. The sorted column's key sits pressed, as in DataTable. */
-  box-shadow: var(--sf-edge);
+     of the panel. A scooped face adds its wall's shadow inside the lit rim.
+     The sorted column's key sits pressed, as in DataTable. */
+  --sf-hdr-wall: 0 0 transparent;
+  box-shadow: var(--sf-edge-lit), var(--sf-hdr-wall), var(--sf-edge-shade);
+}
+.headerCell[data-surface="concave"],
+.headerCell[data-surface="dish"] {
+  --sf-hdr-wall: var(--sf-groove-wall);
 }
 
 .headerCell:last-child {
@@ -82,7 +92,7 @@
 .headerCell[data-sorted],
 .headerCell[data-sortable]:active {
   box-shadow: var(--sf-groove);
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
 .headerCell[data-align="end"] {
@@ -106,7 +116,7 @@
 }
 
 .headerCell[data-sortable]:hover {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
 }
 
 .sortArrow {

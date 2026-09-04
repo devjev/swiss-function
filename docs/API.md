@@ -22,7 +22,7 @@ Per-component prop/element reference for every exported component in the library
 - Depth on controls comes from the **material layer** in `tokens.css`: one light
   (`--sf-light-x` / `-y`, from the top left by default; a document-level
   setting, set it on `:root` or the theme element) and the recipes derived from
-  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key),
+  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key; `--sf-edge-row` keeps only the top and bottom bands for a key in a joined row),
   `--sf-groove` (a flush slot for fields, tracks and rails), `--sf-cap-rest` /
   `--sf-cap-pressed` (+ `-round`) for small caps, `--sf-curve` (the amplitude of
   a curved face; `--sf-curve-scale` multiplies it per subtree, which is what a
@@ -700,6 +700,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `empty` | `ReactNode` | n/a | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize; lock one via `resizable: false`. Arrows on a focused handle nudge 8px, Shift 24px; double-click auto-fits. Gestures are physical-direction in RTL (the edge follows the pointer / the arrow's direction). The handle is a `role="separator"` with `aria-valuemin` from the measured `--sf-datatable-col-min`; `aria-valuenow` appears once a px override exists. |
 | `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
+| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"concave"` | The face of the column-header keys (`lib/surface`), a slight scoop at 0.6 of the system amplitude (`--sf-curve-scale` on the table retunes it). The sorted header sits pressed. |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0 to 1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
@@ -996,6 +997,7 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
 | `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
 | `gridLines` | `boolean` | `false` | Spreadsheet look: every body cell draws its own right + bottom hairline (the same per-cell edge model as DataTable). |
+| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"concave"` | The face of the column-header keys (`lib/surface`), a slight scoop; the sorted header sits pressed. |
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `columnFill` | `boolean \| { animated?, effect?, color?, density?, speed? }` | `false` | Dither filler right of fixed-width columns; a no-op when the last column already stretches (the default). |
