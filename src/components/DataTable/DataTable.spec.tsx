@@ -5,6 +5,7 @@ import {
   EditorsHarness,
   FrozenHarness,
   GroupsHarness,
+  HostDrivenHarness,
   ManyValuesHarness,
   MergeHarness,
   SelectionReportHarness,
@@ -1282,4 +1283,67 @@ test("selectionMode='row': the gutter and select-all keep their own shapes", asy
   // Select-all still selects the whole grid, not one row.
   await c.getByRole("columnheader", { name: "Select all cells" }).click();
   expect(await c.locator('[data-in-range="true"]').count()).toBe(9);
+});
+
+test("typing on an editable cell opens the editor seeded with the key", async ({ mount, page }) => {
+  let lastChanges: unknown = null;
+  const component = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      editable
+      onCellChange={(c) => {
+        lastChanges = c;
+      }}
+    />,
+  );
+  await component.getByRole("gridcell").first().click();
+  await page.keyboard.type("Q");
+  await expect(component.locator("textarea").first()).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(lastChanges).toEqual([{ rowIndex: 0, columnId: "name", value: "Q" }]);
+});
+
+test("Delete clears the selected block through onCellChange", async ({ mount, page }) => {
+  let lastChanges: unknown = null;
+  const component = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      editable
+      onCellChange={(c) => {
+        lastChanges = c;
+      }}
+    />,
+  );
+  await component.getByRole("gridcell").first().click();
+  await page.keyboard.press("Shift+ArrowDown");
+  await page.keyboard.press("Delete");
+  expect(lastChanges).toEqual([
+    { rowIndex: 0, columnId: "name", value: "" },
+    { rowIndex: 1, columnId: "name", value: "" },
+  ]);
+});
+
+test("apiRef.setActive moves and focuses the active cell", async ({ mount }) => {
+  const component = await mount(<HostDrivenHarness />);
+  await component.getByRole("button", { name: "go" }).click();
+  const active = component.locator('[role="gridcell"][data-active]');
+  await expect(active).toHaveText("guest");
+  await expect(active).toBeFocused();
+});
+
+test("apiRef.startEdit opens the editor seeded with initialText", async ({ mount, page }) => {
+  let lastChanges: unknown = null;
+  const component = await mount(
+    <HostDrivenHarness
+      onCellChange={(c) => {
+        lastChanges = c;
+      }}
+    />,
+  );
+  await component.getByRole("button", { name: "edit" }).click();
+  await expect(component.locator("textarea").first()).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(lastChanges).toEqual([{ rowIndex: 0, columnId: "name", value: "seed" }]);
 });

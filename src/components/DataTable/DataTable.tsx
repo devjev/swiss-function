@@ -25,12 +25,13 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, UIEvent } from "react";
+import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, Ref, UIEvent } from "react";
 import {
   memo,
   useCallback,
   useEffect,
   useId,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -94,6 +95,18 @@ export interface DataTableExternalDrop {
   active: Active;
   /** Id of the leaf column it was dropped on, or `null` if not over a header. */
   overColumnId: string | null;
+}
+
+/** Imperative controls exposed through `apiRef`, for a host that drives the grid from outside (a
+ *  formula bar, a central hotkey layer): move the active cell and focus it, open an editor, read the
+ *  selection. Coordinates are visible row/column positions, as in `Selection`. */
+export interface DataTableHandle {
+  /** Make `cell` the active cell (`null` clears the selection) and focus it. */
+  setActive: (cell: Cell | null) => void;
+  /** Open the editor on `cell`; a no-op on a non-editable column. `initialText` seeds the editor. */
+  startEdit: (cell: Cell, initialText?: string) => void;
+  /** The current active cell and range. */
+  getSelection: () => Selection;
 }
 
 export interface DataTableProps<T>
@@ -248,6 +261,9 @@ export interface DataTableProps<T>
   defaultColumnFilters?: ColumnFiltersState;
   /** Fired with the full filter array whenever a filter changes. */
   onColumnFiltersChange?: (filters: ColumnFiltersState) => void;
+  /** Imperative handle (`setActive`, `startEdit`, `getSelection`), for a host that moves the cursor or
+   *  opens an editor from outside the grid, e.g. a formula bar committing and stepping down. */
+  apiRef?: Ref<DataTableHandle>;
 }
 
 export type ColumnFill =
@@ -686,6 +702,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     columnFilters: controlledColumnFilters,
     defaultColumnFilters,
     onColumnFiltersChange,
+    apiRef,
     className,
     style,
     ...rest
@@ -1107,6 +1124,27 @@ export function DataTable<T>(props: DataTableProps<T>) {
     el?.focus({ preventScroll: false });
   }, [selection.active, editing]);
 
+  // The imperative handle: what a host needs to drive the cursor from outside (a formula bar that
+  // commits and steps down, a hotkey layer). Focus follows the active cell through the effect above;
+  // an already-active cell is focused here directly, since the effect would not re-run for it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cellKey is a pure helper
+  useImperativeHandle(
+    apiRef,
+    () => ({
+      setActive: (cell) => {
+        setActive(cell);
+        if (cell)
+          cellRefs.current.get(cellKey(cell.row, cell.col))?.focus({ preventScroll: false });
+      },
+      startEdit: (cell, initialText) => {
+        setActive(cell);
+        startEdit(cell, initialText);
+      },
+      getSelection: () => selection,
+    }),
+    [setActive, startEdit, selection],
+  );
+
   // --- Column-width overrides (px), set by dragging the resize handle ---
   // Controlled/uncontrolled with an onChange so resized widths can be persisted.
   const { columnWidths, setColumnWidths } = useColumnWidths({
@@ -1210,6 +1248,50 @@ export function DataTable<T>(props: DataTableProps<T>) {
       }
 
       const native = ev.nativeEvent;
+
+      // Delete / Backspace clear the selected block (the range, else the active cell) on editable
+      // columns, as one `onCellChange` batch: text columns to "", every other editor type to null.
+      if (active && (native.key === "Delete" || native.key === "Backspace")) {
+        const range = selection.range ?? { start: active, end: active };
+        const r0 = Math.min(range.start.row, range.end.row);
+        const r1 = Math.min(Math.max(range.start.row, range.end.row), visibleRowCount - 1);
+        const c0 = Math.min(range.start.col, range.end.col);
+        const c1 = Math.max(range.start.col, range.end.col);
+        const changes: CellChange[] = [];
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) {
+            const col = visibleLeaves[c];
+            if (!col?.edit || !isColumnEditable(c)) continue;
+            changes.push({
+              rowIndex: r,
+              columnId: col.id,
+              value: col.edit.type === "text" ? "" : null,
+            });
+          }
+        }
+        if (changes.length > 0) {
+          ev.preventDefault();
+          onCellChange?.(changes);
+          return;
+        }
+      }
+
+      // Type-to-edit: a printable key on an editable cell opens its editor seeded with that character
+      // (Excel's "start typing to replace"). Space is left alone: Shift+Space and Ctrl+Space select
+      // the row and column, and chords with Ctrl/Cmd/Alt belong to their own handlers.
+      if (
+        active &&
+        isColumnEditable(active.col) &&
+        native.key.length === 1 &&
+        native.key !== " " &&
+        !native.ctrlKey &&
+        !native.metaKey &&
+        !native.altKey
+      ) {
+        ev.preventDefault();
+        startEdit(active, native.key);
+        return;
+      }
       if ((native.metaKey || native.ctrlKey) && native.key.toLowerCase() === "c") {
         ev.preventDefault();
         void handleCopy(native);
@@ -1234,6 +1316,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [
       editing,
       selection.active,
+      selection.range,
+      visibleLeaves,
+      visibleRowCount,
+      onCellChange,
       isColumnEditable,
       startEdit,
       handleCopy,

@@ -1,7 +1,8 @@
 import type { Story } from "@ladle/react";
-import { useCallback, useState } from "react";
-import { DataTable } from "./DataTable";
-import type { CellChange, ColumnDef } from "./types";
+import { useCallback, useRef, useState } from "react";
+import { DataTable, type DataTableHandle } from "./DataTable";
+import type { Cell, CellChange, ColumnDef } from "./types";
+import { isGroup } from "./types";
 
 type Person = {
   id: string;
@@ -820,6 +821,80 @@ export const SelectToHighlight: Story = () => {
         height={320}
         highlights={highlights}
         onSelectionChange={(s) => setSel(s.range)}
+      />
+    </div>
+  );
+};
+
+/** A host-driven grid: a field above the table edits the active cell and, on Enter, commits through
+ *  `onCellChange` and steps the cursor down through `apiRef.setActive`. Typing on a cell opens its
+ *  editor seeded with the keystroke; Delete clears the selected block. */
+export const FormulaBar: Story = () => {
+  const [data, setData] = useState<Person[]>(() => seed(12));
+  const api = useRef<DataTableHandle>(null);
+  const [active, setActive] = useState<Cell | null>(null);
+  const [draft, setDraft] = useState("");
+  const onCellChange = useCallback(
+    (changes: CellChange[]) => setData((d) => applyChanges(d, changes)),
+    [],
+  );
+  const column = active ? baseColumns[active.col] : undefined;
+  const leaf = column && !isGroup(column) ? column : undefined;
+  const current =
+    active && leaf && typeof leaf.accessor === "string"
+      ? String(data[active.row]?.[leaf.accessor] ?? "")
+      : "";
+  const commit = () => {
+    if (!active || !leaf?.edit) return;
+    const value =
+      leaf.edit.type === "number"
+        ? Number(draft)
+        : leaf.edit.type === "boolean"
+          ? draft === "true"
+          : draft;
+    onCellChange([{ rowIndex: active.row, columnId: leaf.id, value }]);
+    api.current?.setActive({ row: Math.min(active.row + 1, data.length - 1), col: active.col });
+  };
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-space-2)" }}>
+      <label
+        style={{
+          display: "flex",
+          gap: "var(--sf-space-2)",
+          alignItems: "center",
+          fontFamily: "var(--sf-font-mono)",
+        }}
+      >
+        <span style={{ minWidth: "6ch" }}>
+          {active && leaf ? `${leaf.id} ${active.row + 1}` : ""}
+        </span>
+        <input
+          aria-label="Formula bar"
+          value={draft}
+          placeholder="Select a cell, type here, press Enter"
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={() => setDraft(current)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              if (active) api.current?.setActive(active);
+            }
+          }}
+          style={{ flex: 1 }}
+        />
+      </label>
+      <DataTable
+        apiRef={api}
+        data={data}
+        columns={baseColumns}
+        editable
+        rowNumbers
+        height={320}
+        onCellChange={onCellChange}
+        onSelectionChange={(s) => setActive(s.active)}
       />
     </div>
   );

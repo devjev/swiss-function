@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { DataTable, type DataTableProps } from "./DataTable";
+import { useRef, useState } from "react";
+import { DataTable, type DataTableHandle, type DataTableProps } from "./DataTable";
 import type { CellChange, ColumnDef, EditActivation, PaginateConfig } from "./types";
 
 type Row = { name: string; age: number; active: boolean };
@@ -383,6 +383,41 @@ export function SelectionReportHarness() {
         onSelectionChange={(s) => setRange(JSON.stringify(s.range))}
       />
       <div data-testid="selection-report">{range}</div>
+    </div>
+  );
+}
+
+type HostRow = { name: string; role: string };
+const HOST_ROWS: HostRow[] = [
+  { name: "Alice", role: "admin" },
+  { name: "Bob", role: "user" },
+  { name: "Carol", role: "guest" },
+  { name: "Dan", role: "user" },
+];
+const HOST_COLUMNS: ColumnDef<HostRow>[] = [
+  { id: "name", header: "name", accessor: "name", edit: { type: "text" } },
+  { id: "role", header: "role", accessor: "role", edit: { type: "text" } },
+];
+
+/** Drives the grid through `apiRef` from outside: buttons stand in for a formula bar or hotkey layer. */
+export function HostDrivenHarness({ onCellChange }: { onCellChange?: (c: CellChange[]) => void }) {
+  const api = useRef<DataTableHandle>(null);
+  return (
+    <div>
+      <button type="button" onClick={() => api.current?.setActive({ row: 2, col: 1 })}>
+        go
+      </button>
+      <button type="button" onClick={() => api.current?.startEdit({ row: 0, col: 0 }, "seed")}>
+        edit
+      </button>
+      <DataTable
+        apiRef={api}
+        data={HOST_ROWS}
+        columns={HOST_COLUMNS}
+        editable
+        height={300}
+        onCellChange={onCellChange}
+      />
     </div>
   );
 }

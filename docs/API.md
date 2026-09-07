@@ -711,6 +711,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnFilters` | `ColumnFiltersState` | n/a | Controlled filters (TanStack), with `onColumnFiltersChange`. |
 | `defaultColumnFilters` | `ColumnFiltersState` | n/a | Uncontrolled initial filters. |
 | `onColumnFiltersChange` | `(filters: ColumnFiltersState) => void` | n/a | Fired on each filter change. Persist to save it. |
+| `apiRef` | `Ref<DataTableHandle>` | n/a | Imperative handle for a host that drives the cursor from outside (a formula bar, a hotkey layer): `setActive(cell \| null)` moves the active cell and focuses it, `startEdit(cell, initialText?)` opens its editor, `getSelection()` reads the active cell and range. Visible coordinates, as in `Selection`. |
 | `columnOrder` | `string[]` | n/a | Controlled column order (leaf ids), with `onColumnOrderChange`. |
 | `defaultColumnOrder` | `string[]` | n/a | Uncontrolled initial order (e.g. restored from storage). |
 | `onColumnOrderChange` | `(order: string[]) => void` | n/a | Fired with the full order on each reorder. Persist to save it. |
@@ -747,6 +748,11 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
   view; Tab/Enter navigate Excel-style; Cmd/Ctrl+C/V copy/paste; Cmd/Ctrl+A
   selects all; Shift+Space selects the whole row(s) of the current range,
   Ctrl+Space the whole column(s) — the active cell stays put.
+- On an editable cell, typing a printable character opens the editor seeded
+  with it (Excel's "start typing to replace"); Space is excluded because of the
+  row/column shortcuts. Delete or Backspace clears the selected block (the
+  range, else the active cell) on editable columns in one `onCellChange` batch:
+  text columns to `""`, every other editor type to `null`.
 - Every leaf header carries a slim **select zone** along its top edge: click it
   to select the whole column (Shift+click extends the column span, dragging
   across zones sweeps several). The header label below it still sorts. A fully

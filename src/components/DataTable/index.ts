@@ -1,4 +1,4 @@
-export type { DataTableExternalDrop, DataTableProps } from "./DataTable";
+export type { DataTableExternalDrop, DataTableHandle, DataTableProps } from "./DataTable";
 export { DataTable } from "./DataTable";
 export type {
   Cell,

@@ -235,6 +235,8 @@ export const storyDocs: Record<string, string> = {
     "`edgeFade={{ rows: 4, density: 0.6 }}` makes the bottom fade taller and gentler than the default two-row, full-density mask. Tune these when the standard fade is too abrupt for your row height.",
   "data-table--editable":
     "`editable` turns on cell editing with a purpose-built editor per `edit.type`: text uses the inline text editor, numbers a DigitInputMicro, dates a DatePicker, boolean and select a Picker. Double-click, F2, or Enter opens the editor; Enter or Tab commits, Esc cancels.",
+  "data-table--formula-bar":
+    "A host-driven grid: a text field above the table edits the active cell and, on Enter, commits through `onCellChange` and steps the cursor down through `apiRef.setActive`. Typing on a cell opens its editor seeded with the keystroke; Delete clears the selected block. Reach for `apiRef` when something outside the grid, a formula bar or a hotkey layer, needs to move the cursor or open an editor.",
   "data-table--empty":
     "With no data, the `empty` slot renders in place of rows. Supply it to explain the blank state and point to the next action.",
   "data-table--fill-height":
