@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.32.0 — 2026-09-07
+
+### Minor
+
+- DataTable: type-to-edit (a printable key opens the editor seeded with the keystroke), Delete/Backspace clearing the selected block through `onCellChange`, and an `apiRef` handle (`setActive`, `startEdit`, `getSelection`) so a host such as a formula bar can move the cursor or open an editor from outside the grid.
+
 ## v2.31.0 — 2026-09-04
 
 ### Minor
