@@ -48,6 +48,15 @@
 }
 
 /* --- Header --- */
+/* Fixed columns (the spreadsheet state after the first resize, `data-fixed` on
+   the wrapper): the header and the rows hold the columns' total width instead
+   of shrinking the tracks to the viewport, so the tree scrolls sideways when
+   wider and leaves slack to the right when narrower. */
+.wrapper[data-fixed] .headerRow,
+.wrapper[data-fixed] .row {
+  min-width: max-content;
+}
+
 .headerRow {
   /* The header keys' face amplitude (see DataTable): a slight scoop. */
   --sf-curve-scale: 0.6;
@@ -178,18 +187,6 @@
   inline-size: 2px;
   background-color: transparent;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
-}
-
-/* Leading-edge variant: sits on the last column's left border when the
-   neighbour is locked, remapped to the nearest resizable column. */
-.resizeHandleStart {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--sf-unit) / -4);
-}
-
-.resizeHandleStart::after {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--sf-unit) / 4 - 1px);
 }
 
 .headerCell:hover .resizeHandle::after,

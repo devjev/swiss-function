@@ -262,7 +262,7 @@ export const storyDocs: Record<string, string> = {
   "data-table--reorderable":
     "`reorderableColumns` lets you drag a header onto a neighbour to reorder, and the order persists through `onColumnOrderChange` while header clicks still sort and the right edge still resizes. Reach for it when users should arrange columns themselves.",
   "data-table--resizable-columns":
-    "Column resizing is on by default: drag a header's trailing edge, double-click it to auto-fit content, or focus it and nudge with arrow keys (Shift for a larger step). The Active column sets `resizable: false` to lock it.",
+    "Column resizing is on by default and follows the spreadsheet model: drag a header's trailing edge and only that column changes, the others keep their widths and the row grows or shrinks (scrolling sideways when wider than the table). Double-click an edge to auto-fit content, or focus it and nudge with arrow keys (Shift for a larger step). The Active column sets `resizable: false` to lock it.",
   "data-table--select-to-highlight":
     "Drag a range, then 'Mark range' pushes the live selection into the `highlights` list as a persistent colour. Shows the declarative pattern: capture the selection via `onSelectionChange` and own the highlight list yourself.",
   "data-table--selection":

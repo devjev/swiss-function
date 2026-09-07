@@ -1,18 +1,19 @@
-// `resizeBoundary` now lives in the shared column lib (Explorer reuses it too);
-// re-exported here so DataTable's imports and tests keep their local path.
-export { resizeBoundary } from "../../lib/columns/resizeBoundary";
-
 /** Column-width plumbing for resizable DataTable columns.
  *
- * Each track is `minmax(minWidth, preferred)`, so when the columns' preferred
- * widths don't fit the container they shrink toward their minimums (no scroll);
- * only when even the minimums don't fit does the table scroll horizontally. The
- * last column's preferred is `1fr`, so when there's slack it fills the container.
+ * At rest each track is `minmax(minWidth, preferred)`, so when the columns'
+ * preferred widths don't fit the container they shrink toward their minimums
+ * (no scroll); only when even the minimums don't fit does the table scroll
+ * horizontally. The last column's preferred is `1fr`, so when there's slack it
+ * fills the container.
  *   - `preferred` = a runtime px override, the column def's `width`, or a default.
  *   - `minWidth` = the column def's `minWidth` or the global `COLUMN_MIN_UNITS`.
- *   - Dragging a trailing edge sets preferred widths via `resizeBoundary`
- *     (cascading through the columns to the right, keeping the total constant);
- *     the minmax shrink is what handles a container narrower than those widths.
+ *
+ * Resizing follows the spreadsheet model: the first resize freezes every column
+ * at the width it measures on screen (a px override each, the last column
+ * included, so the `1fr` filler ends), and from then on a drag moves only the
+ * dragged edge. The other columns keep their widths and the row's total width
+ * follows: wider than the container scrolls, narrower leaves slack to the
+ * right. `allFixed` tells the template when that state holds.
  */
 
 /** Minimum a column may be dragged to, as a `--sf-unit` multiple. Mirrors the
@@ -59,6 +60,16 @@ function preferredExpr(
     : col.width != null
       ? `calc(var(--sf-unit) * ${col.width})`
       : `calc(var(--sf-unit) * ${defaultWidth})`;
+}
+
+/** Whether every leaf carries a px override: the spreadsheet state after the
+ *  first resize (or a consumer's full set of persisted widths), in which the
+ *  last column is fixed like the rest instead of stretching. */
+export function allFixed(
+  leaves: readonly { id: string }[],
+  overrides: Record<string, number>,
+): boolean {
+  return leaves.length > 0 && leaves.every((c) => overrides[c.id] != null);
 }
 
 /** Build the `grid-template-columns` string shared by the header and every body

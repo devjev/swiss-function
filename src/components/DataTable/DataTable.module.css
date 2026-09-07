@@ -262,17 +262,6 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-/* Leading-edge variant: the last column uses this (when its previous column is
-   locked) so it still has a grip — on its left edge, straddling that boundary. */
-.resizeHandleStart {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--sf-unit) / -4);
-}
-.resizeHandleStart::after {
-  inset-inline-end: auto;
-  inset-inline-start: calc(var(--sf-unit) / 4 - 1px);
-}
-
 .headerCell:hover .resizeHandle::after,
 .resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after,
@@ -331,14 +320,13 @@
    straddling overhang would poke past the grid and count as scrollable
    overflow, giving a fitting table a phantom ~unit/4 horizontal scrollbar
    (issue #94). Clamp the markers (and their hover hairlines) flush with the
-   edge; the leading-edge handle variant straddles an inner boundary and needs
-   no clamp. */
+   edge. */
 .headerCell:last-child .lockedEdge,
-.headerCell:last-child .resizeHandle:not(.resizeHandleStart) {
+.headerCell:last-child .resizeHandle {
   inset-inline-end: 0;
 }
 .headerCell:last-child .lockedEdge::after,
-.headerCell:last-child .resizeHandle:not(.resizeHandleStart)::after {
+.headerCell:last-child .resizeHandle::after {
   inset-inline-end: 0;
 }
 
@@ -386,6 +374,17 @@
   background-color: transparent;
   min-width: max-content;
 }
+/* Fixed columns (the spreadsheet state after the first resize, `data-fixed`):
+   the header and body hold the columns' total width instead of shrinking the
+   tracks to the viewport, so the row scrolls when wider than the viewport and
+   leaves slack to the right when narrower. The header row keeps its own
+   background across the viewport (its `width: 100%` still applies). */
+.viewport[data-fixed] .headerRow {
+  min-width: max-content;
+}
+.viewport[data-fixed] .body {
+  min-width: max-content;
+}
 .viewport[data-column-fill] .headerCell {
   --sf-cap: var(--sf-color-bg-subtle);
 }
@@ -396,11 +395,14 @@
   min-width: max-content;
 }
 
-/* In fill mode the last column is a real fixed column with the dither backdrop
-   to its right, so it keeps its trailing separator (normally erased because the
-   last column is the flush-right filler). */
+/* In fill mode, and once the columns are fixed, the last column is a real
+   fixed column with space (the dither backdrop, or plain slack) to its right,
+   so it keeps its trailing separator (normally erased because the last column
+   is the flush-right filler). */
 .viewport[data-column-fill] .headerCell:last-child,
-.viewport[data-column-fill] .cell:last-child {
+.viewport[data-column-fill] .cell:last-child,
+.viewport[data-fixed] .headerCell:last-child,
+.viewport[data-fixed] .cell:last-child {
   --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
 }
 

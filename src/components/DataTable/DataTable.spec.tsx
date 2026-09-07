@@ -496,16 +496,17 @@ test("rowNumbers: dragging a resize handle resizes the dragged column, not its n
   const ageAfter = await ageHeader.boundingBox();
   if (!nameAfter || !ageAfter) throw new Error("missing header bounding box");
   // The dragged column grows by roughly the drag distance; its right neighbour
-  // donates it (the cascade). A shifted measurement instead snaps "name" to
-  // the corner cell's width.
+  // keeps its width (the spreadsheet model). A shifted measurement instead
+  // snaps "name" to the corner cell's width.
   expect(nameAfter.width).toBeGreaterThan(nameBefore.width + 40);
-  expect(ageAfter.width).toBeLessThan(ageBefore.width - 40);
+  expect(Math.abs(ageAfter.width - ageBefore.width)).toBeLessThanOrEqual(1);
 });
 
-test("the last column is the filler and has no resize handle", async ({ mount }) => {
-  // COLUMNS = ["name", "age", "active"]; "active" is last → no trailing handle.
+test("every resizable column has a trailing handle, the last one included", async ({ mount }) => {
+  // COLUMNS = ["name", "age", "active"]; in the spreadsheet model the last
+  // column's edge moves like any other (growing it widens the row).
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
-  await expect(component.locator('[data-column-id="active"]')).toHaveCount(0);
+  await expect(component.locator('[data-column-id="active"]')).toHaveCount(1);
   await expect(component.locator('[data-column-id="name"]')).toHaveCount(1);
   await expect(component.locator('[data-column-id="age"]')).toHaveCount(1);
 });
@@ -640,7 +641,7 @@ const widthOf = async (c: import("@playwright/test").Locator, id: string) => {
   return b.width;
 };
 
-test("resizing keeps the total width constant and pushes the neighbour", async ({
+test("resizing moves only the dragged edge: the neighbours keep their width and the row's total follows", async ({
   mount,
   page,
 }) => {
@@ -660,20 +661,59 @@ test("resizing keeps the total width constant and pushes the neighbour", async (
   const nameBefore = await widthOf(component, "name");
   const ageBefore = await widthOf(component, "age");
 
+  const activeBefore = await widthOf(component, "active");
+
   await dragHandle(page, component.locator('[data-column-id="name"]'), 60);
 
-  expect(await widthOf(component, "name")).toBeGreaterThan(nameBefore + 40);
-  expect(await widthOf(component, "age")).toBeLessThan(ageBefore - 40); // neighbour pushed
-  expect(Math.abs((await total()) - totalBefore)).toBeLessThanOrEqual(1); // total unchanged
+  const nameAfter = await widthOf(component, "name");
+  expect(nameAfter).toBeGreaterThan(nameBefore + 40);
+  expect(Math.abs((await widthOf(component, "age")) - ageBefore)).toBeLessThanOrEqual(1); // kept
+  // The last column no longer fills the container once the columns are fixed.
+  expect(Math.abs((await widthOf(component, "active")) - activeBefore)).toBeLessThanOrEqual(1);
+  // The row's total width grew by exactly what "name" grew.
+  expect(Math.abs((await total()) - totalBefore - (nameAfter - nameBefore))).toBeLessThanOrEqual(1);
 });
 
-test("the last column gets a leading handle when its neighbour is locked", async ({
+test("a row wider than the viewport scrolls sideways; narrower leaves slack", async ({
   mount,
   page,
 }) => {
-  // "age" locked → no handle. "active" is the last filler whose neighbour (age)
-  // is locked, so it gets its own leading-edge handle and stays resizable; the
-  // cascade trades with "name", flowing around the locked "age".
+  const component = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      widths={{ name: 8, age: 8 }}
+      containerWidth={600}
+    />,
+  );
+  const viewport = component.locator('[class*="viewport"]').first();
+  const overflow = () =>
+    viewport.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+  const before = await overflow();
+  expect(before.scroll).toBeLessThanOrEqual(before.client + 1);
+  // Grow "name" well past the container: the columns are fixed now, so the row
+  // overflows and the viewport scrolls instead of squeezing the others.
+  await dragHandle(page, component.locator('[data-column-id="name"]'), 400);
+  const wide = await overflow();
+  expect(wide.scroll).toBeGreaterThan(wide.client + 200);
+  // Shrink it back past the start: the row is now narrower than the viewport
+  // and simply leaves slack; nothing stretches to fill it.
+  await dragHandle(page, component.locator('[data-column-id="name"]'), -700);
+  const narrow = await overflow();
+  expect(narrow.scroll).toBeLessThanOrEqual(narrow.client + 1);
+  const total =
+    (await widthOf(component, "name")) +
+    (await widthOf(component, "age")) +
+    (await widthOf(component, "active"));
+  expect(total).toBeLessThan(narrow.client - 40);
+});
+
+test("a locked next-to-last column does not strand the last one: it has its own trailing handle", async ({
+  mount,
+  page,
+}) => {
+  // "age" locked → no handle. "active" is last and keeps its own trailing
+  // handle (every resizable column has one); dragging it grows "active" alone.
   const component = await mount(
     <DataTableHarness
       data={DATA}
@@ -685,7 +725,7 @@ test("the last column gets a leading handle when its neighbour is locked", async
   );
   await expect(component.locator('[data-column-id="age"]')).toHaveCount(0);
   const lastHandle = component.locator('[data-column-id="active"]');
-  await expect(lastHandle).toHaveCount(1); // last column has its own (leading) handle
+  await expect(lastHandle).toHaveCount(1); // last column has its own trailing handle
 
   const total = async () =>
     (await widthOf(component, "name")) +
@@ -695,11 +735,15 @@ test("the last column gets a leading handle when its neighbour is locked", async
   const ageBefore = await widthOf(component, "age");
   const activeBefore = await widthOf(component, "active");
 
-  await dragHandle(page, lastHandle, -60); // drag the leading handle left → last grows
+  await dragHandle(page, lastHandle, 60); // drag its trailing edge right → last grows
 
-  expect(await widthOf(component, "active")).toBeGreaterThan(activeBefore + 40);
+  const activeAfter = await widthOf(component, "active");
+  expect(activeAfter).toBeGreaterThan(activeBefore + 40);
   expect(Math.abs((await widthOf(component, "age")) - ageBefore)).toBeLessThanOrEqual(1); // locked
-  expect(Math.abs((await total()) - totalBefore)).toBeLessThanOrEqual(1); // total unchanged
+  // The row grew by exactly what the last column grew.
+  expect(
+    Math.abs((await total()) - totalBefore - (activeAfter - activeBefore)),
+  ).toBeLessThanOrEqual(1);
 });
 
 test("scrollSnap sets the snap data-attributes on the viewport", async ({ mount }) => {

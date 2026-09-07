@@ -34,11 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  KEY_RESIZE_STEP_COARSE_PX,
-  KEY_RESIZE_STEP_PX,
-  resizeBoundary,
-} from "../../lib/columns/resizeBoundary";
+import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -140,15 +136,17 @@ function excludeRegionCollision(excludedRegionId: string): CollisionDetection {
 /** Build the `grid-template-columns` string shared by the header and every row.
  *  Without resizing it keeps Explorer's original semantics (number→px, string
  *  as-is, undefined→`1fr`). With resizing on it mirrors DataTable: every track
- *  is `minmax(min, preferred)` and the last stretches, so `resizeBoundary`'s px
- *  overrides cascade into the flexible filler. In fill mode (`columnFill`) the
- *  last track keeps a fixed preferred width too, so the dither panel has slack
- *  to paint into instead of being crushed by a stretched last column. */
+ *  is `minmax(min, preferred)` and the last stretches until the columns are
+ *  fixed (`fixed`: every column carries a px override, the spreadsheet state
+ *  after the first resize), or in fill mode (`columnFill`), where the last
+ *  track keeps a fixed preferred width too, so the dither panel has slack to
+ *  paint into instead of being crushed by a stretched last column. */
 function buildGridTemplate<M>(
   columns: ExplorerColumn<M>[],
   overrides: Record<string, number>,
   resizable: boolean,
   fill: boolean,
+  fixed: boolean,
 ): string {
   if (!resizable) {
     return columns
@@ -163,7 +161,7 @@ function buildGridTemplate<M>(
   return columns
     .map((c, i) => {
       const min = `${c.minWidth ?? MIN_COL_PX}px`;
-      if (i === lastIdx && !fill) return `minmax(${min}, 1fr)`;
+      if (i === lastIdx && !fill && !fixed) return `minmax(${min}, 1fr)`;
       const ov = overrides[c.id];
       const preferred =
         ov != null
@@ -293,9 +291,18 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const fillOpts = typeof columnFill === "object" ? columnFill : {};
   const fillAnimated = fillOpts.animated === true;
 
+  // Fixed columns: once every column carries a px override (after the first
+
+  // resize, or from a full set of persisted widths) the columns are fixed, the
+
+  // last one included, and the rows hold their total width (`data-fixed`).
+
+  const fixedColumns =
+    orderedColumns.length > 0 && orderedColumns.every((c) => columnWidths[c.id] != null);
+
   const gridTemplate = useMemo(
-    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns, fillOn),
-    [orderedColumns, columnWidths, resizableColumns, fillOn],
+    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns, fillOn, fixedColumns),
+    [orderedColumns, columnWidths, resizableColumns, fillOn, fixedColumns],
   );
 
   // --- Filtering: infer each filterable column's UI + build active filters ---
@@ -526,64 +533,24 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     return ids;
   }, [resizableColumns, orderedColumns]);
 
-  // The last column is resized via the boundary on its left, normally the
-  // previous column's trailing handle. If the previous column is locked it has
-  // no handle, so the last column would be stuck: give it its own leading-edge
-  // handle that trades width with the nearest resizable column to the left.
-  const lastColLeadingTarget = useMemo(() => {
-    // In fill mode the last column has its own trailing handle, so the
-    // leading-edge workaround never applies.
-    if (fillOn) return null;
-    const n = orderedColumns.length;
-    const last = orderedColumns[n - 1];
-    const prev = orderedColumns[n - 2];
-    if (!last || !resizableColumnIds.has(last.id)) return null;
-    if (!prev || resizableColumnIds.has(prev.id)) return null; // prev's handle already serves
-    for (let k = n - 2; k >= 0; k--) {
-      const c = orderedColumns[k];
-      if (c && resizableColumnIds.has(c.id)) return c.id;
-    }
-    return null;
-  }, [orderedColumns, resizableColumnIds, fillOn]);
-
-  // The handle id → the column its drag actually grows. A leading handle (on
-  // the last column) is remapped to the nearest resizable column on the left;
-  // every other handle resizes its own column.
-  const resolveResizeIdx = (id: string): number => {
-    const idx = orderedColumns.findIndex((c) => c.id === id);
-    if (idx === orderedColumns.length - 1 && lastColLeadingTarget) {
-      return orderedColumns.findIndex((c) => c.id === lastColLeadingTarget);
-    }
-    return idx;
-  };
-
+  // Apply a resize: the spreadsheet model (see DataTable). The first resize
+  // freezes every column at its measured width, the last one included, and
+  // from then on only the dragged column changes; the row's total width
+  // follows the dragged edge.
   const applyResize = (idx: number, startWidths: number[], dx: number) => {
     const col = orderedColumns[idx];
     if (!col) return;
-    // Fill mode: columns are independent (the dither filler absorbs slack), so
-    // a drag just sets this one column's width, no cascade.
-    if (fillOn) {
-      const v = Math.max(col.minWidth ?? MIN_COL_PX, Math.round((startWidths[idx] ?? 0) + dx));
-      setColumnWidths((prev) => (prev[col.id] === v ? prev : { ...prev, [col.id]: v }));
-      return;
-    }
-    const resizable = orderedColumns.map((c) => c.resizable !== false);
-    // Per-column floors: the CSS tracks clamp at each column's own min, so the
-    // cascade must clamp at the same floors or overrides desync from render.
-    const mins = orderedColumns.map((c) => c.minWidth ?? MIN_COL_PX);
-    const out = resizeBoundary(startWidths, resizable, idx, dx, mins);
+    const v = Math.max(col.minWidth ?? MIN_COL_PX, Math.round((startWidths[idx] ?? 0) + dx));
     setColumnWidths((prev) => {
       let changed = false;
       const next = { ...prev };
-      for (let k = 0; k < out.length - 1; k++) {
-        const c = orderedColumns[k];
-        if (!c) continue;
-        const v = Math.round(out[k] as number);
-        if (next[c.id] !== v) {
-          next[c.id] = v;
+      orderedColumns.forEach((c, k) => {
+        const w = k === idx ? v : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+        if (next[c.id] !== w) {
+          next[c.id] = w;
           changed = true;
         }
-      }
+      });
       return changed ? next : prev;
     });
   };
@@ -601,7 +568,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       const handle = event.currentTarget as HTMLElement;
       const id = handle.dataset.columnId;
       if (!id) return;
-      const idx = resolveResizeIdx(id);
+      const idx = orderedColumns.findIndex((c) => c.id === id);
       const startWidths = measureHeaderWidths();
       if (idx < 0 || !startWidths) return;
       handle.dataset.dragging = "true";
@@ -625,7 +592,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   });
 
   const nudgeResize = (colId: string, dx: number) => {
-    const idx = resolveResizeIdx(colId);
+    const idx = orderedColumns.findIndex((c) => c.id === colId);
     const widths = measureHeaderWidths();
     if (idx < 0 || !widths) return;
     applyResize(idx, widths, dx);
@@ -661,7 +628,22 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     const padEnd = Number.parseFloat(getComputedStyle(headerCell).paddingInlineEnd) || 0;
     const min = orderedColumns[idx]?.minWidth ?? MIN_COL_PX;
     const next = Math.max(min, Math.ceil(widest + padEnd + AUTOFIT_SLACK_PX));
-    setColumnWidths((prev) => (prev[colId] === next ? prev : { ...prev, [colId]: next }));
+    // A resize like any other: the row's other columns freeze at their
+    // measured widths (see applyResize).
+    const startWidths = measureHeaderWidths();
+    if (!startWidths) return;
+    setColumnWidths((prev) => {
+      let changed = false;
+      const nextWidths = { ...prev };
+      orderedColumns.forEach((c, k) => {
+        const w = k === idx ? next : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+        if (nextWidths[c.id] !== w) {
+          nextWidths[c.id] = w;
+          changed = true;
+        }
+      });
+      return changed ? nextWidths : prev;
+    });
   };
 
   // --- Sorting header interaction -------------------------------------------
@@ -1001,13 +983,11 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
 
   // --- Header cell rendering ------------------------------------------------
   const renderHeaderCell = (col: ExplorerColumn<M>, index: number, dnd?: HeaderDnd): ReactNode => {
-    const isLast = index === orderedColumns.length - 1;
     const isSorted = sort?.columnId === col.id;
     const meta = filterableColumns ? filterMeta.get(col.id) : undefined;
     const filterValue = columnFilters.find((f) => f.id === col.id)?.value;
-    const showTrailingHandle = resizableColumnIds.has(col.id) && (!isLast || fillOn);
-    const showLeadingHandle = isLast && lastColLeadingTarget != null;
-    const showResizeHandle = showTrailingHandle || showLeadingHandle;
+    // Every resizable column has its trailing handle, the last one included.
+    const showResizeHandle = resizableColumnIds.has(col.id);
     const widthOverride = columnWidths[col.id];
     return (
       // Headers are pointer-drag-only (Enter/Space belongs to sorting), so only
@@ -1062,7 +1042,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             aria-valuenow={widthOverride != null ? Math.round(widthOverride) : undefined}
             tabIndex={0}
             data-column-id={col.id}
-            className={cx(styles.resizeHandle, showLeadingHandle && styles.resizeHandleStart)}
+            className={styles.resizeHandle}
             onPointerDown={(e: ReactPointerEvent) => {
               e.stopPropagation();
               onColumnResizeDown(e);
@@ -1070,9 +1050,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              // A leading handle resizes a different column; auto-fit only
-              // makes sense on a column's own trailing handle.
-              if (!showLeadingHandle) autoFitColumn(col.id);
+              autoFitColumn(col.id);
             }}
             onKeyDown={(e) => {
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -1144,6 +1122,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   return (
     <div
       className={cx(styles.wrapper, className)}
+      data-fixed={(fixedColumns && !fillOn) || undefined}
       style={style as CSSProperties}
       data-explorer-root=""
       data-grid-lines={gridLines || undefined}

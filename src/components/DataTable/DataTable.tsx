@@ -52,12 +52,7 @@ import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
-import {
-  buildColumnTemplate,
-  frozenLeftOffsets,
-  frozenTotalWidth,
-  resizeBoundary,
-} from "./columnWidths";
+import { allFixed, buildColumnTemplate, frozenLeftOffsets, frozenTotalWidth } from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { resolveEditActivation } from "./editActivation";
 import { CellEditor, formatEditDisplay } from "./editors";
@@ -1153,8 +1148,22 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onColumnWidthsChange,
   });
 
+  // Snapshot the column widths from the (bottom) header row a handle lives in,
+  // indexed to match `visibleLeaves`. Only real header cells count: with
+  // `rowNumbers` the row's first child is the select-all corner cell, which
+  // would shift every measured index by one.
+  const measureLeafWidths = useCallback((headerCell: HTMLElement): number[] | null => {
+    const row = headerCell.parentElement;
+    if (!row) return null;
+    return Array.from(row.children)
+      .filter((el) => el.classList.contains(styles.headerCell as string))
+      .map((el) => el.getBoundingClientRect().width);
+  }, []);
+
   // Auto-fit: size a column to its widest currently-mounted content. `scrollWidth`
-  // reports the full natural width even though cells clip with ellipsis.
+  // reports the full natural width even though cells clip with ellipsis. A
+  // resize like any other: it freezes the row's other columns at their
+  // measured widths (see applyResize).
   const autoFitColumn = useCallback(
     (columnId: string, headerCell: HTMLElement) => {
       const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
@@ -1172,9 +1181,22 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
       const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
       const next = Math.max(minPx, Math.ceil(widest + padding));
-      setColumnWidths((prev) => (prev[columnId] === next ? prev : { ...prev, [columnId]: next }));
+      const startWidths = measureLeafWidths(headerCell);
+      if (!startWidths) return;
+      setColumnWidths((prev) => {
+        let changed = false;
+        const nextWidths = { ...prev };
+        visibleLeaves.forEach((c, k) => {
+          const w = k === colIndex ? next : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+          if (nextWidths[c.id] !== w) {
+            nextWidths[c.id] = w;
+            changed = true;
+          }
+        });
+        return changed ? nextWidths : prev;
+      });
     },
-    [visibleLeaves, setColumnWidths],
+    [visibleLeaves, measureLeafWidths, setColumnWidths],
   );
 
   // Left edges of every leaf column (plus the trailing right edge), in content
@@ -1347,84 +1369,31 @@ export function DataTable<T>(props: DataTableProps<T>) {
     return ids;
   }, [resizableColumns, visibleLeaves]);
 
-  // Snapshot the column widths from the (bottom) header row a handle lives in,
-  // indexed to match `visibleLeaves`. Only real header cells count: with
-  // `rowNumbers` the row's first child is the select-all corner cell, which
-  // would shift every measured index by one.
-  const measureLeafWidths = useCallback((headerCell: HTMLElement): number[] | null => {
-    const row = headerCell.parentElement;
-    if (!row) return null;
-    return Array.from(row.children)
-      .filter((el) => el.classList.contains(styles.headerCell as string))
-      .map((el) => el.getBoundingClientRect().width);
-  }, []);
-
-  // The last column is resized via the boundary on its left — normally that's
-  // the previous column's trailing handle. But if the previous column is locked
-  // it has no handle, so the last column would be stuck. In that case give the
-  // last column its own leading-edge handle that trades width with the nearest
-  // resizable column to the left (the locked ones in between just shift).
-  const lastColLeadingTarget = useMemo(() => {
-    // In fill mode the last column has its own trailing handle, so the
-    // leading-edge workaround never applies.
-    if (fillOn) return null;
-    const last = visibleLeaves[colCount - 1];
-    const prev = visibleLeaves[colCount - 2];
-    if (!last || !resizableColumnIds.has(last.id)) return null;
-    if (!prev || resizableColumnIds.has(prev.id)) return null; // prev's handle already serves
-    for (let k = colCount - 2; k >= 0; k--) {
-      const leaf = visibleLeaves[k];
-      if (leaf && resizableColumnIds.has(leaf.id)) return leaf.id;
-    }
-    return null;
-  }, [visibleLeaves, colCount, resizableColumnIds, fillOn]);
-
-  // The handle id → the column its drag actually grows. A leading handle (on the
-  // last column) is remapped to the nearest resizable column on the left; every
-  // other handle resizes its own column.
-  const resolveResizeIdx = useCallback(
-    (id: string): number => {
-      const idx = visibleLeaves.findIndex((c) => c.id === id);
-      if (idx === colCount - 1 && lastColLeadingTarget) {
-        return visibleLeaves.findIndex((c) => c.id === lastColLeadingTarget);
-      }
-      return idx;
-    },
-    [visibleLeaves, colCount, lastColLeadingTarget],
-  );
-
-  // Apply a boundary move starting from `startWidths`: cascade the change
-  // through the right-hand columns and write the new widths as px overrides
-  // (the last column stays its `1fr` filler, so it's left untouched).
+  // Apply a resize: the spreadsheet model. The first resize freezes every
+  // column at the width it measures on screen (`startWidths`, a px override
+  // each, the last column included, which ends the `1fr` filler), and from
+  // then on only the dragged column changes: its neighbours keep their
+  // widths and the row's total width follows the dragged edge, scrolling when
+  // wider than the viewport and leaving slack when narrower.
   const applyResize = useCallback(
     (idx: number, startWidths: number[], dx: number, minPx: number) => {
-      // Fill mode: columns are independent (the dither filler / scroll absorbs
-      // slack), so a drag just sets that one column's width — no cascade.
-      if (fillOn) {
-        const leaf = visibleLeaves[idx];
-        if (!leaf) return;
-        const v = Math.max(minPx, Math.round((startWidths[idx] ?? 0) + dx));
-        setColumnWidths((prev) => (prev[leaf.id] === v ? prev : { ...prev, [leaf.id]: v }));
-        return;
-      }
-      const resizable = visibleLeaves.map((c) => resizableColumnIds.has(c.id));
-      const out = resizeBoundary(startWidths, resizable, idx, dx, minPx);
+      const leaf = visibleLeaves[idx];
+      if (!leaf) return;
+      const v = Math.max(minPx, Math.round((startWidths[idx] ?? 0) + dx));
       setColumnWidths((prev) => {
         let changed = false;
         const nextWidths = { ...prev };
-        for (let k = 0; k < out.length - 1; k++) {
-          const leaf = visibleLeaves[k];
-          if (!leaf) continue;
-          const v = Math.round(out[k] as number);
-          if (nextWidths[leaf.id] !== v) {
-            nextWidths[leaf.id] = v;
+        visibleLeaves.forEach((c, k) => {
+          const w = k === idx ? v : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+          if (nextWidths[c.id] !== w) {
+            nextWidths[c.id] = w;
             changed = true;
           }
-        }
+        });
         return changed ? nextWidths : prev;
       });
     },
-    [visibleLeaves, resizableColumnIds, fillOn, setColumnWidths],
+    [visibleLeaves, setColumnWidths],
   );
 
   // A single drag instance serves every handle; onStart reads which column is
@@ -1446,7 +1415,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const headerCell = handle.parentElement as HTMLElement | null;
       if (!id || !headerCell) return;
       const startWidths = measureLeafWidths(headerCell);
-      const idx = resolveResizeIdx(id);
+      const idx = visibleLeaves.findIndex((c) => c.id === id);
       if (!startWidths || idx < 0) return;
       handle.dataset.dragging = "true";
       resizeRef.current = {
@@ -1471,8 +1440,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     },
   });
 
-  // Keyboard resize on a focused handle: arrows nudge the boundary (Shift =
-  // larger step), cascading through the same logic as a drag. The col-min
+  // Keyboard resize on a focused handle: arrows nudge the edge (Shift = larger
+  // step) through the same logic as a drag. The col-min
   // token can't change mid-burst, so it's measured once per handle focus
   // (the probe forces a layout per keystroke otherwise) — the handle's
   // onBlur drops the cache.
@@ -1482,7 +1451,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
       ev.preventDefault();
       const startWidths = measureLeafWidths(headerCell);
-      const idx = resolveResizeIdx(columnId);
+      const idx = visibleLeaves.findIndex((c) => c.id === columnId);
       if (!startWidths || idx < 0) return;
       if (keyResizeMinPx.current == null) {
         keyResizeMinPx.current = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
@@ -1495,7 +1464,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const dx = (ev.key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1) * step;
       applyResize(idx, startWidths, dx, minPx);
     },
-    [measureLeafWidths, applyResize, resolveResizeIdx],
+    [measureLeafWidths, applyResize, visibleLeaves],
   );
 
   // --- Row-number gutter geometry ---
@@ -1542,14 +1511,27 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   // --- Grid template (from visible leaves + runtime width overrides) ---
+  // Once every column carries a width (after the first resize, or from a full
+  // set of persisted widths) the columns are fixed, the last one included, and
+  // the header and body hold their total width (`data-fixed`) instead of
+  // shrinking to the viewport: the spreadsheet model.
+  const fixedColumns = allFixed(visibleLeaves, columnWidths);
   const gridTemplateColumns = useMemo(() => {
     const template = buildColumnTemplate(visibleLeaves, columnWidths, {
-      stretchLast: !fillOn,
+      stretchLast: !fillOn && !fixedColumns,
       defaultWidth: defaultColumnWidth,
       frozenCount,
     });
     return gutterWidth ? `${gutterWidth} ${template}` : template;
-  }, [visibleLeaves, columnWidths, fillOn, defaultColumnWidth, frozenCount, gutterWidth]);
+  }, [
+    visibleLeaves,
+    columnWidths,
+    fillOn,
+    fixedColumns,
+    defaultColumnWidth,
+    frozenCount,
+    gutterWidth,
+  ]);
 
   // --- Fill backdrop ---
   // A single dither surface behind the grid content (see `.content` / `.fill`
@@ -1953,11 +1935,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const canSort = header.column.getCanSort();
     const sortDir = header.column.getIsSorted();
     const isLeafHeader = !isGroupHeader && !header.isPlaceholder;
-    const isLastLeaf = header.column.id === visibleLeaves[colCount - 1]?.id;
-    const showTrailingHandle =
-      isLeafHeader && resizableColumnIds.has(header.column.id) && (!isLastLeaf || fillOn);
-    const showLeadingHandle = isLeafHeader && isLastLeaf && lastColLeadingTarget != null;
-    const showResizeHandle = showTrailingHandle || showLeadingHandle;
+    // Every resizable leaf has its trailing handle, the last one included: in
+    // the spreadsheet model the last column's edge is as movable as any other,
+    // and growing it just widens the row.
+    const showResizeHandle = isLeafHeader && resizableColumnIds.has(header.column.id);
     const isLocked = isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
     const fmeta = isLeafHeader ? filterMeta.get(header.column.id) : undefined;
     const filterValue = fmeta ? header.column.getFilterValue() : undefined;
@@ -2069,7 +2050,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             aria-valuemin={colMinPx ?? undefined}
             tabIndex={0}
             data-column-id={header.column.id}
-            className={cx(styles.resizeHandle, showLeadingHandle && styles.resizeHandleStart)}
+            className={styles.resizeHandle}
             // Stop the drag/reorder + sort from firing when grabbing the resizer.
             onPointerDown={(e) => {
               e.stopPropagation();
@@ -2078,9 +2059,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              if (!showLeadingHandle) {
-                autoFitColumn(header.column.id, e.currentTarget.parentElement as HTMLElement);
-              }
+              autoFitColumn(header.column.id, e.currentTarget.parentElement as HTMLElement);
             }}
             onKeyDown={(e) =>
               resizeColumnByKey(header.column.id, e.currentTarget.parentElement as HTMLElement, e)
@@ -2127,6 +2106,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
+        data-fixed={(fixedColumns && !fillOn) || undefined}
         data-fill={fillActive || undefined}
         data-frozen={frozenCount > 0 || undefined}
         data-frozen-scrolled={frozenScrolled || undefined}
