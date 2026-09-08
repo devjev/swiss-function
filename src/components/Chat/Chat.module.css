@@ -83,16 +83,17 @@
 /* Input row — pinned at the bottom with a hairline above. align-items: end so
    the send button sits flush with the lower edge of the input, staying aligned
    to the last line as the textarea grows downward into multi-line. */
-/* The composer: the field fills the row and the send key, a small round solid
-   key, sits inside the field at its end, pinned to the bottom so it stays put
-   as the field grows with the text. */
+/* The composer: the field fills the row flush with the chat's edges (no
+   padding, no band of its own; the field's top border is the rule between
+   the messages and the field), and the send key, a small round solid key,
+   sits inside the field at its end, pinned to the bottom so it stays put as
+   the field grows with the text. */
 .inputRow {
   position: relative;
   display: flex;
   align-items: flex-end;
   gap: calc(var(--sf-unit) / 2);
-  padding: calc(var(--sf-unit) / 2);
-  border-block-start: 1px solid var(--sf-color-border-subtle);
+  padding: 0;
   background-color: var(--sf-color-bg);
 }
 
@@ -115,16 +116,25 @@
   box-shadow: var(--sf-groove);
 }
 /* Override TextEdit's primary `border` shorthand — needs the extra `.inputRow`
-   specificity to beat it regardless of stylesheet order. Hover stays neutral too. */
+   specificity to beat it regardless of stylesheet order. Hover stays neutral too.
+   Flush with the chat's frame, the field keeps only its top border (the rule
+   under the messages); its sides and bottom would double the chat's own. */
 .inputRow .input,
 .inputRow .input:hover:not(:disabled) {
   border-color: var(--sf-chat-input-border);
+  border-inline: 0;
+  border-block-end: 0;
+  border-radius: 0;
+}
+/* The chat clips at its frame, so the ring paints inside the field. */
+.inputRow .input:focus-visible {
+  outline-offset: var(--sf-focus-ring-offset, -2px);
 }
 
 /* The send key: inside the field, at its end, a few px off the field's bottom
-   and end edges (the row's padding plus the offset). */
+   and end edges. */
 .send {
   position: absolute;
-  inset-inline-end: calc(var(--sf-unit) / 2 + 4px);
-  inset-block-end: calc(var(--sf-unit) / 2 + 3px);
+  inset-inline-end: 4px;
+  inset-block-end: 3px;
 }
