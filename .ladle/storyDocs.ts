@@ -385,6 +385,8 @@ export const storyDocs: Record<string, string> = {
     'The panel docked on the left edge via `side="left"`; everything else matches Default. Use it when the assistant belongs on the opposite side from your main navigation.',
   "chatdrawer--views":
     'Multi-view mode: `views` turns the header into an icon bar (a Chat view and a Files view), and `actions` adds a custom "New chat" button beside the fullscreen and close controls. Each view keeps its state while hidden, so switching away and back does not reset the chat. Reach for this when the drawer hosts more than the conversation.',
+  "chatdrawer--megachat":
+    "The megachat: the assistant maximized to the viewport (`defaultExpanded`, the new controlled fullscreen) as a centered column. Drag either edge and the opposite edge mirrors it about the vertical centre axis, so the column never leaves the middle; arrow keys on a focused edge step it; `minChatWidth` / `maxChatWidth` bound it. The header toggle returns to the drawer.",
   "checkbox--default":
     "An unchecked checkbox in its resting state. The baseline for a binary independent toggle in a list.",
   "checkbox--default-checked":

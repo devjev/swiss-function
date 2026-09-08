@@ -308,3 +308,52 @@ test("fullscreen is controllable from outside (expanded / onExpandedChange)", as
   await expect(c.getByRole("button", { name: "Exit fullscreen" })).toBeVisible();
   expect(reported).toBe(false);
 });
+
+test("megachat: maximized and centered, a left-edge drag mirrors to the right edge", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 900, blockSize: 420 }}>
+      <ChatDrawer
+        defaultOpen
+        expanded
+        centered
+        defaultChatWidth={400}
+        minChatWidth={200}
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  // Maximized: the panel is a fixed viewport overlay.
+  const fixed = await page.evaluate(() => {
+    const el = document.querySelector('[class*="fullscreen"]');
+    return el ? getComputedStyle(el).position : null;
+  });
+  expect(fixed).toBe("fixed");
+  const left = c.getByRole("separator", { name: "Resize chat (left edge)" });
+  const right = c.getByRole("separator", { name: "Resize chat (right edge)" });
+  const lb = await left.boundingBox();
+  const rb = await right.boundingBox();
+  if (!lb || !rb) throw new Error("missing boxes");
+  const widthBefore = rb.x + rb.width / 2 - (lb.x + lb.width / 2);
+  const midBefore = (lb.x + rb.x + (lb.width + rb.width) / 2) / 2;
+  expect(Math.abs(widthBefore - 400)).toBeLessThan(3);
+  // Pull the LEFT edge 60px to the left: the right edge mirrors to the right.
+  await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(lb.x + lb.width / 2 - 60, lb.y + lb.height / 2, { steps: 6 });
+  await page.mouse.up();
+  const la = await left.boundingBox();
+  const ra = await right.boundingBox();
+  if (!la || !ra) throw new Error("missing boxes");
+  const widthAfter = ra.x + ra.width / 2 - (la.x + la.width / 2);
+  const midAfter = (la.x + ra.x + (la.width + ra.width) / 2) / 2;
+  expect(Math.abs(widthAfter - 520)).toBeLessThan(3);
+  expect(Math.abs(midAfter - midBefore)).toBeLessThan(2);
+  expect(Math.abs(ra.x + ra.width / 2 - (rb.x + rb.width / 2) - 60)).toBeLessThan(3);
+  await expect(left).toHaveAttribute("aria-valuenow", "520");
+});
