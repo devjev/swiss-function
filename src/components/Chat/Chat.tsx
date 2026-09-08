@@ -2,6 +2,7 @@ import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "re
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Button, type ButtonVariant } from "../Button";
+import { ArrowUp } from "../Icon";
 import { Markdown } from "../Markdown";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
@@ -456,10 +457,15 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
         <Button
           type="submit"
           variant={sendVariant}
-          elevation={1}
+          build="solid"
+          round
+          size="sm"
+          aria-label={sendLabel}
+          title={sendLabel}
           disabled={disabled || !input.trim()}
+          className={styles.send}
         >
-          {sendLabel}
+          <ArrowUp />
         </Button>
       </form>
     </div>

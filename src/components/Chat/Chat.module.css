@@ -83,7 +83,11 @@
 /* Input row — pinned at the bottom with a hairline above. align-items: end so
    the send button sits flush with the lower edge of the input, staying aligned
    to the last line as the textarea grows downward into multi-line. */
+/* The composer: the field fills the row and the send key, a small round solid
+   key, sits inside the field at its end, pinned to the bottom so it stays put
+   as the field grows with the text. */
 .inputRow {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: calc(var(--sf-unit) / 2);
@@ -99,6 +103,8 @@
    (= 1.5u). */
 .input {
   flex: 1;
+  /* Room for the send key at the field's end. */
+  padding-inline-end: calc(var(--sf-unit) * 1.75);
   /* Auto-grow on modern browsers (Chrome 123+, Safari 17.4+, Firefox 128+).
      Older browsers fall back to single line at min-block-size. */
   field-sizing: content;
@@ -113,4 +119,12 @@
 .inputRow .input,
 .inputRow .input:hover:not(:disabled) {
   border-color: var(--sf-chat-input-border);
+}
+
+/* The send key: inside the field, at its end, a few px off the field's bottom
+   and end edges (the row's padding plus the offset). */
+.send {
+  position: absolute;
+  inset-inline-end: calc(var(--sf-unit) / 2 + 4px);
+  inset-block-end: calc(var(--sf-unit) / 2 + 3px);
 }

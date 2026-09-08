@@ -75,9 +75,11 @@ test("send button is non-primary by default; sendLabel/sendVariant customize it"
   );
   const defaultBg = await c
     .getByRole("button", { name: "Go" })
+    .locator('[class*="face"]')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   const primaryBg = await c
     .getByRole("button", { name: "Ship" })
+    .locator('[class*="face"]')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(defaultBg).not.toBe(primaryBg);
 });
