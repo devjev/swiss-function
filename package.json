@@ -155,6 +155,10 @@
       "types": "./dist/components/Kbd/index.d.ts",
       "import": "./dist/components/Kbd/index.js"
     },
+    "./knob": {
+      "types": "./dist/components/Knob/index.d.ts",
+      "import": "./dist/components/Knob/index.js"
+    },
     "./launch-button": {
       "types": "./dist/components/LaunchButton/index.d.ts",
       "import": "./dist/components/LaunchButton/index.js"

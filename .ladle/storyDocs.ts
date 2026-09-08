@@ -471,6 +471,34 @@ export const storyDocs: Record<string, string> = {
     "One row of combos (`mod+k`, `alt+enter`, `shift+arrowup`, `esc`\u2026) rendered three ways: auto-detected for your OS, then forced macOS and Windows/Linux via the `mac` prop. Shows how `mod` resolves to \u2318 on Mac and Ctrl elsewhere, and how off-Mac keys join with a `+` separator.",
   "kbd--in-context":
     "Keycaps sitting inline at the right of menu-style rows, each `combo` paired with its action label. Reach for this to see how `Kbd` reads next to text in menus, tooltips, and command lists.",
+  "knob--playground":
+    "Every `Knob` prop under Ladle controls: value range and step, `size`, `tone`, `fill` (colour / dither / none), `fillOrigin`, the cap `surface`, `finish`, the `drag` model, `valueLabel`, `sweep`, `marks` and `wheel`. Turn it by dragging around the dial, or with the arrow keys once focused.",
+  "knob--default":
+    "A volume knob: 0 to 10 with one tick per step, the accent arc growing from the left stop, and the mono readout pinned under the dial. The pointer and the knurl turn with the value; the lit faces stay fixed toward the light.",
+  "knob--sizes":
+    "The three cap diameters on the unit grid: `sm` 1.5u, `md` 2u, `lg` 3u. The cylinder's visible height and the arc width scale with the cap. `diameter` sets an explicit size in units.",
+  "knob--tones":
+    'The semantic accents of the value arc: neutral, primary, success, warning, danger. Colour only where it means something; a plain level is `tone="neutral"`.',
+  "knob--dither-fill":
+    '`fill="dither"` paints the arc as the house halftone dot field over a faint accent wash (the same quantised tint as Slider and Progress); `fill="none"` leaves the pointer alone.',
+  "knob--balance":
+    'A bipolar control: `fillOrigin="center"` grows the arc from 12 o\'clock toward either stop, so the arc reads as a deviation from centre. `formatValue` names the sides in the readout.',
+  "knob--marks":
+    "Ticks around the dial: `marks` for one per step (capped at 40), an explicit array with labels printed outside the ticks, and a `sweep={360}` full-turn dial with a 15° step.",
+  "knob--surfaces":
+    "The cap's face from `lib/surface`: `dome` (default, crowned toward the light), `dish` (a scooped top) and `flat`, plus a dome at `curve={3}` for a deeper crown. Read it in both themes.",
+  "knob--finish":
+    '`finish="knurled"` (default) puts a fine knurl on the side wall and a spun finish on the cap; `"plain"` is a smooth turned cylinder.',
+  "knob--elevation":
+    "The cast on the `--sf-elevation-N` scale, drawn by the side wall. 0 sits flush on the panel; 5 floats well above it. The cap's round-over bands stay the same.",
+  "knob--vertical-drag":
+    '`drag="vertical"`, the mixing-console model: drag up to raise, down to lower (160px of travel covers the range), hold Shift for quarter speed. `wheel` turns it with the mouse wheel as well.',
+  "knob--in-field":
+    "A `Knob` inside a vertical `Field`: the label names the range input for assistive tech, the description sits below. Half steps via `step={0.5}`.",
+  "knob--disabled":
+    "The disabled knob: dimmed, the cast held at rest, no grab cursor, and the range input disabled.",
+  "knob--stereo":
+    'A hi-fi front panel on a `Box`: a large labelled volume knob, three bipolar tone controls (balance, bass, treble with `fillOrigin="center"` and a neutral tone) and a loudness `Switch`. The showcase for the material layer on a rotary control.',
   "materials--controls":
     "Every control that wears the material layer, each in its three faces where it has one: Button, Kbd and the LaunchButton lid (dish by default), Switch (dome), Slider (flat), plus the groove slots and the caps. Read it in both themes: the tokens carry their own dark values.",
   "materials--recipes":

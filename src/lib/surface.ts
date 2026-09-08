@@ -3,8 +3,8 @@ import styles from "./surface.module.css";
 
 /** The face of a control: flat, the scoop of a keycap (`dish`), a domed cap
  *  (`dome`), or a floor scooped into a recessed slot (`concave`). Components
- *  that carry a face (Button, Kbd, Switch, Slider, LaunchButton, ToggleGroup,
- *  DigitInput, Input, DigitInputMicro) take it as a `surface` prop with their
+ *  that carry a face (Button, Kbd, Switch, Slider, Knob, LaunchButton,
+ *  ToggleGroup, DigitInput, Input, DigitInputMicro) take it as a `surface` prop with their
  *  own default; the classes paint the ramp over the element's `--sf-cap` base
  *  colour. Named `ControlSurface`: `Surface` is the 3D chart. */
 export type ControlSurface = "flat" | "dish" | "dome" | "concave";

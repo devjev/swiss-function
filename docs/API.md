@@ -1358,6 +1358,83 @@ Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Ex
 <Kbd combo="mod+shift+enter" />
 ```
 
+## Knob
+
+`import { Knob } from "@tarassov-ch/swiss-function/knob"`
+
+A rotary control, the round sibling of `Slider`: a volume knob on a hi-fi front
+panel. A machined cylinder (a domed cap over a knurled side wall, in the
+material layer's one light) turns in a recessed sector well that holds the
+accent value arc; ticks and labels are printed on the panel around it. Wraps
+Base UI Slider for accessibility (`role="slider"` on the range input, the aria
+value attributes, keyboard control, `Field` labelling, form submission) and
+adds its own angular pointer model. Renders a `<div>` (`role="group"`); extends
+`HTMLAttributes<HTMLDivElement>` (minus `color`/`defaultValue`). Drops into
+`Field` for a labelled control. For a dragged value along a track reach for
+`Slider`; for a typed number, `DigitInput` / `DigitInputMicro`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `value` / `defaultValue` | `number` | `min` | A single value (no range). |
+| `onValueChange` | `(value: number) => void` | n/a | Fires live (drag / keyboard / wheel). |
+| `onValueCommitted` | `(value: number) => void` | n/a | Fires once at the end of a drag and after a keyboard change. |
+| `min` / `max` | `number` | `0` / `100` | Range. |
+| `step` | `number` | `1` | Snap increment (the detents). |
+| `largeStep` | `number` | `10` | PageUp/PageDown, Shift+Arrow, Shift+wheel. |
+| `sweep` | `number` | `270` | Angular travel in degrees, centred on 12 o'clock (stops at 7 and 5 o'clock). `360` for a full turn. |
+| `disabled` | `boolean` | `false` | Dims and blocks interaction. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Cap diameter on the unit grid: 1.5u / 2u / 3u. The cylinder's height and the arc width follow. |
+| `diameter` | `number` | n/a | Explicit cap diameter in `--sf-unit` multiples; wins over `size`. |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"primary"` | Semantic accent of the value arc (mirrors Slider/Progress/Chip). |
+| `color` | `string` | n/a | Explicit accent (any CSS colour / `--sf-*` token); wins over `tone`. |
+| `fill` | `"color" \| "dither" \| "none"` | `"color"` | Solid, the house halftone dot field, or no arc (the pointer alone). |
+| `fillOrigin` | `"start" \| "center"` | `"start"` | The arc grows from the left stop (a level) or from 12 o'clock (a bipolar control: balance, pan, tone). |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | The knob's cast (`--sf-elevation-N`, drawn by the side wall). |
+| `surface` | `"dome" \| "dish" \| "flat"` | `"dome"` | The face of the cap (`lib/surface`): crowned toward the light, scooped, or plain. |
+| `curve` | `number` | `1.5` | Amplitude of the face ramp as a multiple of `--sf-curve`. A knob is taller than a key, so it reads at 1.5 by default. |
+| `finish` | `"knurled" \| "plain"` | `"knurled"` | A knurled side wall and a spun cap, or a plain turned cylinder. |
+| `marks` | `boolean \| Array<number \| { value, label }>` | n/a | Ticks around the dial: `true` = one per step (capped at 40), or explicit values / labels (labels sit outside the ticks). |
+| `valueLabel` | `"hover" \| "always" \| "off"` | `"hover"` | The mono readout under the dial; hover, drag and keyboard focus reveal it. |
+| `formatValue` | `(value: number) => ReactNode` | raw number | Formats the readout and tick labels. |
+| `format` / `locale` | `Intl.NumberFormatOptions` / `Intl.LocalesArgument` | n/a | Intl formatting for the readout / aria text. |
+| `drag` | `"rotate" \| "vertical"` | `"rotate"` | The value follows the pointer's angle around the dial, or a vertical drag turns it (up raises; 160px of travel covers the range; Shift for quarter speed). |
+| `wheel` | `boolean` | `false` | Turn with the mouse wheel over the dial (Shift = `largeStep`). Opt-in, since it takes the wheel from the page. |
+| `name` / `form` | `string` | n/a | Form integration (submits the value). |
+| `aria-label` | `string` | n/a | Names the knob when it is not inside a `Field`. |
+
+Keyboard: Arrow Up/Right raise by `step`, Arrow Down/Left lower, PageUp/PageDown
+by `largeStep`, Home/End go to the stops. A drag past a stop holds at that stop
+(the dead zone at the bottom is split in the middle); it never jumps across to
+the other end. The pointer and the knurl turn with the value; the lit faces
+stay fixed toward the light. Pressed is travel: while dragged the cap sinks 1px
+along the light vector and the cast drops one step. Rotation never animates (an
+instrument has no inertia); depth and the readout do, and respect
+`prefers-reduced-motion`.
+
+**Material:** the cap is `--sf-cap` (the page background) under the `surface`
+ramp, with `--sf-edge-soft` at its rim and a hairline edge; the side wall sits
+2 / 3 / 4px (by size) away from the light and carries `--sf-elevation-N`; the
+well is a sector of `--sf-groove`; the pointer wears `--sf-engrave`. All of it
+follows `--sf-light-x` / `-y`.
+
+```tsx
+<Knob defaultValue={6} min={0} max={10} marks valueLabel="always" aria-label="Volume" />
+<Knob
+  min={-50}
+  max={50}
+  fillOrigin="center"
+  marks={[
+    { value: -50, label: "L" },
+    { value: 0, label: "0" },
+    { value: 50, label: "R" },
+  ]}
+  aria-label="Balance"
+/>
+<Knob size="lg" fill="dither" tone="success" defaultValue={80} aria-label="Level" />
+<Knob min={0} max={360} step={15} sweep={360} marks={[0, 90, 180, 270]} aria-label="Angle" />
+<Knob drag="vertical" wheel defaultValue={45} aria-label="Gain" />
+```
+
 ## LaunchButton
 
 `import { LaunchButton } from "@tarassov-ch/swiss-function/launch-button"`
