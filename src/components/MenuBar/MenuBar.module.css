@@ -28,15 +28,16 @@
   cursor: pointer;
   user-select: none;
 }
-.trigger:hover {
-  background-color: var(--sf-color-bg-subtle);
+/* The active title (hovered or open) inverts: primary behind, the background
+   colour as the text, so it reads on any surface the bar is set into. */
+.trigger:hover,
+.trigger[data-popup-open] {
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-bg);
 }
 .trigger:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
   outline-offset: var(--sf-focus-ring-offset, -2px);
-}
-.trigger[data-popup-open] {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
 /* In the collapsed panel a menu trigger reads as a full-width row. */
@@ -80,8 +81,13 @@
   outline: none;
   user-select: none;
 }
+/* The highlighted row takes the same inversion as the bar's active title. */
 .item[data-highlighted] {
-  background-color: var(--sf-color-bg-subtle);
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-bg);
+}
+.item[data-highlighted] .shortcut {
+  color: var(--sf-color-bg);
 }
 .item[data-disabled] {
   opacity: 0.5;

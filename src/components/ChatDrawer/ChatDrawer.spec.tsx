@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ChatMessage } from "../Chat";
+import { MenuBar } from "../MenuBar";
 import { ChatDrawer } from "./ChatDrawer";
 import { MegachatDemo } from "./Megachat.harness";
 
@@ -411,4 +412,53 @@ test("the menu slot sits between the title and the actions", async ({ mount }) =
     return after(title, bar) && after(bar, close) ? "title, bar, actions" : "wrong";
   });
   expect(order).toBe("title, bar, actions");
+});
+
+test("a MenuBar dropdown in the header of the maximized panel paints above it", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <div style={{ inlineSize: 900, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        defaultExpanded
+        title="Assistant"
+        menu={
+          <MenuBar.Root transparent>
+            <MenuBar.Menu>
+              <MenuBar.Trigger>Conversation</MenuBar.Trigger>
+              <MenuBar.Content>
+                <MenuBar.Item>Rename</MenuBar.Item>
+              </MenuBar.Content>
+            </MenuBar.Menu>
+          </MenuBar.Root>
+        }
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  await page.getByRole("menuitem", { name: "Conversation" }).click();
+  const item = page.getByRole("menuitem", { name: "Rename" });
+  await expect(item).toBeVisible();
+  // The popup must beat the fullscreen panel's modal band, and be the element
+  // under the pointer (not the panel covering it).
+  const stacked = await item.evaluate((el) => {
+    const panel = document.querySelector('[class*="fullscreen"]');
+    const panelZ = panel ? Number.parseInt(getComputedStyle(panel).zIndex, 10) : 0;
+    let popupZ = 0;
+    for (let node: Element | null = el; node; node = node.parentElement) {
+      const z = Number.parseInt(getComputedStyle(node).zIndex, 10);
+      if (Number.isFinite(z)) popupZ = Math.max(popupZ, z);
+    }
+    const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { above: popupZ > panelZ, hitInside: !!hit && el.contains(hit) };
+  });
+  expect(stacked).toEqual({ above: true, hitInside: true });
+  await item.hover();
+  await expect(item).toHaveCSS("background-color", /.+/);
 });

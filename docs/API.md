@@ -537,7 +537,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
 | `minSize` / `maxSize` | `number` | n/a | px clamps. |
 | `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles; persist it. |
-| `expanded` / `defaultExpanded` | `boolean` | uncontrolled / `false` | The header's fullscreen toggle, controlled or with an initial state, so a route can force the drawer to fill the viewport. |
+| `expanded` / `defaultExpanded` | `boolean` | uncontrolled / `false` | The header's fullscreen toggle, controlled or with an initial state, so a route can force the drawer to fill the viewport. The maximized panel is a modal-band overlay that seeds the stacking band, so a dropdown, picker or popover opened inside it paints above the panel. |
 | `onExpandedChange` | `(expanded: boolean) => void` | n/a | Fires when fullscreen changes: the toggle, or Escape. |
 | `centered` | `boolean` | `false` | Center the panel body: the chat (or the active view) becomes a centered column of draggable width instead of filling the panel edge-to-edge. A resize handle sits on each edge of the column; dragging one (or arrow-keying it) mirrors on the other, so the column stays on the panel's centre axis. Matters when the panel is wide, above all in fullscreen. |
 | `defaultChatWidth` | `number` | `640` | Centered-column width in px (uncontrolled, like `defaultSize`). |
