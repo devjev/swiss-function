@@ -4,6 +4,7 @@ import { Button } from "../Button";
 import { Chat, ChatBlock, type ChatMessage } from "../Chat";
 import { Stat } from "../Stat";
 import { ChatDrawer } from "./ChatDrawer";
+import { MegachatDemo } from "./Megachat.harness";
 
 export default { title: "ChatDrawer" };
 
@@ -483,67 +484,9 @@ function ViewsDemo() {
 export const Views: Story = () => <ViewsDemo />;
 
 /** The megachat: the assistant maximized to the viewport (`defaultExpanded`)
- *  as a centered column. Its width is dragged from either edge, mirrored about
- *  the vertical centre axis: pull the left edge left and the right edge moves
- *  right by the same amount, so the column never leaves the middle. Arrow keys
- *  on a focused edge do the same in steps. The header's toggle returns it to
- *  the drawer. */
-function MegachatDemo() {
-  const [open, setOpen] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "This is the maximized chat. Drag the left edge of this column to the left: the right edge moves right by the same amount, so the column stays on the centre axis.",
-    },
-    { id: "2", role: "user", content: "How wide can it go?" },
-    {
-      id: "3",
-      role: "assistant",
-      content:
-        "Between `minChatWidth` and `maxChatWidth`, and never wider than the viewport. The margins on either side stay free for parked widgets.",
-    },
-  ]);
-
-  const handleSubmit = (text: string) => {
-    const base = String(Date.now());
-    setMessages((prev) => [...prev, { id: `${base}-u`, role: "user", content: text }]);
-    setBusy(true);
-    window.setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: `${base}-a`, role: "assistant", content: `You said: **${text}**.` },
-      ]);
-      setBusy(false);
-    }, 2400);
-  };
-
-  return (
-    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-subtle)" }}>
-      <ChatDrawer
-        open={open}
-        onOpenChange={setOpen}
-        title="Assistant"
-        thinking={busy}
-        defaultExpanded
-        centered
-        defaultChatWidth={760}
-        minChatWidth={480}
-        maxChatWidth={1280}
-        messages={messages}
-        onSubmit={handleSubmit}
-      >
-        <div style={{ padding: "var(--sf-unit)" }}>
-          <Button onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Open"} assistant</Button>
-          <p style={{ margin: "var(--sf-unit) 0 0" }}>
-            The app behind the megachat. Leave fullscreen with the header toggle to see it.
-          </p>
-        </div>
-      </ChatDrawer>
-    </div>
-  );
-}
-
+ *  as a centered column, mirrored-resizable from either edge, replying with
+ *  widgets (a KPI card, a chart, a progress card) that you drag into either
+ *  margin to save them. The margins are a shelf that keeps what lands on it,
+ *  across reloads (localStorage), each saved widget removable. Ask for AUM,
+ *  flows, a chart or the quarter close. */
 export const Megachat: Story = () => <MegachatDemo />;

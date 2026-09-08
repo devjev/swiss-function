@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ChatMessage } from "../Chat";
 import { ChatDrawer } from "./ChatDrawer";
+import { MegachatDemo } from "./Megachat.harness";
 
 const messages: ChatMessage[] = [{ id: "1", role: "assistant", content: "Hello" }];
 
@@ -356,4 +357,32 @@ test("megachat: maximized and centered, a left-edge drag mirrors to the right ed
   expect(Math.abs(midAfter - midBefore)).toBeLessThan(2);
   expect(Math.abs(ra.x + ra.width / 2 - (rb.x + rb.width / 2) - 60)).toBeLessThan(3);
   await expect(left).toHaveAttribute("aria-valuenow", "520");
+});
+
+test("megachat: a reply widget dragged into a margin is saved there, and can be removed", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 1200, blockSize: 640 }}>
+      <MegachatDemo persist={false} />
+    </div>,
+  );
+  const widget = c.locator('[data-widget="aum"]').first();
+  await expect(widget).toBeVisible();
+  const leftShelf = c.locator('[data-shelf="left"]');
+  await expect(leftShelf.locator("[data-saved]")).toHaveCount(0);
+  await widget.dragTo(leftShelf);
+  await expect(leftShelf.locator("[data-saved]")).toHaveCount(1);
+  await expect(leftShelf.locator('[data-saved="aum"]')).toBeVisible();
+  // Saving copies: the reply keeps its widget.
+  await expect(widget).toBeVisible();
+  // Dropping it again on the same shelf does not duplicate it.
+  await widget.dragTo(leftShelf);
+  await expect(leftShelf.locator("[data-saved]")).toHaveCount(1);
+  // The other shelf takes its own copy.
+  await c.locator('[data-widget="flows-chart"]').first().dragTo(c.locator('[data-shelf="right"]'));
+  await expect(c.locator('[data-shelf="right"] [data-saved]')).toHaveCount(1);
+  await page.getByRole("button", { name: "Remove AUM" }).click();
+  await expect(leftShelf.locator("[data-saved]")).toHaveCount(0);
 });
