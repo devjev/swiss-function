@@ -1998,7 +1998,8 @@ collapse. **Not** a Cmd-K command palette.
 the collapsed panel), `Content` (portal + Box popup, elevation 3), `Item`,
 `Separator` (a menu separator inside `Content`; a bar rule when placed directly in
 the bar), `Submenu`, `SubmenuTrigger`, `SubmenuContent`, `Logo` (persistent left
-slot), `Search` (right-aligned, wraps `Input` size `sm`), `Control` (generic in-place
+slot), `Search` (right-aligned, wraps `Input` size `sm`, half a unit after the last
+item; `fill` stretches it across the bar's remaining room), `Control` (generic in-place
 control slot, you supply the `Button`/`Switch`/`Input`/…), `Spacer` (pushes
 following row items right; no-op in the panel).
 
@@ -2012,7 +2013,7 @@ reopen the trigger. Maps to Base UI `finalFocus`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `position` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
-| `transparent` | `boolean` | `false` | No fill and no edge rule, for a bar set into another surface (a drawer header, a toolbar) whose colour shows through. Implies `bordered={false}`. |
+| `transparent` | `boolean` | `false` | No fill, no edge rule and no inline padding of its own, for a bar set into another surface (a drawer header, a toolbar) whose colour shows through and whose gap is the spacing. Implies `bordered={false}`. |
 | `bordered` | `boolean` | `true` | Draw the hairline on the `position` edge. Set `false` when the bar already sits inside a bordered surface. |
 | `collapse` | `"none" \| "all" \| "items"` | `collapseAt ? "all" : "none"` | Responsive mode. `"all"` folds the whole bar behind one ☰ at `collapseAt`; `"items"` folds items progressively into a ⋯ overflow menu from the trailing edge (only `Logo` pinned; `collapseAt`/`menuAlign` ignored). |
 | `collapseAt` | `number \| string` | n/a | Threshold for `collapse="all"`. `number` → `--sf-unit` multiples; `string` → any CSS length. |

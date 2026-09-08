@@ -311,6 +311,7 @@ export function MegachatDemo({
               </MenuBar.Content>
             </MenuBar.Menu>
             <MenuBar.Search
+              fill
               placeholder="Search the conversation"
               aria-label="Search the conversation"
             />

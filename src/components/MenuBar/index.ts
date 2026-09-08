@@ -1,2 +1,7 @@
-export type { MenuBarCollapse, MenuBarControlProps, MenuBarPosition } from "./MenuBar";
+export type {
+  MenuBarCollapse,
+  MenuBarControlProps,
+  MenuBarPosition,
+  MenuBarSearchProps,
+} from "./MenuBar";
 export { MenuBar } from "./MenuBar";

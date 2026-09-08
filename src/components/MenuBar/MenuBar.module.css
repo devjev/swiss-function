@@ -137,6 +137,12 @@
   inline-size: clamp(8rem, 20vw, 14rem);
 }
 
+/* `fill`: the slot takes the bar's remaining room and the field stretches
+   across it, from the last item to the bar's end. */
+.searchSlotFill {
+  flex: 1 1 auto;
+}
+
 /* In the collapsed panel Search is a full-width row, left-aligned to the same
    inset as the other rows (drops the bar's auto-margin / clamped width). */
 .searchSlotPanel {
@@ -292,9 +298,12 @@
 
 /* Transparent: no fill and no edge rule, for a bar set into another surface
    (a drawer header, a toolbar), where the surface's own colour shows through. */
+/* A transparent bar sits inside someone else's frame (a panel header), so it
+   also drops its own inline padding: the host's gap is the spacing. */
 .transparent,
 .transparent.positionTop,
 .transparent.positionBottom {
   background-color: transparent;
   border: 0;
+  padding-inline: 0;
 }

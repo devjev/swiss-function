@@ -120,6 +120,11 @@
   display: flex;
   align-items: center;
 }
+/* The bar spans the slot, so a filling Search reaches the actions. */
+.menu > * {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
 
 /* View switcher: a row of icon tabs sitting after the title. */
 .viewTabs {

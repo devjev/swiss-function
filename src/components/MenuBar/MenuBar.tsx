@@ -417,23 +417,36 @@ const Logo = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<"div">>(functio
 
 // --- Search (right slot — wraps Input; auto-margins itself to the right) --
 
-const Search = forwardRef<HTMLInputElement, InputProps>(function MenuBarSearch(
-  { className, inputSize = "sm", type = "search", ...rest },
+export interface MenuBarSearchProps extends InputProps {
+  /** Take all the room left in the bar (the field stretches from the last
+   *  item to the bar's end) instead of a fixed width. Default `false`. */
+  fill?: boolean;
+}
+
+const Search = forwardRef<HTMLInputElement, MenuBarSearchProps>(function MenuBarSearch(
+  { className, inputSize = "sm", type = "search", fill = false, ...rest },
   ref,
 ) {
   const surface = useContext(SurfaceContext);
+  const panel = surface === "panel";
   // The slot carries the bar's positioning (the push to the end, and a
   // half-unit clearance from whatever sits before it, held even when the bar
   // has no slack); the Input keeps only its width.
   return (
-    <div className={cx(styles.searchSlot, surface === "panel" && styles.searchSlotPanel)}>
+    <div
+      className={cx(
+        styles.searchSlot,
+        panel && styles.searchSlotPanel,
+        fill && !panel && styles.searchSlotFill,
+      )}
+    >
       <Input
         {...rest}
         ref={ref}
         type={type}
         inputSize={inputSize}
         className={mergeClassName(
-          cx(styles.search, surface === "panel" && styles.searchPanel),
+          cx(styles.search, (panel || fill) && styles.searchPanel),
           className,
         )}
       />
