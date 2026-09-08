@@ -218,18 +218,18 @@
 }
 
 /* App-populated margin content. Only the side facing the column is padded:
-   a quarter unit clears the edge handle's 6px straddle, keeping app content
-   out of the resize grab zone. The outer side stays flush, so margin content
+   one unit, the frame's own rhythm, which also keeps app content out of the
+   edge handle's 6px grab zone. The outer side stays flush, so margin content
    sits at the same distance from the panel edge as the header. */
 .marginContent {
   block-size: 100%;
   box-sizing: border-box;
 }
 .margin[data-side="left"] .marginContent {
-  padding-inline-end: calc(var(--sf-unit) / 4);
+  padding-inline-end: var(--sf-unit);
 }
 .margin[data-side="right"] .marginContent {
-  padding-inline-start: calc(var(--sf-unit) / 4);
+  padding-inline-start: var(--sf-unit);
 }
 
 .marginHidden {
