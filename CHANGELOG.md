@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.34.0 — 2026-09-08
+
+### Minor
+
+- Ten chart types on the shared chart scaffolding (issue #95): Histogram (bins, density, cumulative), BoxPlot (Tufte's quartile plot, box, violin), DotPlot (Cleveland dots, dumbbell ranges, lollipops), Slopegraph (with the bump chart as its rank mode), BulletChart (Few's bullet graph), HorizonChart, Treemap (squarified, the market map), SankeyChart (a hand-rolled layered layout), Marimekko, and Multiples (small multiples with shared scales and linked zoom). Every one takes the frame, fullscreen, controls, zoom on its continuous axis, annotations and click-to-freeze selection where they apply.
+- Knob: a rotary control, the round sibling of Slider. A machined cylinder in the material layer's one light (a domed cap, a knurled side wall, a recessed sector well holding the accent arc), with the Slider value API plus sweep, a centre fill origin for bipolar controls, rotate or vertical drag, opt-in wheel, marks and a mono readout. Wraps Base UI Slider for keyboard, aria, Field labelling and form submission.
+
+### Patch
+
+- DataTable headers in a flat (single-row) table show their face again: the lit rim and wall shadow were dropped by a merge rule meant for leaves under a group placeholder. Explorer's header is aligned to DataTable's: the same 1.5u height, per-cell inset hairlines with a one-pixel header/body divider, and the same sort-arrow spacing.
+
 ## v2.33.0 — 2026-09-07
 
 ### Minor
