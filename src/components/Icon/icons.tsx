@@ -254,3 +254,10 @@ export const Connect = /* @__PURE__ */ createIcon(
 export const Play = /* @__PURE__ */ createIcon("Play", <path d="M5.5 3.5v9l8-4.5z" />);
 export const Pause = /* @__PURE__ */ createIcon("Pause", <path d="M5.5 3.5v9M10.5 3.5v9" />);
 export const Stop = /* @__PURE__ */ createIcon("Stop", <path d="M4.5 4.5h7v7h-7z" />);
+export const Power = /* @__PURE__ */ createIcon(
+  "Power",
+  <>
+    <path d="M8 2v6" />
+    <path d="M4.8 4.8a4.6 4.6 0 1 0 6.4 0" />
+  </>,
+);

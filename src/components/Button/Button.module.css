@@ -1,17 +1,38 @@
+/* Two builds of the same key. The sheet build (default) paints the key on the
+   button element itself: the face colour in --sf-cap, the lit and shade edge
+   bands, an elevation cast, one pixel of travel. The solid build (`build=
+   "solid"`) is the machined key of a front panel, put together like Knob: the
+   button is the mount, an inner `.face` is the
+   cap, and the face's `::before` is the side wall, the same shape shifted away
+   from the light by the key's height and a shade darker, carrying the cast.
+   A press moves the cap down onto the wall by that height; the base stays
+   put. The lit side never moves.
+
+   Sizes and the variant colour are custom properties so both builds read the
+   same numbers: --btn-h, --btn-pad-x, --btn-font (the size rungs), --btn-depth
+   (the solid key's height), --btn-cap (the variant's face colour; --sf-cap is
+   registered non-inheriting, so the cap sets it from --btn-cap itself). */
 .root {
+  --btn-h: calc(var(--sf-unit) * 1.5);
+  --btn-pad-x: calc(var(--sf-unit) * 2 / 3);
+  --btn-font: var(--sf-font-size-md);
+  --btn-depth: 4px;
+  --btn-cap: var(--sf-color-primary);
+  --sf-cap: var(--btn-cap);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   /* All sizing is harmonic with --sf-unit. Outer block-size lands on the
      baseline grid; padding-block is implicit (align-items: center handles
      vertical centering). */
-  block-size: calc(var(--sf-unit) * 1.5);
-  padding-inline: calc(var(--sf-unit) * 2 / 3);
+  block-size: var(--btn-h);
+  padding-inline: var(--btn-pad-x);
   gap: calc(var(--sf-unit) / 3);
   border: 1px solid transparent;
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-sans);
-  font-size: var(--sf-font-size-md);
+  font-size: var(--btn-font);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-tight);
   cursor: pointer;
@@ -76,28 +97,34 @@
 }
 
 /* Variants — each sets the face colour and a border tint matched to it so the
-   1px rim defines the edge without competing with the body color. */
+   1px rim defines the edge without competing with the body color. --btn-ink
+   is the engraving shadow a solid key's label wears: a light text on a
+   coloured cap is debossed with a dark shadow toward the light, a dark text
+   on a pale cap is engraved with the shared --sf-engrave highlight. */
 
 .variantPrimary {
-  --sf-cap: var(--sf-color-primary);
+  --btn-cap: var(--sf-color-primary);
+  --btn-ink: calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0
+    color-mix(in srgb, var(--sf-color-fg) 35%, transparent);
   color: var(--sf-color-primary-fg);
   border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
 .variantPrimary:hover:not([data-disabled]) {
-  --sf-cap: var(--sf-color-primary-hover);
+  --btn-cap: var(--sf-color-primary-hover);
 }
 
 .variantSecondary {
-  --sf-cap: var(--sf-color-bg);
+  --btn-cap: var(--sf-color-bg);
+  --btn-ink: var(--sf-engrave);
   color: var(--sf-color-fg);
   border-color: var(--sf-color-border-subtle);
 }
 .variantSecondary:hover:not([data-disabled]) {
-  --sf-cap: var(--sf-color-bg-subtle);
+  --btn-cap: var(--sf-color-bg-subtle);
 }
 
 .variantGhost {
-  --sf-cap: transparent;
+  --btn-cap: transparent;
   color: var(--sf-color-fg);
   border-color: transparent;
   /* Ghost is intentionally flat — no shadow, no border, no face (Button.tsx
@@ -105,7 +132,7 @@
   box-shadow: none;
 }
 .variantGhost:hover:not([data-disabled]) {
-  --sf-cap: var(--sf-color-bg-subtle);
+  --btn-cap: var(--sf-color-bg-subtle);
 }
 .variantGhost:active:not([data-disabled]) {
   box-shadow: none;
@@ -113,19 +140,23 @@
 }
 
 .variantDanger {
-  --sf-cap: var(--sf-color-danger);
+  --btn-cap: var(--sf-color-danger);
+  --btn-ink: calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0
+    color-mix(in srgb, var(--sf-color-fg) 35%, transparent);
   color: var(--sf-color-danger-fg);
   border-color: color-mix(in srgb, var(--sf-color-danger), black 12%);
 }
 .variantDanger:hover:not([data-disabled]) {
-  --sf-cap: var(--sf-color-danger-hover);
+  --btn-cap: var(--sf-color-danger-hover);
 }
 
-/* Sizes — block-size always lands on a clean unit multiple (1, 1.5, 2). */
+/* Sizes — block-size always lands on a clean unit multiple (1, 1.5, 2). The
+   solid key's height (the side wall) scales with the rung, as Knob's does. */
 .sizeSm {
-  block-size: var(--sf-unit);
-  padding-inline: calc(var(--sf-unit) / 2);
-  font-size: var(--sf-font-size-sm);
+  --btn-h: var(--sf-unit);
+  --btn-pad-x: calc(var(--sf-unit) / 2);
+  --btn-font: var(--sf-font-size-sm);
+  --btn-depth: 3px;
 }
 
 .sizeMd {
@@ -133,9 +164,10 @@
 }
 
 .sizeLg {
-  block-size: calc(var(--sf-unit) * 2);
-  padding-inline: var(--sf-unit);
-  font-size: var(--sf-font-size-lg);
+  --btn-h: calc(var(--sf-unit) * 2);
+  --btn-pad-x: var(--sf-unit);
+  --btn-font: var(--sf-font-size-lg);
+  --btn-depth: 6px;
 }
 
 /* Tight: trim the inline padding to 3/16u and the icon/text gap to 0.25u for a
@@ -144,8 +176,217 @@
    only the horizontal padding shrinks. Comes after the size rules so its
    padding-inline wins on equal specificity. */
 .tight {
-  padding-inline: calc(var(--sf-unit) * 3 / 16);
+  --btn-pad-x: calc(var(--sf-unit) * 3 / 16);
   gap: calc(var(--sf-unit) / 4);
+}
+
+/* Round: a circle of the size's height, for an icon or a one-letter label. */
+.round {
+  --btn-pad-x: 0;
+  inline-size: var(--btn-h);
+  border-radius: var(--sf-radius-full);
+}
+/* The label of a round key, measured and shifted onto its ink centre by
+   opticalCentre.ts (an inline `translate`); a unit line box so the measure
+   has nothing but the glyph to reason about. */
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* --- The solid build ------------------------------------------------------
+   The button is the mount and stays put. The cap is the inner `.face`, the
+   only thing that moves. The side wall is the sweep of the cap along the
+   light vector: one-pixel copies of the cap's outline stacked from the cap
+   down to the base (box-shadow layers, which follow the fillet), so the
+   sides are solid faces that connect the cap's edge to the base and the
+   corners stay continuous. An offset copy of the cap alone leaves its own
+   corners poking out past the cap with nothing between, two plates rather
+   than one block, and a blurred cast under a tall key reads as hovering, so
+   a solid key casts nothing: its depth is the wall. The layers ride on the
+   cap, and a press collapses them to one pixel while the cap travels one
+   pixel short of the height, so the base never moves on the page.
+
+   Nothing here uses a negative z-index (a negative-z wall inside the cap
+   would jump in front of the cap's background the moment the cap gained a
+   transform). Round keys wear the wall as a bevel ring around the cap
+   instead (the mount's `::after`), since a swept circle is a lopsided pill
+   and a cylinder seen from above is a cap inside a ring. */
+.solid {
+  /* The press travels one pixel short of the key's height, so a pressed key
+     still shows a sliver of wall and reads as a key, not a plate. */
+  --btn-travel: calc(var(--btn-depth) - 1px);
+  /* One pixel along the light vector, away from the light. */
+  --btn-ax: calc(var(--sf-light-x) * -1px);
+  --btn-ay: calc(var(--sf-light-y) * -1px);
+  /* The wall's shades: the side faces a little darker than the cap, the base
+     row darkest. All derived from the cap colour, so a hover recolour moves
+     the whole key. */
+  --btn-wall-1: oklch(from var(--btn-cap) calc(l - 0.16) c h);
+  --btn-wall-2: oklch(from var(--btn-cap) calc(l - 0.22) c h);
+  --btn-wall-3: oklch(from var(--btn-cap) calc(l - 0.34) c h);
+  /* The md wall, four layers; sm and lg below. The pressed list keeps the
+     same count and colours so the collapse interpolates. */
+  --btn-wall:
+    calc(var(--btn-ax) * 1) calc(var(--btn-ay) * 1) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 2) calc(var(--btn-ay) * 2) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 3) calc(var(--btn-ay) * 3) 0 var(--btn-wall-2),
+    calc(var(--btn-ax) * 4) calc(var(--btn-ay) * 4) 0 var(--btn-wall-3);
+  --btn-wall-pressed:
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-2), var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-3);
+  /* A machined key has a fillet: twice the sheet radius on the cap (and so
+     on the wall). */
+  --btn-radius: calc(var(--sf-radius-default) * 2);
+  /* A taller object than a sheet key: the dome reads at 1.5 the system
+     amplitude, as Knob's does. The `curve` prop (inline) still wins. */
+  --sf-curve-scale: 1.5;
+  position: relative;
+  isolation: isolate;
+  display: inline-grid;
+  /* The cap centres in the mount whatever the mount's width resolves to. */
+  place-items: center;
+  block-size: auto;
+  padding: 0;
+  border-radius: var(--btn-radius);
+  background: none;
+  border-color: transparent;
+  border-width: 0;
+  box-shadow: none;
+  transition: none;
+}
+.solid.sizeSm {
+  --btn-wall:
+    calc(var(--btn-ax) * 1) calc(var(--btn-ay) * 1) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 2) calc(var(--btn-ay) * 2) 0 var(--btn-wall-2),
+    calc(var(--btn-ax) * 3) calc(var(--btn-ay) * 3) 0 var(--btn-wall-3);
+  --btn-wall-pressed:
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-2), var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-3);
+}
+.solid.sizeLg {
+  --btn-wall:
+    calc(var(--btn-ax) * 1) calc(var(--btn-ay) * 1) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 2) calc(var(--btn-ay) * 2) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 3) calc(var(--btn-ay) * 3) 0 var(--btn-wall-1),
+    calc(var(--btn-ax) * 4) calc(var(--btn-ay) * 4) 0 var(--btn-wall-2),
+    calc(var(--btn-ax) * 5) calc(var(--btn-ay) * 5) 0 var(--btn-wall-2),
+    calc(var(--btn-ax) * 6) calc(var(--btn-ay) * 6) 0 var(--btn-wall-3);
+  --btn-wall-pressed:
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-1),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-2),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-2),
+    var(--btn-ax) var(--btn-ay) 0 var(--btn-wall-3);
+}
+.solid:active:not([data-disabled]) {
+  box-shadow: none;
+  transform: none;
+}
+/* The cap. Carries the size, the variant colour (through --btn-cap), the
+   surface ramp (the `surface` class sits on it), crisp chamfer bands at its
+   rim, the wall as its stacked layers, the variant's 1px rim, and the
+   engraved label. Its travel is the press. z-index 1: above the ring. */
+.face {
+  --sf-cap: var(--btn-cap);
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit;
+  block-size: var(--btn-h);
+  padding-inline: var(--btn-pad-x);
+  border: 1px solid;
+  border-color: inherit;
+  border-radius: var(--btn-radius);
+  background-color: var(--sf-cap);
+  color: inherit;
+  white-space: nowrap;
+  text-shadow: var(--btn-ink);
+  box-shadow: var(--sf-edge), var(--btn-wall);
+  /* Ease-out, never the snap: an overshoot would lift the cap off its wall. */
+  transition:
+    background-color var(--sf-duration-fast) var(--sf-ease-out),
+    --sf-cap var(--sf-duration-fast) var(--sf-ease-out),
+    box-shadow var(--sf-duration-fast) var(--sf-ease-out),
+    translate var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* The brushed finish: fine lines across the cap at 3% ink, stopping short of
+   the rim. It paints over the label (a pseudo comes after the children), so
+   it stays faint enough to sit over it. */
+.solid[data-finish="brushed"] .face::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0 2px,
+    color-mix(in srgb, var(--sf-color-fg) 3%, transparent) 2px 3px
+  );
+  pointer-events: none;
+}
+
+/* Pressed is travel: the cap drops by --btn-travel (one pixel short of the
+   height) and its wall collapses to the remaining pixel, so the base stays
+   where it was on the page. A latched key
+   (`aria-pressed="true"`) sits the same way. */
+.solid:active:not([data-disabled]) .face,
+.solid[aria-pressed="true"]:not([data-disabled]) .face {
+  translate: calc(var(--sf-light-x) * -1 * var(--btn-travel))
+    calc(var(--sf-light-y) * -1 * var(--btn-travel));
+  box-shadow: var(--sf-edge), var(--btn-wall-pressed);
+}
+
+/* A round key: the wall is a bevel ring around the cap (the mount's
+   `::after`, two-tone along the light angle) and the cap carries no layers;
+   the mount grows by the ring on every side and the cap keeps the size's
+   circle. Its press sinks instead of sliding: a diagonal travel inside a ring
+   only as wide as the travel ends as two overlapping circles, so the cap
+   drops one pixel and takes the groove recipe, the ring's rim casting onto a
+   cap now below it, as the Knob sits while dragged. */
+.solid.round {
+  /* Sized by its padding and the cap, never by a computed width the sheet's
+     `.round` rule could contest: the ring is the padding. */
+  inline-size: auto;
+  padding: var(--btn-depth);
+  border-radius: var(--sf-radius-full);
+}
+.solid.round::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sf-radius-full);
+  background: linear-gradient(var(--sf-light-angle), var(--btn-wall-1), var(--btn-wall-3));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+}
+.round .face {
+  inline-size: var(--btn-h);
+  border-radius: var(--sf-radius-full);
+}
+/* The cap of a round solid key wears a crisp rim, so the disc reads as a
+   circle inside the ring where the lit side of the ring would otherwise
+   merge with the cap's lit edge and pull the visual centre up-left. */
+.solid.round .face {
+  border-color: color-mix(in srgb, var(--sf-color-fg) 28%, var(--btn-cap));
+  box-shadow: var(--sf-edge);
+}
+.solid.round:active:not([data-disabled]) .face,
+.solid.round[aria-pressed="true"]:not([data-disabled]) .face {
+  translate: var(--btn-ax) var(--btn-ay);
+  box-shadow: var(--sf-groove);
+}
+
+/* A solid key has no cast to override: the `elevation` prop is the sheet
+   build's. Disabled dims the whole key. */
+.solid[data-disabled] {
+  opacity: 0.5;
 }
 
 /* Drop the press travel (and its springy easing) under reduced motion; the
@@ -161,5 +402,10 @@
   }
   .root:active:not([data-disabled]) {
     transform: none;
+  }
+  .face {
+    transition:
+      background-color var(--sf-duration-fast) var(--sf-ease-out),
+      --sf-cap var(--sf-duration-fast) var(--sf-ease-out);
   }
 }

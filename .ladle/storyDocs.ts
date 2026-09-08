@@ -25,6 +25,18 @@ export const storyDocs: Record<string, string> = {
     "A single button wired to Ladle controls for `variant`, `size`, `tight`, and `disabled`. Use it to try prop combinations before committing to one.",
   "button--tight":
     "`tight` trims the horizontal padding and icon/text gap while keeping the height from `size`, so a compact button still lines up with its peers. Reach for it in dense toolbars and icon-only buttons; it composes with `size` and `variant`.",
+  "button--solid-build":
+    '`build="solid"`, the machined front-panel key, across the variants and sizes: a cap over a visible side wall set away from the light by the key\'s height, the cast on the wall, the label engraved, and a press that travels the full height onto the wall. Ghost stays a sheet; disabled loses its cast.',
+  "button--solid-round":
+    "`round` makes a circular key of the size's height with no inline padding, for an icon or a one-letter label: the power button. Each label is centred on its own ink, measured at mount (a capital, a symbol, a fallback glyph, an `Icon`), not on its text box. A solid round key wears its wall as a bevel ring around the cap; the last one is a round sheet key.",
+  "button--solid-finish":
+    "The solid key's cap: `finish` brushed (default, fine lines at 3% ink) or plain, on a dome (default), a dish or a flat top, with `curve` and `elevation` as on any key.",
+  "button--solid-pressed":
+    'Latching keys: `aria-pressed="true"` sits a solid key down on its wall, the way a locking push button stays in. Click to toggle.',
+  "button--front-panel":
+    "A hi-fi front panel on a `Box`: a round power key, a source selector of latching keys, the `Knob` for volume and a `Switch` for loudness, every one lit by the same light.",
+  "button--solid-surfaces":
+    "The same faces as `Knob` on a solid key: `surface` dome (default), dish, flat and concave, on each colour and as a round key, all lit from the one light.",
   "button-group--default":
     'A primary Save beside a secondary Cancel, joined into one segmented row with `role="group"`. The common two-action pairing: reach for `ButtonGroup` whenever related buttons belong together instead of scattered across a toolbar.',
   "button-group--mixed-variants":

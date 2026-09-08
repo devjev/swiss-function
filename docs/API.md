@@ -348,14 +348,22 @@ A single `<button>`. Extends `ButtonHTMLAttributes<HTMLButtonElement>`.
 | `variant` | `"primary" \| "secondary" \| "ghost" \| "danger"` | `"primary"` | Colour role. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Height + font. Inherits from an enclosing `<ButtonGroup size>`; explicit `size` wins. |
 | `tight` | `boolean` | `false` | Compact horizontal padding (`3/16u`) + `0.25u` icon/text gap. Height still comes from `size`, so tight buttons line up with peers. |
-| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth: the shared edge bands (`--sf-edge`) plus the `--sf-elevation-N` cast. Pressed drops one step and 1px (travel, never a dent). `ghost` is always flat. |
-| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of the key (`lib/surface`): the scoop of a keycap, a rounded cap, or no ramp. `ghost` is always flat. |
-| `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
+| `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth: the shared edge bands (`--sf-edge`) plus the `--sf-elevation-N` cast. Pressed drops one step and 1px (travel, never a dent). `ghost` is always flat. A solid key ignores it: its depth is the wall. |
+| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"dish"` (`"dome"` for a solid key) | The face of the key (`lib/surface`), the same set as `Knob`: the scoop of a keycap, a rounded cap, no ramp, or a floor scooped into the cap. `ghost` is always flat. |
+| `curve` | `number` | `1` (`1.5` for a solid key) | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
+| `build` | `"sheet" \| "solid"` | `"sheet"` | `sheet` is the thin key face (edge bands, a cast, 1px of travel). `solid` is the machined key of a front panel, built like `Knob`: a filleted cap over a swept side wall, one-pixel copies of the cap stacked along the light vector down to the base (3 / 4 / 6px by size, the base row darkest), no cast (the wall is the depth), the label engraved, and a press that travels one pixel short of the height onto the wall; `aria-pressed="true"` latches it down. A round solid key wears its wall as a bevel ring around the cap. `ghost` is always a sheet; keep sheets inside a `ButtonGroup`. |
+| `finish` | `"brushed" \| "plain"` | `"brushed"` | The cap finish of a solid key: fine brushed lines at 3% ink, or plain. |
+| `round` | `boolean` | `false` | A circular key of the size's height with no inline padding, for an icon or a one-letter label (the power button). Either build; The label is centred on its own ink, measured at mount by rasterising it (an `Icon` from its markup, text in the element's font) and anchoring between the ink's bounding-box centre and its centre of mass. Prefer an `Icon` (`Power`, `Play`, ...) over a text symbol: a symbol's fallback font can differ between the page and the measuring canvas. A solid round key wears its wall as a bevel ring around the cap, so the mount grows by the key's height on every side, and its press sinks the cap one pixel into the ring (the groove recipe) rather than sliding it. |
 
 ```tsx
 <Button variant="secondary" size="sm" tight>
   <span aria-hidden="true">↻</span>
   Refresh
+</Button><Button build="solid" aria-pressed={source === "Phono"} onClick={() => setSource("Phono")}>
+  Phono
+</Button>
+<Button build="solid" round size="lg" aria-label="Power">
+  ⏻
 </Button>
 ```
 

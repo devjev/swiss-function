@@ -82,7 +82,7 @@ Ladle (`npm run dev`).
 
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
-| `Button`        | Any clickable action. Variants: primary, secondary, ghost, danger. Sizes: sm, md, lg. `surface` picks the face: `"dish"` (default, a keycap scoop), `"dome"`, `"flat"`. |
+| `Button`        | Any clickable action. Variants: primary, secondary, ghost, danger. Sizes: sm, md, lg. `surface` picks the face: `"dish"` (default, a keycap scoop), `"dome"`, `"flat"`. `build="solid"` is the machined front-panel key built like `Knob` (a cap over a side wall set away from the light, the cast on the wall, an engraved label, a press that travels the full height; `aria-pressed` latches it), with opt-in `round` (a power button, its wall a bevel ring) and `finish` brushed or plain. |
 | `ButtonGroup`   | A row of related buttons sharing a cascading size.        |
 | `Field`         | Compound for any form row: `Field` + `Field.Label` + control + `Field.Description` (supplementary copy, full-strength fg) + `Field.Error`. Don't roll your own. |
 | `FieldLayout`   | Whole-form layout: justified rows of rigid / flexible / filler fields. Sections of `FieldLayout.Field`s in a `flex-wrap` container, where each row fills left-to-right (flexible fields and `FieldLayout.Filler`s grow), strict source order (fields never migrate lines), gradual container-driven collapse with no breakpoints. `kind="rigid"` (fixed width, e.g. a DatePicker at 8u) / `"flexible"` (default, 10 to 36u) / `"prose"` (wide text) / `"filler"`. Rhythm on the unit: 2u between sections, 1u between fields/rows. Reach for this to lay out a form (Fields alone still work for a single row). |
