@@ -91,6 +91,10 @@ interface MenuBarRootProps extends ComponentPropsWithoutRef<typeof BaseMenubar> 
   position?: MenuBarPosition;
   /** Draw the hairline border on the `position` edge. Default `true`. */
   bordered?: boolean;
+  /** No fill and no edge rule: a bar set into another surface (a drawer
+   *  header, a toolbar) whose own colour shows through. Implies
+   *  `bordered={false}`. Default `false`. */
+  transparent?: boolean;
   /**
    * Responsive collapse behaviour:
    * - `"none"` — never collapse (a plain menu bar).
@@ -125,6 +129,7 @@ const Root = forwardRef<HTMLDivElement, MenuBarRootProps>(function MenuBarRoot(
     className,
     position = "top",
     bordered = true,
+    transparent = false,
     collapse,
     collapseAt,
     gap = 0,
@@ -150,12 +155,13 @@ const Root = forwardRef<HTMLDivElement, MenuBarRootProps>(function MenuBarRoot(
   });
 
   // The position classes only carry the hairline; drop them to render borderless.
-  const positionClass = !bordered
-    ? ""
-    : position === "bottom"
-      ? styles.positionBottom
-      : styles.positionTop;
-  const rootClass = positionClass ? `${styles.root} ${positionClass}` : styles.root;
+  const positionClass =
+    !bordered || transparent
+      ? ""
+      : position === "bottom"
+        ? styles.positionBottom
+        : styles.positionTop;
+  const rootClass = cx(styles.root, positionClass, transparent && styles.transparent);
   // Bar at top → panels open down; bar at bottom → open up.
   const panelSide = position === "bottom" ? "top" : "bottom";
   const barStyle = { gap: toUnit(gap), ...style };

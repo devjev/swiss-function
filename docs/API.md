@@ -478,7 +478,7 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `onAction` | `(action: ChatAction) => void` | n/a | Fired when a user interacts with a choices / tree / custom block. |
 | `onError` | `(error: ChatErrorContext) => void` | n/a | Fired **once** when an error part appears in the transcript (a notification hook: log / toast / auto-retry). `ChatErrorContext` is `{ messageId, partId?, message, requestId? }`. A `retryable` error's Retry reports separately through `onAction` (`type: "error", value: "retry"`). |
 | `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. |
-| `sendLabel` | `string` | `"Send"` | Caption for the submit button. |
+| `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a small round solid key inside the field's end (an up arrow); the label is its accessible name. |
 | `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
 | `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
@@ -555,6 +555,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
 | `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
+| `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
 | `views` | `ChatDrawerView[]` | n/a | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
 | `activeView` / `defaultActiveView` / `onActiveViewChange` | n/a | first view | Active view id (controlled / uncontrolled / change callback). |
@@ -2011,6 +2012,7 @@ reopen the trigger. Maps to Base UI `finalFocus`.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `position` | `"top" \| "bottom"` | `"top"` | Edge with the hairline; flips menu open direction. |
+| `transparent` | `boolean` | `false` | No fill and no edge rule, for a bar set into another surface (a drawer header, a toolbar) whose colour shows through. Implies `bordered={false}`. |
 | `bordered` | `boolean` | `true` | Draw the hairline on the `position` edge. Set `false` when the bar already sits inside a bordered surface. |
 | `collapse` | `"none" \| "all" \| "items"` | `collapseAt ? "all" : "none"` | Responsive mode. `"all"` folds the whole bar behind one ☰ at `collapseAt`; `"items"` folds items progressively into a ⋯ overflow menu from the trailing edge (only `Logo` pinned; `collapseAt`/`menuAlign` ignored). |
 | `collapseAt` | `number \| string` | n/a | Threshold for `collapse="all"`. `number` → `--sf-unit` multiples; `string` → any CSS length. |

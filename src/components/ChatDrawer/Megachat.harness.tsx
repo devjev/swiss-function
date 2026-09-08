@@ -5,6 +5,7 @@ import { Box } from "../Box";
 import { Button } from "../Button";
 import { ChatBlock, type ChatMessage } from "../Chat";
 import { X } from "../Icon";
+import { MenuBar } from "../MenuBar";
 import { Progress } from "../Progress";
 import { Stat } from "../Stat";
 import { ChatDrawer } from "./ChatDrawer";
@@ -283,6 +284,36 @@ export function MegachatDemo({
         open={open}
         onOpenChange={setOpen}
         title="Assistant"
+        menu={
+          <MenuBar.Root transparent>
+            <MenuBar.Menu>
+              <MenuBar.Trigger>Conversation</MenuBar.Trigger>
+              <MenuBar.Content>
+                <MenuBar.Item shortcut="mod+n">New</MenuBar.Item>
+                <MenuBar.Item>Rename</MenuBar.Item>
+                <MenuBar.Separator />
+                <MenuBar.Item>Export as Markdown</MenuBar.Item>
+              </MenuBar.Content>
+            </MenuBar.Menu>
+            <MenuBar.Menu>
+              <MenuBar.Trigger>Widgets</MenuBar.Trigger>
+              <MenuBar.Content>
+                <MenuBar.Item>Clear saved</MenuBar.Item>
+                <MenuBar.Item>Save all from this reply</MenuBar.Item>
+              </MenuBar.Content>
+            </MenuBar.Menu>
+            <MenuBar.Menu>
+              <MenuBar.Trigger>Help</MenuBar.Trigger>
+              <MenuBar.Content>
+                <MenuBar.Item shortcut="mod+/">Shortcuts</MenuBar.Item>
+              </MenuBar.Content>
+            </MenuBar.Menu>
+            <MenuBar.Search
+              placeholder="Search the conversation"
+              aria-label="Search the conversation"
+            />
+          </MenuBar.Root>
+        }
         thinking={busy}
         defaultExpanded={defaultExpanded}
         centered

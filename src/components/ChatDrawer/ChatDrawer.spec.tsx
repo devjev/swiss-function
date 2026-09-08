@@ -386,3 +386,29 @@ test("megachat: a reply widget dragged into a margin is saved there, and can be 
   await page.getByRole("button", { name: "Remove AUM" }).click();
   await expect(leftShelf.locator("[data-saved]")).toHaveCount(0);
 });
+
+test("the menu slot sits between the title and the actions", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ inlineSize: 900, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        title="Assistant"
+        menu={<div data-testid="bar">bar</div>}
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  const order = await c.evaluate((root) => {
+    const title = root.querySelector("h2");
+    const bar = root.querySelector('[data-testid="bar"]');
+    const close = root.querySelector('button[aria-label="Close"]');
+    if (!title || !bar || !close) return "missing";
+    const after = (a: Element, b: Element) =>
+      !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return after(title, bar) && after(bar, close) ? "title, bar, actions" : "wrong";
+  });
+  expect(order).toBe("title, bar, actions");
+});

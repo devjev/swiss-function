@@ -278,3 +278,12 @@
     transition: none;
   }
 }
+
+/* Transparent: no fill and no edge rule, for a bar set into another surface
+   (a drawer header, a toolbar), where the surface's own colour shows through. */
+.transparent,
+.transparent.positionTop,
+.transparent.positionBottom {
+  background-color: transparent;
+  border: 0;
+}

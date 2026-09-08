@@ -112,6 +112,15 @@
   margin-inline-start: auto;
 }
 
+/* The `menu` slot: a bar between the title (and view tabs) and the actions,
+   taking the room in between. A transparent MenuBar with a Search sits here. */
+.menu {
+  flex: 1;
+  min-inline-size: 0;
+  display: flex;
+  align-items: center;
+}
+
 /* View switcher: a row of icon tabs sitting after the title. */
 .viewTabs {
   display: flex;

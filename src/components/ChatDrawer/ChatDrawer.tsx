@@ -142,6 +142,10 @@ export interface ChatDrawerProps {
   defaultActiveView?: string;
   /** Fired with the new view id when the active view changes. */
   onActiveViewChange?: (id: string) => void;
+  /** A bar in the header between the title (and view tabs) and the actions,
+   *  taking the room in between: a transparent `MenuBar` with a `Search`, a
+   *  toolbar. */
+  menu?: ReactNode;
   /** Extra icon buttons placed in the header, before the fullscreen/close pair.
    *  Works in both default (chat) and `views` mode. */
   actions?: ReactNode;
@@ -169,12 +173,14 @@ const CHROME_ICON_SIZE = "14px";
 function PanelHeader({
   title,
   views,
+  menu,
   actions,
   expanded,
   onToggleFullscreen,
 }: {
   title?: ReactNode;
   views?: ChatDrawerView[];
+  menu?: ReactNode;
   actions?: ReactNode;
   expanded: boolean;
   onToggleFullscreen: () => void;
@@ -197,6 +203,7 @@ function PanelHeader({
           ))}
         </Tabs.List>
       ) : null}
+      {menu != null ? <div className={styles.menu}>{menu}</div> : null}
       <div className={styles.actions}>
         {actions}
         <button
@@ -236,6 +243,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     defaultOpen,
     onOpenChange,
     title,
+    menu,
     resizable = true,
     defaultSize = 360,
     minSize,
@@ -511,6 +519,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
               <PanelHeader
                 title={title}
                 views={views}
+                menu={menu}
                 actions={actions}
                 expanded={expanded}
                 onToggleFullscreen={toggle}
@@ -521,6 +530,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
             <>
               <PanelHeader
                 title={title}
+                menu={menu}
                 actions={actions}
                 expanded={expanded}
                 onToggleFullscreen={toggle}
