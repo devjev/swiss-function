@@ -422,17 +422,22 @@ const Search = forwardRef<HTMLInputElement, InputProps>(function MenuBarSearch(
   ref,
 ) {
   const surface = useContext(SurfaceContext);
+  // The slot carries the bar's positioning (the push to the end, and a
+  // half-unit clearance from whatever sits before it, held even when the bar
+  // has no slack); the Input keeps only its width.
   return (
-    <Input
-      {...rest}
-      ref={ref}
-      type={type}
-      inputSize={inputSize}
-      className={mergeClassName(
-        cx(styles.search, surface === "panel" && styles.searchPanel),
-        className,
-      )}
-    />
+    <div className={cx(styles.searchSlot, surface === "panel" && styles.searchSlotPanel)}>
+      <Input
+        {...rest}
+        ref={ref}
+        type={type}
+        inputSize={inputSize}
+        className={mergeClassName(
+          cx(styles.search, surface === "panel" && styles.searchPanel),
+          className,
+        )}
+      />
+    </div>
   );
 });
 

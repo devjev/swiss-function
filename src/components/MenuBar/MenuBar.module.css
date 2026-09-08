@@ -123,18 +123,29 @@
 }
 
 /* --- Search (right slot — chrome from Input; only positioning lives here) --- */
-.search {
-  /* Auto-margin pushes Search past any siblings to the right edge. */
+/* The slot: the auto margin pushes Search past any siblings to the right
+   edge, and the padding keeps half a unit between the last item and the field
+   even when the bar has no slack to push against. */
+.searchSlot {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
   margin-inline-start: auto;
-  align-self: center;
+  padding-inline-start: calc(var(--sf-unit) / 2);
+}
+.search {
   inline-size: clamp(8rem, 20vw, 14rem);
 }
 
 /* In the collapsed panel Search is a full-width row, left-aligned to the same
    inset as the other rows (drops the bar's auto-margin / clamped width). */
-.searchPanel {
+.searchSlotPanel {
   align-self: stretch;
   margin-inline: calc(var(--sf-unit) / 2);
+  padding-inline-start: 0;
+}
+.searchPanel {
+  flex: 1;
   inline-size: auto;
 }
 
