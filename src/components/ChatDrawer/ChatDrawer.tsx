@@ -409,7 +409,11 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
   const marginCell = (side: "left" | "right") => {
     const inner = side === "left" ? margins?.left : margins?.right;
     return (
-      <div className={styles.margin} ref={side === "left" ? marginProbeRef : undefined}>
+      <div
+        className={styles.margin}
+        data-side={side}
+        ref={side === "left" ? marginProbeRef : undefined}
+      >
         {inner != null ? (
           <div className={cx(styles.marginContent, marginsCollapsed && styles.marginHidden)}>
             {inner}

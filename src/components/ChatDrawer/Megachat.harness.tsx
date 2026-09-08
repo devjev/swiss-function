@@ -142,7 +142,10 @@ function Shelf({
         display: "grid",
         alignContent: "start",
         gap: "calc(var(--sf-unit) / 2)",
-        padding: "calc(var(--sf-unit) / 2)",
+        // Flush with the panel edge (the header's distance), padded toward the chat.
+        paddingBlock: "calc(var(--sf-unit) / 2)",
+        paddingInlineStart: side === "left" ? 0 : "calc(var(--sf-unit) / 2)",
+        paddingInlineEnd: side === "right" ? 0 : "calc(var(--sf-unit) / 2)",
         outline: over ? "var(--sf-focus-ring-width, 2px) dashed var(--sf-color-primary)" : "none",
         outlineOffset: "-2px",
       }}
