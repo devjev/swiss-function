@@ -65,20 +65,24 @@
   top: 0;
   z-index: 1;
   background-color: var(--sf-color-bg-subtle);
-  border-bottom: 1px solid var(--sf-color-border-subtle);
 }
 
+/* The same per-cell edge model as DataTable's header: each cell draws its own
+   right + bottom hairline as inset shadows (the bottom one is the header/body
+   divider), so the key's face runs to the seam and the divider is one pixel,
+   the shade band over the hairline. */
 .headerCell {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   position: relative;
   display: flex;
   align-items: center;
   gap: calc(var(--sf-unit) / 4);
   padding: 0 var(--sf-cell-pad-x);
-  block-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.5);
   font-size: var(--sf-cell-font);
   font-weight: var(--sf-font-weight-semibold);
   color: var(--sf-color-fg);
-  border-inline-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
   /* The key's base colour; states move it, the face ramp derives from it. */
   --sf-cap: var(--sf-color-bg-subtle);
@@ -87,20 +91,23 @@
      of the panel. A scooped face adds its wall's shadow inside the lit rim.
      The sorted column's key sits pressed, as in DataTable. */
   --sf-hdr-wall: 0 0 transparent;
-  box-shadow: var(--sf-edge-lit), var(--sf-hdr-wall), var(--sf-edge-shade);
+  box-shadow:
+    var(--sf-edge-lit), var(--sf-hdr-wall), var(--sf-edge-shade), var(--sf-cell-edge-r),
+    var(--sf-cell-edge-b);
 }
 .headerCell[data-surface="concave"],
 .headerCell[data-surface="dish"] {
   --sf-hdr-wall: var(--sf-groove-wall);
 }
 
+/* On the last column the wrapper's border is the trailing edge. */
 .headerCell:last-child {
-  border-inline-end: none;
+  --sf-cell-edge-r: 0 0 transparent;
 }
 
 .headerCell[data-sorted],
 .headerCell[data-sortable]:active {
-  box-shadow: var(--sf-groove);
+  box-shadow: var(--sf-groove), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
   --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
 }
 
@@ -129,6 +136,7 @@
 }
 
 .sortArrow {
+  margin-inline-start: calc(var(--sf-unit) / 4);
   font-size: 0.85em;
   line-height: 1;
   color: var(--sf-color-primary);
@@ -152,7 +160,7 @@
 .headerDragOverlay {
   display: flex;
   align-items: center;
-  block-size: calc(var(--sf-unit) * 1.25);
+  block-size: calc(var(--sf-unit) * 1.5);
   padding: 0 calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg-subtle);
   border: 1px solid var(--sf-color-border-subtle);

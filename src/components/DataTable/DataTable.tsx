@@ -1978,7 +1978,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
         // below it (and the key's shade band) so the column reads as one
         // full-height header; the leaf underneath drops its lit band likewise.
         data-merge-bottom={header.isPlaceholder || undefined}
-        data-merge-top={(isLeafHeader && header.depth > 0 && !header.column.parent) || undefined}
+        data-merge-top={
+          (isLeafHeader && headerGroupCount > 1 && !header.column.parent) || undefined
+        }
         // The sorted column's header sits pressed (see .headerCell[data-sorted]).
         data-sorted={sortDir || undefined}
         onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
