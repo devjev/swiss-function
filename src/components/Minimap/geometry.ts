@@ -256,3 +256,166 @@ export function railScrollForBand(
   else if (bottomInView > viewportHeight - m) next = bandTop + bandHeight - (viewportHeight - m);
   return clamp(next, 0, maxScroll);
 }
+
+/** A content span the cap compresses: it renders `railHeight` tall from
+ *  `railTop` whatever its content extent. */
+export interface RailSegment {
+  top: number;
+  extent: number;
+  railTop: number;
+  railHeight: number;
+}
+
+/** The content-to-rail mapping with the per-block cap folded in. Piecewise
+ *  linear: a capped span maps onto exactly `maxPx` of rail and everything else
+ *  onto one shared scale, so what follows a capped block moves up instead of
+ *  leaving a hole, and no other block is compressed (the issue-#87 bunching a
+ *  whole-rail shrink caused). The band, presses, drags and labels all go
+ *  through the same map, so the rail stays self-consistent. Without a cap it
+ *  is the plain proportional scale. */
+export interface RailMap {
+  scrollHeight: number;
+  railHeight: number;
+  /** Rail px per content px on the uncapped stretches. */
+  scale: number;
+  segments: readonly RailSegment[];
+  toRail(y: number): number;
+  toContent(railY: number): number;
+}
+
+export function buildRailMap(
+  spans: readonly { top: number; extent: number }[],
+  scrollHeight: number,
+  railHeight: number,
+  maxPx: number,
+): RailMap {
+  const uniform = scrollHeight > 0 ? railHeight / scrollHeight : 0;
+  const identity: RailMap = {
+    scrollHeight,
+    railHeight,
+    scale: uniform,
+    segments: [],
+    toRail: (y) => clamp(y * uniform, 0, railHeight),
+    toContent: (r) => (uniform > 0 ? clamp(r / uniform, 0, scrollHeight) : 0),
+  };
+  if (!(maxPx > 0) || scrollHeight <= 0 || railHeight <= 0) return identity;
+  // Candidates: positive extents, sorted, clipped so they never overlap.
+  const sorted = spans
+    .filter((s) => s.extent > 0 && Number.isFinite(s.top))
+    .map((s) => ({ top: Math.max(0, s.top), extent: s.extent }))
+    .sort((a, b) => a.top - b.top);
+  const candidates: { top: number; extent: number }[] = [];
+  let end = 0;
+  for (const s of sorted) {
+    const top = Math.max(s.top, end);
+    const bottom = Math.min(s.top + s.extent, scrollHeight);
+    if (bottom - top <= 0) continue;
+    candidates.push({ top, extent: bottom - top });
+    end = bottom;
+  }
+  // The capped set: the spans that are outsized at the natural scale, and only
+  // those. The rail they give up is shared out to everything else so the
+  // picture still fills the rail, with proportions among the rest intact. A
+  // span that only reaches the cap through that share-out is left alone:
+  // capping it too would cascade until every block was the same size and the
+  // proportional read was gone. The cap is a bound on outliers, not a ceiling
+  // on every block.
+  const capped = candidates.filter((s) => s.extent * uniform > maxPx);
+  let scale = uniform;
+  if (capped.length > 0) {
+    const cappedContent = capped.reduce((sum, s) => sum + s.extent, 0);
+    const freeContent = scrollHeight - cappedContent;
+    const freeRail = railHeight - capped.length * maxPx;
+    scale = freeContent > 0 && freeRail > 0 ? Math.max(uniform, freeRail / freeContent) : 0;
+  }
+  if (capped.length === 0) return identity;
+  const segments: RailSegment[] = [];
+  let contentCursor = 0;
+  let railCursor = 0;
+  for (const s of capped) {
+    const railTop = railCursor + (s.top - contentCursor) * scale;
+    segments.push({ top: s.top, extent: s.extent, railTop, railHeight: maxPx });
+    contentCursor = s.top + s.extent;
+    railCursor = railTop + maxPx;
+  }
+  const toRail = (y: number): number => {
+    let cc = 0;
+    let rc = 0;
+    for (const seg of segments) {
+      if (y < seg.top) break;
+      if (y <= seg.top + seg.extent) {
+        return clamp(seg.railTop + ((y - seg.top) / seg.extent) * seg.railHeight, 0, railHeight);
+      }
+      cc = seg.top + seg.extent;
+      rc = seg.railTop + seg.railHeight;
+    }
+    return clamp(rc + (y - cc) * scale, 0, railHeight);
+  };
+  const toContent = (r: number): number => {
+    let cc = 0;
+    let rc = 0;
+    for (const seg of segments) {
+      if (r < seg.railTop) break;
+      if (r <= seg.railTop + seg.railHeight) {
+        return clamp(seg.top + ((r - seg.railTop) / seg.railHeight) * seg.extent, 0, scrollHeight);
+      }
+      cc = seg.top + seg.extent;
+      rc = seg.railTop + seg.railHeight;
+    }
+    return clamp(scale > 0 ? cc + (r - rc) / scale : cc, 0, scrollHeight);
+  };
+  return { scrollHeight, railHeight, scale, segments, toRail, toContent };
+}
+
+/** A marker's rail height through the map: a capped block is exactly the
+ *  cap, everything else proportional, floored so a short block reads as a
+ *  rule. A bare rule (no extent) is the floor. */
+export function mappedMarkerHeight(
+  map: RailMap,
+  top: number,
+  extent: number,
+  minPx: number,
+): number {
+  if (extent <= 0) return minPx;
+  return Math.max(map.toRail(top + extent) - map.toRail(top), minPx);
+}
+
+/** thumbGeometry through the map: the band covers the rail picture of
+ *  `[scrollTop, scrollTop + clientHeight]`, capped stretches included. */
+export function mappedThumbGeometry(
+  map: RailMap,
+  scrollTop: number,
+  clientHeight: number,
+  minVisual: number,
+): ThumbGeometry {
+  const { scrollHeight, railHeight } = map;
+  if (scrollHeight - clientHeight <= 0 || scrollHeight <= 0 || railHeight <= 0) {
+    return { top: 0, height: railHeight };
+  }
+  const railTop = map.toRail(scrollTop);
+  const height = clamp(map.toRail(scrollTop + clientHeight) - railTop, minVisual, railHeight);
+  return { top: clamp(railTop, 0, railHeight - height), height };
+}
+
+/** scrollTopForThumbTop through the map. */
+export function mappedScrollTopForThumbTop(
+  map: RailMap,
+  thumbTop: number,
+  clientHeight: number,
+): number {
+  const maxScroll = map.scrollHeight - clientHeight;
+  if (maxScroll <= 0 || map.scrollHeight <= 0 || map.railHeight <= 0) return 0;
+  return clamp(map.toContent(thumbTop), 0, maxScroll);
+}
+
+/** scrollTopForRailPress through the map: center the viewport on the pressed
+ *  content position. */
+export function mappedScrollTopForRailPress(
+  map: RailMap,
+  pressY: number,
+  clientHeight: number,
+): number {
+  const maxScroll = map.scrollHeight - clientHeight;
+  if (maxScroll <= 0 || map.scrollHeight <= 0 || map.railHeight <= 0) return 0;
+  return clamp(map.toContent(pressY) - clientHeight / 2, 0, maxScroll);
+}

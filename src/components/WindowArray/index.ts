@@ -1,6 +1,7 @@
 export type {
   WindowArrayColumnProps,
   WindowArrayExternalDrop,
+  WindowArrayHandle,
   WindowArrayProps,
   WindowArrayWindowButtonProps,
   WindowArrayWindowProps,

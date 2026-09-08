@@ -6,18 +6,19 @@ import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import type { MinimapMarker, MinimapMarkerKind } from "./geometry";
 import {
+  buildRailMap,
   decimateLabels,
   grabZone,
-  markerRailHeight,
-  markerRailY,
+  mappedMarkerHeight,
+  mappedScrollTopForRailPress,
+  mappedScrollTopForThumbTop,
+  mappedThumbGeometry,
+  type RailMap,
   railContentHeight,
   railScrollForBand,
   railVisibleNext,
   resolveMarkerHeight,
   resolveMarkerTop,
-  scrollTopForRailPress,
-  scrollTopForThumbTop,
-  thumbGeometry,
 } from "./geometry";
 import styles from "./Minimap.module.css";
 
@@ -61,6 +62,20 @@ const ACTIVE_EPSILON_PX = 2;
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
+
+/** The extent-bearing markers as content spans, for the rail map. */
+function spansOf(
+  markers: readonly MinimapMarker[],
+  scrollHeight: number,
+): { top: number; extent: number }[] {
+  const spans: { top: number; extent: number }[] = [];
+  for (const marker of markers) {
+    const top = resolveMarkerTop(marker, scrollHeight);
+    const extent = resolveMarkerHeight(marker, scrollHeight);
+    if (top !== null && extent > 0) spans.push({ top, extent });
+  }
+  return spans;
+}
 
 export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   /** Structural markers in content coordinates: `block` spans (dither rules)
@@ -186,13 +201,30 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   // content height, which the drag math and the rail auto-scroll both need.
   const markerListRef = useRef<MinimapMarker[]>([]);
   const minMarkerSizeRef = useRef<number | undefined>(undefined);
+  const maxMarkerSizeRef = useRef<number | undefined>(undefined);
+  const unitPxRef = useRef(MIN_TARGET_PX);
   const railContentHRef = useRef(0);
   const draggingRef = useRef(false);
   /** Fraction of the viewport a jump lands the target at (and the active-heading
    *  anchor): 0 = top, 0.5 = center. */
   const anchorFracRef = useRef(0);
   minMarkerSizeRef.current = minMarkerSize;
+  maxMarkerSizeRef.current = maxMarkerSize;
+  unitPxRef.current = unitPx;
   anchorFracRef.current = jumpAlign === "center" ? 0.5 : 0;
+
+  /** The content-to-rail map from the scroller's live geometry, for the pointer
+   *  handlers: a scroller's scrollHeight changes without the scroller itself
+   *  resizing, so a map kept from the last measure could be stale. */
+  const liveRailMap = useCallback((scroller: HTMLElement, railContentH: number): RailMap => {
+    const scrollHeight = scroller.scrollHeight;
+    return buildRailMap(
+      spansOf(markerListRef.current, scrollHeight),
+      scrollHeight,
+      railContentH,
+      (maxMarkerSizeRef.current ?? 0) * unitPxRef.current,
+    );
+  }, []);
 
   /** Single read path: one measurement per frame drives the thumb (imperative
    *  style write, no re-render), the sizes state (marker re-render, only when
@@ -224,20 +256,21 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
 
     // Effective rail content height (min block mode): grow so the smallest span
     // reaches minMarkerSize (dense → the rail scrolls); otherwise the rail is
-    // its own height. maxMarkerSize is deliberately not a scale: it caps each
-    // block at render time (resolvedMarkers), so one outsized block never
-    // compresses the other markers toward the top.
+    // its own height. maxMarkerSize is not a whole-rail scale: the rail map
+    // compresses each outsized block to the cap in place and moves what
+    // follows up, so one outsized block never bunches the other markers and
+    // never leaves a hole behind it.
     let railContentH = railHeight;
     const minMarker = minMarkerSizeRef.current;
+    const maxPx = (maxMarkerSizeRef.current ?? 0) * unit;
+    const spanList = spansOf(markerListRef.current, scrollHeight);
     if (minMarker && scrollHeight > 0 && railHeight > 0) {
-      const spans: number[] = [];
-      for (const marker of markerListRef.current) {
-        const extent = resolveMarkerHeight(marker, scrollHeight);
-        if (extent > 0) spans.push((extent / scrollHeight) * railHeight);
-      }
+      const natural = buildRailMap(spanList, scrollHeight, railHeight, maxPx);
+      const spans = spanList.map((s) => natural.toRail(s.top + s.extent) - natural.toRail(s.top));
       railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
     }
     railContentHRef.current = railContentH;
+    const railMap = buildRailMap(spanList, scrollHeight, railContentH, maxPx);
 
     // Visibility feeds on the CONTENT wrapper's height, not scrollHeight: the
     // DOM floors a scroll element's scrollHeight at its clientHeight, which
@@ -287,13 +320,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     if (thumb && railContentH > 0) {
       // The band and markers live on the rail-CONTENT scale (railContentH), so
       // they align whether or not the rail scrolls.
-      const visual = thumbGeometry(
-        scroller.scrollTop,
-        scrollHeight,
-        clientHeight,
-        railContentH,
-        MIN_VISUAL_PX,
-      );
+      const visual = mappedThumbGeometry(railMap, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
       thumb.style.transform = `translateY(${visual.top}px)`;
       thumb.style.height = `${visual.height}px`;
       const zone = grabZone(visual, railContentH, MIN_TARGET_PX);
@@ -439,11 +466,11 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     // clamp, the band pins at the edge and the edge auto-scroll flows content
     // under it, instead of the band dipping below the fold.
     const railH = rail.clientHeight;
-    const bandH = thumbGeometry(
+    const map = liveRailMap(scroller, railContentH);
+    const bandH = mappedThumbGeometry(
+      map,
       scroller.scrollTop,
-      scroller.scrollHeight,
       scroller.clientHeight,
-      railContentH,
       MIN_VISUAL_PX,
     ).height;
     const hi = railH - bandH + offset;
@@ -451,12 +478,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       hi > offset ? clampNumber(lastPointerYRef.current, offset, hi) : lastPointerYRef.current;
     const pointerContentY = pointerViewportY + rail.scrollTop;
     scroller.scrollTo({
-      top: scrollTopForThumbTop(
-        pointerContentY - offset,
-        scroller.scrollHeight,
-        scroller.clientHeight,
-        railContentH,
-      ),
+      top: mappedScrollTopForThumbTop(map, pointerContentY - offset, scroller.clientHeight),
       behavior: "instant",
     });
   }, []);
@@ -503,29 +525,18 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       const pressY = origin.y - railRect.top + rail.scrollTop;
       const scrollHeight = scroller.scrollHeight;
       const clientHeight = scroller.clientHeight;
-      const visual = thumbGeometry(
-        scroller.scrollTop,
-        scrollHeight,
-        clientHeight,
-        railContentH,
-        MIN_VISUAL_PX,
-      );
+      const map = liveRailMap(scroller, railContentH);
+      const visual = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
       const zone = grabZone(visual, railContentH, MIN_TARGET_PX);
       if (pressY < zone.top || pressY > zone.top + zone.height) {
         scroller.scrollTo({
-          top: scrollTopForRailPress(pressY, scrollHeight, clientHeight, railContentH),
+          top: mappedScrollTopForRailPress(map, pressY, clientHeight),
           behavior: "instant",
         });
       }
       // Grab offset against the (possibly just moved) band, so the continuing
       // drag is relative either way.
-      const band = thumbGeometry(
-        scroller.scrollTop,
-        scrollHeight,
-        clientHeight,
-        railContentH,
-        MIN_VISUAL_PX,
-      );
+      const band = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
       dragOffsetRef.current = pressY - band.top;
       draggingRef.current = true;
       setDragging(true);
@@ -603,6 +614,18 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   markerListRef.current = markerList;
   const warnedRef = useRef(false);
 
+  /** The render-side content-to-rail map (the same construction as the
+   *  measure's), for marker geometry and label placement. */
+  const railMap = useMemo(() => {
+    const { scrollHeight, railContentH } = sizes;
+    return buildRailMap(
+      spansOf(markerList, scrollHeight),
+      scrollHeight,
+      railContentH,
+      (maxMarkerSize ?? 0) * unitPx,
+    );
+  }, [markerList, sizes, maxMarkerSize, unitPx]);
+
   const resolvedMarkers = useMemo(() => {
     const { scrollHeight, railHeight, railContentH } = sizes;
     if (scrollHeight <= 0 || railContentH <= 0) return [];
@@ -617,9 +640,8 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       kind: MinimapMarkerKind;
     }> = [];
     let dropped = 0;
-    // Per-block cap (maxMarkerSize): the capped block renders at the cap and
-    // leaves a gap after it; positions and every other size stay proportional.
-    const maxPx = (maxMarkerSize ?? 0) * unitPx;
+    // Per-block cap (maxMarkerSize): through the rail map, the capped block is
+    // exactly the cap and what follows it moves up; nothing else is compressed.
     markerList.forEach((marker, index) => {
       const top = resolveMarkerTop(marker, scrollHeight);
       if (top === null) {
@@ -627,10 +649,10 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
         return;
       }
       const extent = resolveMarkerHeight(marker, scrollHeight);
-      const railH = markerRailHeight(extent, scrollHeight, railContentH, MIN_MARKER_PX, maxPx);
+      const railH = mappedMarkerHeight(railMap, top, extent, MIN_MARKER_PX);
       resolved.push({
         key: marker.id ?? `sf-minimap-${index}`,
-        y: markerRailY(top, scrollHeight, railContentH),
+        y: railMap.toRail(top),
         // Trim a hair off the bottom of a real span so adjacent blocks separate;
         // leave bare rules (no extent) at their floored height.
         height: extent > 0 && !scrollMode ? Math.max(MIN_MARKER_PX, railH - MARKER_GAP_PX) : railH,
@@ -643,7 +665,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       console.warn(`Minimap: ${dropped} marker(s) dropped; each marker needs top or topFraction.`);
     }
     return resolved;
-  }, [markerList, sizes, maxMarkerSize, unitPx]);
+  }, [markerList, sizes, railMap]);
 
   /** Header labels: one clickable, level-indented, truncated button per
    *  header marker, at the marker's rail position (centered on its rule,
@@ -667,7 +689,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       if (marker.kind !== "header" || !marker.label) return;
       const top = resolveMarkerTop(marker, scrollHeight);
       if (top === null) return;
-      const y = markerRailY(top, scrollHeight, railContentH);
+      const y = railMap.toRail(top);
       // A header with a real extent is a block span: put the label pill at the
       // span's top, so it lines up with what it names on screen (VerticalForm
       // anchors a field's header at its caption, so the pill sits where the
@@ -697,7 +719,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       .map((h) => ({ key: h.key, top: h.contentTop }))
       .sort((a, b) => a.top - b.top);
     return survivors;
-  }, [markerList, sizes, labelPx]);
+  }, [markerList, sizes, labelPx, railMap]);
 
   // Re-run active tracking whenever the marker set changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies(markerList): the dependency is the trigger, not an input — headersRef is derived from it during render.

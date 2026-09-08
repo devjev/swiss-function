@@ -537,6 +537,8 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `defaultSize` | `number` | `360` | Panel size in px (remembered across open/close). |
 | `minSize` / `maxSize` | `number` | n/a | px clamps. |
 | `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles; persist it. |
+| `expanded` / `defaultExpanded` | `boolean` | uncontrolled / `false` | The header's fullscreen toggle, controlled or with an initial state, so a route can force the drawer to fill the viewport. |
+| `onExpandedChange` | `(expanded: boolean) => void` | n/a | Fires when fullscreen changes: the toggle, or Escape. |
 | `centered` | `boolean` | `false` | Center the panel body: the chat (or the active view) becomes a centered column of draggable width instead of filling the panel edge-to-edge. A resize handle sits on each edge of the column; dragging one (or arrow-keying it) mirrors on the other, so the column stays on the panel's centre axis. Matters when the panel is wide, above all in fullscreen. |
 | `defaultChatWidth` | `number` | `640` | Centered-column width in px (uncontrolled, like `defaultSize`). |
 | `minChatWidth` / `maxChatWidth` | `number` | min `240` | px clamps for the centered column; the rendered column is also capped to the panel's content width. |
@@ -2087,7 +2089,7 @@ external host-owned scroller is a planned follow-up.
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
 | `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, auto-following the viewport band (and more labels survive). Unset keeps the fit-everything proportional overview. |
-| `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples. Caps how tall any one block renders (a sparse document otherwise gives a few very tall blocks); the capped block leaves a gap after it, while every other marker keeps its proportional size and position (a per-block cap, never a rescale of the whole rail). |
+| `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples, a bound on outliers: a block outsized at the natural scale is compressed to the cap in place, everything after it moves up, and the rail it gives up is shared out so the picture still fills the rail with proportions among the other blocks intact (a block that only reaches the cap through that share-out is left alone). No other block is shrunk (the whole-rail scale of 2.27 bunched the rest toward the top) and no hole is left behind (the render-time cap of 2.29 to 2.34 did). The viewport band, presses, drags and header labels go through the same piecewise mapping. |
 | `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
@@ -3320,7 +3322,7 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `nav` | `Root` | `boolean` | `false` | Show a bottom navigation bar: a searchable `Picker` of every title (sections and indented fields). Selecting one centers it in the viewport; scrolling updates the Picker to the title at the viewport centre (the first at rest, so it is never empty). |
 | `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
 | `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
-| `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples: caps that one block on the rail (a gap follows it) while the others keep their proportional size and position. Forwarded to `Minimap`'s `maxMarkerSize`. |
+| `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples: an outsized field's block (a tall `TableInput`) is compressed to the cap and the fields after it move up, while every other block keeps its proportional size. Passed to the Minimap as `maxMarkerSize`. |
 
 A field's rail marker is anchored at the row top and spans the field's **real
 row height**, so the rail reads the form's density honestly: a tall control (a

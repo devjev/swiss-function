@@ -281,3 +281,30 @@ test("forwards reveal={false}: streaming text lands as plain markdown", async ({
   const txt = (await c.textContent()) ?? "";
   expect(/[▒▓█]/.test(txt)).toBe(false);
 });
+
+test("fullscreen is controllable from outside (expanded / onExpandedChange)", async ({ mount }) => {
+  let reported: boolean | null = null;
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        title="Assistant"
+        messages={messages}
+        onSubmit={() => {}}
+        expanded
+        onExpandedChange={(next) => {
+          reported = next;
+        }}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  // Controlled on: the header shows the exit toggle without any click.
+  const exit = c.getByRole("button", { name: "Exit fullscreen" });
+  await expect(exit).toBeVisible();
+  await exit.click();
+  // Still controlled on; the change was reported for the owner to apply.
+  await expect(c.getByRole("button", { name: "Exit fullscreen" })).toBeVisible();
+  expect(reported).toBe(false);
+});

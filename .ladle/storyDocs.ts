@@ -1094,7 +1094,7 @@ export const storyDocs: Record<string, string> = {
   "vertical-form--long-form":
     "24 uniform fields, each with a label and description, scrolling inside the frame with the rail alongside. The baseline case for a plain long form: no sections, no nav, just enough rows to make the rail earn its place.",
   "vertical-form--max-block-capped":
-    "A small `maxBlock` (0.75u) caps how tall each rail block renders. The cap is per block: every marker keeps its proportional position over the full rail, and only blocks over the cap are clipped (a gap follows them). Use it to bound an outsized field (a tall `TableInput`); `minBlock` still floors dense forms.",
+    "`maxBlock` caps how tall any one field renders on the rail. The capped block is compressed in place and the fields after it move up; nothing else is shrunk and no hole is left, so a form with one giant field (a TableInput) still reads as a continuous rail.",
   "vertical-form--playground":
     "The interactive story: controls for `elevation`, `side`, `padding`, and `minimapWidth` over a mixed form of Inputs and a TextEdit. Start here to feel out the props before wiring a real form.",
   "vertical-form--reserved-error":

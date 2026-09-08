@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRailMap,
   decimateLabels,
   grabZone,
+  mappedMarkerHeight,
+  mappedScrollTopForRailPress,
+  mappedScrollTopForThumbTop,
+  mappedThumbGeometry,
   markerRailHeight,
   markerRailY,
   railContentHeight,
@@ -309,5 +314,87 @@ describe("resolveMarkerHeight", () => {
 
   it("returns 0 for a bare rule", () => {
     expect(resolveMarkerHeight({ top: 0 }, 10000)).toBe(0);
+  });
+});
+
+describe("buildRailMap (the per-block cap as a piecewise mapping)", () => {
+  // 1000px of content on a 200px rail (0.2 rail px per content px), cap 40px:
+  // B (500px, 100 on the rail) and D (300px, 60) are outsized; A and C (100px,
+  // 20 each) are not.
+  const spans = [
+    { top: 0, extent: 100 },
+    { top: 100, extent: 500 },
+    { top: 600, extent: 100 },
+    { top: 700, extent: 300 },
+  ];
+
+  it("is the proportional scale without a cap", () => {
+    const map = buildRailMap(spans, 1000, 200, 0);
+    expect(map.segments).toHaveLength(0);
+    expect(map.toRail(500)).toBe(100);
+    expect(map.toContent(100)).toBe(500);
+  });
+
+  it("compresses only the outsized spans and moves what follows up, no hole", () => {
+    const map = buildRailMap(spans, 1000, 200, 40);
+    expect(map.segments.map((s) => s.top)).toEqual([100, 700]);
+    // The freed rail (120px) is shared out over the 200px of free content: 0.6.
+    expect(map.scale).toBeCloseTo(0.6);
+    expect(map.toRail(100)).toBeCloseTo(60);
+    expect(map.toRail(600)).toBeCloseTo(100); // B is exactly the cap
+    expect(map.toRail(700)).toBeCloseTo(160); // C follows B directly: no hole
+    expect(map.toRail(1000)).toBeCloseTo(200); // and the picture still fills the rail
+    expect(mappedMarkerHeight(map, 100, 500, 2)).toBeCloseTo(40);
+    expect(mappedMarkerHeight(map, 0, 100, 2)).toBeCloseTo(60);
+  });
+
+  it("inverts exactly on both stretches", () => {
+    const map = buildRailMap(spans, 1000, 200, 40);
+    for (const y of [0, 50, 100, 400, 600, 650, 700, 900, 1000]) {
+      expect(map.toContent(map.toRail(y))).toBeCloseTo(y);
+    }
+  });
+
+  it("caps outliers only: a span that reaches the cap through the share-out is left alone", () => {
+    const one = buildRailMap(
+      [
+        { top: 0, extent: 900 },
+        { top: 900, extent: 100 },
+      ],
+      1000,
+      200,
+      40,
+    );
+    expect(one.segments.map((s) => s.top)).toEqual([0]);
+    expect(one.scale).toBeCloseTo(1.6);
+    expect(mappedMarkerHeight(one, 900, 100, 2)).toBeCloseTo(160);
+    const none = buildRailMap([{ top: 0, extent: 100 }], 1000, 200, 40);
+    expect(none.segments).toHaveLength(0);
+    expect(none.scale).toBeCloseTo(0.2);
+  });
+
+  it("clips overlapping spans and ignores empty ones", () => {
+    const map = buildRailMap(
+      [
+        { top: 0, extent: 0 },
+        { top: 100, extent: 600 },
+        { top: 400, extent: 400 },
+      ],
+      1000,
+      200,
+      40,
+    );
+    expect(map.segments.map((s) => [s.top, s.extent])).toEqual([[100, 600]]);
+  });
+
+  it("maps the viewport band and the press through the same map", () => {
+    const map = buildRailMap(spans, 1000, 200, 40);
+    // A viewport of 100px starting inside the capped span B is a sliver of the cap.
+    const band = mappedThumbGeometry(map, 200, 100, 4);
+    expect(band.top).toBeCloseTo(60 + (100 / 500) * 40);
+    expect(band.height).toBeCloseTo((100 / 500) * 40);
+    // A press at the rail's end centres the viewport on the content's end.
+    expect(mappedScrollTopForRailPress(map, 200, 100)).toBe(900);
+    expect(mappedScrollTopForThumbTop(map, 60, 100)).toBeCloseTo(100);
   });
 });

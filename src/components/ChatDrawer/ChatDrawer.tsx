@@ -46,6 +46,13 @@ export interface ChatDrawerProps {
   maxSize?: number;
   /** Fired with the new panel size (px) when a resize settles. */
   onSizeChange?: (size: number) => void;
+  /** Controlled fullscreen state (the header's maximize toggle). Omit for
+   *  uncontrolled. */
+  expanded?: boolean;
+  /** Initial fullscreen state when uncontrolled. Default `false`. */
+  defaultExpanded?: boolean;
+  /** Fired when the fullscreen state changes (the toggle, Escape). */
+  onExpandedChange?: (expanded: boolean) => void;
 
   /** Center the panel body: the chat (or the active view) becomes a centered
    *  column of draggable width instead of filling the panel edge-to-edge. Drag
@@ -234,6 +241,9 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     minSize,
     maxSize,
     onSizeChange,
+    expanded: expandedProp,
+    defaultExpanded,
+    onExpandedChange,
     centered = false,
     defaultChatWidth = 640,
     minChatWidth = 240,
@@ -301,7 +311,11 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
   useEffect(() => () => clearTimeout(unmountTimer.current), []);
 
   // Fullscreen: the panel pops out to a viewport overlay; Escape exits.
-  const { expanded, toggle } = useFullscreen();
+  const { expanded, toggle } = useFullscreen({
+    expanded: expandedProp,
+    defaultExpanded,
+    onExpandedChange,
+  });
 
   // Centered mode: the body column's width. Dragging an edge keeps that edge
   // under the pointer while the opposite edge mirrors the move, so the column

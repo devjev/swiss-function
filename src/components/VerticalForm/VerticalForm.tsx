@@ -298,8 +298,8 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
       // The rail span is the field's real row height, so fields read as
       // contiguous filled blocks proportional to their size (the density read):
       // a tall TableInput's block is honestly tall, and grows as rows are
-      // added. Bounding an outsized block is Minimap's job (`maxBlock` caps
-      // that one block on the rail, per issue #87, without touching the rest),
+      // added. Bounding an outsized block is Minimap's job (`maxBlock` compresses
+      // that one block's span on the rail, per issue #87, without touching the rest),
       // never a lie in the measured content height, which would shrink the
       // block as the form grows and render unequal tall fields identical.
       entries.push({
