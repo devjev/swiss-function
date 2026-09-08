@@ -1,0 +1,253 @@
+/* The same grid skeleton as BarChart / Scatterplot: [y label][y axis][plot]
+   over [x axis][x label][legend]. Which axis carries the values depends on
+   `orientation`; the value axis wears `.valueAxis` and follows the hover fade,
+   the categorical one stays put. */
+
+.root {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+/* --- Interactive scaffolding (zoom / annotations) ---------------------- */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.gridline {
+  stroke: var(--sf-color-gridline);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* The value axis fades in with the gridlines under hover scaffolding. */
+.valueAxis {
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="hover"] .valueAxis {
+  opacity: 0;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .valueAxis {
+  opacity: 1;
+}
+
+/* --- Marks --------------------------------------------------------------
+   Every mark takes its colour inline from the series; the classes carry
+   weight and fill rules only. */
+
+.whisker {
+  fill: none;
+  stroke-width: 1;
+}
+
+.medianDot {
+  stroke: none;
+}
+
+/* On a violin's tinted fill the median dot is hollow with the page behind it,
+   so it reads on any series colour. */
+.medianDotOnFill {
+  fill: var(--sf-color-bg);
+  stroke-width: 1.5;
+}
+
+.iqrLine {
+  fill: none;
+}
+
+.box {
+  stroke-width: 1;
+}
+
+.medianLine {
+  stroke-width: 2;
+}
+
+.violin {
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.outlier {
+  fill: none;
+  stroke-width: 1;
+}
+
+/* The transparent hit area over a cell: the focus and selection ring. */
+.hit {
+  fill: transparent;
+  stroke: none;
+  outline: none;
+  cursor: default;
+}
+
+.hit[data-activatable] {
+  cursor: pointer;
+}
+
+.hit:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: var(--sf-focus-ring-width, 2px);
+}
+
+.hit[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+}
+
+/* The count beside a pinned (clipped) outlier dot at the plot edge. */
+.pinnedCount {
+  fill: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  pointer-events: none;
+}
+
+.valueLabel {
+  fill: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  pointer-events: none;
+}
+
+/* --- Tooltip body ------------------------------------------------------- */
+
+.tooltipGrid {
+  display: grid;
+  gap: 0 calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.tooltipRow > span:last-child {
+  text-align: end;
+}
+
+.tooltipMeta {
+  padding-block-start: calc(var(--sf-unit) / 6);
+}
+
+/* --- Legend --------------------------------------------------------------- */
+
+.legend {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  justify-content: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendSwatch {
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline,
+  .valueAxis {
+    transition: none;
+  }
+}

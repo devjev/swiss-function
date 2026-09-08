@@ -1,0 +1,158 @@
+/* A treemap drawn as absolutely positioned HTML cells inside a measured plot,
+   so names ellipsize natively and nothing rotates. Cells tile the plot with
+   hairline gaps that show the layer below (the page for the top level, a
+   group's container inside a group), which is the map's grid: no borders are
+   drawn, so a seam is never doubled. Nothing animates: a re-layout repaints. */
+.root {
+  inline-size: 100%;
+  position: relative;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: var(--sf-treemap-h, calc(var(--sf-unit) * 14));
+}
+
+/* The measured plot: cells position against it. The 1px frame keeps the
+   outer hairline in step with the inner gaps. */
+.plotCell {
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+  overflow: hidden;
+  border: 1px solid var(--sf-color-gridline);
+  background: var(--sf-color-bg);
+  outline: none;
+}
+
+.root[data-expanded] .grid {
+  block-size: 100%;
+  grid-template-rows: 1fr;
+}
+
+.cell {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 2px 4px;
+  overflow: hidden;
+  background-color: var(--sf-color-bg-subtle);
+  outline: none;
+}
+
+/* A group's container: only its hairline frame and header strip show, the
+   children tile the rest. Shaded a step toward the ink so its gaps read as a
+   grid inside the group. */
+.cell[data-kind="group"] {
+  padding: 0;
+  background-color: color-mix(in srgb, var(--sf-color-fg) 12%, var(--sf-color-bg));
+}
+.cell[data-kind="header"] {
+  flex-direction: row;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  padding-block: 0;
+  background-color: color-mix(in srgb, var(--sf-color-fg) 8%, var(--sf-color-bg));
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+/* One hue at a ladder of densities per top-level group; every second lap of
+   the ladder adds the house dither so neighbouring laps differ in texture too. */
+.cell[data-color="group"] {
+  background-color: color-mix(
+    in srgb,
+    var(--sf-color-primary) var(--treemap-mix, 10%),
+    var(--sf-color-bg-subtle)
+  );
+}
+.cell[data-dither]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--sf-color-primary);
+  opacity: 0.3;
+  -webkit-mask-image: var(--sf-dither);
+  mask-image: var(--sf-dither);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+  pointer-events: none;
+}
+
+/* The diverging change ramp: success upward, danger downward, saturating at
+   `changeDomain`; a zero or missing change stays neutral. */
+.cell[data-tone="positive"] {
+  background-color: color-mix(
+    in srgb,
+    var(--sf-color-success) var(--treemap-change-mix, 12%),
+    var(--sf-color-bg-subtle)
+  );
+}
+.cell[data-tone="negative"] {
+  background-color: color-mix(
+    in srgb,
+    var(--sf-color-danger) var(--treemap-change-mix, 12%),
+    var(--sf-color-bg-subtle)
+  );
+}
+
+.name,
+.value {
+  position: relative;
+  display: block;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--sf-font-size-sm);
+  line-height: 1.25;
+  color: var(--sf-color-fg);
+}
+.value {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+.cell[data-kind="header"] .name {
+  flex: 0 1 auto;
+}
+
+/* Hover and the pinned selection: an inset ring, no fill change, so the cell's
+   own colour keeps reading. */
+.cell[data-hovered] {
+  box-shadow: inset 0 0 0 1px var(--sf-color-fg);
+}
+.cell[data-selected] {
+  box-shadow: inset 0 0 0 2px var(--sf-color-primary);
+}
+.root[data-interactive] .cell:not([data-kind="group"]) {
+  cursor: pointer;
+}
+.cell:focus-visible {
+  box-shadow: inset 0 0 0 var(--sf-focus-ring-width, 2px) var(--sf-color-focus-ring);
+}
+
+.tip {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--sf-color-fg);
+}
+.tipName {
+  font-family: var(--sf-font-sans);
+  font-weight: var(--sf-font-weight-semibold);
+}
+.tipMeta {
+  color: var(--sf-color-muted);
+}
+.tipChange[data-tone="positive"] {
+  color: var(--sf-color-success);
+}
+.tipChange[data-tone="negative"] {
+  color: var(--sf-color-danger);
+}

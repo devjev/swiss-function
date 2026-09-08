@@ -1,0 +1,148 @@
+/* Small multiples: a CSS grid of panels on the unit, each a title over a fixed
+   height chart body. Nothing here transitions: the grid reflows 1:1 with its
+   container and the panels' charts redraw as instruments (AESTHETICS.md).
+
+   With `axes="outer"` the grid gains a leading auto column (the row y axes)
+   and a trailing row (the column x axes); the panels' own axes are hidden and
+   the outer ones are positioned over the measured plot rectangles. */
+.root {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+/* Maximized (the shared `expanded` class sets the fixed inset): the grid keeps
+   its panel heights and scrolls. */
+.root[data-expanded] {
+  overflow: auto;
+}
+
+/* The outer-axis labels frame the grid: the y label as a leading column, the
+   x label as a trailing row. */
+.frameGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.frameGrid[data-outer] {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.grid {
+  display: grid;
+  align-items: start;
+  min-inline-size: 0;
+}
+.frameGrid[data-outer] .grid {
+  grid-column: 2;
+}
+
+.panel {
+  position: relative;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* The panel title: full-strength fg, weight carries the hierarchy. Inset to
+   the plot's left edge (measured) so titles line up with the data, not the
+   axis column. */
+.title {
+  margin: 0;
+  padding-block-end: calc(var(--sf-unit) / 4);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  line-height: var(--sf-line-height-tight);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.body {
+  min-inline-size: 0;
+  block-size: calc(var(--sf-unit) * 6);
+}
+
+/* Outer axes: the panels render axis-less so the grid's single axis per row
+   and column is the only scale. The shared Axis root carries
+   `data-orientation`, which is what this hides. */
+.root[data-axes="outer"] .body [data-orientation="x"],
+.root[data-axes="outer"] .body [data-orientation="y"] {
+  display: none;
+}
+
+/* Hairline dividers drawn in the gaps between panels, never in the panels. */
+.panel[data-divider-col]::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: calc(var(--multiples-gap, var(--sf-unit)) / -2);
+  inline-size: 1px;
+  background-color: var(--sf-color-border-subtle);
+  pointer-events: none;
+}
+.panel[data-divider-row]::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: calc(var(--multiples-gap, var(--sf-unit)) / -2);
+  block-size: 1px;
+  background-color: var(--sf-color-border-subtle);
+  pointer-events: none;
+}
+
+/* The outer axis cells. The Axis inside is absolutely positioned over the
+   measured plot rectangle of the panel it serves. */
+.yAxisCell {
+  position: relative;
+  /* The y axis column takes its width from the widest label
+     (--sf-axis-label-width, set on the grid) plus the mark and gap. */
+  inline-size: calc(
+    var(--sf-axis-label-width, calc(var(--sf-unit) * 1.25)) +
+    var(--sf-unit) *
+    0.75
+  );
+  block-size: 100%;
+}
+.xAxisCell {
+  position: relative;
+  block-size: calc(var(--sf-unit) * 1.25);
+}
+.outerAxis {
+  position: absolute;
+}
+.yAxisCell .outerAxis {
+  inset-inline-end: 0;
+}
+.xAxisCell .outerAxis {
+  top: 0;
+}
+
+/* Outer axis labels: sans, full-strength fg, centred along their axis. */
+.xLabel {
+  grid-column: 1 / -1;
+  padding-block-start: calc(var(--sf-unit) / 4);
+  text-align: center;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  padding-inline-end: calc(var(--sf-unit) / 4);
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+  text-align: center;
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .panel {
+    transition: none;
+  }
+}

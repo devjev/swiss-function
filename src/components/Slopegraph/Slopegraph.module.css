@@ -1,0 +1,222 @@
+/* A slopegraph after Tufte: names and numbers are the axis, thin lines carry
+   the change, nothing else. The root is the same grid skeleton as the other
+   charts (an optional rotated y label at the left, the plot filling the
+   middle, an x label under it) with a header row of column names above the
+   plot, positioned by the plot's own column x so they sit on the rules. */
+
+.root {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr auto;
+  block-size: calc(var(--sf-unit) * 12);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+  position: relative;
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 2;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+/* The column headers: full-strength, semibold, centred on their column. The
+   row is one label tall so the plot below starts at a fixed offset. */
+.header {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  block-size: calc(var(--sf-unit) * 1);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-semibold);
+  line-height: calc(var(--sf-unit) * 1);
+}
+
+.headerCell {
+  position: absolute;
+  inset-block-start: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+
+.plot {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* --- Column rules: the only scaffolding. Hidden in minimal, fade in on hover,
+   always on in full. --- */
+.rule {
+  stroke: var(--sf-color-gridline);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="full"] .rule {
+  opacity: 1;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .rule {
+  opacity: 1;
+}
+
+/* A leader from a dodged label to its point: a hairline in the border colour,
+   quieter than the line it serves. */
+.leader {
+  stroke: var(--sf-color-muted);
+  stroke-opacity: 0.6;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* --- Lines --- */
+.line {
+  fill: none;
+  stroke: var(--sf-color-fg);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.point {
+  fill: var(--sf-color-fg);
+  pointer-events: none;
+}
+
+/* Direction tones: rising in success, falling in danger, flat in neutral ink. */
+.root[data-tone="direction"] .entity[data-dir="up"] .line,
+.root[data-tone="direction"] .entity[data-dir="up"] .point {
+  stroke: var(--sf-color-success);
+  fill: none;
+}
+.root[data-tone="direction"] .entity[data-dir="up"] .point {
+  fill: var(--sf-color-success);
+}
+.root[data-tone="direction"] .entity[data-dir="down"] .line {
+  stroke: var(--sf-color-danger);
+}
+.root[data-tone="direction"] .entity[data-dir="down"] .point {
+  fill: var(--sf-color-danger);
+}
+.root[data-tone="direction"] .entity[data-dir="flat"] .line {
+  stroke: var(--sf-color-muted);
+}
+
+/* Highlighting: the named entities in the accent, the rest in neutral ink. */
+.root[data-highlighting] .entity .line {
+  stroke: var(--sf-color-muted);
+}
+.root[data-highlighting] .entity .point {
+  fill: var(--sf-color-muted);
+}
+.root[data-highlighting] .entity[data-highlight] .line {
+  stroke: var(--sf-color-primary);
+  stroke-width: 1.5;
+}
+.root[data-highlighting] .entity[data-highlight] .point {
+  fill: var(--sf-color-primary);
+}
+
+/* Hover: the entity under the pointer keeps its ink, the others step back. */
+.root[data-hovered="true"] .entity:not([data-active]):not([data-selected]) .line,
+.root[data-hovered="true"] .entity:not([data-active]):not([data-selected]) .point {
+  opacity: 0.3;
+}
+.entity[data-active] .line {
+  stroke-width: 1.5;
+}
+
+/* The pinned (frozen) selection: a heavier line and an accent ring on the point. */
+.entity[data-selected] .line {
+  stroke-width: 2;
+}
+.selectedPoint {
+  fill: none;
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+  pointer-events: none;
+}
+.hoverPoint {
+  fill: var(--sf-color-fg);
+  pointer-events: none;
+}
+
+/* The hit target: a wide invisible stroke so a 1px line is easy to hover. */
+.hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  stroke-linecap: round;
+  outline: none;
+  cursor: default;
+}
+.hit[data-activatable] {
+  cursor: pointer;
+}
+.hit:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-opacity: 0.35;
+  stroke-width: var(--sf-focus-ring-width, 2px);
+}
+
+/* --- Labels: names in the sans, numbers in the mono with tabular figures,
+   full-strength fg (a label is reading text). --- */
+.label {
+  fill: var(--sf-color-fg);
+  font-size: var(--sf-font-size-sm);
+  dominant-baseline: middle;
+  cursor: default;
+}
+.labelName {
+  font-family: var(--sf-font-sans);
+}
+.labelNum {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+}
+.label[data-active],
+.label[data-highlight] {
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+/* Inner-column numbers sit on the lines: a halo in the page colour lifts them. */
+.labelInner {
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rule,
+  .line {
+    transition: none;
+  }
+}

@@ -1,0 +1,271 @@
+/* A horizon chart: many time series in dense rows, each folded into layered
+   bands. Grid layout, the same discipline as Scatterplot:
+
+   Columns: [row labels (measured, --hz-label-width) | plot | values (measured)]
+   Rows:    [scroller (labels + plot + values, scrolls when `height` is set)
+             xAxis
+             xLabel?]
+
+   The chrome cell (toolbar, note editor, reset) overlays the plot column of the
+   scroller row so it stays put while the rows scroll. Nothing here transitions
+   position; only the gridlines' opacity (the hover scaffolding reveal). */
+
+.root {
+  display: grid;
+  position: relative;
+  grid-template-columns: var(--hz-label-width, 0px) minmax(0, 1fr) var(--hz-value-width, 0px);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+/* Labels, plot and values share the root's column tracks (subgrid) and scroll
+   together when the rows exceed the given height. */
+.scroller {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-content: start;
+  min-block-size: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* --- Row labels (measured column, ellipsized, full-strength fg) ---------- */
+
+.labels {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  padding-block-start: var(--hz-top-inset, 0px);
+}
+
+.label {
+  block-size: var(--hz-row-height);
+  display: flex;
+  align-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Values column (the last visible value per row) --------------------- */
+
+.values {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  padding-block-start: var(--hz-top-inset, 0px);
+}
+
+.value {
+  block-size: var(--hz-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-inline-start: calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Plot cell + SVG ---------------------------------------------------- */
+
+.plot {
+  grid-column: 2;
+  position: relative;
+  min-inline-size: 0;
+}
+
+.svg {
+  display: block;
+}
+
+.band {
+  stroke: none;
+}
+
+/* Row separators: chrome, pixel-snapped hairlines. */
+.separator {
+  stroke: var(--sf-color-border-subtle);
+  stroke-width: 1;
+}
+
+/* The transparent hit area of a row; it carries keyboard focus when the chart
+   is activatable, and the focus ring draws on it. */
+.rowHit {
+  fill: transparent;
+}
+
+.row {
+  outline: none;
+}
+
+.row[data-activatable] {
+  cursor: pointer;
+}
+
+.row:focus-visible .rowHit {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: 2;
+}
+
+/* Row names printed over the bands: a background stroke keeps them legible. */
+.overlayLabel {
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  fill: var(--sf-color-fg);
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* The pinned selection: an accent ring at the datum. */
+.selectedRing {
+  fill: var(--sf-color-bg);
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* --- Gridlines (vertical, at the nice tick positions) --------------------- */
+
+.gridline {
+  stroke: var(--sf-color-gridline);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* --- Axis and label --------------------------------------------------- */
+
+.xAxis {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.xLabel {
+  grid-column: 2;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+/* --- Chrome overlay (toolbar, note editor, reset) ------------------------- */
+
+.chrome {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.chrome > * {
+  pointer-events: auto;
+}
+
+.resetButton {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 3);
+  border: 1px solid var(--sf-color-border);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  border-color: var(--sf-color-border-strong);
+}
+
+.resetButton:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+/* --- Interactive viewport (zoomable) ----------------------------------- */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+/* --- Tooltip body --------------------------------------------------------- */
+
+.tipHead {
+  font-weight: var(--sf-font-weight-semibold);
+  margin-block-end: calc(var(--sf-unit) / 6);
+}
+
+.tipGrid {
+  display: grid;
+  gap: 0 calc(var(--sf-unit) / 2);
+}
+
+.tipRow {
+  display: grid;
+  grid-template-columns: auto auto;
+  justify-content: space-between;
+  gap: calc(var(--sf-unit) / 2);
+}
+
+.tipRow[data-active] {
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+.tipValue {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline {
+    transition: none;
+  }
+}

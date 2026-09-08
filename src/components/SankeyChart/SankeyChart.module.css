@@ -1,0 +1,128 @@
+/* SankeyChart: weighted flows between nodes in layers. Neutral ink by default
+   (nodes in the subtle foreground, ribbons as translucent foreground), colour
+   only where it means something (a node or link `color`, `linkFill`). Hover
+   lights the incident ribbons and fades the rest; nothing animates position
+   (an instrument redraws, it does not perform). */
+
+.root {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  block-size: calc(var(--sf-unit) * 14);
+  position: relative;
+  padding-block: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.plot {
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+/* --- Nodes ------------------------------------------------------------ */
+
+.node {
+  fill: var(--sf-color-fg-subtle);
+  cursor: default;
+  outline: none;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+.root[data-scaffolding="full"] .node {
+  stroke: var(--sf-color-fg);
+  stroke-width: 1;
+}
+.node:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: 2;
+}
+.node[data-faded] {
+  opacity: 0.35;
+}
+.node[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+}
+
+/* --- Ribbons ---------------------------------------------------------- */
+
+.link {
+  fill: none;
+  stroke: var(--sf-color-fg);
+  stroke-opacity: 0.14;
+  cursor: default;
+  outline: none;
+  transition: stroke-opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+/* A ribbon that resolved to a colour (its own, or its source's / target's
+   under those fills) carries it at a readable opacity; the rest stay ink. */
+.link[data-colored] {
+  stroke-opacity: 0.4;
+}
+.root[data-link-fill="dither"] .link:not([data-colored]) {
+  stroke-opacity: 1;
+}
+.link[data-lit] {
+  stroke-opacity: 0.45;
+}
+.link[data-colored][data-lit] {
+  stroke-opacity: 0.75;
+}
+.link[data-faded] {
+  stroke-opacity: 0.05;
+}
+.root[data-link-fill="dither"] .link:not([data-colored])[data-faded] {
+  stroke-opacity: 0.3;
+}
+.link[data-selected],
+.link:focus-visible {
+  stroke-opacity: 0.6;
+}
+.link[data-colored][data-selected],
+.link[data-colored]:focus-visible {
+  stroke-opacity: 0.85;
+}
+.linkCyclic {
+  stroke-dasharray: 4 3;
+}
+
+/* The halftone dots of `linkFill="dither"`: the pattern's own fill. */
+.ditherDot {
+  fill: var(--sf-color-fg);
+  fill-opacity: 0.4;
+}
+
+/* --- Labels ----------------------------------------------------------- */
+
+.label {
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  fill: var(--sf-color-fg);
+  pointer-events: none;
+  user-select: none;
+  transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
+}
+.label[data-faded] {
+  opacity: 0.45;
+}
+.labelValue {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+  fill: var(--sf-color-fg-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node,
+  .link,
+  .label {
+    transition: none;
+  }
+}

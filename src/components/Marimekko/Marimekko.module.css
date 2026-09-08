@@ -1,0 +1,219 @@
+/* The same grid skeleton as BarChart / Scatterplot: [y label | y axis | plot]
+   over [x axis | x label | legend]. Re-stated here so the component owns its
+   sheet. The value axis is the y axis in a column chart and the x axis in a
+   row chart; `.valueAxis` marks whichever it is, so the Tufte fade reads the
+   role, not the side. */
+
+.root {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+/* --- Interactive scaffolding (zoom / annotations, issue #35) ------------ */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* --- Value-axis scaffolding: gridlines + the value axis fade by posture --- */
+
+.gridline {
+  stroke: var(--sf-color-gridline);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+.gridlineMajor {
+  /* The zero line is a touch firmer when visible. */
+}
+
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+.valueAxis {
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="hover"] .valueAxis {
+  opacity: 0;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .valueAxis {
+  opacity: 1;
+}
+.root[data-scaffolding="minimal"] .valueAxis {
+  opacity: 0;
+}
+
+/* --- Segments ------------------------------------------------------------ */
+
+/* Each segment is a px-snapped cell; the page-coloured hairline stroke on
+   its edges is the seam between neighbours, drawn crisp. */
+.segment {
+  stroke: var(--sf-color-bg);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  cursor: default;
+  outline: none;
+  transition: filter var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.segment[data-activatable] {
+  cursor: pointer;
+}
+
+.segment:hover,
+.segment:focus-visible {
+  filter: brightness(1.08);
+}
+
+.segment:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: var(--sf-focus-ring-width, 2px);
+}
+
+/* The pinned selection: an accent ring, distinct from the transient hover. */
+.segment[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+}
+
+/* The halftone dots of the dither fill, in the ink colour. */
+.ditherDot {
+  fill: var(--sf-color-fg);
+}
+
+/* A segment's printed figure: mono, tabular, centred; the colour is set
+   inline against the fill it sits on (page ink on a light step, page
+   background on a dark one). */
+.segmentLabel {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* On the halftone the figure sits in a page-coloured halo so its strokes
+   read over the dots. */
+.segmentLabelHalo {
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* --- Legend -------------------------------------------------------------- */
+
+.legend {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  justify-content: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendSwatch {
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+  box-shadow: inset 0 0 0 1px var(--sf-color-border-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline,
+  .valueAxis,
+  .segment {
+    transition: none;
+  }
+}

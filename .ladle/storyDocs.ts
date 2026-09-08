@@ -51,6 +51,28 @@ export const storyDocs: Record<string, string> = {
     'The baseline case: one series across five days in the default `scaffolding="hover"` mode, with per-bar value labels and the y-axis chrome fading in on hover. Reach for this as the starting point for a simple categorical bar chart.',
   "chart--barchart--with-custom-colors":
     "Per-series `color` set to semantic tokens (`--sf-color-danger` for open, `--sf-color-success` for resolved) so the hue carries meaning. Reach for this when the color should encode status; keep to tokens rather than literals.",
+  "chart--boxplot--default":
+    "Request latency per service in Tufte's reduced form: a thin line from each whisker end to the quartile, a dot at the median, the interquartile range as the gap, hollow dots for the Tukey outliers. The value axis fades in on hover. The default reading of a distribution comparison.",
+  "chart--boxplot--grouped":
+    "Two series side by side per category (last week in ink, this week in the accent) under full scaffolding, with the legend below. Colour only where it distinguishes a series.",
+  "chart--boxplot--horizontal":
+    '`orientation="horizontal"`: categories down the side (thinned to the label height, ellipsized to a column cap with the full text in a title) and the value axis along x, which is the axis that zooms.',
+  "chart--boxplot--many-categories":
+    "Thirty endpoints: the categorical labels go through the measured-label recipe (ellipsized with the full text in a title, thinned when the bands get too narrow, first and last always kept), never rotated.",
+  "chart--boxplot--playground":
+    "Every `BoxPlot` prop under Ladle controls: the whisker rule (`tukey` fences with outlier dots, or `minmax`), the drawn `shape` (quartile, box, violin), `orientation`, the scaffolding posture and printed medians. Hover a cell for the five numbers.",
+  "chart--boxplot--precomputed":
+    "Summaries computed elsewhere (a warehouse query) passed as `stats` per category, with `n` and explicit `outliers`. No raw samples cross the wire; the tooltip still shows the five numbers and the sample size.",
+  "chart--boxplot--quartile-vs-box":
+    "The same data under `hover` scaffolding (the quartile plot, with `showValues` printing the medians) and under `full` scaffolding (the classic box with a median line, gridlines and a nice-ticked axis). An explicit `shape` overrides either.",
+  "chart--boxplot--violin":
+    '`shape="violin"` mirrors a Gaussian kernel density (Silverman bandwidth) around each centre line, drawn between the whiskers with the interquartile line and a hollow median dot inside; outliers stay dots above the body. Needs raw `values`.',
+  "chart--boxplot--whiskers":
+    '`whiskers="tukey"` stops the whiskers at the last value inside 1.5 IQR of the quartiles and draws the rest as outliers; `"minmax"` runs them to the sample extremes with no outliers. Same samples, both charts.',
+  "chart--boxplot--zoomable":
+    "The interactive chart window: `frame`, `fullscreen`, the `controls` toolbar, value-axis `zoomable` with `zoomOutLimit={Infinity}`, a read-only `hline` annotation for the SLO, and `selectable` click-to-freeze selection reported through `onSelectionChange`.",
+  "chart--boxplot--clipped-outliers":
+    "One runaway 4.8 s value in `reports`: with the auto domain every other cell collapses toward the baseline; with `clipOutliers` the whiskers set the range and the far value is pinned at the top edge as a hollow dot with a `+1` count. The tooltip still reports every outlier.",
   "chart--bridgechart--chart-window":
     "The full interactive chart window: `frame`, `fullscreen`, `controls`, and value-axis (y) zoom, since the waterfall's x is categorical. Carries an editable `hline` reference level through `annotations`/`onAnnotationsChange`, and `zoomOutLimit={Infinity}` lets you pull back past the data extent. Reach for this when the bridge is a live analysis surface rather than a static figure.",
   "chart--bridgechart--full-scaffolding":
@@ -67,6 +89,24 @@ export const storyDocs: Record<string, string> = {
     'Multiple `kind:"total"` items placed mid-bridge act as anchored subtotals: each resets the cumulative to its own value, so the next delta floats above it. Reach for this to segment a long bridge into checkpointed sections.',
   "chart--bridgechart--without-connectors":
     "The same four-bar bridge with `showConnectors={false}`, dropping the dashed lines between bars. Use it for dense bridges where the connectors start to crowd the plot.",
+  "chart--bulletchart--default":
+    "Five KPIs on their own scales (revenue, margin, churn, NPS, uptime): a thin measure bar over the qualitative tiers, a target tick, a thinner comparative tick for last period. Hover a row to see its scale; churn reverses the tier shading because down is good.",
+  "chart--bulletchart--dense":
+    "Twenty rows at `sm` on a shared scale in a framed panel with full scaffolding: a whole scorecard in one glance.",
+  "chart--bulletchart--playground":
+    "Every `BulletChart` prop under Ladle controls: the measure `tone`, the tier `rangeFill` (dither densities or grey shades), `orientation`, the row `size`, the value readout and the scaffolding posture. The five KPIs each have their own scale.",
+  "chart--bulletchart--range-fills":
+    "The same rows with the tiers as dither densities (the house halftone, the poorest tier densest) and as grey shades stepping lighter. Both monochrome, as Few specifies.",
+  "chart--bulletchart--shared-domain":
+    "One scale for the whole panel (`domain`): an axis below, vertical gridlines on hover, `zoomable` with the controls toolbar sitting in a 2u inset above the first row, and a `vline` annotation at the quota. Values are formatted as percentages through `valueFormat`.",
+  "chart--bulletchart--sizes":
+    "The three row heights on the unit grid: `sm` 1u, `md` 1.5u, `lg` 2u. The band and the measure scale with the row.",
+  "chart--bulletchart--tones":
+    "Colour only where it means status: a beaten target in success, a missed one in danger, a slipping one in warning, the rest neutral ink. The chart-level `tone` sets the default and an item's own `tone` wins.",
+  "chart--bulletchart--vertical":
+    "Rows laid out as columns side by side with the value axis on the left and the labels below, for a panel wider than it is tall.",
+  "chart--bulletchart--with-stat":
+    "The KPI cards (`Stat.Group`) and their bullets from one data set: the cards carry the numbers and deltas, the bullets show where each value sits against its target and tiers.",
   "chart--candlestickchart--chart-window":
     "The trading-terminal window: `controls`, `fullscreen`, and `frame` together add a toolbar with zoom and drawing tools (trend line, levels, regions, notes, measure), plus selection with drag handles and Delete/Escape editing. Every drawing flows through `onAnnotationsChange` as serializable JSON anchored at timestamps and prices; reach for it when the user needs to mark up a chart.",
   "chart--candlestickchart--daily":
@@ -83,6 +123,28 @@ export const storyDocs: Record<string, string> = {
     "The Ladle args playground: 30 candles with a `scaffolding` radio (`minimal`/`hover`/`full`) and a `yLabel`. Use it to try prop combinations interactively.",
   "chart--candlestickchart--zoomable":
     "`zoomable` over two years of daily candles: wheel zooms at the cursor (click once or hold ctrl/cmd), drag pans, double-click resets, and arrow/`+`/`-`/`0` keys drive the focused chart. Zoom runs in bar-index space so weekends stay collapsed, far-out views aggregate candles into true OHLC groups, and the `annotations` (an hline last-close level and a measure) stay anchored at timestamps and prices as you move.",
+  "chart--dotplot--default":
+    'The plain dot plot: eight regions ranked by revenue (`sort="desc"`), one dot per row, the value printed beside it. The rows share the plot\'s height, so the value axis sits right under the last one. Hover a row to read it; the value axis and gridlines fade in while hovered.',
+  "chart--dotplot--dumbbell":
+    'The dumbbell: `range` joins the two dots of each row with a bar and `rangeTone="direction"` colours it by the move, rising in success, falling in danger. Values print at both ends.',
+  "chart--dotplot--fifty-two-week":
+    'A 52-week low / high range per ticker with the last price as a `marker` tick inside it (`markerLabel="Last"`). Both range series share the muted colour so the marker carries the ink.',
+  "chart--dotplot--lollipop":
+    "`lollipop` draws a hairline stem from the baseline to each dot and pulls zero into the value extent, for a single series whose baseline means something (a count).",
+  "chart--dotplot--many-categories":
+    "Forty cost centres in a chart given `height={240}`: the row pitch never drops under one unit, so the plot grows past the height and every category keeps its labelled row.",
+  "chart--dotplot--playground":
+    "Every `DotPlot` prop under Ladle controls: sort, orientation, the scaffolding posture, lollipop stems, printed values, zoom and the frame. The data is revenue by region, one series.",
+  "chart--dotplot--sorted":
+    "Switch the row order live: as given, ascending or descending by the first series. The pinned selection and annotations follow the rows through a re-sort.",
+  "chart--dotplot--two-series":
+    'Two series per row, prior year as a ring and this year as a disc, ranked by this year (`sort="This year"`). Two series stay apart in ink alone, and the row\'s lowest and highest values print outside the pair.',
+  "chart--dotplot--vertical":
+    '`orientation="vertical"`: categories along the bottom (through the band-fitting label ladder), values up the y axis, a direction-toned range per column.',
+  "chart--dotplot--zoomable":
+    "The chart-window reading: `frame`, `controls`, `zoomable` (the value axis windows), `fullscreen`, `selectable`, an editable `vline` annotation at the target, and `onPointActivate` reporting the last activated dot.",
+  "chart--dotplot--compact":
+    "`rowHeight={18}` pins the row pitch (the compact reading): the plot is exactly rows times 18px tall and `height` is ignored. For a dense list of many small rows.",
   "chart--flows--chart-window":
     "The full interactive chart window: a `frame`, `fullscreen` toggle, the `controls` toolbar, and `zoomable` value-axis (AUM) zoom (the x axis stays per-period). Carries an editable `hline` reference annotation at the opening AUM and sets `zoomOutLimit` to infinity for unbounded zoom-out. Reach for it when the flows chart should behave like a trading-terminal panel the user can zoom, annotate, and expand.",
   "chart--flows--compact":
@@ -93,6 +155,102 @@ export const storyDocs: Record<string, string> = {
     'A narrow-container stress test: 12 monthly `YYYY-MM` periods in a 320px width with `scaffolding="full"` and `showLegend={false}`. Since `YYYY-MM` labels can\'t usefully ellipsize, the period axis thins to a stride keeping the first and last, and the y column sizes to the widest AUM label. Deterministic, so it doubles as a visual-regression surface.',
   "chart--flows--playground":
     "The Ladle args playground: one monthly AUM ledger with `yLabel` and `xLabel` set, every prop editable from the controls panel. Use it to try `scaffolding`, `colors`, connectors, and the other props interactively.",
+  "chart--histogram--bins":
+    "Three ways to bin the same sample: the automatic Freedman-Diaconis count, a count hint (`bins={10}`, snapped to the nice-number ladder, so it lands near the request), and explicit irregular thresholds, which keep their widths on the axis.",
+  "chart--histogram--cumulative":
+    "`cumulative` draws the running total as a step line, the ECDF, here in percent: read off the share of days at or below any return. Hover still works per bin.",
+  "chart--histogram--default":
+    "The idle Tufte reading: flush bars on automatic nice-number bins, the bin edges as the only labels (thinned by measurement, first and last kept), no axis chrome until hover reveals the count scale and gridlines.",
+  "chart--histogram--dense":
+    "100'000 samples with automatic bins and a density curve: the one-pass binning and the pre-binned density estimate keep it within a frame, and `zoomable` lets you window the tails.",
+  "chart--histogram--density":
+    "`density` overlays a Gaussian kernel density curve (bandwidth by Silverman's rule) scaled onto the count unit, so the smooth estimate sits over the bars. Full scaffolding shows the count axis.",
+  "chart--histogram--normalized":
+    '`normalize="percent"` puts the share of the sample on the bars, and `showValues` prints it above each bar where it fits the bin width.',
+  "chart--histogram--overlaid-series":
+    "Two samples on one shared set of bins: translucent fills so the overlap reads as a third tone, one density curve each, and a legend. The thresholds are computed over both samples, so the bars always align.",
+  "chart--histogram--playground":
+    "Every `Histogram` prop under Ladle controls: the bar unit (`normalize`), `cumulative`, the `density` overlay, `showValues`, the scaffolding posture, `zoomable`, `controls` and `frame`, over 750 fat-tailed daily returns.",
+  "chart--histogram--zoomable":
+    "The chart-window reading: `zoomable` with the toolbar, a frame, the fullscreen toggle, click-to-freeze selection, and two data-anchored annotations (a vertical line at zero, a shaded left-tail region) that survive zoom and pan.",
+  "chart--horizonchart--bands":
+    "The same four rows folded into one, two, three and four bands. More bands show a larger range in the same row height, at the cost of a subtler read of small moves.",
+  "chart--horizonchart--baseline-mean":
+    'Price levels folded around each row\'s mean (`baseline="mean"`): time above the mean fills in the accent, time below in danger.',
+  "chart--horizonchart--default":
+    "Twelve tickers, one year of cumulative return since the first day (percent), each row folded into three bands: the accent above zero, danger below, mirrored upward. Bands rise and fall over weeks, so rows compare at a glance; the value column shows the return to date and hover reads every row at the crosshair.",
+  "chart--horizonchart--dense":
+    "Thirty rows of 5000 samples each, decimated to the pixel columns (min and max per column, so spikes survive) and zoomable; a numeric x axis with adaptive ticks.",
+  "chart--horizonchart--independent-scales":
+    "One shared band range (a tall fill means a large move in any row) against `sharedScale={false}`, where every row peaks at its full height on its own range.",
+  "chart--horizonchart--labels":
+    'Row names printed over the rows\' left edges with a background stroke (`labels="overlay"`), and a chart with no names at all.',
+  "chart--horizonchart--many-rows":
+    "Sixty rows of cumulative return at 24px in a 480px chart: the rows scroll inside the chart while the time axis stays at the bottom. The tooltip lists only the row under the pointer past 16 rows.",
+  "chart--horizonchart--mirror-vs-offset":
+    "Negative values mirrored upward from the row's floor (default) against Saito's offset form, where they hang from the row's ceiling.",
+  "chart--horizonchart--playground":
+    "Every `HorizonChart` prop under Ladle controls: `bands`, `mode` (mirror or offset), `labels`, `sharedScale`, `showValues`, the `scaffolding` posture, and the chart-window switches (`zoomable`, `controls`, `frame`). Six tickers of cumulative return since the first day.",
+  "chart--horizonchart--zoomable":
+    "A chart window on the time axis: click, then wheel to zoom at the cursor, drag to pan, double-click to reset; the toolbar adds zoom-to-region and the annotation tools (a region and a vertical line are pre-drawn; the annotation y is a row index), plus fullscreen and a frame.",
+  "chart--marimekko--absolute":
+    "`normalize={false}` keeps the stacks in their units, so the tallest column is the biggest region and the value axis is a real scale that zooms (wheel, drag, the keyboard and the toolbar marquee).",
+  "chart--marimekko--custom-colors":
+    "A per-series `color` wins over the neutral ramp; the labels inside coloured segments switch to the on-fill foreground token. Colour only where it means something.",
+  "chart--marimekko--default":
+    "Revenue by customer segment and region: each column is a region sized by its revenue, its segments the segment mix stacked to 100%. The percent axis fades in on hover; the printed shares carry the numbers at rest.",
+  "chart--marimekko--dither-fill":
+    '`fill="dither"` steps the series through the house halftone at falling dot densities instead of the ink ramp, the same quantised reading as Chip and Progress.',
+  "chart--marimekko--explicit-widths":
+    '`widthBy` sizes the columns from another measure (the addressable market per region) while the segments still show the revenue mix; `columnLabels="name+share"` prints each column\'s share of the width axis under its name.',
+  "chart--marimekko--framed":
+    "The framed chart window: a border, the fullscreen toggle, the toolbar and editable annotations. An `hline` at `0.5` marks the half of every column; draw more with the tools.",
+  "chart--marimekko--horizontal":
+    '`orientation="horizontal"`: the categories run down the side as rows of varying height and the stacks run left to right, with the percent axis along the bottom.',
+  "chart--marimekko--many-columns":
+    "Sixteen product columns: the category labels ellipsize to their column with the full text in a title, the ones that cannot show three characters drop out, and the first and last always survive.",
+  "chart--marimekko--playground":
+    "Every `Marimekko` prop under Ladle controls: normalization, orientation, the `fill` stepping (ramp or dither), which figure the segments print, the column labels, the axis posture and the gap. Hover a segment for its share of the column and of the total.",
+  "chart--marimekko--selection":
+    "`selectable`: click a segment to pin a popover that holds while the pointer moves on and rings the segment; the controlled `selection` is reported below for the consumer to act on.",
+  "chart--marimekko--value-labels":
+    'The three `showValues` modes side by side: the share, the value, or both; a label prints only where its measured width and the segment\'s height leave room, and `"both"` falls back to the share alone.',
+  "chart--multiples--auto-columns":
+    "Drag the dashed container's corner: the column count follows the width, one panel of at least twelve units per column, no breakpoints (a ResizeObserver, as Reflow).",
+  "chart--multiples--bar-panels":
+    'A BarChart per region on a shared value axis (`link="y"`, `yDomain` 0 to 100), so bar heights compare across panels. The categorical axis stays in every panel.',
+  "chart--multiples--default":
+    "Twelve tickers as Scatterplot line panels on one shared time axis, columns from the container width. Wheel or drag in any panel and every panel follows; double-click resets them all. The shared window prints below the grid.",
+  "chart--multiples--framed":
+    "`frame` and `fullscreen` around the whole grid, with hairline `dividers` in the gaps. Maximized, the panels keep their height and the grid scrolls; Escape exits.",
+  "chart--multiples--histogram-panels":
+    "A Histogram per portfolio on one shared x window (`xDomain` -8 to 8 percent): the same bins and range in every panel, zoom linked through `onXDomainChange`.",
+  "chart--multiples--many":
+    "Forty ticker panels at a glance: outer axes (one time axis per column), bare panels just tall enough for the chart's own minimum plot, half-unit gaps, columns from the width.",
+  "chart--multiples--outer-axes":
+    '`axes="outer"`: the panels render bare and the grid draws one time axis under each column and one value axis left of each row, positioned over the measured plots, with `xLabel` and `yLabel` once. Both domains are given, which is what an outer axis needs.',
+  "chart--multiples--playground":
+    "Every `Multiples` prop under Ladle controls over a row of ticker panels: `columns` (auto or fixed), `link`, `axes` (each or outer), `dividers`, the panels' `scaffolding`, `frame`, `fullscreen`, `panelHeight`, `gap` and the panel count.",
+  "chart--sankeychart--alignments":
+    "The same small graph, whose `Tax` sink leaves from the first column, under the four alignments: `left` keeps it in the second column, `justify` moves it to the last, `right` packs toward the sinks, `center` pulls late sources against their targets.",
+  "chart--sankeychart--cycle":
+    "A link that closes a cycle (`Savings` back into `Income`): drawn dashed and reported in a dev warning, but excluded from the layering so the columns stay acyclic.",
+  "chart--sankeychart--default":
+    "A company budget: three revenue lines into five cost centres into six line items. Neutral ink, the default `justify` alignment (every sink in the last column), labels outside the diagram on the outer columns.",
+  "chart--sankeychart--framed":
+    'The framed, fullscreen-capable posture with `scaffolding="full"`: outlined nodes and printed values, the maximize toggle in the corner.',
+  "chart--sankeychart--fund-flows":
+    'Share classes into funds into strategies, with `linkFill="target"` so each ribbon takes the colour of the strategy it lands in, and `showValues` printing the flow after each name.',
+  "chart--sankeychart--link-fills":
+    "The four ribbon paints on the fund graph: `neutral` (translucent ink), `source` and `target` (that node's colour) and `dither` (the house halftone field).",
+  "chart--sankeychart--many-nodes":
+    "A stress graph of 60 nodes and 120 links over five columns from a seeded generator, with `iterations={12}` and a tighter `nodePadding`; labels thin per column so none overlap.",
+  "chart--sankeychart--playground":
+    "Every `SankeyChart` prop under Ladle controls over the budget graph: `align`, `nodeWidth`, `nodePadding`, `iterations`, `linkFill`, `labels`, `showValues`, `scaffolding`, `frame`, `fullscreen`, `selectable`. Hover a node to light its ribbons.",
+  "chart--sankeychart--selection":
+    "Click-to-freeze selection: a click pins a node or a ribbon and opens a popover anchored to it; the readout below mirrors the controlled `selection`.",
+  "chart--sankeychart--sorted":
+    "Node order within a column: `auto` lets the barycenter relaxation reorder to untangle the ribbons, `none` keeps the input order, and a comparator (here largest flow first) fixes it.",
   "chart--scatterplot--annotations":
     "Declarative `annotations` (hline, vline, rect, measure) anchored in data space, so they stay pinned to their values as the (also `zoomable`) chart zooms and pans. Reach for it to mark thresholds, events, or ranges you persist as plain JSON.",
   "chart--scatterplot--chart-window":
@@ -117,6 +275,48 @@ export const storyDocs: Record<string, string> = {
     "A date x-axis: pass `Date` values for `x` and the axis ticks on a calendar ladder (months here). Reach for it for anything measured over time.",
   "chart--scatterplot--zoomable":
     "`zoomable` turns on wheel-zoom at the cursor, drag-pan, double-click reset, and keyboard nav when focused. Two years of daily data: zoom in and the time axis morphs from months to days, the decimated line reveals raw points, and the y-axis follows the visible window.",
+  "chart--slopegraph--default":
+    "Tufte's slopegraph from VDQI: government receipts as a share of GDP in two years, fifteen countries. Names and numbers are the axis; the lines carry the change. Hover a line to keep its ink and read every value.",
+  "chart--slopegraph--direction-tones":
+    '`tone="direction"` colours each line by its first-to-last change: rising in success, falling in danger, flat in neutral ink. Britain is the one country whose receipts fell.',
+  "chart--slopegraph--end-labels":
+    '`labels="end"` keeps the names on the last column only, for a plan-to-actual read where the end state is what matters; the start column keeps its numbers.',
+  "chart--slopegraph--highlight":
+    "`highlight` names the entities to draw in the accent with semibold labels; the rest step back to neutral ink. The highlighted names always keep their labels when the chart thins.",
+  "chart--slopegraph--many-entities":
+    "Sixty funds in the height of fifteen: the names thin to what fits (highlighted, top and bottom survive) while every line stays drawn. The tooltip carries the full name.",
+  "chart--slopegraph--narrow":
+    "A slopegraph at a stat-card width with a `frame`: the label gutters are capped at a third of the plot each and names ellipsize, the full text staying in the tooltip.",
+  "chart--slopegraph--playground":
+    "Every `Slopegraph` prop under Ladle controls on Tufte's government-receipts data: `y` (value or rank), which sides carry `labels`, `showValues`, the direction `tone`, the `scaffolding` posture for the column rules, `frame`, `fullscreen` and `selectable`.",
+  "chart--slopegraph--rank":
+    'The bump chart: `y="rank"` over six rounds of a league table, rank 1 at the top, computed per column with ties sharing a rank. Inner columns print the values over a halo.',
+  "chart--slopegraph--selectable":
+    '`selectable` with a controlled `selection`: clicking a line pins the entity at the nearest column, draws it heavier with an accent ring on the point, and opens a popover there; `scaffolding="full"` keeps the column rules on.',
+  "chart--treemap--default":
+    "A portfolio by market value: asset classes as groups with a header strip, positions as squarified cells sized by value, names and values printed where they fit. Hover any cell for its share of the group and of the total.",
+  "chart--treemap--dense":
+    "Five hundred leaves in ten groups, coloured by change. Most cells are too small for a label and print nothing; hover reaches every one. A check that a dense map stays crisp and quick.",
+  "chart--treemap--depth":
+    "`depth={1}` draws the groups themselves as aggregated cells next to the full hierarchy. An aggregated cell reports `datum.aggregated` and the summed value.",
+  "chart--treemap--drill-down":
+    "Drill-down is consumer state: `onPointActivate` on a group header sets `root` to the group's id, the breadcrumb comes from `treemapPath(data, root)` and climbs back out. The chart itself never animates the change.",
+  "chart--treemap--flat":
+    "A flat list with no hierarchy: thirty files sized by bytes, squarified with values printed under the names that fit.",
+  "chart--treemap--framed":
+    'The shared frame and fullscreen toggle on a group-coloured map with `scaffolding="full"`. Escape leaves fullscreen.',
+  "chart--treemap--groups":
+    '`colorBy="group"`: one hue at a ladder of densities per top-level group, with the house dither on every second lap of the ladder, so neighbouring groups differ in texture as well as tint. Never a rainbow.',
+  "chart--treemap--layouts":
+    "The four tilings on the same seven costs: `squarify` (near-square cells, siblings sorted by value), `slice` (rows), `dice` (columns) and `sliceDice` (alternating by depth). The three ordered layouts keep the input order.",
+  "chart--treemap--market-map":
+    'The classic market map: eleven sectors of names, cell area is market value and `colorBy="change"` tints each cell on the success / danger ramp by its daily move, saturating at the largest absolute change. Tiny names stay unlabelled; the tooltip still names them.',
+  "chart--treemap--minimal":
+    '`scaffolding="minimal"` with `labels="none"`: the pure area read, no hairline gaps and no group headers, colour by change alone. The tooltip still names every cell.',
+  "chart--treemap--playground":
+    "Every `Treemap` prop under Ladle controls on a small portfolio: `colorBy` (none / group / change), the four `layout`s, `padding` and `groupPadding`, `showValues`, `labels`, `scaffolding`, `frame`, `fullscreen` and `selectable`.",
+  "chart--treemap--selectable":
+    "`selectable`: a click pins a cell (an accent inset ring) and opens a popover anchored to it, here with a custom `renderSelection` showing the path. Click the cell again, press Escape or the popover's close button to dismiss.",
   "chart3d--heatmap--basic":
     "A filled heatmap of the field z = sin(r)/r, with axis ticks pinned to actual cell centers. The default: pass `data` (gridded `x`/`y`/`z`) plus `xLabel`/`yLabel` and you get colored cells with a primary-tinted ramp.",
   "chart3d--heatmap--chart-window":

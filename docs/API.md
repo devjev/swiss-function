@@ -10,6 +10,108 @@ Per-component prop/element reference for every exported component in the library
 > prop, default, element, or `--sf-*` variable changes, update the matching
 > section in the same change. When a component is added, add a section for it.
 
+## BoxPlot
+
+`import { BoxPlot } from "@tarassov-ch/swiss-function/box-plot"`
+
+Compare distributions across categories. Each cell is the five-number summary of a sample (or a precomputed summary from a warehouse query), drawn by default in Tufte's reduced form: a thin line from each whisker end to the quartile, a dot at the median, and the interquartile range left as the gap between them, so the ink is the data. `scaffolding="full"` draws the classic box with a median line; `shape="violin"` mirrors a Gaussian kernel density around the centre line with the quartile marks inside. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35) plus `ChartSelectionProps` (`selectable` click-to-freeze selection with a pinned popover). Extends `HTMLAttributes<HTMLDivElement>`.
+
+Categories follow the measured-label recipe: along x they are thinned or ellipsized (full text in a `title`), never rotated; down the side (`orientation="horizontal"`) they thin to the label height and ellipsize to a column cap. The value axis is nice-ticked and, like BarChart, is the axis that zooms.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `categories` | `string[]` | n/a | Category labels. |
+| `series` | `BoxSeries[]` | n/a | `{ name, values?, stats?, color? }`. `values` is one raw sample array per category; `stats` is one precomputed `BoxStats` (`{ min, q1, median, q3, max, outliers?, n? }`) per category and wins for the summary (samples still feed the violin). Several series draw side by side per category. |
+| `whiskers` | `"tukey" \| "minmax"` | `"tukey"` | For raw samples: whiskers stop at the last value inside `q1 - 1.5 IQR` / `q3 + 1.5 IQR` with the rest as hollow outlier dots, or run to the extremes. |
+| `shape` | `"quartile" \| "box" \| "violin"` | follows `scaffolding` | The drawn form: `quartile` under `minimal`/`hover`, `box` under `full`. A violin needs raw `values`; a stats-only cell falls back to the box. |
+| `orientation` | `"vertical" \| "horizontal"` | `"vertical"` | Categories along x with the value axis vertical, or categories down the side with the value axis horizontal. |
+| `valueDomain` | `[number, number]` | auto-fit | Value range; auto-fit spans the whiskers and outliers with 5% air. |
+| `clipOutliers` | `boolean` | `false` | The auto domain comes from the whisker extent alone, and outliers beyond the visible range are drawn pinned at the plot edge as a hollow dot with a `+n` count, so one far value cannot compress every other cell. |
+| `showValues` | `boolean` | `false` | Print each median beside its mark (mono). |
+| `valueFormat` | `(value: number) => string` | Swiss `formatNumber` | Formats printed values, the crosshair and the default tooltip. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showLegend` | `boolean` | `true` when >1 series | Legend below the chart. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. The value axis and gridlines fade in on hover. |
+| `zoomable` | `boolean` | `false` | Value-axis zoom (y when vertical, x when horizontal): wheel, drag, arrows, `+`/`-`/`0`, the toolbar marquee; `aria-live` range announcements. |
+| `zoomOutLimit` | `number` | `1` | Zoom-out past the data as a multiple of the span; `Infinity` = arbitrary. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every value-axis zoom/pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays. Vertical: `x` is a fractional category index, `y` a value (`hline` for an SLO). Horizontal: the roles swap (`vline` for a value). |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar: zoom cluster (when `zoomable`) + annotation tools (when editable). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `onPointActivate` | `(datum: BoxDatum) => void` | n/a | Click/Enter on a cell; `BoxDatum` is `{ category, series, stats }`. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | see Scatterplot | off | Click a cell to pin a popover at its median that tracks zoom/resize; re-click, Escape, outside press or ✕ clears. |
+| `renderTooltip` | `(datum: BoxDatum) => ReactNode` | the five numbers, `n` and the outlier count | Custom tooltip. |
+
+Note: `clipOutliers` changes only the auto-fit and the drawing of out-of-range outliers; the tooltip still reports the full outlier count, and an explicit `valueDomain` still wins.
+
+Colour is neutral ink by default (the first series full-strength `--sf-color-fg`, the second the accent); pass `color` per series when the hue means something. Outliers are hollow dots in the series colour. The exported statistics helpers live on the component's entry: `BoxStats` and `BoxWhiskers` types.
+
+```tsx
+<BoxPlot
+  categories={["gateway", "auth", "search"]}
+  series={[{ name: "Latency", values: [gatewayMs, authMs, searchMs] }]}
+  yLabel="Request latency (ms)"
+/>
+<BoxPlot categories={regions} series={[{ name: "Order value", values }]} orientation="horizontal" />
+<BoxPlot categories={services} series={[{ name: "p50", stats: warehouseSummaries }]} scaffolding="full" />
+<BoxPlot categories={services} series={[{ name: "Latency", values }]} shape="violin" />
+<BoxPlot
+  categories={services}
+  series={[{ name: "Latency", values }]}
+  frame
+  controls
+  zoomable
+  selectable
+  annotations={[{ type: "hline", y: 200, label: "SLO 200 ms" }]}
+/>
+```
+
+## BulletChart
+
+`import { BulletChart } from "@tarassov-ch/swiss-function/bullet-chart"`
+
+A bullet graph (Stephen Few's design specification, d3 "Bullet chart"): a KPI as a thin measure bar over a thicker band of qualitative tiers, a target tick and optional comparative ticks, one row per item, stacking as a panel. The honest replacement for a gauge: linear, dense, monochrome except for the measure. One shared `domain` gives the panel a single axis (zoomable on the value axis, annotatable); without it every row resolves its own scale and shows it on hover. Mixes in the shared `ChartScaffoldingProps` and `ChartSelectionProps` (see BarChart). Extends `HTMLAttributes<HTMLDivElement>`. Pairs with `Stat` / `Stat.Group`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `items` | `BulletItem[]` | n/a | `{ label, sublabel?, value, target?, ranges?, comparative?, domain?, tone?, goodDirection? }` per row. `ranges` are the ascending upper bounds of 2 to 5 tiers (the last bound below the scale's end leaves a final tier); `comparative` adds thinner ticks (last period, plan); `goodDirection: "down"` (churn, latency) reverses the tier shading. |
+| `domain` | `[number, number]` | n/a | One scale for the whole panel, with one axis. Without it each row uses `item.domain`, else a zero-anchored auto-fit of its numbers. |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"primary"` | The measure bar's colour; an item's own `tone` wins. Colour only where it means status. |
+| `rangeFill` | `"dither" \| "shade"` | `"dither"` | Tiers as densities of the house halftone (the poorest tier densest, 50% down to plain) or as grey shades stepping lighter. |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Rows across the panel, or columns side by side with the axis on the left. |
+| `size` | `"sm" \| "md" \| "lg"` | `"md"` | Row height on the unit grid: 1u / 1.5u / 2u. The band is half a row, the measure a third of the band. |
+| `showValues` | `boolean` | `true` | Prints each value at the row's end in Swiss number formatting (`1'284'500`). |
+| `valueFormat` | `(value: number) => string` | Swiss, 2 decimals max | Formats the readout, the tooltip and the crosshair. |
+| `height` | `number \| string` | rows at their `size` (8u vertical) | With a height the rows share it evenly. |
+| `xLabel` / `yLabel` | `string` | n/a | The value axis label (horizontal / vertical). |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | On a shared scale the panel axis and gridlines fade in on hover (`full`: always). On per-row scales the hovered row shows tick marks and its scale's end (`full`: every row). |
+| `zoomable` | `boolean` | `false` | Value-axis zoom, only with a shared `domain` (wheel, drag, arrows, `+`/`-`/`0`, the toolbar marquee). |
+| `zoomOutLimit` | `number` | `1` | Zoom-out past the data as a multiple of the span. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every zoom/pan (`null` = full range). |
+| `annotations` / `onAnnotationsChange` / `controls` | see BarChart | n/a | On a horizontal panel an annotation's `x` is a value (a `vline` is a reference level) and `y` a fractional row index; vertical swaps them. Shared `domain` only. |
+| `fullscreen` / `frame` | `boolean` | `false` | Maximize toggle; a 1px framed panel. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | see Scatterplot | off | Click a row to pin a popover at the bar's end. |
+| `onPointActivate` | `(datum: BulletDatum) => void` | n/a | Click/Enter on a row (drill-down). `BulletDatum` carries the row, its scale and the tier the value falls in. |
+| `renderTooltip` | `(datum: BulletDatum) => ReactNode` | label, value / target, delta to target, tier | Custom tooltip. |
+
+With `controls` on a horizontal panel, the rows start below the overlaid toolbar, by 2u or by the toolbar's measured height plus a quarter unit when it wraps (the annotation tools on a narrow plot), so the toolbar sits in empty space above the first row and a `vline` label clears it; the labels and values columns take the same inset, and nothing changes when `controls` is off or the panel is vertical.
+
+Few's rules in the drawing: the measure is a thin bar centred in the band, the target a short perpendicular tick in full-strength fg, comparatives thinner and subtler, the tiers monochrome, the label to the left with an optional mono sublabel (the unit or period), the value printed at the row's end. The measure grows from zero when the scale crosses it, else from the scale's start. Every row is a focusable button (Enter / Space activate).
+
+```tsx
+<BulletChart
+  items={[
+    { label: "Revenue", sublabel: "CHF k", value: 1284, target: 1400, ranges: [900, 1200, 1600] },
+    { label: "Churn", sublabel: "%", value: 2.3, target: 2, ranges: [1.5, 3, 5], domain: [0, 6], goodDirection: "down" },
+  ]}
+/>
+<BulletChart items={regions} domain={[0, 150]} zoomable controls annotations={[{ type: "vline", x: 100, label: "quota" }]} />
+<BulletChart items={regions} domain={[0, 150]} orientation="vertical" height={260} />
+```
+
 ## Conventions
 
 - Every component is `forwardRef`, spreads unknown props to its root element, and
@@ -918,6 +1020,79 @@ placeholder slots use `Input`'s `::placeholder` strength; block caret via
 <DigitInputMicro slots={3} min={0} max={100} />            {/* bounded */}
 ```
 
+## DotPlot
+
+`import { DotPlot } from "@tarassov-ch/swiss-function/dot-plot"`
+
+Ranked comparison of many categories with almost no ink: Cleveland's dot plot. Categories run down the side, one row each, with one dot per series along a shared value axis; two series can join into a range bar (the dumbbell), a marker tick shows a current value inside it, and a lollipop stem grows from the baseline when that baseline means something. Reach for it where a horizontal bar chart would go and the baseline carries no meaning. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, issue #35) plus `ChartSelectionProps` (click-to-freeze a dot with a pinned popover). Extends `HTMLAttributes<HTMLDivElement>`.
+
+Every category keeps its row: the category labels are ellipsized to the side column (full text in a `title`) but never thinned, and rows never drop under one `--sf-unit`. The row pitch is `max(one --sf-unit, plot height / rows)`, so the rows fill the plot and the value axis sits right under the last one; only when the minimum wins does the chart grow past `height`, and `rowHeight` pins the pitch instead. Along the bottom (`orientation="vertical"`) the category labels go through the shared band-fitting ladder instead (ellipsize, then thin, first and last kept). The value axis is the continuous axis: it zooms, it carries the gridlines, and in the `hover` posture it fades in with them while the category list stays readable.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `categories` | `string[]` | n/a | One row (or column) each. |
+| `series` | `DotSeries[]` | n/a | `{ name, values, color? }`; `values` parallel to `categories`, `null` leaves the row without that dot. Default colours cycle primary / ink / muted, and odd-numbered series draw as rings, so two series stay apart in ink alone. |
+| `range` | `boolean \| [string, string]` | n/a | Connect two dots per row with a bar: `true` pairs the first two series (exactly two must exist), or name the `[from, to]` pair. |
+| `rangeTone` | `"direction" \| "none"` | `"none"` | Colour the bar by its move from `from` to `to`: rising in success, falling in danger. |
+| `marker` | `(number \| null)[]` | n/a | A current-value tick per category, e.g. the last price inside a 52-week low / high range. |
+| `markerLabel` | `string` | `"Current"` | The marker's name in the tooltip and legend. |
+| `sort` | `"none" \| "asc" \| "desc" \| string` | `"none"` | Row order: as given, by the first series, or by a named series (descending, the ranked reading). Missing values sink to the end. |
+| `orientation` | `"horizontal" \| "vertical"` | `"horizontal"` | Categories down the side with values along x, or along the bottom with values up y. |
+| `lollipop` | `boolean` | `false` | A hairline from the baseline to each dot; the value extent then includes zero. |
+| `showValues` | `boolean` | on in `minimal` / `hover`, off in `full` | Print the values: beside each dot (one series), at the row's lowest and highest dot (several series), or at both ends of a range. A label flips to the other side of its dot rather than run off the plot, and a range too narrow for its low label prints both values past the high dot (`18.9 to 31.2`). |
+| `valueFormat` | `(value: number) => string` | compact (`1.2k`) | Formats the printed values and the crosshair readout. |
+| `valueDomain` | `[number, number]` | auto-fit | Value range: the data's extent widened to round ticks, zero pulled in only for a lollipop. While zoomed, the value axis follows this extent. |
+| `xLabel` / `yLabel` | `string` | n/a | `xLabel` names the category axis, `yLabel` the value axis, whatever the orientation. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | Component height. Rows spread over the plot (pitch = plot height / row count) down to one `--sf-unit` each; with more rows than fit, a horizontal plot grows past this height instead of squeezing them. |
+| `rowHeight` | `number` | n/a | A fixed row pitch in px, the compact reading: the plot is exactly `rows * rowHeight` tall and `height` is ignored. Horizontal only. |
+| `showLegend` | `boolean` | `true` when >1 series or a marker | Legend below the chart, with the ring / disc glyph of each series. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. |
+| `zoomable` | `boolean` | `false` | Interactive **value-axis zoom**: wheel / drag / arrow keys / `+` / `-` / `0` window the value axis (x when horizontal); the toolbar marquee zooms to a band; `aria-live` range announcements. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go past the data, as a multiple of the data span; `Infinity` = arbitrary. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every value-axis zoom / pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays. The value axis is the continuous coordinate (`x` when horizontal, so `vline` is the natural reference level there; `hline` when vertical), the other coordinate a fractional row / column index. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar: zoom cluster (when `zoomable`) + annotation tools (when editable). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `onPointActivate` | `(datum: DotPlotDatum) => void` | n/a | Click / Enter on a dot, the drill-down hook. |
+| `renderTooltip` | `(datum: DotPlotDatum) => ReactNode` | the row | Custom tooltip. The datum carries the dot's `category` / `series` / `value`, every series value of the row in `values`, and the row's `marker`. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | see Scatterplot | off | Click-to-freeze a dot with a pinned popover that tracks it through zoom, sort and resize. |
+
+With `controls` on in the horizontal layout the rows start below the toolbar, two `--sf-unit` down or half a unit under the toolbar's measured bottom when it wraps taller (the annotation tools add a row), so it sits in empty space above the first row; the growth rule counts that inset, and nothing changes with `controls` off or in the vertical layout.
+
+Hovering anywhere in a row tints the row band and opens the tooltip for the whole row; hovering a dot adds the crosshair projecting its value onto the value axis. Set `--sf-axis-label-width` on a container to pin the category column (it measures to the widest label, capped at 176px).
+
+```tsx
+<DotPlot
+  categories={["Switzerland", "Germany", "France"]}
+  series={[{ name: "Revenue", values: [412, 388, 271] }]}
+  sort="desc"
+  yLabel="Revenue (k CHF)"
+/>
+<DotPlot
+  categories={regions}
+  series={[
+    { name: "Before", values: before },
+    { name: "After", values: after },
+  ]}
+  range
+  rangeTone="direction"
+  sort="After"
+/>
+<DotPlot
+  categories={tickers}
+  series={[
+    { name: "52w low", values: low, color: "var(--sf-color-muted)" },
+    { name: "52w high", values: high, color: "var(--sf-color-muted)" },
+  ]}
+  range
+  marker={last}
+  markerLabel="Last"
+/>
+<DotPlot categories={days} series={[{ name: "PRs", values: prs }]} lollipop />
+```
+
 ## Drawer
 
 `import { Drawer } from "@tarassov-ch/swiss-function/drawer"`
@@ -1266,6 +1441,138 @@ field; reach for this before a 3D `Surface`. Shares the `GridData` shape
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `renderTooltip` | `(d: HeatmapDatum) => ReactNode` | x/y/z | Custom hover tooltip. |
 
+## Histogram
+
+`import { Histogram } from "@tarassov-ch/swiss-function/histogram"`
+
+The distribution of one numeric variable: values binned on a nice-number
+threshold ladder and drawn as flush bars, with an optional kernel density
+curve and a cumulative (ECDF) mode. Several samples overlay on the same bins.
+Built on the shared chart scaffolding (frame, fullscreen, controls, a zoomable
+x axis, annotations, click-to-freeze selection, measured labels). Renders a
+`<div>`; extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). Reach for
+`BoxPlot` to compare distributions across categories, and `BarChart` for
+categorical magnitudes.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `number[]` | n/a | One sample. Shorthand for a single series. Non-finite entries are ignored. |
+| `series` | `HistogramSeries[]` | n/a | `{ name, data: number[], color? }[]`, overlaid on one shared set of bins with translucent fills. Supply explicit colours. |
+| `bins` | `number \| number[]` | automatic | A bin count (a hint: edges snap to the nice-number ladder the axis ticks use, so the count comes out near the request) or explicit ascending thresholds (`k + 1` edges make `k` bins, irregular widths allowed). Automatic: Freedman-Diaconis, falling back to Sturges when the IQR is zero, capped at 200. |
+| `domain` | `[number, number]` | data extent | Fixes the binned range with exactly `bins` uniform bins; values outside are dropped. |
+| `normalize` | `"count" \| "percent" \| "density"` | `"count"` | The bar unit: raw counts, the share of the binned sample in percent, or a probability density (bar areas sum to 1, so irregular bins stay comparable). |
+| `cumulative` | `boolean` | `false` | The running total as a step line (the ECDF) instead of bars, in the unit of `normalize`; hover and selection still work per bin. |
+| `density` | `boolean \| { bandwidth?: number }` | `false` | A Gaussian kernel density curve scaled onto the bar unit. `true` picks the bandwidth by Silverman's rule of thumb. Large samples are pre-binned so the curve costs the same at 100k points. |
+| `showValues` | `boolean` | `false` | Prints each bin's value above its bar where the label fits the bin. |
+| `valueFormat` | `(value: number) => string` | compact | Formats x values: bin edges on the axis, the tooltip range, the annotation ruler. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showLegend` | `boolean` | `true` when >1 series | Legend below the x axis. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. The Tufte modes label the bin edges themselves (thinned by measurement, first and last kept); full mode uses adaptive nice ticks and gridlines. |
+| `zoomable` | `boolean` | `false` | Windows the x axis: wheel zooms at the cursor (plain wheel after a click), drag pans, double-click resets; arrows, `+`, `-`, `0` on the focused chart; an `aria-live` range readout; a corner Reset while zoomed. Off-window bins are not rendered. The y axis stays fixed to the full sample. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go past the data, as a multiple of the x span; `Infinity` for arbitrary. |
+| `onXDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every viewport change (`null` = reset). |
+| `annotations` / `onAnnotationsChange` | `ChartAnnotation[]` / `(next) => void` | n/a | Data-anchored overlays (`hline`/`vline`/`line`/`rect`/`text`/`measure`), editable with `controls`. Same contract as Scatterplot. |
+| `controls` / `fullscreen` / `frame` | `boolean` | `false` | The on-chart toolbar, the maximize toggle, the framed panel. |
+| `onPointActivate` | `(datum: HistogramBinDatum) => void` | n/a | Click/Enter on a bin, the drill-down hook. |
+| `renderTooltip` | `(datum: HistogramBinDatum) => ReactNode` | range, count, share | Custom tooltip. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | `ChartSelectionProps<HistogramBinDatum>` | off | Click-to-freeze selection of one bin with an anchored popover that tracks zoom/pan. In cumulative mode the pin sits on the step's corner. |
+
+`HistogramBinDatum` is `{ series, x0, x1, count, value, cumulative }`: the bin
+range (`[x0, x1)`, closed on the last bin), its raw count, its height in the
+chart unit, and the running total at `x1`.
+
+The binning is one pass over the sample (uniform edges index in constant time,
+explicit irregular edges by binary search), so 100k values bin within a frame.
+The thresholds are shared across series, so overlaid histograms always align.
+The `HistogramBin` shape and `HistogramNormalize` union are exported for
+consumers that pre-bin on a server.
+
+```tsx
+<Histogram data={returns} xLabel="Daily return (%)" yLabel="Days" valueFormat={(v) => `${v.toFixed(1)}%`} />
+<Histogram data={returns} bins={[-8, -4, -2, -1, 0, 1, 2, 4, 8]} normalize="density" />
+<Histogram data={returns} density cumulative={false} scaffolding="full" />
+<Histogram data={latencies} cumulative normalize="percent" yLabel="Requests at or below" />
+<Histogram
+  series={[
+    { name: "Balanced", data: balanced, color: "var(--sf-color-primary)" },
+    { name: "Growth", data: growth, color: "var(--sf-color-success)" },
+  ]}
+  bins={30}
+  density
+/>
+<Histogram data={returns} bins={60} zoomable controls frame selectable scaffolding="full" />
+```
+
+## HorizonChart
+
+`import { HorizonChart } from "@tarassov-ch/swiss-function/horizon-chart"`
+
+Dozens of time series in dense rows, each folded into layered bands (Saito's
+horizon graph, the form Heer, Kong and Agrawala found the most readable at
+small heights). Every row folds its deviation from a baseline into `bands`
+stacked layers, so a row of height h shows a range of `bands` times h: the
+darker the fill, the larger the move. Values above the baseline fill in the
+accent, values below in danger, either mirrored upward (default) or hung from
+the row's ceiling (`mode="offset"`). One shared time axis at the bottom, a
+crosshair that reads every row at the hovered x, a measured label column, an
+optional column of the last visible value, and the shared 2D-chart
+scaffolding: frame, fullscreen, controls, zoom on the time axis with the
+calendar tick ladder and decimation, annotations, click-to-freeze selection.
+Renders a `<div>`; extends `HTMLAttributes<HTMLDivElement>`. For a handful of
+series on one shared value axis reach for `Scatterplot` with lines; this is
+for the many.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `series` | `HorizonSeries[]` | n/a | `{ name, data: { x: number \| Date, y }[] }`, one row per series, top to bottom. Points in ascending x (an unsorted row is sorted on a copy). |
+| `bands` | `number` | `3` | Layers a row folds its range into. |
+| `mode` | `"mirror" \| "offset"` | `"mirror"` | Negative values flipped upward in the negative hue so both signs rise from the row's floor, or hung from the row's ceiling (Saito's original two-tone form). |
+| `baseline` | `number \| "mean" \| "first"` | `0` | The value each row folds around: a number, the row's mean, or its first value. |
+| `sharedScale` | `boolean` | `true` | One band range across rows (the largest deviation), so a taller fill means a larger move in any row. `false` gives every row its own range. |
+| `domain` | `[number, number]` | n/a | Explicit band range for every row, read as the larger magnitude of its edges; overrides `sharedScale`. |
+| `rowHeight` | `number` | 1.5 × `--sf-unit` | Row height in px. |
+| `colors` | `{ positive?, negative? }` | accent / danger | The two hues. Band k mixes the hue toward the page background, from 55% for the first band to the full hue for the last, so the ramp is single-hue and reads in both themes. |
+| `labels` | `"left" \| "overlay" \| "none"` | `"left"` | Row names: a measured column to the left (ellipsized past 8u, full text in a title), printed over the row's left edge with a background stroke, or hidden. |
+| `showValues` | `boolean` | `false` | A mono column of the last visible value per row at the right. |
+| `valueFormat` | `(value: number) => string` | Swiss, up to 2 decimals | Formats the value column and the tooltip values. |
+| `height` | `number \| string` | rows + axis | When set, the rows scroll inside it and the axis stays. |
+| `xLabel` / `yLabel` | `string` | n/a | The axis label under the chart; `yLabel` names the chart for assistive tech (there is no value axis). |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. Tufte modes tick one label per visible datum (thinned, first and last kept); full mode walks the calendar ladder (or adaptive numeric ticks) with vertical gridlines. |
+| `zoomable` | `boolean` | `false` | Zoom the time axis: wheel at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets, `←`/`→` `+` `-` `0` on the focused chart, an `aria-live` range readout, a Reset button while zoomed. Rows past ~4 points per px decimate (min/max per pixel column). Band ranges come from the full data, so the bands hold still while zooming. |
+| `zoomOutLimit` | `number` | `1` | How far zoom-out may go past the data, as a multiple of the x span. |
+| `xDomain` | `[number, number] \| [Date, Date]` | data extent | Fixes the x range; with `zoomable`, the controlled visible window (pair with `onXDomainChange`). |
+| `onXDomainChange` | `(domain \| null) => void` | n/a | Fires on every viewport change (`null` = reset). |
+| `annotations` / `onAnnotationsChange` / `controls` | as Scatterplot | n/a | Data-anchored overlays and their editing toolbar. The annotation y coordinate is a **row index** (0 at the top edge of the first row, 1 at its bottom), since there is no shared value axis. |
+| `fullscreen` / `frame` | `boolean` | `false` | The corner maximize toggle; the 1px framed panel. |
+| `onPointActivate` | `(point: HorizonPoint) => void` | n/a | Click on the row under the pointer, or Enter / Space on a focused row (its last visible value): the drill-down hook. `HorizonPoint` is `{ x, y, series }`. |
+| `renderTooltip` | `(hover: HorizonHover) => ReactNode` | x, then every row's name and value | `HorizonHover` is `{ x, rows: HorizonPoint[], active: HorizonPoint }`: every row's nearest datum at the hovered x and the row under the pointer. The default lists all rows up to 16, then only the active one. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | `ChartSelectionProps<HorizonPoint>` | off | Click-to-freeze selection: the pinned datum gets an accent ring at its row centre and a popover that tracks it through zoom. `renderSelection` defaults to the tooltip body for that one row. |
+
+With `controls`, the rows start two `--sf-unit` below the top of the plot so the toolbar sits in empty space above them instead of over the first row's left end; the label and value columns move with the rows, and a fixed `height` still scrolls them. The annotation y (a row index) counts from the first row's top edge either way.
+
+Rows are focusable (`role="button"`) only when `onPointActivate` or `selectable`
+is set. Hover re-renders bail out at the memoized band layer, so a crosshair
+sweep over 60 rows stays cheap; the hairline row separators and gridlines snap
+to the pixel grid, the band edges do not. The gridlines fade in on hover
+(`scaffolding="hover"`) and respect `prefers-reduced-motion`.
+
+```tsx
+<HorizonChart series={dailyChanges} showValues valueFormat={(v) => `${v}%`} />
+<HorizonChart series={prices} baseline="mean" bands={4} />
+<HorizonChart series={sixtyRows} height={480} rowHeight={24} sharedScale={false} />
+<HorizonChart
+  series={dailyChanges}
+  scaffolding="full"
+  zoomable
+  controls
+  fullscreen
+  frame
+  annotations={annotations}
+  onAnnotationsChange={setAnnotations}
+/>
+```
+
 ## Icon
 
 `import { Icon, Check, ChevronDown /* … */ } from "@tarassov-ch/swiss-function/icon"`
@@ -1564,6 +1871,59 @@ the map renders a `NonIdealState` fallback.
 **Elements / Parts:** `Map.Controls` (zoom/fit/reset/basemap toolbar),
 `Map.Minimap` (overview inset, a second WebGL context; use deliberately).
 
+## Marimekko
+
+`import { Marimekko } from "@tarassov-ch/swiss-function/marimekko"`
+
+A Marimekko (mosaic) chart: 100% stacked columns whose widths carry a second measure, so two part-to-whole readings share one panel (market share by segment within regions that are sized by revenue). Each column is a stack of one segment per series; its width is its share of the width measure, its segments the shares of its own total. Series fill with a neutral ramp of the ink or the house halftone at stepped densities, never a rainbow, and a per-series `color` wins. Segment labels are measured and print only where they fit; category labels are confined to their column, ellipsized with the full text in a `title`, and dropped when fewer than three characters survive (the first and last always stay). Mixes in the shared `ChartScaffoldingProps` (frame / fullscreen / controls / annotations / labels / posture, issue #35) and `ChartSelectionProps` (click-to-freeze selection with a pinned popover). The value axis zooms only when the stacks are not normalized. Extends `HTMLAttributes<HTMLDivElement>`.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `categories` | `string[]` | n/a | The columns (rows when horizontal). |
+| `series` | `MarimekkoSeries[]` | n/a | `{ name, values, color? }`; one segment per series per column. Values below zero, missing or not finite count as zero. |
+| `widthBy` | `"total" \| number[]` | `"total"` | Column widths from each column's total, or from an explicit measure parallel to `categories`. |
+| `normalize` | `boolean` | `true` | Stack every column to 100%. `false` keeps the values' units: a variable-width stacked bar chart whose value axis can zoom. |
+| `orientation` | `"vertical" \| "horizontal"` | `"vertical"` | Columns along x, or rows down the side with the stacks running left to right. |
+| `gap` | `number` | `1` | Page px between columns. |
+| `fill` | `"ramp" \| "dither"` | `"ramp"` | How the default series fills step: the ink mixed into the page (first series darkest), or the halftone at falling dot densities. |
+| `showValues` | `boolean \| "percent" \| "value" \| "both"` | `true` | Segment labels where they fit. `true` is the share when normalized and the value otherwise; `"both"` prints the share and the value together, falling back to the share alone. |
+| `valueFormat` | `(value: number) => string` | compact / Swiss | Formats printed values: compact (`1.2k`) on the chart, Swiss typography (`1'234`) in the tooltip; one formatter given here is used for both. |
+| `columnLabels` | `"name" \| "name+share" \| "none"` | `"name"` | The category label under (beside) each column, optionally with the column's share of the width axis. |
+| `valueDomain` | `[number, number]` | auto | Value-axis range when not normalized; zero anchored to the tallest column when omitted. |
+| `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
+| `showLegend` | `boolean` | `true` | Series legend below the chart. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. The value axis (percent or units) fades in on hover; the segment labels are the numbers at rest. |
+| `zoomable` | `boolean` | `false` | Value-axis zoom (wheel / drag / keyboard / marquee) **only with `normalize={false}`**; a normalized chart has nothing to window and ignores it. |
+| `zoomOutLimit` | `number` | `1` | Zoom-out past the data as a multiple of the span; `Infinity` = arbitrary. |
+| `onValueDomainChange` | `(domain: [number, number] \| null) => void` | n/a | Fires on every value-axis zoom / pan (`null` = full range). |
+| `annotations` | `ChartAnnotation[]` | n/a | Data-anchored overlays. Vertical: `x` is a fractional column index (piecewise over the column widths), `y` the value (0..1 when normalized). Horizontal: the roles swap. |
+| `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation editing. |
+| `controls` | `boolean` | `false` | On-chart toolbar: the zoom cluster (when zoomable) and the annotation tools (when editable). |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | `ChartSelectionProps<MarimekkoDatum>` | off | Click a segment to pin a popover that tracks it through resize; the pinned segment wears an accent ring. |
+| `onPointActivate` | `(datum: MarimekkoDatum) => void` | n/a | Click / Enter on a segment, the drill-down hook. |
+| `renderTooltip` | `(datum: MarimekkoDatum) => ReactNode` | category, series and value, share of column and of total | Custom tooltip. |
+
+`MarimekkoDatum` is `{ category, series, value, share, total, width }`: the segment's share of its column, of the grand total, and the column's share of the width axis.
+
+```tsx
+<Marimekko
+  categories={["North America", "Europe", "Asia Pacific"]}
+  series={[
+    { name: "Enterprise", values: [420, 310, 260] },
+    { name: "Mid-market", values: [260, 240, 210] },
+    { name: "SMB", values: [180, 170, 240] },
+  ]}
+  xLabel="Region, sized by revenue"
+  yLabel="Share of revenue"
+/>
+<Marimekko categories={regions} series={segments} widthBy={addressableMarket} columnLabels="name+share" />
+<Marimekko categories={regions} series={segments} normalize={false} zoomable controls scaffolding="full" />
+<Marimekko categories={regions} series={segments} orientation="horizontal" fill="dither" height={320} />
+```
+
 ## Markdown
 
 `import { Markdown } from "@tarassov-ch/swiss-function/markdown"`
@@ -1760,6 +2120,112 @@ viewport (camera recentering); this maps a 1D DOM scroll offset.
 >
   {longContent}
 </Minimap>
+```
+
+## Multiples
+
+`import { Multiples } from "@tarassov-ch/swiss-function/multiples"`
+
+Tufte's small multiples: a grid of N panels of the same chart over different
+slices, with shared scales and linked zoom, one title per panel, and, with
+`axes="outer"`, the axes drawn once per row and column instead of in every
+panel. A layout and coordination component: it renders the panels you give it
+(a `Scatterplot`, `BarChart`, `Histogram`, any chart that takes a domain and
+reports its zoom) and holds the shared domain state between them. Columns
+follow the **container** width through a `ResizeObserver` (no media queries),
+so the grid reflows inside a sidebar or a split pane. Renders a `<div>`;
+extends `HTMLAttributes<HTMLDivElement>` (minus `title`). Generic in the item
+type.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `items` | `T[]` | required | One panel per item. |
+| `render` | `(item: T, shared: MultiplesShared) => ReactNode` | required | Renders a panel's chart. Spread `shared` onto the chart's domain props (see below). |
+| `title` | `(item: T, index: number) => ReactNode` | n/a | The panel title, above each panel and inset to the plot's left edge. |
+| `titleKey` | `keyof T` | n/a | A property of `T` used as the title when `title` is not given. |
+| `columns` | `number \| "auto"` | `"auto"` | A fixed column count, or as many panels of at least `minPanelWidth` as the container fits. |
+| `rows` | `number` | n/a | A fixed row count (auto layout only); the columns derive from it. |
+| `minPanelWidth` | `number \| string` | `calc(var(--sf-unit) * 12)` | Smallest panel the auto layout accepts; a number is px, a string any CSS length. |
+| `panelHeight` | `number` | `calc(var(--sf-unit) * 6)` | Panel chart height in px, handed to the panel as `shared.height`. Keep it at or above the chart's own minimum (a Scatterplot or Histogram holds a four-unit plot plus its axis row, about 5.5 units). |
+| `gap` | `number` | `1` | Gap between panels in `--sf-unit` multiples. |
+| `dividers` | `boolean` | `false` | Hairline dividers drawn in the gaps between neighbouring panels. |
+| `xDomain` / `defaultXDomain` | `[number, number] \| [Date, Date]` | n/a | The shared x window (controlled / initial). Pair the controlled form with `onXDomainChange`. |
+| `onXDomainChange` | `(domain \| null) => void` | n/a | Fires when any panel zooms x; `null` resets every panel to its own extent. |
+| `yDomain` / `defaultYDomain` | `[number, number]` | n/a | The shared value domain (controlled / initial). |
+| `onYDomainChange` | `(domain \| null) => void` | n/a | Fires when any panel zooms its value axis. |
+| `link` | `"x" \| "y" \| "both" \| "none"` | `"x"` | Which domains the panels share and zoom together. |
+| `axes` | `"each" \| "outer"` | `"each"` | `each`: every panel keeps its own axes. `outer`: the panels render axis-less (their `data-orientation` axes are hidden) and the grid draws one x axis under each column and one y axis left of each row, positioned over the measured plot of the column's bottom / the row's first panel. An outer axis needs its domain known: given, or reported by a panel's zoom. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | The posture passed to the panels (`"minimal"` is forced under `axes="outer"`). |
+| `frame` | `boolean` | `false` | A 1px border + padding wrapper around the grid. |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle for the whole grid; Escape exits. The panels keep their height and the grid scrolls. |
+| `height` | `number \| string` | natural | Root height. |
+| `xLabel` / `yLabel` | `string` | n/a | Labels under the outer x axes / left of the outer y axes (`axes="outer"`). |
+
+**`MultiplesShared`** (the second argument of `render`): `index`, `row`, `col`;
+`xDomain` and `yDomain` (the shared domains when linked, else undefined);
+`onXDomainChange` and `onValueDomainChange` (report a zoom back; inert when
+that axis is not linked); `scaffolding` (the posture to render with);
+`height` (the panel height, pass it as the chart's `height`). Wire a
+Scatterplot or Histogram with `xDomain` + `onXDomainChange`, a BarChart with
+`yDomain` + `onValueDomainChange`.
+
+**Linked zoom:** a zoom in one panel is reported through `shared`, Multiples
+stores it as the shared domain and every panel receives it as its controlled
+window, so all panels follow the gesture; a reset (`null`) remounts the panels
+so each returns to its own full extent together. Shared scales without zoom
+are the same wiring with `zoomable` off on the panels: the given domain fixes
+every panel's range.
+
+**Outer axes:** the grid measures each panel's chart SVG and positions the
+outer axes over it, so they line up with the data whatever the chart's own
+margins are. Ticks come from the shared domains: the calendar ladder for dated
+x, adaptive nice steps for numbers, always inside the domain.
+
+```tsx
+<Multiples
+  items={tickers}
+  titleKey="symbol"
+  columns="auto"
+  render={(t, shared) => (
+    <Scatterplot
+      series={[{ name: t.symbol, data: t.data, showLine: true, showPoints: false }]}
+      height={shared.height}
+      scaffolding={shared.scaffolding}
+      zoomable
+      xDomain={shared.xDomain}
+      onXDomainChange={shared.onXDomainChange}
+    />
+  )}
+/>
+
+<Multiples
+  items={regions}
+  titleKey="region"
+  link="y"
+  yDomain={[0, 100]}
+  columns={3}
+  render={(r, shared) => (
+    <BarChart
+      categories={quarters}
+      series={[{ name: r.region, values: r.values }]}
+      height={shared.height}
+      scaffolding={shared.scaffolding}
+      yDomain={shared.yDomain}
+      onValueDomainChange={shared.onValueDomainChange}
+    />
+  )}
+/>
+
+<Multiples
+  items={tickers}
+  titleKey="symbol"
+  axes="outer"
+  link="both"
+  xDomain={[new Date(2025, 8, 1), new Date(2026, 7, 20)]}
+  yDomain={[70, 140]}
+  yLabel="indexed to 100"
+  render={(t, shared) => <Scatterplot {...panelProps(t, shared)} />}
+/>
 ```
 
 ## NonIdealState
@@ -2079,6 +2545,63 @@ inside sidebars/split layouts, not just full width.
 </Reflow.Root>
 ```
 
+## SankeyChart
+
+`import { SankeyChart } from "@tarassov-ch/swiss-function/sankey-chart"`
+
+Weighted flows between nodes in layers (issue #95): a budget from revenue lines to cost centres to line items, fund flows from share classes through funds into strategies, a funnel, an energy balance. Nodes are columns sized by their flow, links are ribbons as thick as their value, and the layout is d3-sankey's, hand-rolled with no dependency: layer by longest path from the sources, order by barycenter relaxation, then resolve collisions. Neutral ink by default; hovering a node lights its incident ribbons and fades the rest. Mixes in the frame / fullscreen / posture parts of `ChartScaffoldingProps` (there is no continuous axis, so no `zoomable` or annotations) and the shared click-to-freeze `ChartSelectionProps`. Extends `HTMLAttributes<HTMLDivElement>`.
+
+`SankeyNode = { id: string; name?: string; layer?: number; color?: string }`, `SankeyLink = { source: string; target: string; value: number; color?: string }`. The chart reports `SankeyDatum`, a `SankeyNodeDatum` (`{ kind: "node", id, name, layer, valueIn, valueOut, value }`) or a `SankeyLinkDatum` (`{ kind: "link", source, target, sourceName, targetName, value, shareOfSource, shareOfTarget, cyclic }`), on hover, activate and selection. `Flows` and `BridgeChart` read change along time; this reads flow between categories.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `nodes` | `SankeyNode[]` | n/a | A pinned `layer` fixes a node's column; `color` feeds the node and `linkFill="source"` / `"target"`. |
+| `links` | `SankeyLink[]` | n/a | `value` must be positive. Links to unknown ids are dropped, a link that closes a cycle is drawn dashed but takes no part in the layering; each case logs a dev warning. |
+| `align` | `"left" \| "right" \| "center" \| "justify"` | `"justify"` | Column alignment: `justify` moves every sink to the last column, `left` / `right` pack toward one side, `center` pulls late sources up against their targets. |
+| `nodeWidth` | `number` | `12` | Node (column) thickness in px. |
+| `nodePadding` | `number` | `8` | Vertical gap between the nodes of one column in px. |
+| `sort` | `"auto" \| "none" \| (a, b) => number` | `"auto"` | Node order within a column: the relaxation reorders (`auto`), the input order holds (`none`), or a comparator over the laid-out nodes (`value`, `name`, `layer`) fixes it. |
+| `iterations` | `number` | `6` | Relaxation passes of the barycenter ordering. More untangle denser graphs. |
+| `linkFill` | `"neutral" \| "source" \| "target" \| "dither"` | `"neutral"` | Ribbon paint: translucent ink, the source or target node's colour, or the house halftone dot field. A link's own `color` wins. |
+| `labels` | `"auto" \| "none"` | `"auto"` | Node names outside the diagram on the first and last columns and to the right of a node elsewhere; measured, ellipsized to their room, and thinned per column so two never overlap (the bigger node keeps its label). |
+| `showValues` | `boolean` | `false` | Print each node's flow (mono, tabular) after its name. `scaffolding="full"` prints it too. |
+| `valueFormat` | `(value: number) => string` | `formatNumber` | Formats printed and tooltip values (Swiss thousands by default). |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | px or CSS value. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Posture: `full` outlines the nodes and prints their values. |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `onPointActivate` | `(datum: SankeyDatum) => void` | n/a | Click / Enter on a node or a ribbon. Drill-down is an event: swap the data yourself. |
+| `renderTooltip` | `(datum: SankeyDatum) => ReactNode` | default formatter | A node shows its totals in and out; a ribbon its value and its share of the source. |
+| `selectable` | `boolean` | `false` | Click-to-freeze: a click pins a node or a ribbon and opens a popover anchored to it (see Scatterplot). |
+| `selection` / `defaultSelection` | `SankeyDatum \| null` | `null` | Controlled / initial pinned mark. |
+| `onSelectionChange` | `(selection: SankeyDatum \| null) => void` | n/a | Fires on pin, toggle and dismissal. |
+| `renderSelection` | `(selection: SankeyDatum) => ReactNode` | `renderTooltip` | Popover body for the pinned mark. |
+
+Every node and ribbon is a focusable `role="button"` with an accessible name (`"Source to Target: value"` for a ribbon), so the diagram reads and operates from the keyboard: Tab through the marks, Enter or Space activates. Nothing animates position; only the lit / faded opacities fade, and they hold still under `prefers-reduced-motion`.
+
+```tsx
+<SankeyChart
+  nodes={[
+    { id: "revenue", name: "Revenue" },
+    { id: "ops", name: "Operations" },
+    { id: "rnd", name: "R&D" },
+    { id: "salaries", name: "Salaries" },
+    { id: "cloud", name: "Cloud" },
+  ]}
+  links={[
+    { source: "revenue", target: "ops", value: 60 },
+    { source: "revenue", target: "rnd", value: 40 },
+    { source: "ops", target: "salaries", value: 60 },
+    { source: "rnd", target: "salaries", value: 30 },
+    { source: "rnd", target: "cloud", value: 10 },
+  ]}
+  showValues
+  selectable
+  onPointActivate={(d) => console.log(d.kind, d)}
+/>
+<SankeyChart nodes={funds} links={flows} linkFill="target" align="left" sort={(a, b) => b.value - a.value} />
+```
+
 ## Scatterplot
 
 `import { Scatterplot } from "@tarassov-ch/swiss-function/scatterplot"`
@@ -2239,6 +2762,61 @@ With `fill="none"` this turns the slider into a marker over any ramp, e.g. the
 <Slider defaultValue={5} min={0} max={10} step={1} marks />
 <Slider orientation="vertical" defaultValue={40} />
 <Slider defaultValue={62} fill="dither" style={{ "--sf-slider-radius": 0 }} />
+```
+
+## Slopegraph
+
+`import { Slopegraph } from "@tarassov-ch/swiss-function/slopegraph"`
+
+Change or rank between two or more states, after Tufte: every entity is a thin
+line between columns, and its name and number are the axis. No gridlines, no
+value axis; the column headers sit at the top, the labels are typographically
+aligned to the line ends (name then number before the first column, number then
+name after the last, numbers alone on inner columns), ties stack a label height
+apart, and when the height cannot hold every name the names thin (highlighted,
+top and bottom survive) while the lines stay. With more than two columns and
+`y="rank"` it is the bump chart. Renders a `<div>`; extends
+`HTMLAttributes<HTMLDivElement>` (minus `onChange`), the frame / fullscreen /
+posture parts of the shared chart scaffolding, and `ChartSelectionProps`. There
+is no continuous axis to window, so `zoomable` and annotations are not offered.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `columns` | `string[]` | required | The states, left to right (two or more), drawn as headers. |
+| `series` | `{ name, values: (number \| null)[], color? }[]` | required | One entity per series, one value per column. A `null` breaks the line at that column; an isolated value draws a point. `color` wins over `tone` and `highlight`. |
+| `y` | `"value" \| "rank"` | `"value"` | Plot the values, or each column's competition rank with 1 at the top (the bump chart). |
+| `labels` | `"both" \| "start" \| "end" \| "none"` | `"both"` | Which outer columns carry the names. |
+| `showValues` | `boolean` | `true` | Print the values: beside the names on the outer columns, centred over a halo on inner columns. |
+| `valueFormat` | `(value: number) => string` | `formatNumber` | Formats every printed value and the default tooltip. |
+| `highlight` | `string[]` | n/a | These entities in the accent (1.5px, semibold labels); the rest in neutral ink. |
+| `tone` | `"direction" \| "none"` | `"none"` | `"direction"` colours each line by its first-to-last change: rising in success, falling in danger, flat in neutral ink. For ranks a smaller number is a rise. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | Component height. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | The column rules: never, on hover, always. |
+| `frame` / `fullscreen` | `boolean` | `false` | The shared chart frame and the maximize toggle. |
+| `xLabel` / `yLabel` | `string` | n/a | A caption under the plot / a rotated label at the left. |
+| `onPointActivate` | `(datum: SlopeDatum) => void` | n/a | Click / Enter on a line. The datum carries the entity, the nearest column and its value there, plus every column's value. |
+| `renderTooltip` | `(datum: SlopeDatum) => ReactNode` | name + every column's value | Hover tooltip, anchored at the nearest column point. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | `ChartSelectionProps<SlopeDatum>` | off | Click-to-freeze: pins the entity (a heavier line, an accent ring on the column point) and opens a popover there. |
+
+Hovering a line keeps its ink and steps the others back; the tooltip anchors on
+the column nearest the pointer. Every line is keyboard-reachable (focus shows
+its tooltip at the first column, Enter activates). Label widths are measured
+and ellipsized against a gutter capped at a third of the plot, with the full
+name in the tooltip.
+
+```tsx
+<Slopegraph
+  columns={["1970", "1979"]}
+  series={[
+    { name: "Sweden", values: [46.9, 57.4] },
+    { name: "Britain", values: [40.7, 39.0] },
+    { name: "Japan", values: [20.7, 26.6] },
+  ]}
+  tone="direction"
+  valueFormat={(v) => v.toFixed(1)}
+  height={320}
+/>
+<Slopegraph columns={["R1", "R2", "R3", "R4"]} series={standings} y="rank" highlight={["Zurich"]} />
 ```
 
 ## Spinner
@@ -2638,6 +3216,68 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 | `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
 | `surface` | `Root` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of every key (`lib/surface`); cascades to all items. Items are raised keys like Button; the pressed item sits down at panel level. |
 | `curve` | `Root` | `number` | `1` | Amplitude of the face ramps as a multiple of `--sf-curve`; cascades to all items. |
+
+## Treemap
+
+`import { Treemap, treemapPath } from "@tarassov-ch/swiss-function/treemap"`
+
+Hierarchical part-to-whole by area: every node is a cell whose area is its
+value, groups nest their children with a header strip, and a second measure
+(`change`) can colour the cells on a diverging success / danger ramp, the
+market map. This is the library's answer to the pie chart: squarified cells
+compare by area and label themselves. Cells are absolutely positioned HTML, so
+names ellipsize natively and never rotate; siblings tile with hairline gaps and
+no drawn borders, so a seam is never doubled. There is no continuous axis, so
+the shared scaffolding contributes `frame`, `fullscreen` and `scaffolding` only
+(no `zoomable`); drill-down is an event you answer by setting `root`. Mixes in
+`ChartSelectionProps` (`selectable` click-to-freeze selection with a pinned
+popover on the cell). Extends `HTMLAttributes<HTMLDivElement>` (minus
+`onChange`).
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `TreemapNode` | n/a | `{ id?, name, value?, children?, color?, change? }`. A parent without a `value` sums its children; a parent without a `change` takes the value-weighted mean of its children's. Ids default to the path (`"Portfolio/Tech"`). |
+| `root` | `string` | the data root | Id of the node to draw as the root (a subtree). Unknown ids fall back to the data root. |
+| `colorBy` | `"none" \| "group" \| "change"` | `"none"` | Neutral cells; one hue at a ladder of densities per top-level group (with the house dither on every second lap, never a rainbow); or a diverging success / danger ramp from `change`. A node's own `color` wins. |
+| `changeDomain` | `[number, number]` | symmetric at the largest drawn change | Where the change ramp saturates. |
+| `layout` | `"squarify" \| "slice" \| "dice" \| "sliceDice"` | `"squarify"` | Squarify sorts siblings by value; the other layouts keep the input order. |
+| `padding` | `number` | `1` | Hairline gap between siblings, px. |
+| `groupPadding` | `number` | `1` | Inset inside a group around its children, px. |
+| `depth` | `number` | all | Levels to draw below the root; deeper subtrees aggregate into one cell (`datum.aggregated`). |
+| `showValues` | `boolean` | `false` | Print a cell's value under its name (and after a group's header name) where it fits, measured. |
+| `valueFormat` | `(value, datum) => string` | `formatNumber(v, { maximumFractionDigits: 2 })` | Format printed values, the tooltip included. |
+| `changeFormat` | `(change, datum) => string` | signed number with `%` | Format the change in the tooltip. |
+| `labels` | `"auto" \| "none"` | `"auto"` | `auto` prints names in cells at least 36 x 16 px, ellipsized; `none` prints nothing (tooltips still name the cell). |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | Plot height. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | A treemap has no axes: `minimal` is the pure area read (no hairline gaps, no group headers); `hover` and `full` are the same here (gaps and headers). |
+| `frame` / `fullscreen` | `boolean` | `false` | The shared frame and maximize-to-viewport toggle. |
+| `onPointActivate` | `(datum: TreemapDatum) => void` | n/a | A click, Enter or Space on a cell (leaf or group header). For drill-down, set `root` to `datum.id` when `datum.kind === "group"`. |
+| `renderTooltip` | `(datum: TreemapDatum) => ReactNode` | name, value, share of parent and of total, change | Custom hover tooltip; also the default popover body. |
+| `selectable` / `selection` / `defaultSelection` / `onSelectionChange` / `renderSelection` | see Scatterplot | off | Click-to-freeze selection on a cell (outlined in the accent, a popover pinned to it). |
+
+`TreemapDatum` (what the tooltip, the selection and `onPointActivate` see):
+`{ id, name, value, change?, depth, path, shareOfParent, shareOfTotal, parentName?, kind: "leaf" | "group", aggregated, node }`.
+
+`treemapPath(data, id)` returns the nodes from the data root down to `id`
+(empty for an unknown id), which is the breadcrumb of a drilled-down map.
+
+Interactive cells (`onPointActivate` or `selectable`) are buttons, focusable
+and keyboard-operable; otherwise the plot is one `img` with a summarizing
+label. Hover and selection draw an inset ring and never recolour a cell.
+Nothing animates on a re-layout.
+
+```tsx
+<Treemap data={portfolio} showValues />
+<Treemap data={market} colorBy="change" height="calc(var(--sf-unit) * 22)" />
+<Treemap
+  data={market}
+  root={root}
+  onPointActivate={(d) => {
+    if (d.kind === "group") setRoot(d.id);
+  }}
+/>
+<Treemap data={costs} layout="slice" showValues depth={1} />
+```
 
 ## VerticalForm
 

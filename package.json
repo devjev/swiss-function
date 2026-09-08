@@ -75,9 +75,17 @@
       "types": "./dist/components/Box/index.d.ts",
       "import": "./dist/components/Box/index.js"
     },
+    "./box-plot": {
+      "types": "./dist/components/BoxPlot/index.d.ts",
+      "import": "./dist/components/BoxPlot/index.js"
+    },
     "./bridge-chart": {
       "types": "./dist/components/BridgeChart/index.d.ts",
       "import": "./dist/components/BridgeChart/index.js"
+    },
+    "./bullet-chart": {
+      "types": "./dist/components/BulletChart/index.d.ts",
+      "import": "./dist/components/BulletChart/index.js"
     },
     "./button-group": {
       "types": "./dist/components/ButtonGroup/index.d.ts",
@@ -331,6 +339,26 @@
       "types": "./dist/components/DataTable/index.d.ts",
       "import": "./dist/components/DataTable/index.js"
     },
+    "./dot-plot": {
+      "types": "./dist/components/DotPlot/index.d.ts",
+      "import": "./dist/components/DotPlot/index.js"
+    },
+    "./histogram": {
+      "types": "./dist/components/Histogram/index.d.ts",
+      "import": "./dist/components/Histogram/index.js"
+    },
+    "./horizon-chart": {
+      "types": "./dist/components/HorizonChart/index.d.ts",
+      "import": "./dist/components/HorizonChart/index.js"
+    },
+    "./marimekko": {
+      "types": "./dist/components/Marimekko/index.d.ts",
+      "import": "./dist/components/Marimekko/index.js"
+    },
+    "./multiples": {
+      "types": "./dist/components/Multiples/index.d.ts",
+      "import": "./dist/components/Multiples/index.js"
+    },
     "./table-input": {
       "types": "./dist/components/TableInput/index.d.ts",
       "import": "./dist/components/TableInput/index.js"
@@ -366,6 +394,18 @@
     "./reflow": {
       "types": "./dist/components/Reflow/index.d.ts",
       "import": "./dist/components/Reflow/index.js"
+    },
+    "./sankey-chart": {
+      "types": "./dist/components/SankeyChart/index.d.ts",
+      "import": "./dist/components/SankeyChart/index.js"
+    },
+    "./slopegraph": {
+      "types": "./dist/components/Slopegraph/index.d.ts",
+      "import": "./dist/components/Slopegraph/index.js"
+    },
+    "./treemap": {
+      "types": "./dist/components/Treemap/index.d.ts",
+      "import": "./dist/components/Treemap/index.js"
     },
     "./vertical-form": {
       "types": "./dist/components/VerticalForm/index.d.ts",

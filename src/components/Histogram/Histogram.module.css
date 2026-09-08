@@ -1,0 +1,277 @@
+/* Same grid skeleton as BarChart / Scatterplot (see Scatterplot.module.css for
+   the column/row map). Re-stated here so each component owns its style sheet.
+
+   Columns: [yLabel? | yAxis | plot]
+   Rows:    [plot / xAxis / xLabel? / legend?] */
+
+.root {
+  display: grid;
+  position: relative;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: 1fr auto auto auto;
+  block-size: calc(var(--sf-unit) * 12);
+  /* Half a label's height so the topmost y tick label, centred on the plot's
+     top edge, stays inside the chart bound. */
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-family: var(--sf-font-sans);
+  color: var(--sf-color-fg);
+}
+
+.yLabel {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding-inline-end: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.xLabel {
+  grid-column: 3;
+  grid-row: 3;
+  text-align: center;
+  padding-block-start: calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.yAxis {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.xAxis {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.plot {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  min-block-size: calc(var(--sf-unit) * 4);
+}
+
+/* --- Interactive scaffolding (zoom / annotations, issue #35) ------------ */
+
+.root[data-zoomable] {
+  outline: none;
+}
+
+.root[data-zoomable]:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
+
+/* The chart owns its gestures: no browser pan/pinch on the plot. */
+.root[data-zoomable] .plot {
+  touch-action: none;
+  cursor: grab;
+}
+
+.root[data-zoomable] .plot:active {
+  cursor: grabbing;
+}
+
+/* An armed draw tool: crosshair instead of the pan grab-hand. */
+.root[data-tool] .plot {
+  cursor: crosshair;
+}
+
+.svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.gridline {
+  stroke: var(--sf-color-gridline);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+
+/* Always-on scaffolding: gridlines stay at half opacity. */
+.root[data-scaffolding="full"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="full"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* Hover-mode scaffolding: fade in on bin hover / focus. */
+.root[data-scaffolding="hover"][data-hovered="true"] .gridline {
+  opacity: 0.5;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .gridlineMajor {
+  opacity: 1;
+}
+
+/* The y axis (HTML side) follows the same fade rules. */
+.yAxis {
+  transition: opacity var(--sf-duration-base) var(--sf-ease-out);
+}
+.root[data-scaffolding="hover"] .yAxis {
+  opacity: 0;
+}
+.root[data-scaffolding="hover"][data-hovered="true"] .yAxis {
+  opacity: 1;
+}
+
+/* --- Bins ------------------------------------------------------------- */
+
+/* Flush bars: no gaps, so the distribution reads as one shape. A hairline in
+   the page colour separates adjacent bins (the "white gridline" of Tufte's
+   bar chart redesign) instead of a darker stroke. The fill is the series
+   colour, set inline. */
+.bar {
+  cursor: default;
+  outline: none;
+  stroke: var(--sf-color-bg);
+  stroke-width: 1;
+  transition: filter var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* Overlaid series: translucent fills so the overlap reads as a third tone. */
+.svg[data-overlaid] .bar {
+  fill-opacity: 0.55;
+}
+
+.bar[data-activatable] {
+  cursor: pointer;
+}
+
+.bar:hover,
+.bar:focus-visible {
+  filter: brightness(1.1);
+}
+
+.bar:focus-visible {
+  stroke: var(--sf-color-focus-ring);
+  stroke-width: var(--sf-focus-ring-width, 2px);
+}
+
+/* The pinned (frozen) selection: an accent ring, distinct from the hover
+   brighten, so the bin the popover belongs to reads as held. */
+.bar[data-selected] {
+  stroke: var(--sf-color-primary);
+  stroke-width: 2.5;
+}
+
+/* Cumulative mode: the bins become invisible hit areas under the step line. */
+.hit {
+  fill: transparent;
+  stroke: none;
+  cursor: default;
+  outline: none;
+}
+.hit[data-activatable] {
+  cursor: pointer;
+}
+.hit:focus-visible {
+  fill: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+}
+
+/* --- Curves: the density estimate and the cumulative step ------------- */
+
+.curve {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.step {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linejoin: miter;
+  pointer-events: none;
+}
+
+/* The pinned point on a step line (cumulative mode). */
+.selectedRing {
+  fill: none;
+  stroke: var(--sf-color-primary);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+/* --- Value labels above bins (showValues) ----------------------------- */
+
+.valueLabel {
+  fill: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  pointer-events: none;
+}
+
+/* Tall bins whose label would overflow the plot top flip it inside the bar,
+   on the "foreground on a coloured fill" token. */
+.valueLabelInside {
+  fill: var(--sf-color-primary-fg);
+}
+
+/* --- Legend (shared pattern) ------------------------------------------ */
+
+.legend {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 2);
+  padding-block-start: calc(var(--sf-unit) / 3);
+  font-size: var(--sf-font-size-sm);
+  justify-content: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+.legendSwatch {
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
+  block-size: calc(var(--sf-unit) / 2);
+  border-radius: var(--sf-radius-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridline,
+  .yAxis,
+  .bar {
+    transition: none;
+  }
+}
+
+/* --- Corner Reset (zoomed, no toolbar) -------------------------------- */
+
+.resetButton {
+  position: absolute;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 3);
+  border: 1px solid var(--sf-color-border);
+  background: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-medium);
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  border-color: var(--sf-color-border-strong);
+}
+
+.resetButton:focus-visible {
+  outline: var(--sf-focus-ring-width) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset);
+}
