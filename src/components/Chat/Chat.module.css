@@ -44,21 +44,40 @@
 /* User messages — right-aligned bubble with a tinted bg (~12% primary mixed
    with the page bg) + matching hairline border, max 75% width so they don't
    span the full column. Elevation-2 lifts the bubble off the page. */
+/* A user message is a strip of label-maker tape, not a box: bold monospace
+   letters embossed on a run of the primary colour, in the page colour, the
+   run following the lines (box-decoration-break clones the padding and the
+   edge bands onto every line fragment). The tape wears the material layer's
+   edge bands and the letters are barely raised in its light: half a pixel of
+   lit edge toward the light, half a pixel of shade away from it. Right-aligned, so it reads as the other voice. */
 .userMessage {
   align-self: flex-end;
   max-inline-size: 75%;
-  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 2 / 3);
-  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 88%);
-  color: var(--sf-color-fg);
-  border: 1px solid color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg) 70%);
-  border-radius: var(--sf-radius-default);
-  box-shadow: var(--sf-elevation-2);
+  text-align: end;
 }
 
 .userContent {
-  display: block;
+  display: inline;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  padding: 0.2em 0.5em;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-weight: var(--sf-font-weight-bold);
+  letter-spacing: 0.02em;
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-bg);
+  box-shadow: var(--sf-edge);
+  /* Embossed letters: the lit edge on the light's side, the shade away from
+     it, on the light vector the whole material layer reads. */
+  text-shadow:
+    calc(var(--sf-light-x) * 0.5px) calc(var(--sf-light-y) * 0.5px) 0 rgb(255 255 255 / 0.1),
+    calc(var(--sf-light-x) * -0.5px) calc(var(--sf-light-y) * -0.5px) 0 rgb(0 0 0 / 0.12);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  /* Room between the strips of consecutive lines, so each line reads as its
+     own piece of tape rather than one solid block. */
+  line-height: 1.9;
 }
 
 /* Input row — pinned at the bottom with a hairline above. align-items: end so

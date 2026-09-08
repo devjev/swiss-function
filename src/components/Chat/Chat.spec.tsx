@@ -15,14 +15,22 @@ test("renders user and assistant messages with role-distinguished styling", asyn
   await expect(c.getByText("Hello!")).toBeVisible();
   await expect(c.locator('[data-role="user"]')).toHaveCount(1);
   await expect(c.locator('[data-role="assistant"]')).toHaveCount(1);
-  // User message bubble has a visible background; assistant message doesn't.
-  const userBg = await c
-    .locator('[data-role="user"]')
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  // The user's text sits on a highlighter stroke (the primary colour, the text
+  // in the page colour); the assistant's text sits on nothing.
+  const userRun = await c
+    .locator('[data-role="user"] span')
+    .first()
+    .evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, color: cs.color, display: cs.display };
+    });
   const assistantBg = await c
     .locator('[data-role="assistant"]')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(userBg).not.toBe(assistantBg);
+  expect(userRun.bg).not.toBe("rgba(0, 0, 0, 0)");
+  expect(userRun.bg).not.toBe(assistantBg);
+  expect(userRun.display).toBe("inline");
+  expect(userRun.color).not.toBe(userRun.bg);
 });
 
 test("onSubmit fires with the trimmed input text; input clears and stays focused", async ({
