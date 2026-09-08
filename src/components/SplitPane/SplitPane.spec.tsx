@@ -65,3 +65,92 @@ test("dragging the divider toward the main pane grows the panel", async ({ mount
   if (!after) throw new Error("missing box");
   expect(after.width).toBeGreaterThan(before.width + 60);
 });
+
+test("a percentage panel keeps its share when the container resizes", async ({ mount }) => {
+  const c = await mount(
+    <div data-testid="wrap" style={{ inlineSize: 800, blockSize: 300 }}>
+      <SplitPane defaultOpen side="right" defaultSize="30%" minSize={100}>
+        <SplitPane.Main>
+          <div>main</div>
+        </SplitPane.Main>
+        <SplitPane.Panel data-testid="panel">
+          <div>panel</div>
+        </SplitPane.Panel>
+      </SplitPane>
+    </div>,
+  );
+  const panel = c.getByTestId("panel");
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(240);
+  await c.evaluate((el) => {
+    (el as HTMLElement).style.inlineSize = "500px";
+  });
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(150);
+});
+
+test("a px panel is clamped to a container that shrinks below it, and comes back", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <div data-testid="wrap" style={{ inlineSize: 700, blockSize: 300 }}>
+      <SplitPane defaultOpen side="right" defaultSize={320} minSize={100} minMainSize={96}>
+        <SplitPane.Main>
+          <div>main</div>
+        </SplitPane.Main>
+        <SplitPane.Panel data-testid="panel">
+          <div>panel</div>
+        </SplitPane.Panel>
+      </SplitPane>
+    </div>,
+  );
+  const panel = c.getByTestId("panel");
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(320);
+  await c.evaluate((el) => {
+    (el as HTMLElement).style.inlineSize = "300px";
+  });
+  // 300 minus the 96px main minimum.
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(204);
+  await c.evaluate((el) => {
+    (el as HTMLElement).style.inlineSize = "700px";
+  });
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(320);
+});
+
+test("a controlled size follows the pointer during a drag and reports px and fraction", async ({
+  mount,
+  page,
+}) => {
+  const reports: Array<[number, number]> = [];
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 300 }}>
+      <SplitPane
+        defaultOpen
+        side="right"
+        size={200}
+        minSize={100}
+        onSizeChange={(px, fraction) => {
+          reports.push([Math.round(px), Math.round(fraction * 100) / 100]);
+        }}
+      >
+        <SplitPane.Main>
+          <div>main</div>
+        </SplitPane.Main>
+        <SplitPane.Panel data-testid="panel">
+          <div>panel</div>
+        </SplitPane.Panel>
+      </SplitPane>
+    </div>,
+  );
+  const panel = c.getByTestId("panel");
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(200);
+  const sep = await c.getByRole("separator").boundingBox();
+  if (!sep) throw new Error("no separator");
+  await page.mouse.move(sep.x + sep.width / 2, sep.y + sep.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sep.x + sep.width / 2 - 100, sep.y + sep.height / 2, { steps: 5 });
+  // Mid-drag the panel follows the pointer even though the size is controlled.
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(300);
+  await page.mouse.up();
+  // Released: back to the controlled 200 until the owner applies the report.
+  await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(200);
+  expect(reports).toEqual([[300, 0.38]]);
+});

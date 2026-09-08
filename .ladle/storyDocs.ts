@@ -779,6 +779,8 @@ export const storyDocs: Record<string, string> = {
     "The base case: a 24-section document with a mix of clickable, level-indented `header` labels (every third section) and plain `block` rules, two carrying a `tone` for status. Reach for this default right rail to give any scrollable region a structural overview.",
   "minimap--wide-rail":
     "The default document with `width={10}`, widening the rail (in `--sf-unit` multiples) so longer heading labels get room. Set `width` when the labels need more horizontal space than the 3u default.",
+  "minimap--dom-markers":
+    "Markers measured from the DOM with `useMinimapMarkers`: `h2` / `h3` become clickable labels with the level from the tag, paragraphs become blocks the height of the element, and the rail re-measures when the content changes. No hand-placed marker list.",
   "non-ideal-state--effects-subtle":
     "The quiet, evenly-covered effects (breathe, twinkle, interleave, rotate, blocks, shimmer, sparkle, blink). Reach here when the fill should read as texture behind the message rather than draw the eye.",
   "non-ideal-state--effects1":
@@ -973,6 +975,12 @@ export const storyDocs: Record<string, string> = {
     'The default: a right-edge panel (`side="right"`) that pushes the main content left. Toggle it with the button, then drag the divider to resize or focus it and use the arrow keys; `onSizeChange` reports the settled width.',
   "splitpane--top":
     'The panel docks to the top edge (`side="top"`) above the main region, split by a horizontal divider. Reach for it when the secondary content belongs above the main view.',
+  "splitpane--ratio":
+    'A percentage panel (`defaultSize="35%"`) keeps its share of the container: drag the width slider and the panel follows. A px panel would keep its px instead.',
+  "splitpane--shrinking-container":
+    "A 320px panel in a container that shrinks below it: the panel is clamped to the container minus `minMainSize` (96px by default) and returns to its px when the room is back.",
+  "splitpane--controlled":
+    "A controlled `size` held by the owner as a percentage: the panel follows the pointer during a drag, then shows what the owner applies from `onSizeChange(px, fraction)`.",
   "stack--basic":
     "A fixed-height box where a heading and an Amount field keep their natural size while a `Stack.Fill` holding a `TextEdit fill` stretches to the bottom edge. Reach for it when one region in a region of fixed height should absorb the leftover vertical space.",
   "stack--horizontal":

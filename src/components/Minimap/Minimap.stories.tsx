@@ -1,6 +1,8 @@
 import type { Story } from "@ladle/react";
+import { useRef } from "react";
 import type { MinimapMarker } from "./Minimap";
 import { Minimap } from "./Minimap";
+import { useMinimapMarkers } from "./useMinimapMarkers";
 
 /* Deterministic long document: numbered sections of fixed-length prose, so the
    stories are VRT-stable (no randomness, no dates). */
@@ -167,3 +169,38 @@ export const RTL: Story = () => (
     </Minimap>
   </div>
 );
+
+/** Markers measured from the DOM with `useMinimapMarkers`: headings become
+ *  labels (level from the tag), paragraphs become blocks, nothing hand-placed. */
+export const DomMarkers: Story = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const markers = useMinimapMarkers(rootRef, [
+    { selector: "h2, h3", kind: "header" },
+    { selector: "p", kind: "block" },
+  ]);
+  const sections = ["Overview", "Scope", "Method", "Data", "Results", "Discussion", "Appendix"];
+  return (
+    <div style={{ height: 480, width: 640 }}>
+      <Minimap markers={markers}>
+        <div ref={rootRef} style={{ padding: "var(--sf-unit)", maxWidth: "var(--sf-measure)" }}>
+          {sections.map((title, i) => (
+            <section key={title}>
+              <h2>{title}</h2>
+              <p>
+                Section {i + 1} opens with a paragraph long enough to show as a block on the rail.
+                The Minimap reads the headings and paragraphs straight from the DOM, so this
+                document needs no marker list of its own.
+              </p>
+              <h3>{title} detail</h3>
+              <p>
+                A subsection follows, one level deeper on the rail. Add or remove content and the
+                rail re-measures on the next frame.
+              </p>
+              <p>A second paragraph, so the density read has something to show.</p>
+            </section>
+          ))}
+        </div>
+      </Minimap>
+    </div>
+  );
+};

@@ -2132,6 +2132,28 @@ viewport (camera recentering); this maps a 1D DOM scroll offset.
 </Minimap>
 ```
 
+**Markers from the DOM.** For content you do not lay out yourself (rendered
+markdown, a document, a form of mixed parts), `useMinimapMarkers(rootRef,
+sources)` measures the markers instead of you supplying them. Point `rootRef` at
+the element you render as the Minimap's child and describe what counts with
+selectors: `{ selector: "h2, h3", kind: "header" }` turns headings into labels
+(the level from the tag, the label from the text; `label` / `level` / `tone` /
+`emphasis` override per source) and `{ selector: "p" }` turns elements into
+blocks the height of the element (`extent: false` for a bare rule). The hook
+re-measures on the next frame when the root resizes or its subtree mutates, and
+once the document's fonts are in, and returns a stable array. `measureMinimapMarkers(root, sources)` is the one-shot measure behind it.
+
+```tsx
+const rootRef = useRef<HTMLDivElement>(null);
+const markers = useMinimapMarkers(rootRef, [
+  { selector: "h2, h3", kind: "header" },
+  { selector: "p", kind: "block" },
+]);
+<Minimap markers={markers}>
+  <div ref={rootRef}>{children}</div>
+</Minimap>
+```
+
 ## Multiples
 
 `import { Multiples } from "@tarassov-ch/swiss-function/multiples"`
@@ -2867,9 +2889,11 @@ A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane
 | `side` | `"left" \| "right" \| "top" \| "bottom"` | `"right"` | Edge the panel sits on. |
 | `open` / `defaultOpen` / `onOpenChange` | n/a | n/a | Panel open state (controlled or uncontrolled). |
 | `resizable` | `boolean` | `true` | Drag the divider to resize; `false` removes it. |
-| `defaultSize` | `number` | `320` | Panel size in px (remembered across open/close). |
-| `minSize` / `maxSize` | `number` | `200` / n/a | px clamps. `maxSize` is also capped to the container minus a small main minimum. |
-| `onSizeChange` | `(px: number) => void` | n/a | Fired when a resize settles, or on a keyboard step. |
+| `size` | `number \| string` | n/a | Controlled panel size: px, or a percentage of the container (`"30%"`). The panel follows the pointer while a drag lasts, then shows what the owner sets from `onSizeChange`. |
+| `defaultSize` | `number \| string` | `320` | Initial size when uncontrolled: px, or a percentage of the container (`"30%"`), which the panel keeps as the container resizes. Remembered across open/close. |
+| `minSize` / `maxSize` | `number` | `200` / n/a | px clamps. `maxSize` is also capped to the container minus `minMainSize`, and so is a px panel in a container that has shrunk below it (it comes back when there is room again). |
+| `minMainSize` | `number` | `96` | The least the main pane keeps, in px. |
+| `onSizeChange` | `(px: number, fraction: number) => void` | n/a | Fired when a resize settles or a keyboard step lands, with the size in px and as a fraction of the container (persist the fraction to restore a percentage size). |
 
 The divider is `role="separator"` with `aria-orientation` + `aria-valuenow/min/max`, focusable, and resizes with the arrow keys. The collapse/expand animates `inline-size`/`block-size` (instant under `prefers-reduced-motion`; no transition while dragging).
 
