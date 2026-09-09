@@ -88,6 +88,11 @@ export interface ChatDrawerProps {
    *  content hides (it stays mounted, so its state survives) and reappears
    *  once there is room again. Only rendered with `centered`. */
   margins?: { left?: ReactNode; right?: ReactNode };
+  /** The gutter between margin content and the chat column (only with
+   *  `centered`). `number` → multiples of `--sf-unit` (default `1`);
+   *  `string` → raw CSS. The outer side of a margin is always flush with the
+   *  panel edge. */
+  marginGap?: number | string;
   /** Hide the margin content when a margin is narrower than this (px).
    *  Default 160. */
   marginMinWidth?: number;
@@ -271,6 +276,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     onChatWidthChange,
     margins,
     marginMinWidth = 160,
+    marginGap = 1,
     padding = 1,
     thinking = false,
     onThinkingStart,
@@ -450,7 +456,12 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       className={styles.centerBody}
       data-align={chatAlign}
       data-dragging={edgeDragging || undefined}
-      style={{ "--cd-chat-width": `${chatWidth}px` } as CSSProperties}
+      style={
+        {
+          "--cd-chat-width": `${chatWidth}px`,
+          "--cd-margin-gap": toPadding(marginGap),
+        } as CSSProperties
+      }
     >
       {chatAlign !== "left" && marginCell("left")}
       {chatAlign !== "left" && edgeHandle("left")}

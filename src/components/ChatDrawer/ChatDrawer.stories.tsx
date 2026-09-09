@@ -489,4 +489,10 @@ export const Views: Story = () => <ViewsDemo />;
  *  margin to save them. The margins are a shelf that keeps what lands on it,
  *  across reloads (localStorage), each saved widget removable. Ask for AUM,
  *  flows, a chart or the quarter close. */
-export const Megachat: Story = () => <MegachatDemo />;
+export const Megachat: Story<{ marginGap: number }> = ({ marginGap }) => (
+  <MegachatDemo marginGap={marginGap} />
+);
+Megachat.args = { marginGap: 1 };
+Megachat.argTypes = {
+  marginGap: { control: { type: "range", min: 0, max: 4, step: 0.25 } },
+};

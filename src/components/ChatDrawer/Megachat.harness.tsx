@@ -471,11 +471,15 @@ export interface MegachatDemoProps {
   persist?: string | false;
   /** Start maximized. Default true. */
   defaultExpanded?: boolean;
+  /** The gutter between the shelves and the chat column, in `--sf-unit`
+   *  multiples (or raw CSS). Default 1. */
+  marginGap?: number | string;
 }
 
 export function MegachatDemo({
   persist = "sf-megachat-saved",
   defaultExpanded = true,
+  marginGap = 1,
 }: MegachatDemoProps) {
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -707,8 +711,8 @@ export function MegachatDemo({
         chatAlign={align}
         defaultChatWidth={720}
         minChatWidth={480}
-        maxChatWidth={1200}
         marginMinWidth={200}
+        marginGap={marginGap}
         margins={margins}
         messages={messages}
         onSubmit={handleSubmit}

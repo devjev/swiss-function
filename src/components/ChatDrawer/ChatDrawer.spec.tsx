@@ -540,3 +540,31 @@ test("megachat: aligning the chat left leaves one masonry shelf on the right", a
   await page.getByRole("button", { name: "Chat centered" }).click();
   await expect(c.locator("[data-shelf]")).toHaveCount(2);
 });
+
+test("marginGap sets the gutter between margin content and the column", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ inlineSize: 900, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        expanded
+        centered
+        defaultChatWidth={400}
+        marginGap={2}
+        margins={{ left: <div data-testid="m-left">left</div>, right: <div>right</div> }}
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  const gap = await c.getByTestId("m-left").evaluate((el) => {
+    const content = el.parentElement as HTMLElement;
+    const column = content
+      .closest('[class*="centerBody"]')
+      ?.querySelector('[class*="centerColumn"]');
+    if (!column) return -1;
+    return column.getBoundingClientRect().left - el.getBoundingClientRect().right;
+  });
+  expect(Math.abs(gap - 48)).toBeLessThan(1);
+});

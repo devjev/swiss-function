@@ -231,18 +231,19 @@
 }
 
 /* App-populated margin content. Only the side facing the column is padded:
-   one unit, the frame's own rhythm, which also keeps app content out of the
-   edge handle's 6px grab zone. The outer side stays flush, so margin content
-   sits at the same distance from the panel edge as the header. */
+   `--cd-margin-gap` (the `marginGap` prop, one unit by default, the frame's
+   own rhythm), which also keeps app content out of the edge handle's 6px grab
+   zone. The outer side stays flush, so margin content sits at the same
+   distance from the panel edge as the header. */
 .marginContent {
   block-size: 100%;
   box-sizing: border-box;
 }
 .margin[data-side="left"] .marginContent {
-  padding-inline-end: var(--sf-unit);
+  padding-inline-end: var(--cd-margin-gap, var(--sf-unit));
 }
 .margin[data-side="right"] .marginContent {
-  padding-inline-start: var(--sf-unit);
+  padding-inline-start: var(--cd-margin-gap, var(--sf-unit));
 }
 
 .marginHidden {
