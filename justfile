@@ -26,6 +26,14 @@ test:
 test-watch:
     npm run test:watch
 
+# Audit production dependencies: high and above fail (the CI gate)
+audit:
+    npm run audit
+
+# Audit the whole tree, dev tools included, every severity
+audit-all:
+    npm audit
+
 # Run Playwright component tests
 test-ct:
     npm run test:ct

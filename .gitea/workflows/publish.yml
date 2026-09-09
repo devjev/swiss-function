@@ -39,6 +39,12 @@ jobs:
       - name: Install
         run: npm ci
 
+      # A release with a known high or critical advisory in a production
+      # dependency does not ship. The same gate runs on main and weekly in
+      # audit.yml, so this only bites when an advisory landed since.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       # Biome ships as a prebuilt linux binary that won't run on the maintainer's
       # NixOS dev box, so it's intentionally NOT in package.json's devDependencies
       # (the flake.nix provides it locally). CI installs it globally here so the

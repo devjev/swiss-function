@@ -1,6 +1,6 @@
 import type { FeatureCollection } from "geojson";
-import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
-import maplibregl from "maplibre-gl";
+// maplibre-gl 6 ships named exports only (no default `maplibregl` object).
+import { Map as MaplibreMap, type MapMouseEvent, type StyleSpecification } from "maplibre-gl";
 // MapLibre's own stylesheet is REQUIRED: it makes the GL canvas `position:absolute`
 // (out of normal flow). Without it the in-flow canvas feeds its height back into
 // the container, growing unbounded every frame — a resize loop that flickers and
@@ -252,7 +252,7 @@ const MapRoot = forwardRef<HTMLDivElement, MapProps>(function Map(
 
     const reduced = prefersReducedMotion();
     const init = initialCamRef.current;
-    const map = new maplibregl.Map({
+    const map = new MaplibreMap({
       container,
       style: resolveStyle(basemapRef.current, styleUrlRef.current, container),
       center: init.center ?? DEFAULT_CENTER,
@@ -270,12 +270,12 @@ const MapRoot = forwardRef<HTMLDivElement, MapProps>(function Map(
       bumpEpoch();
     });
 
-    map.on("click", (e) => {
+    map.on("click", (e: MapMouseEvent) => {
       const hit = featureAt(map, e.point, [e.lngLat.lng, e.lngLat.lat]);
       if (hit) handlersRef.current.onFeatureClick?.(hit);
     });
 
-    map.on("mousemove", (e) => {
+    map.on("mousemove", (e: MapMouseEvent) => {
       const hit = featureAt(map, e.point, [e.lngLat.lng, e.lngLat.lat]);
       map.getCanvas().style.cursor = hit ? "pointer" : "";
       if (!hit) {

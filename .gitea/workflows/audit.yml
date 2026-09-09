@@ -1,0 +1,42 @@
+name: Dependency audit
+
+# Known advisories in the dependency tree. Runs on every push to main, once a
+# week (advisories land without a commit), and on demand. `npm audit` reads
+# package-lock.json and asks the registry: no install, so no dependency
+# lifecycle scripts run on the runner.
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The gate the publish job applies too: nothing ships with a high or
+      # critical advisory in a production dependency.
+      - name: Production dependencies (high and above fail)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Dev tooling runs on every contributor's machine: a critical there
+      # fails as well. Runs even when the step above failed, so one run
+      # reports both.
+      - name: Whole tree, dev tools included (critical fails)
+        if: always()
+        run: npm audit --audit-level=critical
+
+      # The full picture, every severity, never failing.
+      - name: Whole tree report
+        if: always()
+        run: npm audit || true

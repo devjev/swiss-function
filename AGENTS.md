@@ -646,6 +646,7 @@ hasn't been activated.
 - `npm run test`: Vitest, runs **only `*.test.{ts,tsx}`**
 - `npm run test:ct`: Playwright Component Testing, runs **only `*.spec.tsx`**
 - `npm run build`: full library build (see the build chain below)
+- `npm run audit`: known advisories in production dependencies, high and above fail (the CI gate; `npm audit` for the whole tree, dev tools included)
 
 Run a single test: `npx vitest run path/to/File.test.tsx` (or `-t "name"`
 to filter). Single CT spec:
@@ -747,7 +748,10 @@ because fetching the HTML page paraphrases the markdown.
    then commits + tags + pushes `--follow-tags`. Pass an explicit bump
    (`just release patch`) to force one with no changesets. CI
    (`.gitea/workflows/publish.yml`, note `.gitea/` not `.forgejo/`) guards that
-   the tag is on `main`, publishes to the Forgejo npm registry, and creates the
+   the tag is on `main`, audits the production dependencies (a high or
+   critical advisory blocks the release; `.gitea/workflows/audit.yml` runs the
+   same audit on every push to `main` and weekly, plus a critical-level check
+   of the whole tree), publishes to the Forgejo npm registry, and creates the
    Forgejo Release with the packed tarball attached **and the CHANGELOG section
    as its body** (no hand-written notes). Never `npm publish` manually; CI races
    you. `just changes-status` shows what a release would ship.

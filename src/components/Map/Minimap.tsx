@@ -1,6 +1,5 @@
 import type { FeatureCollection } from "geojson";
-import type { GeoJSONSource } from "maplibre-gl";
-import maplibregl from "maplibre-gl";
+import { type GeoJSONSource, Map as MaplibreMap } from "maplibre-gl";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef, useEffect, useRef } from "react";
 import { cx } from "../../lib/cx";
@@ -16,7 +15,7 @@ const OVERVIEW_DELTA = 4;
 const VIEWPORT_SRC = "sf-minimap-viewport";
 
 /** Build the rectangle of the main map's current viewport as a polygon FC. */
-function viewportRect(main: maplibregl.Map): FeatureCollection {
+function viewportRect(main: MaplibreMap): FeatureCollection {
   const b = main.getBounds();
   const w = b.getWest();
   const s = b.getSouth();
@@ -68,7 +67,7 @@ export const MapMinimap = forwardRef<HTMLDivElement, MapMinimapProps>(function M
     if (!main || !container) return;
 
     let removed = false;
-    const mini = new maplibregl.Map({
+    const mini = new MaplibreMap({
       container,
       style: buildMinimalStyle(container),
       interactive: false,
