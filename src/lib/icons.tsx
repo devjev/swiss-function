@@ -66,6 +66,8 @@ export const SF_ICON_SLOTS = [
   "play",
   "pause",
   "stop",
+  // Widget: the settings key that opens the parameter table
+  "sliders",
   // Stat / KPI delta direction
   "trendUp",
   "trendDown",

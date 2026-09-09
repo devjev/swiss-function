@@ -3396,6 +3396,49 @@ Tokens: sets `--vf-pad` per instance; inherits `--sf-minimap-width` from `Minima
 </div>
 ```
 
+## Widget
+
+`import { Widget, KpiWidget, ChartWidget, TableWidget, ProgressWidget } from "@tarassov-ch/swiss-function/widget"`
+
+The shell of a chat widget: a framed card whose title bar carries the widget's **input parameters**. One or two params edit inline in the bar (a month picker after "Net flows"); three or more fold behind a settings key that opens a dialog with a table of them, applied at once. The body is yours (a `Stat`, a chart, a table), or one of the standard widgets fills it. Built for replies in `Chat` (via `renderPart`) and for the shelves of a `ChatDrawer` margin, where the same widget lives on after a drag. Extends `HTMLAttributes<HTMLDivElement>` (minus `title`): spread `draggable` / `onDragStart` on it to make it a drag source.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `title` | `ReactNode` | required | The header title: the widget's identity. |
+| `params` | `WidgetParam[]` | n/a | The input parameters with their current values (controlled). Up to `inlineParams` edit inline; more go behind the settings key. |
+| `onParamsChange` | `(values: WidgetParamValues, changed: string[]) => void` | n/a | The full values map (id → value) and the ids that changed: one id from an inline edit, every edited id at once from the dialog's Apply. |
+| `inlineParams` | `number` | `2` | How many params still edit inline in the header. |
+| `paramsTitle` | `string` | `"Parameters"` | The settings key's label and the dialog's title. |
+| `actions` | `ReactNode` | n/a | Header actions at the trailing end (a remove or pop-out key). |
+| `loading` | `boolean` | `false` | A thin indeterminate `Progress` under the header while the data loads; the body stays. |
+| `error` | `ReactNode` | n/a | Replaces the body with an error line (`role="alert"`, danger colour). |
+| `size` | `"sm" \| "md"` | `"md"` | `md` for a reply; `sm` for a narrow shelf (tighter header and body). |
+| `elevation` | `BoxElevation` | `0` | Surface depth (a hairline frame at 0). |
+| `flush` | `boolean` | `false` | No body padding, for a table or chart that fills the frame. |
+
+**`WidgetParam`** is a discriminated union on `type`; every member has `id` (the key in the values map) and `label` (the table row's header, the inline control's accessible name), and carries its current `value`:
+
+| `type` | `value` | Editor | Extra fields |
+| --- | --- | --- | --- |
+| `"select"` | `string` | `Picker` (sm) | `options: PickerItem[]` |
+| `"date"` | `Date \| null` | `DatePicker` (sm) | `precision` (`day` / `week` / `month` / `year`), `minDate`, `maxDate` |
+| `"number"` | `number \| null` | `DigitInputMicro` (sm) | `min`, `max`, `decimals`, `unit`, `slots` |
+| `"text"` | `string` | `Input` (sm) | `placeholder` |
+| `"boolean"` | `boolean` | `Switch` | |
+
+Helpers, also exported: `formatParamValue(param, value?)` prints a value the way the header summary and the table do (an option's label, an ISO date at the param's precision such as `2026-09` or `2026-W37`, a Swiss number with its unit, `on` / `off`); `formatParamsSummary(params)` joins the set values; `paramValues(params)` maps ids to values; `formatDateByPrecision(date, precision)` and `isoWeek(date)`.
+
+**Standard widgets** take every shell prop (`WidgetShellProps`, the above minus `children`) plus their body:
+
+| Component | Body | Own props |
+| --- | --- | --- |
+| `KpiWidget` | A `Stat` | `value` (number in Swiss typography, or a node), `decimals`, `unit`, `delta`, `goodDirection`, `trend` (sparkline), `caption`, `tone`, `statSize` (default `sm`, `xs` in a `size="sm"` widget), `subtitle` (the Stat's own label line; none by default) |
+| `ChartWidget` | A `BarChart` | `categories`, `series`, `height` (default 140, 112 when `sm`), `scaffolding` (`minimal` by default), `yLabel` |
+| `TableWidget<T>` | A `DataTable`, flush | `columns: ColumnDef<T>[]`, `rows: T[]`, `height` |
+| `ProgressWidget` | A `Progress` (sm) | `value` (0 to 100, or `null`), `label` (a line above the bar), `tone`, `showValue` (on by default for a number) |
+
+The settings key renders through the `sliders` icon slot (`IconProvider` can redirect it).
+
 ## WindowArray
 
 `import { WindowArray } from "@tarassov-ch/swiss-function/window-array"`

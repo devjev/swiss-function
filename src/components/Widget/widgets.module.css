@@ -1,0 +1,23 @@
+/* Bodies of the standard widgets. */
+
+/* The Stat sits flat in the shell (no card of its own): the widget is the card. */
+.stat[data-size] {
+  padding: 0;
+}
+
+.chart {
+  padding-block-start: calc(var(--sf-unit) / 2);
+}
+
+.table {
+  margin: -1px;
+}
+
+.progress {
+  display: grid;
+  gap: calc(var(--sf-unit) / 3);
+}
+.progressLabel {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+}

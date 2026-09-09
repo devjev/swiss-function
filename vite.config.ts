@@ -93,6 +93,7 @@ const componentNames = [
   "Slopegraph",
   "Treemap",
   "VerticalForm",
+  "Widget",
   "WindowArray",
 ];
 

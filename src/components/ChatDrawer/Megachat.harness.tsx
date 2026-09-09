@@ -1,18 +1,25 @@
 import type { DragEvent, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BarChart } from "../BarChart";
-import { Box } from "../Box";
 import { Button } from "../Button";
-import { ChatBlock, type ChatMessage } from "../Chat";
+import type { ChatMessage } from "../Chat";
 import { PanelCenter, PanelLeft, PanelRight, X } from "../Icon";
 import { MenuBar } from "../MenuBar";
-import { Progress } from "../Progress";
-import { Stat } from "../Stat";
+import {
+  ChartWidget,
+  KpiWidget,
+  ProgressWidget,
+  type WidgetParam,
+  type WidgetParamValues,
+  type WidgetShellProps,
+} from "../Widget";
 import { type ChatAlign, ChatDrawer } from "./ChatDrawer";
 
 /** The megachat demo: the assistant maximized as a centered column, replying
- *  with widgets (a KPI card, a chart, a progress card) that you drag into
- *  either margin to save them. The margins are a shelf: what lands there stays
+ *  with widgets (a KPI card, a chart, a progress card) that you drag into a
+ *  margin to save them. A widget carries its input parameters in its title
+ *  bar (a month, an as-of date and a currency) or, with more of them, behind
+ *  a settings key; every instance keeps its own values, and a drag onto a
+ *  shelf takes them along. The margins are a shelf: what lands there stays
  *  through the conversation and, with `persist`, across reloads; each saved
  *  widget has a remove button. Shared by the story and the component test. */
 
@@ -25,83 +32,181 @@ const WIDGET_TITLES: Record<MegachatWidgetId, string> = {
   close: "Quarter close",
 };
 
-const MONTHS = ["Apr", "May", "Jun", "Jul", "Aug", "Sep"];
-const FLOWS = [12.4, -3.1, 8.8, 15.2, -6.7, 9.3];
-
 export const MEGACHAT_WIDGET_IDS = Object.keys(WIDGET_TITLES) as MegachatWidgetId[];
 
-/** The widget body for an id: the reply's size, or `compact` for the shelf,
- *  where the margin is narrower (an xs Stat, a shorter chart). */
-export function MegachatWidget({ id, compact }: { id: MegachatWidgetId; compact?: boolean }) {
-  const statSize = compact ? "xs" : "sm";
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** Net flows per month of 2026, in MCHF. */
+const FLOWS = [7.9, 4.2, 11.0, 12.4, -3.1, 8.8, 15.2, -6.7, 9.3, 5.1, -2.2, 10.6];
+const FX: Record<string, number> = { CHF: 1, USD: 1.12, EUR: 1.04 };
+const CURRENCIES = [
+  { value: "CHF", label: "CHF" },
+  { value: "USD", label: "USD" },
+  { value: "EUR", label: "EUR" },
+];
+
+/** Default parameter values per widget; every instance starts from these. */
+export const WIDGET_DEFAULTS: Record<MegachatWidgetId, WidgetParamValues> = {
+  aum: { asOf: new Date(2026, 8, 8), ccy: "CHF" },
+  flows: { month: new Date(2026, 8, 1) },
+  "flows-chart": { from: new Date(2026, 3, 1), to: new Date(2026, 8, 1), ccy: "CHF", basis: "net" },
+  close: {},
+};
+
+const asDate = (v: unknown, fallback: Date): Date => (v instanceof Date ? v : fallback);
+const asText = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
+
+/** The parameter list of a widget at the given values. */
+function paramsFor(id: MegachatWidgetId, values: WidgetParamValues): WidgetParam[] {
+  const d = WIDGET_DEFAULTS[id];
   switch (id) {
     case "aum":
-      return (
-        <Stat
-          label="Assets under management"
-          value={1284500}
-          valueUnit={compact ? undefined : "kCHF"}
-          delta={2.1}
-          trend={[1180, 1195, 1210, 1204, 1230, 1262, 1284]}
-          size={statSize}
-          elevation={1}
-        />
-      );
+      return [
+        { id: "asOf", label: "As of", type: "date", value: asDate(values.asOf, d.asOf as Date) },
+        {
+          id: "ccy",
+          label: "Currency",
+          type: "select",
+          value: asText(values.ccy, "CHF"),
+          options: CURRENCIES,
+        },
+      ];
     case "flows":
-      return (
-        <Stat
-          label="Net flows, September"
-          value={9300}
-          valueUnit={compact ? undefined : "kCHF"}
-          delta={-0.8}
-          size={statSize}
-          elevation={1}
-        />
-      );
+      return [
+        {
+          id: "month",
+          label: "Month",
+          type: "date",
+          precision: "month",
+          value: asDate(values.month, d.month as Date),
+        },
+      ];
     case "flows-chart":
-      return (
-        <Box elevation={1} padding={0.5}>
-          <BarChart
-            categories={MONTHS}
-            series={[{ name: "Net flows (MCHF)", values: FLOWS }]}
-            height={compact ? 128 : 140}
-            scaffolding="minimal"
-          />
-        </Box>
-      );
-    case "close":
-      return (
-        <Box
-          elevation={1}
-          padding={0.5}
-          style={{ display: "grid", gap: "calc(var(--sf-unit) / 3)" }}
-        >
-          <span>Quarter close, 7 of 9 steps</span>
-          <Progress value={78} showValue size="sm" />
-        </Box>
-      );
+      return [
+        {
+          id: "from",
+          label: "From",
+          type: "date",
+          precision: "month",
+          value: asDate(values.from, d.from as Date),
+        },
+        {
+          id: "to",
+          label: "To",
+          type: "date",
+          precision: "month",
+          value: asDate(values.to, d.to as Date),
+        },
+        {
+          id: "ccy",
+          label: "Currency",
+          type: "select",
+          value: asText(values.ccy, "CHF"),
+          options: CURRENCIES,
+        },
+        {
+          id: "basis",
+          label: "Basis",
+          type: "select",
+          value: asText(values.basis, "net"),
+          options: [
+            { value: "net", label: "Net of fees" },
+            { value: "gross", label: "Gross" },
+          ],
+        },
+      ];
     default:
-      return null;
+      return [];
   }
 }
 
-/** A widget in a reply: draggable into a shelf. HTML drag and drop, so it
- *  also works between windows; the shelf reads the id from the transfer. */
-function ReplyWidget({ id }: { id: MegachatWidgetId }) {
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: a drag source; saving stays keyboard-reachable through the shelf buttons.
-    <div
-      draggable
-      data-widget={id}
-      onDragStart={(e: DragEvent<HTMLDivElement>) => {
-        e.dataTransfer.setData("text/plain", id);
-        e.dataTransfer.effectAllowed = "copy";
-      }}
-      style={{ cursor: "grab" }}
-    >
-      <MegachatWidget id={id} />
-    </div>
-  );
+const monthIndex = (date: Date) => date.getMonth();
+const fx = (ccy: string) => FX[ccy] ?? 1;
+
+export interface MegachatWidgetProps extends Omit<WidgetShellProps, "title" | "params"> {
+  id: MegachatWidgetId;
+  /** The instance's parameter values (defaults fill what is missing). */
+  values: WidgetParamValues;
+  onValuesChange: (values: WidgetParamValues) => void;
+  /** The shelf form: `size="sm"`, elevated. */
+  compact?: boolean;
+}
+
+/** The widget for an id at the given parameter values: the reply's size, or
+ *  `compact` for the shelf, where the margin is narrower. The data is derived
+ *  from the values (a fixed table scaled by month, currency and basis). */
+export function MegachatWidget({
+  id,
+  values,
+  onValuesChange,
+  compact,
+  ...shell
+}: MegachatWidgetProps) {
+  const common = {
+    title: WIDGET_TITLES[id],
+    params: paramsFor(id, values),
+    onParamsChange: (next: WidgetParamValues) => onValuesChange(next),
+    size: compact ? ("sm" as const) : ("md" as const),
+    elevation: compact ? (1 as const) : (0 as const),
+    ...shell,
+  };
+  switch (id) {
+    case "aum": {
+      const asOf = asDate(values.asOf, WIDGET_DEFAULTS.aum.asOf as Date);
+      const ccy = asText(values.ccy, "CHF");
+      const growth = 1 + 0.004 * (monthIndex(asOf) - 8);
+      return (
+        <KpiWidget
+          {...common}
+          value={Math.round(1284500 * growth * fx(ccy))}
+          unit={compact ? undefined : `k${ccy}`}
+          delta={2.1}
+          trend={[1180, 1195, 1210, 1204, 1230, 1262, 1284].map((v) => v * growth)}
+        />
+      );
+    }
+    case "flows": {
+      const m = monthIndex(asDate(values.month, WIDGET_DEFAULTS.flows.month as Date));
+      const prev = FLOWS[(m + 11) % 12] ?? 1;
+      const cur = FLOWS[m] ?? 0;
+      return (
+        <KpiWidget
+          {...common}
+          value={Math.round(cur * 1000)}
+          unit={compact ? undefined : "kCHF"}
+          delta={Math.round(((cur - prev) / Math.abs(prev)) * 10) / 10}
+        />
+      );
+    }
+    case "flows-chart": {
+      const from = monthIndex(asDate(values.from, WIDGET_DEFAULTS["flows-chart"].from as Date));
+      const to = monthIndex(asDate(values.to, WIDGET_DEFAULTS["flows-chart"].to as Date));
+      const ccy = asText(values.ccy, "CHF");
+      const gross = values.basis === "gross";
+      const months: number[] = [];
+      for (let m = from; months.length < 12; m = (m + 1) % 12) {
+        months.push(m);
+        if (m === to) break;
+      }
+      return (
+        <ChartWidget
+          {...common}
+          categories={months.map((m) => MONTHS[m] ?? "")}
+          series={[
+            {
+              name: `${gross ? "Gross" : "Net"} flows (M${ccy})`,
+              values: months.map(
+                (m) => +((FLOWS[m] ?? 0) * (gross ? 1.6 : 1) * fx(ccy)).toFixed(1),
+              ),
+            },
+          ]}
+        />
+      );
+    }
+    case "close":
+      return <ProgressWidget {...common} value={78} label={compact ? undefined : "7 of 9 steps"} />;
+    default:
+      return null;
+  }
 }
 
 /** A masonry of saved widgets for a wide margin: as many columns as
@@ -192,6 +297,15 @@ function Masonry({
   );
 }
 
+/** What a drag carries: the widget id and the source instance whose
+ *  parameter values the shelf copy inherits. */
+const TRANSFER = "text/plain";
+const encodeTransfer = (id: MegachatWidgetId, sourceKey: string) => `${id}|${sourceKey}`;
+const decodeTransfer = (data: string): { id: MegachatWidgetId; sourceKey: string } | null => {
+  const [id, sourceKey = ""] = data.split("|");
+  return id && id in WIDGET_TITLES ? { id: id as MegachatWidgetId, sourceKey } : null;
+};
+
 /** One margin: bare space that keeps what lands on it. No text of its own
  *  (the app decides what the margins say later); a dashed outline marks a
  *  drag over it. `layout="stack"` is the narrow gutter's single column;
@@ -199,30 +313,40 @@ function Masonry({
 function Shelf({
   side,
   saved,
+  valuesFor,
+  onValuesChange,
   onSave,
   onRemove,
   layout = "stack",
 }: {
   side: "left" | "right";
   saved: MegachatWidgetId[];
-  onSave: (id: MegachatWidgetId) => void;
+  valuesFor: (id: MegachatWidgetId) => WidgetParamValues;
+  onValuesChange: (id: MegachatWidgetId, values: WidgetParamValues) => void;
+  onSave: (id: MegachatWidgetId, sourceKey: string) => void;
   onRemove: (id: MegachatWidgetId) => void;
   layout?: "stack" | "masonry";
 }) {
   const [over, setOver] = useState(false);
   const item = (id: MegachatWidgetId) => (
-    <div key={id} data-saved={id} style={{ position: "relative" }}>
-      <MegachatWidget id={id} compact />
-      <Button
-        variant="ghost"
-        size="sm"
-        tight
-        aria-label={`Remove ${WIDGET_TITLES[id]}`}
-        onClick={() => onRemove(id)}
-        style={{ position: "absolute", insetBlockStart: 2, insetInlineEnd: 2 }}
-      >
-        <X />
-      </Button>
+    <div key={id} data-saved={id}>
+      <MegachatWidget
+        id={id}
+        compact
+        values={valuesFor(id)}
+        onValuesChange={(v) => onValuesChange(id, v)}
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            tight
+            aria-label={`Remove ${WIDGET_TITLES[id]}`}
+            onClick={() => onRemove(id)}
+          >
+            <X />
+          </Button>
+        }
+      />
     </div>
   );
   return (
@@ -241,8 +365,8 @@ function Shelf({
       onDrop={(e) => {
         e.preventDefault();
         setOver(false);
-        const id = e.dataTransfer.getData("text/plain") as MegachatWidgetId;
-        if (id in WIDGET_TITLES) onSave(id);
+        const t = decodeTransfer(e.dataTransfer.getData(TRANSFER));
+        if (t) onSave(t.id, t.sourceKey);
       }}
       style={{
         blockSize: "100%",
@@ -268,12 +392,16 @@ function Shelf({
 
 type Saved = { left: MegachatWidgetId[]; right: MegachatWidgetId[] };
 const EMPTY: Saved = { left: [], right: [] };
+type InstanceValues = Record<string, WidgetParamValues>;
 
 const ALIGN_LABELS: Record<ChatAlign, string> = {
   left: "Chat on the left",
   center: "Chat centered",
   right: "Chat on the right",
 };
+
+/** The shelf instance of a widget: one per id, saved once anywhere. */
+const shelfKey = (id: MegachatWidgetId) => `shelf:${id}`;
 
 function readAlign(key: string): ChatAlign {
   try {
@@ -297,6 +425,25 @@ function readSaved(key: string): Saved {
   }
 }
 
+/** Instance values round-trip through JSON with dates tagged. */
+function serializeValues(values: InstanceValues): string {
+  return JSON.stringify(values, function replacer(this: Record<string, unknown>, key, value) {
+    const raw = this[key];
+    return raw instanceof Date ? { $date: raw.toISOString() } : value;
+  });
+}
+function readValues(key: string): InstanceValues {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    return JSON.parse(raw, (_k, value) =>
+      value && typeof value === "object" && "$date" in value ? new Date(value.$date) : value,
+    ) as InstanceValues;
+  } catch {
+    return {};
+  }
+}
+
 /** The assistant's reply for a prompt: text plus the widgets it names. */
 function replyFor(text: string): ChatMessage["parts"] {
   const t = text.toLowerCase();
@@ -311,8 +458,8 @@ function replyFor(text: string): ChatMessage["parts"] {
       type: "text",
       text:
         widgets.length > 1
-          ? "Here is what I have. Drag any of these into a side margin to save it."
-          : "Here it is. Drag it into a side margin to save it.",
+          ? "Here is what I have. Change a parameter in a title bar to refresh a widget, and drag any of them into a side margin to save it."
+          : "Here it is. Change a parameter in its title bar to refresh it, and drag it into a side margin to save it.",
     },
     ...widgets.map((widgetId, i) => ({ type: "widget", partId: `w-${Date.now()}-${i}`, widgetId })),
   ];
@@ -336,6 +483,15 @@ export function MegachatDemo({
   const [align, setAlign] = useState<ChatAlign>(() =>
     persist ? readAlign(`${persist}-align`) : "center",
   );
+  // Parameter values per widget instance: a reply part (by its partId) or a
+  // shelf copy (`shelf:<id>`). Missing keys fall back to the defaults.
+  const [instValues, setInstValues] = useState<InstanceValues>(() =>
+    persist ? readValues(`${persist}-params`) : {},
+  );
+  const valuesFor = (key: string, id: MegachatWidgetId) => instValues[key] ?? WIDGET_DEFAULTS[id];
+  const setValuesFor = (key: string) => (values: WidgetParamValues) =>
+    setInstValues((prev) => ({ ...prev, [key]: values }));
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -343,7 +499,7 @@ export function MegachatDemo({
       parts: [
         {
           type: "text",
-          text: "This is the maximized chat. Ask for AUM, flows, a chart or the quarter close and I answer with widgets; drag any widget into a side margin to save it. The margins keep what you save.",
+          text: "This is the maximized chat. Ask for AUM, flows, a chart or the quarter close and I answer with widgets. A widget carries its inputs in its title bar (or behind the sliders key when there are several); drag any widget into a side margin to save it with its current inputs.",
         },
         { type: "widget", partId: "w-aum", widgetId: "aum" },
       ],
@@ -365,17 +521,24 @@ export function MegachatDemo({
     try {
       localStorage.setItem(persist, JSON.stringify(saved));
       localStorage.setItem(`${persist}-align`, align);
+      localStorage.setItem(`${persist}-params`, serializeValues(instValues));
     } catch {
       // Storage may be unavailable; the shelf still works for the session.
     }
-  }, [persist, saved, align]);
+  }, [persist, saved, align, instValues]);
 
-  const save = (side: "left" | "right") => (id: MegachatWidgetId) =>
+  /** Save a widget to a side, its shelf copy inheriting the source's values. */
+  const save = (side: "left" | "right") => (id: MegachatWidgetId, sourceKey: string) => {
     setSaved((prev) =>
       prev.left.includes(id) || prev.right.includes(id)
         ? prev
         : { ...prev, [side]: [...prev[side], id] },
     );
+    setInstValues((prev) => {
+      const source = prev[sourceKey];
+      return source ? { ...prev, [shelfKey(id)]: source } : prev;
+    });
+  };
   const remove = (side: "left" | "right") => (id: MegachatWidgetId) =>
     setSaved((prev) => ({ ...prev, [side]: prev[side].filter((s) => s !== id) }));
   const removeAnywhere = (id: MegachatWidgetId) =>
@@ -383,16 +546,80 @@ export function MegachatDemo({
       left: prev.left.filter((s) => s !== id),
       right: prev.right.filter((s) => s !== id),
     }));
+  const shelfValuesFor = (id: MegachatWidgetId) => valuesFor(shelfKey(id), id);
+  const shelfValuesChange = (id: MegachatWidgetId, values: WidgetParamValues) =>
+    setValuesFor(shelfKey(id))(values);
+
+  /** Save every widget of the last reply to the shelf. */
+  const saveLastReply = () => {
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    const target: "left" | "right" = align === "left" ? "right" : "left";
+    for (const part of last?.parts ?? []) {
+      const p = part as { type: string; partId?: unknown; widgetId?: unknown };
+      if (p.type === "widget" && typeof p.widgetId === "string" && p.widgetId in WIDGET_TITLES) {
+        save(target)(p.widgetId as MegachatWidgetId, typeof p.partId === "string" ? p.partId : "");
+      }
+    }
+  };
+
+  const handleSubmit = (text: string) => {
+    const base = String(Date.now());
+    setMessages((prev) => [...prev, { id: `${base}-u`, role: "user", content: text }]);
+    setBusy(true);
+    window.setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        { id: `${base}-a`, role: "assistant", parts: replyFor(text) },
+      ]);
+      setBusy(false);
+    }, 1400);
+  };
+
+  /** A reply widget: the widget itself is the drag source (HTML drag and
+   *  drop, so it also works between windows); the shelf reads the id and the
+   *  source instance from the transfer. */
+  const renderPart = (part: { type: string; partId?: unknown; widgetId?: unknown }): ReactNode => {
+    if (
+      part.type !== "widget" ||
+      typeof part.widgetId !== "string" ||
+      !(part.widgetId in WIDGET_TITLES)
+    ) {
+      return null;
+    }
+    const id = part.widgetId as MegachatWidgetId;
+    const key = typeof part.partId === "string" ? part.partId : `w-${id}`;
+    return (
+      <MegachatWidget
+        id={id}
+        values={valuesFor(key, id)}
+        onValuesChange={setValuesFor(key)}
+        draggable
+        data-widget={id}
+        onDragStart={(e: DragEvent<HTMLDivElement>) => {
+          e.dataTransfer.setData(TRANSFER, encodeTransfer(id, key));
+          e.dataTransfer.effectAllowed = "copy";
+        }}
+        style={{ cursor: "grab" }}
+      />
+    );
+  };
 
   // Centered: a shelf on each side. Aligned to an edge: the one wide margin
   // on the other side holds everything saved, packed as a masonry, and it is
   // the only drop target.
   const shelfSide: "left" | "right" = align === "left" ? "right" : "left";
+  const shelfCommon = { valuesFor: shelfValuesFor, onValuesChange: shelfValuesChange };
   const margins =
     align === "center"
       ? {
           left: (
-            <Shelf side="left" saved={saved.left} onSave={save("left")} onRemove={remove("left")} />
+            <Shelf
+              side="left"
+              saved={saved.left}
+              onSave={save("left")}
+              onRemove={remove("left")}
+              {...shelfCommon}
+            />
           ),
           right: (
             <Shelf
@@ -400,6 +627,7 @@ export function MegachatDemo({
               saved={saved.right}
               onSave={save("right")}
               onRemove={remove("right")}
+              {...shelfCommon}
             />
           ),
         }
@@ -411,6 +639,7 @@ export function MegachatDemo({
               saved={[...saved.left, ...saved.right]}
               onSave={save(shelfSide)}
               onRemove={removeAnywhere}
+              {...shelfCommon}
             />
           ),
         };
@@ -434,28 +663,6 @@ export function MegachatDemo({
     </>
   );
 
-  const handleSubmit = (text: string) => {
-    const base = String(Date.now());
-    setMessages((prev) => [...prev, { id: `${base}-u`, role: "user", content: text }]);
-    setBusy(true);
-    window.setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: `${base}-a`, role: "assistant", parts: replyFor(text) },
-      ]);
-      setBusy(false);
-    }, 1400);
-  };
-
-  const renderPart = (part: { type: string; widgetId?: unknown }): ReactNode =>
-    part.type === "widget" &&
-    typeof part.widgetId === "string" &&
-    part.widgetId in WIDGET_TITLES ? (
-      <ChatBlock title={WIDGET_TITLES[part.widgetId as MegachatWidgetId]}>
-        <ReplyWidget id={part.widgetId as MegachatWidgetId} />
-      </ChatBlock>
-    ) : null;
-
   return (
     <div style={{ blockSize: 560, border: "1px solid var(--sf-color-border-subtle)" }}>
       <ChatDrawer
@@ -476,8 +683,8 @@ export function MegachatDemo({
             <MenuBar.Menu>
               <MenuBar.Trigger>Widgets</MenuBar.Trigger>
               <MenuBar.Content>
-                <MenuBar.Item>Clear saved</MenuBar.Item>
-                <MenuBar.Item>Save all from this reply</MenuBar.Item>
+                <MenuBar.Item onClick={() => setSaved(EMPTY)}>Clear saved</MenuBar.Item>
+                <MenuBar.Item onClick={saveLastReply}>Save all from the last reply</MenuBar.Item>
               </MenuBar.Content>
             </MenuBar.Menu>
             <MenuBar.Menu>

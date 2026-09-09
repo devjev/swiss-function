@@ -1121,6 +1121,18 @@ export const storyDocs: Record<string, string> = {
     "`nav` adds a bottom bar holding a searchable Picker of every section and field title. Selecting one scrolls to it; scrolling the form updates the Picker to the title at the top. Reach for it on a long, sectioned form where the rail alone isn't enough to jump around quickly.",
   "vertical-form--with-sections":
     "Fields grouped under `VerticalForm.Section` titles (Account, Profile, Preferences), each title becoming a level-1 rail marker with its fields indented under it. Use sections to give a longer form structure on the page and on the rail.",
+  "widget--compact":
+    '`size="sm"` for a narrow shelf: tighter header and body, an xs Stat, a shorter chart, and a remove key passed through `actions`. The month param still edits inline. This is the form a widget takes once dragged out of a reply into a margin.',
+  "widget--inline-param":
+    'One input parameter: the month edits right in the title bar after the name (a `date` param at `precision="month"`), and the figure follows it. Up to `inlineParams` (2 by default) params sit inline like this; the widget reports every change as the full values map plus the ids that changed.',
+  "widget--loading-and-error":
+    '`loading` runs a thin indeterminate bar under the header while the body stays in place (the data is being refetched after a param change); `error` replaces the body with a `role="alert"` line in the danger colour.',
+  "widget--settings-dialog":
+    "More params than fit inline (four here): the header prints their summary and a settings key (the sliders glyph) that opens a dialog with a table of them, one labelled editor per row. Edits are a draft: Apply reports them all at once (with the ids that changed), Cancel discards. Reach for this shape when a widget has three or more inputs.",
+  "widget--standard-widgets":
+    "The four standard widgets, each the shell with a purpose-built body: `KpiWidget` (a Stat: figure, delta, sparkline), `ChartWidget` (a BarChart of categories and series), `TableWidget` (a DataTable flush with the frame) and `ProgressWidget` (a labelled bar). All take the shell's props: `params`, `actions`, `loading`, `error`, `size`, `elevation`.",
+  "widget--two-params":
+    "Two params, an as-of date and a currency select, both inline in the title bar; the figure and its unit follow the currency. This is the upper bound for inline editing; a third param moves them all behind the settings key.",
   "windowarray--basic":
     "Three columns of stacked windows: drag a title to rearrange (drop it on a gutter to break it into its own column), drag a gutter to resize, and use arrows, Home, and End to navigate, Shift+Arrow to move. The starting point; `onWindowMove` reports each rearrange for you to apply to your own state.",
   "windowarray--custom-actions":

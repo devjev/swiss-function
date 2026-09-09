@@ -1,0 +1,166 @@
+/* The chat widget shell: a framed card, a title bar that carries the input
+   parameters (inline controls, or a summary and the settings key), the body. */
+.root {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  container-type: inline-size;
+  container-name: widget;
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  overflow: hidden;
+}
+
+/* Title bar: title | params | actions. Monospace, the family look of the
+   chat's TUI blocks. */
+.header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
+  background-color: var(--sf-color-bg-subtle);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  user-select: none;
+}
+
+.title {
+  min-inline-size: 0;
+  font-weight: var(--sf-font-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title::before {
+  content: "\25CF  ";
+}
+
+/* Inline params, or the summary and the settings key, at the bar's end. */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: calc(var(--sf-unit) / 4);
+  min-inline-size: 0;
+}
+.param {
+  display: inline-flex;
+  flex: none;
+}
+.select,
+.text {
+  inline-size: clamp(6rem, 14vw, 9rem);
+}
+.date {
+  inline-size: 8.5rem;
+}
+.summary {
+  min-inline-size: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+}
+
+/* A narrow widget (a shelf column): the params take a row of their own under
+   the title, left-aligned, so the inline fields keep their width. */
+@container widget (max-width: 20rem) {
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: calc(var(--sf-unit) / 4);
+  }
+  .title {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .actions {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .controls {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  /* Inline fields keep their width and wrap one per line; the summary and its
+     key stay on one line, the summary ellipsized. */
+  .controls[data-mode="summary"] {
+    flex-wrap: nowrap;
+  }
+  .controls:empty {
+    display: none;
+  }
+}
+
+/* The loading bar runs the full width under the header. */
+.loading {
+  border-radius: 0;
+}
+
+.body {
+  min-inline-size: 0;
+  padding: calc(var(--sf-unit) / 2);
+}
+.flush {
+  padding: 0;
+}
+
+/* Compact, for a narrow shelf. */
+.sm .header {
+  padding-block: calc(var(--sf-unit) / 8);
+}
+.sm .body {
+  padding: calc(var(--sf-unit) / 4);
+}
+.sm .flush {
+  padding: 0;
+}
+
+.error {
+  color: var(--sf-color-danger);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+}
+
+/* The parameter table in the settings dialog: label | control per row. */
+.dialog {
+  inline-size: min(32rem, 90vw);
+}
+.table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  margin-block: var(--sf-unit);
+}
+.table th,
+.table td {
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
+  text-align: start;
+  vertical-align: middle;
+}
+.rowLabel {
+  inline-size: 1%;
+  white-space: nowrap;
+  font-weight: var(--sf-font-weight-medium);
+  color: var(--sf-color-fg);
+}
+.rowControl {
+  min-inline-size: 0;
+}
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: calc(var(--sf-unit) / 2);
+}

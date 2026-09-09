@@ -96,6 +96,7 @@ export * from "./components/Timeline";
 export * from "./components/ToggleGroup";
 export * from "./components/Treemap";
 export * from "./components/VerticalForm";
+export * from "./components/Widget";
 export * from "./components/WindowArray";
 export type { Domain, GridData, Point3, PointSeries } from "./lib/chart3d/types";
 export * from "./lib/dnd";

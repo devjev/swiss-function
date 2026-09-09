@@ -227,6 +227,10 @@
       "types": "./dist/components/Dropzone/index.d.ts",
       "import": "./dist/components/Dropzone/index.js"
     },
+    "./widget": {
+      "types": "./dist/components/Widget/index.d.ts",
+      "import": "./dist/components/Widget/index.js"
+    },
     "./window-array": {
       "types": "./dist/components/WindowArray/index.d.ts",
       "import": "./dist/components/WindowArray/index.js"
