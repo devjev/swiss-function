@@ -69,7 +69,9 @@ export const KpiWidget = forwardRef<HTMLDivElement, KpiWidgetProps>(function Kpi
 export interface ChartWidgetProps extends WidgetShellProps {
   categories: BarChartProps["categories"];
   series: BarChartProps["series"];
-  /** Chart height. Default 140, or 112 in a `size="sm"` widget. */
+  /** Chart height. Default five and a half units, three and a half in a
+   *  `size="sm"` widget (with the half unit of label room above, a body of
+   *  six or four units). */
   height?: number | string;
   scaffolding?: BarChartProps["scaffolding"];
   yLabel?: string;
@@ -87,7 +89,10 @@ export const ChartWidget = forwardRef<HTMLDivElement, ChartWidgetProps>(function
         <BarChart
           categories={categories}
           series={series}
-          height={height ?? (shell.size === "sm" ? 112 : 140)}
+          height={
+            height ??
+            (shell.size === "sm" ? "calc(var(--sf-unit) * 3.5)" : "calc(var(--sf-unit) * 5.5)")
+          }
           scaffolding={scaffolding}
           yLabel={yLabel}
         />
@@ -99,17 +104,24 @@ export const ChartWidget = forwardRef<HTMLDivElement, ChartWidgetProps>(function
 export interface TableWidgetProps<T> extends WidgetShellProps {
   columns: ColumnDef<T>[];
   rows: T[];
-  /** Table height; the rows scroll inside it. Default: the rows' own height. */
+  /** Table height; the rows scroll inside it. Default: the header and rows
+   *  (a unit and a half each) rounded up to whole units, the remainder a
+   *  dithered band, so the widget stays on the grid. */
   height?: number | string;
 }
 
 /** A small table in a widget: a `DataTable` flush with the frame. */
 export function TableWidget<T>({ columns, rows, height, ...shell }: TableWidgetProps<T>) {
+  // Header + rows at a unit and a half each, rounded up so that with the
+  // title bar (a unit and a half) the widget is a whole number of units; the
+  // extra pixel is the table's top border, which overlaps the title bar's.
+  const rowUnits = (rows.length + 1) * 1.5;
+  const units = Math.ceil(rowUnits + 1.5) - 1.5;
+  const tableHeight = height ?? `calc(var(--sf-unit) * ${units} + 1px)`;
   return (
     <Widget {...shell} flush>
-      {/* The table's own frame sits on the widget's, one hairline, not two. */}
       <div className={styles.table}>
-        <DataTable data={rows} columns={columns} height={height} />
+        <DataTable data={rows} columns={columns} height={tableHeight} fillHeight />
       </div>
     </Widget>
   );

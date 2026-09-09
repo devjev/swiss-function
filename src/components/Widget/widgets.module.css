@@ -5,18 +5,26 @@
   padding: 0;
 }
 
+/* Half a unit of room above the plot for the value labels of the tallest
+   bars; the chart itself is five and a half units (three and a half when
+   compact), so the body is a whole six (four). */
 .chart {
   padding-block-start: calc(var(--sf-unit) / 2);
 }
 
+/* The table's own frame sits on the widget's: its top border under the title
+   bar's, its bottom border on the widget's, one hairline each. */
 .table {
   margin: -1px;
 }
 
+/* A unit per row: the label line, and the bar centred in a line of its own. */
 .progress {
   display: grid;
-  gap: calc(var(--sf-unit) / 3);
+  grid-auto-rows: var(--sf-unit);
+  align-items: center;
 }
+
 .progressLabel {
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);

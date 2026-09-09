@@ -14,13 +14,19 @@
 }
 
 /* Title bar: title | params | actions. Monospace, the family look of the
-   chat's TUI blocks. */
+   chat's TUI blocks. A unit and a half tall with the frame's top border
+   taken out of it, the controls centred (a small control is a unit, a
+   Picker a hair more), so the bar never moves the body off the grid. */
 .header {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   column-gap: calc(var(--sf-unit) / 2);
-  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  /* Border-box, so the bar's own rule is inside this; the frame's top border
+     is taken out, and frame edge to rule is exactly a unit and a half. */
+  block-size: calc(var(--sf-unit) * 1.5 - 1px);
+  padding: 0 calc(var(--sf-unit) / 2);
   border-block-end: 1px solid var(--sf-color-border-subtle);
   background-color: var(--sf-color-bg-subtle);
   font-family: var(--sf-font-mono);
@@ -78,7 +84,17 @@
 @container widget (max-width: 20rem) {
   .header {
     grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: calc(var(--sf-unit) / 4);
+    /* Two rows of a unit and a half (the frame's top border and the bar's
+       rule out of the first); the body then pads half a unit above and
+       below (n + 4). */
+    grid-template-rows: calc(var(--sf-unit) * 1.5 - 2px) calc(var(--sf-unit) * 1.5);
+    block-size: auto;
+  }
+  .header:has(.controls:empty) {
+    grid-template-rows: calc(var(--sf-unit) * 1.5 - 2px);
+  }
+  .root:has(.controls:not(:empty)) .body:not(.flush) {
+    padding-block: calc(var(--sf-unit) / 2) calc(var(--sf-unit) / 2 - 1px);
   }
   .title {
     grid-row: 1;
@@ -103,25 +119,29 @@
   }
 }
 
-/* The loading bar runs the full width under the header. */
+/* The loading bar lies on the header's bottom edge, adding no height. */
 .loading {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -1px;
   border-radius: 0;
 }
 
+/* Body padding that, with the bar, sums to whole units: three quarters of a
+   unit above and below (the frame's bottom border taken out of the second),
+   so a body of n units makes a widget of n + 3. */
 .body {
   min-inline-size: 0;
-  padding: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) * 0.75) calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 0.75 - 1px);
 }
+/* Flush: the content brings its own frame (a table); see TableWidget. */
 .flush {
   padding: 0;
 }
 
-/* Compact, for a narrow shelf. */
-.sm .header {
-  padding-block: calc(var(--sf-unit) / 8);
-}
+/* Compact, for a narrow shelf: a quarter unit above and below, n + 2. */
 .sm .body {
-  padding: calc(var(--sf-unit) / 4);
+  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 4 - 1px);
 }
 .sm .flush {
   padding: 0;

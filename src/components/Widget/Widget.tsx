@@ -224,10 +224,10 @@ export const Widget = forwardRef<HTMLDivElement, WidgetProps>(function Widget(
           ) : null}
         </div>
         {actions ? <div className={styles.actions}>{actions}</div> : null}
+        {loading ? (
+          <Progress value={null} size="xs" aria-label="Loading" className={styles.loading} />
+        ) : null}
       </div>
-      {loading ? (
-        <Progress value={null} size="xs" aria-label="Loading" className={styles.loading} />
-      ) : null}
       <div className={cx(styles.body, flush && styles.flush)}>
         {error != null ? (
           <div role="alert" className={styles.error}>

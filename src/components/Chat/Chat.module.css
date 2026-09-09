@@ -24,10 +24,20 @@
 /* Message list — the growing content the viewport scrolls over. A
    ResizeObserver watches this element to keep the view pinned to the bottom as
    the streaming reveal grows it. */
+/* The vertical rhythm is the library's: two units between messages, one
+   unit between the parts of a reply and between its paragraphs, and every
+   block a whole number of units tall, so text lines stay on the grid down
+   the whole conversation. The prose spacing tokens are re-set here so the
+   rendered markdown follows the same rule (a unit between paragraphs, list
+   items on consecutive lines). */
 .content {
+  --sf-prose-paragraph-spacing: var(--sf-unit);
+  --sf-prose-heading-trail: var(--sf-unit);
+  --sf-prose-list-item-spacing: 0px;
+  --sf-prose-code-wrap: pre-wrap;
   display: flex;
   flex-direction: column;
-  gap: var(--sf-unit);
+  gap: calc(var(--sf-unit) * 2);
   padding: var(--sf-unit);
 }
 
@@ -36,9 +46,9 @@
 }
 
 /* A rich-message block (text / choices / tree / custom). Stacked vertically
-   inside an assistant message with a half-unit gap between blocks. */
+   inside an assistant message with a unit between blocks. */
 .part:not(:first-child) {
-  margin-block-start: calc(var(--sf-unit) / 2);
+  margin-block-start: var(--sf-unit);
 }
 
 /* User messages — right-aligned bubble with a tinted bg (~12% primary mixed
@@ -77,7 +87,9 @@
   box-decoration-break: clone;
   /* Room between the strips of consecutive lines, so each line reads as its
      own piece of tape rather than one solid block. */
-  line-height: 1.9;
+  /* One unit per line: the tape's padding overhangs the line box (the
+     fragments overlap in one colour), so the message stays on the grid. */
+  line-height: var(--sf-unit);
 }
 
 /* Input row — pinned at the bottom with a hairline above. align-items: end so

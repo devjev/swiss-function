@@ -2979,7 +2979,7 @@ non-finite `delta` renders no indicator.
 
 | Prop (`Stat`) | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `label` | `ReactNode` | n/a | The metric name (rendered as a compact label). |
+| `label` | `ReactNode` | n/a | The metric name (rendered as a compact label). The label row (icon and label) renders only when one of them is given; the rows sit on the unit grid (label 1u, figure 1.5u at `sm`/`md`, footer 1u, sparkline 1.5u, half-unit gaps), so a Stat is a whole number of units at every size. |
 | `value` | `number \| ReactNode` | n/a | The figure. A `number` is Swiss-formatted (`1'284'500`); a `ReactNode` is rendered as-is. Tabular mono either way. |
 | `decimals` | `number` | n/a | Fixed decimal places for a numeric `value`. |
 | `valueUnit` | `string` | n/a | Unit appended to a numeric `value` (e.g. `"CHF"`), after a no-break space. |
@@ -3416,6 +3416,8 @@ The shell of a chat widget: a framed card whose title bar carries the widget's *
 | `size` | `"sm" \| "md"` | `"md"` | `md` for a reply; `sm` for a narrow shelf (tighter header and body). |
 | `elevation` | `BoxElevation` | `0` | Surface depth (a hairline frame at 0). |
 | `flush` | `boolean` | `false` | No body padding, for a table or chart that fills the frame. |
+
+The widget keeps the vertical rhythm: the title bar is a unit and a half (the frame's border taken out of it), the body padding sums with it to whole units (a body of n units makes a widget of n + 3, n + 2 when `sm`, n + 4 when a narrow widget stacks its params under the title), and the standard bodies are whole units (a KPI's Stat rows, a chart of 5.5 units under half a unit of label room, a table rounded up to the grid with a dithered remainder, a progress line per unit). Give a custom body a whole-unit height and the widget never moves what follows off the grid.
 
 **`WidgetParam`** is a discriminated union on `type`; every member has `id` (the key in the values map) and `label` (the table row's header, the inline control's accessible name), and carries its current `value`:
 

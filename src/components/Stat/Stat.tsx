@@ -170,14 +170,16 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
       data-elevation={elevation}
       data-card={elevation != null || undefined}
     >
-      <div className={styles.header}>
-        {icon && (
-          <span className={styles.icon} aria-hidden="true">
-            {icon}
-          </span>
-        )}
-        <span className={styles.label}>{label}</span>
-      </div>
+      {icon || label ? (
+        <div className={styles.header}>
+          {icon && (
+            <span className={styles.icon} aria-hidden="true">
+              {icon}
+            </span>
+          )}
+          <span className={styles.label}>{label}</span>
+        </div>
+      ) : null}
       <div className={styles.value}>{renderedValue}</div>
       {(hasDelta || caption) && (
         <div className={styles.footer}>

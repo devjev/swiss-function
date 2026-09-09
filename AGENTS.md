@@ -294,6 +294,14 @@ These are not suggestions.
   `var(--sf-measure)`. When you set `font-family: var(--sf-font-mono)`, also set
   `font-size-adjust: var(--sf-font-mono-adjust)` so mono matches the sans
   x-height (mono otherwise reads optically larger at the same `font-size`).
+- **Vertical rhythm**: every block is a whole number of units tall, and the
+  gaps are the library's: 2u between sections or messages, 1u between the
+  parts, rows or paragraphs inside one. Text lines are 1u (`--sf-leading-base`
+  is `1.5rem`), a title bar or control 1.5u, and a frame's 1px borders come
+  out of its padding or bar (`calc(var(--sf-unit) * 1.5 - 1px)`), never on
+  top of it. A half-unit gap is fine inside a block if the block's sum is
+  whole (Stat, Widget). Never a line-height, margin or padding that isn't a
+  fraction of the unit; check with a 24px overlay when in doubt.
 - **Motion**: `var(--sf-duration-fast)` / `-base` / `-slow` with
   `--sf-ease-out` or `--sf-ease-in-out`.
 - **Elevation**: `var(--sf-elevation-N)` for surface depth, including

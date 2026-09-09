@@ -73,11 +73,11 @@
   padding-inline-start: var(--sf-unit);
 }
 .rendered li {
-  margin: calc(var(--sf-unit) / 6) 0;
+  margin: var(--sf-prose-list-item-spacing) 0;
   text-wrap: pretty;
 }
 .rendered li > :where(ul, ol) {
-  margin: calc(var(--sf-unit) / 6) 0;
+  margin: var(--sf-prose-list-item-spacing) 0;
 }
 /* When two lists sit back-to-back, collapse the gap between them so they
    read as one continuous list rather than two separate blocks. */
@@ -85,7 +85,7 @@
   margin-block-end: 0;
 }
 .rendered :where(ul, ol) + :where(ul, ol) {
-  margin-block-start: calc(var(--sf-unit) / 6);
+  margin-block-start: var(--sf-prose-list-item-spacing);
 }
 
 .rendered a {
@@ -121,11 +121,15 @@
 /* Fenced code block */
 .rendered pre {
   margin: 0 0 var(--sf-prose-paragraph-spacing);
-  padding: calc(var(--sf-unit) / 2);
+  /* The 1px borders come out of the padding, so a block of n lines is a
+     whole number of units tall. */
+  padding: calc(var(--sf-unit) / 2 - 1px) calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg-subtle);
   border: 1px solid var(--sf-color-border-subtle);
   border-radius: var(--sf-radius-default);
   overflow-x: auto;
+  white-space: var(--sf-prose-code-wrap);
+  overflow-wrap: anywhere;
   /* Same scroll-surface tokens as the `scrollable` utility, inlined because a
      descendant selector (`.rendered pre`) can't `composes:`. */
   scrollbar-width: var(--sf-scrollbar-width);
@@ -135,6 +139,9 @@
   scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
 }
 .rendered pre code {
+  /* A block of its own: as an inline box its mono metrics would sit off the
+     pre's sans strut and stretch the line boxes past the unit. */
+  display: block;
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);

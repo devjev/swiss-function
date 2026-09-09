@@ -14,17 +14,26 @@
 /* Dim lowercase title bar, separated from the body by a hairline — reads like a
    window chrome label. */
 .title {
-  display: block;
-  padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
+  display: flex;
+  align-items: center;
+  /* The dot is a flex item of its own; the gap is the space after it. */
+  gap: 1ch;
+  /* A unit and a half from the frame's top edge to the rule: border-box, so
+     the bar's own rule is inside, and the frame's top border comes out. */
+  block-size: calc(var(--sf-unit) * 1.5 - 1px);
+  padding: 0 calc(var(--sf-unit) / 2);
   color: var(--sf-color-fg);
   border-block-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
 }
 
 .title::before {
-  content: "● ";
+  content: "\25CF";
 }
 
+/* Three quarters of a unit above and below (the bottom border taken out of
+   the second), so the block is a whole number of units tall when its content
+   is. */
 .body {
-  padding: calc(var(--sf-unit) / 2);
+  padding: calc(var(--sf-unit) * 0.75) calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 0.75 - 1px);
 }

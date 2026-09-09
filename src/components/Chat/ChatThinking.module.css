@@ -77,7 +77,7 @@
 /* The header/fan-out gap lives on an inner element so it's clipped away (not a
    residual) when `.body` collapses to 0. */
 .bodyInner {
-  padding-block-start: calc(var(--sf-unit) / 2);
+  padding-block-start: var(--sf-unit);
 }
 
 @media (prefers-reduced-motion: reduce) {

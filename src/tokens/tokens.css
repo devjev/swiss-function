@@ -147,6 +147,11 @@
        A quarter unit (6px against a 24px line-height) — dense by design,
        just enough rule to keep paragraphs from running together. */
     --sf-prose-paragraph-spacing: calc(var(--sf-unit) / 4);
+    /* Space above and below a list item (and between nested lists). */
+    --sf-prose-list-item-spacing: calc(var(--sf-unit) / 6);
+    /* `white-space` of a fenced code block: `pre` scrolls long lines sideways,
+       `pre-wrap` wraps them (a chat sets this, so a block stays on the grid). */
+    --sf-prose-code-wrap: pre;
     /* Top margin for mid-stream headings. One unit equals body
        line-height — enough that the heading punctuates the previous
        block without floating away from it. */

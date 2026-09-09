@@ -1,5 +1,5 @@
 .prompt {
-  margin: 0 0 calc(var(--sf-unit) / 2);
+  margin: 0 0 var(--sf-unit);
   color: var(--sf-color-fg);
 }
 
@@ -64,7 +64,7 @@ button.choice:focus-visible .caret {
 }
 
 button.confirm {
-  margin-block-start: calc(var(--sf-unit) / 2);
+  margin-block-start: var(--sf-unit);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
 }
