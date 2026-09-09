@@ -26,6 +26,9 @@ export interface ChatDrawerView {
   content: ReactNode;
 }
 
+/** Where the centered column sits: on the centre axis, or flush left / right. */
+export type ChatAlign = "center" | "left" | "right";
+
 export interface ChatDrawerProps {
   /** The main app content — the chat panel pushes it aside (it doesn't overlay). */
   children?: ReactNode;
@@ -61,6 +64,13 @@ export interface ChatDrawerProps {
    *  the column stays centered. Matters when the panel is wide (a large split,
    *  or fullscreen). Default `false`. */
   centered?: boolean;
+  /** Where the centered column sits (only with `centered`): on the panel's
+   *  centre axis (default), or flush against the left or right edge, the
+   *  whole leftover width going to the one remaining margin. Aligned, the
+   *  column has a single resize handle on its free edge and a drag moves that
+   *  edge alone (no mirror); the margin on the aligned side is not rendered.
+   *  Default `"center"`. */
+  chatAlign?: ChatAlign;
   /** Centered-column width in px (uncontrolled; only with `centered`).
    *  Default 640. */
   defaultChatWidth?: number;
@@ -254,6 +264,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     defaultExpanded,
     onExpandedChange,
     centered = false,
+    chatAlign = "center",
     defaultChatWidth = 640,
     minChatWidth = 240,
     maxChatWidth,
@@ -344,10 +355,15 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     [minChatWidth, maxChatWidth],
   );
 
+  // Centered, the opposite edge mirrors the move, so the width changes by
+  // twice the pointer delta; aligned to an edge, the one free edge moves alone.
+  const mirror = chatAlign === "center" ? 2 : 1;
   const widthFromDelta = useCallback(
     (edge: "left" | "right", d: DragDelta) =>
-      edge === "left" ? startChatWidth.current - 2 * d.dx : startChatWidth.current + 2 * d.dx,
-    [],
+      edge === "left"
+        ? startChatWidth.current - mirror * d.dx
+        : startChatWidth.current + mirror * d.dx,
+    [mirror],
   );
 
   const edgeDragOptions = (edge: "left" | "right") => ({
@@ -373,8 +389,8 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     const grow = edge === "left" ? "ArrowLeft" : "ArrowRight";
     const shrink = edge === "left" ? "ArrowRight" : "ArrowLeft";
     let next: number;
-    if (e.key === grow) next = chatWidth + 2 * EDGE_KEY_STEP;
-    else if (e.key === shrink) next = chatWidth - 2 * EDGE_KEY_STEP;
+    if (e.key === grow) next = chatWidth + mirror * EDGE_KEY_STEP;
+    else if (e.key === shrink) next = chatWidth - mirror * EDGE_KEY_STEP;
     else return;
     e.preventDefault();
     const c = clampChatWidth(next);
@@ -398,14 +414,16 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     />
   );
 
-  // Margin content hides when the gutters get too narrow for it. Both gutters
-  // are equal by construction (the mirrored resize), so one observer on the
-  // left container drives both; the observed container itself stays in the
+  // Margin content hides when the gutters get too narrow for it. Centered,
+  // both gutters are equal by construction (the mirrored resize), so one
+  // observer on the left container drives both; aligned to an edge there is
+  // one gutter, on the other side. The observed container itself stays in the
   // grid (hiding only the inner content), or the observer would read 0 and
   // never un-collapse.
   const { ref: marginProbeRef, collapsed: marginsCollapsed } = useCollapse<HTMLDivElement>({
     collapseAt: `${marginMinWidth}px`,
   });
+  const probeSide = chatAlign === "left" ? "right" : "left";
 
   const marginCell = (side: "left" | "right") => {
     const inner = side === "left" ? margins?.left : margins?.right;
@@ -413,7 +431,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       <div
         className={styles.margin}
         data-side={side}
-        ref={side === "left" ? marginProbeRef : undefined}
+        ref={side === probeSide ? marginProbeRef : undefined}
       >
         {inner != null ? (
           <div className={cx(styles.marginContent, marginsCollapsed && styles.marginHidden)}>
@@ -430,14 +448,15 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     <div
       ref={bodyRef}
       className={styles.centerBody}
+      data-align={chatAlign}
       data-dragging={edgeDragging || undefined}
       style={{ "--cd-chat-width": `${chatWidth}px` } as CSSProperties}
     >
-      {marginCell("left")}
-      {edgeHandle("left")}
+      {chatAlign !== "left" && marginCell("left")}
+      {chatAlign !== "left" && edgeHandle("left")}
       <div className={styles.centerColumn}>{inner}</div>
-      {edgeHandle("right")}
-      {marginCell("right")}
+      {chatAlign !== "right" && edgeHandle("right")}
+      {chatAlign !== "right" && marginCell("right")}
     </div>
   );
 

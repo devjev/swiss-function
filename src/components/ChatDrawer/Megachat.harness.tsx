@@ -1,14 +1,14 @@
 import type { DragEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BarChart } from "../BarChart";
 import { Box } from "../Box";
 import { Button } from "../Button";
 import { ChatBlock, type ChatMessage } from "../Chat";
-import { X } from "../Icon";
+import { PanelCenter, PanelLeft, PanelRight, X } from "../Icon";
 import { MenuBar } from "../MenuBar";
 import { Progress } from "../Progress";
 import { Stat } from "../Stat";
-import { ChatDrawer } from "./ChatDrawer";
+import { type ChatAlign, ChatDrawer } from "./ChatDrawer";
 
 /** The megachat demo: the assistant maximized as a centered column, replying
  *  with widgets (a KPI card, a chart, a progress card) that you drag into
@@ -64,7 +64,7 @@ export function MegachatWidget({ id, compact }: { id: MegachatWidgetId; compact?
           <BarChart
             categories={MONTHS}
             series={[{ name: "Net flows (MCHF)", values: FLOWS }]}
-            height={compact ? 96 : 140}
+            height={compact ? 128 : 140}
             scaffolding="minimal"
           />
         </Box>
@@ -104,25 +104,132 @@ function ReplyWidget({ id }: { id: MegachatWidgetId }) {
   );
 }
 
+/** A masonry of saved widgets for a wide margin: as many columns as
+ *  `minColumn` allows across the measured width, each item on the shortest
+ *  column so far (heights measured and re-measured as they change), placed
+ *  absolutely so an added or removed widget never reflows the others. */
+function Masonry({
+  items,
+  minColumn = 216,
+  gap = 12,
+}: {
+  items: { id: string; node: ReactNode }[];
+  /** Least column width in px; the count follows the container. */
+  minColumn?: number;
+  gap?: number;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [heights, setHeights] = useState<Record<string, number>>({});
+  const observers = useRef(new Map<string, ResizeObserver>());
+  const refs = useRef(new Map<string, (el: HTMLDivElement | null) => void>());
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // One stable callback ref per item: it measures on mount (in the commit
+  // phase, so the first paint already has the height) and observes after.
+  const refFor = useCallback((id: string) => {
+    let ref = refs.current.get(id);
+    if (!ref) {
+      ref = (el) => {
+        observers.current.get(id)?.disconnect();
+        observers.current.delete(id);
+        if (!el) return;
+        const set = () => {
+          const h = el.getBoundingClientRect().height;
+          setHeights((prev) => (prev[id] === h ? prev : { ...prev, [id]: h }));
+        };
+        set();
+        const ro = new ResizeObserver(set);
+        ro.observe(el);
+        observers.current.set(id, ro);
+      };
+      refs.current.set(id, ref);
+    }
+    return ref;
+  }, []);
+
+  const columns = Math.max(1, Math.floor((width + gap) / (minColumn + gap)));
+  const colWidth = (width - gap * (columns - 1)) / columns;
+  const colHeights = new Array<number>(columns).fill(0);
+  const placed = items.map(({ id, node }) => {
+    let col = 0;
+    for (let i = 1; i < columns; i++) if ((colHeights[i] ?? 0) < (colHeights[col] ?? 0)) col = i;
+    const x = col * (colWidth + gap);
+    const y = colHeights[col] ?? 0;
+    colHeights[col] = y + (heights[id] ?? 0) + gap;
+    return { id, node, x, y, measured: heights[id] != null };
+  });
+  const total = Math.max(0, Math.max(0, ...colHeights) - gap);
+
+  return (
+    <div ref={rootRef} style={{ position: "relative", blockSize: total }}>
+      {placed.map(({ id, node, x, y, measured }) => (
+        <div
+          key={id}
+          ref={refFor(id)}
+          style={{
+            position: "absolute",
+            insetBlockStart: 0,
+            insetInlineStart: 0,
+            inlineSize: colWidth,
+            translate: `${x}px ${y}px`,
+            visibility: measured && width > 0 ? undefined : "hidden",
+          }}
+        >
+          {node}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** One margin: bare space that keeps what lands on it. No text of its own
  *  (the app decides what the margins say later); a dashed outline marks a
- *  drag over it. */
+ *  drag over it. `layout="stack"` is the narrow gutter's single column;
+ *  `"masonry"` packs the wide margin of an edge-aligned chat. */
 function Shelf({
   side,
   saved,
   onSave,
   onRemove,
+  layout = "stack",
 }: {
   side: "left" | "right";
   saved: MegachatWidgetId[];
   onSave: (id: MegachatWidgetId) => void;
   onRemove: (id: MegachatWidgetId) => void;
+  layout?: "stack" | "masonry";
 }) {
   const [over, setOver] = useState(false);
+  const item = (id: MegachatWidgetId) => (
+    <div key={id} data-saved={id} style={{ position: "relative" }}>
+      <MegachatWidget id={id} compact />
+      <Button
+        variant="ghost"
+        size="sm"
+        tight
+        aria-label={`Remove ${WIDGET_TITLES[id]}`}
+        onClick={() => onRemove(id)}
+        style={{ position: "absolute", insetBlockStart: 2, insetInlineEnd: 2 }}
+      >
+        <X />
+      </Button>
+    </div>
+  );
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the drop target of the saved-widget shelf.
     <div
       data-shelf={side}
+      data-layout={layout}
       data-count={saved.length}
       data-over={over || undefined}
       onDragOver={(e) => {
@@ -139,7 +246,8 @@ function Shelf({
       }}
       style={{
         blockSize: "100%",
-        display: "grid",
+        overflowY: "auto",
+        display: layout === "stack" ? "grid" : "block",
         alignContent: "start",
         gap: "calc(var(--sf-unit) / 2)",
         // No padding of its own: the drawer's margin already frames it (flush
@@ -149,27 +257,32 @@ function Shelf({
         outlineOffset: "-2px",
       }}
     >
-      {saved.map((id) => (
-        <div key={id} data-saved={id} style={{ position: "relative" }}>
-          <MegachatWidget id={id} compact />
-          <Button
-            variant="ghost"
-            size="sm"
-            tight
-            aria-label={`Remove ${WIDGET_TITLES[id]}`}
-            onClick={() => onRemove(id)}
-            style={{ position: "absolute", insetBlockStart: 2, insetInlineEnd: 2 }}
-          >
-            <X />
-          </Button>
-        </div>
-      ))}
+      {layout === "masonry" ? (
+        <Masonry items={saved.map((id) => ({ id, node: item(id) }))} />
+      ) : (
+        saved.map(item)
+      )}
     </div>
   );
 }
 
 type Saved = { left: MegachatWidgetId[]; right: MegachatWidgetId[] };
 const EMPTY: Saved = { left: [], right: [] };
+
+const ALIGN_LABELS: Record<ChatAlign, string> = {
+  left: "Chat on the left",
+  center: "Chat centered",
+  right: "Chat on the right",
+};
+
+function readAlign(key: string): ChatAlign {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === "left" || raw === "right" ? raw : "center";
+  } catch {
+    return "center";
+  }
+}
 
 function readSaved(key: string): Saved {
   try {
@@ -220,6 +333,9 @@ export function MegachatDemo({
   const [open, setOpen] = useState(true);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<Saved>(() => (persist ? readSaved(persist) : EMPTY));
+  const [align, setAlign] = useState<ChatAlign>(() =>
+    persist ? readAlign(`${persist}-align`) : "center",
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -248,15 +364,75 @@ export function MegachatDemo({
     if (!persist) return;
     try {
       localStorage.setItem(persist, JSON.stringify(saved));
+      localStorage.setItem(`${persist}-align`, align);
     } catch {
       // Storage may be unavailable; the shelf still works for the session.
     }
-  }, [persist, saved]);
+  }, [persist, saved, align]);
 
   const save = (side: "left" | "right") => (id: MegachatWidgetId) =>
-    setSaved((prev) => (prev[side].includes(id) ? prev : { ...prev, [side]: [...prev[side], id] }));
+    setSaved((prev) =>
+      prev.left.includes(id) || prev.right.includes(id)
+        ? prev
+        : { ...prev, [side]: [...prev[side], id] },
+    );
   const remove = (side: "left" | "right") => (id: MegachatWidgetId) =>
     setSaved((prev) => ({ ...prev, [side]: prev[side].filter((s) => s !== id) }));
+  const removeAnywhere = (id: MegachatWidgetId) =>
+    setSaved((prev) => ({
+      left: prev.left.filter((s) => s !== id),
+      right: prev.right.filter((s) => s !== id),
+    }));
+
+  // Centered: a shelf on each side. Aligned to an edge: the one wide margin
+  // on the other side holds everything saved, packed as a masonry, and it is
+  // the only drop target.
+  const shelfSide: "left" | "right" = align === "left" ? "right" : "left";
+  const margins =
+    align === "center"
+      ? {
+          left: (
+            <Shelf side="left" saved={saved.left} onSave={save("left")} onRemove={remove("left")} />
+          ),
+          right: (
+            <Shelf
+              side="right"
+              saved={saved.right}
+              onSave={save("right")}
+              onRemove={remove("right")}
+            />
+          ),
+        }
+      : {
+          [shelfSide]: (
+            <Shelf
+              side={shelfSide}
+              layout="masonry"
+              saved={[...saved.left, ...saved.right]}
+              onSave={save(shelfSide)}
+              onRemove={removeAnywhere}
+            />
+          ),
+        };
+
+  const alignActions = (
+    <>
+      {(["left", "center", "right"] as const).map((a) => (
+        <Button
+          key={a}
+          variant="ghost"
+          size="sm"
+          tight
+          aria-label={ALIGN_LABELS[a]}
+          title={ALIGN_LABELS[a]}
+          aria-pressed={align === a}
+          onClick={() => setAlign(a)}
+        >
+          {a === "left" ? <PanelLeft /> : a === "right" ? <PanelRight /> : <PanelCenter />}
+        </Button>
+      ))}
+    </>
+  );
 
   const handleSubmit = (text: string) => {
     const base = String(Date.now());
@@ -317,26 +493,16 @@ export function MegachatDemo({
             />
           </MenuBar.Root>
         }
+        actions={alignActions}
         thinking={busy}
         defaultExpanded={defaultExpanded}
         centered
+        chatAlign={align}
         defaultChatWidth={720}
         minChatWidth={480}
         maxChatWidth={1200}
         marginMinWidth={200}
-        margins={{
-          left: (
-            <Shelf side="left" saved={saved.left} onSave={save("left")} onRemove={remove("left")} />
-          ),
-          right: (
-            <Shelf
-              side="right"
-              saved={saved.right}
-              onSave={save("right")}
-              onRemove={remove("right")}
-            />
-          ),
-        }}
+        margins={margins}
         messages={messages}
         onSubmit={handleSubmit}
         renderPart={renderPart}

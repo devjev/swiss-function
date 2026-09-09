@@ -79,6 +79,18 @@
   transform: var(--sf-key-travel, translateY(1px));
 }
 
+/* A latched sheet key (`aria-pressed="true"`, a toggle held down) sits sunk in
+   place: the groove instead of the raised edge and cast, no travel (it is a
+   state, not a press). A latched ghost key also takes its hover face, or the
+   groove alone would be all that marks it on a bare surface. */
+.root[aria-pressed="true"]:not([data-disabled]):not(.solid) {
+  box-shadow: var(--sf-groove);
+}
+.variantGhost[aria-pressed="true"]:not([data-disabled]) {
+  --btn-cap: var(--sf-color-bg-subtle);
+  box-shadow: var(--sf-groove);
+}
+
 /* --- Elevation overrides (default is elevation-2 on .root) --- */
 .root[data-elevation="0"] {
   box-shadow: var(--sf-edge);

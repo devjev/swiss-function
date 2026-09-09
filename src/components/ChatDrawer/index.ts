@@ -1,1 +1,6 @@
-export { ChatDrawer, type ChatDrawerProps, type ChatDrawerView } from "./ChatDrawer";
+export {
+  type ChatAlign,
+  ChatDrawer,
+  type ChatDrawerProps,
+  type ChatDrawerView,
+} from "./ChatDrawer";

@@ -212,6 +212,14 @@
     minmax(0, 1fr) auto minmax(0, var(--cd-chat-width, 640px)) auto
     minmax(0, 1fr);
 }
+/* Aligned to an edge: the column, its one free-edge handle, and the single
+   margin taking all the leftover width. */
+.centerBody[data-align="left"] {
+  grid-template-columns: minmax(0, var(--cd-chat-width, 640px)) auto minmax(0, 1fr);
+}
+.centerBody[data-align="right"] {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, var(--cd-chat-width, 640px));
+}
 
 /* Margin container: stays in the grid even when its content hides (it carries
    the fr track and the ResizeObserver). Clips so app content can never overlap

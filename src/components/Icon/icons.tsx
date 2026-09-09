@@ -205,6 +205,17 @@ export const Expand = /* @__PURE__ */ createIcon(
   "Expand",
   <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />,
 );
+/** A framed panel with its column at the left / centre / right: where a
+ *  column of content sits in a layout. */
+export const PanelLeft = /* @__PURE__ */ createIcon("PanelLeft", <path d="M2 3h12v10H2zM6 3v10" />);
+export const PanelCenter = /* @__PURE__ */ createIcon(
+  "PanelCenter",
+  <path d="M2 3h12v10H2zM5.5 3v10M10.5 3v10" />,
+);
+export const PanelRight = /* @__PURE__ */ createIcon(
+  "PanelRight",
+  <path d="M2 3h12v10H2zM10 3v10" />,
+);
 export const Collapse = /* @__PURE__ */ createIcon(
   "Collapse",
   <path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4" />,

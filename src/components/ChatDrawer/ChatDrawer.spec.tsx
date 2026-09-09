@@ -462,3 +462,81 @@ test("a MenuBar dropdown in the header of the maximized panel paints above it", 
   await item.hover();
   await expect(item).toHaveCSS("background-color", /.+/);
 });
+
+test("chatAlign left: one free-edge handle, the column flush left, a drag moves that edge alone", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 900, blockSize: 420 }}>
+      <ChatDrawer
+        defaultOpen
+        expanded
+        centered
+        chatAlign="left"
+        defaultChatWidth={400}
+        minChatWidth={200}
+        margins={{ left: <div data-testid="m-left" />, right: <div data-testid="m-right" /> }}
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  await expect(c.getByRole("separator", { name: "Resize chat (left edge)" })).toHaveCount(0);
+  await expect(c.getByTestId("m-left")).toHaveCount(0);
+  await expect(c.getByTestId("m-right")).toBeAttached();
+  const right = c.getByRole("separator", { name: "Resize chat (right edge)" });
+  // The column starts at the body's left edge.
+  const flush = await right.evaluate((el) => {
+    const body = el.parentElement as HTMLElement;
+    const column = body.querySelector('[class*="centerColumn"]') as HTMLElement;
+    return Math.abs(column.getBoundingClientRect().left - body.getBoundingClientRect().left);
+  });
+  expect(flush).toBeLessThan(1);
+  const rb = await right.boundingBox();
+  if (!rb) throw new Error("missing box");
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width / 2 + 60, rb.y + rb.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect(right).toHaveAttribute("aria-valuenow", "460");
+  const ra = await right.boundingBox();
+  if (!ra) throw new Error("missing box");
+  expect(Math.abs(ra.x - rb.x - 60)).toBeLessThan(3);
+});
+
+test("megachat: aligning the chat left leaves one masonry shelf on the right", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 1100, blockSize: 480 }}>
+      <MegachatDemo persist={false} />
+    </div>,
+  );
+  await expect(c.locator("[data-shelf]")).toHaveCount(2);
+  await page.getByRole("button", { name: "Chat on the left" }).click();
+  await expect(c.locator("[data-shelf]")).toHaveCount(1);
+  const shelf = c.locator('[data-shelf="right"]');
+  await expect(shelf).toHaveAttribute("data-layout", "masonry");
+  await expect(page.getByRole("button", { name: "Chat on the left" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await c.locator('[data-widget="aum"]').first().dragTo(shelf);
+  await c.locator('[data-widget="flows"]').first().dragTo(shelf);
+  await expect(shelf.locator("[data-saved]")).toHaveCount(2);
+  // Both saved widgets are visible (measured and placed), neither on top of the other.
+  const boxes = await shelf.locator("[data-saved]").evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width) };
+    }),
+  );
+  expect(boxes).toHaveLength(2);
+  expect(boxes[0]).not.toEqual(boxes[1]);
+  await page.getByRole("button", { name: "Chat centered" }).click();
+  await expect(c.locator("[data-shelf]")).toHaveCount(2);
+});
