@@ -506,6 +506,11 @@
     "vite-plugin-lib-inject-css": "^2.2.2",
     "vitest": "^4.1.11"
   },
+  "overrides": {
+    "vitest": {
+      "vite": "^7.0.0"
+    }
+  },
   "publishConfig": {
     "access": "public"
   },
