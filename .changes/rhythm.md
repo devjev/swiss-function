@@ -1,4 +1,0 @@
----
-bump: minor
----
-Vertical rhythm on the unit grid: Chat spaces messages by two units and the parts and paragraphs of a reply by one, the user tape's lines are a unit, and every block (a widget, a chat block, a code block) is a whole number of units tall with its 1px borders taken out of its bar or padding. Widget: the title bar is a unit and a half, the body padding sums to whole units, the loading bar lies on the bar's edge, and the standard bodies are whole units (a table rounds up to the grid with a dithered remainder). Stat: the figure's line-height sits on the grid per size, the label row renders only when there is a label or icon, and a card's borders come out of its padding, so every size is a whole number of units. Markdown: fenced code is a block of its own (no strut stretch), and two prose tokens, `--sf-prose-list-item-spacing` and `--sf-prose-code-wrap` (`pre` / `pre-wrap`), let a host (Chat does) keep lists and code on the grid.
