@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.35.1 — 2026-09-10
+
+### Patch
+
+- Dev tooling: vitest's nested vite is pinned to 7 (`overrides`), so the lockfile carries no rolldown; a registry proxy without it (a corporate Nexus) installs the repository again. Dev-only, nothing in the published package changes.
+
 ## v2.35.0 — 2026-09-10
 
 ### Minor
