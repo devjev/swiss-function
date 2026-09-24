@@ -8,6 +8,7 @@ import {
   anchorRectFromPoint,
   bandScale,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   Crosshair,
   FullscreenToggle,
@@ -18,6 +19,7 @@ import {
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveChartFormat,
   resolveTickFont,
   scaffoldStyles,
   snapFraction,
@@ -143,7 +145,7 @@ function resolvePeriods(periods: FlowPeriod[], colors: FlowColors | undefined): 
   });
 }
 
-function defaultTooltip(d: FlowTooltipDatum): ReactNode {
+function defaultTooltip(d: FlowTooltipDatum, format: (v: number) => string): ReactNode {
   const sign = d.delta >= 0 ? "+" : "−";
   return (
     <>
@@ -152,7 +154,7 @@ function defaultTooltip(d: FlowTooltipDatum): ReactNode {
       </div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
         {sign}
-        {formatNumber(Math.abs(d.delta))} → {formatNumber(d.level)}
+        {format(Math.abs(d.delta))} → {format(d.level)}
       </div>
     </>
   );
@@ -160,6 +162,7 @@ function defaultTooltip(d: FlowTooltipDatum): ReactNode {
 
 export interface FlowsProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps,
     ChartScaffoldingProps {
   /** One entry per period, in chronological order. */
   periods: FlowPeriod[];
@@ -198,7 +201,10 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
     annotations,
     onAnnotationsChange,
     onValueDomainChange,
-    renderTooltip = defaultTooltip,
+    valueFormat,
+    tickFormat,
+    categoryFormat,
+    renderTooltip,
     className,
     style,
     ...rest
@@ -216,7 +222,18 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
   const measure = getTextMeasurer(resolveTickFont(plotRef.current));
 
   const resolved = useMemo(() => resolvePeriods(periods, colors), [periods, colors]);
+  // One formatter for every printed number and period label (issue #97).
+  const format = useMemo(
+    () => resolveChartFormat({ valueFormat, tickFormat, categoryFormat }, formatNumber),
+    [valueFormat, tickFormat, categoryFormat],
+  );
+  const tooltipOf = renderTooltip ?? ((d: FlowTooltipDatum) => defaultTooltip(d, format.value));
+
   const categories = useMemo(() => resolved.map((r) => r.label), [resolved]);
+  const categoryNames = useMemo(
+    () => categories.map((c, i) => format.category(c, i)),
+    [categories, format],
+  );
 
   const resolvedYDomain: [number, number] = useMemo(() => {
     if (yDomain) return yDomain;
@@ -242,7 +259,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
       onDomainChange: onValueDomainChange,
       minSpan: Math.max((resolvedYDomain[1] - resolvedYDomain[0]) / 100, Number.EPSILON),
       zoomOutLimit,
-      formatValue: formatNumber,
+      formatValue: (v: number) => format.tick(v, formatNumber(v)),
       axis: "y",
     },
   });
@@ -273,8 +290,12 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
     if (yMax <= yMin) return [];
     return niceTicks(yMin, yMax, 5)
       .filter((t) => t.value >= yMin && t.value <= yMax)
-      .map((t) => ({ label: t.label, position: (t.value - yMin) / (yMax - yMin), major: t.major }));
-  }, [viewYDomain, scaffolding]);
+      .map((t) => ({
+        label: format.tick(t.value, t.label),
+        position: (t.value - yMin) / (yMax - yMin),
+        major: t.major,
+      }));
+  }, [viewYDomain, scaffolding, format]);
 
   // Period labels through the measured fitting ladder: full text when every
   // label fits its band, ellipsized (full text in title) when close, thinned
@@ -285,13 +306,13 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
       const left = xBand.position(c) ?? 0;
       return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+    return fitBandTicks(categoryNames, centers, xBand.step, plotSize.width, measure).map((t) => ({
       label: t.label,
       title: t.title,
       position: t.position,
       major: false,
     }));
-  }, [categories, xBand, plotSize.width, measure]);
+  }, [categories, xBand, plotSize.width, measure, categoryNames]);
 
   // Measured y-axis column: the widest tick label sets --sf-axis-label-width
   // (8px-quantized so the resize feedback loop cannot oscillate).
@@ -529,7 +550,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
                 y={hover.cy}
                 height={plotSize.height}
                 axes="y"
-                yLabel={formatNumber(hover.datum.level)}
+                yLabel={format.value(hover.datum.level)}
               />
             ) : null}
 
@@ -545,7 +566,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
                 width={plotSize.width}
                 height={plotSize.height}
                 formatXDelta={(a, b) => `${Math.abs(Number(b) - Number(a)).toFixed(1)} period`}
-                formatY={formatNumber}
+                formatY={format.value}
                 editing={scaffold.editor.layerEditing}
               />
             ) : null}
@@ -597,7 +618,7 @@ export const Flows = forwardRef<HTMLDivElement, FlowsProps>(function Flows(
       ) : null}
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
-        {hover ? renderTooltip(hover.datum) : null}
+        {hover ? tooltipOf(hover.datum) : null}
       </Tooltip>
     </div>
   );

@@ -10,7 +10,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { getTextMeasurer, resolveTickFont, useMeasuredPlot } from "../../lib/chart";
+import {
+  type ChartFormatProps,
+  getTextMeasurer,
+  resolveChartFormat,
+  resolveTickFont,
+  useMeasuredPlot,
+} from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import { assignLanes, type LaneInput } from "./lanes";
 import styles from "./Timeline.module.css";
@@ -35,7 +41,11 @@ function useTimelineContext(): TimelineContextValue {
 
 export type TimelineSnap = "none" | "events" | "ticks";
 
-export interface TimelineProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface TimelineProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    // The axis is a calendar and the event labels are the consumer's own
+    // nodes, so only the tick formatter applies here.
+    Pick<ChartFormatProps, "tickFormat"> {
   start: Date;
   end: Date;
   /** Playhead position (controlled). When set, renders a draggable vertical
@@ -116,6 +126,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     maxLanes = 3,
     pxPerDay,
     tickSpacing,
+    tickFormat,
     compact = false,
     size,
     bordered = false,
@@ -161,6 +172,10 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
     () => computeTicks(start, end, layoutPxPerDay, tickSpacing),
     [start, end, layoutPxPerDay, tickSpacing],
   );
+
+  // The consumer's tick formatter, when there is one (issue #97). Without it
+  // the calendar ladder keeps its own labels.
+  const format = useMemo(() => resolveChartFormat({ tickFormat }), [tickFormat]);
 
   // Now-line as a fraction of the total range, or null if out of range / disabled.
   const now = new Date();
@@ -456,7 +471,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 data-tick-major={tick.major || undefined}
               >
                 <span className={styles.tickMark} aria-hidden="true" />
-                <span className={styles.tickLabel}>{tick.label}</span>
+                <span className={styles.tickLabel}>
+                  {format.timeTick(tick.date.getTime(), tick.label, "x")}
+                </span>
               </div>
             );
           })}

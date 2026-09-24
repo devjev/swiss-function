@@ -13,6 +13,7 @@ import {
   anchorRectFromPoint,
   type BandScale,
   ChartControls,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -28,6 +29,7 @@ import {
   maxLabelWidth,
   niceTicks,
   pickTimeUnit,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   type StepSession,
@@ -68,6 +70,7 @@ export type CandlePoint = Candle & { index: number };
 
 export interface CandlestickChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    Omit<ChartFormatProps, "categoryFormat">,
     ChartScaffoldingProps,
     ChartSelectionProps<CandlePoint> {
   /** OHLC bars in chronological order; spaced evenly (index-based), not by real time. */
@@ -166,14 +169,14 @@ function aggregateCandles(
   return { candles: out, sourceIndex };
 }
 
-function defaultTooltip(c: Candle): ReactNode {
+function defaultTooltip(c: Candle, format: (v: number) => string): ReactNode {
   return (
     <>
       <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{formatX(c.x)}</div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
-        {`O ${formatNumber(c.open)}  H ${formatNumber(c.high)}`}
+        {`O ${format(c.open)}  H ${format(c.high)}`}
         <br />
-        {`L ${formatNumber(c.low)}  C ${formatNumber(c.close)}`}
+        {`L ${format(c.low)}  C ${format(c.close)}`}
       </div>
     </>
   );
@@ -328,7 +331,9 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       fullscreen = false,
       frame = false,
       onPointActivate,
-      renderTooltip = defaultTooltip,
+      valueFormat,
+      tickFormat,
+      renderTooltip,
       selectable = false,
       selection: controlledSelection,
       defaultSelection,
@@ -344,6 +349,15 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
     const { ref: plotAreaRef, plotRef, size: plotSize } = useMeasuredPlot<HTMLDivElement>();
     const [hover, setHover] = useState<HoverState | null>(null);
     const measure = getTextMeasurer(resolveTickFont(plotRef.current));
+
+    // One formatter for every printed number (issue #97). y is the price axis;
+    // x is a calendar or an index, and keeps its own labels unless `tickFormat`
+    // retitles it (it is told which axis it is printing).
+    const format = useMemo(
+      () => resolveChartFormat({ valueFormat, tickFormat }, formatNumber),
+      [valueFormat, tickFormat],
+    );
+    const tooltipOf = renderTooltip ?? ((c: Candle) => defaultTooltip(c, format.value));
 
     const { selection, setSelection } = useChartSelection<CandlePoint>({
       selectable,
@@ -483,11 +497,11 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       const [yMin, yMax] = resolvedYDomain;
       if (yMax <= yMin) return [];
       return niceTicks(yMin, yMax, 5).map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label),
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
       }));
-    }, [resolvedYDomain, scaffolding]);
+    }, [resolvedYDomain, scaffolding, format]);
 
     // Survivor bias for the x ticks: last frame's kept labels win ties this
     // frame, so live resize/zoom doesn't flicker between equal alternatives.
@@ -721,7 +735,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
                   width={plotSize.width}
                   height={plotSize.height}
                   formatXDelta={formatXDelta}
-                  formatY={formatNumber}
+                  formatY={format.value}
                   editing={editor.layerEditing}
                 />
               ) : null}
@@ -743,7 +757,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
                   height={plotSize.height}
                   axes="both"
                   xLabel={formatX(hover.candle.x)}
-                  yLabel={formatNumber(hover.candle.close)}
+                  yLabel={format.value(hover.candle.close)}
                 />
               ) : null}
             </svg>
@@ -797,7 +811,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
         {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
 
         <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
-          {hover ? renderTooltip(hover.candle) : null}
+          {hover ? tooltipOf(hover.candle) : null}
         </Tooltip>
 
         {selectable ? (
@@ -808,7 +822,7 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
             y={selectionPoint?.y ?? null}
             onClose={() => setSelection(null)}
           >
-            {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+            {selection ? (renderSelection ?? tooltipOf)(selection) : null}
           </SelectionPopover>
         ) : null}
 

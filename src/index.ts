@@ -66,6 +66,7 @@ export * from "./components/Outliner";
 export * from "./components/Pane";
 export * from "./components/PasswordInput";
 export * from "./components/Picker";
+export * from "./components/PieChart";
 export * from "./components/PointCloud";
 export * from "./components/PopOut";
 export * from "./components/Popover";

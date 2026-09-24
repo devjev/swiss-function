@@ -213,6 +213,23 @@ the data, or just perform? If the latter, drop it, and reach for the flat
 **3D bars, 3D pies, ribbon charts, and perspective cameras stay banned**:
 that's depth-for-personality, which distorts comparison.
 
+**The flat pie is allowed, and narrowly.** We long routed every pie to the
+treemap, and for a hierarchy or for many parts that is still the right answer.
+But the case the pie is actually good at is real: three to six parts of one
+whole, where the reading is "about half, about a quarter, the rest", and where
+the round shape itself says *this is a whole*. Refusing it only pushed people to
+hand-roll an SVG arc, which is worse than shipping a restrained one. `PieChart`
+is that restrained one, and the discipline is in its defaults: slices sorted
+biggest-first from 12 o'clock so the eye compares neighbours; the share printed
+on every slice, because an angle is the hardest quantity to judge by eye; a
+percent tick ring around the circumference under the full posture, so a share
+can be read off a scale instead of guessed; one neutral ink ramp, never a
+rainbow; labels measured, ellipsized and thinned, never rotated; and `maxSlices`
+to group a long tail into one named remainder rather than draw twenty
+indistinguishable slivers. What stays banned is everything that makes a pie a
+picture of itself: depth, explode, a spin on mount, a slice pulled out for
+emphasis, and a pie of things that are not parts of one total.
+
 **Maps: a restrained default, with off-aesthetic opt-ins.** Geographic data is
 intrinsically spatial, so `Map` is sanctioned like the 3D charts. Its default
 `minimal` basemap stays on-posture: a monochrome vector style colored entirely

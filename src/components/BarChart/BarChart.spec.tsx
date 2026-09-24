@@ -305,3 +305,160 @@ test("selectable: clicking a bar pins a popover + rings it; ✕ dismisses", asyn
   await expect(page.getByRole("button", { name: "Dismiss selection" })).toHaveCount(0);
   await expect(c.locator("rect[data-selected]")).toHaveCount(0);
 });
+
+// --- Stacked bars (issue #98) ------------------------------------------
+
+const MIX = [
+  { name: "Subscriptions", values: [60, 80] },
+  { name: "Services", values: [30, 20] },
+  { name: "Licences", values: [10, 0] },
+];
+
+test("stacked: one bar per category, the series piled inside it", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart categories={["Q1", "Q2"]} series={MIX} height={240} stacked />
+    </div>,
+  );
+  // Five segments: the sixth part is zero, so it has no rect.
+  await expect(c.locator("svg rect[data-chart-mark]")).toHaveCount(5);
+  const subs = await c.getByRole("button", { name: /^Q1 Subscriptions:/ }).boundingBox();
+  const services = await c.getByRole("button", { name: /^Q1 Services:/ }).boundingBox();
+  if (!subs || !services) throw new Error("missing segments");
+  // Same column, stacked: equal x and width, the second sitting on the first.
+  expect(Math.abs(subs.x - services.x)).toBeLessThan(1);
+  expect(Math.abs(subs.width - services.width)).toBeLessThan(1);
+  expect(services.y + services.height).toBeLessThanOrEqual(subs.y + 1);
+});
+
+test("stacked: a segment reports its value and its share of the category", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart categories={["Q1", "Q2"]} series={MIX} height={240} stacked />
+    </div>,
+  );
+  await expect(c.getByRole("button", { name: "Q1 Services: 30, 30%" })).toBeVisible();
+  await c.getByRole("button", { name: /^Q1 Services:/ }).hover();
+  await expect(c.page().getByText("Services: 30 · 30%")).toBeVisible();
+});
+
+test("stacked: the total is printed above the bar", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart categories={["Q1", "Q2"]} series={MIX} height={240} stacked />
+    </div>,
+  );
+  await expect(c.locator("svg text").filter({ hasText: "100" }).first()).toBeVisible();
+});
+
+test("stacked percent: every bar fills the plot and the axis ticks read percent", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart
+        categories={["Q1", "Q2"]}
+        series={MIX}
+        height={240}
+        stacked="percent"
+        scaffolding="full"
+      />
+    </div>,
+  );
+  const q1 = await c.getByRole("button", { name: /^Q1 Subscriptions:/ }).boundingBox();
+  const q2 = await c.getByRole("button", { name: /^Q2 Subscriptions:/ }).boundingBox();
+  if (!q1 || !q2) throw new Error("missing segments");
+  // Q1 subscriptions is 60%, Q2 is 80%: same total height, different splits.
+  expect(q2.height).toBeGreaterThan(q1.height);
+  await expect(c.getByText("100%", { exact: true })).toBeVisible();
+});
+
+test("stacked: negatives hang below the baseline", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart
+        categories={["Q1"]}
+        series={[
+          { name: "In", values: [100] },
+          { name: "Out", values: [-40] },
+        ]}
+        height={240}
+        stacked
+      />
+    </div>,
+  );
+  const inflow = await c.getByRole("button", { name: /^Q1 In:/ }).boundingBox();
+  const outflow = await c.getByRole("button", { name: /^Q1 Out:/ }).boundingBox();
+  if (!inflow || !outflow) throw new Error("missing segments");
+  expect(outflow.y).toBeGreaterThanOrEqual(inflow.y + inflow.height - 1);
+});
+
+test("stacked: a click pins the segment and the popover tracks it", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart categories={["Q1", "Q2"]} series={MIX} height={240} stacked selectable />
+    </div>,
+  );
+  const segment = c.getByRole("button", { name: /^Q2 Services:/ });
+  await segment.click();
+  await expect(c.locator("rect[data-selected]")).toHaveCount(1);
+  await expect(c.page().getByRole("dialog")).toContainText("Services: 20");
+});
+
+test("grouped bars still sit side by side", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <BarChart categories={["Q1", "Q2"]} series={MIX} height={240} />
+    </div>,
+  );
+  const subs = await c.getByRole("button", { name: /^Q1 Subscriptions:/ }).boundingBox();
+  const services = await c.getByRole("button", { name: /^Q1 Services:/ }).boundingBox();
+  if (!subs || !services) throw new Error("missing bars");
+  expect(services.x).toBeGreaterThan(subs.x + subs.width - 1);
+});
+
+// --- Formatting (issue #97) --------------------------------------------
+
+test("categoryFormat, seriesFormat and valueFormat reach the legend, the tooltip and the accessible name", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <BarChartScaffoldHarness
+      categories={["Q1", "Q2"]}
+      series={[
+        { name: "Plan", values: [50, 60] },
+        { name: "Actual", values: [42, 58] },
+      ]}
+      height={240}
+      formatted
+    />,
+  );
+  // The legend names a dataset, so it reads the series formatter.
+  const legend = c.locator('[class*="legendItem"]');
+  await expect(legend).toHaveCount(2);
+  await expect(legend.first()).toHaveText("1. PLAN");
+  await expect(legend.last()).toHaveText("2. ACTUAL");
+  // A mark's accessible name carries all three.
+  await expect(c.getByRole("button", { name: "Q1 2026 1. PLAN: CHF 50" })).toBeVisible();
+  // The x axis names positions, so it reads the category formatter.
+  await expect(c.locator('[class*="tick"]').filter({ hasText: "Q2 2026" }).first()).toBeVisible();
+  // The tooltip prints the formatted series name and value.
+  await c.getByRole("button", { name: "Q2 2026 2. ACTUAL: CHF 58" }).hover();
+  await expect(c.page().getByRole("tooltip")).toContainText("2. ACTUAL: CHF 58");
+});
+
+test("stacked segments carry the same formatting", async ({ mount }) => {
+  const c = await mount(
+    <BarChartScaffoldHarness
+      categories={["Q1"]}
+      series={[
+        { name: "Plan", values: [50] },
+        { name: "Actual", values: [50] },
+      ]}
+      height={240}
+      stacked
+      formatted
+    />,
+  );
+  await expect(c.getByRole("button", { name: "Q1 2026 1. PLAN: CHF 50, 50%" })).toBeVisible();
+});

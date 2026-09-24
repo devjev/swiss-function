@@ -86,6 +86,7 @@ const componentNames = [
   "Picker",
   "Dropzone",
   "Histogram",
+  "PieChart",
   "HorizonChart",
   "Marimekko",
   "Multiples",

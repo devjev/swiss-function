@@ -1,5 +1,5 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
@@ -7,6 +7,7 @@ import {
   type AxisTick,
   anchorRectFromPoint,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -15,6 +16,7 @@ import {
   getTextMeasurer,
   maxLabelWidth,
   niceTicks,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -62,6 +64,7 @@ export interface BulletDatum {
 
 export interface BulletChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps,
     ChartScaffoldingProps,
     ChartSelectionProps<BulletDatum> {
   /** One row per item, stacking as a panel. */
@@ -82,8 +85,6 @@ export interface BulletChartProps
   size?: "sm" | "md" | "lg";
   /** Print each value at the row's end in Swiss number formatting. Default `true`. */
   showValues?: boolean;
-  /** Formats printed values (the readout, the tooltip, the crosshair). */
-  valueFormat?: (value: number) => string;
   /** Component height. Default: the rows at their `size` (horizontal) or 8u
    *  (vertical). With a height the rows share it evenly. */
   height?: number | string;
@@ -198,7 +199,9 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
     orientation = "horizontal",
     size = "md",
     showValues = true,
-    valueFormat = defaultValueFormat,
+    valueFormat: valueFormatProp,
+    tickFormat,
+    categoryFormat,
     xLabel,
     yLabel,
     height,
@@ -307,6 +310,21 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
   /** px along the value axis: left to right, or bottom to top. */
   const alongPx = (value: number, dom: [number, number]) =>
     horizontal ? scalePosition(value, dom, along) : along - scalePosition(value, dom, along);
+  // One formatter for every printed number and item label (issue #97).
+  const format = useMemo(
+    () =>
+      resolveChartFormat(
+        { valueFormat: valueFormatProp, tickFormat, categoryFormat },
+        defaultValueFormat,
+      ),
+    [valueFormatProp, tickFormat, categoryFormat],
+  );
+  const valueFormat = format.value;
+  const labelOf = useCallback(
+    (item: { label: string }, index: number) => format.category(item.label, index),
+    [format],
+  );
+
   const rowCentre = (index: number) => inset + geom.step * (index + 0.5);
 
   // The panel axis (shared scale only): nice ticks at one per ~80px.
@@ -316,8 +334,12 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
     if (!(d1 > d0)) return [];
     return niceTicks(d0, d1, Math.max(2, Math.round(along / 80)))
       .filter((t) => t.value >= d0 && t.value <= d1)
-      .map((t) => ({ label: t.label, position: (t.value - d0) / (d1 - d0), major: t.major }));
-  }, [shared, scaffolding, along, viewDomain]);
+      .map((t) => ({
+        label: format.tick(t.value, t.label, horizontal ? "x" : "y"),
+        position: (t.value - d0) / (d1 - d0),
+        major: t.major,
+      }));
+  }, [shared, scaffolding, along, viewDomain, format, horizontal]);
 
   const axisWidth = useMemo(
     () =>
@@ -354,7 +376,7 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
 
   const datumOf = (row: Row): BulletDatum => ({
     index: row.index,
-    label: row.item.label,
+    label: labelOf(row.item, row.index),
     sublabel: row.item.sublabel,
     value: row.item.value,
     target: row.item.target,
@@ -463,8 +485,8 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
         {items.map((item, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: rows are positional; labels may repeat
           <div key={i} className={styles.label}>
-            <span className={styles.labelText} title={item.label}>
-              {item.label}
+            <span className={styles.labelText} title={labelOf(item, i)}>
+              {labelOf(item, i)}
             </span>
             {item.sublabel ? <span className={styles.sublabel}>{item.sublabel}</span> : null}
           </div>
@@ -662,7 +684,7 @@ export const BulletChart = forwardRef<HTMLDivElement, BulletChartProps>(function
                     data-row-hit=""
                     role="button"
                     tabIndex={0}
-                    aria-label={`${item.label}: ${valueFormat(item.value)}${item.target != null ? ` of ${valueFormat(item.target)}` : ""}`}
+                    aria-label={`${labelOf(item, index)}: ${valueFormat(item.value)}${item.target != null ? ` of ${valueFormat(item.target)}` : ""}`}
                     data-activatable={activatable ? "" : undefined}
                     onPointerEnter={() => handleEnter(row)}
                     onPointerLeave={handleLeave}

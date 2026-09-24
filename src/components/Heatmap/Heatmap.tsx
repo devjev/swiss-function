@@ -11,6 +11,7 @@ import {
   type AnnotationX,
   anchorRectFromPoint,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   FullscreenToggle,
@@ -19,6 +20,7 @@ import {
   getTextMeasurer,
   type LabelBox,
   maxLabelWidth,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -43,6 +45,9 @@ export interface HeatmapDatum {
 
 export interface HeatmapProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    // `valueFormat` here takes the cell's datum as well, so the mixin's
+    // simpler one is left out and the rest of it mixed in.
+    Omit<ChartFormatProps, "valueFormat">,
     ChartScaffoldingProps,
     ChartSelectionProps<HeatmapDatum> {
   /** Gridded values: `z[j][i]` at `x[i]`, `y[j]`. */
@@ -215,6 +220,8 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     contours,
     showValues,
     valueFormat,
+    tickFormat,
+    categoryFormat,
     xLabel,
     yLabel,
     height = "calc(var(--sf-unit) * 14)",
@@ -292,6 +299,13 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     return m;
   }, [data.y]);
 
+  // One formatter for the axis ticks and the zoom readout (issue #97). The
+  // cell figure keeps Heatmap's own datum-aware `valueFormat`.
+  const format = useMemo(
+    () => resolveChartFormat({ tickFormat, categoryFormat }, formatNumber),
+    [tickFormat, categoryFormat],
+  );
+
   // Shared scaffolding: fullscreen, annotation editing, and value-axis (y) zoom.
   // The grid is categorical in both directions, so `zoomable` windows the
   // vertical value axis — a sub-range of rows (issue #35).
@@ -307,7 +321,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
       onDomainChange: onValueDomainChange,
       minSpan: Math.max((yDomain[1] - yDomain[0]) / 100, Number.EPSILON),
       zoomOutLimit,
-      formatValue: formatNumber,
+      formatValue: (v: number) => format.tick(v, formatNumber(v)),
       axis: "y",
     },
   });
@@ -433,7 +447,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     if (plotSize.width <= 0) return [];
     const entries: CellTick[] = data.x.map((v, i) => ({
       key: `${i}`,
-      label: formatTickValue(v, xStep),
+      label: format.tick(v, formatTickValue(v, xStep), "x"),
       position: snapFraction((i + 0.5) / nx, plotSize.width),
     }));
     const boxes: LabelBox[] = entries.map((e, i) => ({
@@ -444,7 +458,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     }));
     const keep = thinLabels(boxes, { previousKeys: prevXKeys.current });
     return entries.filter((_, i) => keep[i]);
-  }, [data.x, nx, xStep, plotSize.width, measure]);
+  }, [data.x, nx, xStep, plotSize.width, measure, format]);
 
   const prevYKeys = useRef<Set<string>>(new Set());
   const yTicks = useMemo(() => {
@@ -456,7 +470,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
       const j = ny - 1 - r;
       entries.push({
         key: `${j}`,
-        label: formatTickValue(data.y[j] ?? 0, yStep),
+        label: format.tick(data.y[j] ?? 0, formatTickValue(data.y[j] ?? 0, yStep)),
         position: snapFraction(centerFraction, plotSize.height),
       });
     }
@@ -468,7 +482,7 @@ export const Heatmap = forwardRef<HTMLDivElement, HeatmapProps>(function Heatmap
     }));
     const keep = thinLabels(boxes, { previousKeys: prevYKeys.current });
     return entries.filter((_, i) => keep[i]);
-  }, [data.y, ny, yStep, plotSize.height, rowWinTop, rowWinSpan]);
+  }, [data.y, ny, yStep, plotSize.height, rowWinTop, rowWinSpan, format]);
 
   // Survivor bias updates after commit — not inside the memos, which
   // StrictMode double-invokes.

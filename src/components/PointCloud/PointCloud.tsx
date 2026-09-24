@@ -5,6 +5,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ChartFormatProps, resolveChartFormat } from "../../lib/chart";
 import { Tooltip } from "../../lib/chart/Tooltip";
 import { drawFrameBack, drawFrameFront } from "../../lib/chart3d/frame";
 import { nearestHitOrdered, prepareCanvas } from "../../lib/chart3d/paint";
@@ -20,7 +21,9 @@ import styles from "./PointCloud.module.css";
 
 export type PointCloudDatum = Point3 & { series: string };
 
-export interface PointCloudProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface PointCloudProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps {
   series: PointSeries[];
   xDomain?: Domain;
   yDomain?: Domain;
@@ -72,6 +75,9 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
     pointRadius = 3,
     height = "calc(var(--sf-unit) * 16)",
     showLegend,
+    valueFormat,
+    tickFormat,
+    seriesFormat,
     renderTooltip,
     className,
     style,
@@ -80,6 +86,13 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
   },
   ref,
 ) {
+  // One formatter for the printed coordinates and the series names (issue #97).
+  // A point cloud has no category axis, so `categoryFormat` is not offered.
+  const format = useMemo(
+    () => resolveChartFormat({ valueFormat, tickFormat, seriesFormat }, (v) => String(v)),
+    [valueFormat, tickFormat, seriesFormat],
+  );
+
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -160,6 +173,7 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
       zDomain: zDom,
       xLabel,
       yLabel,
+      tickLabel: format.tick,
       host,
     };
 
@@ -270,13 +284,13 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
       </div>
       {legend ? (
         <div className={styles.legend}>
-          {series.map((s) => (
+          {series.map((s, si) => (
             <span key={s.name} className={styles.legendItem}>
               <span
                 className={styles.swatch}
                 style={{ backgroundColor: s.color ?? "var(--sf-color-primary)" }}
               />
-              {s.name}
+              {format.series(s.name, si)}
             </span>
           ))}
         </div>
@@ -285,8 +299,8 @@ export const PointCloud = forwardRef<HTMLDivElement, PointCloudProps>(function P
         {hover
           ? (renderTooltip?.(hover.datum) ?? (
               <span className={styles.tip}>
-                {hover.datum.label ? `${hover.datum.label} ` : ""}({hover.datum.x}, {hover.datum.y},{" "}
-                {hover.datum.z})
+                {hover.datum.label ? `${hover.datum.label} ` : ""}({format.value(hover.datum.x)},{" "}
+                {format.value(hover.datum.y)}, {format.value(hover.datum.z)})
               </span>
             ))
           : null}

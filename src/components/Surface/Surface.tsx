@@ -5,6 +5,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ChartFormatProps, resolveChartFormat } from "../../lib/chart";
 import { Tooltip } from "../../lib/chart/Tooltip";
 import { axisTicks, CUBE_EDGES } from "../../lib/chart3d/cube";
 import { nearestHit, prepareCanvas } from "../../lib/chart3d/paint";
@@ -24,7 +25,9 @@ export interface SurfaceDatum {
   z: number;
 }
 
-export interface SurfaceProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+export interface SurfaceProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    Omit<ChartFormatProps, "categoryFormat"> {
   /** Gridded heights: `z[j][i]` is the value at `x[i]`, `y[j]`. */
   data: GridData;
   /** Height (z) domain; defaults to the data's min/max. */
@@ -70,6 +73,8 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
     height = "calc(var(--sf-unit) * 16)",
     wireframe = true,
     colorScale,
+    valueFormat,
+    tickFormat,
     renderTooltip,
     className,
     style,
@@ -78,6 +83,13 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
   },
   ref,
 ) {
+  // One formatter for the printed heights and the cube's tick labels
+  // (issue #97). z is the value axis; x and y carry the grid coordinates.
+  const format = useMemo(
+    () => resolveChartFormat({ valueFormat, tickFormat }, (v) => String(v)),
+    [valueFormat, tickFormat],
+  );
+
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -238,8 +250,10 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
     ctx.textBaseline = "middle";
     const text = (t: string, p: { x: number; y: number }, dx: number, dy: number) =>
       ctx.fillText(t, p.x + dx, p.y + dy);
-    for (const t of axisTicks(xDomain)) text(t.label, project(t.n, 0.5, -0.5, camera, fit), 0, 12);
-    for (const t of axisTicks(yDomain)) text(t.label, project(0.5, t.n, -0.5, camera, fit), 14, 0);
+    for (const t of axisTicks(xDomain))
+      text(format.tick(t.value, t.label, "x"), project(t.n, 0.5, -0.5, camera, fit), 0, 12);
+    for (const t of axisTicks(yDomain))
+      text(format.tick(t.value, t.label, "y"), project(0.5, t.n, -0.5, camera, fit), 14, 0);
     for (const t of axisTicks(zDom)) text(t.label, project(-0.5, 0.5, t.n, camera, fit), -14, 0);
     if (xLabel) text(xLabel, project(0, 0.5, -0.5, camera, fit), 0, 26);
     if (yLabel) text(yLabel, project(0.5, 0, -0.5, camera, fit), 30, 0);
@@ -300,10 +314,10 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
           ? (renderTooltip?.(hover.datum) ?? (
               <span className={styles.tip}>
                 {zLabel ? `${zLabel}: ` : ""}
-                {hover.datum.z}
+                {format.value(hover.datum.z)}
                 <span className={styles.tipMeta}>
                   {" "}
-                  ({hover.datum.x}, {hover.datum.y})
+                  ({format.value(hover.datum.x)}, {format.value(hover.datum.y)})
                 </span>
               </span>
             ))

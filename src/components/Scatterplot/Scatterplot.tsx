@@ -12,6 +12,7 @@ import {
   adaptiveTicks,
   anchorRectFromPoint,
   ChartControls,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -26,6 +27,7 @@ import {
   minMaxDownsample,
   niceDomain,
   niceTicks,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   type StepSession,
@@ -87,6 +89,7 @@ function lineStyleAttrs(style: ScatterSeries["lineStyle"]): CSSProperties {
 
 export interface ScatterplotProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    Omit<ChartFormatProps, "categoryFormat">,
     ChartScaffoldingProps,
     ChartSelectionProps<ScatterPoint> {
   series: ScatterSeries[];
@@ -140,6 +143,7 @@ function isDateValue(x: ScatterX): x is Date {
 // scales are useMemo'd and the callbacks useCallback'd in the root.
 const ScatterPointsLayer = memo(function ScatterPointsLayer({
   series,
+  label,
   xPx,
   yScale,
   onPointHover,
@@ -148,6 +152,9 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
   selectedKey,
 }: {
   series: ScatterSeries;
+  /** The series name as printed: a plain string, so the memo still bails out
+   *  on a hover re-render. */
+  label: string;
   xPx: (x: ScatterX) => number;
   yScale: (y: number) => number;
   onPointHover: (hit: PointHit) => void;
@@ -220,9 +227,9 @@ const ScatterPointsLayer = memo(function ScatterPointsLayer({
             data-selected={selected || undefined}
             role="button"
             tabIndex={0}
-            aria-label={d.label ?? `${series.name}: ${d.y}`}
+            aria-label={d.label ?? `${label}: ${d.y}`}
           >
-            <title>{d.label ?? `${series.name}: ${d.y}`}</title>
+            <title>{d.label ?? `${label}: ${d.y}`}</title>
           </circle>
         );
       })}
@@ -248,11 +255,14 @@ function scatterPointKey(series: string, x: ScatterX, y: number): string {
   return `${series} ${toNumber(x)} ${y}`;
 }
 
-function defaultTooltip(d: ScatterDatum & { series: string }): ReactNode {
+function defaultTooltip(
+  d: ScatterDatum & { series: string },
+  seriesName: (name: string) => string,
+): ReactNode {
   const xLabel = isDateValue(d.x) ? d.x.toLocaleDateString() : String(d.x);
   return (
     <>
-      <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{d.series}</div>
+      <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{seriesName(d.series)}</div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
         {xLabel}, {d.y}
       </div>
@@ -286,7 +296,10 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     fullscreen = false,
     frame = false,
     onPointActivate,
-    renderTooltip = defaultTooltip,
+    valueFormat,
+    tickFormat,
+    seriesFormat,
+    renderTooltip,
     selectable = false,
     selection: controlledSelection,
     defaultSelection,
@@ -298,6 +311,25 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
   },
   ref,
 ) {
+  // One formatter for every printed number (issue #97). y is the value axis;
+  // x keeps its own labels unless `tickFormat` retitles it, which it can tell
+  // apart by the axis it is handed.
+  const format = useMemo(
+    () => resolveChartFormat({ valueFormat, tickFormat, seriesFormat }, formatNumber),
+    [valueFormat, tickFormat, seriesFormat],
+  );
+  // A series name is formatted by its position in `series`, so the name in a
+  // tooltip gets the same treatment as the one in the legend.
+  const seriesName = useCallback(
+    (name: string) =>
+      format.series(
+        name,
+        series.findIndex((x) => x.name === name),
+      ),
+    [format, series],
+  );
+  const tooltipOf =
+    renderTooltip ?? ((d: ScatterDatum & { series: string }) => defaultTooltip(d, seriesName));
   const { selection, setSelection } = useChartSelection<ScatterPoint>({
     selectable,
     selection: controlledSelection,
@@ -535,7 +567,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
           if (seen.has(v)) continue;
           seen.add(v);
           raw.push({
-            label: formatXValue(d.x),
+            label: format.tick(v, formatXValue(d.x), "x"),
             position: (v - xMin) / (xMax - xMin),
             major: false,
           });
@@ -545,14 +577,14 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       raw.sort((a, b) => a.position - b.position);
     } else if (isDateAxis) {
       raw = timeTicks(xMin, xMax, plotSize.width).map((t) => ({
-        label: t.label,
+        label: format.timeTick(t.date.getTime(), t.label, "x"),
         position: (t.date.getTime() - xMin) / (xMax - xMin),
         major: t.major,
       }));
     } else {
       const adaptive = adaptiveTicks(xMin, xMax, plotSize.width);
       raw = adaptive.ticks.map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label, "x"),
         position: (t.value - xMin) / (xMax - xMin),
         major: t.major,
       }));
@@ -569,7 +601,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     const ticks = raw.filter((_, i) => keep[i]);
     prevXTickKeys.current = new Set(ticks.map((t) => t.label));
     return { ticks, offsetLabel };
-  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries, measure]);
+  }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries, measure, format]);
 
   const yTicks: { ticks: AxisTick[]; offsetLabel: string } = useMemo(() => {
     const [yMin, yMax] = resolvedYDomain;
@@ -584,7 +616,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
           if (seen.has(d.y)) continue;
           seen.add(d.y);
           raw.push({
-            label: formatNumber(d.y),
+            label: format.tick(d.y, formatNumber(d.y)),
             position: (d.y - yMin) / (yMax - yMin),
             major: false,
           });
@@ -597,14 +629,14 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       // set aligned with the snapped domain.
       const adaptive = adaptiveTicks(yMin, yMax, plotSize.height, 50);
       raw = adaptive.ticks.map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label),
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
       }));
       offsetLabel = adaptive.offsetLabel;
     } else {
       raw = niceTicks(yMin, yMax, 5).map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label),
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
       }));
@@ -618,7 +650,15 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     }));
     const keep = thinLabels(boxes);
     return { ticks: raw.filter((_, i) => keep[i]), offsetLabel };
-  }, [resolvedYDomain, isTufte, visibleSeries, plotSize.height, zoomable, viewport.isZoomed]);
+  }, [
+    resolvedYDomain,
+    isTufte,
+    visibleSeries,
+    plotSize.height,
+    zoomable,
+    viewport.isZoomed,
+    format,
+  ]);
 
   const xAxisTicks = xTicks.ticks;
   const yAxisTicks = yTicks.ticks;
@@ -637,11 +677,11 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       }));
     }
     return niceTicks(yMin, yMax, 5).map((t) => ({
-      label: t.label,
+      label: format.tick(t.value, t.label),
       position: (t.value - yMin) / (yMax - yMin),
       major: t.major,
     }));
-  }, [resolvedYDomain, scaffolding, zoomable, viewport.isZoomed, plotSize.height]);
+  }, [resolvedYDomain, scaffolding, zoomable, viewport.isZoomed, plotSize.height, format]);
 
   // --- Plot geometry ---
   const xPx = useCallback(
@@ -800,6 +840,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                 <ScatterPointsLayer
                   key={`points-${s.name}`}
                   series={s}
+                  label={seriesName(s.name)}
                   xPx={xPx}
                   yScale={yScale}
                   onPointHover={handlePointHover}
@@ -832,7 +873,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                 width={plotSize.width}
                 height={plotSize.height}
                 formatXDelta={formatXDelta}
-                formatY={formatNumber}
+                formatY={format.value}
                 editing={editor.layerEditing}
               />
             ) : null}
@@ -855,7 +896,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
                 y={snapHairline(hover.cy)}
                 height={plotSize.height}
                 xLabel={formatXValue(hover.datum.x)}
-                yLabel={formatNumber(hover.datum.y)}
+                yLabel={format.value(hover.datum.y)}
               />
             ) : null}
           </svg>
@@ -916,21 +957,21 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       {hasXLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
       {legendVisible ? (
         <div className={styles.legend}>
-          {series.map((s) => (
+          {series.map((s, si) => (
             <span key={`leg-${s.name}`} className={styles.legendItem}>
               <span
                 className={styles.legendSwatch}
                 style={{ backgroundColor: s.color ?? "var(--sf-color-primary)" }}
                 aria-hidden="true"
               />
-              {s.name}
+              {format.series(s.name, si)}
             </span>
           ))}
         </div>
       ) : null}
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
-        {hover ? renderTooltip({ ...hover.datum, series: hover.series }) : null}
+        {hover ? tooltipOf({ ...hover.datum, series: hover.series }) : null}
       </Tooltip>
 
       {selectable ? (
@@ -941,7 +982,7 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
           y={selectionPoint?.y ?? null}
           onClose={() => setSelection(null)}
         >
-          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+          {selection ? (renderSelection ?? tooltipOf)(selection) : null}
         </SelectionPopover>
       ) : null}
 

@@ -18,10 +18,12 @@ import {
 import {
   Axis,
   type AxisTick,
+  type ChartFormatProps,
   type ChartScaffolding,
   FullscreenToggle,
   getTextMeasurer,
   maxLabelWidth,
+  resolveChartFormat,
   resolveTickFont,
   scaffoldStyles,
 } from "../../lib/chart";
@@ -63,7 +65,11 @@ export interface MultiplesShared {
   height: number | string;
 }
 
-export interface MultiplesProps<T> extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+export interface MultiplesProps<T>
+  extends Omit<HTMLAttributes<HTMLDivElement>, "title">,
+    // The panels print their own numbers; the grid only owns the outer axes,
+    // so only their tick labels are its to format.
+    Pick<ChartFormatProps, "tickFormat"> {
   /** One panel per item. */
   items: readonly T[];
   /** Renders a panel's chart. Spread `shared` onto the chart's domain props. */
@@ -193,6 +199,7 @@ function MultiplesInner<T>({
     link = "x",
     axes = "each",
     scaffolding = "hover",
+    tickFormat,
     frame,
     fullscreen,
     height,
@@ -372,6 +379,7 @@ function MultiplesInner<T>({
   /* --- Outer axes: one x axis per column (from the bottom panel), one y axis
      per row (from the first panel), ticks from the shared domains. --- */
   const measure = useMemo(() => getTextMeasurer(resolveTickFont(rootRef.current, "mono")), []);
+  const format = useMemo(() => resolveChartFormat({ tickFormat }), [tickFormat]);
 
   const xAxes = useMemo(() => {
     if (!outer || !sharedX) return new Map<number, { plot: PlotRect; ticks: AxisTick[] }>();
@@ -380,10 +388,10 @@ function MultiplesInner<T>({
       if (!cell.lastInColumn) continue;
       const plot = plots[cell.index];
       if (!plot) continue;
-      out.set(cell.col, { plot, ticks: axisTicksFor(sharedX, plot.width, "x") });
+      out.set(cell.col, { plot, ticks: axisTicksFor(sharedX, plot.width, "x", format) });
     }
     return out;
-  }, [outer, sharedX, placement, plots]);
+  }, [outer, sharedX, placement, plots, format]);
 
   const yAxes = useMemo(() => {
     if (!outer || !sharedY) return new Map<number, { plot: PlotRect; ticks: AxisTick[] }>();
@@ -392,10 +400,10 @@ function MultiplesInner<T>({
       if (!cell.firstInRow) continue;
       const plot = plots[cell.index];
       if (!plot) continue;
-      out.set(cell.row, { plot, ticks: axisTicksFor(sharedY, plot.height, "y") });
+      out.set(cell.row, { plot, ticks: axisTicksFor(sharedY, plot.height, "y", format) });
     }
     return out;
-  }, [outer, sharedY, placement, plots]);
+  }, [outer, sharedY, placement, plots, format]);
 
   const yAxisWidth = useMemo(() => {
     const labels: string[] = [];

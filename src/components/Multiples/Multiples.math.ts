@@ -114,6 +114,12 @@ export function axisTicksFor(
   domain: MultiplesDomain,
   lengthPx: number,
   orientation: "x" | "y",
+  /** Retitles a tick: the grid's resolved `tickFormat`, when it has one. A
+   *  calendar tick is handed its timestamp, a numeric tick its value. */
+  format?: {
+    tick: (v: number, fallback: string, axis: "x" | "y") => string;
+    timeTick: (v: number, fallback: string, axis: "x" | "y") => string;
+  },
 ): SharedAxisTick[] {
   const start = toNumber(domain[0]);
   const end = toNumber(domain[1]);
@@ -121,14 +127,14 @@ export function axisTicksFor(
   if (!(span > 0) || !(lengthPx > 0)) return [];
   if (orientation === "x" && isDateDomain(domain)) {
     return timeTicks(start, end, lengthPx).map((t) => ({
-      label: t.label,
+      label: format ? format.timeTick(t.date.getTime(), t.label, "x") : t.label,
       position: (t.date.getTime() - start) / span,
       major: t.major,
     }));
   }
   const spacing = orientation === "x" ? 80 : 50;
   return adaptiveTicks(start, end, lengthPx, spacing).ticks.map((t) => ({
-    label: t.label,
+    label: format ? format.tick(t.value, t.label, orientation) : t.label,
     position: (t.value - start) / span,
     major: t.major,
   }));

@@ -144,6 +144,19 @@
   cursor: pointer;
 }
 
+/* A stacked segment: the parts of one bar touch, so a 1px page-coloured
+   hairline keeps two neighbouring steps of the ramp apart. */
+.segment {
+  stroke: var(--sf-color-bg);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* The halftone dots of `fill="dither"`, in the ink colour. */
+.ditherDot {
+  fill: var(--sf-color-fg);
+}
+
 /* --- Tufte value labels above each bar -------------------------------- */
 
 .valueLabel {
@@ -160,6 +173,16 @@
    token (white in both themes) rather than a hard-coded literal. */
 .valueLabelInside {
   fill: var(--sf-color-primary-fg);
+}
+
+/* A stacked bar's total, flipped inside the top segment, sits on an unknown
+   step of the ramp: it keeps the ink and wears a page-coloured halo so its
+   strokes read over whatever is behind them. */
+.valueLabelHalo {
+  paint-order: stroke;
+  stroke: var(--sf-color-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .bar:hover,

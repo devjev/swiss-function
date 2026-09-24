@@ -8,6 +8,7 @@ import {
   adaptiveTicks,
   anchorRectFromPoint,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -20,6 +21,7 @@ import {
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -79,6 +81,7 @@ export interface HistogramBinDatum {
 
 export interface HistogramProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    Omit<ChartFormatProps, "categoryFormat">,
     ChartScaffoldingProps,
     ChartSelectionProps<HistogramBinDatum> {
   /** One sample. Shorthand for a single unnamed series. */
@@ -102,9 +105,6 @@ export interface HistogramProps
   density?: boolean | { bandwidth?: number };
   /** Print each bin's value above its bar (where the label fits the bin). */
   showValues?: boolean;
-  /** Formats the x values (bin edges, tick labels, the tooltip range). Default:
-   *  the compact axis formatter. */
-  valueFormat?: (value: number) => string;
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
   height?: number | string;
   /** Render a legend below the x-axis. Default: true when >1 series. */
@@ -346,7 +346,9 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
     cumulative = false,
     density = false,
     showValues = false,
-    valueFormat = formatCompact,
+    valueFormat: valueFormatProp,
+    tickFormat,
+    seriesFormat,
     xLabel,
     yLabel,
     height,
@@ -464,6 +466,24 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
     return [0, nice[1]];
   }, [layers, cumulative, densityCurves]);
 
+  // One formatter for every printed number (issue #97). A histogram's value
+  // axis is x (the variable being binned), so that is what `tickFormat`
+  // retitles; the count axis keeps its own labels.
+  const format = useMemo(
+    () =>
+      resolveChartFormat({ valueFormat: valueFormatProp, tickFormat, seriesFormat }, formatCompact),
+    [valueFormatProp, tickFormat, seriesFormat],
+  );
+  const valueFormat = format.value;
+  const seriesName = useCallback(
+    (name: string) =>
+      format.series(
+        name,
+        layers.findIndex((l) => l.name === name),
+      ),
+    [format, layers],
+  );
+
   // --- Shared scaffolding: the continuous x axis is what windows ---
   const formatDomainValue = useCallback(
     (v: number) => valueFormat(Number(v.toPrecision(4))),
@@ -516,11 +536,15 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
     if (isTufte) {
       raw = thresholds
         .filter((t) => t >= x0 && t <= x1)
-        .map((t) => ({ label: valueFormat(t), position: (t - x0) / (x1 - x0), major: false }));
+        .map((t) => ({
+          label: format.tick(t, valueFormat(t), "x"),
+          position: (t - x0) / (x1 - x0),
+          major: false,
+        }));
     } else {
       const adaptive = adaptiveTicks(x0, x1, plotSize.width);
       raw = adaptive.ticks.map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label, "x"),
         position: (t.value - x0) / (x1 - x0),
         major: t.major,
       }));
@@ -536,7 +560,7 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
     const ticks = raw.filter((_, i) => keep[i]);
     prevXKeys.current = new Set(ticks.map((t) => t.label));
     return { ticks, offsetLabel };
-  }, [viewX, plotSize.width, isTufte, thresholds, valueFormat, measure]);
+  }, [viewX, plotSize.width, isTufte, thresholds, valueFormat, format, measure]);
 
   const yAxisTicks: AxisTick[] = useMemo(() => {
     if (scaffolding === "minimal") return [];
@@ -597,7 +621,9 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
       return (
         <>
           {resolvedSeries.length > 1 ? (
-            <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{d.series}</div>
+            <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>
+              {seriesName(d.series)}
+            </div>
           ) : null}
           <div style={{ fontFamily: "var(--sf-font-mono)" }}>
             {valueFormat(d.x0)} to {valueFormat(d.x1)}
@@ -615,7 +641,7 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
         </>
       );
     },
-    [renderTooltip, resolvedSeries.length, valueFormat, normalize, cumulative],
+    [renderTooltip, resolvedSeries.length, valueFormat, normalize, cumulative, seriesName],
   );
 
   const wrapperStyle: CSSProperties = {
@@ -816,14 +842,14 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
       {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
       {legendVisible ? (
         <div className={styles.legend}>
-          {layers.map((l) => (
+          {layers.map((l, li) => (
             <span key={`leg-${l.name}`} className={styles.legendItem}>
               <span
                 className={styles.legendSwatch}
                 style={{ backgroundColor: l.color }}
                 aria-hidden="true"
               />
-              {l.name}
+              {format.series(l.name, li)}
             </span>
           ))}
         </div>

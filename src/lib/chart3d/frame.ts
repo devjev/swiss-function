@@ -15,6 +15,9 @@ export interface FrameOptions {
   zDomain: Domain;
   xLabel?: string;
   yLabel?: string;
+  /** Retitles the cube's tick labels: the chart passes its resolved
+   *  `tickFormat` here, and without one every tick keeps its nice label. */
+  tickLabel?: (value: number, label: string, axis: "x" | "y") => string;
   /** The chart element, for resolving `--sf-*` tokens (theme-aware). */
   host: Element;
 }
@@ -61,9 +64,15 @@ export function drawFrameFront(ctx: CanvasRenderingContext2D, o: FrameOptions) {
   ctx.textBaseline = "middle";
   const text = (t: string, p: { x: number; y: number }, dx: number, dy: number) =>
     ctx.fillText(t, p.x + dx, p.y + dy);
-  for (const t of axisTicks(o.xDomain)) text(t.label, project(t.n, 0.5, -0.5, camera, fit), 0, 12);
-  for (const t of axisTicks(o.yDomain)) text(t.label, project(0.5, t.n, -0.5, camera, fit), 14, 0);
-  for (const t of axisTicks(o.zDomain)) text(t.label, project(-0.5, 0.5, t.n, camera, fit), -14, 0);
+  // A consumer's tick formatter, when there is one, retitles every axis of
+  // the cube; without one each tick keeps its own nice label.
+  const tick = o.tickLabel ?? ((_v: number, label: string) => label);
+  for (const t of axisTicks(o.xDomain))
+    text(tick(t.value, t.label, "x"), project(t.n, 0.5, -0.5, camera, fit), 0, 12);
+  for (const t of axisTicks(o.yDomain))
+    text(tick(t.value, t.label, "y"), project(0.5, t.n, -0.5, camera, fit), 14, 0);
+  for (const t of axisTicks(o.zDomain))
+    text(tick(t.value, t.label, "y"), project(-0.5, 0.5, t.n, camera, fit), -14, 0);
   if (o.xLabel) text(o.xLabel, project(0, 0.5, -0.5, camera, fit), 0, 26);
   if (o.yLabel) text(o.yLabel, project(0.5, 0, -0.5, camera, fit), 30, 0);
 }

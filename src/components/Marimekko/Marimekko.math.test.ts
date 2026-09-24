@@ -2,15 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   cleanValue,
   columnTotals,
-  ditherCells,
-  ditherDots,
   fitBandLabels,
-  formatShare,
   indexToPx,
   labelFits,
   layoutBands,
   pxToIndex,
-  rampStrength,
   stackColumn,
   widthMeasures,
 } from "./Marimekko.math";
@@ -101,17 +97,11 @@ describe("stackColumn", () => {
   });
 });
 
-describe("labelFits / formatShare", () => {
+describe("labelFits", () => {
   it("needs the padding on both sides and a minimum height", () => {
     expect(labelFits(20, 32, 14)).toBe(true);
     expect(labelFits(21, 32, 14)).toBe(false);
     expect(labelFits(20, 32, 13)).toBe(false);
-  });
-
-  it("prints whole percents and marks a sliver", () => {
-    expect(formatShare(0.4249)).toBe("42%");
-    expect(formatShare(0.005)).toBe("<1%");
-    expect(formatShare(0)).toBe("0%");
   });
 });
 
@@ -166,24 +156,6 @@ describe("fitBandLabels", () => {
       suffixes: [" 40%"],
     });
     expect(tight).toEqual([]);
-  });
-});
-
-describe("ramp / dither", () => {
-  it("steps the ramp from dark to light and the dots from dense to sparse", () => {
-    expect(rampStrength(0, 3)).toBeGreaterThan(rampStrength(1, 3));
-    expect(rampStrength(2, 3)).toBeCloseTo(0.14);
-    expect(rampStrength(0, 1)).toBe(0.7);
-    expect(ditherDots(0, 4)).toBe(15);
-    expect(ditherDots(3, 4)).toBe(1);
-    expect(ditherDots(0, 1)).toBe(8);
-  });
-
-  it("sets as many Bayer cells as dots", () => {
-    expect(ditherCells(0)).toHaveLength(0);
-    expect(ditherCells(4)).toHaveLength(4);
-    expect(ditherCells(16)).toHaveLength(16);
-    expect(ditherCells(1)).toEqual([{ x: 0, y: 0 }]);
   });
 });
 

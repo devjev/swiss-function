@@ -1,5 +1,5 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { forwardRef, useMemo, useState } from "react";
+import { forwardRef, useCallback, useId, useMemo, useState } from "react";
 import {
   AnnotationsLayer,
   type AnnotationX,
@@ -8,17 +8,23 @@ import {
   anchorRectFromPoint,
   bandScale,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
+  ditherCells,
+  ditherDots,
   FullscreenToggle,
   fitBandTicks,
   formatNumber,
+  formatShare,
   getTextMeasurer,
   linearScale,
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  rampStrength,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -30,6 +36,7 @@ import {
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { stackAll, stackExtent, stackTotal } from "./BarChart.math";
 import styles from "./BarChart.module.css";
 
 export type { ChartScaffolding } from "../../lib/chart";
@@ -49,14 +56,33 @@ export interface BarTooltipDatum {
   category: string;
   series: string;
   value: number;
+  /** The part's share of its category (0..1). Present only when stacked. */
+  share?: number;
 }
+
+/** How several series share a category: side by side (the default), piled into
+ *  one bar, or piled into one bar of equal height. */
+export type BarStack = boolean | "percent";
+
+/** How a stacked segment with no colour of its own is painted. */
+export type BarFill = "ramp" | "dither";
 
 export interface BarChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps,
     ChartScaffoldingProps,
     ChartSelectionProps<BarTooltipDatum> {
   categories: string[];
   series: BarSeries[];
+  /** Pile the series into one bar per category instead of setting them side by
+   *  side (issue #98). `true` stacks in value units (positives up from the baseline,
+   *  negatives down from it); `"percent"` makes every bar the same height and
+   *  each part its share of the category. Default `false`. */
+  stacked?: BarStack;
+  /** How a stacked segment with no `color` is painted: the neutral ink ramp
+   *  (default, first series darkest) or the house halftone. Grouped bars keep
+   *  the accent colour, since position already tells them apart. */
+  fill?: BarFill;
   /** y-axis range. Auto-fit when omitted (zero anchored if all positive). */
   yDomain?: [number, number];
   /** Component height. Default `calc(var(--sf-unit) * 12)`. */
@@ -81,6 +107,12 @@ interface HoverState {
   /** SVG-coords for the hovered bar's top-center — used to anchor crosshair. */
   cx: number;
   cy: number;
+  /** What the bar's top edge means on the value axis. The same as `value` for
+   *  a plain bar; a stacked segment's top is the running total up to it, so
+   *  the crosshair labels that instead of lying about the segment. */
+  axisValue: number;
+  /** The part's share of its category, when it is part of a stack. */
+  share?: number;
 }
 
 /** Stable identity of a bar across renders (for the pinned-selection match /
@@ -89,12 +121,17 @@ function barPointKey(category: string, series: string, value: number): string {
   return `${category} ${series} ${value}`;
 }
 
-function defaultTooltip(d: BarTooltipDatum): ReactNode {
+function defaultTooltip(
+  d: BarTooltipDatum,
+  format: (v: number) => string,
+  seriesName: (name: string) => string,
+): ReactNode {
   return (
     <>
       <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{d.category}</div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
-        {d.series}: {formatNumber(d.value)}
+        {seriesName(d.series)}: {format(d.value)}
+        {d.share !== undefined ? ` · ${formatShare(d.share)}` : null}
       </div>
     </>
   );
@@ -104,6 +141,8 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
   {
     categories,
     series,
+    stacked = false,
+    fill = "ramp",
     yDomain,
     xLabel,
     yLabel,
@@ -118,8 +157,12 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     annotations,
     onAnnotationsChange,
     onValueDomainChange,
+    valueFormat,
+    tickFormat,
+    categoryFormat,
+    seriesFormat,
     onPointActivate,
-    renderTooltip = defaultTooltip,
+    renderTooltip,
     selectable = false,
     selection: controlledSelection,
     defaultSelection,
@@ -147,12 +190,45 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     onSelectionChange,
   });
 
+  const isStacked = stacked !== false;
+  const normalized = stacked === "percent";
+  const uid = useId();
+
+  // One formatter for every printed number and category label (issue #97).
+  const format = useMemo(
+    () =>
+      resolveChartFormat({ valueFormat, tickFormat, categoryFormat, seriesFormat }, formatNumber),
+    [valueFormat, tickFormat, categoryFormat, seriesFormat],
+  );
+  // A series name is formatted by its position in `series`, so a name printed
+  // in a tooltip gets the same treatment as the one in the legend.
+  const seriesName = useCallback(
+    (name: string) =>
+      format.series(
+        name,
+        series.findIndex((s) => s.name === name),
+      ),
+    [format, series],
+  );
+  const tooltipOf =
+    renderTooltip ?? ((d: BarTooltipDatum) => defaultTooltip(d, format.value, seriesName));
+
+  // One stack per category when stacking, each series a band inside it.
+  const stacks = useMemo(
+    () => (isStacked ? stackAll(series, categories.length, normalized) : []),
+    [isStacked, series, categories.length, normalized],
+  );
+
   const resolvedYDomain: [number, number] = useMemo(() => {
     if (yDomain) return yDomain;
+    // A stack's height is its parts summed, so the axis has to span the stacks,
+    // not the individual values. Normalized, every bar is the same height.
+    if (normalized) return [0, 1];
+    if (isStacked) return niceDomain(stackExtent(stacks));
     const all: number[] = [];
     for (const s of series) for (const v of s.values) all.push(v);
     return niceDomain(all);
-  }, [series, yDomain]);
+  }, [series, yDomain, isStacked, normalized, stacks]);
 
   // Shared scaffolding: fullscreen, annotation editor, and the value-axis (y)
   // zoom viewport — x is categorical, so it's the continuous value axis that
@@ -169,7 +245,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
       onDomainChange: onValueDomainChange,
       minSpan: Math.max((resolvedYDomain[1] - resolvedYDomain[0]) / 100, Number.EPSILON),
       zoomOutLimit,
-      formatValue: formatNumber,
+      formatValue: (v) => format.tick(v, normalized ? formatShare(v) : formatNumber(v)),
       axis: "y",
     },
   });
@@ -215,11 +291,11 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     return niceTicks(yMin, yMax, 5)
       .filter((t) => t.value >= yMin && t.value <= yMax)
       .map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, normalized ? formatShare(t.value) : t.label),
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
       }));
-  }, [viewYDomain, scaffolding]);
+  }, [viewYDomain, scaffolding, format, normalized]);
 
   // Categorical labels through the measured fitting ladder: full text when
   // every label fits its band, ellipsized (full text in title) when close,
@@ -230,13 +306,14 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
       const left = xBand.position(c) ?? 0;
       return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+    const labels = categories.map((c, i) => format.category(c, i));
+    return fitBandTicks(labels, centers, xBand.step, plotSize.width, measure).map((t) => ({
       label: t.label,
       title: t.title,
       position: t.position,
       major: false,
     }));
-  }, [categories, xBand, plotSize.width, measure]);
+  }, [categories, xBand, plotSize.width, measure, format]);
 
   // Measured y-axis column: the widest tick label sets --sf-axis-label-width
   // (8px-quantized so the resize feedback loop cannot oscillate).
@@ -258,11 +335,22 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     value: number,
     cx_: number,
     cy_: number,
+    axisValue: number = value,
+    share?: number,
   ) => {
     const plotEl = plotRef.current;
     if (!plotEl) return;
     const rect = anchorRectFromPoint(plotEl, cx_, cy_);
-    setHover({ category, series: seriesName, value, rect, cx: cx_, cy: cy_ });
+    setHover({
+      category,
+      series: seriesName,
+      value,
+      rect,
+      cx: cx_,
+      cy: cy_,
+      axisValue,
+      ...(share !== undefined ? { share } : {}),
+    });
   };
   const handleLeave = () => setHover(null);
 
@@ -277,8 +365,50 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
 
   const legendVisible = showLegend ?? series.length > 1;
   const nSeries = Math.max(1, series.length);
-  const innerStep = xBand.bandwidth / nSeries;
+  // Grouped, the band is divided between the series; stacked, one bar takes it.
+  const innerStep = xBand.bandwidth / (isStacked ? 1 : nSeries);
   const innerBarWidth = innerStep * 0.85;
+
+  // Grouped bars keep the accent colour: position already tells them apart.
+  // Stacked segments touch, so they step through the neutral ramp (or the
+  // halftone) unless the series carries a colour of its own.
+  const strengthOf = (si: number) =>
+    fill === "dither" ? ditherDots(si, nSeries) / 16 : rampStrength(si, nSeries);
+  const swatchOf = (s: BarSeries, si: number) =>
+    s.color ??
+    (isStacked
+      ? `color-mix(in srgb, var(--sf-color-fg) ${Math.round(strengthOf(si) * 100)}%, var(--sf-color-bg))`
+      : "var(--sf-color-primary)");
+  const fillOf = (s: BarSeries, si: number) =>
+    s.color ?? (isStacked && fill === "dither" ? `url(#${uid}-d${si})` : swatchOf(s, si));
+
+  /** The topmost drawn rect of a category's stack, for the printed total. */
+  const topOfStack = (ci: number) => {
+    let top: { x: number; y: number; width: number; height: number } | null = null;
+    for (let si = 0; si < series.length; si++) {
+      const rect = segmentRect(ci, si);
+      if (!rect || rect.height <= 0) continue;
+      if (!top || rect.y < top.y) top = rect;
+    }
+    return top;
+  };
+
+  /** A stacked segment's rect, or null when the category or part is missing. */
+  const segmentRect = (ci: number, si: number) => {
+    const c = categories[ci];
+    const bandLeft = c != null ? xBand.position(c) : null;
+    const segment = stacks[ci]?.[si];
+    if (bandLeft == null || !segment) return null;
+    const top = Math.min(yScale(segment.end), yScale(segment.start));
+    const bottom = Math.max(yScale(segment.end), yScale(segment.start));
+    return {
+      x: bandLeft + (innerStep - innerBarWidth) / 2,
+      y: top,
+      width: innerBarWidth,
+      height: bottom - top,
+      segment,
+    };
+  };
 
   // Click/Enter on a bar: report the activate event, then (when selectable)
   // toggle the pin — re-clicking the pinned bar clears it, any other bar
@@ -303,6 +433,14 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     const bandLeft = xBand.position(selection.category);
     const si = series.findIndex((s) => s.name === selection.series);
     if (bandLeft == null || si < 0) return null;
+    if (isStacked) {
+      const segment = stacks[categories.indexOf(selection.category)]?.[si];
+      if (!segment) return null;
+      return {
+        x: bandLeft + innerStep / 2,
+        y: Math.min(yScale(segment.end), yScale(segment.start)),
+      };
+    }
     const x = bandLeft + innerStep * si + (innerStep - innerBarWidth) / 2;
     return { x: x + innerBarWidth / 2, y: yScale(selection.value) };
   }, [
@@ -313,6 +451,9 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
     innerStep,
     innerBarWidth,
     yScale,
+    isStacked,
+    stacks,
+    categories,
     plotSize.width,
     plotSize.height,
   ]);
@@ -367,79 +508,223 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                   );
                 })
               : null}
-            {categories.map((c, ci) => {
-              const bandLeft = xBand.position(c);
-              if (bandLeft == null) return null;
-              return series.map((s, si) => {
-                const v = s.values[ci] ?? 0;
-                const x = bandLeft + innerStep * si + (innerStep - innerBarWidth) / 2;
-                const yVal = yScale(v);
-                const top = Math.min(yVal, baselineY);
-                const h = Math.abs(yVal - baselineY);
-                const cx_ = x + innerBarWidth / 2;
-                const cy_ = yVal;
-                const selected = selectedKey != null && barPointKey(c, s.name, v) === selectedKey;
-                return (
-                  <g key={`bar-${c}-${s.name}`}>
-                    {/* biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback */}
-                    <rect
-                      x={x}
-                      y={top}
-                      width={innerBarWidth}
-                      height={h}
-                      className={styles.bar}
-                      style={{ fill: s.color ?? "var(--sf-color-primary)" }}
-                      data-chart-mark=""
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${c} ${s.name}: ${v}`}
-                      onPointerEnter={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
-                      onPointerLeave={handleLeave}
-                      onClick={
-                        activatable
-                          ? () => handleBarActivate({ category: c, series: s.name, value: v })
-                          : undefined
-                      }
-                      onKeyDown={
-                        activatable
-                          ? (e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                handleBarActivate({ category: c, series: s.name, value: v });
-                              }
-                            }
-                          : undefined
-                      }
-                      data-activatable={activatable ? "" : undefined}
-                      data-selected={selected || undefined}
-                      onFocus={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
-                      onBlur={handleLeave}
+            {isStacked && fill === "dither" ? (
+              <defs>
+                {series.map((s, si) =>
+                  s.color ? null : (
+                    <pattern
+                      key={`pat-${s.name}`}
+                      id={`${uid}-d${si}`}
+                      patternUnits="userSpaceOnUse"
+                      width={4}
+                      height={4}
                     >
-                      <title>
-                        {c} — {s.name}: {v}
-                      </title>
-                    </rect>
-                    {/* Tufte mode: value label sits just above the bar's top.
+                      {ditherCells(ditherDots(si, nSeries)).map((c) => (
+                        <rect
+                          key={`${c.x}-${c.y}`}
+                          x={c.x}
+                          y={c.y}
+                          width={1}
+                          height={1}
+                          className={styles.ditherDot}
+                        />
+                      ))}
+                    </pattern>
+                  ),
+                )}
+              </defs>
+            ) : null}
+
+            {/* Stacked: one bar per category, the series piled inside it. The
+                segments touch, so a 1px page-coloured hairline separates them
+                (CSS), and the printed figure goes above the whole stack. */}
+            {isStacked
+              ? categories.map((c, ci) => {
+                  const stack = stacks[ci];
+                  if (!stack) return null;
+                  const total = stackTotal(stack);
+                  const totalText = format.value(total);
+                  const topRect = topOfStack(ci);
+                  return (
+                    <g key={`stack-${c}`}>
+                      {series.map((s, si) => {
+                        const rect = segmentRect(ci, si);
+                        if (!rect || rect.height <= 0) return null;
+                        const datum: BarTooltipDatum = {
+                          category: c,
+                          series: s.name,
+                          value: rect.segment.value,
+                          share: rect.segment.share,
+                        };
+                        const selected =
+                          selectedKey != null &&
+                          barPointKey(c, s.name, rect.segment.value) === selectedKey;
+                        return (
+                          // biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback
+                          <rect
+                            key={`seg-${c}-${s.name}`}
+                            x={rect.x}
+                            y={rect.y}
+                            width={rect.width}
+                            height={rect.height}
+                            className={cx(styles.bar, styles.segment)}
+                            style={{ fill: fillOf(s, si) }}
+                            data-chart-mark=""
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`${format.category(c, ci)} ${format.series(
+                              s.name,
+                              si,
+                            )}: ${format.value(rect.segment.value)}, ${formatShare(
+                              rect.segment.share,
+                            )}`}
+                            onPointerEnter={(e) =>
+                              handleEnter(
+                                e,
+                                c,
+                                s.name,
+                                rect.segment.value,
+                                rect.x + rect.width / 2,
+                                rect.y,
+                                rect.segment.end,
+                                rect.segment.share,
+                              )
+                            }
+                            onPointerLeave={handleLeave}
+                            onFocus={(e) =>
+                              handleEnter(
+                                e,
+                                c,
+                                s.name,
+                                rect.segment.value,
+                                rect.x + rect.width / 2,
+                                rect.y,
+                                rect.segment.end,
+                                rect.segment.share,
+                              )
+                            }
+                            onBlur={handleLeave}
+                            onClick={activatable ? () => handleBarActivate(datum) : undefined}
+                            onKeyDown={
+                              activatable
+                                ? (e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      handleBarActivate(datum);
+                                    }
+                                  }
+                                : undefined
+                            }
+                            data-activatable={activatable ? "" : undefined}
+                            data-selected={selected || undefined}
+                          >
+                            <title>
+                              {format.category(c, ci)} — {format.series(s.name, si)}:{" "}
+                              {format.value(rect.segment.value)}
+                            </title>
+                          </rect>
+                        );
+                      })}
+                      {/* The stack's own total, which is the figure the axis
+                          cannot be read for. Normalized, every bar is 100%, so
+                          there is nothing to print. */}
+                      {isTufte && !normalized && topRect && measure(totalText) <= innerStep
+                        ? (() => {
+                            const flip = topRect.y < 14;
+                            return (
+                              <text
+                                x={topRect.x + topRect.width / 2}
+                                y={flip ? topRect.y + 14 : topRect.y - 4}
+                                className={cx(styles.valueLabel, flip && styles.valueLabelHalo)}
+                                textAnchor="middle"
+                              >
+                                {totalText}
+                              </text>
+                            );
+                          })()
+                        : null}
+                    </g>
+                  );
+                })
+              : null}
+
+            {!isStacked
+              ? categories.map((c, ci) => {
+                  const bandLeft = xBand.position(c);
+                  if (bandLeft == null) return null;
+                  return series.map((s, si) => {
+                    const v = s.values[ci] ?? 0;
+                    const x = bandLeft + innerStep * si + (innerStep - innerBarWidth) / 2;
+                    const yVal = yScale(v);
+                    const top = Math.min(yVal, baselineY);
+                    const h = Math.abs(yVal - baselineY);
+                    const cx_ = x + innerBarWidth / 2;
+                    const cy_ = yVal;
+                    const selected =
+                      selectedKey != null && barPointKey(c, s.name, v) === selectedKey;
+                    return (
+                      <g key={`bar-${c}-${s.name}`}>
+                        {/* biome-ignore lint/a11y/useSemanticElements: <button> can't be a direct SVG child; role="button" is the correct ARIA fallback */}
+                        <rect
+                          x={x}
+                          y={top}
+                          width={innerBarWidth}
+                          height={h}
+                          className={styles.bar}
+                          style={{ fill: s.color ?? "var(--sf-color-primary)" }}
+                          data-chart-mark=""
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${format.category(c, ci)} ${format.series(s.name, si)}: ${format.value(v)}`}
+                          onPointerEnter={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
+                          onPointerLeave={handleLeave}
+                          onClick={
+                            activatable
+                              ? () => handleBarActivate({ category: c, series: s.name, value: v })
+                              : undefined
+                          }
+                          onKeyDown={
+                            activatable
+                              ? (e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    handleBarActivate({ category: c, series: s.name, value: v });
+                                  }
+                                }
+                              : undefined
+                          }
+                          data-activatable={activatable ? "" : undefined}
+                          data-selected={selected || undefined}
+                          onFocus={(e) => handleEnter(e, c, s.name, v, cx_, cy_)}
+                          onBlur={handleLeave}
+                        >
+                          <title>
+                            {format.category(c, ci)} — {format.series(s.name, si)}:{" "}
+                            {format.value(v)}
+                          </title>
+                        </rect>
+                        {/* Tufte mode: value label sits just above the bar's top.
                         Flips inside the bar when it would clip the plot top. */}
-                    {isTufte && measure(formatNumber(v)) <= innerStep
-                      ? (() => {
-                          const flip = yVal < 14;
-                          return (
-                            <text
-                              x={cx_}
-                              y={flip ? yVal + 14 : yVal - 4}
-                              className={cx(styles.valueLabel, flip && styles.valueLabelInside)}
-                              textAnchor="middle"
-                            >
-                              {formatNumber(v)}
-                            </text>
-                          );
-                        })()
-                      : null}
-                  </g>
-                );
-              });
-            })}
+                        {isTufte && measure(format.value(v)) <= innerStep
+                          ? (() => {
+                              const flip = yVal < 14;
+                              return (
+                                <text
+                                  x={cx_}
+                                  y={flip ? yVal + 14 : yVal - 4}
+                                  className={cx(styles.valueLabel, flip && styles.valueLabelInside)}
+                                  textAnchor="middle"
+                                >
+                                  {format.value(v)}
+                                </text>
+                              );
+                            })()
+                          : null}
+                      </g>
+                    );
+                  });
+                })
+              : null}
 
             {/* Tufte mode crosshair on hover — horizontal line from bar top
                 to y-axis with the value labeled at the edge. */}
@@ -449,7 +734,11 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
                 y={hover.cy}
                 height={plotSize.height}
                 axes="y"
-                yLabel={formatNumber(hover.value)}
+                yLabel={
+                  normalized
+                    ? formatShare(hover.axisValue)
+                    : format.tick(hover.axisValue, formatNumber(hover.axisValue))
+                }
               />
             ) : null}
 
@@ -501,14 +790,14 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
       {xLabel ? <div className={styles.xLabel}>{xLabel}</div> : null}
       {legendVisible ? (
         <div className={styles.legend}>
-          {series.map((s) => (
+          {series.map((s, si) => (
             <span key={`leg-${s.name}`} className={styles.legendItem}>
               <span
                 className={styles.legendSwatch}
-                style={{ backgroundColor: s.color ?? "var(--sf-color-primary)" }}
+                style={{ backgroundColor: swatchOf(s, si) }}
                 aria-hidden="true"
               />
-              {s.name}
+              {format.series(s.name, si)}
             </span>
           ))}
         </div>
@@ -520,10 +809,11 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
         {hover
-          ? renderTooltip({
+          ? tooltipOf({
               category: hover.category,
               series: hover.series,
               value: hover.value,
+              ...(hover.share !== undefined ? { share: hover.share } : {}),
             })
           : null}
       </Tooltip>
@@ -536,7 +826,7 @@ export const BarChart = forwardRef<HTMLDivElement, BarChartProps>(function BarCh
           y={selectionPoint?.y ?? null}
           onClose={() => setSelection(null)}
         >
-          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+          {selection ? (renderSelection ?? tooltipOf)(selection) : null}
         </SelectionPopover>
       ) : null}
     </div>

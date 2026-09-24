@@ -276,7 +276,9 @@ without touching the global radius.
 
 `import { BarChart } from "@tarassov-ch/swiss-function/bar-chart"`
 
-Responsive bar chart with Tufte/hover/full scaffolding modes. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, the same set as Scatterplot/CandlestickChart, issue #35) plus `ChartSelectionProps` (`selectable` click-to-freeze selection + a pinned popover — see Scatterplot). Extends `HTMLAttributes<HTMLDivElement>`.
+Responsive bar chart with Tufte/hover/full scaffolding modes. Several series sit side by side, or pile into one bar per category with `stacked`. Mixes in the shared `ChartScaffoldingProps` (frame/fullscreen/controls/zoom/annotations/labels/posture, the same set as Scatterplot/CandlestickChart, issue #35), `ChartFormatProps` (see [Chart formatting](#chart-formatting)) plus `ChartSelectionProps` (`selectable` click-to-freeze selection + a pinned popover, see Scatterplot). Extends `HTMLAttributes<HTMLDivElement>`.
+
+**Stacking** (issue #98): `stacked` piles the series into one bar per category, in value units. Positives stack up from the baseline and negatives hang down from it, so a bar is never shorter than one of its own parts, and the value axis spans the stack totals rather than the individual values. `stacked="percent"` normalizes every bar to the same height and each part to its share of the category, re-ticking the value axis in percent; a share of a total is undefined once a part is negative, so a negative counts as nothing there (its value still travels with the segment, for the tooltip to print). Stacked segments touch, so they step through the neutral ink ramp (the same ladder as `Marimekko` and `PieChart`), separated by a 1px page-coloured hairline, and a series' own `color` still wins; grouped bars keep the accent colour, since position already tells them apart. The Tufte value label prints the *stack's total* above the bar (the one figure the axis cannot be read for), and each segment reports its `share` alongside its value on hover, activate and selection.
 
 All 2D charts share the measured-label behavior (chart-polish milestone): tick and category labels are measured with real text metrics, thinned until nothing collides (first and last always survive), and long categorical labels are ellipsized with the full text in a `title`, never rotated. The y-axis column auto-sizes to the widest measured label via `--sf-axis-label-width` on the chart root; set that variable yourself on a container to pin several stacked charts to one column width. Hairline chrome (gridlines, ticks, wicks, cell edges) is device-pixel-snapped; numerals are tabular; resize tracks 1:1 with coalesced recomputes and stable label sets (step hysteresis).
 
@@ -284,7 +286,9 @@ All 2D charts share the measured-label behavior (chart-polish milestone): tick a
 | --- | --- | --- | --- |
 | `categories` | `string[]` | n/a | x-axis category labels. |
 | `series` | `BarSeries[]` | n/a | `{ name, values, color? }` per series. |
-| `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). While zoomed, the value axis follows this extent. |
+| `stacked` | `boolean \| "percent"` | `false` | Pile the series into one bar per category instead of setting them side by side. `true` stacks in value units, `"percent"` normalizes each bar to its category's mix. |
+| `fill` | `"ramp" \| "dither"` | `"ramp"` | How a **stacked** segment with no `color` is painted: the neutral ink ramp (first series darkest) or the house halftone. Ignored when grouped. |
+| `yDomain` | `[number, number]` | auto-fit | Y range (zero-anchored when all positive). While zoomed, the value axis follows this extent. Stacked, the auto range spans the stack totals. |
 | `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
@@ -298,7 +302,7 @@ All 2D charts share the measured-label behavior (chart-polish milestone): tick a
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding. |
 | `onPointActivate` | `(datum: BarTooltipDatum) => void` | n/a | Click/Enter on a bar, a drill-down hook; swap the data yourself and render your own breadcrumb. |
-| `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. |
+| `renderTooltip` | `(datum: BarTooltipDatum) => ReactNode` | default formatter | Custom tooltip. `BarTooltipDatum` carries `share` when stacked. |
 
 ## Box
 
@@ -582,6 +586,65 @@ const [busy, setBusy] = useState(false);
   </ChatDrawer>
 </div>
 ```
+
+## Chart formatting
+
+A chart prints text in four different jobs, and they want different things, so
+the shared `ChartFormatProps` mixin (issue #97) has one function per job. It is
+accepted by **every** chart, with the per-chart exceptions noted below, so
+"print this in my units" is a property of the chart family, not of a lucky few.
+
+| Prop | Type | Default | What it formats |
+| --- | --- | --- | --- |
+| `valueFormat` | `(value: number) => string` | the chart's own (Swiss `formatNumber`, or its compact `1.5M` labels) | Every number printed **as data**: tooltip and pinned-popover figures, printed value labels, the accessible name of a mark. This is where units and currency go. |
+| `tickFormat` | `(value: number, axis: "x" \| "y") => string` | `valueFormat` when given, else the chart's own labels | The **axis tick labels**. It is told which axis it is printing, so one function can retitle both on a chart with two continuous axes. On a time axis it receives the timestamp in ms, and leaving it unset keeps the calendar ladder. |
+| `categoryFormat` | `(label: string, index: number) => string` | the label as supplied | A **category label**: a label that names a *position* on the chart. A band on the category axis, a node, a cell, a slice, an item row, a column header. |
+| `seriesFormat` | `(name: string, index: number) => string` | the name as supplied | A **series name**: a label that names a *dataset* drawn across those positions, which is whatever came in through the chart's `series` prop. Every place the chart prints it: the legend, a tooltip line, a mark's accessible name. |
+
+The split between the last two is the one worth knowing: `categoryFormat` names
+a **position**, `seriesFormat` names a **dataset**. On a grouped bar chart the
+quarters are categories and "Plan" / "Actual" are series; on a `HorizonChart`
+each row *is* a series, so its printed name reads the series formatter and there
+is no category formatter at all.
+
+Category and series labels are formatted **before** they are measured, so
+thinning, ellipsizing and the reserved label column all see what will actually
+be drawn.
+
+Setting `valueFormat` alone retitles every number on the chart, ticks included,
+which is usually what you want; add `tickFormat` when the axis has to stay short
+while the tooltips carry the units:
+
+```tsx
+<BarChart
+  categories={quarters}
+  series={[{ name: "Plan", values: plan }, { name: "Actual", values: actual }]}
+  valueFormat={(v) => `CHF ${formatNumber(v)}`}   // tooltips, printed labels, aria
+  tickFormat={(v) => `${v / 1000}k`}              // the axis stays narrow
+  categoryFormat={(c) => `${c} 2026`}             // "Q1" -> "Q1 2026"
+  seriesFormat={(n) => n.toUpperCase()}           // the legend and the tooltips
+/>
+```
+
+**Per-chart exceptions**, where a chart's own surface is richer, or where one of
+the four jobs does not exist on it:
+
+- `Heatmap` and `Treemap` keep their datum-aware `valueFormat`
+  (`(value, datum) => string`) and take the rest of the mixin.
+- A chart takes `seriesFormat` exactly when it has a `series` prop: BarChart,
+  BoxPlot, DotPlot, Histogram, HorizonChart, Marimekko, PointCloud, Scatterplot
+  and Slopegraph. On the rest (a Treemap's nodes, a PieChart's slices, a
+  SankeyChart's nodes, a BulletChart's items, a BridgeChart's steps, a Flows
+  period) every label names a position, so `categoryFormat` is the one that
+  applies.
+- `Scatterplot`, `CandlestickChart` and `Histogram` take no `categoryFormat`:
+  both of their axes are continuous. `HorizonChart` and `PointCloud` take none
+  either, since their labels name series.
+- `Slopegraph` takes no `tickFormat`: the numbers are the axis. Its entity names
+  are series and its column headers are categories.
+- `Timeline` and `Multiples` take only `tickFormat`; the panels and the event
+  labels are the consumer's own.
+- `Graph` and `Map` are outside the chart family and take none of it.
 
 ## Checkbox
 
@@ -2393,6 +2456,67 @@ Search a list and choose exactly one: the single-selection sibling of [Selector]
 [Selector](#selector)). In a shrink-to-fit parent it holds a `12rem` floor
 instead of collapsing to the search input's min-content; tune it with
 `--sf-picker-min-inline-size`, or set an explicit `width` to pin the control.
+
+## PieChart
+
+`import { PieChart } from "@tarassov-ch/swiss-function/pie-chart"`
+
+Parts of one whole as slices of a circle (issue #96): a portfolio's asset mix, a budget's split, where a quarter's revenue came from. `innerRadius` turns the pie into a donut, whose hole can carry a readout of the total or of whatever the pointer is on. Mixes in the frame / fullscreen / posture parts of `ChartScaffoldingProps` (there is no continuous axis, so no `zoomable` and no annotations, as with `SankeyChart` and `Treemap`), the shared `ChartFormatProps`, and the whole of `ChartSelectionProps`. Extends `HTMLAttributes<HTMLDivElement>`.
+
+`PieSlice = { name: string; value: number; color?: string }`; a part that is not a positive finite number is dropped. The chart reports `PieDatum` (`{ name, value, share, index, aggregated, count }`) on hover, activate and selection.
+
+**Reach for it for a few parts of a total the reader already understands as one whole.** Past six or seven parts the angles stop being comparable: group the tail with `maxSlices`, or reach for `Treemap` (a hierarchy, or many parts that must carry names and numbers) or `Marimekko` / a stacked `BarChart` (parts across several categories). There is no 3D, no explode and no rainbow; see [AESTHETICS.md](../AESTHETICS.md) for the stance.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `PieSlice[]` | n/a | The parts. Zero, negative and non-finite values are dropped. |
+| `innerRadius` | `number` | `0` | Hole size as a fraction of the outer radius: `0` is the pie, anything positive the donut (`0.6` is the usual ring). Clamped to `0.9`. |
+| `sort` | `"value" \| "none"` | `"value"` | `value` puts the biggest slice at the start angle and steps down, which is the order a pie is read in; `none` keeps the supplied order for data that carries its own. |
+| `startAngle` | `number` | `0` | Where the first slice begins, in degrees clockwise from 12 o'clock. |
+| `maxSlices` | `number` | n/a | Cap the slice count: the smallest are grouped into one remainder slice that reports how many it stands for (`datum.count`). The lever against an unreadable twenty-slice pie. |
+| `otherLabel` | `string` | `"Other"` | Name of that grouped remainder. |
+| `fill` | `"ramp" \| "dither"` | `"ramp"` | How a slice with no `color` is painted: the neutral ink ramp (biggest slice darkest) or the house halftone. Both step through the same ladder as `Marimekko` and a stacked `BarChart`. |
+| `labels` | `"auto" \| "none"` | `"auto"` | Names printed outside the ring on each slice's mid-angle with a hairline leader, measured, ellipsized to their room (full text in a `title`) and thinned so two never collide (the bigger slice keeps its label). Never rotated. |
+| `showValues` | `boolean \| "percent" \| "value" \| "both"` | `true` | What is printed after each name. `true` prints the share, which is what a pie is read for; `"both"` prints `value (share)`. |
+| `legend` | `boolean` | `false` | A swatch list under the chart. Off by default since the slices carry their own names; turn it on with `labels="none"` for the compact read. |
+| `center` | `ReactNode \| (focused: PieDatum \| null) => ReactNode` | n/a | Content for the hole, ignored when there is none. The function form is given the hovered or pinned slice, so the hole can read out what the pointer is on. |
+| `height` | `number \| string` | `calc(var(--sf-unit) * 14)` | px or CSS value. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Posture, mapped onto polar geometry: the pie's axis is its circumference in percent, so `full` draws a hairline tick ring around the arc (every 5%, longer at the quarters), `hover` fades that ring in on hover, and `minimal` drops both the ring and the hairlines between slices for the pure area read. |
+| `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle; Escape exits. |
+| `frame` | `boolean` | `false` | 1px structural border + padding. |
+| `valueFormat` / `tickFormat` / `categoryFormat` | see [Chart formatting](#chart-formatting) | Swiss `formatNumber` | `valueFormat` retitles every printed figure and accessible name; `categoryFormat` the slice names. There is no axis to tick. |
+| `onPointActivate` | `(datum: PieDatum) => void` | n/a | Click / Enter on a slice. Drill-down is an event: swap `data` yourself. |
+| `renderTooltip` | `(datum: PieDatum) => ReactNode` | default formatter | Name, value, share, and the part count on a grouped remainder. |
+| `selectable` | `boolean` | `false` | Click-to-freeze: a click pins a slice and opens a popover anchored to its centroid (see Scatterplot). |
+| `selection` / `defaultSelection` | `PieDatum \| null` | `null` | Controlled / initial pinned slice. |
+| `onSelectionChange` | `(selection: PieDatum \| null) => void` | n/a | Fires on pin, toggle and dismissal. |
+| `renderSelection` | `(selection: PieDatum) => ReactNode` | `renderTooltip` | Popover body for the pinned slice. |
+
+Every slice is a focusable `role="button"` with an accessible name (`"Equity: 482.4, 52%"`), so the chart reads and operates from the keyboard: Tab through the slices, Enter or Space activates. A slice that spans the whole turn is drawn as a closed circle (a 360° arc has the same start and end point and would draw nothing), and the last slice closes on the first, so rounding can never leave a wedge of background showing. Hovering fades the other slices; nothing moves, grows or explodes, and the fade holds still under `prefers-reduced-motion`.
+
+Printed shares are whole percents, so four slices can print `52 / 28 / 14 / 5` and sum to 99. A part too small to round to one percent prints `<1%` rather than `0%`, so a sliver never reads as absent.
+
+```tsx
+<PieChart
+  data={[
+    { name: "Equity", value: 482.4 },
+    { name: "Fixed income", value: 261.9 },
+    { name: "Alternatives", value: 128.3 },
+    { name: "Cash", value: 47.1 },
+  ]}
+  selectable
+  onPointActivate={(d) => console.log(d.name, d.share)}
+/>
+
+<PieChart
+  data={revenue}
+  innerRadius={0.62}
+  maxSlices={6}
+  otherLabel="Rest of Europe"
+  valueFormat={(v) => `CHF ${formatNumber(v)}k`}
+  center={(focused) => (focused ? focused.name : "Total")}
+/>
+```
 
 ## PointCloud
 

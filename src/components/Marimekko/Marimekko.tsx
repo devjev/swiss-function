@@ -7,16 +7,22 @@ import {
   type AxisTick,
   anchorRectFromPoint,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
+  ditherCells,
+  ditherDots,
   ellipsize,
   FullscreenToggle,
   formatNumber as formatCompact,
+  formatShare,
   getTextMeasurer,
   linearScale,
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  rampStrength,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -31,15 +37,11 @@ import { formatNumber } from "../../lib/format";
 import {
   type Band,
   columnTotals,
-  ditherCells,
-  ditherDots,
   fitBandLabels,
-  formatShare,
   indexToPx,
   labelFits,
   layoutBands,
   pxToIndex,
-  rampStrength,
   type Segment,
   stackColumn,
   widthMeasures,
@@ -87,6 +89,7 @@ export interface MarimekkoDatum {
 
 export interface MarimekkoProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps,
     ChartScaffoldingProps,
     ChartSelectionProps<MarimekkoDatum> {
   /** The columns (rows when horizontal). */
@@ -109,9 +112,6 @@ export interface MarimekkoProps
   /** Segment labels, printed only where they fit (measured, hidden below a
    *  minimum size, never rotated). Default `true`. */
   showValues?: MarimekkoValueLabels;
-  /** Formats printed values (segment labels, the value axis, the default
-   *  tooltip). Default: compact on the chart, Swiss typography in the tooltip. */
-  valueFormat?: (value: number) => string;
   /** The category label under (beside) each column. Default `"name"`. */
   columnLabels?: MarimekkoColumnLabels;
   /** Value-axis range when not normalized. Auto-fit to the tallest column
@@ -144,12 +144,16 @@ function datumKey(category: string, series: string): string {
   return `${category} ${series}`;
 }
 
-function defaultTooltip(d: MarimekkoDatum, fmt: (v: number) => string): ReactNode {
+function defaultTooltip(
+  d: MarimekkoDatum,
+  fmt: (v: number) => string,
+  seriesName: (name: string) => string,
+): ReactNode {
   return (
     <>
       <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{d.category}</div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
-        {d.series}: {fmt(d.value)}
+        {seriesName(d.series)}: {fmt(d.value)}
       </div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
         {formatShare(d.share)} of column, {formatShare(d.total)} of total
@@ -179,7 +183,10 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
     gap = 1,
     fill = "ramp",
     showValues = true,
-    valueFormat,
+    valueFormat: valueFormatProp,
+    tickFormat,
+    categoryFormat,
+    seriesFormat,
     columnLabels = "name",
     valueDomain,
     xLabel,
@@ -222,8 +229,23 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
     onSelectionChange,
   });
 
-  const fmtCompact = valueFormat ?? formatCompact;
-  const fmtFull = valueFormat ?? ((v: number) => formatNumber(v));
+  // One formatter for every printed number and name (issue #97). Marimekko
+  // keeps its two defaults: compact on the chart, Swiss in the tooltip.
+  const format = useMemo(
+    () =>
+      resolveChartFormat(
+        { valueFormat: valueFormatProp, tickFormat, categoryFormat, seriesFormat },
+        formatCompact,
+      ),
+    [valueFormatProp, tickFormat, categoryFormat, seriesFormat],
+  );
+  const seriesName = (name: string) =>
+    format.series(
+      name,
+      series.findIndex((x) => x.name === name),
+    );
+  const fmtCompact = format.value;
+  const fmtFull = valueFormatProp ?? ((v: number) => formatNumber(v));
 
   /* --- Data --- */
   const nCats = categories.length;
@@ -316,15 +338,19 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
       return niceTicks(v0 * 100, v1 * 100, 5)
         .filter((t) => t.value >= v0 * 100 - 1e-9 && t.value <= v1 * 100 + 1e-9)
         .map((t) => ({
-          label: `${t.label}%`,
+          label: format.tick(t.value / 100, `${t.label}%`, vertical ? "y" : "x"),
           position: (t.value / 100 - v0) / (v1 - v0),
           major: t.major,
         }));
     }
     return niceTicks(v0, v1, 5)
       .filter((t) => t.value >= v0 && t.value <= v1)
-      .map((t) => ({ label: t.label, position: (t.value - v0) / (v1 - v0), major: t.major }));
-  }, [viewDomain, normalized, scaffolding]);
+      .map((t) => ({
+        label: format.tick(t.value, t.label, vertical ? "y" : "x"),
+        position: (t.value - v0) / (v1 - v0),
+        major: t.major,
+      }));
+  }, [viewDomain, normalized, scaffolding, format, vertical]);
 
   // The column's share of the width axis, kept whole beside an ellipsized name.
   const shareSuffixes = useMemo(
@@ -336,15 +362,19 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
         : undefined,
     [categories, columnLabels, measures, measureTotal],
   );
+  const categoryNames = useMemo(
+    () => categories.map((c, i) => format.category(c, i)),
+    [categories, format],
+  );
   const categoryTexts = useMemo(
-    () => categories.map((c, i) => c + (shareSuffixes?.[i] ?? "")),
-    [categories, shareSuffixes],
+    () => categoryNames.map((c, i) => c + (shareSuffixes?.[i] ?? "")),
+    [categoryNames, shareSuffixes],
   );
 
   const categoryTicks: AxisTick[] = useMemo(() => {
     if (columnLabels === "none" || axisLen <= 0) return [];
     if (vertical) {
-      return fitBandLabels(categories, bands, axisLen, measure, ellipsize, {
+      return fitBandLabels(categoryNames, bands, axisLen, measure, ellipsize, {
         suffixes: shareSuffixes,
       }).map((l) => ({
         label: l.label,
@@ -376,12 +406,12 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
     columnLabels,
     axisLen,
     vertical,
-    categories,
     categoryTexts,
     shareSuffixes,
     bands,
     measure,
     plotSize.width,
+    categoryNames,
   ]);
 
   const yTicks = vertical ? valueTicks : categoryTicks;
@@ -490,7 +520,8 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
   };
 
   const legendVisible = showLegend ?? series.length > 0;
-  const renderTip = renderTooltip ?? ((d: MarimekkoDatum) => defaultTooltip(d, fmtFull));
+  const renderTip =
+    renderTooltip ?? ((d: MarimekkoDatum) => defaultTooltip(d, fmtFull, seriesName));
 
   return (
     <div
@@ -618,7 +649,7 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
                       data-chart-mark=""
                       role="button"
                       tabIndex={0}
-                      aria-label={`${c} ${s.name}: ${fmtFull(datum.value)}, ${formatShare(datum.share)}`}
+                      aria-label={`${categoryNames[ci] ?? c} ${format.series(s.name, si)}: ${fmtFull(datum.value)}, ${formatShare(datum.share)}`}
                       onPointerEnter={() => handleEnter(datum, cx_, cy_)}
                       onPointerLeave={handleLeave}
                       onClick={activatable ? () => handleActivate(datum) : undefined}
@@ -638,7 +669,8 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
                       onBlur={handleLeave}
                     >
                       <title>
-                        {c}, {s.name}: {fmtFull(datum.value)} ({formatShare(datum.share)})
+                        {categoryNames[ci] ?? c}, {format.series(s.name, si)}:{" "}
+                        {fmtFull(datum.value)} ({formatShare(datum.share)})
                       </title>
                     </rect>
                     {text ? (
@@ -728,7 +760,7 @@ export const Marimekko = forwardRef<HTMLDivElement, MarimekkoProps>(function Mar
                 style={{ backgroundColor: swatchOf(s, si) }}
                 aria-hidden="true"
               />
-              {s.name}
+              {format.series(s.name, si)}
             </span>
           ))}
         </div>

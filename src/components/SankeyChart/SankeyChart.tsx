@@ -1,11 +1,13 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { forwardRef, useEffect, useId, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
   anchorRectFromPoint,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   FullscreenToggle,
   getTextMeasurer,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -130,6 +132,7 @@ function defaultTooltip(d: SankeyDatum, format: (v: number) => string): ReactNod
 export interface SankeyChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
     Pick<ChartScaffoldingProps, "frame" | "fullscreen" | "scaffolding">,
+    ChartFormatProps,
     ChartSelectionProps<SankeyDatum> {
   /** The nodes. Unknown link ends are dropped with a dev warning. */
   nodes: SankeyNode[];
@@ -161,8 +164,6 @@ export interface SankeyChartProps
   /** Print each node's flow after its name. Default `false`; the `full`
    *  scaffolding posture prints it too. */
   showValues?: boolean;
-  /** Formats printed and tooltip values. Default Swiss `formatNumber`. */
-  valueFormat?: (value: number) => string;
   /** Component height. Default `calc(var(--sf-unit) * 14)`. */
   height?: number | string;
   /** Click / Enter on a node or a link. */
@@ -215,7 +216,9 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
     linkFill = "neutral",
     labels = "auto",
     showValues = false,
-    valueFormat = formatNumber,
+    valueFormat: valueFormatProp,
+    tickFormat,
+    categoryFormat,
     height,
     scaffolding = "hover",
     frame,
@@ -252,6 +255,25 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
     value: { extent: [0, 1], minSpan: 1, formatValue: String },
   });
 
+  // One formatter for every printed number and name (issue #97). Sankey's own
+  // default is the house Swiss formatting.
+  const format = useMemo(
+    () =>
+      resolveChartFormat(
+        { valueFormat: valueFormatProp, tickFormat, categoryFormat },
+        formatNumber,
+      ),
+    [valueFormatProp, tickFormat, categoryFormat],
+  );
+  const valueFormat = format.value;
+  // A node's name is formatted by its position in the supplied `nodes`, so a
+  // `categoryFormat` sees a stable index whatever the layout does with it.
+  const nodeIndex = useMemo(() => new Map(nodes.map((n, i) => [n.id, i])), [nodes]);
+  const nameOf = useCallback(
+    (node: { id: string; name: string }) => format.category(node.name, nodeIndex.get(node.id) ?? 0),
+    [format, nodeIndex],
+  );
+
   const measureSans = getTextMeasurer(resolveTickFont(plotRef.current, "sans"));
   const measureMono = getTextMeasurer(resolveTickFont(plotRef.current, "mono"));
   const printValues = showValues || scaffolding === "full";
@@ -272,7 +294,7 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
       sort: "none",
     });
     const widthOf = (n: SankeyLayoutNode) =>
-      measureSans(n.name) + (printValues ? measureMono(valueFormat(n.value)) + LABEL_GAP : 0);
+      measureSans(nameOf(n)) + (printValues ? measureMono(valueFormat(n.value)) + LABEL_GAP : 0);
     const cap = plotSize.width * 0.25;
     const first = probe.layers[0] ?? [];
     const last = probe.layers.length > 1 ? (probe.layers[probe.layers.length - 1] ?? []) : [];
@@ -289,6 +311,7 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
     measureMono,
     printValues,
     valueFormat,
+    nameOf,
   ]);
 
   const layout = useMemo(
@@ -358,9 +381,10 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
         const valueWidth = value ? measureMono(value) + LABEL_GAP : 0;
         const nameRoom = room - valueWidth;
         if (nameRoom < measureSans("…")) continue;
-        const name = fitText(n.name, nameRoom, measureSans);
+        const full = nameOf(n);
+        const name = fitText(full, nameRoom, measureSans);
         if (!name) continue;
-        out.push({ node: n, x, y, anchor, name, value, title: n.name });
+        out.push({ node: n, x, y, anchor, name, value, title: full });
         taken.push({ y0: y, y1: y });
       }
     });
@@ -375,6 +399,7 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
     valueFormat,
     measureSans,
     measureMono,
+    nameOf,
   ]);
 
   const hoveredKey = hover ? datumKey(hover.datum) : null;
@@ -529,10 +554,13 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
                     style={stroke ? { stroke } : undefined}
                     data-colored={color ? "" : undefined}
                     strokeWidth={Math.max(1, l.width)}
-                    {...markProps(d, `${d.sourceName} to ${d.targetName}: ${valueFormat(d.value)}`)}
+                    {...markProps(
+                      d,
+                      `${nameOf(l.source)} to ${nameOf(l.target)}: ${valueFormat(d.value)}`,
+                    )}
                   >
                     <title>
-                      {d.sourceName} → {d.targetName}: {valueFormat(d.value)}
+                      {nameOf(l.source)} → {nameOf(l.target)}: {valueFormat(d.value)}
                     </title>
                   </path>
                 );
@@ -548,10 +576,10 @@ export const SankeyChart = forwardRef<HTMLDivElement, SankeyChartProps>(function
                     height={Math.max(1, n.y1 - n.y0)}
                     className={styles.node}
                     style={n.color ? { fill: n.color } : undefined}
-                    {...markProps(d, `${n.name}: ${valueFormat(n.value)}`)}
+                    {...markProps(d, `${nameOf(n)}: ${valueFormat(n.value)}`)}
                   >
                     <title>
-                      {n.name}: {valueFormat(n.value)}
+                      {nameOf(n)}: {valueFormat(n.value)}
                     </title>
                   </rect>
                 );

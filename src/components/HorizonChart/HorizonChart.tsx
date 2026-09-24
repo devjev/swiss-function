@@ -14,6 +14,7 @@ import {
   adaptiveTicks,
   anchorRectFromPoint,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -26,6 +27,7 @@ import {
   linearScale,
   maxLabelWidth,
   minMaxDownsample,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   type StepSession,
@@ -83,6 +85,7 @@ export interface HorizonHover {
 
 export interface HorizonChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    Omit<ChartFormatProps, "categoryFormat">,
     ChartScaffoldingProps,
     ChartSelectionProps<HorizonPoint> {
   /** One row per series, top to bottom. */
@@ -114,9 +117,6 @@ export interface HorizonChartProps
   labels?: "left" | "overlay" | "none";
   /** A column of the last visible value per row, at the right. Default `false`. */
   showValues?: boolean;
-  /** Formats values (the value column, the tooltip). Default: Swiss
-   *  typography with up to 2 decimals. */
-  valueFormat?: (value: number) => string;
   /** Fixes the x range. With `zoomable`, this is the controlled visible
    *  window (pair it with `onXDomainChange`). */
   xDomain?: [number, number] | [Date, Date];
@@ -219,7 +219,9 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
     colors,
     labels = "left",
     showValues = false,
-    valueFormat = defaultValueFormat,
+    valueFormat: valueFormatProp,
+    tickFormat,
+    seriesFormat,
     xDomain,
     onXDomainChange,
     onPointActivate,
@@ -301,6 +303,19 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
     () => (xDomain ? [toNumber(xDomain[0]), toNumber(xDomain[1])] : dataXExtent),
     [xDomain, dataXExtent],
   );
+
+  // One formatter for every printed number and row name (issue #97). The time
+  // axis keeps its calendar ladder unless `tickFormat` says otherwise.
+  const format = useMemo(
+    () =>
+      resolveChartFormat(
+        { valueFormat: valueFormatProp, tickFormat, seriesFormat },
+        defaultValueFormat,
+      ),
+    [valueFormatProp, tickFormat, seriesFormat],
+  );
+  const valueFormat = format.value;
+  const rowName = useCallback((name: string, i: number) => format.category(name, i), [format]);
 
   const maxRowLength = useMemo(() => {
     let n = 0;
@@ -448,17 +463,17 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
     if (xMax <= xMin || width <= 0) return [];
     if (isDateAxis) {
       return timeTicks(xMin, xMax, width).map((t) => ({
-        label: t.label,
+        label: format.timeTick(t.date.getTime(), t.label, "x"),
         position: (t.date.getTime() - xMin) / (xMax - xMin),
         major: t.major,
       }));
     }
     return adaptiveTicks(xMin, xMax, width).ticks.map((t) => ({
-      label: t.label,
+      label: format.tick(t.value, t.label, "x"),
       position: (t.value - xMin) / (xMax - xMin),
       major: t.major,
     }));
-  }, [resolvedXDomain, isDateAxis, width]);
+  }, [resolvedXDomain, isDateAxis, width, format]);
 
   const xAxisTicks: AxisTick[] = useMemo(() => {
     const [xMin, xMax] = resolvedXDomain;
@@ -502,12 +517,12 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
     if (rows.length === 0) return 0;
     if (labels !== "left") return firstTick ? Math.ceil(measureMono(firstTick.label) / 2) : 0;
     const measured = maxLabelWidth(
-      rows.map((r) => r.name),
+      rows.map((r, i) => rowName(r.name, i)),
       measureSans,
       { padPx: 12 },
     );
     return Math.min(measured, MAX_LABEL_UNITS * unitPx);
-  }, [labels, rows, measureSans, measureMono, unitPx, firstTick]);
+  }, [labels, rows, measureSans, measureMono, unitPx, firstTick, rowName]);
 
   const lastValues = useMemo(
     () =>
@@ -621,7 +636,12 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
                 className={styles.tipRow}
                 data-active={p.series === h.active.series || undefined}
               >
-                <span>{p.series}</span>
+                <span>
+                  {rowName(
+                    p.series,
+                    rows.findIndex((r) => r.name === p.series),
+                  )}
+                </span>
                 <span className={styles.tipValue}>{valueFormat(p.y)}</span>
               </div>
             ))}
@@ -629,7 +649,7 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
         </>
       );
     },
-    [renderTooltip, valueFormat],
+    [renderTooltip, valueFormat, rowName, rows],
   );
 
   const selectionBody = (p: HorizonPoint): ReactNode =>
@@ -669,9 +689,9 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
       <div className={styles.scroller}>
         {labels === "left" ? (
           <div className={styles.labels} aria-hidden="true">
-            {rows.map((r) => (
-              <div key={r.name} className={styles.label} title={r.name}>
-                {r.name}
+            {rows.map((r, i) => (
+              <div key={r.name} className={styles.label} title={rowName(r.name, i)}>
+                {rowName(r.name, i)}
               </div>
             ))}
           </div>

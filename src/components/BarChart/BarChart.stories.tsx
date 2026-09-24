@@ -18,6 +18,12 @@ Playground.args = {
   xLabel: "Quarter",
   yLabel: "Revenue (k)",
   showLegend: false,
+  stacked: false,
+  fill: "ramp",
+};
+Playground.argTypes = {
+  stacked: { options: [false, true, "percent"], control: { type: "select" }, defaultValue: false },
+  fill: { options: ["ramp", "dither"], control: { type: "radio" }, defaultValue: "ramp" },
 };
 
 export const SingleSeries: Story = () => (
@@ -49,6 +55,102 @@ export const Grouped: Story = () => (
       ]}
       xLabel="Quarter"
       yLabel="Revenue (k)"
+    />
+  </div>
+);
+
+/** Several series piled into one bar per category. Uncoloured series step
+ *  through the neutral ink ramp, biggest first, and the total is printed above
+ *  the stack (the one figure the axis cannot be read for). */
+export const Stacked: Story = () => (
+  <div style={{ width: "min(48rem, 100%)" }}>
+    <BarChart
+      categories={QUARTERS}
+      series={[
+        { name: "Subscriptions", values: [120, 138, 151, 166] },
+        { name: "Services", values: [64, 61, 72, 80] },
+        { name: "Licences", values: [28, 33, 30, 41] },
+      ]}
+      xLabel="Quarter"
+      yLabel="Revenue (k)"
+      stacked
+    />
+  </div>
+);
+
+/** `stacked="percent"` makes every bar the same height, so the reading is the
+ *  mix rather than the total. The value axis re-ticks in percent. */
+export const StackedPercent: Story = () => (
+  <div style={{ width: "min(48rem, 100%)" }}>
+    <BarChart
+      categories={QUARTERS}
+      series={[
+        { name: "Subscriptions", values: [120, 138, 151, 166] },
+        { name: "Services", values: [64, 61, 72, 80] },
+        { name: "Licences", values: [28, 33, 30, 41] },
+      ]}
+      xLabel="Quarter"
+      yLabel="Share of revenue"
+      stacked="percent"
+    />
+  </div>
+);
+
+/** The halftone is the second step of the same ladder, for print and for
+ *  monochrome screens. */
+export const StackedDither: Story = () => (
+  <div style={{ width: "min(48rem, 100%)" }}>
+    <BarChart
+      categories={QUARTERS}
+      series={[
+        { name: "Subscriptions", values: [120, 138, 151, 166] },
+        { name: "Services", values: [64, 61, 72, 80] },
+        { name: "Licences", values: [28, 33, 30, 41] },
+      ]}
+      xLabel="Quarter"
+      yLabel="Revenue (k)"
+      stacked
+      fill="dither"
+    />
+  </div>
+);
+
+/** A stack with both signs: positives pile up from the baseline, negatives
+ *  hang below it, so no bar is shorter than one of its own parts. */
+export const StackedWithNegatives: Story = () => (
+  <div style={{ width: "min(48rem, 100%)" }}>
+    <BarChart
+      categories={QUARTERS}
+      series={[
+        { name: "Subscriptions", values: [140, 160, 175, 190] },
+        { name: "Redemptions", values: [-60, -45, -80, -52] },
+        { name: "Performance", values: [22, -14, 31, 18] },
+      ]}
+      xLabel="Quarter"
+      yLabel="Flow (k)"
+      stacked
+      scaffolding="full"
+    />
+  </div>
+);
+
+/** One `valueFormat` carries units into the labels, the tooltips and the axis;
+ *  `tickFormat` keeps the axis short while it does. `categoryFormat` names a
+ *  position (the quarters), `seriesFormat` names a dataset (the legend). */
+export const Formatting: Story = () => (
+  <div style={{ width: "min(48rem, 100%)" }}>
+    <BarChart
+      categories={QUARTERS}
+      series={[
+        { name: "Plan", values: [50000, 55000, 60000, 65000], color: "var(--sf-color-fg-subtle)" },
+        { name: "Actual", values: [42000, 58000, 51000, 73000], color: "var(--sf-color-primary)" },
+      ]}
+      xLabel="Quarter"
+      yLabel="Revenue"
+      valueFormat={(v) => `CHF ${(v / 1000).toFixed(1)}k`}
+      tickFormat={(v) => `${v / 1000}k`}
+      categoryFormat={(c) => `${c} 2026`}
+      seriesFormat={(n) => `${n} (CHF)`}
     />
   </div>
 );

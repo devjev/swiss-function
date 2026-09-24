@@ -8,6 +8,7 @@ import {
   anchorRectFromPoint,
   bandScale,
   ChartChrome,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   Crosshair,
@@ -19,6 +20,7 @@ import {
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -48,6 +50,7 @@ export interface BridgeTooltipDatum extends BridgeItem {
 
 export interface BridgeChartProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
+    ChartFormatProps,
     ChartScaffoldingProps,
     ChartSelectionProps<BridgeTooltipDatum> {
   items: BridgeItem[];
@@ -107,25 +110,25 @@ function resolveBars(items: BridgeItem[]): ResolvedBar[] {
   return out;
 }
 
-function defaultTooltip(d: BridgeTooltipDatum): ReactNode {
+function defaultTooltip(d: BridgeTooltipDatum, format: (v: number) => string): ReactNode {
   const sign = d.kind === "delta" && d.value >= 0 ? "+" : "";
   return (
     <>
       <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{d.label}</div>
       <div style={{ fontFamily: "var(--sf-font-mono)" }}>
         {sign}
-        {formatNumber(d.value)}
-        {d.kind === "delta" ? ` → ${formatNumber(d.cumulative)}` : ""}
+        {format(d.value)}
+        {d.kind === "delta" ? ` → ${format(d.cumulative)}` : ""}
       </div>
     </>
   );
 }
 
 /** Compact bar-label form: deltas get explicit sign; totals don't. */
-function formatBarValue(item: BridgeItem): string {
-  if (item.kind === "total") return formatNumber(item.value);
+function formatBarValue(item: BridgeItem, format: (v: number) => string): string {
+  if (item.kind === "total") return format(item.value);
   const sign = item.value >= 0 ? "+" : "";
-  return `${sign}${formatNumber(item.value)}`;
+  return `${sign}${format(item.value)}`;
 }
 
 /** Stable identity of a bar across renders (for the pinned-selection match /
@@ -164,7 +167,10 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     onAnnotationsChange,
     onValueDomainChange,
     onPointActivate,
-    renderTooltip = defaultTooltip,
+    valueFormat,
+    tickFormat,
+    categoryFormat,
+    renderTooltip,
     selectable = false,
     selection: controlledSelection,
     defaultSelection,
@@ -204,7 +210,18 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     return niceDomain(all);
   }, [bars, yDomain]);
 
+  // One formatter for every printed number and step label (issue #97).
+  const format = useMemo(
+    () => resolveChartFormat({ valueFormat, tickFormat, categoryFormat }, formatNumber),
+    [valueFormat, tickFormat, categoryFormat],
+  );
+  const tooltipOf = renderTooltip ?? ((d: BridgeTooltipDatum) => defaultTooltip(d, format.value));
+
   const categories = useMemo(() => bars.map((b) => b.item.label), [bars]);
+  const categoryNames = useMemo(
+    () => categories.map((c, i) => format.category(c, i)),
+    [categories, format],
+  );
 
   // Shared scaffolding: fullscreen, annotation editor, and value-axis (y) zoom
   // — the waterfall's x is categorical, so the continuous value axis windows
@@ -221,7 +238,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       onDomainChange: onValueDomainChange,
       minSpan: Math.max((resolvedYDomain[1] - resolvedYDomain[0]) / 100, Number.EPSILON),
       zoomOutLimit,
-      formatValue: formatNumber,
+      formatValue: (v: number) => format.tick(v, formatNumber(v)),
       axis: "y",
     },
   });
@@ -255,11 +272,11 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
     return niceTicks(yMin, yMax, 5)
       .filter((t) => t.value >= yMin && t.value <= yMax)
       .map((t) => ({
-        label: t.label,
+        label: format.tick(t.value, t.label),
         position: (t.value - yMin) / (yMax - yMin),
         major: t.major,
       }));
-  }, [viewYDomain, scaffolding]);
+  }, [viewYDomain, scaffolding, format]);
 
   // Step labels through the measured fitting ladder: full text when every
   // label fits its band, ellipsized (full text in title) when close, thinned
@@ -270,13 +287,13 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       const left = xBand.position(c) ?? 0;
       return snapFraction((left + xBand.bandwidth / 2) / plotSize.width, plotSize.width);
     });
-    return fitBandTicks(categories, centers, xBand.step, plotSize.width, measure).map((t) => ({
+    return fitBandTicks(categoryNames, centers, xBand.step, plotSize.width, measure).map((t) => ({
       label: t.label,
       title: t.title,
       position: t.position,
       major: false,
     }));
-  }, [categories, xBand, plotSize.width, measure]);
+  }, [categories, categoryNames, xBand, plotSize.width, measure]);
 
   // Measured y-axis column: the widest tick label sets --sf-axis-label-width
   // (8px-quantized so the resize feedback loop cannot oscillate).
@@ -438,7 +455,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                   </rect>
                   {/* Tufte mode: value label sits just above the bar's top —
                       skipped when the measured text overflows the band step. */}
-                  {isTufte && measure(formatBarValue(b.item)) <= xBand.step
+                  {isTufte && measure(formatBarValue(b.item, format.value)) <= xBand.step
                     ? (() => {
                         const flip = yTop < 14;
                         return (
@@ -448,7 +465,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                             className={cx(styles.valueLabel, flip && styles.valueLabelInside)}
                             textAnchor="middle"
                           >
-                            {formatBarValue(b.item)}
+                            {formatBarValue(b.item, format.value)}
                           </text>
                         );
                       })()
@@ -488,7 +505,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                 y={hover.cy}
                 height={plotSize.height}
                 axes="y"
-                yLabel={formatNumber(hover.bar.cumulative)}
+                yLabel={format.value(hover.bar.cumulative)}
               />
             ) : null}
 
@@ -505,7 +522,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
                 width={plotSize.width}
                 height={plotSize.height}
                 formatXDelta={(a, b) => `${Math.abs(Number(b) - Number(a)).toFixed(1)} step`}
-                formatY={formatNumber}
+                formatY={format.value}
                 editing={scaffold.editor.layerEditing}
               />
             ) : null}
@@ -544,7 +561,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
       ) : null}
 
       <Tooltip open={hover != null} anchorRect={hover?.rect ?? null}>
-        {hover ? renderTooltip({ ...hover.bar.item, cumulative: hover.bar.cumulative }) : null}
+        {hover ? tooltipOf({ ...hover.bar.item, cumulative: hover.bar.cumulative }) : null}
       </Tooltip>
 
       {selectable ? (
@@ -555,7 +572,7 @@ export const BridgeChart = forwardRef<HTMLDivElement, BridgeChartProps>(function
           y={selectionPoint?.y ?? null}
           onClose={() => setSelection(null)}
         >
-          {selection ? (renderSelection ?? renderTooltip)(selection) : null}
+          {selection ? (renderSelection ?? tooltipOf)(selection) : null}
         </SelectionPopover>
       ) : null}
     </div>

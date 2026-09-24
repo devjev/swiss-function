@@ -20,6 +20,8 @@ export type { ChartControlsProps } from "./ChartControls";
 export { ChartControls } from "./ChartControls";
 export type { CrosshairProps } from "./Crosshair";
 export { Crosshair } from "./Crosshair";
+export type { ChartAxis, ChartFormat, ChartFormatProps } from "./chartFormat";
+export { resolveChartFormat } from "./chartFormat";
 export { lttb, minMaxDownsample, sliceRange } from "./downsample";
 export type { FittedBandTick, LabelBox } from "./labelLayout";
 export { ellipsize, fitBandTicks, maxLabelWidth, thinLabels } from "./labelLayout";
@@ -31,6 +33,13 @@ export {
   niceDomain,
   niceTicks,
 } from "./numericTicks";
+export {
+  BAYER_4,
+  ditherCells,
+  ditherDots,
+  formatShare,
+  rampStrength,
+} from "./partToWhole";
 export { snapEdges, snapFraction, snapHairline } from "./pixelSnap";
 export type { SelectionPopoverProps } from "./SelectionPopover";
 export { SelectionPopover } from "./SelectionPopover";

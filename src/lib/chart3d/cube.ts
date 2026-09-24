@@ -40,11 +40,13 @@ export interface AxisTick {
   /** Normalized position of this tick along its axis, in [-0.5, 0.5]. */
   n: number;
   label: string;
+  /** The value the tick stands for, for a consumer's `tickFormat`. */
+  value: number;
 }
 
 /** Nice ticks for one axis, as normalized positions + labels. */
 export function axisTicks(domain: Domain, target = 5): AxisTick[] {
   return niceTicks(domain[0], domain[1], target)
     .filter((t) => t.value >= domain[0] && t.value <= domain[1])
-    .map((t) => ({ n: normalize(t.value, domain), label: t.label }));
+    .map((t) => ({ n: normalize(t.value, domain), label: t.label, value: t.value }));
 }

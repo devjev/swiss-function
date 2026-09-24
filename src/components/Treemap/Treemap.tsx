@@ -6,13 +6,15 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { forwardRef, memo, useMemo, useState } from "react";
+import { forwardRef, memo, useCallback, useMemo, useState } from "react";
 import {
   anchorRectFromPoint,
+  type ChartFormatProps,
   type ChartScaffoldingProps,
   type ChartSelectionProps,
   FullscreenToggle,
   getTextMeasurer,
+  resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
   scaffoldStyles,
@@ -62,6 +64,9 @@ export interface TreemapDatum {
 export interface TreemapProps
   extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">,
     Pick<ChartScaffoldingProps, "frame" | "fullscreen" | "scaffolding">,
+    // `valueFormat` here takes the cell's datum as well, and there is no axis
+    // to tick, so only the label formatter is mixed in.
+    Pick<ChartFormatProps, "categoryFormat">,
     ChartSelectionProps<TreemapDatum> {
   /** The hierarchy. A parent without a `value` sums its children. */
   data: TreemapNode;
@@ -213,6 +218,7 @@ export const Treemap = forwardRef<HTMLDivElement, TreemapProps>(function Treemap
     showValues = false,
     valueFormat,
     changeFormat,
+    categoryFormat,
     labels = "auto",
     height = "calc(var(--sf-unit) * 14)",
     scaffolding = "hover",
@@ -284,6 +290,14 @@ export const Treemap = forwardRef<HTMLDivElement, TreemapProps>(function Treemap
     return m;
   }, [cells, changeDomain]);
 
+  // Cell names go through the shared label formatter (issue #97); the figures
+  // keep Treemap's own datum-aware `valueFormat`.
+  const format = useMemo(() => resolveChartFormat({ categoryFormat }), [categoryFormat]);
+  const nameOf = useCallback(
+    (cell: { name: string; depth: number }) => format.category(cell.name, cell.depth),
+    [format],
+  );
+
   const fmtValue = valueFormat ?? defaultValueFormat;
   const fmtChange = changeFormat ?? defaultChangeFormat;
   const measure = getTextMeasurer(resolveTickFont(plotRef.current));
@@ -333,9 +347,9 @@ export const Treemap = forwardRef<HTMLDivElement, TreemapProps>(function Treemap
             value = text;
           }
         }
-        return { cell, style, tone, dither, name: showName ? cell.name : null, value };
+        return { cell, style, tone, dither, name: showName ? nameOf(cell) : null, value };
       }),
-    [cells, colorBy, changeMax, labels, showValues, fmtValue, measure],
+    [cells, colorBy, changeMax, labels, showValues, fmtValue, measure, nameOf],
   );
 
   const resolve = (target: EventTarget | null): TreemapCell | null => {
