@@ -6,6 +6,18 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.37.0 — 2026-09-24
+
+### Minor
+
+- DataTable: a column 'color' tints its heading key on a leaf or a group. The hue is mixed in OKLCH so it stays true and in gamut, and the key keeps its material: the concave face, edge bands, hover lift and pressed state all move with the tint
+- DataTable: cellBackground paints a body cell's whole background from its own value, so the colour follows the row through sorting and filtering (conditional formatting, as distinct from the positional highlights)
+
+### Patch
+
+- DataTable: a column's minWidth is now honoured by every resize path (pointer drag, keyboard, double-click auto-fit) and announced on the handle, not just by the auto-shrink track
+- DataTable: a merged header key (an ungrouped column, or a collapsed group, beside an expanded group) centres its title across the full-height key instead of leaving it in the bottom row under a blank cell
+
 ## v2.36.0 — 2026-09-24
 
 ### Minor
