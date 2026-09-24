@@ -92,8 +92,9 @@ export function buildEffectiveColumns<T>(
         align: "center" as const,
         cell: ({ row, rowIndex }) => def.collapsedCell?.({ row: row as T, rowIndex }) ?? "—",
         // Tag so the header renderer knows to draw the (collapsed) chevron and
-        // wire its toggle back to the parent group id.
-        meta: { collapsedGroupId: def.id },
+        // wire its toggle back to the parent group id. The group's `color`
+        // rides along, so collapsing a tinted group keeps its tint (issue #99).
+        meta: { collapsedGroupId: def.id, ...(def.color != null ? { color: def.color } : {}) },
       } as PlaceholderLeaf<T>;
     }
     return { ...def, columns: buildEffectiveColumns(def.columns, collapsed) };
@@ -102,7 +103,7 @@ export function buildEffectiveColumns<T>(
 
 /** Internal-only leaf shape; consumers never see this. */
 export type PlaceholderLeaf<T> = import("./types").LeafColumnDef<T> & {
-  meta?: { collapsedGroupId: string };
+  meta?: { collapsedGroupId: string; color?: string };
 };
 
 export function getCollapsedGroupId<T>(col: ColumnDef<T>): string | undefined {

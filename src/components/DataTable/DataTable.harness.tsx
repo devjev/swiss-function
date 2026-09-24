@@ -421,3 +421,79 @@ export function HostDrivenHarness({ onCellChange }: { onCellChange?: (c: CellCha
     </div>
   );
 }
+
+// --- Cell backgrounds, tinted headings, column minimums (issues #99 / #100) ---
+
+type BgRow = { region: string; value: number };
+
+const BG_ROWS: BgRow[] = [
+  { region: "Switzerland", value: 12 },
+  { region: "Germany", value: -6 },
+  { region: "France", value: 3 },
+];
+
+/** Render-time functions cannot cross Playwright CT's bridge (they arrive as
+ *  async handles that return `undefined`), so the background rule is built here
+ *  and picked with flags. */
+export function CellBackgroundHarness({
+  pinnedInk,
+  headerColor,
+  minWidth,
+  sortable,
+}: {
+  pinnedInk?: boolean;
+  headerColor?: string;
+  minWidth?: number;
+  sortable?: boolean;
+}) {
+  const columns: ColumnDef<BgRow>[] = [
+    {
+      id: "region",
+      header: "Region",
+      accessor: "region",
+      width: 12,
+      ...(minWidth != null ? { minWidth } : {}),
+    },
+    {
+      id: "value",
+      header: "Value",
+      accessor: "value",
+      align: "end",
+      width: 8,
+      sortable,
+      ...(headerColor != null ? { color: headerColor } : {}),
+    },
+  ];
+  return (
+    <DataTable<BgRow>
+      data={BG_ROWS}
+      columns={columns}
+      height={220}
+      cellBackground={({ value, columnId }) => {
+        if (columnId !== "value" || typeof value !== "number") return undefined;
+        if (pinnedInk) return { color: "rgb(10, 10, 10)", textColor: "rgb(255, 255, 255)" };
+        return value < 0 ? "rgb(255, 200, 200)" : "rgb(200, 255, 200)";
+      }}
+    />
+  );
+}
+
+/** One group collapsed beside an expanded one, the merged-header case (#101). */
+export function CollapsedGroupHarness() {
+  const columns: ColumnDef<BgRow>[] = [
+    { id: "region", header: "Region", accessor: "region", width: 10 },
+    {
+      id: "grp",
+      header: "Numbers",
+      defaultCollapsed: true,
+      color: "rgb(37, 99, 235)",
+      columns: [{ id: "value", header: "Value", accessor: "value", width: 6 }],
+    },
+    {
+      id: "other",
+      header: "Other",
+      columns: [{ id: "region2", header: "Region again", accessor: "region", width: 8 }],
+    },
+  ];
+  return <DataTable<BgRow> data={BG_ROWS} columns={columns} height={220} />;
+}

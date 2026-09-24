@@ -899,3 +899,113 @@ export const FormulaBar: Story = () => {
     </div>
   );
 };
+
+// ---------- Cell backgrounds + tinted headings (issue #99) ----------
+
+type Cellish = { region: string; q1: number; q2: number; q3: number; variance: number };
+
+const cellRows: Cellish[] = [
+  { region: "Switzerland", q1: 3240, q2: 3610, q3: 3480, variance: 7.4 },
+  { region: "Germany", q1: 2110, q2: 1980, q3: 2260, variance: -6.2 },
+  { region: "France", q1: 1480, q2: 1520, q3: 1390, variance: 2.7 },
+  { region: "United Kingdom", q1: 960, q2: 1140, q3: 1210, variance: 18.8 },
+  { region: "Italy", q1: 540, q2: 505, q3: 470, variance: -6.5 },
+];
+
+const cellColumns: ColumnDef<Cellish>[] = [
+  { id: "region", header: "Region", accessor: "region", width: 10 },
+  {
+    id: "quarters",
+    header: "Quarterly revenue",
+    color: "var(--sf-color-primary)",
+    columns: [
+      { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 6 },
+      { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 6 },
+      { id: "q3", header: "Q3", accessor: "q3", align: "end", width: 6 },
+    ],
+  },
+  {
+    id: "variance",
+    header: "Variance %",
+    accessor: "variance",
+    align: "end",
+    width: 8,
+    color: "var(--sf-color-warning)",
+  },
+];
+
+/** `cellBackground` paints a cell's whole background from its own value, so
+ *  the colour travels with the row through a sort. Headings carry a `color`,
+ *  which tints their key without flattening it. */
+export const CellBackgrounds: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    columns={cellColumns}
+    height={260}
+    cellBackground={({ value, columnId }) => {
+      if (columnId !== "variance" || typeof value !== "number") return undefined;
+      if (value > 10) return "var(--sf-color-success)";
+      if (value > 0) return "color-mix(in srgb, var(--sf-color-success), transparent 72%)";
+      return "color-mix(in srgb, var(--sf-color-danger), transparent 62%)";
+    }}
+  />
+);
+
+/** A saturated fill flips the ink to stay readable; an explicit pair pins both. */
+export const CellBackgroundContrast: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    columns={[cellColumns[0] as ColumnDef<Cellish>, cellColumns[2] as ColumnDef<Cellish>]}
+    height={260}
+    cellBackground={({ value, rowIndex, columnId }) =>
+      columnId !== "variance"
+        ? undefined
+        : rowIndex % 2 === 0
+          ? "var(--sf-color-primary)"
+          : { color: "var(--sf-color-fg)", textColor: "var(--sf-color-bg)" }
+    }
+  />
+);
+
+/** A column that may not be dragged narrower than its `minWidth` (issue #100):
+ *  drag "Region" (min 10u) left and it stops; "Q1" has no floor of its own. */
+export const ColumnMinWidth: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    height={260}
+    columns={[
+      { id: "region", header: "Region", accessor: "region", width: 14, minWidth: 10 },
+      { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 8 },
+    ]}
+  />
+);
+
+/** One group collapsed while another stays expanded (issue #101): the collapsed
+ *  group's key should read as one full-height header, not a blank cell above a
+ *  bottom-aligned title. */
+export const CollapsedGroupAmongGroups: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    height={260}
+    columns={[
+      { id: "region", header: "Region", accessor: "region", width: 10 },
+      {
+        id: "quarters",
+        header: "Quarterly revenue",
+        defaultCollapsed: true,
+        columns: [
+          { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 6 },
+          { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 6 },
+        ],
+      },
+      {
+        id: "other",
+        header: "Other",
+        columns: [
+          { id: "q3", header: "Q3", accessor: "q3", align: "end", width: 6 },
+          { id: "variance", header: "Var %", accessor: "variance", align: "end", width: 6 },
+        ],
+      },
+    ]}
+  />
+);

@@ -62,6 +62,7 @@ import { buildTreeMeta } from "./treeRows";
 import type {
   AdvanceHint,
   Cell,
+  CellBackgroundFn,
   CellChange,
   CellRange,
   CellSpanFn,
@@ -73,7 +74,7 @@ import type {
   PaginateConfig,
   Selection,
 } from "./types";
-import { isGroup } from "./types";
+import { isGroup, resolveCellBackground } from "./types";
 import {
   expandPlaceholderOrder,
   toEffectiveOrder,
@@ -122,6 +123,14 @@ export interface DataTableProps<T>
     columnId: string;
     row: T;
   }) => EditActivation | undefined;
+  /** Paint a body cell's whole background (issue #99). Unlike `highlights`,
+   *  which mark a positional range and stay put when the grid is sorted, this
+   *  is data driven: it receives the row and the value, so the colour travels
+   *  with the row through sorting and filtering. Return `undefined` to leave a
+   *  cell alone. The fill sits under the range tint and the highlight overlay,
+   *  so selection and highlights stay legible on a coloured cell. Memoize it
+   *  (`useCallback`) to keep the virtualized rows' re-render bail-out. */
+  cellBackground?: CellBackgroundFn<T>;
   /** Called when cell values change (edit or paste). Consumer mutates/replaces data. */
   onCellChange?: (changes: CellChange[]) => void;
   /** Prepend a row of the selected columns' header names when copying cells to
@@ -290,6 +299,45 @@ function measureCssWidth(parent: HTMLElement, value: string): number {
   return w;
 }
 
+/** The data-attribute + custom properties a coloured cell carries. One helper
+ *  so the virtualized row and the inline path paint identically (issue #99). */
+function cellBackgroundProps<T>(
+  fn: CellBackgroundFn<T> | undefined,
+  ctx: { value: unknown; row: T; rowIndex: number; column: LeafColumnDef<T> },
+): { "data-bg"?: ""; style?: CSSProperties } {
+  if (!fn) return {};
+  const resolved = resolveCellBackground(
+    fn({
+      value: ctx.value,
+      row: ctx.row,
+      rowIndex: ctx.rowIndex,
+      columnId: ctx.column.id,
+      column: ctx.column,
+    }),
+  );
+  if (!resolved) return {};
+  return {
+    "data-bg": "",
+    style: {
+      "--sf-cell-bg": resolved.color,
+      ...(resolved.textColor != null ? { "--sf-cell-ink": resolved.textColor } : {}),
+    } as CSSProperties,
+  };
+}
+
+/** The px floor a column may be resized to: its own `minWidth` (in `--sf-unit`
+ *  multiples) when it declares one, else the global `--sf-datatable-col-min`.
+ *  Resolved through the same probe as the token so the JS clamp and the grid
+ *  template's `minmax` floor agree by construction (issue #100). */
+function columnMinWidthPx(parent: HTMLElement, minWidthUnits: number | undefined): number {
+  return measureCssWidth(
+    parent,
+    minWidthUnits != null
+      ? `calc(var(--sf-unit) * ${minWidthUnits})`
+      : "var(--sf-datatable-col-min)",
+  );
+}
+
 /** Checklist filter: keep rows whose stringified value is in the allowed set.
  *  Only runs when a filter entry exists, so an empty set is treated as "keep". */
 const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
@@ -351,7 +399,8 @@ function leafParentMap<T>(
 
 /** Map our ColumnDef (recursive) to TanStack's ColumnDef (also recursive).
  *  Preserves `meta.collapsedGroupId` on placeholder leaves so the header
- *  renderer can wire the chevron back to the right group. */
+ *  renderer can wire the chevron back to the right group, and `meta.color` on
+ *  both kinds so a heading can tint its key (issue #99). */
 function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
   const header = typeof def.header === "string" ? def.header : () => def.header;
   if (isGroup(def)) {
@@ -359,9 +408,11 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
       id: def.id,
       header,
       columns: def.columns.map(toTSColumn),
+      ...(def.color != null ? { meta: { color: def.color } } : {}),
     } as TSColumnDef<T>;
   }
-  const meta = (def as { meta?: unknown }).meta;
+  const ownMeta = (def as { meta?: Record<string, unknown> }).meta;
+  const meta = def.color != null ? { ...(ownMeta ?? {}), color: def.color } : ownMeta;
   return {
     id: def.id,
     header,
@@ -473,6 +524,8 @@ interface DataTableRowProps<T> {
   getValueAt: (rowIdx: number, colIdx: number) => unknown;
   commitEdit: (value: unknown, advance?: AdvanceHint) => void;
   cancelEdit: () => void;
+  /** Paints a cell's whole background; see `DataTableProps.cellBackground`. */
+  cellBackground?: CellBackgroundFn<T>;
 }
 
 /** The row-number gutter cell: 1-based display index, sticky left, whole-row
@@ -540,6 +593,7 @@ function DataTableRowInner<T>({
   getValueAt,
   commitEdit,
   cancelEdit,
+  cellBackground,
 }: DataTableRowProps<T>) {
   return (
     <div
@@ -588,10 +642,17 @@ function DataTableRowInner<T>({
         const mergeBottom = mergeMap?.suppressBottom.has(key) || undefined;
 
         const value = getCellValue(original, colDef.accessor);
+        const bg = cellBackgroundProps(cellBackground, {
+          value,
+          row: original,
+          rowIndex: dataIdx,
+          column: colDef,
+        });
 
         return (
           <div
             key={colDef.id}
+            {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
             ref={(el) => registerCell(displayIndex, colIndex, el)}
             role="gridcell"
             tabIndex={active ? 0 : -1}
@@ -605,7 +666,9 @@ function DataTableRowInner<T>({
             data-merge-right={mergeRight}
             data-merge-bottom={mergeBottom}
             className={styles.cell}
-            style={isFrozen && frozenLefts ? { left: frozenLefts[colIndex] } : undefined}
+            style={
+              isFrozen && frozenLefts ? { left: frozenLefts[colIndex], ...bg.style } : bg.style
+            }
             onPointerDown={(e) => onCellPointerDown(cell, { shiftKey: e.shiftKey })}
             onPointerEnter={() => onCellPointerEnter(cell)}
             onClick={(e) => {
@@ -657,6 +720,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     editable = false,
     editOn = "double",
     getEditActivation,
+    cellBackground,
     onCellChange,
     copyWithHeaders = true,
     cellPadding = "md",
@@ -1179,7 +1243,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       // Header + cell horizontal padding is calc(--sf-unit / 2) per side, so one
       // measured unit total (tracks a consumer-resized --sf-unit), plus slack.
       const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
-      const minPx = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      const minPx = columnMinWidthPx(headerCell, visibleLeaves[colIndex]?.minWidth);
       const next = Math.max(minPx, Math.ceil(widest + padding));
       const startWidths = measureLeafWidths(headerCell);
       if (!startWidths) return;
@@ -1355,10 +1419,26 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // aria-valuemin: once per mount (the token is static for the table's life),
   // never per render.
   const [colMinPx, setColMinPx] = useState<number | null>(null);
+  // The unit in px too, so a column's own `minWidth` (a unit multiple) can be
+  // announced on its handle rather than the global floor (issue #100).
+  const [unitPx, setUnitPx] = useState<number | null>(null);
   useLayoutEffect(() => {
     const vp = containerRef.current;
-    if (vp) setColMinPx(Math.round(measureCssWidth(vp, "var(--sf-datatable-col-min)")));
+    if (!vp) return;
+    setColMinPx(Math.round(measureCssWidth(vp, "var(--sf-datatable-col-min)")));
+    setUnitPx(measureCssWidth(vp, "var(--sf-unit)"));
   }, []);
+
+  /** What a resize handle announces as its lower bound: the column's own
+   *  `minWidth` in px when it declares one, else the measured global floor. */
+  const ariaColumnMin = useCallback(
+    (leafIndex: number): number | undefined => {
+      const min = leafIndex >= 0 ? visibleLeaves[leafIndex]?.minWidth : undefined;
+      if (min != null) return unitPx != null ? Math.round(min * unitPx) : undefined;
+      return colMinPx ?? undefined;
+    },
+    [visibleLeaves, unitPx, colMinPx],
+  );
 
   /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
   const resizableColumnIds = useMemo(() => {
@@ -1421,7 +1501,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       resizeRef.current = {
         idx,
         startWidths,
-        minPx: measureCssWidth(headerCell, "var(--sf-datatable-col-min)"),
+        minPx: columnMinWidthPx(headerCell, visibleLeaves[idx]?.minWidth),
         rtl: getComputedStyle(handle).direction === "rtl",
         handle,
       };
@@ -1445,7 +1525,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // token can't change mid-burst, so it's measured once per handle focus
   // (the probe forces a layout per keystroke otherwise) — the handle's
   // onBlur drops the cache.
-  const keyResizeMinPx = useRef<number | null>(null);
+  const keyResizeMinPx = useRef<{ columnId: string; px: number } | null>(null);
   const resizeColumnByKey = useCallback(
     (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
       if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
@@ -1453,10 +1533,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const startWidths = measureLeafWidths(headerCell);
       const idx = visibleLeaves.findIndex((c) => c.id === columnId);
       if (!startWidths || idx < 0) return;
-      if (keyResizeMinPx.current == null) {
-        keyResizeMinPx.current = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      if (keyResizeMinPx.current?.columnId !== columnId) {
+        keyResizeMinPx.current = {
+          columnId,
+          px: columnMinWidthPx(headerCell, visibleLeaves[idx]?.minWidth),
+        };
       }
-      const minPx = keyResizeMinPx.current;
+      const minPx = keyResizeMinPx.current.px;
       // Physical-direction semantics: the edge moves in the arrow's direction,
       // so in RTL (trailing edge on the column's left) ArrowRight shrinks.
       const rtl = getComputedStyle(headerCell).direction === "rtl";
@@ -1627,6 +1710,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     getValueAt,
     commitEdit,
     cancelEdit,
+    cellBackground,
   };
 
   // --- Cell renderer ---
@@ -1650,6 +1734,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
     // data-merge-* attributes (see `.cell` in the stylesheet).
     const key = cellKey(rowIndex, colIndex);
     const isCovered = mergeMap?.covered.has(key) ?? false;
+    const bg = cellBackgroundProps(cellBackground, {
+      value: getCellValue(row.original as T, colDef.accessor),
+      row: row.original as T,
+      rowIndex: row.index,
+      column: colDef,
+    });
     const mergeRight = mergeMap?.suppressRight.has(key) || undefined;
     const mergeBottom = mergeMap?.suppressBottom.has(key) || undefined;
 
@@ -1701,7 +1791,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-merge-right={mergeRight}
         data-merge-bottom={mergeBottom}
         className={styles.cell}
-        style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
+        {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
+        style={isFrozen ? { left: frozenLefts[colIndex], ...bg.style } : bg.style}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
         onPointerEnter={() => handleCellPointerEnter(cell)}
         onClick={(e) => {
@@ -1928,7 +2019,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const isFrozenEdge = isFrozen && leafStart + span === frozenCount;
     const isGroupHeader = header.subHeaders.length > 0;
     const def = header.column.columnDef;
-    const colMeta = (def as { meta?: { collapsedGroupId?: string } }).meta;
+    const colMeta = (def as { meta?: { collapsedGroupId?: string; color?: string } }).meta;
+    // A heading's own colour tints its key (issue #99). Carried through
+    // TanStack's `meta`, since its columnDef is not ours.
+    const headerColor = colMeta?.color;
     // For placeholder leaves (collapsed groups), pull the original group id back
     // out so the chevron toggles the right thing.
     const collapsedGroupId = colMeta?.collapsedGroupId;
@@ -1961,13 +2055,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
           dnd?.listeners && styles.headerDraggable,
           dnd?.dragging && styles.headerDragging,
         )}
-        style={{
-          gridColumn: `span ${span}`,
-          ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
-          ...dnd?.style,
-        }}
+        style={
+          {
+            gridColumn: `span ${span}`,
+            ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
+            ...(headerColor != null ? { "--sf-header-color": headerColor } : {}),
+            ...dnd?.style,
+          } as CSSProperties
+        }
         data-align={isGroupHeader ? "center" : "start"}
         data-surface={headerSurface}
+        data-tinted={headerColor != null || undefined}
         data-sortable={canSort || undefined}
         data-locked={isLocked || undefined}
         data-frozen={isFrozen || undefined}
@@ -2043,13 +2141,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
             aria-orientation="vertical"
             aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
             // No override yet = no known px width; omit rather than announce an
-            // invalid 0 below the minimum. The min is the measured col-min token.
+            // invalid 0 below the minimum. The min is this column's own floor.
             aria-valuenow={
               columnWidths[header.column.id] != null
                 ? Math.round(columnWidths[header.column.id] as number)
                 : undefined
             }
-            aria-valuemin={colMinPx ?? undefined}
+            aria-valuemin={ariaColumnMin(leafStart) ?? undefined}
             tabIndex={0}
             data-column-id={header.column.id}
             className={styles.resizeHandle}

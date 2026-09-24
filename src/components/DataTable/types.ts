@@ -29,6 +29,37 @@ export type DataTableHighlight = {
   label?: string;
 };
 
+/** A body cell's background. A bare string sets the fill and lets the ink pick
+ *  itself for contrast; the object form pins the text colour too. */
+export type CellBackground = string | { color: string; textColor?: string };
+
+/** Decide a body cell's background colour. Unlike `highlights`, which mark a
+ *  positional range and stay put when the grid is sorted, this is **data
+ *  driven**: it receives the row and the value, so the colour travels with the
+ *  row through sorting and filtering. Return `undefined` to leave the cell
+ *  alone. */
+export type CellBackgroundFn<T> = (ctx: {
+  value: unknown;
+  row: T;
+  /** The DATA index, the same one `LeafColumnDef.cell` receives, so the two
+   *  hooks agree on what "this row" means. */
+  rowIndex: number;
+  columnId: string;
+  column: LeafColumnDef<T>;
+}) => CellBackground | undefined;
+
+/** Split a {@link CellBackground} into the two CSS custom properties the cell
+ *  reads, or `null` when there is nothing to paint. Kept pure and separate so
+ *  the shape contract is testable without a DOM. */
+export function resolveCellBackground(
+  bg: CellBackground | undefined,
+): { color: string; textColor?: string } | null {
+  if (bg == null) return null;
+  if (typeof bg === "string") return bg.length > 0 ? { color: bg } : null;
+  if (!bg.color) return null;
+  return bg.textColor != null ? { color: bg.color, textColor: bg.textColor } : { color: bg.color };
+}
+
 export type EditorType = "text" | "number" | "boolean" | "select" | "date";
 
 export type SelectOption = { value: string; label: string };
@@ -59,6 +90,11 @@ export type EditActivation = "single" | "double";
 export interface LeafColumnDef<T> {
   id: string;
   header: string | ReactNode;
+  /** Tints this column's heading key. Any CSS colour or token. The key keeps
+   *  its material (the concave face, the edge bands, the hover lift and the
+   *  pressed/sorted state all move with it); `--sf-header-tint` sets how far
+   *  the tint goes. */
+  color?: string;
   accessor: keyof T | ((row: T) => unknown);
   /** Custom cell renderer; defaults to String(value). */
   cell?: (props: CellRenderProps<T>) => ReactNode;
@@ -89,6 +125,8 @@ export interface LeafColumnDef<T> {
 export interface GroupColumnDef<T> {
   id: string;
   header: string | ReactNode;
+  /** Tints this group heading's key. See `LeafColumnDef.color`. */
+  color?: string;
   /** Children — leaf or nested group. Presence makes this a group. */
   columns: ColumnDef<T>[];
   /** Initial state of the group on first mount. Default `false` (expanded). */

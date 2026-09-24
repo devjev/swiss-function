@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DataTable } from "./DataTable";
 import {
+  CellBackgroundHarness,
+  CollapsedGroupHarness,
   DataTableHarness,
   EditorsHarness,
   FrozenHarness,
@@ -1390,4 +1392,157 @@ test("apiRef.startEdit opens the editor seeded with initialText", async ({ mount
   await expect(component.locator("textarea").first()).toBeFocused();
   await page.keyboard.press("Enter");
   expect(lastChanges).toEqual([{ rowIndex: 0, columnId: "name", value: "seed" }]);
+});
+
+/** Resolve a computed colour (which may be `oklch(...)` or `color(srgb ...)`)
+ *  to real 8-bit channels by painting it, so assertions do not depend on which
+ *  notation the engine happens to serialise. */
+async function readRgba(
+  locator: { evaluate: <R, A>(fn: (el: HTMLElement, arg: A) => R, arg: A) => Promise<R> },
+  prop: "color" | "background-color",
+): Promise<[number, number, number, number]> {
+  return locator.evaluate((el, property) => {
+    const value = getComputedStyle(el).getPropertyValue(property);
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const d = ctx.getImageData(0, 0, 1, 1).data;
+    return [d[0], d[1], d[2], d[3]] as [number, number, number, number];
+  }, prop);
+}
+
+// --- Cell backgrounds + tinted headings (issue #99) ---------------------
+
+test("cellBackground paints the cell's whole background from its own value", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness />);
+  const painted = c.locator("[data-bg]");
+  await expect(painted).toHaveCount(3);
+  // Positive rows are green, the negative one red — driven by the value.
+  await expect(painted.nth(0)).toHaveCSS("background-color", "rgb(200, 255, 200)");
+  await expect(painted.nth(1)).toHaveCSS("background-color", "rgb(255, 200, 200)");
+  await expect(painted.nth(2)).toHaveCSS("background-color", "rgb(200, 255, 200)");
+  // Cells in the untouched column carry no fill.
+  await expect(c.getByRole("gridcell", { name: "Switzerland" })).not.toHaveAttribute("data-bg", "");
+});
+
+test("a pinned textColor wins over the automatic ink", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness pinnedInk />);
+  const cell = c.locator("[data-bg]").first();
+  await expect(cell).toHaveCSS("background-color", "rgb(10, 10, 10)");
+  await expect(cell).toHaveCSS("color", "rgb(255, 255, 255)");
+});
+
+test("the automatic ink stays opaque and flips with the fill", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness />);
+  // A computed relative colour comes back as oklch(); paint it to resolve the
+  // real channels rather than pattern-matching the string.
+  const pale = await readRgba(c.locator("[data-bg]").first(), "color");
+  expect(pale[3]).toBe(255); // opaque: an inherited alpha washed the text out
+  expect(Math.max(pale[0], pale[1], pale[2])).toBeLessThan(90); // dark ink kept
+
+  await c.unmount();
+
+  const dark = await mount(<CellBackgroundHarness pinnedInk />);
+  const onDark = await readRgba(dark.locator("[data-bg]").first(), "color");
+  expect(Math.min(onDark[0], onDark[1], onDark[2])).toBeGreaterThan(200); // flipped
+});
+
+test("a coloured cell still shows the selection tint on top of its fill", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness />);
+  const cell = c.locator("[data-bg]").first();
+  await cell.click();
+  // The fill is the cell's own background; the tint is an overlay above it, so
+  // the background must survive selection unchanged.
+  await expect(cell).toHaveAttribute("data-active", "true");
+  await expect(cell).toHaveCSS("background-color", "rgb(200, 255, 200)");
+});
+
+test("the colour travels with the row through a sort", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness sortable />);
+  const firstBefore = await c.locator("[data-bg]").first().textContent();
+  expect(firstBefore).toBe("12");
+  const header = c.getByRole("columnheader", { name: /Value/ });
+  await header.click(); // numbers sort desc first
+  await header.click(); // asc: -6 rises to the top, and its red fill with it
+  const top = c.locator("[data-bg]").first();
+  await expect(top).toHaveText("-6");
+  await expect(top).toHaveCSS("background-color", "rgb(255, 200, 200)");
+});
+
+test("a column colour tints its heading key without flattening it", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness headerColor="rgb(37, 99, 235)" />);
+  const tinted = c.getByRole("columnheader", { name: /Value/ });
+  await expect(tinted).toHaveAttribute("data-tinted", "true");
+  const [r, g, b] = await readRgba(tinted, "background-color");
+  // The key keeps its own lightness — only hue and chroma are taken — so a
+  // saturated blue must not darken it toward that blue.
+  expect(Math.min(r, g, b)).toBeGreaterThan(170);
+  // ...and it really is tinted: the blue channel leads.
+  expect(b).toBeGreaterThan(r + 10);
+  // An uncoloured heading stays neutral.
+  await expect(c.getByRole("columnheader", { name: "Region" })).not.toHaveAttribute(
+    "data-tinted",
+    "true",
+  );
+});
+
+// --- Per-column minWidth on every resize path (issue #100) ---------------
+
+test("a column with minWidth cannot be dragged below it", async ({ mount, page }) => {
+  // minWidth 10u = 240px at the default unit, well above the 3u global floor.
+  const c = await mount(<CellBackgroundHarness minWidth={10} />);
+  const header = c.getByRole("columnheader", { name: "Region" });
+  await dragHandle(page, c.locator('[data-column-id="region"]'), -400);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThanOrEqual(236);
+});
+
+test("a column without minWidth still stops at the global floor", async ({ mount, page }) => {
+  const c = await mount(<CellBackgroundHarness />);
+  const header = c.getByRole("columnheader", { name: "Region" });
+  await dragHandle(page, c.locator('[data-column-id="region"]'), -400);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThanOrEqual(70);
+  expect(after.width).toBeLessThan(100);
+});
+
+test("the keyboard resize honours minWidth too", async ({ mount, page }) => {
+  const c = await mount(<CellBackgroundHarness minWidth={10} />);
+  const header = c.getByRole("columnheader", { name: "Region" });
+  const handle = c.locator('[data-column-id="region"]');
+  await handle.focus();
+  for (let i = 0; i < 20; i++) await page.keyboard.press("Shift+ArrowLeft");
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThanOrEqual(236);
+});
+
+test("the handle announces the column's own minimum", async ({ mount }) => {
+  const c = await mount(<CellBackgroundHarness minWidth={10} />);
+  await expect(c.locator('[data-column-id="region"]')).toHaveAttribute("aria-valuemin", "240");
+  // A column with no floor of its own reports the global one (3u = 72px).
+  await expect(c.locator('[data-column-id="value"]')).toHaveAttribute("aria-valuemin", "72");
+});
+
+// --- Merged header keys carry their title centred (issue #101) -----------
+
+test("a collapsed group beside an expanded one centres its title on the key", async ({ mount }) => {
+  const c = await mount(<CollapsedGroupHarness />);
+  const merged = c.getByRole("columnheader", { name: /Numbers/ });
+  await expect(merged).toHaveAttribute("data-merge-top", "true");
+  const cell = await merged.boundingBox();
+  const label = await merged.locator("span").first().boundingBox();
+  if (!cell || !label) throw new Error("missing bounding box");
+  // The key paints across both header rows, so the title must sit above this
+  // cell's own centre — it used to sit in the middle of the lower row.
+  expect(label.y + label.height / 2).toBeLessThan(cell.y + cell.height / 2 - 4);
+  // A collapsed group keeps the tint it declared.
+  await expect(merged).toHaveAttribute("data-tinted", "true");
 });

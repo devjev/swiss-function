@@ -869,8 +869,11 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `onSelectionChange` | `(selection: Selection) => void` | n/a | Active cell / range changed. Full-row / full-column selections (see `rowNumbers` and the header select zones) arrive as ordinary `CellRange`s spanning the whole axis, so highlights and copy compose unchanged. |
+| `minWidth` (per column) | `number` | `3` (units) | Lower bound in `--sf-unit` multiples. Honoured by **every** path: the auto-shrink `minmax()` track, a pointer drag, the keyboard resize on a focused handle, and double-click auto-fit. The handle's `aria-valuemin` reports this column's own floor. Use it for a column that must stay readable however hard the table is squeezed (issue #100). |
+| `color` (per column) | `string` | n/a | Tints that heading's key. Any CSS colour or token, on a leaf **or** a group (a collapsed group keeps its tint). Mixed in OKLCH so the hue stays true and the result is always in gamut; the key keeps its material, since the concave face, edge bands, hover lift and pressed/sorted step are all relative moves from the tinted base. `--sf-header-tint` (default `22%`) sets how far it goes. A tint, not a fill: a full-bleed colour would flatten the key (issue #99). |
 | `rowNumbers` | `boolean` | `false` | Excel-style row-number gutter: a slim frozen leading track numbering the visible rows (1-based display order — numbers stay put on sort/filter). Click a number to select the whole row, drag to sweep a span, Shift+click to extend; the corner cell above the gutter selects the whole grid. Not a data column: `col` coordinates in selections/highlights/spans are unshifted. |
 | `selectionMode` | `"cell" \| "row" \| "column"` | `"cell"` | What a plain cell click selects. `"row"` widens every cell-driven selection to the full row (list/master-detail: click anywhere in a row, get the row), `"column"` to the full column — click, drag, Shift+click and arrow keys all produce full-axis ranges, while the active cell stays the clicked cell. Explicit gestures (gutter, header select zones, Cmd/Ctrl+A) keep their own shapes. |
+| `cellBackground` | `(ctx) => CellBackground \| undefined` | n/a | Paint a body cell's **whole background** from its own data. `ctx` is `{ value, row, rowIndex, columnId, column }`, `rowIndex` being the *data* index (as `LeafColumnDef.cell` receives), so the colour **travels with the row through sorting and filtering**, the opposite of `highlights`, which mark a fixed screen region. Return a CSS colour, or `{ color, textColor }` to pin the ink; `undefined` leaves the cell alone. The fill is the cell's own `background-color`, so it sits **under** the range tint and the highlight overlay, and a coloured cell still shows both. The ink picks itself for contrast unless `textColor` is given (see below). Memoize the function to keep the virtualized rows' re-render bail-out. |
 | `highlights` | `DataTableHighlight[]` | n/a | Persistent coloured range overlays (the Excel "coloured range reference" look: a light fill plus a solid border around the block). Each is `{ id?, range: CellRange, color?, label? }`. **Positional** (visible coordinates, like the selection and cell spans): a highlight marks a screen region and stays put when data is sorted or filtered. `color` is any CSS colour/token; omit it and colours cycle the semantic tokens by array position. Use several distinct colours to mark separate ranges (e.g. charting series). Declarative: to add one "with the mouse", capture the selection via `onSelectionChange` and push a highlight with a colour. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
@@ -940,6 +943,47 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
   column, snapped to the row-height grid and leaf-column boundaries.
 - The range tint is a translucent overlay painted *on top* of cell content, so a
   consumer-set cell background never hides the highlight.
+
+**Cell backgrounds vs highlights** (issue #99). Both colour cells; they answer
+different questions.
+
+- `highlights` is **positional**: a range in visible coordinates, framed with a
+  border, that stays put when the grid is sorted and then frames whatever landed
+  there. It is the Excel "coloured range reference": *this region matters*.
+- `cellBackground` is **data driven**: a function of the row and the value, so
+  the colour is a property of the datum and follows it through sorting and
+  filtering. It is conditional formatting: *this value matters*.
+
+They compose. The fill is the cell's own background and both the range tint and
+the highlight overlay paint above it, so a coloured cell still shows that it is
+selected and still shows the range it belongs to.
+
+```tsx
+<DataTable
+  data={rows}
+  columns={columns}
+  cellBackground={({ value, columnId }) =>
+    columnId !== "variance" || typeof value !== "number"
+      ? undefined
+      : value > 10
+        ? "var(--sf-color-success)"
+        : value < 0
+          ? "color-mix(in srgb, var(--sf-color-danger), transparent 62%)"
+          : undefined
+  }
+/>
+```
+
+**The ink looks after itself.** A fill the consumer chose can be anything from a
+pale tint to a saturated block, and the default foreground is unreadable on the
+second. Rather than measure a colour per cell in JS (a DOM probe per cell is not
+viable in a virtualized grid), the cell derives its text colour from the fill in
+CSS, at paint time: a light fill keeps the near-black ink, a dark one flips to
+white. The calculation composites the fill over the page first, so a **tint** (a
+saturated colour at low alpha, which is what `color-mix(..., transparent 62%)`
+gives) is judged on the colour the reader actually sees rather than on its own
+unmixed channels. Pass `{ color, textColor }` to decide the pair yourself.
+`--sf-cell-ink-flip` (default `0.62`) moves the threshold.
 
 With row snap (`scrollSnap="rows"`/`"both"`) the snap origin (`scroll-padding-top`)
 must clear the sticky header, or the first row parks half-hidden behind it. The

@@ -154,8 +154,14 @@
   --sf-hdr-wall: 0 0 transparent;
   /* The key's base colour: every state below moves this, never the
      background itself, because the face ramp (lib/surface) derives from it
-     and paints over the background. */
-  --sf-cap: var(--sf-color-bg-subtle);
+     and paints over the background.
+
+     Every state mixes from --sf-hdr-base rather than naming the token
+     directly, so a column `color` can tint the key by moving that one value
+     and the hover lift, the pressed/sorted state and the group shade all
+     follow with it (issue #99). */
+  --sf-hdr-base: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-hdr-base);
   background-color: var(--sf-cap);
   display: flex;
   align-items: center;
@@ -192,6 +198,15 @@
   --sf-hdr-wall: 0 0 transparent;
   background-size: 100% 200%;
   background-position: bottom;
+}
+
+/* The pair already paints as one full-height key, but the title sat in the
+   bottom half with a blank cell over it. Lift the in-flow content by half a
+   header row so it reads as centred across the whole key, which is what the
+   merged face already promises (issue #101). The select zone and the resize
+   handle are absolutely positioned and keep their own geometry. */
+.headerCell[data-merge-top] > :not(.selectZone):not(.resizeHandle) {
+  translate: 0 calc(var(--sf-unit) * -0.75);
 }
 
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
@@ -342,7 +357,7 @@
 }
 
 .headerCell[data-sortable]:hover {
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+  --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 4%);
 }
 
 /* The sorted column's key is held down (and a sortable key goes down while
@@ -350,13 +365,30 @@
 .headerCell[data-sorted],
 .headerCell[data-sortable]:active {
   box-shadow: var(--sf-groove), var(--sf-cell-edge-r), var(--sf-cell-edge-b);
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 6%);
+}
+
+/* A column that declared a `color`: the key takes that colour's hue, mixed in
+   OKLCH so the hue stays true (an sRGB mix desaturates toward grey and the key
+   reads muddy) and so the result is always between two in-gamut colours rather
+   than a synthesised one that the browser has to clip.
+
+   The mix moves lightness only slightly, and every state derived from this base
+   (the concave face, the edge bands, the hover lift, the pressed/sorted step)
+   is a RELATIVE move, so the key keeps its material and simply takes on the
+   hue (issue #99). */
+.headerCell[data-tinted] {
+  --sf-hdr-base: color-mix(
+    in oklch,
+    var(--sf-color-bg-subtle),
+    var(--sf-header-color) var(--sf-header-tint, 22%)
+  );
 }
 
 /* Group parent header — slightly heavier background; chevron sits at the end. */
 .headerCellGroup {
   justify-content: space-between;
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+  --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 3%);
 }
 
 /* Body wrapper — either plain flow (paginated) or relative + spacer (virtualized) */
@@ -389,7 +421,7 @@
   --sf-cap: var(--sf-color-bg-subtle);
 }
 .viewport[data-column-fill] .headerCellGroup {
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 3%);
+  --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 3%);
 }
 .viewport[data-column-fill] .body {
   min-width: max-content;
@@ -475,6 +507,43 @@
    selection is an `::after` overlay, so this base background does not hide it. */
 .viewport[data-fill] .cell {
   background-color: var(--sf-color-bg);
+}
+
+/* A consumer-painted cell (cellBackground, issue #99). The fill is the cell's
+   own background, so it sits UNDER the range tint (an ::after at z-index 1) and
+   under the highlight overlay (z-index 0): a coloured cell still shows that it
+   is selected and still shows the range it belongs to.
+
+   The ink picks itself unless the consumer pinned one. Relative colour syntax
+   reads the fill's own lightness at paint time, so a light tint keeps the near
+   black ink and a saturated fill flips to white, for any colour or token, in
+   either theme, at no per-cell cost in JS. The lower bound is the lightness of
+   --sf-color-fg, so the common light-tint case looks exactly like normal text
+   rather than pure black. */
+.cell[data-bg] {
+  background-color: var(--sf-cell-bg);
+  /* Lightness of what the fill sits on, so a TRANSLUCENT fill is judged on the
+     colour the reader actually sees rather than on its own unmixed channels: a
+     pale tint is a saturated colour at low alpha, and judging it raw flips the
+     ink the wrong way. #ffffff / #0a0a0a in OKLCH. */
+  --sf-cell-page-l: 1;
+  color: var(
+    --sf-cell-ink,
+    oklch(
+      from var(--sf-cell-bg)
+        clamp(
+          0.145,
+          (var(--sf-cell-ink-flip, 0.62) - (l * alpha + var(--sf-cell-page-l) * (1 - alpha))) *
+          100,
+          1
+        )
+        0 0 / 1
+    )
+  );
+}
+
+[data-theme="dark"] .cell[data-bg] {
+  --sf-cell-page-l: 0.145;
 }
 
 .row {
