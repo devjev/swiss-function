@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.38.0 — 2026-09-24
+
+### Minor
+
+- DataTable: a full-column selection resizes together (every selected column takes the dragged width, each no lower than its floor; double-click or Enter fits each), Shift+drag moves the edge between two columns with the row's total held, a group title never wraps either (a leaf stops where the group's title would need more than its leaves hold), and apiRef.autoFitColumns(ids?) fits columns to their content. Auto-fit now reads the content's run, so it shrinks a wide column as well as growing a narrow one
+- DataTable and Explorer: a column is never narrower than its title. The header floor is measured off the rendered header (padding, chevron, funnel, a reserved sort arrow, the title on one line) and raises the declared minimum on every path: the grid template (a container squeeze scrolls instead of wrapping a title), the pointer drag, the keyboard step, double-click auto-fit, frozen tracks and the handle's aria-valuemin. A sortable column keeps room for its arrow at rest, so sorting never moves a column edge
+- DataTable: headerLines (on the table, a column or a group) lets a title take N lines. The key grows to hold them, the title breaks evenly, and the column's floor becomes the narrowest width at which the title still fits in N lines, found with the browser's own line breaking; a collapsed group keeps its count on the placeholder
+- DataTable: resize gestures at spreadsheet parity. A drag shows a width readout under the handle (unit multiples and px, min at the floor); the pointer keeps the resize cursor over the body while a drag is captured, and at the floor the handle and a clamped drag show the one-way e-resize arrow. On a focused handle: Page Up / Down jump 96px, Home goes to the floor, End and Enter / Space auto-fit, Escape restores the width the handle had at focus; the handle announces aria-valuemax and aria-valuetext
+- DataTable: three cell overflow modes, cellOverflow on the table and overflow per column. clamp (one line, an ellipsis, the default), wrap (the value takes the lines the row height holds, then clamps; rows stay uniform), and hash (Excel's #### while a value does not fit, in the mono face and whole glyphs; the value stays in the DOM, the accessibility tree and the cell's title, and returns once the column is wide enough)
+- Explorer: the resize gestures match DataTable's. A live drag shows the width readout under the handle (min at the floor, where the cursor turns one-way and the wrapper keeps the resize cursor); a focused handle takes Page Up / Down, Home (the floor), End / Enter / Space (auto-fit) and Escape (restore), and announces aria-valuemax and aria-valuetext; auto-fit reads the content's run, so it shrinks a wide column too. DataTable: hovering a clipped clamp or wrap cell reveals the whole value in the cell's title
+
 ## v2.37.1 — 2026-09-24
 
 ### Patch
