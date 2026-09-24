@@ -216,6 +216,24 @@
   flex-shrink: 0;
 }
 
+/* A title allowed N lines (`headerLines`): the key grows past 1.5u to hold
+   them (a quarter unit of block padding each side, so two lines make a 2.5u
+   key), the title wraps and clamps at N (the prefixed recipe; the unprefixed
+   `line-clamp` is still behind flags), and `text-wrap: balance` breaks the
+   lines evenly, which never adds a line, so the measured floor holds. */
+.headerCell[data-lines] {
+  block-size: auto;
+  min-block-size: calc(var(--sf-unit) * 1.5);
+  padding-block: calc(var(--sf-unit) / 4);
+}
+.headerLabel[data-lines] {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--sf-header-lines, 2);
+  text-wrap: balance;
+}
+
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
    header text so it reads as a quiet indicator, not a glyph. An unsorted
    sortable column reserves the same box with a hidden glyph, so the title

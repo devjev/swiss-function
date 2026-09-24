@@ -31,8 +31,10 @@ export function narrowestWidthForLines(
 ): number {
   const one = Math.ceil(hi);
   if (lines <= 1) return one;
-  let low = Math.max(0, Math.floor(lo));
-  let high = one;
+  // Never below the longest run, rounded up: a box a hair narrower than the
+  // widest word overflows it by a fraction and earns an ellipsis.
+  let low = Math.max(0, Math.ceil(lo));
+  let high = Math.max(low, one);
   if (countLines(low) <= lines) return low;
   // Invariant: countLines(low) > lines, countLines(high) <= lines.
   while (high - low > 1) {
@@ -120,6 +122,9 @@ function narrowestLabelWidth(label: HTMLElement, lines: number): number {
   style.maxInlineSize = "none";
   style.minInlineSize = "0";
   style.webkitLineClamp = "unset";
+  // Greedy breaking for the search; `balance` on the real label never adds a
+  // line, so the count agrees.
+  style.setProperty("text-wrap", "wrap");
   label.parentElement?.appendChild(probe);
   try {
     const lineHeight = Number.parseFloat(getComputedStyle(probe).lineHeight) || 0;

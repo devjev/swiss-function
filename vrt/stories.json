@@ -298,6 +298,7 @@
   "data-table--header-floor",
   "data-table--highlights",
   "data-table--merged-cells",
+  "data-table--multi-line-headers",
   "data-table--narrow-container",
   "data-table--paginated",
   "data-table--paste-into-range",

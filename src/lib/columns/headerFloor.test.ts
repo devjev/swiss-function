@@ -62,6 +62,10 @@ describe("narrowestWidthForLines", () => {
     expect(narrowestWidthForLines(countLines, lo, hi, 10)).toBe(lo);
   });
 
+  it("rounds a fractional longest word up, so the box is never a hair too narrow", () => {
+    expect(narrowestWidthForLines(countLines, 55.4, hi, 10)).toBe(56);
+  });
+
   it("rounds a fractional one-line width up so nothing clips", () => {
     expect(narrowestWidthForLines(() => 1, 10.2, 137.4, 1)).toBe(138);
   });

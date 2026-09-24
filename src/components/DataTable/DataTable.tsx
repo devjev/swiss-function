@@ -145,6 +145,11 @@ export interface DataTableProps<T>
   /** Cell text size. `md` is the default; `xs`/`sm` shrink it for dense financial
    *  grids, `lg` enlarges it. Applies to header + body. Independent of `cellPadding`. */
   cellFontSize?: "xs" | "sm" | "md" | "lg";
+  /** Lines a column title may take (default 1); a column's own `headerLines`
+   *  overrides it. A title never wraps past its count: the column cannot be
+   *  narrowed below the width at which the title would need one more line, and
+   *  the header row grows to hold the lines (issue #102). */
+  headerLines?: number;
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
   /** Excel-style row-number gutter: a slim, frozen leading track numbering the
@@ -409,11 +414,25 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
       id: def.id,
       header,
       columns: def.columns.map(toTSColumn),
-      ...(def.color != null ? { meta: { color: def.color } } : {}),
+      ...(def.color != null || def.headerLines != null
+        ? {
+            meta: {
+              ...(def.color != null ? { color: def.color } : {}),
+              ...(def.headerLines != null ? { headerLines: def.headerLines } : {}),
+            },
+          }
+        : {}),
     } as TSColumnDef<T>;
   }
   const ownMeta = (def as { meta?: Record<string, unknown> }).meta;
-  const meta = def.color != null ? { ...(ownMeta ?? {}), color: def.color } : ownMeta;
+  const meta =
+    def.color != null || def.headerLines != null
+      ? {
+          ...(ownMeta ?? {}),
+          ...(def.color != null ? { color: def.color } : {}),
+          ...(def.headerLines != null ? { headerLines: def.headerLines } : {}),
+        }
+      : ownMeta;
   return {
     id: def.id,
     header,
@@ -726,6 +745,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     copyWithHeaders = true,
     cellPadding = "md",
     cellFontSize = "md",
+    headerLines: tableHeaderLines = 1,
     onSelectionChange,
     rowNumbers = false,
     selectionMode = "cell",
@@ -1229,7 +1249,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const cell = headerCellRefs.current.get(leaf.id);
       const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
       if (!cell || !label) continue;
-      next[leaf.id] = measureHeaderNeed(cell, { label });
+      next[leaf.id] = measureHeaderNeed(cell, {
+        label,
+        lines: Math.max(1, Math.floor(leaf.headerLines ?? tableHeaderLines)),
+      });
     }
     setHeaderFloors((prev) => {
       const keys = Object.keys(next);
@@ -1239,7 +1262,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     });
     // The label text, the chrome and the font all live on the leaves and the
     // two density props; the tick re-runs it after the webfont loads.
-  }, [visibleLeaves, cellFontSize, cellPadding, fontsTick]);
+  }, [visibleLeaves, cellFontSize, cellPadding, fontsTick, tableHeaderLines]);
 
   /** The px floor of leaf `idx`: its declared minimum (own `minWidth` or the
    *  global token, resolved in the header's context) raised to its measured
@@ -2085,7 +2108,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const isFrozenEdge = isFrozen && leafStart + span === frozenCount;
     const isGroupHeader = header.subHeaders.length > 0;
     const def = header.column.columnDef;
-    const colMeta = (def as { meta?: { collapsedGroupId?: string; color?: string } }).meta;
+    const colMeta = (
+      def as { meta?: { collapsedGroupId?: string; color?: string; headerLines?: number } }
+    ).meta;
+    // Lines the title may take: the column's own count, else the table's.
+    const lines = Math.max(1, Math.floor(colMeta?.headerLines ?? tableHeaderLines));
     // A heading's own colour tints its key (issue #99). Carried through
     // TanStack's `meta`, since its columnDef is not ours.
     const headerColor = colMeta?.color;
@@ -2133,12 +2160,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
             gridRow: `${place.row + 1} / span ${place.rowSpan}`,
             ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
             ...(headerColor != null ? { "--sf-header-color": headerColor } : {}),
+            ...(lines > 1 ? { "--sf-header-lines": lines } : {}),
             ...dnd?.style,
           } as CSSProperties
         }
         data-align={isGroupHeader ? "center" : "start"}
         data-surface={headerSurface}
         data-tinted={headerColor != null || undefined}
+        // A multi-line title: the key grows to its lines (see .headerCell[data-lines]).
+        data-lines={lines > 1 ? lines : undefined}
         data-sortable={canSort || undefined}
         data-locked={isLocked || undefined}
         data-frozen={isFrozen || undefined}
@@ -2154,7 +2184,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       >
         {!header.isPlaceholder && (
           <>
-            <span className={styles.headerLabel}>
+            <span className={styles.headerLabel} data-lines={lines > 1 ? lines : undefined}>
               {flexRender(def.header, header.getContext())}
             </span>
             {/* A sortable column carries its arrow's space at rest too (a

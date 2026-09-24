@@ -1692,3 +1692,59 @@ test("a frozen column cannot sit under its floor either", async ({ mount, page }
   expect(after.width).toBeGreaterThanOrEqual(min - 1);
   await expectTitleWhole(header);
 });
+
+// --- Multi-line titles keep their line count (issue #102, headerLines) -----
+
+test("headerLines: 2 wraps the title to two lines and floors the column where it would need three", async ({
+  mount,
+  page,
+}) => {
+  const one = await mount(<HeaderFloorHarness />);
+  const oneLineMin = Number(
+    await one.locator('[data-column-id="region"]').getAttribute("aria-valuemin"),
+  );
+  await one.unmount();
+  const c = await mount(<HeaderFloorHarness headerLines={2} />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const handle = c.locator('[data-column-id="region"]');
+  const twoLineMin = Number(await handle.getAttribute("aria-valuemin"));
+  // Two lines need less width than one, but still more than the 72px floor.
+  expect(twoLineMin).toBeLessThan(oneLineMin);
+  expect(twoLineMin).toBeGreaterThan(72);
+  await dragHandle(page, handle, -400);
+  const m = await header.evaluate((el) => {
+    const label = el.querySelector("span") as HTMLElement;
+    return {
+      width: el.getBoundingClientRect().width,
+      cellH: el.getBoundingClientRect().height,
+      labelH: label.getBoundingClientRect().height,
+      // The longest word must fit its line: no horizontal clip, no ellipsis.
+      clipped: label.scrollWidth > label.clientWidth + 1,
+    };
+  });
+  expect(Math.abs(m.width - twoLineMin)).toBeLessThanOrEqual(1);
+  expect(m.clipped).toBe(false);
+  // Two lines of 24px leading in a 2.5u (60px) key: never a third line.
+  expect(m.labelH).toBeGreaterThan(40);
+  expect(m.labelH).toBeLessThanOrEqual(49);
+  expect(m.cellH).toBeGreaterThanOrEqual(59);
+  expect(m.cellH).toBeLessThanOrEqual(61);
+});
+
+test("a collapsed group keeps its headerLines on the placeholder key", async ({ mount, page }) => {
+  const c = await mount(<HeaderFloorHarness headerLines={2} />);
+  const header = c.getByRole("columnheader", { name: /Quarterly numbers/ });
+  // The last column stretches to the mount width, so pull well past it.
+  await dragHandle(page, c.locator('[data-column-id="grp::placeholder"]'), -1500);
+  const m = await header.evaluate((el) => {
+    const label = el.querySelector("span") as HTMLElement;
+    return { labelH: label.getBoundingClientRect().height, lines: el.getAttribute("data-lines") };
+  });
+  expect(m.lines).toBe("2");
+  expect(m.labelH).toBeGreaterThan(40);
+  expect(m.labelH).toBeLessThanOrEqual(49);
+  const key = await header.boundingBox();
+  const chevron = await header.getByRole("button", { name: "Expand group" }).boundingBox();
+  if (!key || !chevron) throw new Error("missing bounding box");
+  expect(chevron.x + chevron.width).toBeLessThanOrEqual(key.x + key.width + 1);
+});

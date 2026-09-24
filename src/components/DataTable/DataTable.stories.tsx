@@ -1012,6 +1012,32 @@ export const HeaderFloor: Story = () => (
   />
 );
 
+/** Titles allowed two lines (`headerLines`, issue #102): the key grows to
+ *  2.5u, the title breaks evenly, and the column's floor is where it would
+ *  need a third line, so a long title takes less width than on one line.
+ *  Drag "Region of incorporation" left: it stops at two lines, never three. */
+export const MultiLineHeaders: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    height={260}
+    headerLines={2}
+    columns={[
+      { id: "region", header: "Region of incorporation", accessor: "region", width: 8 },
+      { id: "q1", header: "Q1 revenue (CHF)", accessor: "q1", align: "end", width: 6 },
+      {
+        id: "quarters",
+        header: "Quarterly revenue by region",
+        defaultCollapsed: true,
+        columns: [
+          { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 6 },
+          { id: "q3", header: "Q3", accessor: "q3", align: "end", width: 6 },
+        ],
+      },
+      { id: "variance", header: "Variance against plan", accessor: "variance", align: "end" },
+    ]}
+  />
+);
+
 /** One group collapsed while another stays expanded (issue #101): the collapsed
  *  group's key should read as one full-height header, not a blank cell above a
  *  bottom-aligned title. */

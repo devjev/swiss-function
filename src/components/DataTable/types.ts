@@ -106,6 +106,10 @@ export interface LeafColumnDef<T> {
   /** Allow this column to be drag/keyboard-resized. Default true (when the
    *  table's `resizableColumns` is on). Set false to lock this column's width. */
   resizable?: boolean;
+  /** Lines the title may take (default 1, or the table's `headerLines`). A
+   *  title never wraps past its count: the column's floor is the width at
+   *  which it would need one more line, and the header row grows to fit. */
+  headerLines?: number;
   align?: "start" | "center" | "end";
   /** Per-column edit config. Omit to make column read-only even when table.editable. */
   edit?: EditConfig;
@@ -127,6 +131,9 @@ export interface GroupColumnDef<T> {
   header: string | ReactNode;
   /** Tints this group heading's key. See `LeafColumnDef.color`. */
   color?: string;
+  /** Lines the group title may take. See `LeafColumnDef.headerLines`. A
+   *  collapsed group's placeholder keeps it. */
+  headerLines?: number;
   /** Children — leaf or nested group. Presence makes this a group. */
   columns: ColumnDef<T>[];
   /** Initial state of the group on first mount. Default `false` (expanded). */

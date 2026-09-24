@@ -506,11 +506,14 @@ export function HeaderFloorHarness({
   sortable,
   filterable,
   frozen,
+  headerLines,
 }: {
   containerWidth?: number;
   sortable?: boolean;
   filterable?: boolean;
   frozen?: boolean;
+  /** Lines for the long title and the group (the others keep one). */
+  headerLines?: number;
 }) {
   const columns: ColumnDef<BgRow>[] = [
     {
@@ -519,12 +522,14 @@ export function HeaderFloorHarness({
       accessor: "region",
       width: 14,
       sortable,
+      ...(headerLines != null ? { headerLines } : {}),
     },
     { id: "value", header: "Value", accessor: "value", align: "end", width: 8, sortable },
     {
       id: "grp",
       header: "Quarterly numbers",
       defaultCollapsed: true,
+      ...(headerLines != null ? { headerLines } : {}),
       columns: [{ id: "v2", header: "Value 2", accessor: "value", width: 6 }],
     },
   ];

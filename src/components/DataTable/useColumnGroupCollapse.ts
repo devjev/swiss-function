@@ -91,6 +91,7 @@ export function buildEffectiveColumns<T>(
         width: 4,
         align: "center" as const,
         cell: ({ row, rowIndex }) => def.collapsedCell?.({ row: row as T, rowIndex }) ?? "—",
+        ...(def.headerLines != null ? { headerLines: def.headerLines } : {}),
         // Tag so the header renderer knows to draw the (collapsed) chevron and
         // wire its toggle back to the parent group id. The group's `color`
         // rides along, so collapsing a tinted group keeps its tint (issue #99).
