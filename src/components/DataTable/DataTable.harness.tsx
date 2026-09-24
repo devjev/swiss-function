@@ -544,3 +544,35 @@ export function HeaderFloorHarness({
   );
   return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
 }
+
+type NoteRow = { name: string; note: string; amount: string };
+const NOTE_ROWS: NoteRow[] = [
+  {
+    name: "Alpha",
+    note: "A long remark that runs well past one line of a narrow column and keeps going",
+    amount: "1'234'567.89",
+  },
+  { name: "Beta", note: "Short", amount: "5" },
+  { name: "Gamma", note: "Another remark, long enough to wrap twice at least", amount: "42.00" },
+];
+
+/** The cell overflow modes (issue #102): `mode` goes on the note (text) and
+ *  the amount (number) columns; the name column keeps the table default. */
+export function CellOverflowHarness({
+  mode,
+  rowHeight,
+}: {
+  mode: "clamp" | "wrap" | "hash";
+  rowHeight?: number;
+}) {
+  // The name column comes last: the last column stretches to the mount
+  // width, and the two under test must stay at their declared widths.
+  const columns: ColumnDef<NoteRow>[] = [
+    { id: "note", header: "Note", accessor: "note", width: 6, overflow: mode },
+    { id: "amount", header: "Amount", accessor: "amount", align: "end", width: 4, overflow: mode },
+    { id: "name", header: "Name", accessor: "name", width: 5 },
+  ];
+  return (
+    <DataTable<NoteRow> data={NOTE_ROWS} columns={columns} height={260} rowHeight={rowHeight} />
+  );
+}

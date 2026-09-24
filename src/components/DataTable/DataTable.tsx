@@ -37,7 +37,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { combineFloor, measureHeaderNeed } from "../../lib/columns/headerFloor";
+import {
+  cellLines,
+  combineFloor,
+  contentInlineSize,
+  measureHeaderNeed,
+} from "../../lib/columns/headerFloor";
 import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
@@ -65,6 +70,7 @@ import type {
   Cell,
   CellBackgroundFn,
   CellChange,
+  CellOverflow,
   CellRange,
   CellSpanFn,
   ColumnDef,
@@ -150,6 +156,13 @@ export interface DataTableProps<T>
    *  narrowed below the width at which the title would need one more line, and
    *  the header row grows to hold the lines (issue #102). */
   headerLines?: number;
+  /** How body cells show a value that does not fit its column, the default for
+   *  every column (a column's own `overflow` wins). `clamp` cuts with an
+   *  ellipsis; `wrap` wraps within the lines the row height holds (36px is
+   *  one line, 60px two, 84px three) and clamps there; `hash` fills the cell
+   *  with `#` while the value does not fit, Excel's rule for numbers and dates,
+   *  so a cut number is never read as a different one (issue #102). */
+  cellOverflow?: CellOverflow;
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
   /** Excel-style row-number gutter: a slim, frozen leading track numbering the
@@ -546,6 +559,8 @@ interface DataTableRowProps<T> {
   cancelEdit: () => void;
   /** Paints a cell's whole background; see `DataTableProps.cellBackground`. */
   cellBackground?: CellBackgroundFn<T>;
+  /** The table's default overflow mode; a column's `overflow` wins. */
+  cellOverflow: CellOverflow;
 }
 
 /** The row-number gutter cell: 1-based display index, sticky left, whole-row
@@ -614,6 +629,7 @@ function DataTableRowInner<T>({
   commitEdit,
   cancelEdit,
   cellBackground,
+  cellOverflow,
 }: DataTableRowProps<T>) {
   return (
     <div
@@ -685,6 +701,8 @@ function DataTableRowInner<T>({
             data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
             data-merge-right={mergeRight}
             data-merge-bottom={mergeBottom}
+            data-wrap={(colDef.overflow ?? cellOverflow) === "wrap" || undefined}
+            data-hash={(colDef.overflow ?? cellOverflow) === "hash" || undefined}
             className={styles.cell}
             style={
               isFrozen && frozenLefts ? { left: frozenLefts[colIndex], ...bg.style } : bg.style
@@ -713,15 +731,20 @@ function DataTableRowInner<T>({
                 onCancel={cancelEdit}
               />
             ) : (
-              <span className={styles.cellBody}>
-                {colDef.cell
-                  ? colDef.cell({ value, row: original, rowIndex: dataIdx })
-                  : colDef.edit
-                    ? formatEditDisplay(value, colDef.edit)
-                    : value == null
-                      ? ""
-                      : String(value)}
-              </span>
+              <>
+                <span className={styles.cellBody}>
+                  {colDef.cell
+                    ? colDef.cell({ value, row: original, rowIndex: dataIdx })
+                    : colDef.edit
+                      ? formatEditDisplay(value, colDef.edit)
+                      : value == null
+                        ? ""
+                        : String(value)}
+                </span>
+                {(colDef.overflow ?? cellOverflow) === "hash" && (
+                  <span aria-hidden="true" className={styles.hashFill} />
+                )}
+              </>
             )}
             {highlightOverlays(highlights, displayIndex, colIndex)}
           </div>
@@ -746,6 +769,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     cellPadding = "md",
     cellFontSize = "md",
     headerLines: tableHeaderLines = 1,
+    cellOverflow = "clamp",
     onSelectionChange,
     rowNumbers = false,
     selectionMode = "cell",
@@ -1492,7 +1516,59 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (!vp) return;
     setColMinPx(Math.round(measureCssWidth(vp, "var(--sf-datatable-col-min)")));
     setUnitPx(measureCssWidth(vp, "var(--sf-unit)"));
+    setLeadingPx(measureCssWidth(vp, "var(--sf-leading-base)"));
   }, []);
+
+  // --- Cell overflow modes (issue #102) ---
+  // The lines a row holds, for `overflow: "wrap"`: from rowHeight and the
+  // measured leading, keeping half a unit of breathing (36px is one line,
+  // 60px two, 84px three). Published as --sf-cell-lines for the CSS clamp.
+  const [leadingPx, setLeadingPx] = useState<number | null>(null);
+  const cellLineCount = useMemo(
+    () => (leadingPx != null && unitPx != null ? cellLines(rowHeight, leadingPx, unitPx / 2) : 1),
+    [rowHeight, leadingPx, unitPx],
+  );
+  const wrapWarned = useRef(false);
+  useEffect(() => {
+    if (wrapWarned.current || leadingPx == null || cellLineCount > 1) return;
+    if (visibleLeaves.some((c) => (c.overflow ?? cellOverflow) === "wrap")) {
+      wrapWarned.current = true;
+      console.warn(
+        `DataTable: overflow "wrap" holds one line at rowHeight ${rowHeight}; give the rows at least 60px for two lines.`,
+      );
+    }
+  }, [visibleLeaves, cellOverflow, cellLineCount, leadingPx, rowHeight]);
+
+  // The hash fill: a layout pass over the mounted cells of every hash-mode
+  // column after each render (the mounted set, the widths and the values can
+  // all change; the pass is a few dozen rect reads). A value's run (a
+  // fractional Range width, since scrollWidth is an integer and misses a
+  // sub-pixel overflow) against the body's box flips `data-overflow` on the
+  // cell and carries the value in its title. Attributes only: a drag frame
+  // still re-renders the header alone.
+  const hashColumns = useMemo(() => {
+    const set = new Set<number>();
+    visibleLeaves.forEach((c, i) => {
+      if ((c.overflow ?? cellOverflow) === "hash") set.add(i);
+    });
+    return set;
+  }, [visibleLeaves, cellOverflow]);
+  useLayoutEffect(() => {
+    if (hashColumns.size === 0) return;
+    for (const [key, el] of cellRefs.current) {
+      if (!hashColumns.has(Number(key.split(":")[1]))) continue;
+      const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
+      const over =
+        body != null && contentInlineSize(body) > body.getBoundingClientRect().width + 0.5;
+      if (over) {
+        el.dataset.overflow = "";
+        el.title = body?.textContent ?? "";
+      } else if (el.dataset.overflow != null) {
+        delete el.dataset.overflow;
+        el.removeAttribute("title");
+      }
+    }
+  });
 
   /** What a resize handle announces as its lower bound: the column's own
    *  `minWidth` in px when it declares one, else the measured global floor,
@@ -1788,6 +1864,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     commitEdit,
     cancelEdit,
     cellBackground,
+    cellOverflow,
   };
 
   // --- Cell renderer ---
@@ -1845,6 +1922,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
         <span className={styles.cellBody}>
           {flexRender(tsCell.column.columnDef.cell, tsCell.getContext())}
         </span>
+        {(colDef.overflow ?? cellOverflow) === "hash" && (
+          <span aria-hidden="true" className={styles.hashFill} />
+        )}
       </>
     );
 
@@ -1867,6 +1947,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
         data-merge-right={mergeRight}
         data-merge-bottom={mergeBottom}
+        data-wrap={(colDef.overflow ?? cellOverflow) === "wrap" || undefined}
+        data-hash={(colDef.overflow ?? cellOverflow) === "hash" || undefined}
         className={styles.cell}
         {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
         style={isFrozen ? { left: frozenLefts[colIndex], ...bg.style } : bg.style}
@@ -2294,6 +2376,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             height: fillHeight ? height : undefined,
             maxHeight: fillHeight ? undefined : height,
             "--sf-row-height": `${rowHeight}px`,
+            "--sf-cell-lines": cellLineCount,
             // Measured sticky-header height for the scroll-snap origin (issue #88);
             // absent before measurement, when the CSS fallback (1.5u per group) holds.
             "--sf-header-rows": headerGroups.length,

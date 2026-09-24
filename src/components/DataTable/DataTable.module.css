@@ -763,6 +763,62 @@
   flex: 1;
 }
 
+/* --- Cell overflow modes (issue #102) ---------------------------------
+   `clamp` is the default above: one line, an ellipsis. `wrap` lets the value
+   take the lines the row holds (`--sf-cell-lines`, derived from rowHeight)
+   and clamps there, the prefixed recipe on the body, since the unprefixed
+   `line-clamp` is still behind flags. */
+.cell[data-wrap] .cellBody {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--sf-cell-lines, 1);
+  text-overflow: clip;
+}
+
+/* `hash`: Excel's ####. While the value does not fit (the layout pass sets
+   `data-overflow`), the body's ink goes transparent (the value stays laid
+   out, in the accessibility tree and in the copy; the cell's title carries
+   it for hover) and a mono fill of `#` covers the cell, clipped to whole
+   glyphs: round(down, 100%, 1ch), 1ch being the glyph's advance in the mono
+   face. Older engines fall back to the full width and a clipped last glyph. */
+.hashFill {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 0 var(--sf-cell-pad-x);
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  white-space: nowrap;
+}
+.cell[data-hash][data-overflow] .cellBody {
+  color: transparent;
+}
+.cell[data-hash][data-overflow] .hashFill {
+  display: flex;
+}
+.cell[data-align="end"] .hashFill {
+  justify-content: flex-end;
+}
+.cell[data-align="center"] .hashFill {
+  justify-content: center;
+}
+.hashFill::before {
+  content: "################################################################################################################################################################################################################################################";
+  display: block;
+  inline-size: round(down, 100%, 1ch);
+  overflow: hidden;
+}
+@supports not (inline-size: round(down, 100%, 1ch)) {
+  .hashFill::before {
+    inline-size: 100%;
+  }
+}
+
 /* (Chevron styles moved to src/lib/TreeChevron.module.css — shared with Outliner.) */
 
 /* Range cells: a soft tint of primary so the selection block reads as a unit.

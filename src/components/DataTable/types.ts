@@ -60,6 +60,14 @@ export function resolveCellBackground(
   return bg.textColor != null ? { color: bg.color, textColor: bg.textColor } : { color: bg.color };
 }
 
+/** How a body cell shows a value that does not fit its column (issue #102).
+ *  `clamp`: one line, cut with an ellipsis (the default). `wrap`: the value
+ *  wraps within the lines the row height holds, then clamps. `hash`: Excel's
+ *  rule for numbers and dates, the cell fills with `#` while the value does
+ *  not fit, so a cut number is never read as a different one; the value stays
+ *  in the accessibility tree, in the copy and in the cell's `title`. */
+export type CellOverflow = "clamp" | "wrap" | "hash";
+
 export type EditorType = "text" | "number" | "boolean" | "select" | "date";
 
 export type SelectOption = { value: string; label: string };
@@ -110,6 +118,9 @@ export interface LeafColumnDef<T> {
    *  title never wraps past its count: the column's floor is the width at
    *  which it would need one more line, and the header row grows to fit. */
   headerLines?: number;
+  /** How this column's cells show a value that does not fit. Overrides the
+   *  table's `cellOverflow`. Put `"hash"` on numeric and date columns. */
+  overflow?: CellOverflow;
   align?: "start" | "center" | "end";
   /** Per-column edit config. Omit to make column read-only even when table.editable. */
   edit?: EditConfig;

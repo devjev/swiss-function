@@ -63,7 +63,7 @@ export interface HeaderNeedOptions {
 /** The inline extent of an element's contents, fractional, regardless of the
  *  box it is squeezed into: a Range over the contents reports the laid-out
  *  run, where `scrollWidth` is an integer and `offsetWidth` the clipped box. */
-function contentInlineSize(el: HTMLElement): number {
+export function contentInlineSize(el: HTMLElement): number {
   const range = document.createRange();
   range.selectNodeContents(el);
   const w = range.getBoundingClientRect().width;

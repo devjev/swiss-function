@@ -1012,6 +1012,51 @@ export const HeaderFloor: Story = () => (
   />
 );
 
+type NoteRow = { name: string; note: string; amount: number };
+const noteRows: NoteRow[] = [
+  {
+    name: "Helvetia Re",
+    note: "Renewal pending the reinsurer's revised treaty terms; the broker expects an answer after the quarter closes",
+    amount: 1284500.25,
+  },
+  { name: "Alpine Foods", note: "Paid in full", amount: 3120 },
+  {
+    name: "Rhone Logistics",
+    note: "Two invoices disputed over the fuel surcharge; credit note issued for the first, the second is still open",
+    amount: 48250.5,
+  },
+  { name: "Ticino Media", note: "Awaiting PO", amount: 999999999.99 },
+];
+
+/** The three cell overflow modes (issue #102), each on its own column, in
+ *  60px rows (two lines). Name: `clamp`, one line and an ellipsis. Note:
+ *  `wrap`, the text takes the row's two lines, then clamps. Amount: `hash`,
+ *  Excel's #### while the number does not fit; hover for the value, drag
+ *  the column wider and the number comes back. Drag any edge to see them. */
+export const CellOverflowModes: Story = () => (
+  <DataTable<NoteRow>
+    data={noteRows}
+    height={300}
+    rowHeight={60}
+    columns={[
+      { id: "name", header: "Name", accessor: "name", width: 6 },
+      { id: "note", header: "Note", accessor: "note", width: 12, overflow: "wrap" },
+      {
+        id: "amount",
+        header: "Amount (CHF)",
+        accessor: "amount",
+        align: "end",
+        width: 6,
+        overflow: "hash",
+        cell: ({ value }) =>
+          typeof value === "number"
+            ? value.toLocaleString("de-CH", { minimumFractionDigits: 2 })
+            : "",
+      },
+    ]}
+  />
+);
+
 /** Titles allowed two lines (`headerLines`, issue #102): the key grows to
  *  2.5u, the title breaks evenly, and the column's floor is where it would
  *  need a third line, so a long title takes less width than on one line.

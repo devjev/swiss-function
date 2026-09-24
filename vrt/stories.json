@@ -282,6 +282,7 @@
   "contexteditor--small-context",
   "data-table--cell-background-contrast",
   "data-table--cell-backgrounds",
+  "data-table--cell-overflow-modes",
   "data-table--collapsed-group-among-groups",
   "data-table--column-fill-animated",
   "data-table--column-fill-static",

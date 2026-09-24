@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { DataTable } from "./DataTable";
 import {
   CellBackgroundHarness,
+  CellOverflowHarness,
   CollapsedGroupHarness,
   DataTableHarness,
   EditorsHarness,
@@ -1747,4 +1748,97 @@ test("a collapsed group keeps its headerLines on the placeholder key", async ({ 
   const chevron = await header.getByRole("button", { name: "Expand group" }).boundingBox();
   if (!key || !chevron) throw new Error("missing bounding box");
   expect(chevron.x + chevron.width).toBeLessThanOrEqual(key.x + key.width + 1);
+});
+
+// --- Cell overflow modes (issue #102) --------------------------------------
+
+test("wrap: a value takes the lines the row holds, then clamps", async ({ mount }) => {
+  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={60} />);
+  const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
+  await expect(cell).toHaveAttribute("data-wrap", "true");
+  const m = await cell.evaluate((el) => {
+    const body = el.querySelector("span") as HTMLElement;
+    const cs = getComputedStyle(body);
+    return {
+      bodyH: body.getBoundingClientRect().height,
+      clamp: cs.getPropertyValue("-webkit-line-clamp"),
+      whiteSpace: cs.whiteSpace,
+    };
+  });
+  // Two 24px lines in a 60px row.
+  expect(m.clamp).toBe("2");
+  expect(m.whiteSpace).toBe("normal");
+  expect(m.bodyH).toBeGreaterThan(40);
+  expect(m.bodyH).toBeLessThanOrEqual(49);
+});
+
+test("wrap at the default row height is one line", async ({ mount }) => {
+  const c = await mount(<CellOverflowHarness mode="wrap" />);
+  const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
+  const m = await cell.evaluate((el) => {
+    const body = el.querySelector("span") as HTMLElement;
+    return {
+      bodyH: body.getBoundingClientRect().height,
+      clamp: getComputedStyle(body).getPropertyValue("-webkit-line-clamp"),
+    };
+  });
+  expect(m.clamp).toBe("1");
+  expect(m.bodyH).toBeLessThanOrEqual(25);
+});
+
+test("hash: a value that does not fit shows # and keeps the value in the DOM and the title", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<CellOverflowHarness mode="hash" />);
+  const wide = c.getByRole("gridcell").filter({ hasText: "1'234'567.89" });
+  await expect(wide).toHaveAttribute("data-hash", "true");
+  await expect(wide).toHaveAttribute("data-overflow");
+  await expect(wide).toHaveAttribute("title", "1'234'567.89");
+  const m = await wide.evaluate((el) => {
+    const body = el.querySelector("span") as HTMLElement;
+    const fill = el.querySelector("span[aria-hidden]") as HTMLElement;
+    const before = getComputedStyle(fill, "::before");
+    return {
+      ink: getComputedStyle(body).color,
+      fillDisplay: getComputedStyle(fill).display,
+      fillFont: getComputedStyle(fill).fontFamily,
+      hashes: before.content.replace(/"/g, ""),
+      // The fill clips to whole glyphs: round(down, 100%, 1ch).
+      fillSize: before.inlineSize || before.width,
+    };
+  });
+  expect(m.ink).toBe("rgba(0, 0, 0, 0)");
+  expect(m.fillDisplay).toBe("flex");
+  expect(m.hashes.startsWith("####")).toBe(true);
+  // Chromium reports the pseudo-element's size either as the unresolved
+  // round() expression or as the resolved px; both mean the rule applied.
+  expect(/^round\(down, 100%|px$/.test(m.fillSize)).toBe(true);
+  // A value that fits is left alone.
+  const small = c.getByRole("gridcell").filter({ hasText: "42.00" });
+  await expect(small).not.toHaveAttribute("data-overflow");
+  await expect(small).not.toHaveAttribute("title", /.+/);
+  // Widen the column: the value comes back.
+  await dragHandle(page, c.locator('[data-column-id="amount"]'), 200);
+  await expect(wide).not.toHaveAttribute("data-overflow");
+  await expect(wide).not.toHaveAttribute("title", /.+/);
+});
+
+test("clamp stays the default: an ellipsis on one line, no fill", async ({ mount }) => {
+  const c = await mount(<CellOverflowHarness mode="clamp" />);
+  const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
+  await expect(cell).not.toHaveAttribute("data-wrap", /.*/);
+  await expect(cell).not.toHaveAttribute("data-hash", /.*/);
+  const m = await cell.evaluate((el) => {
+    const body = el.querySelector("span") as HTMLElement;
+    const cs = getComputedStyle(body);
+    return {
+      whiteSpace: cs.whiteSpace,
+      textOverflow: cs.textOverflow,
+      fills: el.querySelectorAll("span[aria-hidden]").length,
+    };
+  });
+  expect(m.whiteSpace).toBe("nowrap");
+  expect(m.textOverflow).toBe("ellipsis");
+  expect(m.fills).toBe(0);
 });
