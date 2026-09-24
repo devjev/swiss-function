@@ -141,3 +141,54 @@ function narrowestLabelWidth(label: HTMLElement, lines: number): number {
     probe.remove();
   }
 }
+
+/** A group title's need as a constraint on the sum of its leaves. */
+export interface GroupConstraint {
+  /** Indices (into the visible leaves) of the leaves under the group. */
+  leafIndices: readonly number[];
+  /** The width the group's header needs, in px. */
+  need: number;
+}
+
+/** The narrowest common width `v` the `targets` may all take so that every
+ *  group title still fits: for each group holding targets, its need minus the
+ *  widths of its other leaves, shared equally among the targets it holds.
+ *  Zero when no group constrains them. */
+export function groupFloorFor(
+  targets: readonly number[],
+  widths: readonly number[],
+  groups: readonly GroupConstraint[],
+): number {
+  let floor = 0;
+  for (const g of groups) {
+    let held = 0;
+    let others = 0;
+    for (const i of g.leafIndices) {
+      if (targets.includes(i)) held += 1;
+      else others += widths[i] ?? 0;
+    }
+    if (held === 0) continue;
+    floor = Math.max(floor, Math.ceil((g.need - others) / held));
+  }
+  return floor;
+}
+
+/** After an auto-fit, raise the fitted leaves so every group title over them
+ *  still fits: a group's deficit (its need minus the sum of its leaves) is
+ *  shared equally among the fitted leaves it holds. Mutates `widths`. */
+export function raiseForGroups(
+  widths: number[],
+  fitted: ReadonlySet<number>,
+  groups: readonly GroupConstraint[],
+): void {
+  for (const g of groups) {
+    const members = g.leafIndices.filter((i) => fitted.has(i));
+    if (members.length === 0) continue;
+    let sum = 0;
+    for (const i of g.leafIndices) sum += widths[i] ?? 0;
+    const deficit = g.need - sum;
+    if (deficit <= 0) continue;
+    const share = Math.ceil(deficit / members.length);
+    for (const i of members) widths[i] = (widths[i] ?? 0) + share;
+  }
+}

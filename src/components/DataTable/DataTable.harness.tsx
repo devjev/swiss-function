@@ -507,6 +507,8 @@ export function HeaderFloorHarness({
   filterable,
   frozen,
   headerLines,
+  expandedGroup,
+  fitAllButton,
 }: {
   containerWidth?: number;
   sortable?: boolean;
@@ -514,7 +516,27 @@ export function HeaderFloorHarness({
   frozen?: boolean;
   /** Lines for the long title and the group (the others keep one). */
   headerLines?: number;
+  /** An expanded group with a long title over two short leaves, for the sum rule. */
+  expandedGroup?: boolean;
+  /** A button that calls `apiRef.current.autoFitColumns()`. */
+  fitAllButton?: boolean;
 }) {
+  const apiRef = useRef<DataTableHandle>(null);
+  if (expandedGroup) {
+    const columns: ColumnDef<BgRow>[] = [
+      { id: "region", header: "Region", accessor: "region", width: 8 },
+      {
+        id: "grp",
+        header: "Quarterly numbers for every region",
+        columns: [
+          { id: "q1", header: "Q1", accessor: "value", align: "end", width: 6 },
+          { id: "q2", header: "Q2", accessor: "value", align: "end", width: 6 },
+        ],
+      },
+      { id: "tail", header: "Tail", accessor: "region", width: 6 },
+    ];
+    return <DataTable<BgRow> data={BG_ROWS} columns={columns} height={220} />;
+  }
   const columns: ColumnDef<BgRow>[] = [
     {
       id: "region",
@@ -540,9 +562,20 @@ export function HeaderFloorHarness({
       height={220}
       filterableColumns={filterable}
       frozenColumns={frozen ? 1 : 0}
+      apiRef={apiRef}
     />
   );
-  return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
+  const wrapped =
+    containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
+  if (!fitAllButton) return wrapped;
+  return (
+    <div>
+      <button type="button" onClick={() => apiRef.current?.autoFitColumns()}>
+        Fit all
+      </button>
+      {wrapped}
+    </div>
+  );
 }
 
 type NoteRow = { name: string; note: string; amount: string };

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cellLines, combineFloor, narrowestWidthForLines } from "./headerFloor";
+import {
+  cellLines,
+  combineFloor,
+  groupFloorFor,
+  narrowestWidthForLines,
+  raiseForGroups,
+} from "./headerFloor";
 
 describe("combineFloor", () => {
   it("keeps the declared minimum when nothing is measured", () => {
@@ -82,5 +88,41 @@ describe("cellLines", () => {
   it("never reports fewer than one line", () => {
     expect(cellLines(10, 24, unit / 2)).toBe(1);
     expect(cellLines(36, 0, unit / 2)).toBe(1);
+  });
+});
+
+describe("groupFloorFor", () => {
+  const groups = [
+    { leafIndices: [0, 1], need: 300 }, // a group over the first two leaves
+    { leafIndices: [0, 1, 2, 3], need: 500 }, // its parent over four
+  ];
+  const widths = [150, 150, 100, 100];
+  it("is zero for a leaf no group constrains", () => {
+    expect(groupFloorFor([2], widths, [{ leafIndices: [0, 1], need: 300 }])).toBe(0);
+  });
+  it("gives one leaf the group's need minus its siblings", () => {
+    // Inner group: 300 - 150 = 150; outer: 500 - 350 = 150.
+    expect(groupFloorFor([0], widths, groups)).toBe(150);
+    // Widen a sibling and the floor drops.
+    expect(groupFloorFor([0], [150, 200, 100, 100], groups)).toBe(100);
+  });
+  it("shares the need among several targets and takes the binding group", () => {
+    // Both inner leaves move: 300 / 2 = 150; outer: (500 - 200) / 2 = 150.
+    expect(groupFloorFor([0, 1], widths, groups)).toBe(150);
+    // Outer binds when the inner group is roomy.
+    expect(groupFloorFor([0, 1], widths, [{ leafIndices: [0, 1, 2, 3], need: 600 }])).toBe(200);
+  });
+});
+
+describe("raiseForGroups", () => {
+  it("shares a group's deficit among the fitted leaves it holds", () => {
+    const widths = [60, 60, 100];
+    raiseForGroups(widths, new Set([0, 1]), [{ leafIndices: [0, 1], need: 150 }]);
+    expect(widths).toEqual([75, 75, 100]);
+  });
+  it("leaves a satisfied group and unfitted leaves alone", () => {
+    const widths = [60, 60, 100];
+    raiseForGroups(widths, new Set([2]), [{ leafIndices: [0, 1], need: 150 }]);
+    expect(widths).toEqual([60, 60, 100]);
   });
 });

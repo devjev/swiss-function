@@ -451,14 +451,30 @@ test("dragging far left clamps the column at its minimum width", async ({ mount,
 test("double-click the handle auto-fits the column to its content", async ({ mount, page }) => {
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
   const header = component.getByRole("columnheader", { name: "name" });
-  // First squeeze the column down to its min, then auto-fit should grow it back
-  // to fit "Alice"/"Carol"/"name" without being stuck at the floor.
-  await dragHandle(page, component.locator('[data-column-id="name"]'), -400);
-  const squeezed = await header.boundingBox();
-  await component.locator('[data-column-id="name"]').dblclick();
+  const handle = component.locator('[data-column-id="name"]');
+  // Grow the column well past its content, then auto-fit: it lands on the
+  // widest content run plus the padding and slack (one unit + 8px), or the
+  // floor when the content is narrower than that (issue #102: the fit reads
+  // the content's run, so it shrinks a wide column too).
+  await dragHandle(page, handle, 200);
+  const wide = await header.boundingBox();
+  const widest = await component.getByRole("gridcell").evaluateAll((cells) =>
+    Math.max(
+      ...cells
+        .filter((el) => el.querySelector("span") && el.getBoundingClientRect().x < 200)
+        .map((el) => {
+          const r = document.createRange();
+          r.selectNodeContents(el.querySelector("span") as HTMLElement);
+          return r.getBoundingClientRect().width;
+        }),
+    ),
+  );
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  await handle.dblclick();
   const fitted = await header.boundingBox();
-  if (!squeezed || !fitted) throw new Error("missing header bounding box");
-  expect(fitted.width).toBeGreaterThan(squeezed.width);
+  if (!wide || !fitted) throw new Error("missing header bounding box");
+  expect(fitted.width).toBeLessThan(wide.width);
+  expect(Math.abs(fitted.width - Math.max(min, Math.ceil(widest + 32)))).toBeLessThanOrEqual(1);
 });
 
 test("arrow keys on a focused handle resize the column", async ({ mount, page }) => {
@@ -1928,4 +1944,102 @@ test("keys on a focused handle: Home to the floor, End fits, Escape restores, Pa
   b = await header.boundingBox();
   expect(Math.abs((b?.width ?? 0) - rest.width)).toBeLessThanOrEqual(1);
   await expect(handle).toHaveAttribute("aria-valuetext", /^\d+ px$/);
+});
+
+// --- Selection resize, Shift+drag, fit-all, the group rule (issue #102, M4) --
+
+/** Click the slim select zone along a header's top edge (Excel's column select). */
+async function selectColumnByHeader(
+  page: import("@playwright/test").Page,
+  header: import("@playwright/test").Locator,
+  shift = false,
+) {
+  const b = await header.boundingBox();
+  if (!b) throw new Error("missing header box");
+  if (shift) await page.keyboard.down("Shift");
+  await page.mouse.click(b.x + b.width / 2, b.y + 2);
+  if (shift) await page.keyboard.up("Shift");
+}
+
+test("a full-column selection resizes together: every selected column takes the dragged width", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const value = c.getByRole("columnheader", { name: "Value" });
+  const group = c.getByRole("columnheader", { name: /Quarterly numbers/ });
+  await selectColumnByHeader(page, value);
+  await selectColumnByHeader(page, group, true);
+  await expect(value).toHaveAttribute("data-selected", "true");
+  await expect(group).toHaveAttribute("data-selected", "true");
+  await dragHandle(page, c.locator('[data-column-id="value"]'), 150);
+  const a = await value.boundingBox();
+  const b = await group.boundingBox();
+  if (!a || !b) throw new Error("missing boxes");
+  expect(a.width).toBeGreaterThan(300);
+  expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(1);
+});
+
+test("Shift+drag takes the space from the neighbour and keeps the row's total", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const region = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const value = c.getByRole("columnheader", { name: "Value" });
+  const r0 = await region.boundingBox();
+  const v0 = await value.boundingBox();
+  if (!r0 || !v0) throw new Error("missing boxes");
+  const handle = c.locator('[data-column-id="region"]');
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("missing handle box");
+  await page.keyboard.down("Shift");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  const r1 = await region.boundingBox();
+  const v1 = await value.boundingBox();
+  if (!r1 || !v1) throw new Error("missing boxes");
+  expect(Math.abs(r1.width - (r0.width - 60))).toBeLessThanOrEqual(1);
+  expect(Math.abs(v1.width - (v0.width + 60))).toBeLessThanOrEqual(1);
+  expect(Math.abs(r1.width + v1.width - (r0.width + v0.width))).toBeLessThanOrEqual(1);
+});
+
+test("apiRef.autoFitColumns fits every column to its content, never under its floor", async ({
+  mount,
+}) => {
+  const c = await mount(<HeaderFloorHarness fitAllButton />);
+  const region = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const before = await region.boundingBox();
+  const min = Number(await c.locator('[data-column-id="region"]').getAttribute("aria-valuemin"));
+  await c.getByRole("button", { name: "Fit all" }).click();
+  const after = await region.boundingBox();
+  if (!before || !after) throw new Error("missing boxes");
+  // The title is the widest content, so the fit lands on the floor, down from 14u.
+  expect(after.width).toBeLessThan(before.width);
+  expect(Math.abs(after.width - min)).toBeLessThanOrEqual(1);
+  await expectTitleWhole(region);
+});
+
+test("a group title constrains its leaves: a leaf stops where the group title would need more", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness expandedGroup />);
+  const group = c.getByRole("columnheader", { name: "Quarterly numbers for every region" });
+  const q1 = c.getByRole("columnheader", { name: "Q1" });
+  const q2 = c.getByRole("columnheader", { name: "Q2" });
+  const g0 = await group.boundingBox();
+  if (!g0) throw new Error("missing group box");
+  await dragHandle(page, c.locator('[data-column-id="q1"]'), -400);
+  const a = await q1.boundingBox();
+  const b = await q2.boundingBox();
+  const g1 = await group.boundingBox();
+  if (!a || !b || !g1) throw new Error("missing boxes");
+  // Q1 alone would stop at the 72px floor; the group title holds it higher.
+  expect(a.width).toBeGreaterThan(100);
+  expect(Math.abs(a.width + b.width - g1.width)).toBeLessThanOrEqual(1);
+  await expectTitleWhole(group);
 });

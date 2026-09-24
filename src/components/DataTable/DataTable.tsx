@@ -41,7 +41,10 @@ import {
   cellLines,
   combineFloor,
   contentInlineSize,
+  type GroupConstraint,
+  groupFloorFor,
   measureHeaderNeed,
+  raiseForGroups,
 } from "../../lib/columns/headerFloor";
 import {
   COLUMN_MAX_PX,
@@ -119,6 +122,11 @@ export interface DataTableHandle {
   startEdit: (cell: Cell, initialText?: string) => void;
   /** The current active cell and range. */
   getSelection: () => Selection;
+  /** Auto-fit columns to their content (the double-click's programmatic twin):
+   *  the given column ids, else every resizable column (Excel's select-all
+   *  then double-click any edge). Each fits its own content, never under its
+   *  floor or a group title over it. */
+  autoFitColumns: (ids?: string[]) => void;
 }
 
 export interface DataTableProps<T>
@@ -1240,9 +1248,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
         startEdit(cell, initialText);
       },
       getSelection: () => selection,
+      autoFitColumns: (ids) => autoFitColumnsRef.current(ids),
     }),
     [setActive, startEdit, selection],
   );
+  // The fit needs the header refs and floors, which are set up below; the
+  // handle reads the latest through a ref so its identity stays stable.
+  const autoFitColumnsRef = useRef<(ids?: string[]) => void>(() => {});
 
   // --- Column-width overrides (px), set by dragging the resize handle ---
   // Controlled/uncontrolled with an onChange so resized widths can be persisted.
@@ -1263,7 +1275,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (el) headerCellRefs.current.set(id, el);
     else headerCellRefs.current.delete(id);
   }, []);
+  // Group headers too: a group title must not wrap either, and its need is a
+  // constraint on the sum of its leaves (the JS paths clamp by it; under a
+  // container squeeze the label ellipsizes, since a template cannot express a
+  // sum).
+  const groupCellRefs = useRef(new Map<string, HTMLElement>());
+  const registerGroupCell = useCallback((id: string, el: HTMLElement | null) => {
+    if (el) groupCellRefs.current.set(id, el);
+    else groupCellRefs.current.delete(id);
+  }, []);
   const [headerFloors, setHeaderFloors] = useState<Record<string, number>>({});
+  const [groupNeeds, setGroupNeeds] = useState<Record<string, number>>({});
   // The webfont changes the metrics when it lands: measure once more then.
   const [fontsTick, setFontsTick] = useState(0);
   useEffect(() => {
@@ -1293,9 +1315,42 @@ export function DataTable<T>(props: DataTableProps<T>) {
         keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
       return same ? prev : next;
     });
+    const groups: Record<string, number> = {};
+    for (const [id, cell] of groupCellRefs.current) {
+      const label = cell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
+      if (!label) continue;
+      const lines = Number(label.dataset.lines ?? 1) || 1;
+      groups[id] = measureHeaderNeed(cell, { label, lines });
+    }
+    setGroupNeeds((prev) => {
+      const keys = Object.keys(groups);
+      const same =
+        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === groups[k]);
+      return same ? prev : groups;
+    });
     // The label text, the chrome and the font all live on the leaves and the
     // two density props; the tick re-runs it after the webfont loads.
   }, [visibleLeaves, cellFontSize, cellPadding, fontsTick, tableHeaderLines]);
+
+  /** Every group header's need as a constraint on its visible leaves, from
+   *  TanStack's header tree (so a collapsed subgroup's placeholder counts as
+   *  one of its parent's leaves). */
+  const groupConstraints = useMemo((): GroupConstraint[] => {
+    const out: GroupConstraint[] = [];
+    for (const hg of table.getHeaderGroups()) {
+      for (const h of hg.headers) {
+        if (h.isPlaceholder || h.subHeaders.length === 0) continue;
+        const need = groupNeeds[h.column.id];
+        if (need == null) continue;
+        const leafIndices = h
+          .getLeafHeaders()
+          .map((lh) => visibleLeaves.findIndex((c) => c.id === lh.column.id))
+          .filter((i) => i >= 0);
+        if (leafIndices.length > 0) out.push({ leafIndices, need });
+      }
+    }
+    return out;
+  }, [table, groupNeeds, visibleLeaves]);
 
   /** The px floor of leaf `idx`: its declared minimum (own `minWidth` or the
    *  global token, resolved in the header's context) raised to its measured
@@ -1323,33 +1378,89 @@ export function DataTable<T>(props: DataTableProps<T>) {
       .map((el) => el.getBoundingClientRect().width);
   }, []);
 
-  // Auto-fit: size a column to its widest currently-mounted content. `scrollWidth`
-  // reports the full natural width even though cells clip with ellipsis. A
-  // resize like any other: it freezes the row's other columns at their
-  // measured widths (see applyResize).
-  const autoFitColumn = useCallback(
-    (columnId: string, headerCell: HTMLElement): number | undefined => {
-      const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
-      if (colIndex < 0) return undefined;
-      const headerLabel = headerCell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
-      let widest = headerLabel ? headerLabel.scrollWidth : 0;
+  /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
+  const resizableColumnIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (resizableColumns) {
+      for (const c of visibleLeaves) if (c.resizable !== false) ids.add(c.id);
+    }
+    return ids;
+  }, [resizableColumns, visibleLeaves]);
+
+  /** Every visible leaf's floor in px (its declared minimum raised to its
+   *  header need), resolved once per gesture in the header's context. */
+  const measureFloors = useCallback(
+    (headerCell: HTMLElement): number[] =>
+      visibleLeaves.map((_, k) => columnFloorPx(headerCell, k)),
+    [visibleLeaves, columnFloorPx],
+  );
+
+  /** Which columns a gesture on leaf `idx` moves: every resizable column of a
+   *  full-height selection that contains it (Excel and Sheets: select the
+   *  columns, drag one edge, they all take the width), else the column alone. */
+  const resizeTargets = useCallback(
+    (idx: number): number[] => {
+      const range = selection.range;
+      if (fullHeightRange && range && idx >= range.start.col && idx <= range.end.col) {
+        const out: number[] = [];
+        for (let k = range.start.col; k <= range.end.col; k++) {
+          if (resizableColumnIds.has(visibleLeaves[k]?.id ?? "")) out.push(k);
+        }
+        if (out.length > 0) return out;
+      }
+      return [idx];
+    },
+    [selection.range, fullHeightRange, visibleLeaves, resizableColumnIds],
+  );
+
+  // Auto-fit: the width a column's widest currently-mounted content needs.
+  // The content's run (a fractional Range width), not the body's scrollWidth:
+  // a body that is not overflowing reports its box, the current column width,
+  // which kept auto-fit from ever shrinking a wide column. A tree cell's
+  // leading gutter (indent + chevron) counts too. The header's need is
+  // already in the floor.
+  const fitWidth = useCallback(
+    (colIndex: number, headerCell: HTMLElement, floor: number): number => {
+      let widest = 0;
       for (const [key, el] of cellRefs.current) {
         if (Number(key.split(":")[1]) !== colIndex) continue;
         const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
-        widest = Math.max(widest, body ? body.scrollWidth : el.scrollWidth);
+        if (!body) continue;
+        const gutter = el.querySelector<HTMLElement>(`.${styles.cellTreeGutter}`);
+        const lead = gutter ? gutter.getBoundingClientRect().width : 0;
+        widest = Math.max(widest, lead + contentInlineSize(body));
       }
       // Header + cell horizontal padding is calc(--sf-unit / 2) per side, so one
       // measured unit total (tracks a consumer-resized --sf-unit), plus slack.
       const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
-      const minPx = columnFloorPx(headerCell, colIndex);
-      const next = Math.max(minPx, Math.ceil(widest + padding));
+      return Math.max(floor, Math.ceil(widest + padding));
+    },
+    [],
+  );
+
+  // Fit several columns in one update: each to its own content, then raised
+  // so a group title over them still fits. A resize like any other: the
+  // row's other columns freeze at their measured widths (see applyResize).
+  const autoFitMany = useCallback(
+    (indices: number[], headerCell: HTMLElement): Map<number, number> | null => {
       const startWidths = measureLeafWidths(headerCell);
-      if (!startWidths) return undefined;
+      if (!startWidths) return null;
+      const floors = measureFloors(headerCell);
+      const widths = visibleLeaves.map(
+        (c, k) => columnWidths[c.id] ?? Math.round(startWidths[k] ?? 0),
+      );
+      const fitted = new Set<number>();
+      for (const i of indices) {
+        if (!visibleLeaves[i]) continue;
+        widths[i] = fitWidth(i, headerCell, floors[i] ?? 0);
+        fitted.add(i);
+      }
+      raiseForGroups(widths, fitted, groupConstraints);
       setColumnWidths((prev) => {
         let changed = false;
         const nextWidths = { ...prev };
         visibleLeaves.forEach((c, k) => {
-          const w = k === colIndex ? next : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+          const w = widths[k] as number;
           if (nextWidths[c.id] !== w) {
             nextWidths[c.id] = w;
             changed = true;
@@ -1357,10 +1468,43 @@ export function DataTable<T>(props: DataTableProps<T>) {
         });
         return changed ? nextWidths : prev;
       });
-      return next;
+      const out = new Map<number, number>();
+      for (const i of fitted) out.set(i, widths[i] as number);
+      return out;
     },
-    [visibleLeaves, measureLeafWidths, setColumnWidths, columnFloorPx],
+    [
+      visibleLeaves,
+      measureLeafWidths,
+      measureFloors,
+      fitWidth,
+      columnWidths,
+      groupConstraints,
+      setColumnWidths,
+    ],
   );
+
+  // Double-click / Enter on a handle: fit that column, or every column of a
+  // full-height selection that contains it (Excel: select columns, double-click
+  // any edge inside the selection, each fits its own content).
+  const autoFitColumn = useCallback(
+    (columnId: string, headerCell: HTMLElement): number | undefined => {
+      const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
+      if (colIndex < 0) return undefined;
+      return autoFitMany(resizeTargets(colIndex), headerCell)?.get(colIndex);
+    },
+    [visibleLeaves, autoFitMany, resizeTargets],
+  );
+  autoFitColumnsRef.current = (ids?: string[]) => {
+    const indices =
+      ids != null
+        ? ids.map((id) => visibleLeaves.findIndex((c) => c.id === id)).filter((i) => i >= 0)
+        : visibleLeaves
+            .map((c, i) => (resizableColumnIds.has(c.id) ? i : -1))
+            .filter((i) => i >= 0);
+    const anyCell = headerCellRefs.current.values().next().value as HTMLElement | undefined;
+    if (indices.length === 0 || !anyCell) return;
+    autoFitMany(indices, anyCell);
+  };
 
   // --- The width readout (issue #102) ---
   // A mono chip under the handle while a column is dragged or keyed: unit
@@ -1634,31 +1778,58 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [visibleLeaves, unitPx, colMinPx, headerFloors],
   );
 
-  /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
-  const resizableColumnIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (resizableColumns) {
-      for (const c of visibleLeaves) if (c.resizable !== false) ids.add(c.id);
-    }
-    return ids;
-  }, [resizableColumns, visibleLeaves]);
-
   // Apply a resize: the spreadsheet model. The first resize freezes every
   // column at the width it measures on screen (`startWidths`, a px override
   // each, the last column included, which ends the `1fr` filler), and from
   // then on only the dragged column changes: its neighbours keep their
   // widths and the row's total width follows the dragged edge, scrolling when
   // wider than the viewport and leaving slack when narrower.
+  //
+  // `floors` is every leaf's floor for the gesture (see measureFloors). The
+  // moved columns are the gesture's targets (a full-height selection moves
+  // together); each lands at max(its floor, the group rule, the dragged
+  // width). With `neighbour` (Shift held) the next column absorbs the change
+  // and the row's total holds, both floors respected. Returns the width the
+  // dragged column landed at.
   const applyResize = useCallback(
-    (idx: number, startWidths: number[], dx: number, minPx: number) => {
+    (
+      idx: number,
+      startWidths: number[],
+      dx: number,
+      floors: number[],
+      neighbour = false,
+    ): number => {
       const leaf = visibleLeaves[idx];
-      if (!leaf) return;
-      const v = Math.max(minPx, Math.round((startWidths[idx] ?? 0) + dx));
+      if (!leaf) return 0;
+      const targets = resizeTargets(idx);
+      const declared = (k: number) => floors[k] ?? 0;
+      const common = Math.max(declared(idx), groupFloorFor(targets, startWidths, groupConstraints));
+      let v = Math.max(common, Math.round((startWidths[idx] ?? 0) + dx));
+      const next = idx + 1;
+      const pair =
+        neighbour &&
+        targets.length === 1 &&
+        next < visibleLeaves.length &&
+        resizableColumnIds.has(visibleLeaves[next]?.id ?? "");
+      let nextWidth = 0;
+      if (pair) {
+        const total = Math.round((startWidths[idx] ?? 0) + (startWidths[next] ?? 0));
+        const nextFloor = Math.max(
+          declared(next),
+          groupFloorFor([next], startWidths, groupConstraints),
+        );
+        v = Math.min(v, total - nextFloor);
+        nextWidth = total - v;
+      }
       setColumnWidths((prev) => {
         let changed = false;
         const nextWidths = { ...prev };
         visibleLeaves.forEach((c, k) => {
-          const w = k === idx ? v : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
+          const w = targets.includes(k)
+            ? Math.max(declared(k), v)
+            : pair && k === next
+              ? nextWidth
+              : (prev[c.id] ?? Math.round(startWidths[k] ?? 0));
           if (nextWidths[c.id] !== w) {
             nextWidths[c.id] = w;
             changed = true;
@@ -1666,8 +1837,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
         });
         return changed ? nextWidths : prev;
       });
+      return v;
     },
-    [visibleLeaves, setColumnWidths],
+    [visibleLeaves, setColumnWidths, resizeTargets, groupConstraints, resizableColumnIds],
   );
 
   // A single drag instance serves every handle; onStart reads which column is
@@ -1675,7 +1847,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const resizeRef = useRef<{
     idx: number;
     startWidths: number[];
-    minPx: number;
+    floors: number[];
+    /** Shift held at the press: the neighbour absorbs the change. */
+    neighbour: boolean;
     /** Physical-direction semantics: in RTL the trailing edge sits on the
      *  column's left, so a leftward pointer move grows the column. Read once
      *  per gesture. */
@@ -1699,7 +1873,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
       resizeRef.current = {
         idx,
         startWidths,
-        minPx: columnFloorPx(headerCell, idx),
+        floors: measureFloors(headerCell),
+        neighbour: event.shiftKey,
         rtl: getComputedStyle(handle).direction === "rtl",
         handle,
       };
@@ -1710,16 +1885,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
       // The edge follows the pointer: physical +dx grows the column in LTR,
       // shrinks it in RTL.
       const dx = r.rtl ? -delta.dx : delta.dx;
-      applyResize(r.idx, r.startWidths, dx, r.minPx);
+      const landed = applyResize(r.idx, r.startWidths, dx, r.floors, r.neighbour);
       const wanted = Math.round((r.startWidths[r.idx] ?? 0) + dx);
-      const atFloor = wanted <= r.minPx;
+      // Clamped up: at a floor (its own, or a group title's).
+      const atFloor = landed > wanted;
       const vp = containerRef.current;
       if (vp) {
         if (atFloor) vp.dataset.atFloor = "";
         else delete vp.dataset.atFloor;
       }
       const id = visibleLeaves[r.idx]?.id;
-      if (id) showReadout(id, Math.max(r.minPx, wanted), atFloor, false);
+      if (id) showReadout(id, landed, atFloor, false);
     },
     onEnd: () => {
       const r = resizeRef.current;
@@ -1739,7 +1915,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // token can't change mid-burst, so it's measured once per handle focus
   // (the probe forces a layout per keystroke otherwise) — the handle's
   // onBlur drops the cache.
-  const keyResizeMinPx = useRef<{ columnId: string; px: number } | null>(null);
+  const keyResizeFloors = useRef<{ columnId: string; floors: number[] } | null>(null);
   // The width a handle had when it took focus, so Escape can put it back.
   const focusWidth = useRef<{ columnId: string; px: number } | null>(null);
   const rememberFocusWidth = useCallback(
@@ -1767,13 +1943,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const startWidths = measureLeafWidths(headerCell);
       const idx = visibleLeaves.findIndex((c) => c.id === columnId);
       if (!startWidths || idx < 0) return;
-      if (keyResizeMinPx.current?.columnId !== columnId) {
-        keyResizeMinPx.current = {
-          columnId,
-          px: columnFloorPx(headerCell, idx),
-        };
+      if (keyResizeFloors.current?.columnId !== columnId) {
+        keyResizeFloors.current = { columnId, floors: measureFloors(headerCell) };
       }
-      const minPx = keyResizeMinPx.current.px;
+      const floors = keyResizeFloors.current.floors;
+      const minPx = floors[idx] ?? 0;
       if (isFit) {
         const fitted = autoFitColumn(columnId, headerCell);
         if (fitted != null) showReadout(columnId, fitted, fitted <= minPx, true);
@@ -1803,11 +1977,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
           : (key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1);
         target = current + dir * step;
       }
-      applyResize(idx, startWidths, target - current, minPx);
-      const landed = Math.max(minPx, Math.round(target));
-      showReadout(columnId, landed, landed <= minPx, true);
+      const landed = applyResize(idx, startWidths, target - current, floors);
+      showReadout(columnId, landed, landed > Math.round(target), true);
     },
-    [measureLeafWidths, applyResize, visibleLeaves, columnFloorPx, autoFitColumn, showReadout],
+    [measureLeafWidths, applyResize, visibleLeaves, measureFloors, autoFitColumn, showReadout],
   );
 
   // --- Row-number gutter geometry ---
@@ -2372,6 +2545,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         ref={(el) => {
           dnd?.ref(el);
           if (isLeafHeader) registerHeaderCell(header.column.id, el);
+          else if (isGroupHeader) registerGroupCell(header.column.id, el);
         }}
         role="columnheader"
         className={cx(
@@ -2506,7 +2680,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               rememberFocusWidth(header.column.id, e.currentTarget.parentElement as HTMLElement)
             }
             onBlur={() => {
-              keyResizeMinPx.current = null;
+              keyResizeFloors.current = null;
               focusWidth.current = null;
               hideReadout();
             }}

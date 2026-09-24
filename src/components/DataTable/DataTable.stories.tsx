@@ -982,9 +982,13 @@ export const ColumnMinWidth: Story = () => (
 
 /** The header floor (issue #102): a column is never narrower than its title
  *  needs on one line. Drag any edge left and it stops where the title would
- *  wrap; squeeze the container and the table scrolls instead. A sortable
- *  column keeps room for its arrow at rest, so sorting moves no edge; a
- *  collapsed group's key keeps its chevron. */
+ *  wrap, with a readout under the handle saying so; squeeze the container
+ *  and the table scrolls instead. A sortable column keeps room for its arrow
+ *  at rest, so sorting moves no edge. A group title holds too: drag Q2 or
+ *  Q3 narrower and it stops where "Quarterly revenue by region" would need
+ *  more than the two hold. Select two columns by the strip along their top
+ *  edge and drag either edge to size them together; hold Shift while
+ *  dragging to move the edge between two columns with the total held. */
 export const HeaderFloor: Story = () => (
   <DataTable<Cellish>
     data={cellRows}
@@ -1000,8 +1004,7 @@ export const HeaderFloor: Story = () => (
       { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 8, sortable: true },
       {
         id: "quarters",
-        header: "Quarterly revenue",
-        defaultCollapsed: true,
+        header: "Quarterly revenue by region",
         columns: [
           { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 6 },
           { id: "q3", header: "Q3", accessor: "q3", align: "end", width: 6 },
