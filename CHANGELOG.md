@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.37.1 — 2026-09-24
+
+### Patch
+
+- DataTable: a header whose column has no parent above it (an ungrouped column, a collapsed group beside an expanded one) is now one cell spanning those header rows, so its title, chevron and resize handle belong to one full-height key. The header is one grid with each header group a row of it, replacing the placeholder-plus-leaf pair and the content shift that stood in for a real span
+
 ## v2.37.0 — 2026-09-24
 
 ### Minor
