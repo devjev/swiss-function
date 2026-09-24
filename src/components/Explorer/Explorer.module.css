@@ -223,6 +223,30 @@
   outline: none;
 }
 
+/* While a resize drag is captured the pointer leaves the handle; the wrapper
+   keeps the resize cursor over the tree meanwhile, and at the floor the
+   one-way arrow says "only wider" (issue #102, as in DataTable). */
+.wrapper[data-resizing],
+.wrapper[data-resizing] .row,
+.wrapper[data-resizing] .cell,
+.wrapper[data-resizing] .headerCell {
+  cursor: col-resize;
+}
+.resizeHandle[data-at-floor],
+.wrapper[data-resizing][data-at-floor],
+.wrapper[data-resizing][data-at-floor] .row,
+.wrapper[data-resizing][data-at-floor] .cell,
+.wrapper[data-resizing][data-at-floor] .headerCell {
+  cursor: e-resize;
+}
+.resizeHandle[data-at-floor]:dir(rtl),
+.wrapper[data-resizing][data-at-floor]:dir(rtl),
+.wrapper[data-resizing][data-at-floor]:dir(rtl) .row,
+.wrapper[data-resizing][data-at-floor]:dir(rtl) .cell,
+.wrapper[data-resizing][data-at-floor]:dir(rtl) .headerCell {
+  cursor: w-resize;
+}
+
 /* --- Empty state --- */
 .empty {
   display: grid;

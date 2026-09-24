@@ -1,0 +1,42 @@
+/* The width readout while a column is dragged or keyed (issue #102): unit
+   multiples and px in mono, under the handle, "min" at the floor and "max"
+   at a cap. One unit tall with the border inside it; fades after the
+   gesture. Shared by DataTable and Explorer. */
+.readout {
+  position: absolute;
+  top: 100%;
+  inset-inline-end: 0;
+  margin-block-start: calc(var(--sf-unit) / 4);
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: var(--sf-unit);
+  line-height: calc(var(--sf-unit) - 2px);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-regular);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-elevation-2);
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity var(--sf-duration-slow) var(--sf-ease-out);
+}
+.readout[data-from-start] {
+  inset-inline-end: auto;
+  inset-inline-start: 0;
+}
+.readout[data-at-floor],
+.readout[data-at-cap] {
+  border-color: var(--sf-color-primary);
+}
+.readout[data-leaving] {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .readout {
+    transition: none;
+  }
+}

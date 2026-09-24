@@ -20,6 +20,7 @@ import type {
   CSSProperties,
   KeyboardEvent,
   MouseEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
   RefObject,
@@ -34,12 +35,24 @@ import {
   useRef,
   useState,
 } from "react";
-import { combineFloor, measureHeaderNeed } from "../../lib/columns/headerFloor";
-import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
+import {
+  combineFloor,
+  contentRunWidth,
+  measureCssLength,
+  measureHeaderNeed,
+} from "../../lib/columns/headerFloor";
+import {
+  COLUMN_MAX_PX,
+  describeColumnWidth,
+  KEY_RESIZE_STEP_COARSE_PX,
+  KEY_RESIZE_STEP_PAGE_PX,
+  KEY_RESIZE_STEP_PX,
+} from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
+import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
 import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { useDitheredFill } from "../../lib/effects";
@@ -557,6 +570,17 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   }, []);
 
   // --- Column resizing ------------------------------------------------------
+  // The readout and the cursor lock (issue #102), as in DataTable: the
+  // wrapper carries the resize cursor while a drag is captured (the header
+  // is a sibling of the scroll viewport, so the wrapper is the common
+  // ancestor) and the one-way arrow at a floor.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { readout, showReadout, hideReadout } = useWidthReadout();
+  const [unitPx, setUnitPx] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = headerRowRef.current;
+    if (el) setUnitPx(measureCssLength(el, "var(--sf-unit)"));
+  }, []);
   const measureHeaderWidths = (): number[] | null => {
     const row = headerRowRef.current;
     if (!row) return null;
@@ -576,9 +600,10 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // freezes every column at its measured width, the last one included, and
   // from then on only the dragged column changes; the row's total width
   // follows the dragged edge.
-  const applyResize = (idx: number, startWidths: number[], dx: number) => {
+  // Returns the width the column landed at.
+  const applyResize = (idx: number, startWidths: number[], dx: number): number => {
     const col = orderedColumns[idx];
-    if (!col) return;
+    if (!col) return 0;
     const v = Math.max(columnFloorPx(col), Math.round((startWidths[idx] ?? 0) + dx));
     setColumnWidths((prev) => {
       let changed = false;
@@ -592,6 +617,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       });
       return changed ? next : prev;
     });
+    return v;
   };
 
   const resizeRef = useRef<{
@@ -611,6 +637,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       const startWidths = measureHeaderWidths();
       if (idx < 0 || !startWidths) return;
       handle.dataset.dragging = "true";
+      const root = wrapperRef.current;
+      if (root) root.dataset.resizing = "";
       resizeRef.current = {
         idx,
         startWidths,
@@ -621,31 +649,100 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     },
     onMove: (delta) => {
       const r = resizeRef.current;
-      if (r) applyResize(r.idx, r.startWidths, r.dir * delta.dx);
+      if (!r) return;
+      const dx = r.dir * delta.dx;
+      const landed = applyResize(r.idx, r.startWidths, dx);
+      const wanted = Math.round((r.startWidths[r.idx] ?? 0) + dx);
+      const col = orderedColumns[r.idx];
+      const atFloor = landed > wanted || (col != null && landed <= columnFloorPx(col));
+      const root = wrapperRef.current;
+      if (root) {
+        if (atFloor) root.dataset.atFloor = "";
+        else delete root.dataset.atFloor;
+      }
+      const id = orderedColumns[r.idx]?.id;
+      if (id) showReadout(id, landed, atFloor, false);
     },
     onEnd: () => {
       const r = resizeRef.current;
       if (r) delete r.handle.dataset.dragging;
       resizeRef.current = null;
+      const root = wrapperRef.current;
+      if (root) {
+        delete root.dataset.resizing;
+        delete root.dataset.atFloor;
+      }
+      hideReadout();
     },
   });
 
-  const nudgeResize = (colId: string, dx: number) => {
+  // The width a handle had when it took focus, so Escape can put it back.
+  const focusWidth = useRef<{ columnId: string; px: number } | null>(null);
+  const rememberFocusWidth = (colId: string) => {
     const idx = orderedColumns.findIndex((c) => c.id === colId);
-    const widths = measureHeaderWidths();
-    if (idx < 0 || !widths) return;
-    applyResize(idx, widths, dx);
+    const px = idx >= 0 ? measureHeaderWidths()?.[idx] : undefined;
+    focusWidth.current = px != null ? { columnId: colId, px: Math.round(px) } : null;
   };
 
-  // Auto-fit (double-click a handle): size the column to its widest currently
-  // mounted content. Cells clip with ellipsis, so the content span's
-  // scrollWidth reports the natural width; the tree column's leading
-  // indent/chevron/icon run is included via the content's offset in the cell.
-  const autoFitColumn = (colId: string) => {
+  // The APG Window Splitter map on a focused handle, as in DataTable: arrows
+  // nudge (Shift coarser, Page keys a run of units), Home goes to the floor,
+  // End and Enter / Space auto-fit, Escape restores the width at focus.
+  const resizeColumnByKey = (col: ExplorerColumn<M>, ev: ReactKeyboardEvent) => {
+    const key = ev.key;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const isArrow = key === "ArrowLeft" || key === "ArrowRight";
+    const isPage = key === "PageUp" || key === "PageDown";
+    const isFit = key === "Enter" || key === " " || key === "End";
+    if (!isArrow && !isPage && !isFit && key !== "Home" && key !== "Escape") return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const idx = orderedColumns.findIndex((c) => c.id === col.id);
+    const widths = measureHeaderWidths();
+    if (idx < 0 || !widths) return;
+    const minPx = columnFloorPx(col);
+    if (isFit) {
+      const fitted = autoFitColumn(col.id);
+      if (fitted != null) showReadout(col.id, fitted, fitted <= minPx, true);
+      return;
+    }
+    const current = widths[idx] ?? 0;
+    let target: number;
+    if (key === "Home") target = minPx;
+    else if (key === "Escape") {
+      const remembered = focusWidth.current;
+      if (!remembered || remembered.columnId !== col.id) return;
+      target = remembered.px;
+    } else {
+      // Arrow keys are physical directions: in RTL "right" shrinks. Page Up
+      // is always wider, Page Down narrower.
+      const rtl = getComputedStyle(ev.currentTarget as HTMLElement).direction === "rtl";
+      const step = isPage
+        ? KEY_RESIZE_STEP_PAGE_PX
+        : ev.shiftKey
+          ? KEY_RESIZE_STEP_COARSE_PX
+          : KEY_RESIZE_STEP_PX;
+      const dir = isPage
+        ? key === "PageUp"
+          ? 1
+          : -1
+        : (key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1);
+      target = current + dir * step;
+    }
+    const landed = applyResize(idx, widths, target - current);
+    showReadout(col.id, landed, landed > Math.round(target) || landed <= minPx, true);
+  };
+
+  // Auto-fit (double-click or Enter on a handle): size the column to its
+  // widest currently mounted content, read as the content's run (a
+  // fractional Range width; a span's scrollWidth reports its box when it is
+  // not overflowing, so it could grow a narrow column but never shrink a
+  // wide one). The tree column's leading indent/chevron/icon run is
+  // included via the content's offset in the cell. Returns the width.
+  const autoFitColumn = (colId: string): number | undefined => {
     const idx = orderedColumns.findIndex((c) => c.id === colId);
     const headerCell = headerRowRef.current?.children[idx] as HTMLElement | undefined;
     const vp = viewportRef.current;
-    if (idx < 0 || !headerCell || !vp) return;
+    if (idx < 0 || !headerCell || !vp) return undefined;
     // The leading offset (indent/chevron/icon run before the content) is on
     // the inline-start side, which in RTL is the cell's right edge.
     const rtl = getComputedStyle(vp).direction === "rtl";
@@ -653,7 +750,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       const cellRect = cell.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
       const leading = rtl ? cellRect.right - contentRect.right : contentRect.left - cellRect.left;
-      return leading + content.scrollWidth;
+      return leading + contentRunWidth(content);
     };
     const label = headerCell.querySelector<HTMLElement>("span");
     let widest = label ? measure(headerCell, label) : 0;
@@ -671,7 +768,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     // A resize like any other: the row's other columns freeze at their
     // measured widths (see applyResize).
     const startWidths = measureHeaderWidths();
-    if (!startWidths) return;
+    if (!startWidths) return undefined;
     setColumnWidths((prev) => {
       let changed = false;
       const nextWidths = { ...prev };
@@ -684,6 +781,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       });
       return changed ? nextWidths : prev;
     });
+    return next;
   };
 
   // --- Sorting header interaction -------------------------------------------
@@ -1029,6 +1127,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     // Every resizable column has its trailing handle, the last one included.
     const showResizeHandle = resizableColumnIds.has(col.id);
     const widthOverride = columnWidths[col.id];
+    const handleMin = Math.round(columnFloorPx(col));
+    const handleAtFloor = widthOverride != null && Math.round(widthOverride) <= handleMin;
     return (
       // Headers are pointer-drag-only (Enter/Space belongs to sorting), so only
       // dnd listeners are spread (on the label), never dnd.attributes.
@@ -1083,10 +1183,15 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             role="separator"
             aria-orientation="vertical"
             aria-label={`Resize ${col.header}`}
-            aria-valuemin={Math.round(columnFloorPx(col))}
+            aria-valuemin={handleMin}
+            aria-valuemax={COLUMN_MAX_PX}
             aria-valuenow={widthOverride != null ? Math.round(widthOverride) : undefined}
+            aria-valuetext={
+              widthOverride != null ? describeColumnWidth(widthOverride, handleAtFloor) : undefined
+            }
             tabIndex={0}
             data-column-id={col.id}
+            data-at-floor={handleAtFloor || undefined}
             className={styles.resizeHandle}
             onPointerDown={(e: ReactPointerEvent) => {
               e.stopPropagation();
@@ -1097,17 +1202,15 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
               e.stopPropagation();
               autoFitColumn(col.id);
             }}
-            onKeyDown={(e) => {
-              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-              e.preventDefault();
-              e.stopPropagation();
-              const step = e.shiftKey ? KEY_RESIZE_STEP_COARSE_PX : KEY_RESIZE_STEP_PX;
-              // Arrow keys are physical directions: in RTL "right" shrinks.
-              const dir = getComputedStyle(e.currentTarget).direction === "rtl" ? -1 : 1;
-              nudgeResize(col.id, (e.key === "ArrowRight" ? 1 : -1) * step * dir);
+            onKeyDown={(e) => resizeColumnByKey(col, e)}
+            onFocus={() => rememberFocusWidth(col.id)}
+            onBlur={() => {
+              focusWidth.current = null;
+              hideReadout();
             }}
           />
         ) : null}
+        <WidthReadout readout={readout} id={col.id} unitPx={unitPx} />
       </div>
     );
   };
@@ -1166,6 +1269,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // --- Render -------------------------------------------------------------
   return (
     <div
+      ref={wrapperRef}
       className={cx(styles.wrapper, className)}
       data-fixed={(fixedColumns && !fillOn) || undefined}
       style={style as CSSProperties}

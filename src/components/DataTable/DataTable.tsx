@@ -50,17 +50,15 @@ import {
 import {
   COLUMN_MAX_PX,
   describeColumnWidth,
-  formatColumnWidth,
   KEY_RESIZE_STEP_COARSE_PX,
   KEY_RESIZE_STEP_PAGE_PX,
   KEY_RESIZE_STEP_PX,
-  READOUT_FADE_MS,
-  READOUT_HOLD_MS,
 } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
+import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
 import { useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import type { EffectName } from "../../lib/effects";
@@ -335,6 +333,25 @@ function measureCssWidth(parent: HTMLElement, value: string): number {
   const w = probe.getBoundingClientRect().width;
   probe.remove();
   return w;
+}
+
+/** On hover, a cell that hides part of its value (an ellipsis, a clamped
+ *  last line) carries the whole of it in `title`, the browser's tooltip, the
+ *  way Calc marks a cut-off cell; a hash cell already carries it from the
+ *  overflow pass. Measured on entry only, so nothing runs per render. */
+function revealClipped(el: HTMLElement): void {
+  if (el.dataset.hash != null) return;
+  const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
+  if (!body) return;
+  const cut =
+    contentInlineSize(body) > body.getBoundingClientRect().width + 0.5 ||
+    body.scrollHeight > body.clientHeight + 1;
+  if (cut) {
+    const text = body.textContent ?? "";
+    if (el.title !== text) el.title = text;
+  } else if (el.hasAttribute("title")) {
+    el.removeAttribute("title");
+  }
 }
 
 /** The data-attribute + custom properties a coloured cell carries. One helper
@@ -714,7 +731,10 @@ function DataTableRowInner<T>({
               isFrozen && frozenLefts ? { left: frozenLefts[colIndex], ...bg.style } : bg.style
             }
             onPointerDown={(e) => onCellPointerDown(cell, { shiftKey: e.shiftKey })}
-            onPointerEnter={() => onCellPointerEnter(cell)}
+            onPointerEnter={(e) => {
+              onCellPointerEnter(cell);
+              revealClipped(e.currentTarget);
+            }}
             onClick={(e) => {
               // Single-click activation. A cross-cell drag doesn't fire `click`
               // (down + up must land on the same element), so range-drag can't
@@ -1483,55 +1503,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     autoFitMany(indices, anyCell);
   };
 
-  // --- The width readout (issue #102) ---
-  // A mono chip under the handle while a column is dragged or keyed: unit
-  // multiples and px, "min" at the floor (the one place a stopped drag is
-  // explained). Held briefly after a keyboard step, faded after a drag.
-  const [readout, setReadout] = useState<{
-    id: string;
-    px: number;
-    atFloor: boolean;
-    atCap: boolean;
-    leaving: boolean;
-  } | null>(null);
-  const readoutTimer = useRef<number | null>(null);
-  const readoutFrame = useRef<number | null>(null);
-  const clearReadoutTimer = () => {
-    if (readoutTimer.current != null) {
-      window.clearTimeout(readoutTimer.current);
-      readoutTimer.current = null;
-    }
-    if (readoutFrame.current != null) {
-      window.cancelAnimationFrame(readoutFrame.current);
-      readoutFrame.current = null;
-    }
-  };
-  const hideReadout = useCallback(() => {
-    clearReadoutTimer();
-    setReadout((r) => (r && !r.leaving ? { ...r, leaving: true } : r));
-    readoutTimer.current = window.setTimeout(() => {
-      readoutTimer.current = null;
-      setReadout(null);
-    }, READOUT_FADE_MS);
-  }, []);
-  // The chip enters one frame after the resize commit. Inserting an element
-  // in the same commit as the template change makes Chromium's style recalc
-  // of the rows several times slower (a step went from 8 to 16ms, measured);
-  // a frame later the new width has painted and the chip's own recalc has
-  // the frame to itself. During a drag each move lands a frame late, and a
-  // held step shows within 16ms: neither reads as a delay.
-  const showReadout = useCallback(
-    (id: string, px: number, atFloor: boolean, hold: boolean, atCap = false) => {
-      clearReadoutTimer();
-      readoutFrame.current = window.requestAnimationFrame(() => {
-        readoutFrame.current = null;
-        setReadout({ id, px: Math.round(px), atFloor, atCap, leaving: false });
-        if (hold) readoutTimer.current = window.setTimeout(hideReadout, READOUT_HOLD_MS);
-      });
-    },
-    [hideReadout],
-  );
-  useEffect(() => clearReadoutTimer, []);
+  // The width readout (issue #102): the shared chip under the handle.
+  const { readout, showReadout, hideReadout } = useWidthReadout();
 
   // Left edges of every leaf column (plus the trailing right edge), in content
   // px, read off any fully-mounted body row. Used to snap arrow-key scrolling to
@@ -1902,9 +1875,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const dx = r.rtl ? -delta.dx : delta.dx;
       const landed = applyResize(r.idx, r.startWidths, dx, r.floors, r.neighbour);
       const wanted = Math.round((r.startWidths[r.idx] ?? 0) + dx);
-      // Clamped up: at a floor (its own, or a group title's). Clamped down:
-      // at a cap (Shift+drag, the neighbour at its floor).
-      const atFloor = landed > wanted;
+      // At a floor: clamped up (its own, or a group title's), or landed on
+      // it exactly. Clamped down: at a cap (Shift+drag, the neighbour at its
+      // floor).
+      const atFloor = landed > wanted || landed <= (r.floors[r.idx] ?? 0);
       const atCap = landed < wanted;
       const vp = containerRef.current;
       if (vp) {
@@ -2002,7 +1976,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
         target = current + dir * step;
       }
       const landed = applyResize(idx, startWidths, target - current, floors);
-      showReadout(columnId, landed, landed > Math.round(target), true, landed < Math.round(target));
+      showReadout(
+        columnId,
+        landed,
+        landed > Math.round(target) || landed <= minPx,
+        true,
+        landed < Math.round(target),
+      );
     },
     [measureLeafWidths, applyResize, visibleLeaves, measureFloors, autoFitColumn, showReadout],
   );
@@ -2287,7 +2267,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
         {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
         style={isFrozen ? { left: frozenLefts[colIndex], ...bg.style } : bg.style}
         onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
-        onPointerEnter={() => handleCellPointerEnter(cell)}
+        onPointerEnter={(e) => {
+          handleCellPointerEnter(cell);
+          revealClipped(e.currentTarget);
+        }}
         onClick={(e) => {
           if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
           if (isEditing || !isColumnEditable(colIndex)) return;
@@ -2710,16 +2693,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             }}
           />
         )}
-        {readout?.id === header.column.id && (
-          <span
-            aria-hidden="true"
-            className={styles.widthReadout}
-            data-at-floor={readout.atFloor || undefined}
-            data-leaving={readout.leaving || undefined}
-          >
-            {formatColumnWidth(readout.px, unitPx, readout.atFloor, readout.atCap)}
-          </span>
-        )}
+        <WidthReadout readout={readout} id={header.column.id} unitPx={unitPx} />
         {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
       </div>
     );

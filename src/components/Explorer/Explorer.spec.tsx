@@ -377,3 +377,37 @@ test("cellPadding and cellFontSize scale header + body cells", async ({ mount })
   expect(lg.pad).toBe(18);
   expect(xs.font).toBeLessThan(lg.font);
 });
+
+test("the handle takes the splitter keys and shows the readout (issue #102 parity)", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ExplorerHarness grid />);
+  const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
+  const handle = c.getByRole("separator", { name: "Resize Name" });
+  await expect(handle).toHaveAttribute("aria-valuemax", "4096");
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  const rest = (await nameCell.boundingBox())!.width;
+  await handle.focus();
+  await handle.press("Home");
+  expect(Math.abs((await nameCell.boundingBox())!.width - min)).toBeLessThanOrEqual(1);
+  await expect(handle).toHaveAttribute("aria-valuetext", /minimum$/);
+  await expect(handle).toHaveAttribute("data-at-floor");
+  // The readout says min, in mono, under the handle.
+  await expect(nameCell.locator("[data-width-readout]")).toHaveText(/px · min$/);
+  await handle.press("PageUp");
+  expect(Math.abs((await nameCell.boundingBox())!.width - (min + 96))).toBeLessThanOrEqual(1);
+  await expect(handle).not.toHaveAttribute("data-at-floor");
+  await handle.press("Escape");
+  expect(Math.abs((await nameCell.boundingBox())!.width - rest)).toBeLessThanOrEqual(1);
+  // A drag past the floor locks the cursor on the wrapper and marks the clamp.
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 400, box.y + box.height / 2, { steps: 6 });
+  const root = c.locator("[data-explorer-root]");
+  await expect(root).toHaveAttribute("data-resizing");
+  await expect(root).toHaveAttribute("data-at-floor");
+  await page.mouse.up();
+  await expect(root).not.toHaveAttribute("data-resizing");
+});

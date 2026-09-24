@@ -1905,8 +1905,7 @@ test("a drag shows the width readout, which says min at the floor and fades afte
   await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2, { steps: 4 });
   const readout = c
     .getByRole("columnheader", { name: "Region of incorporation" })
-    .locator("span")
-    .last();
+    .locator("[data-width-readout]");
   await expect(readout).toHaveText(/^\d+(\.\d+)?u · \d+px$/);
   await page.mouse.move(box.x + box.width / 2 - 400, box.y + box.height / 2, { steps: 4 });
   await expect(readout).toHaveText(/min$/);
@@ -1931,6 +1930,7 @@ test("keys on a focused handle: Home to the floor, End fits, Escape restores, Pa
   expect(Math.abs((b?.width ?? 0) - min)).toBeLessThanOrEqual(1);
   await expect(handle).toHaveAttribute("aria-valuetext", /minimum$/);
   await expect(handle).toHaveAttribute("aria-valuemax", "4096");
+  await expect(header.locator("[data-width-readout]")).toHaveText(/min$/);
   await page.keyboard.press("PageUp");
   b = await header.boundingBox();
   expect(Math.abs((b?.width ?? 0) - (min + 96))).toBeLessThanOrEqual(1);
@@ -2153,4 +2153,16 @@ test("auto-fit on a wrap column is the width at which the value takes one line",
     (el) => (el.querySelector("span") as HTMLElement).getBoundingClientRect().height,
   );
   expect(bodyH).toBeLessThanOrEqual(25);
+});
+
+test("a clipped cell reveals its whole value in title on hover; a fitting one carries none", async ({
+  mount,
+}) => {
+  const c = await mount(<CellOverflowHarness mode="clamp" />);
+  const long = c.getByRole("gridcell").filter({ hasText: "A long remark" });
+  const short = c.getByRole("gridcell").filter({ hasText: "Short" });
+  await long.hover();
+  await expect(long).toHaveAttribute("title", /^A long remark that runs/);
+  await short.hover();
+  await expect(short).not.toHaveAttribute("title", /.+/);
 });
