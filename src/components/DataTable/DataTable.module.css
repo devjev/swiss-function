@@ -319,6 +319,69 @@
   outline: none;
 }
 
+/* While a resize drag is captured the pointer leaves the handle; the viewport
+   keeps the resize cursor over the body meanwhile (it used to flip to the
+   cell cursor). */
+.viewport[data-resizing],
+.viewport[data-resizing] .cell,
+.viewport[data-resizing] .headerCell {
+  cursor: col-resize;
+}
+
+/* At the floor the cursor says "only wider": the one-way arrow (macOS draws
+   e-resize as a single arrow with no bar; Windows and GTK show the two-way
+   one, nothing lost). On the handle at rest, and on the viewport while a
+   drag is clamped. */
+.resizeHandle[data-at-floor],
+.viewport[data-resizing][data-at-floor],
+.viewport[data-resizing][data-at-floor] .cell,
+.viewport[data-resizing][data-at-floor] .headerCell {
+  cursor: e-resize;
+}
+.resizeHandle[data-at-floor]:dir(rtl),
+.viewport[data-resizing][data-at-floor]:dir(rtl),
+.viewport[data-resizing][data-at-floor]:dir(rtl) .cell,
+.viewport[data-resizing][data-at-floor]:dir(rtl) .headerCell {
+  cursor: w-resize;
+}
+
+/* The width readout while a column is dragged or keyed: unit multiples and
+   px in mono, under the handle, "min" at the floor. One unit tall with the
+   border inside it; fades after the gesture. */
+.widthReadout {
+  position: absolute;
+  top: 100%;
+  inset-inline-end: 0;
+  margin-block-start: calc(var(--sf-unit) / 4);
+  padding: 0 calc(var(--sf-unit) / 2);
+  block-size: var(--sf-unit);
+  line-height: calc(var(--sf-unit) - 2px);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-regular);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--sf-color-fg);
+  background-color: var(--sf-color-bg);
+  border: 1px solid var(--sf-color-border-subtle);
+  box-shadow: var(--sf-elevation-2);
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity var(--sf-duration-slow) var(--sf-ease-out);
+}
+.widthReadout[data-at-floor] {
+  border-color: var(--sf-color-primary);
+}
+.widthReadout[data-leaving] {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .widthReadout {
+    transition: none;
+  }
+}
+
 /* Locked columns (resizable: false) — a quiet "fixed width" hint: a dashed
    trailing separator, plus an inert edge zone that shows `not-allowed` and a
    muted (non-primary) hairline when the locked header is hovered. */

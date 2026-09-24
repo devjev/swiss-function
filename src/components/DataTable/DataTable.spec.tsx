@@ -1842,3 +1842,90 @@ test("clamp stays the default: an ellipsis on one line, no fill", async ({ mount
   expect(m.textOverflow).toBe("ellipsis");
   expect(m.fills).toBe(0);
 });
+
+// --- Resize gestures (issue #102, M4) ---------------------------------------
+
+test("at the floor the handle shows the one-way cursor, and the viewport during a clamped drag", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const handle = c.locator('[data-column-id="region"]');
+  await expect(handle).not.toHaveAttribute("data-at-floor");
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("missing handle box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 400, box.y + box.height / 2, { steps: 6 });
+  // Mid-drag: the viewport carries the resize state and the clamp.
+  const grid = c.getByRole("grid");
+  await expect(grid).toHaveAttribute("data-resizing");
+  await expect(grid).toHaveAttribute("data-at-floor");
+  const cellCursor = await c
+    .getByRole("gridcell")
+    .first()
+    .evaluate((el) => getComputedStyle(el).cursor);
+  expect(cellCursor).toBe("e-resize");
+  await page.mouse.up();
+  await expect(grid).not.toHaveAttribute("data-resizing");
+  await expect(handle).toHaveAttribute("data-at-floor");
+  expect(await handle.evaluate((el) => getComputedStyle(el).cursor)).toBe("e-resize");
+  // Widen it and the two-way cursor is back.
+  await dragHandle(page, handle, 120);
+  await expect(handle).not.toHaveAttribute("data-at-floor");
+  expect(await handle.evaluate((el) => getComputedStyle(el).cursor)).toBe("col-resize");
+});
+
+test("a drag shows the width readout, which says min at the floor and fades after", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const handle = c.locator('[data-column-id="region"]');
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("missing handle box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 40, box.y + box.height / 2, { steps: 4 });
+  const readout = c
+    .getByRole("columnheader", { name: "Region of incorporation" })
+    .locator("span")
+    .last();
+  await expect(readout).toHaveText(/^\d+(\.\d+)?u · \d+px$/);
+  await page.mouse.move(box.x + box.width / 2 - 400, box.y + box.height / 2, { steps: 4 });
+  await expect(readout).toHaveText(/min$/);
+  await page.mouse.up();
+  await expect(readout).toHaveAttribute("data-leaving");
+  await expect(c.getByText(/px · min$/)).toHaveCount(0, { timeout: 2000 });
+});
+
+test("keys on a focused handle: Home to the floor, End fits, Escape restores, Page keys jump", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const handle = c.locator('[data-column-id="region"]');
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  const rest = await header.boundingBox();
+  if (!rest) throw new Error("missing header box");
+  await handle.focus();
+  await page.keyboard.press("Home");
+  let b = await header.boundingBox();
+  expect(Math.abs((b?.width ?? 0) - min)).toBeLessThanOrEqual(1);
+  await expect(handle).toHaveAttribute("aria-valuetext", /minimum$/);
+  await expect(handle).toHaveAttribute("aria-valuemax", "4096");
+  await page.keyboard.press("PageUp");
+  b = await header.boundingBox();
+  expect(Math.abs((b?.width ?? 0) - (min + 96))).toBeLessThanOrEqual(1);
+  await page.keyboard.press("PageDown");
+  b = await header.boundingBox();
+  expect(Math.abs((b?.width ?? 0) - min)).toBeLessThanOrEqual(1);
+  await page.keyboard.press("End");
+  b = await header.boundingBox();
+  expect(b?.width ?? 0).toBeGreaterThanOrEqual(min - 1);
+  await page.keyboard.press("Escape");
+  b = await header.boundingBox();
+  expect(Math.abs((b?.width ?? 0) - rest.width)).toBeLessThanOrEqual(1);
+  await expect(handle).toHaveAttribute("aria-valuetext", /^\d+ px$/);
+});

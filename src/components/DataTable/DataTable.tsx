@@ -43,7 +43,16 @@ import {
   contentInlineSize,
   measureHeaderNeed,
 } from "../../lib/columns/headerFloor";
-import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
+import {
+  COLUMN_MAX_PX,
+  describeColumnWidth,
+  formatColumnWidth,
+  KEY_RESIZE_STEP_COARSE_PX,
+  KEY_RESIZE_STEP_PAGE_PX,
+  KEY_RESIZE_STEP_PX,
+  READOUT_FADE_MS,
+  READOUT_HOLD_MS,
+} from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
@@ -1319,9 +1328,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // resize like any other: it freezes the row's other columns at their
   // measured widths (see applyResize).
   const autoFitColumn = useCallback(
-    (columnId: string, headerCell: HTMLElement) => {
+    (columnId: string, headerCell: HTMLElement): number | undefined => {
       const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
-      if (colIndex < 0) return;
+      if (colIndex < 0) return undefined;
       const headerLabel = headerCell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
       let widest = headerLabel ? headerLabel.scrollWidth : 0;
       for (const [key, el] of cellRefs.current) {
@@ -1335,7 +1344,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const minPx = columnFloorPx(headerCell, colIndex);
       const next = Math.max(minPx, Math.ceil(widest + padding));
       const startWidths = measureLeafWidths(headerCell);
-      if (!startWidths) return;
+      if (!startWidths) return undefined;
       setColumnWidths((prev) => {
         let changed = false;
         const nextWidths = { ...prev };
@@ -1348,9 +1357,45 @@ export function DataTable<T>(props: DataTableProps<T>) {
         });
         return changed ? nextWidths : prev;
       });
+      return next;
     },
     [visibleLeaves, measureLeafWidths, setColumnWidths, columnFloorPx],
   );
+
+  // --- The width readout (issue #102) ---
+  // A mono chip under the handle while a column is dragged or keyed: unit
+  // multiples and px, "min" at the floor (the one place a stopped drag is
+  // explained). Held briefly after a keyboard step, faded after a drag.
+  const [readout, setReadout] = useState<{
+    id: string;
+    px: number;
+    atFloor: boolean;
+    leaving: boolean;
+  } | null>(null);
+  const readoutTimer = useRef<number | null>(null);
+  const clearReadoutTimer = () => {
+    if (readoutTimer.current != null) {
+      window.clearTimeout(readoutTimer.current);
+      readoutTimer.current = null;
+    }
+  };
+  const hideReadout = useCallback(() => {
+    clearReadoutTimer();
+    setReadout((r) => (r && !r.leaving ? { ...r, leaving: true } : r));
+    readoutTimer.current = window.setTimeout(() => {
+      readoutTimer.current = null;
+      setReadout(null);
+    }, READOUT_FADE_MS);
+  }, []);
+  const showReadout = useCallback(
+    (id: string, px: number, atFloor: boolean, hold: boolean) => {
+      clearReadoutTimer();
+      setReadout({ id, px: Math.round(px), atFloor, leaving: false });
+      if (hold) readoutTimer.current = window.setTimeout(hideReadout, READOUT_HOLD_MS);
+    },
+    [hideReadout],
+  );
+  useEffect(() => clearReadoutTimer, []);
 
   // Left edges of every leaf column (plus the trailing right edge), in content
   // px, read off any fully-mounted body row. Used to snap arrow-key scrolling to
@@ -1647,6 +1692,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const idx = visibleLeaves.findIndex((c) => c.id === id);
       if (!startWidths || idx < 0) return;
       handle.dataset.dragging = "true";
+      // The pointer leaves the handle during the drag; the viewport carries
+      // the resize cursor (and the one-way one at the floor) meanwhile.
+      const vp = containerRef.current;
+      if (vp) vp.dataset.resizing = "";
       resizeRef.current = {
         idx,
         startWidths,
@@ -1660,12 +1709,28 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (!r) return;
       // The edge follows the pointer: physical +dx grows the column in LTR,
       // shrinks it in RTL.
-      applyResize(r.idx, r.startWidths, r.rtl ? -delta.dx : delta.dx, r.minPx);
+      const dx = r.rtl ? -delta.dx : delta.dx;
+      applyResize(r.idx, r.startWidths, dx, r.minPx);
+      const wanted = Math.round((r.startWidths[r.idx] ?? 0) + dx);
+      const atFloor = wanted <= r.minPx;
+      const vp = containerRef.current;
+      if (vp) {
+        if (atFloor) vp.dataset.atFloor = "";
+        else delete vp.dataset.atFloor;
+      }
+      const id = visibleLeaves[r.idx]?.id;
+      if (id) showReadout(id, Math.max(r.minPx, wanted), atFloor, false);
     },
     onEnd: () => {
       const r = resizeRef.current;
       if (r) delete r.handle.dataset.dragging;
       resizeRef.current = null;
+      const vp = containerRef.current;
+      if (vp) {
+        delete vp.dataset.resizing;
+        delete vp.dataset.atFloor;
+      }
+      hideReadout();
     },
   });
 
@@ -1675,9 +1740,29 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // (the probe forces a layout per keystroke otherwise) — the handle's
   // onBlur drops the cache.
   const keyResizeMinPx = useRef<{ columnId: string; px: number } | null>(null);
+  // The width a handle had when it took focus, so Escape can put it back.
+  const focusWidth = useRef<{ columnId: string; px: number } | null>(null);
+  const rememberFocusWidth = useCallback(
+    (columnId: string, headerCell: HTMLElement) => {
+      const idx = visibleLeaves.findIndex((c) => c.id === columnId);
+      const widths = measureLeafWidths(headerCell);
+      const px = idx >= 0 ? widths?.[idx] : undefined;
+      focusWidth.current = px != null ? { columnId, px: Math.round(px) } : null;
+    },
+    [visibleLeaves, measureLeafWidths],
+  );
+  // The APG Window Splitter map (the nearest pattern; the APG has none for
+  // column resizing): arrows nudge (Shift coarser, Page keys a run of units),
+  // Home goes to the floor, End and Enter/Space auto-fit (the splitter's
+  // "collapse or restore", the keyboard twin of the double-click), Escape
+  // restores the width the handle had when it took focus.
   const resizeColumnByKey = useCallback(
     (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
-      if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+      const key = ev.key;
+      const isArrow = key === "ArrowLeft" || key === "ArrowRight";
+      const isPage = key === "PageUp" || key === "PageDown";
+      const isFit = key === "Enter" || key === " " || key === "End";
+      if (!isArrow && !isPage && !isFit && key !== "Home" && key !== "Escape") return;
       ev.preventDefault();
       const startWidths = measureLeafWidths(headerCell);
       const idx = visibleLeaves.findIndex((c) => c.id === columnId);
@@ -1689,14 +1774,40 @@ export function DataTable<T>(props: DataTableProps<T>) {
         };
       }
       const minPx = keyResizeMinPx.current.px;
-      // Physical-direction semantics: the edge moves in the arrow's direction,
-      // so in RTL (trailing edge on the column's left) ArrowRight shrinks.
-      const rtl = getComputedStyle(headerCell).direction === "rtl";
-      const step = ev.shiftKey ? KEY_RESIZE_STEP_COARSE_PX : KEY_RESIZE_STEP_PX;
-      const dx = (ev.key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1) * step;
-      applyResize(idx, startWidths, dx, minPx);
+      if (isFit) {
+        const fitted = autoFitColumn(columnId, headerCell);
+        if (fitted != null) showReadout(columnId, fitted, fitted <= minPx, true);
+        return;
+      }
+      const current = startWidths[idx] ?? 0;
+      let target: number;
+      if (key === "Home") target = minPx;
+      else if (key === "Escape") {
+        const remembered = focusWidth.current;
+        if (!remembered || remembered.columnId !== columnId) return;
+        target = remembered.px;
+      } else {
+        // Physical-direction semantics: the edge moves in the arrow's
+        // direction, so in RTL (trailing edge on the column's left) ArrowRight
+        // shrinks. Page Up is always wider, Page Down narrower.
+        const rtl = getComputedStyle(headerCell).direction === "rtl";
+        const step = isPage
+          ? KEY_RESIZE_STEP_PAGE_PX
+          : ev.shiftKey
+            ? KEY_RESIZE_STEP_COARSE_PX
+            : KEY_RESIZE_STEP_PX;
+        const dir = isPage
+          ? key === "PageUp"
+            ? 1
+            : -1
+          : (key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1);
+        target = current + dir * step;
+      }
+      applyResize(idx, startWidths, target - current, minPx);
+      const landed = Math.max(minPx, Math.round(target));
+      showReadout(columnId, landed, landed <= minPx, true);
     },
-    [measureLeafWidths, applyResize, visibleLeaves, columnFloorPx],
+    [measureLeafWidths, applyResize, visibleLeaves, columnFloorPx, autoFitColumn, showReadout],
   );
 
   // --- Row-number gutter geometry ---
@@ -1750,6 +1861,32 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // the header and body hold their total width (`data-fixed`) instead of
   // shrinking to the viewport: the spreadsheet model.
   const fixedColumns = allFixed(visibleLeaves, columnWidths);
+
+  // Before the first resize a column can already sit at its floor (the
+  // container squeezed it there). Measure the keys once per header resize so
+  // the handle shows the one-way cursor at rest too; once every column carries
+  // an override the widths are known and the observer stays quiet.
+  const [restAtFloor, setRestAtFloor] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    const block = headerRowRef.current;
+    if (!block || fixedColumns) return;
+    const measure = () => {
+      const next = new Set<string>();
+      visibleLeaves.forEach((leaf, i) => {
+        const floor = ariaColumnMin(i);
+        const cell = headerCellRefs.current.get(leaf.id);
+        if (floor == null || !cell) return;
+        if (cell.getBoundingClientRect().width <= floor + 0.5) next.add(leaf.id);
+      });
+      setRestAtFloor((prev) =>
+        prev.size === next.size && [...next].every((id) => prev.has(id)) ? prev : next,
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(block);
+    return () => ro.disconnect();
+  }, [visibleLeaves, fixedColumns, ariaColumnMin]);
   const gridTemplateColumns = useMemo(() => {
     const template = buildColumnTemplate(visibleLeaves, columnWidths, {
       stretchLast: !fillOn && !fixedColumns,
@@ -2208,6 +2345,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
     // the spreadsheet model the last column's edge is as movable as any other,
     // and growing it just widens the row.
     const showResizeHandle = isLeafHeader && resizableColumnIds.has(header.column.id);
+    const handleWidth =
+      columnWidths[header.column.id] != null
+        ? Math.round(columnWidths[header.column.id] as number)
+        : undefined;
+    const handleMin = showResizeHandle ? ariaColumnMin(leafStart) : undefined;
+    // At the floor by its override, or measured there at rest.
+    const handleAtFloor =
+      showResizeHandle &&
+      (handleWidth != null && handleMin != null
+        ? handleWidth <= handleMin + 0.5
+        : restAtFloor.has(header.column.id));
     const isLocked = isLeafHeader && resizableColumns && !resizableColumnIds.has(header.column.id);
     const fmeta = isLeafHeader ? filterMeta.get(header.column.id) : undefined;
     const filterValue = fmeta ? header.column.getFilterValue() : undefined;
@@ -2330,14 +2478,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
             aria-label={`Resize ${typeof def.header === "string" ? def.header : header.column.id} column`}
             // No override yet = no known px width; omit rather than announce an
             // invalid 0 below the minimum. The min is this column's own floor.
-            aria-valuenow={
-              columnWidths[header.column.id] != null
-                ? Math.round(columnWidths[header.column.id] as number)
-                : undefined
+            aria-valuenow={handleWidth}
+            aria-valuemin={handleMin ?? undefined}
+            aria-valuemax={COLUMN_MAX_PX}
+            aria-valuetext={
+              handleWidth != null ? describeColumnWidth(handleWidth, handleAtFloor) : undefined
             }
-            aria-valuemin={ariaColumnMin(leafStart) ?? undefined}
             tabIndex={0}
             data-column-id={header.column.id}
+            // At the floor the cursor says "only wider" (see .resizeHandle[data-at-floor]).
+            data-at-floor={handleAtFloor || undefined}
             className={styles.resizeHandle}
             // Stop the drag/reorder + sort from firing when grabbing the resizer.
             onPointerDown={(e) => {
@@ -2352,10 +2502,25 @@ export function DataTable<T>(props: DataTableProps<T>) {
             onKeyDown={(e) =>
               resizeColumnByKey(header.column.id, e.currentTarget.parentElement as HTMLElement, e)
             }
+            onFocus={(e) =>
+              rememberFocusWidth(header.column.id, e.currentTarget.parentElement as HTMLElement)
+            }
             onBlur={() => {
               keyResizeMinPx.current = null;
+              focusWidth.current = null;
+              hideReadout();
             }}
           />
+        )}
+        {readout?.id === header.column.id && (
+          <span
+            aria-hidden="true"
+            className={styles.widthReadout}
+            data-at-floor={readout.atFloor || undefined}
+            data-leaving={readout.leaving || undefined}
+          >
+            {formatColumnWidth(readout.px, unitPx, readout.atFloor)}
+          </span>
         )}
         {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}
       </div>
