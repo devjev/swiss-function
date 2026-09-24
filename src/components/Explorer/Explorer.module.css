@@ -116,11 +116,26 @@
 }
 
 /* The label takes the slack; sort arrow / filter / resize handle sit at the end. */
+/* The title: one line, never wrapped. The column's floor (issue #102) is
+   measured so it always fits; the ellipsis only covers the frame before the
+   floor is measured, and a controlled width set below it. */
 .headerLabel {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+/* The chrome (arrow, funnel) never gives way to the title. */
+.headerCell > :not(.headerLabel) {
+  flex-shrink: 0;
+}
+
+/* An unsorted sortable column reserves its arrow's box with a hidden glyph,
+   so the title does not shift and the floor does not grow when sorted. */
+.sortArrow[data-reserved]::before {
+  content: "↑";
+  visibility: hidden;
 }
 
 .headerCell[data-align="end"] .headerLabel {

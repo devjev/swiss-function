@@ -7,6 +7,7 @@ import {
   EditorsHarness,
   FrozenHarness,
   GroupsHarness,
+  HeaderFloorHarness,
   HostDrivenHarness,
   ManyValuesHarness,
   MergeHarness,
@@ -1571,4 +1572,123 @@ test("a collapsed group beside an expanded one is one key spanning both header r
   expect(handle.height).toBeGreaterThanOrEqual(key.height - 1);
   // A collapsed group keeps the tint it declared.
   await expect(merged).toHaveAttribute("data-tinted", "true");
+});
+
+// --- The header floor: a title never wraps (issue #102) -------------------
+
+/** The label must fit its box on one line: no clip, no second line. */
+async function expectTitleWhole(header: import("@playwright/test").Locator) {
+  const m = await header.evaluate((el) => {
+    const label = el.querySelector("span") as HTMLElement;
+    return {
+      cellH: el.getBoundingClientRect().height,
+      labelH: label.getBoundingClientRect().height,
+      clipped: label.scrollWidth > label.clientWidth + 1,
+    };
+  });
+  expect(m.clipped).toBe(false);
+  // One line of text (24px leading) in a 36px key.
+  expect(m.labelH).toBeLessThanOrEqual(25);
+  return m;
+}
+
+test("a long title sets the floor: the drag stops where it would wrap", async ({ mount, page }) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const handle = c.locator('[data-column-id="region"]');
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  // Well above the 3u (72px) global floor: the title needs the room.
+  expect(min).toBeGreaterThan(120);
+  await dragHandle(page, handle, -400);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(Math.abs(after.width - min)).toBeLessThanOrEqual(1);
+  await expectTitleWhole(header);
+});
+
+test("the keyboard step and auto-fit honour the title's floor too", async ({ mount, page }) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const handle = c.locator('[data-column-id="region"]');
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  await handle.focus();
+  for (let i = 0; i < 30; i++) await page.keyboard.press("Shift+ArrowLeft");
+  const keyed = await header.boundingBox();
+  if (!keyed) throw new Error("missing header bounding box");
+  expect(keyed.width).toBeGreaterThanOrEqual(min - 1);
+  await handle.dblclick();
+  const fitted = await header.boundingBox();
+  if (!fitted) throw new Error("missing header bounding box");
+  expect(fitted.width).toBeGreaterThanOrEqual(min - 1);
+  await expectTitleWhole(header);
+});
+
+test("a container squeeze never wraps a title: the table scrolls instead", async ({ mount }) => {
+  const c = await mount(<HeaderFloorHarness containerWidth={220} />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  await expect(header).toBeVisible();
+  const m = await expectTitleWhole(header);
+  expect(m.cellH).toBeLessThanOrEqual(37);
+  const overflow = await c.getByRole("grid").evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeGreaterThan(0);
+});
+
+test("a collapsed group's key keeps its title and chevron whole at the floor", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness />);
+  const header = c.getByRole("columnheader", { name: /Quarterly numbers/ });
+  await dragHandle(page, c.locator('[data-column-id="grp::placeholder"]'), -400);
+  await expectTitleWhole(header);
+  const key = await header.boundingBox();
+  const chevron = await header.getByRole("button", { name: "Expand group" }).boundingBox();
+  if (!key || !chevron) throw new Error("missing bounding box");
+  expect(chevron.x).toBeGreaterThanOrEqual(key.x);
+  expect(chevron.x + chevron.width).toBeLessThanOrEqual(key.x + key.width + 1);
+});
+
+test("sorting a column at its floor does not move its edge", async ({ mount, page }) => {
+  const c = await mount(<HeaderFloorHarness sortable />);
+  const header = c.getByRole("columnheader", { name: "Value" });
+  await dragHandle(page, c.locator('[data-column-id="value"]'), -400);
+  const before = await header.boundingBox();
+  await header.click();
+  // A number column sorts descending first (TanStack auto direction).
+  await expect(header).toContainText(/[↑↓]/);
+  const after = await header.boundingBox();
+  if (!before || !after) throw new Error("missing header bounding box");
+  expect(after.width).toBe(before.width);
+  await expectTitleWhole(header);
+});
+
+test("the filter funnel is part of the floor", async ({ mount, page }) => {
+  const plain = await mount(<HeaderFloorHarness />);
+  const bare = Number(
+    await plain.locator('[data-column-id="value"]').getAttribute("aria-valuemin"),
+  );
+  await plain.unmount();
+  const c = await mount(<HeaderFloorHarness filterable />);
+  const handle = c.locator('[data-column-id="value"]');
+  const withFunnel = Number(await handle.getAttribute("aria-valuemin"));
+  expect(withFunnel).toBeGreaterThan(bare);
+  await dragHandle(page, handle, -400);
+  const header = c.getByRole("columnheader", { name: "Value" });
+  await expectTitleWhole(header);
+  const key = await header.boundingBox();
+  const funnel = await header.getByRole("button").first().boundingBox();
+  if (!key || !funnel) throw new Error("missing bounding box");
+  expect(funnel.x + funnel.width).toBeLessThanOrEqual(key.x + key.width + 1);
+});
+
+test("a frozen column cannot sit under its floor either", async ({ mount, page }) => {
+  const c = await mount(<HeaderFloorHarness frozen />);
+  const header = c.getByRole("columnheader", { name: "Region of incorporation" });
+  const handle = c.locator('[data-column-id="region"]');
+  const min = Number(await handle.getAttribute("aria-valuemin"));
+  await dragHandle(page, handle, -400);
+  const after = await header.boundingBox();
+  if (!after) throw new Error("missing header bounding box");
+  expect(after.width).toBeGreaterThanOrEqual(min - 1);
+  await expectTitleWhole(header);
 });

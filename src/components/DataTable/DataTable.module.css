@@ -201,13 +201,34 @@
   align-self: stretch;
 }
 
+/* The title. One line, never wrapped: the column's floor (issue #102) is
+   measured so the title always fits; the ellipsis only covers the frame
+   before the floor is measured, and a controlled width set below it. */
+.headerLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The chrome (chevron, funnel, arrow) never gives way to the title. */
+.headerCell > :not(.headerLabel) {
+  flex-shrink: 0;
+}
+
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
-   header text so it reads as a quiet indicator, not a glyph. */
+   header text so it reads as a quiet indicator, not a glyph. An unsorted
+   sortable column reserves the same box with a hidden glyph, so the title
+   does not shift and the floor does not grow when it is sorted. */
 .sortArrow {
   margin-inline-start: calc(var(--sf-unit) / 4);
   font-size: 0.85em;
   line-height: 1;
   color: var(--sf-color-primary);
+}
+.sortArrow[data-reserved]::before {
+  content: "↑";
+  visibility: hidden;
 }
 
 /* Reorderable leaf header (reorderableColumns): grabbable; @dnd-kit drives the

@@ -980,6 +980,38 @@ export const ColumnMinWidth: Story = () => (
   />
 );
 
+/** The header floor (issue #102): a column is never narrower than its title
+ *  needs on one line. Drag any edge left and it stops where the title would
+ *  wrap; squeeze the container and the table scrolls instead. A sortable
+ *  column keeps room for its arrow at rest, so sorting moves no edge; a
+ *  collapsed group's key keeps its chevron. */
+export const HeaderFloor: Story = () => (
+  <DataTable<Cellish>
+    data={cellRows}
+    height={260}
+    columns={[
+      {
+        id: "region",
+        header: "Region of incorporation",
+        accessor: "region",
+        width: 14,
+        sortable: true,
+      },
+      { id: "q1", header: "Q1", accessor: "q1", align: "end", width: 8, sortable: true },
+      {
+        id: "quarters",
+        header: "Quarterly revenue",
+        defaultCollapsed: true,
+        columns: [
+          { id: "q2", header: "Q2", accessor: "q2", align: "end", width: 6 },
+          { id: "q3", header: "Q3", accessor: "q3", align: "end", width: 6 },
+        ],
+      },
+      { id: "variance", header: "Variance against plan", accessor: "variance", align: "end" },
+    ]}
+  />
+);
+
 /** One group collapsed while another stays expanded (issue #101): the collapsed
  *  group's key should read as one full-height header, not a blank cell above a
  *  bottom-aligned title. */

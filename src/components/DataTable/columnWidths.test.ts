@@ -46,6 +46,35 @@ describe("buildColumnTemplate", () => {
     expect(buildColumnTemplate([{ id: "a", width: 8 }], { a: 100 })).toBe(LAST);
   });
 
+  it("raises a track's minimum to its measured header floor (issue #102)", () => {
+    expect(
+      buildColumnTemplate(
+        [{ id: "a", width: 8, minWidth: 6 }, { id: "z" }],
+        {},
+        { floors: { a: 137 } },
+      ),
+    ).toBe(`minmax(max(calc(var(--sf-unit) * 6), 137px), calc(var(--sf-unit) * 8)) ${LAST}`);
+  });
+
+  it("the last, stretching column keeps its floor as the minimum too", () => {
+    expect(buildColumnTemplate([{ id: "a" }, { id: "z" }], {}, { floors: { z: 90 } })).toBe(
+      `${track("calc(var(--sf-unit) * 8)")} minmax(max(calc(var(--sf-unit) * 3), 90px), 1fr)`,
+    );
+  });
+
+  it("a frozen track is fixed at its preferred width raised to its floor", () => {
+    expect(
+      buildColumnTemplate(
+        [{ id: "a", width: 4 }, { id: "b" }, { id: "z" }],
+        { b: 100 },
+        {
+          frozenCount: 2,
+          floors: { a: 120, b: 80 },
+        },
+      ),
+    ).toBe(`max(calc(var(--sf-unit) * 4), 120px) max(100px, 80px) ${LAST}`);
+  });
+
   it("emits the first frozenCount tracks as fixed (non-shrinkable) widths", () => {
     expect(
       buildColumnTemplate(

@@ -497,3 +497,45 @@ export function CollapsedGroupHarness() {
   ];
   return <DataTable<BgRow> data={BG_ROWS} columns={columns} height={220} />;
 }
+
+/** A long title beside short ones, a collapsed group, and opt-in sorting,
+ *  filtering, freezing and a fixed container, for the header floor (issue
+ *  #102): no path may narrow a column under what its title needs. */
+export function HeaderFloorHarness({
+  containerWidth,
+  sortable,
+  filterable,
+  frozen,
+}: {
+  containerWidth?: number;
+  sortable?: boolean;
+  filterable?: boolean;
+  frozen?: boolean;
+}) {
+  const columns: ColumnDef<BgRow>[] = [
+    {
+      id: "region",
+      header: "Region of incorporation",
+      accessor: "region",
+      width: 14,
+      sortable,
+    },
+    { id: "value", header: "Value", accessor: "value", align: "end", width: 8, sortable },
+    {
+      id: "grp",
+      header: "Quarterly numbers",
+      defaultCollapsed: true,
+      columns: [{ id: "v2", header: "Value 2", accessor: "value", width: 6 }],
+    },
+  ];
+  const table = (
+    <DataTable<BgRow>
+      data={BG_ROWS}
+      columns={columns}
+      height={220}
+      filterableColumns={filterable}
+      frozenColumns={frozen ? 1 : 0}
+    />
+  );
+  return containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
+}

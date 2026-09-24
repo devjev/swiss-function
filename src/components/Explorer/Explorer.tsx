@@ -34,6 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { combineFloor, measureHeaderNeed } from "../../lib/columns/headerFloor";
 import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
@@ -147,20 +148,28 @@ function buildGridTemplate<M>(
   resizable: boolean,
   fill: boolean,
   fixed: boolean,
+  floors: Record<string, number>,
 ): string {
   if (!resizable) {
+    // The measured header floor (issue #102) still holds without resizing: a
+    // fixed width is raised to it, and a stretching column never squeezes
+    // under it, so a container squeeze scrolls instead of clipping a title.
     return columns
       .map((c) => {
+        const floor = floors[c.id];
         const ov = overrides[c.id];
-        if (ov != null) return `${ov}px`;
-        return typeof c.width === "number" ? `${c.width}px` : (c.width ?? "minmax(0, 1fr)");
+        const fixedPx = ov != null ? ov : typeof c.width === "number" ? c.width : undefined;
+        if (fixedPx != null)
+          return floor != null ? `${Math.max(fixedPx, floor)}px` : `${fixedPx}px`;
+        if (typeof c.width === "string") return c.width;
+        return `minmax(${floor ?? 0}px, 1fr)`;
       })
       .join(" ");
   }
   const lastIdx = columns.length - 1;
   return columns
     .map((c, i) => {
-      const min = `${c.minWidth ?? MIN_COL_PX}px`;
+      const min = `${combineFloor(c.minWidth ?? MIN_COL_PX, floors[c.id])}px`;
       if (i === lastIdx && !fill && !fixed) return `minmax(${min}, 1fr)`;
       const ov = overrides[c.id];
       const preferred =
@@ -300,9 +309,55 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const fixedColumns =
     orderedColumns.length > 0 && orderedColumns.every((c) => columnWidths[c.id] != null);
 
+  // --- Header floors (issue #102) ---
+  // A column is never narrower than its header needs: measured off each
+  // rendered header (padding, chrome, the one-line title), the floor raises
+  // the declared minimum in the template, the drag, the keyboard step,
+  // auto-fit and the handle's aria-valuemin. Same rule as DataTable.
+  const [headerFloors, setHeaderFloors] = useState<Record<string, number>>({});
+  const [fontsTick, setFontsTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    document.fonts?.ready.then(() => {
+      if (live) setFontsTick((n) => n + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the density props, the funnel and the font tick change what the header measures
+  useLayoutEffect(() => {
+    const row = headerRowRef.current;
+    if (!row) return;
+    const next: Record<string, number> = {};
+    orderedColumns.forEach((col, i) => {
+      const cell = row.children[i] as HTMLElement | undefined;
+      const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
+      if (!cell || !label) return;
+      next[col.id] = measureHeaderNeed(cell, { label });
+    });
+    setHeaderFloors((prev) => {
+      const keys = Object.keys(next);
+      const same =
+        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
+      return same ? prev : next;
+    });
+  }, [orderedColumns, cellFontSize, cellPadding, filterableColumns, fontsTick]);
+  /** The px floor of a column: its declared minimum raised to its header need. */
+  const columnFloorPx = (col: ExplorerColumn<M>): number =>
+    combineFloor(col.minWidth ?? MIN_COL_PX, headerFloors[col.id]);
+
   const gridTemplate = useMemo(
-    () => buildGridTemplate(orderedColumns, columnWidths, resizableColumns, fillOn, fixedColumns),
-    [orderedColumns, columnWidths, resizableColumns, fillOn, fixedColumns],
+    () =>
+      buildGridTemplate(
+        orderedColumns,
+        columnWidths,
+        resizableColumns,
+        fillOn,
+        fixedColumns,
+        headerFloors,
+      ),
+    [orderedColumns, columnWidths, resizableColumns, fillOn, fixedColumns, headerFloors],
   );
 
   // --- Filtering: infer each filterable column's UI + build active filters ---
@@ -540,7 +595,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const applyResize = (idx: number, startWidths: number[], dx: number) => {
     const col = orderedColumns[idx];
     if (!col) return;
-    const v = Math.max(col.minWidth ?? MIN_COL_PX, Math.round((startWidths[idx] ?? 0) + dx));
+    const v = Math.max(columnFloorPx(col), Math.round((startWidths[idx] ?? 0) + dx));
     setColumnWidths((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -626,7 +681,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     }
     // Trailing cell padding (the leading one is inside the measured offset).
     const padEnd = Number.parseFloat(getComputedStyle(headerCell).paddingInlineEnd) || 0;
-    const min = orderedColumns[idx]?.minWidth ?? MIN_COL_PX;
+    const col = orderedColumns[idx];
+    const min = col ? columnFloorPx(col) : MIN_COL_PX;
     const next = Math.max(min, Math.ceil(widest + padEnd + AUTOFIT_SLACK_PX));
     // A resize like any other: the row's other columns freeze at their
     // measured widths (see applyResize).
@@ -1018,6 +1074,11 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             {sort?.dir === "asc" ? "↑" : "↓"}
           </span>
         ) : null}
+        {/* A sortable column carries its arrow's space at rest (a hidden
+            glyph from CSS), so sorting never moves an edge (issue #102). */}
+        {col.sortable && !isSorted ? (
+          <span className={styles.sortArrow} aria-hidden="true" data-reserved="" />
+        ) : null}
         {meta ? (
           <ColumnFilter
             label={col.header}
@@ -1038,7 +1099,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             role="separator"
             aria-orientation="vertical"
             aria-label={`Resize ${col.header}`}
-            aria-valuemin={col.minWidth ?? MIN_COL_PX}
+            aria-valuemin={Math.round(columnFloorPx(col))}
             aria-valuenow={widthOverride != null ? Math.round(widthOverride) : undefined}
             tabIndex={0}
             data-column-id={col.id}

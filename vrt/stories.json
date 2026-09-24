@@ -295,6 +295,7 @@
   "data-table--filterable",
   "data-table--formula-bar",
   "data-table--frozen-columns",
+  "data-table--header-floor",
   "data-table--highlights",
   "data-table--merged-cells",
   "data-table--narrow-container",

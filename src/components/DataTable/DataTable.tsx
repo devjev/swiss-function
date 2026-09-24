@@ -37,6 +37,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { combineFloor, measureHeaderNeed } from "../../lib/columns/headerFloor";
 import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns/resizeBoundary";
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
@@ -1198,6 +1199,62 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onColumnWidthsChange,
   });
 
+  // --- Header floors (issue #102) ---
+  // A column is never narrower than its header needs. The floor is measured
+  // off each rendered leaf header (its padding, its chrome, its label on one
+  // line) and raises the declared minimum on every path: the template's
+  // minmax() (so a container squeeze scrolls instead of wrapping a title),
+  // the drag, the keyboard step, auto-fit, and the handle's aria-valuemin.
+  const headerCellRefs = useRef(new Map<string, HTMLElement>());
+  const registerHeaderCell = useCallback((id: string, el: HTMLElement | null) => {
+    if (el) headerCellRefs.current.set(id, el);
+    else headerCellRefs.current.delete(id);
+  }, []);
+  const [headerFloors, setHeaderFloors] = useState<Record<string, number>>({});
+  // The webfont changes the metrics when it lands: measure once more then.
+  const [fontsTick, setFontsTick] = useState(0);
+  useEffect(() => {
+    let live = true;
+    document.fonts?.ready.then(() => {
+      if (live) setFontsTick((n) => n + 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the density props and the font tick change what the header measures
+  useLayoutEffect(() => {
+    const next: Record<string, number> = {};
+    for (const leaf of visibleLeaves) {
+      const cell = headerCellRefs.current.get(leaf.id);
+      const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
+      if (!cell || !label) continue;
+      next[leaf.id] = measureHeaderNeed(cell, { label });
+    }
+    setHeaderFloors((prev) => {
+      const keys = Object.keys(next);
+      const same =
+        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
+      return same ? prev : next;
+    });
+    // The label text, the chrome and the font all live on the leaves and the
+    // two density props; the tick re-runs it after the webfont loads.
+  }, [visibleLeaves, cellFontSize, cellPadding, fontsTick]);
+
+  /** The px floor of leaf `idx`: its declared minimum (own `minWidth` or the
+   *  global token, resolved in the header's context) raised to its measured
+   *  header need. */
+  const columnFloorPx = useCallback(
+    (headerCell: HTMLElement, idx: number): number => {
+      const leaf = visibleLeaves[idx];
+      return combineFloor(
+        columnMinWidthPx(headerCell, leaf?.minWidth),
+        leaf ? headerFloors[leaf.id] : undefined,
+      );
+    },
+    [visibleLeaves, headerFloors],
+  );
+
   // Snapshot the column widths from the (bottom) header row a handle lives in,
   // indexed to match `visibleLeaves`. Only real header cells count: with
   // `rowNumbers` the row's first child is the select-all corner cell, which
@@ -1218,8 +1275,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     (columnId: string, headerCell: HTMLElement) => {
       const colIndex = visibleLeaves.findIndex((c) => c.id === columnId);
       if (colIndex < 0) return;
-      // Header label is the first <span> in the header cell.
-      const headerLabel = headerCell.querySelector("span");
+      const headerLabel = headerCell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
       let widest = headerLabel ? headerLabel.scrollWidth : 0;
       for (const [key, el] of cellRefs.current) {
         if (Number(key.split(":")[1]) !== colIndex) continue;
@@ -1229,7 +1285,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       // Header + cell horizontal padding is calc(--sf-unit / 2) per side, so one
       // measured unit total (tracks a consumer-resized --sf-unit), plus slack.
       const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
-      const minPx = columnMinWidthPx(headerCell, visibleLeaves[colIndex]?.minWidth);
+      const minPx = columnFloorPx(headerCell, colIndex);
       const next = Math.max(minPx, Math.ceil(widest + padding));
       const startWidths = measureLeafWidths(headerCell);
       if (!startWidths) return;
@@ -1246,7 +1302,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         return changed ? nextWidths : prev;
       });
     },
-    [visibleLeaves, measureLeafWidths, setColumnWidths],
+    [visibleLeaves, measureLeafWidths, setColumnWidths, columnFloorPx],
   );
 
   // Left edges of every leaf column (plus the trailing right edge), in content
@@ -1416,14 +1472,22 @@ export function DataTable<T>(props: DataTableProps<T>) {
   }, []);
 
   /** What a resize handle announces as its lower bound: the column's own
-   *  `minWidth` in px when it declares one, else the measured global floor. */
+   *  `minWidth` in px when it declares one, else the measured global floor,
+   *  either raised to the measured header need (issue #102). */
   const ariaColumnMin = useCallback(
     (leafIndex: number): number | undefined => {
-      const min = leafIndex >= 0 ? visibleLeaves[leafIndex]?.minWidth : undefined;
-      if (min != null) return unitPx != null ? Math.round(min * unitPx) : undefined;
-      return colMinPx ?? undefined;
+      const leaf = leafIndex >= 0 ? visibleLeaves[leafIndex] : undefined;
+      const min = leaf?.minWidth;
+      const declared =
+        min != null
+          ? unitPx != null
+            ? Math.round(min * unitPx)
+            : undefined
+          : (colMinPx ?? undefined);
+      if (declared == null) return undefined;
+      return Math.round(combineFloor(declared, leaf ? headerFloors[leaf.id] : undefined));
     },
-    [visibleLeaves, unitPx, colMinPx],
+    [visibleLeaves, unitPx, colMinPx, headerFloors],
   );
 
   /** Leaf column ids that may be resized (table opt-in × per-column opt-out). */
@@ -1487,7 +1551,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       resizeRef.current = {
         idx,
         startWidths,
-        minPx: columnMinWidthPx(headerCell, visibleLeaves[idx]?.minWidth),
+        minPx: columnFloorPx(headerCell, idx),
         rtl: getComputedStyle(handle).direction === "rtl",
         handle,
       };
@@ -1522,7 +1586,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (keyResizeMinPx.current?.columnId !== columnId) {
         keyResizeMinPx.current = {
           columnId,
-          px: columnMinWidthPx(headerCell, visibleLeaves[idx]?.minWidth),
+          px: columnFloorPx(headerCell, idx),
         };
       }
       const minPx = keyResizeMinPx.current.px;
@@ -1533,7 +1597,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const dx = (ev.key === "ArrowRight" ? 1 : -1) * (rtl ? -1 : 1) * step;
       applyResize(idx, startWidths, dx, minPx);
     },
-    [measureLeafWidths, applyResize, visibleLeaves],
+    [measureLeafWidths, applyResize, visibleLeaves, columnFloorPx],
   );
 
   // --- Row-number gutter geometry ---
@@ -1556,17 +1620,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const frozenLefts = useMemo(() => {
     const lefts = frozenLeftOffsets(visibleLeaves, columnWidths, frozenCount, {
       defaultWidth: defaultColumnWidth,
+      floors: headerFloors,
     });
     if (!gutterWidth) return lefts;
     return lefts.map((left) => (left === "0px" ? gutterWidth : `calc(${gutterWidth} + ${left})`));
-  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth]);
+  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth, headerFloors]);
   const frozenWidth = useMemo(() => {
     const width = frozenTotalWidth(visibleLeaves, columnWidths, frozenCount, {
       defaultWidth: defaultColumnWidth,
+      floors: headerFloors,
     });
     if (!gutterWidth) return width;
     return width === "0px" ? gutterWidth : `calc(${gutterWidth} + ${width})`;
-  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth]);
+  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth, headerFloors]);
   // Toggle a boundary shadow on the frozen edge once the body is scrolled right.
   // The gutter is a frozen edge of its own when no data columns are frozen.
   const [frozenScrolled, setFrozenScrolled] = useState(false);
@@ -1590,6 +1656,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       stretchLast: !fillOn && !fixedColumns,
       defaultWidth: defaultColumnWidth,
       frozenCount,
+      floors: headerFloors,
     });
     return gutterWidth ? `${gutterWidth} ${template}` : template;
   }, [
@@ -1600,6 +1667,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     defaultColumnWidth,
     frozenCount,
     gutterWidth,
+    headerFloors,
   ]);
 
   // --- Fill backdrop ---
@@ -2044,7 +2112,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     return (
       <div
         key={header.id}
-        ref={dnd?.ref}
+        ref={(el) => {
+          dnd?.ref(el);
+          if (isLeafHeader) registerHeaderCell(header.column.id, el);
+        }}
         role="columnheader"
         className={cx(
           styles.headerCell,
@@ -2083,7 +2154,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
       >
         {!header.isPlaceholder && (
           <>
-            <span>{flexRender(def.header, header.getContext())}</span>
+            <span className={styles.headerLabel}>
+              {flexRender(def.header, header.getContext())}
+            </span>
+            {/* A sortable column carries its arrow's space at rest too (a
+                hidden glyph from CSS), so sorting never moves a column edge
+                and the floor does not jump with it (issue #102). */}
             {sortDir === "asc" && (
               <span aria-hidden="true" className={styles.sortArrow}>
                 ↑
@@ -2093,6 +2169,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
               <span aria-hidden="true" className={styles.sortArrow}>
                 ↓
               </span>
+            )}
+            {canSort && !sortDir && (
+              <span aria-hidden="true" className={styles.sortArrow} data-reserved="" />
             )}
             {(isGroupHeader || collapsedGroupId) && (
               <TreeChevron

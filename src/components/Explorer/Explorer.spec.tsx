@@ -248,16 +248,44 @@ test("resize handle exposes ARIA value semantics; double-click auto-fits the col
 }) => {
   const c = await mount(<ExplorerHarness grid />);
   const handle = c.getByRole("separator", { name: "Resize Name" });
-  // Min is the default 48px floor; no override yet, so valuenow is absent.
-  await expect(handle).toHaveAttribute("aria-valuemin", "48");
+  // The minimum is the measured header floor (issue #102), at least the 48px
+  // default; no override yet, so valuenow is absent.
+  const valuemin = Number(await handle.getAttribute("aria-valuemin"));
+  expect(valuemin).toBeGreaterThanOrEqual(48);
   await expect(handle).not.toHaveAttribute("aria-valuenow", /.*/);
   await handle.dblclick();
   // Auto-fit writes a px override, which then surfaces as aria-valuenow.
   const valuenow = await handle.getAttribute("aria-valuenow");
-  expect(Number(valuenow)).toBeGreaterThanOrEqual(48);
+  expect(Number(valuenow)).toBeGreaterThanOrEqual(valuemin);
   const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
   const width = (await nameCell.boundingBox())!.width;
   expect(Math.round(width)).toBe(Number(valuenow));
+});
+
+test("a header's title and chrome set the resize floor (issue #102)", async ({ mount, page }) => {
+  const c = await mount(<ExplorerHarness grid />);
+  const nameCell = c.getByText("Name", { exact: true }).locator("xpath=..");
+  const handle = c.getByRole("separator", { name: "Resize Name" });
+  const valuemin = Number(await handle.getAttribute("aria-valuemin"));
+  // Sortable + filterable: the title, the reserved arrow and the funnel all
+  // need room, well past the 48px default.
+  expect(valuemin).toBeGreaterThan(80);
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 400, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const width = (await nameCell.boundingBox())!.width;
+  expect(Math.abs(width - valuemin)).toBeLessThanOrEqual(1);
+  // The title is whole (no ellipsis) and the funnel is inside the key.
+  const whole = await nameCell.evaluate((el) => {
+    const label = el.querySelector("span") as HTMLElement;
+    return label.scrollWidth <= label.clientWidth + 1;
+  });
+  expect(whole).toBe(true);
+  const funnel = (await c.getByRole("button", { name: "Filter Name", exact: true }).boundingBox())!;
+  const key = (await nameCell.boundingBox())!;
+  expect(funnel.x + funnel.width).toBeLessThanOrEqual(key.x + key.width + 1);
 });
 
 test("filter funnel prunes to matches and keeps the ancestor path", async ({ mount, page }) => {
