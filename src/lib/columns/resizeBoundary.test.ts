@@ -7,8 +7,9 @@ describe("formatColumnWidth", () => {
     expect(formatColumnWidth(300, 24, false)).toBe("12.5u · 300px");
     expect(formatColumnWidth(301, 24, false)).toBe("12.54u · 301px");
   });
-  it("says min at the floor", () => {
+  it("says min at the floor, max at a cap", () => {
     expect(formatColumnWidth(168, 24, true)).toBe("7u · 168px · min");
+    expect(formatColumnWidth(216, 24, false, true)).toBe("9u · 216px · max");
   });
   it("falls back to px until the unit is measured", () => {
     expect(formatColumnWidth(168.4, null, false)).toBe("168px");

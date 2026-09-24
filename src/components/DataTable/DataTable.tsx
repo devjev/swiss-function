@@ -41,6 +41,7 @@ import {
   cellLines,
   combineFloor,
   contentInlineSize,
+  contentRunWidth,
   type GroupConstraint,
   groupFloorFor,
   measureHeaderNeed,
@@ -59,6 +60,7 @@ import {
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
+import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { cx } from "../../lib/cx";
 import { useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import type { EffectName } from "../../lib/effects";
@@ -359,19 +361,6 @@ function cellBackgroundProps<T>(
       ...(resolved.textColor != null ? { "--sf-cell-ink": resolved.textColor } : {}),
     } as CSSProperties,
   };
-}
-
-/** The px floor a column may be resized to: its own `minWidth` (in `--sf-unit`
- *  multiples) when it declares one, else the global `--sf-datatable-col-min`.
- *  Resolved through the same probe as the token so the JS clamp and the grid
- *  template's `minmax` floor agree by construction (issue #100). */
-function columnMinWidthPx(parent: HTMLElement, minWidthUnits: number | undefined): number {
-  return measureCssWidth(
-    parent,
-    minWidthUnits != null
-      ? `calc(var(--sf-unit) * ${minWidthUnits})`
-      : "var(--sf-datatable-col-min)",
-  );
 }
 
 /** Checklist filter: keep rows whose stringified value is in the allowed set.
@@ -1284,53 +1273,41 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (el) groupCellRefs.current.set(id, el);
     else groupCellRefs.current.delete(id);
   }, []);
-  const [headerFloors, setHeaderFloors] = useState<Record<string, number>>({});
-  const [groupNeeds, setGroupNeeds] = useState<Record<string, number>>({});
-  // The webfont changes the metrics when it lands: measure once more then.
-  const [fontsTick, setFontsTick] = useState(0);
-  useEffect(() => {
-    let live = true;
-    document.fonts?.ready.then(() => {
-      if (live) setFontsTick((n) => n + 1);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the density props and the font tick change what the header measures
-  useLayoutEffect(() => {
-    const next: Record<string, number> = {};
-    for (const leaf of visibleLeaves) {
-      const cell = headerCellRefs.current.get(leaf.id);
-      const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
-      if (!cell || !label) continue;
-      next[leaf.id] = measureHeaderNeed(cell, {
-        label,
-        lines: Math.max(1, Math.floor(leaf.headerLines ?? tableHeaderLines)),
-      });
-    }
-    setHeaderFloors((prev) => {
-      const keys = Object.keys(next);
-      const same =
-        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
-      return same ? prev : next;
-    });
-    const groups: Record<string, number> = {};
-    for (const [id, cell] of groupCellRefs.current) {
-      const label = cell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
-      if (!label) continue;
-      const lines = Number(label.dataset.lines ?? 1) || 1;
-      groups[id] = measureHeaderNeed(cell, { label, lines });
-    }
-    setGroupNeeds((prev) => {
-      const keys = Object.keys(groups);
-      const same =
-        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === groups[k]);
-      return same ? prev : groups;
-    });
-    // The label text, the chrome and the font all live on the leaves and the
-    // two density props; the tick re-runs it after the webfont loads.
-  }, [visibleLeaves, cellFontSize, cellPadding, fontsTick, tableHeaderLines]);
+  // The label text, the chrome and the font all live on the leaves, the two
+  // density props and the funnel toggle; the hook re-measures after the
+  // webfont loads and when a hidden table is revealed.
+  const needDeps = [visibleLeaves, cellFontSize, cellPadding, filterableColumns, tableHeaderLines];
+  const headerFloors = useHeaderNeeds(
+    headerRowRef,
+    () => {
+      const next: Record<string, number> = {};
+      for (const leaf of visibleLeaves) {
+        const cell = headerCellRefs.current.get(leaf.id);
+        const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
+        if (!cell || !label) continue;
+        next[leaf.id] = measureHeaderNeed(cell, {
+          label,
+          lines: Math.max(1, Math.floor(leaf.headerLines ?? tableHeaderLines)),
+        });
+      }
+      return next;
+    },
+    needDeps,
+  );
+  const groupNeeds = useHeaderNeeds(
+    headerRowRef,
+    () => {
+      const groups: Record<string, number> = {};
+      for (const [id, cell] of groupCellRefs.current) {
+        const label = cell.querySelector<HTMLElement>(`.${styles.headerLabel}`);
+        if (!label) continue;
+        const lines = Number(label.dataset.lines ?? 1) || 1;
+        groups[id] = measureHeaderNeed(cell, { label, lines });
+      }
+      return groups;
+    },
+    needDeps,
+  );
 
   /** Every group header's need as a constraint on its visible leaves, from
    *  TanStack's header tree (so a collapsed subgroup's placeholder counts as
@@ -1351,20 +1328,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
     }
     return out;
   }, [table, groupNeeds, visibleLeaves]);
-
-  /** The px floor of leaf `idx`: its declared minimum (own `minWidth` or the
-   *  global token, resolved in the header's context) raised to its measured
-   *  header need. */
-  const columnFloorPx = useCallback(
-    (headerCell: HTMLElement, idx: number): number => {
-      const leaf = visibleLeaves[idx];
-      return combineFloor(
-        columnMinWidthPx(headerCell, leaf?.minWidth),
-        leaf ? headerFloors[leaf.id] : undefined,
-      );
-    },
-    [visibleLeaves, headerFloors],
-  );
 
   // Snapshot the column widths from the (bottom) header row a handle lives in,
   // indexed to match `visibleLeaves`. Only real header cells count: with
@@ -1387,12 +1350,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
     return ids;
   }, [resizableColumns, visibleLeaves]);
 
-  /** Every visible leaf's floor in px (its declared minimum raised to its
-   *  header need), resolved once per gesture in the header's context. */
+  /** Every visible leaf's floor in px: its declared minimum (own `minWidth`
+   *  or the global token) raised to its measured header need. The unit and
+   *  the token are probed once per gesture in the header's context (two
+   *  layouts, not one per column), so the JS clamp and the template's
+   *  `minmax()` floor agree by construction (issue #100). */
   const measureFloors = useCallback(
-    (headerCell: HTMLElement): number[] =>
-      visibleLeaves.map((_, k) => columnFloorPx(headerCell, k)),
-    [visibleLeaves, columnFloorPx],
+    (headerCell: HTMLElement): number[] => {
+      const unit = measureCssWidth(headerCell, "var(--sf-unit)");
+      const colMin = measureCssWidth(headerCell, "var(--sf-datatable-col-min)");
+      return visibleLeaves.map((leaf) =>
+        combineFloor(leaf.minWidth != null ? leaf.minWidth * unit : colMin, headerFloors[leaf.id]),
+      );
+    },
+    [visibleLeaves, headerFloors],
   );
 
   /** Which columns a gesture on leaf `idx` moves: every resizable column of a
@@ -1413,12 +1384,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [selection.range, fullHeightRange, visibleLeaves, resizableColumnIds],
   );
 
-  // Auto-fit: the width a column's widest currently-mounted content needs.
-  // The content's run (a fractional Range width), not the body's scrollWidth:
-  // a body that is not overflowing reports its box, the current column width,
-  // which kept auto-fit from ever shrinking a wide column. A tree cell's
-  // leading gutter (indent + chevron) counts too. The header's need is
-  // already in the floor.
+  // Auto-fit: the width a column's widest currently-mounted content needs,
+  // read as the content's run (a fractional Range width; a wrapped body's
+  // lines summed, so a wrap column fits at the width where its value takes
+  // one line). The body's scrollWidth would report its box when it is not
+  // overflowing, the current column width, which kept auto-fit from ever
+  // shrinking a wide column. A tree cell's leading gutter (indent + chevron)
+  // counts too. The header's need is already in the floor.
   const fitWidth = useCallback(
     (colIndex: number, headerCell: HTMLElement, floor: number): number => {
       let widest = 0;
@@ -1428,11 +1400,16 @@ export function DataTable<T>(props: DataTableProps<T>) {
         if (!body) continue;
         const gutter = el.querySelector<HTMLElement>(`.${styles.cellTreeGutter}`);
         const lead = gutter ? gutter.getBoundingClientRect().width : 0;
-        widest = Math.max(widest, lead + contentInlineSize(body));
+        widest = Math.max(widest, lead + contentRunWidth(body));
       }
-      // Header + cell horizontal padding is calc(--sf-unit / 2) per side, so one
-      // measured unit total (tracks a consumer-resized --sf-unit), plus slack.
-      const padding = measureCssWidth(headerCell, "var(--sf-unit)") + 8;
+      // The cells' inline padding follows the density (--sf-cell-pad-x, a
+      // quarter to three quarters of a unit per side): read it off the header
+      // cell, which pads the same way, plus a little slack.
+      const cs = getComputedStyle(headerCell);
+      const padding =
+        (Number.parseFloat(cs.paddingInlineStart) || 0) +
+        (Number.parseFloat(cs.paddingInlineEnd) || 0) +
+        8;
       return Math.max(floor, Math.ceil(widest + padding));
     },
     [],
@@ -1514,13 +1491,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
     id: string;
     px: number;
     atFloor: boolean;
+    atCap: boolean;
     leaving: boolean;
   } | null>(null);
   const readoutTimer = useRef<number | null>(null);
+  const readoutFrame = useRef<number | null>(null);
   const clearReadoutTimer = () => {
     if (readoutTimer.current != null) {
       window.clearTimeout(readoutTimer.current);
       readoutTimer.current = null;
+    }
+    if (readoutFrame.current != null) {
+      window.cancelAnimationFrame(readoutFrame.current);
+      readoutFrame.current = null;
     }
   };
   const hideReadout = useCallback(() => {
@@ -1531,11 +1514,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
       setReadout(null);
     }, READOUT_FADE_MS);
   }, []);
+  // The chip enters one frame after the resize commit. Inserting an element
+  // in the same commit as the template change makes Chromium's style recalc
+  // of the rows several times slower (a step went from 8 to 16ms, measured);
+  // a frame later the new width has painted and the chip's own recalc has
+  // the frame to itself. During a drag each move lands a frame late, and a
+  // held step shows within 16ms: neither reads as a delay.
   const showReadout = useCallback(
-    (id: string, px: number, atFloor: boolean, hold: boolean) => {
+    (id: string, px: number, atFloor: boolean, hold: boolean, atCap = false) => {
       clearReadoutTimer();
-      setReadout({ id, px: Math.round(px), atFloor, leaving: false });
-      if (hold) readoutTimer.current = window.setTimeout(hideReadout, READOUT_HOLD_MS);
+      readoutFrame.current = window.requestAnimationFrame(() => {
+        readoutFrame.current = null;
+        setReadout({ id, px: Math.round(px), atFloor, atCap, leaving: false });
+        if (hold) readoutTimer.current = window.setTimeout(hideReadout, READOUT_HOLD_MS);
+      });
     },
     [hideReadout],
   );
@@ -1742,22 +1734,41 @@ export function DataTable<T>(props: DataTableProps<T>) {
     });
     return set;
   }, [visibleLeaves, cellOverflow]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on what can change a cell's fit: the widths and floors, the container (contentWidth), the mounted rows and their content, the density
   useLayoutEffect(() => {
     if (hashColumns.size === 0) return;
+    // Every read before any write: a flip toggles the fill's display, and a
+    // write between reads would force a layout per cell.
+    const reads: { el: HTMLElement; over: boolean; text: string }[] = [];
     for (const [key, el] of cellRefs.current) {
       if (!hashColumns.has(Number(key.split(":")[1]))) continue;
       const body = el.querySelector<HTMLElement>(`.${styles.cellBody}`);
       const over =
         body != null && contentInlineSize(body) > body.getBoundingClientRect().width + 0.5;
+      reads.push({ el, over, text: over ? (body?.textContent ?? "") : "" });
+    }
+    for (const { el, over, text } of reads) {
+      const was = el.dataset.overflow != null;
       if (over) {
-        el.dataset.overflow = "";
-        el.title = body?.textContent ?? "";
-      } else if (el.dataset.overflow != null) {
+        if (!was) el.dataset.overflow = "";
+        if (el.title !== text) el.title = text;
+      } else if (was) {
         delete el.dataset.overflow;
         el.removeAttribute("title");
       }
     }
-  });
+  }, [
+    columnWidths,
+    headerFloors,
+    contentWidth,
+    hashColumns,
+    cellFontSize,
+    cellPadding,
+    rows,
+    virtualRows,
+    pageRows,
+    data,
+  ]);
 
   /** What a resize handle announces as its lower bound: the column's own
    *  `minWidth` in px when it declares one, else the measured global floor,
@@ -1803,21 +1814,25 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (!leaf) return 0;
       const targets = resizeTargets(idx);
       const declared = (k: number) => floors[k] ?? 0;
-      const common = Math.max(declared(idx), groupFloorFor(targets, startWidths, groupConstraints));
-      let v = Math.max(common, Math.round((startWidths[idx] ?? 0) + dx));
       const next = idx + 1;
       const pair =
         neighbour &&
         targets.length === 1 &&
         next < visibleLeaves.length &&
         resizableColumnIds.has(visibleLeaves[next]?.id ?? "");
+      // In pair mode the two columns trade width, so a group holding both
+      // keeps its sum and cannot bind; only groups holding one of them do.
+      const groups = pair
+        ? groupConstraints.filter(
+            (g) => !(g.leafIndices.includes(idx) && g.leafIndices.includes(next)),
+          )
+        : groupConstraints;
+      const common = Math.max(declared(idx), groupFloorFor(targets, startWidths, groups));
+      let v = Math.max(common, Math.round((startWidths[idx] ?? 0) + dx));
       let nextWidth = 0;
       if (pair) {
         const total = Math.round((startWidths[idx] ?? 0) + (startWidths[next] ?? 0));
-        const nextFloor = Math.max(
-          declared(next),
-          groupFloorFor([next], startWidths, groupConstraints),
-        );
+        const nextFloor = Math.max(declared(next), groupFloorFor([next], startWidths, groups));
         v = Math.min(v, total - nextFloor);
         nextWidth = total - v;
       }
@@ -1887,15 +1902,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const dx = r.rtl ? -delta.dx : delta.dx;
       const landed = applyResize(r.idx, r.startWidths, dx, r.floors, r.neighbour);
       const wanted = Math.round((r.startWidths[r.idx] ?? 0) + dx);
-      // Clamped up: at a floor (its own, or a group title's).
+      // Clamped up: at a floor (its own, or a group title's). Clamped down:
+      // at a cap (Shift+drag, the neighbour at its floor).
       const atFloor = landed > wanted;
+      const atCap = landed < wanted;
       const vp = containerRef.current;
       if (vp) {
         if (atFloor) vp.dataset.atFloor = "";
         else delete vp.dataset.atFloor;
+        if (atCap) vp.dataset.atCap = "";
+        else delete vp.dataset.atCap;
       }
       const id = visibleLeaves[r.idx]?.id;
-      if (id) showReadout(id, landed, atFloor, false);
+      if (id) showReadout(id, landed, atFloor, false, atCap);
     },
     onEnd: () => {
       const r = resizeRef.current;
@@ -1905,6 +1924,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
       if (vp) {
         delete vp.dataset.resizing;
         delete vp.dataset.atFloor;
+        delete vp.dataset.atCap;
       }
       hideReadout();
     },
@@ -1935,11 +1955,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const resizeColumnByKey = useCallback(
     (columnId: string, headerCell: HTMLElement, ev: KeyboardEvent<HTMLDivElement>) => {
       const key = ev.key;
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
       const isArrow = key === "ArrowLeft" || key === "ArrowRight";
       const isPage = key === "PageUp" || key === "PageDown";
       const isFit = key === "Enter" || key === " " || key === "End";
       if (!isArrow && !isPage && !isFit && key !== "Home" && key !== "Escape") return;
       ev.preventDefault();
+      // The grid's own handler sits above: Enter would open an editor on the
+      // active cell, Escape clear the range. These keys belong to the handle.
+      ev.stopPropagation();
       const startWidths = measureLeafWidths(headerCell);
       const idx = visibleLeaves.findIndex((c) => c.id === columnId);
       if (!startWidths || idx < 0) return;
@@ -1978,7 +2002,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         target = current + dir * step;
       }
       const landed = applyResize(idx, startWidths, target - current, floors);
-      showReadout(columnId, landed, landed > Math.round(target), true);
+      showReadout(columnId, landed, landed > Math.round(target), true, landed < Math.round(target));
     },
     [measureLeafWidths, applyResize, visibleLeaves, measureFloors, autoFitColumn, showReadout],
   );
@@ -2693,7 +2717,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             data-at-floor={readout.atFloor || undefined}
             data-leaving={readout.leaving || undefined}
           >
-            {formatColumnWidth(readout.px, unitPx, readout.atFloor)}
+            {formatColumnWidth(readout.px, unitPx, readout.atFloor, readout.atCap)}
           </span>
         )}
         {isLocked && <div aria-hidden="true" className={styles.lockedEdge} />}

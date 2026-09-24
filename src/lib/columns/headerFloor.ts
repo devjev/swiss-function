@@ -46,8 +46,8 @@ export function narrowestWidthForLines(
 }
 
 /** Lines of text a row of `rowHeight` px can hold at `leading` px per line,
- *  keeping `breathing` px free (half a unit: a two-line row is 60px, not a
- *  48px stack of two bare lines). Never below one. */
+ *  keeping `breathing` px free (half a unit, so a two-line row is 60px: two
+ *  lines plus the breathing). Never below one. */
 export function cellLines(rowHeight: number, leading: number, breathing: number): number {
   if (!(leading > 0)) return 1;
   return Math.max(1, Math.floor((rowHeight - breathing) / leading));
@@ -69,6 +69,28 @@ export function contentInlineSize(el: HTMLElement): number {
   const w = range.getBoundingClientRect().width;
   range.detach();
   return w;
+}
+
+/** The width an element's contents would take on one line. On a nowrap
+ *  body that is its run; on a wrapped body (`overflow: "wrap"`) the run is
+ *  folded into lines and its rect is the box, so the lines are summed, plus
+ *  the space each break collapsed (a third of the font size, close to a
+ *  space's advance). This is what auto-fit reads: the width at which the
+ *  value fits on one line. */
+export function contentRunWidth(el: HTMLElement): number {
+  const cs = getComputedStyle(el);
+  if (cs.whiteSpace === "nowrap" || cs.whiteSpace === "pre") return contentInlineSize(el);
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const rects = Array.from(range.getClientRects());
+  range.detach();
+  if (rects.length <= 1) return rects[0]?.width ?? 0;
+  // One rect per line fragment; fragments on the same line (an inline child)
+  // are summed the same way, which is right for a run.
+  const sum = rects.reduce((acc, r) => acc + r.width, 0);
+  const breaks = new Set(rects.map((r) => Math.round(r.top))).size - 1;
+  const space = (Number.parseFloat(cs.fontSize) || 0) / 3;
+  return sum + Math.max(0, breaks) * space;
 }
 
 /** The width a header cell needs so that its label stays on `lines` lines

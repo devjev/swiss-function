@@ -509,6 +509,8 @@ export function HeaderFloorHarness({
   headerLines,
   expandedGroup,
   fitAllButton,
+  filterToggle,
+  hiddenAtMount,
 }: {
   containerWidth?: number;
   sortable?: boolean;
@@ -520,8 +522,15 @@ export function HeaderFloorHarness({
   expandedGroup?: boolean;
   /** A button that calls `apiRef.current.autoFitColumns()`. */
   fitAllButton?: boolean;
+  /** A button that toggles `filterableColumns` after mount. */
+  filterToggle?: boolean;
+  /** Mount inside a hidden box (as a kept-mounted tab would), with a button
+   *  that reveals it. */
+  hiddenAtMount?: boolean;
 }) {
   const apiRef = useRef<DataTableHandle>(null);
+  const [filterOn, setFilterOn] = useState(!!filterable);
+  const [shown, setShown] = useState(!hiddenAtMount);
   if (expandedGroup) {
     const columns: ColumnDef<BgRow>[] = [
       { id: "region", header: "Region", accessor: "region", width: 8 },
@@ -560,19 +569,36 @@ export function HeaderFloorHarness({
       data={BG_ROWS}
       columns={columns}
       height={220}
-      filterableColumns={filterable}
+      filterableColumns={filterOn}
       frozenColumns={frozen ? 1 : 0}
       apiRef={apiRef}
     />
   );
   const wrapped =
     containerWidth != null ? <div style={{ width: containerWidth }}>{table}</div> : table;
-  if (!fitAllButton) return wrapped;
+  if (hiddenAtMount) {
+    return (
+      <div>
+        <button type="button" onClick={() => setShown(true)}>
+          Reveal
+        </button>
+        <div hidden={!shown}>{wrapped}</div>
+      </div>
+    );
+  }
+  if (!fitAllButton && !filterToggle) return wrapped;
   return (
     <div>
-      <button type="button" onClick={() => apiRef.current?.autoFitColumns()}>
-        Fit all
-      </button>
+      {fitAllButton && (
+        <button type="button" onClick={() => apiRef.current?.autoFitColumns()}>
+          Fit all
+        </button>
+      )}
+      {filterToggle && (
+        <button type="button" onClick={() => setFilterOn((v) => !v)}>
+          Toggle filters
+        </button>
+      )}
       {wrapped}
     </div>
   );
@@ -594,9 +620,11 @@ const NOTE_ROWS: NoteRow[] = [
 export function CellOverflowHarness({
   mode,
   rowHeight,
+  cellPadding,
 }: {
   mode: "clamp" | "wrap" | "hash";
   rowHeight?: number;
+  cellPadding?: "xs" | "sm" | "md" | "lg";
 }) {
   // The name column comes last: the last column stretches to the mount
   // width, and the two under test must stay at their declared widths.
@@ -606,6 +634,12 @@ export function CellOverflowHarness({
     { id: "name", header: "Name", accessor: "name", width: 5 },
   ];
   return (
-    <DataTable<NoteRow> data={NOTE_ROWS} columns={columns} height={260} rowHeight={rowHeight} />
+    <DataTable<NoteRow>
+      data={NOTE_ROWS}
+      columns={columns}
+      height={260}
+      rowHeight={rowHeight}
+      cellPadding={cellPadding}
+    />
   );
 }

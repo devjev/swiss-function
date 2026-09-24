@@ -234,8 +234,8 @@
   text-wrap: balance;
 }
 
-/* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
-   header text so it reads as a quiet indicator, not a glyph. An unsorted
+/* Sort direction arrow: a slim ↑/↓ in the accent colour, smaller than the
+   header text, so it reads as a quiet indicator beside the title. An unsorted
    sortable column reserves the same box with a hidden glyph, so the title
    does not shift and the floor does not grow when it is sorted. */
 .sortArrow {
@@ -343,6 +343,19 @@
 .viewport[data-resizing][data-at-floor]:dir(rtl) .cell,
 .viewport[data-resizing][data-at-floor]:dir(rtl) .headerCell {
   cursor: w-resize;
+}
+
+/* At a cap (Shift+drag with the neighbour at its floor) the arrow points the
+   other way: only narrower. */
+.viewport[data-resizing][data-at-cap],
+.viewport[data-resizing][data-at-cap] .cell,
+.viewport[data-resizing][data-at-cap] .headerCell {
+  cursor: w-resize;
+}
+.viewport[data-resizing][data-at-cap]:dir(rtl),
+.viewport[data-resizing][data-at-cap]:dir(rtl) .cell,
+.viewport[data-resizing][data-at-cap]:dir(rtl) .headerCell {
+  cursor: e-resize;
 }
 
 /* The width readout while a column is dragged or keyed: unit multiples and

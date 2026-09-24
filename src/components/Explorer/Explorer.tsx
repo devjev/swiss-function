@@ -39,6 +39,7 @@ import { KEY_RESIZE_STEP_COARSE_PX, KEY_RESIZE_STEP_PX } from "../../lib/columns
 import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
+import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { cx } from "../../lib/cx";
 import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
 import { useDitheredFill } from "../../lib/effects";
@@ -314,35 +315,19 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // rendered header (padding, chrome, the one-line title), the floor raises
   // the declared minimum in the template, the drag, the keyboard step,
   // auto-fit and the handle's aria-valuemin. Same rule as DataTable.
-  const [headerFloors, setHeaderFloors] = useState<Record<string, number>>({});
-  const [fontsTick, setFontsTick] = useState(0);
-  useEffect(() => {
-    let live = true;
-    document.fonts?.ready.then(() => {
-      if (live) setFontsTick((n) => n + 1);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the density props, the funnel and the font tick change what the header measures
-  useLayoutEffect(() => {
+  const headerRowRef = useRef<HTMLDivElement>(null);
+  const headerFloors = useHeaderNeeds(headerRowRef, () => {
     const row = headerRowRef.current;
-    if (!row) return;
     const next: Record<string, number> = {};
+    if (!row) return next;
     orderedColumns.forEach((col, i) => {
       const cell = row.children[i] as HTMLElement | undefined;
       const label = cell?.querySelector<HTMLElement>(`.${styles.headerLabel}`);
       if (!cell || !label) return;
       next[col.id] = measureHeaderNeed(cell, { label });
     });
-    setHeaderFloors((prev) => {
-      const keys = Object.keys(next);
-      const same =
-        keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
-      return same ? prev : next;
-    });
-  }, [orderedColumns, cellFontSize, cellPadding, filterableColumns, fontsTick]);
+    return next;
+  }, [orderedColumns, cellFontSize, cellPadding, filterableColumns]);
   /** The px floor of a column: its declared minimum raised to its header need. */
   const columnFloorPx = (col: ExplorerColumn<M>): number =>
     combineFloor(col.minWidth ?? MIN_COL_PX, headerFloors[col.id]);
@@ -530,7 +515,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
 
   // --- Virtualization -----------------------------------------------------
   const viewportRef = useRef<HTMLDivElement>(null);
-  const headerRowRef = useRef<HTMLDivElement>(null);
 
   // Mirror the sticky header's measured width onto the body. The header spans
   // the full scroll width, but the body (`inline-size: 100%`) shrinks to the

@@ -20,7 +20,12 @@ export const READOUT_FADE_MS = 400;
 /** The width readout's text: the width in `--sf-unit` multiples (up to two
  *  decimals, trailing zeros dropped) and in px, and "min" at the floor. Falls
  *  back to px alone until the unit is measured. */
-export function formatColumnWidth(px: number, unitPx: number | null, atFloor: boolean): string {
+export function formatColumnWidth(
+  px: number,
+  unitPx: number | null,
+  atFloor: boolean,
+  atCap = false,
+): string {
   const rounded = Math.round(px);
   const parts: string[] = [];
   if (unitPx != null && unitPx > 0) {
@@ -29,6 +34,7 @@ export function formatColumnWidth(px: number, unitPx: number | null, atFloor: bo
   }
   parts.push(`${rounded}px`);
   if (atFloor) parts.push("min");
+  else if (atCap) parts.push("max");
   return parts.join(" · ");
 }
 

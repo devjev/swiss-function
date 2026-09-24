@@ -2043,3 +2043,114 @@ test("a group title constrains its leaves: a leaf stops where the group title wo
   expect(Math.abs(a.width + b.width - g1.width)).toBeLessThanOrEqual(1);
   await expectTitleWhole(group);
 });
+
+// --- Review fixes (issue #102) ----------------------------------------------
+
+test("turning filters on re-measures the floor: the funnel is part of it from then on", async ({
+  mount,
+}) => {
+  const c = await mount(<HeaderFloorHarness filterToggle />);
+  const handle = c.locator('[data-column-id="value"]');
+  const before = Number(await handle.getAttribute("aria-valuemin"));
+  await c.getByRole("button", { name: "Toggle filters" }).click();
+  await expect(c.getByRole("columnheader", { name: "Value" }).getByRole("button")).toBeVisible();
+  await expect
+    .poll(async () => Number(await handle.getAttribute("aria-valuemin")))
+    .toBeGreaterThan(before);
+});
+
+test("the handle's keys stay on the handle: Enter does not open an editor, Escape keeps the selection", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} editable />);
+  const cell = c.getByRole("gridcell").filter({ hasText: "Alice" });
+  await cell.click();
+  await expect(cell).toHaveAttribute("data-active", "true");
+  const handle = c.locator('[data-column-id="name"]');
+  await handle.focus();
+  await page.keyboard.press("Enter");
+  await expect(c.locator("[data-editing]")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(cell).toHaveAttribute("data-active", "true");
+  // Ctrl+Space is the grid's column select, not a fit.
+  const before = await c.getByRole("columnheader", { name: "name" }).boundingBox();
+  await page.keyboard.press("Control+ ");
+  const after = await c.getByRole("columnheader", { name: "name" }).boundingBox();
+  expect(after?.width).toBe(before?.width);
+});
+
+test("auto-fit reads the density's padding: at lg a fitted hash cell shows its number", async ({
+  mount,
+}) => {
+  const c = await mount(<CellOverflowHarness mode="hash" cellPadding="lg" />);
+  const wide = c.getByRole("gridcell").filter({ hasText: "1'234'567.89" });
+  await expect(wide).toHaveAttribute("data-overflow");
+  await c.locator('[data-column-id="amount"]').dblclick();
+  await expect(wide).not.toHaveAttribute("data-overflow");
+});
+
+// --- Review fixes, second batch (issue #102) ---------------------------------
+
+test("a table mounted hidden measures its floors when revealed", async ({ mount }) => {
+  const c = await mount(<HeaderFloorHarness hiddenAtMount />);
+  await c.getByRole("button", { name: "Reveal" }).click();
+  const handle = c.locator('[data-column-id="region"]');
+  await expect
+    .poll(async () => Number(await handle.getAttribute("aria-valuemin")))
+    .toBeGreaterThan(120);
+});
+
+test("Shift+drag inside a group trades width freely: the group's sum holds, so only the own floors bind", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<HeaderFloorHarness expandedGroup />);
+  const q1 = c.getByRole("columnheader", { name: "Q1" });
+  const q2 = c.getByRole("columnheader", { name: "Q2" });
+  const a0 = await q1.boundingBox();
+  const b0 = await q2.boundingBox();
+  if (!a0 || !b0) throw new Error("missing boxes");
+  const total = a0.width + b0.width;
+  const handle = c.locator('[data-column-id="q1"]');
+  const shiftDrag = async (dx: number) => {
+    const box = await handle.boundingBox();
+    if (!box) throw new Error("missing handle box");
+    await page.keyboard.down("Shift");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+  };
+  // Left: Q1 reaches its own 72px floor (the pair's sum never breaches the title).
+  await shiftDrag(-400);
+  let a = await q1.boundingBox();
+  let b = await q2.boundingBox();
+  if (!a || !b) throw new Error("missing boxes");
+  expect(Math.abs(a.width - 72)).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.width + b.width - total)).toBeLessThanOrEqual(1);
+  // Right: Q2 reaches its floor and Q1 takes the rest.
+  await shiftDrag(400);
+  a = await q1.boundingBox();
+  b = await q2.boundingBox();
+  if (!a || !b) throw new Error("missing boxes");
+  expect(Math.abs(b.width - 72)).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.width + b.width - total)).toBeLessThanOrEqual(1);
+});
+
+test("auto-fit on a wrap column is the width at which the value takes one line", async ({
+  mount,
+}) => {
+  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={60} />);
+  const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
+  const before = await cell.boundingBox();
+  await c.locator('[data-column-id="note"]').dblclick();
+  const after = await cell.boundingBox();
+  if (!before || !after) throw new Error("missing boxes");
+  expect(after.width).toBeGreaterThan(before.width * 2);
+  const bodyH = await cell.evaluate(
+    (el) => (el.querySelector("span") as HTMLElement).getBoundingClientRect().height,
+  );
+  expect(bodyH).toBeLessThanOrEqual(25);
+});
