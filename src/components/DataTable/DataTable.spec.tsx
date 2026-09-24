@@ -610,7 +610,7 @@ test("columnFill: virtualized body keeps the header's column widths when the vie
       containerWidth={480}
     />,
   );
-  const headerRow = c.locator('[class*="headerRow"]').first();
+  const headerRow = c.locator('[class*="headerBlock"]').first();
   const bodyRow = c.locator('[class*="body"] [role="row"]').first();
 
   // The body's resolved grid tracks must equal the header's (they diverge before
@@ -760,7 +760,7 @@ test("scrollSnap: the snap origin clears a header taller than the default 1.5u (
 }) => {
   const c = await mount(<SnapTallHeaderHarness />);
   const vp = c.locator('[class*="viewport"]').first();
-  const header = vp.locator('[class*="headerRow"]').first();
+  const header = vp.locator('[class*="headerBlock"]').first();
 
   // The two-line header is taller than a default 1.5u header row (~24px).
   const headerH = await header.evaluate((el) => Math.round(el.getBoundingClientRect().height));
@@ -776,7 +776,7 @@ test("scrollSnap: the snap origin clears a header taller than the default 1.5u (
   // data row sits fully below the sticky header rather than clipped behind it.
   await vp.evaluate((el) => el.scrollTo({ top: 0 }));
   const gap = await vp.evaluate((el) => {
-    const h = el.querySelector('[class*="headerRow"]') as HTMLElement;
+    const h = el.querySelector('[class*="headerBlock"]') as HTMLElement;
     const row = el.querySelector('[class*="body"] [role="row"]') as HTMLElement;
     return Math.round(row.getBoundingClientRect().top - h.getBoundingClientRect().bottom);
   });
@@ -786,7 +786,7 @@ test("scrollSnap: the snap origin clears a header taller than the default 1.5u (
 test("scrollSnap: a default header keeps the ~1.5u snap origin", async ({ mount }) => {
   const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} scrollSnap="rows" />);
   const vp = c.locator('[class*="viewport"]').first();
-  const header = vp.locator('[class*="headerRow"]').first();
+  const header = vp.locator('[class*="headerBlock"]').first();
   const headerH = await header.evaluate((el) => Math.round(el.getBoundingClientRect().height));
   const pad = await vp.evaluate((el) => Number.parseFloat(getComputedStyle(el).scrollPaddingTop));
   // The measured origin matches the real (default-height) header, so the normal
@@ -825,7 +825,7 @@ test("columns shrink to fit a narrow container, then scroll with the header span
   const m2 = await vp.evaluate((el) => ({ s: el.scrollWidth, c: el.clientWidth }));
   expect(m2.s).toBeGreaterThan(m2.c); // can't fit even at min → scrolls
   const headerW = await over
-    .locator('[class*="headerRow"]')
+    .locator('[class*="headerBlock"]')
     .first()
     .evaluate((el) => Math.round(el.getBoundingClientRect().width));
   expect(headerW).toBeGreaterThan(m2.c); // header background spans the full content, not the viewport
@@ -851,13 +851,30 @@ test("merge: a suppressed edge resolves to the no-op shadow", async ({ mount }) 
   expect(edgeB).toBe("0 0 transparent");
 });
 
-test("merge: an ungrouped leaf header fills the full header height", async ({ mount }) => {
+test("merge: an ungrouped leaf header is one key across the full header height", async ({
+  mount,
+}) => {
   const c = await mount(<MergeHarness />);
-  // "Department" is ungrouped, so its placeholder above merges down.
-  const placeholders = c.locator('[role="columnheader"][data-merge-bottom]');
-  await expect(placeholders.first()).toBeVisible();
-  // The grouped "2026" header colspans its two quarter columns (existing behaviour).
-  await expect(c.getByRole("columnheader", { name: "2026" })).toBeVisible();
+  // "Department" is ungrouped: TanStack's placeholder above it is not rendered,
+  // and the real header spans both header rows as one cell (issue #101).
+  const dept = c.getByRole("columnheader", { name: /Department/ });
+  await expect(dept).toHaveAttribute("data-span-rows", "true");
+  const group = c.getByRole("columnheader", { name: "2026" });
+  await expect(group).toBeVisible();
+  const deptBox = await dept.boundingBox();
+  const groupBox = await group.boundingBox();
+  if (!deptBox || !groupBox) throw new Error("missing bounding box");
+  expect(deptBox.y).toBeLessThanOrEqual(groupBox.y + 1);
+  expect(deptBox.height).toBeGreaterThan(groupBox.height * 1.8);
+  // No empty placeholder header cells remain anywhere in the header.
+  const empty = await c
+    .locator('[role="columnheader"]')
+    .evaluateAll(
+      (els) =>
+        els.filter((el) => (el.textContent ?? "").trim() === "" && !el.getAttribute("aria-label"))
+          .length,
+    );
+  expect(empty).toBe(0);
 });
 
 test("frozen columns stay pinned while the rest scroll horizontally", async ({ mount, page }) => {
@@ -1533,16 +1550,25 @@ test("the handle announces the column's own minimum", async ({ mount }) => {
 
 // --- Merged header keys carry their title centred (issue #101) -----------
 
-test("a collapsed group beside an expanded one centres its title on the key", async ({ mount }) => {
+test("a collapsed group beside an expanded one is one key spanning both header rows", async ({
+  mount,
+}) => {
   const c = await mount(<CollapsedGroupHarness />);
   const merged = c.getByRole("columnheader", { name: /Numbers/ });
-  await expect(merged).toHaveAttribute("data-merge-top", "true");
-  const cell = await merged.boundingBox();
+  const plain = c.getByRole("columnheader", { name: "Region again" });
+  await expect(merged).toHaveAttribute("data-span-rows", "true");
+  const key = await merged.boundingBox();
+  const one = await plain.boundingBox();
   const label = await merged.locator("span").first().boundingBox();
-  if (!cell || !label) throw new Error("missing bounding box");
-  // The key paints across both header rows, so the title must sit above this
-  // cell's own centre — it used to sit in the middle of the lower row.
-  expect(label.y + label.height / 2).toBeLessThan(cell.y + cell.height / 2 - 4);
+  const handle = await merged.locator('[data-column-id="grp::placeholder"]').boundingBox();
+  if (!key || !one || !label || !handle) throw new Error("missing bounding box");
+  // One box, two rows tall: no placeholder cell above it any more.
+  expect(key.height).toBeGreaterThanOrEqual(one.height * 2 - 1);
+  expect(key.y).toBeLessThan(one.y);
+  // The title sits in the middle of that box, and the resize handle runs the
+  // full height of it, not just the lower row.
+  expect(Math.abs(label.y + label.height / 2 - (key.y + key.height / 2))).toBeLessThan(3);
+  expect(handle.height).toBeGreaterThanOrEqual(key.height - 1);
   // A collapsed group keeps the tint it declared.
   await expect(merged).toHaveAttribute("data-tinted", "true");
 });

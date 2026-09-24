@@ -986,37 +986,23 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // the real header block and publish it as `--sf-header-block-size`, which the
   // snap padding reads. A layout effect, so the correct padding is in place
   // before the browser computes the initial rest position.
-  const headerGroupCount = table.getHeaderGroups().length;
   const [headerBlockSize, setHeaderBlockSize] = useState<number | null>(null);
   useLayoutEffect(() => {
     const snapRows = scrollSnap === "rows" || scrollSnap === "both";
-    const first = headerRowRef.current;
-    if (!snapRows || !first) {
+    const block = headerRowRef.current;
+    if (!snapRows || !block) {
       setHeaderBlockSize(null);
       return;
     }
-    // The header rows are the contiguous first siblings of the body; walk them so
-    // a multi-group header (or any header row growing) is measured, not just the
-    // first. The block height is the last row's bottom minus the first's top,
-    // which stays correct while the sticky header is pinned mid-scroll.
-    const rows: HTMLElement[] = [];
-    for (
-      let el: Element | null = first;
-      el && rows.length < headerGroupCount;
-      el = el.nextElementSibling
-    ) {
-      rows.push(el as HTMLElement);
-    }
-    const last = rows[rows.length - 1] ?? first;
-    const measure = () => {
-      const height = last.getBoundingClientRect().bottom - first.getBoundingClientRect().top;
-      setHeaderBlockSize(Math.round(height));
-    };
+    // The whole header is one grid (every header group a row of it), so its
+    // own box is the block height, and it stays correct while the sticky
+    // header is pinned mid-scroll.
+    const measure = () => setHeaderBlockSize(Math.round(block.getBoundingClientRect().height));
     measure();
     const ro = new ResizeObserver(measure);
-    for (const row of rows) ro.observe(row);
+    ro.observe(block);
     return () => ro.disconnect();
-  }, [scrollSnap, headerGroupCount]);
+  }, [scrollSnap]);
 
   // --- Selection ---
   const colCount = visibleLeaves.length;
@@ -2008,7 +1994,19 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   /** Render one header cell. `dnd` (from `SortableHeaderCell`) makes it a draggable
    *  sortable item; omitted for group/placeholder/non-reorderable headers. */
-  const renderHeaderCell = (header: Header<T, unknown>, dnd?: HeaderDnd): ReactNode => {
+  /** Where a header cell sits in the header grid: its row (0-based) and how
+   *  many rows it spans. A cell spans more than one row when TanStack put
+   *  placeholder headers above it (an ungrouped leaf, a collapsed group, a
+   *  shallow group in a deeper tree): the placeholders are not rendered and the
+   *  real header takes their rows, so it is one key with its title, chevron and
+   *  resize handle in one box (issue #101). */
+  type HeaderPlacement = { row: number; rowSpan: number };
+
+  const renderHeaderCell = (
+    header: Header<T, unknown>,
+    place: HeaderPlacement,
+    dnd?: HeaderDnd,
+  ): ReactNode => {
     const span = header.colSpan;
     // Freeze a header cell only when its whole leaf span sits inside the frozen
     // region (a group straddling the boundary scrolls — documented).
@@ -2057,7 +2055,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
         )}
         style={
           {
-            gridColumn: `span ${span}`,
+            gridColumn:
+              leafStart >= 0
+                ? `${leafStart + 1 + (rowNumbers ? 1 : 0)} / span ${span}`
+                : `span ${span}`,
+            gridRow: `${place.row + 1} / span ${place.rowSpan}`,
             ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
             ...(headerColor != null ? { "--sf-header-color": headerColor } : {}),
             ...dnd?.style,
@@ -2072,13 +2074,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-frozen-edge={isFrozenEdge || undefined}
         data-filtered={isFiltered || undefined}
         data-selected={colSelected || undefined}
-        // A placeholder sits above an ungrouped leaf's real header — erase the seam
-        // below it (and the key's shade band) so the column reads as one
-        // full-height header; the leaf underneath drops its lit band likewise.
-        data-merge-bottom={header.isPlaceholder || undefined}
-        data-merge-top={
-          (isLeafHeader && headerGroupCount > 1 && !header.column.parent) || undefined
-        }
+        // Spans the rows its placeholders occupied: one tall key, one face.
+        data-span-rows={place.rowSpan > 1 || undefined}
         // The sorted column's header sits pressed (see .headerCell[data-sorted]).
         data-sorted={sortDir || undefined}
         onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
@@ -2188,9 +2185,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
             height: fillHeight ? height : undefined,
             maxHeight: fillHeight ? undefined : height,
             "--sf-row-height": `${rowHeight}px`,
-            "--sf-header-rows": headerGroups.length,
             // Measured sticky-header height for the scroll-snap origin (issue #88);
             // absent before measurement, when the CSS fallback (1.5u per group) holds.
+            "--sf-header-rows": headerGroups.length,
             ...(headerBlockSize != null
               ? { "--sf-header-block-size": `${headerBlockSize}px` }
               : {}),
@@ -2223,53 +2220,85 @@ export function DataTable<T>(props: DataTableProps<T>) {
           {/* Headers — one row per header group; parent groups span their leaves.
             With `reorderableColumns`, leaf headers are sortable (drag to reorder). */}
           {(() => {
-            const headerRows = headerGroups.map((hg, hgIndex) => (
-              <div
-                key={hg.id}
-                ref={hgIndex === 0 ? headerRowRef : undefined}
-                className={styles.headerRow}
-                role="row"
-              >
-                {/* Corner cell over the row-number gutter. Only the leaf header
-                    row carries the select-all behavior; rows above it render a
-                    merged, inert continuation so the corner reads as one cell. */}
-                {rowNumbers &&
-                  (hgIndex === headerGroups.length - 1 ? (
-                    <div
-                      role="columnheader"
-                      aria-label="Select all cells"
-                      className={styles.cornerCell}
-                      data-frozen-edge={frozenCount === 0 || undefined}
-                      onPointerDown={(e) => {
-                        if (e.button === 0) selectAll();
-                      }}
-                    />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className={styles.cornerCell}
-                      data-merge-bottom
-                      data-frozen-edge={frozenCount === 0 || undefined}
-                    />
-                  ))}
-                {hg.headers.map((header) => {
-                  const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
-                  return reorderableColumns && isLeaf ? (
-                    <SortableHeaderCell
-                      key={header.id}
-                      // Namespaced in own-context mode too: one code path, and
-                      // ids stay collision-free if a provider appears later.
-                      id={sortableId(header.column.id)}
-                      regionId={shared ? regionId : undefined}
-                      data={{ columnId: header.column.id }}
-                      render={(dnd) => renderHeaderCell(header, dnd)}
-                    />
-                  ) : (
-                    renderHeaderCell(header)
-                  );
-                })}
+            // A column's real header sits directly above its children, and
+            // TanStack fills the rows above it (up to the top) with placeholder
+            // headers for the same column when its parent chain runs out. Those
+            // placeholders are skipped and the real header spans their rows.
+            const placeholderRows = new Map<string, number[]>();
+            headerGroups.forEach((hg, r) => {
+              for (const h of hg.headers) {
+                if (!h.isPlaceholder) continue;
+                const rows = placeholderRows.get(h.column.id) ?? [];
+                rows.push(r);
+                placeholderRows.set(h.column.id, rows);
+              }
+            });
+            const placementOf = (header: Header<T, unknown>, r: number): HeaderPlacement => {
+              const above = placeholderRows.get(header.column.id) ?? [];
+              // Walk up while the row directly above is a placeholder of ours.
+              let top = r;
+              while (above.includes(top - 1)) top -= 1;
+              return { row: top, rowSpan: r - top + 1 };
+            };
+            // A placeholder is absorbed when the real header below it will span
+            // its row; one that is not (never, in TanStack's layout, but the
+            // fallback keeps the grid intact) renders as an empty cell.
+            const absorbed = (header: Header<T, unknown>, r: number): boolean => {
+              if (!header.isPlaceholder) return false;
+              for (let k = r + 1; k < headerGroups.length; k++) {
+                const real = headerGroups[k]?.headers.find(
+                  (h) => h.column.id === header.column.id && !h.isPlaceholder,
+                );
+                if (real) return placementOf(real, k).row <= r;
+                const stillPlaceholder = headerGroups[k]?.headers.some(
+                  (h) => h.column.id === header.column.id && h.isPlaceholder,
+                );
+                if (!stillPlaceholder) return false;
+              }
+              return false;
+            };
+            const headerRows = (
+              <div ref={headerRowRef} className={styles.headerBlock} role="rowgroup">
+                {/* Corner cell over the row-number gutter: one cell across every
+                    header row, so the select-all target is the whole corner. */}
+                {rowNumbers && (
+                  <div
+                    role="columnheader"
+                    aria-label="Select all cells"
+                    className={styles.cornerCell}
+                    style={{ gridColumn: 1, gridRow: `1 / span ${headerGroups.length}` }}
+                    data-frozen-edge={frozenCount === 0 || undefined}
+                    onPointerDown={(e) => {
+                      if (e.button === 0) selectAll();
+                    }}
+                  />
+                )}
+                {headerGroups.map((hg, hgIndex) => (
+                  <div key={hg.id} className={styles.headerRow} role="row">
+                    {hg.headers.map((header) => {
+                      if (absorbed(header, hgIndex)) return null;
+                      const place = header.isPlaceholder
+                        ? { row: hgIndex, rowSpan: 1 }
+                        : placementOf(header, hgIndex);
+                      const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
+                      return reorderableColumns && isLeaf ? (
+                        <SortableHeaderCell
+                          key={header.id}
+                          // Namespaced in own-context mode too: one code path, and
+                          // ids stay collision-free if a provider appears later.
+                          id={sortableId(header.column.id)}
+                          regionId={shared ? regionId : undefined}
+                          data={{ columnId: header.column.id }}
+                          render={(dnd) => renderHeaderCell(header, place, dnd)}
+                        />
+                      ) : (
+                        renderHeaderCell(header, place)
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
-            ));
+            );
             if (!reorderableColumns) return headerRows;
             const sortable = (
               <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>

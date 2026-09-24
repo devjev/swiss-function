@@ -115,7 +115,7 @@
    `min-width: min-content` lets it grow to the columns' total minimum width when
    they can't all fit — so on horizontal scroll the header background extends
    across every column instead of clipping at the viewport edge. */
-.headerRow {
+.headerBlock {
   /* The header keys' face (the `headerSurface` prop, a concave scoop by
      default) at a touch over half the system amplitude: slight, enough to
      read as a key next to the flat body cells. */
@@ -126,6 +126,10 @@
      per-row inline style: a column resize then mutates a single element and the
      memoized body rows bail out of re-rendering. */
   grid-template-columns: var(--sf-datatable-template);
+  /* One grid for every header group, so a header can span the rows its
+     placeholders would have taken and be one key (issue #101). Rows grow past
+     1.5u only for a consumer-grown header. */
+  grid-auto-rows: minmax(calc(var(--sf-unit) * 1.5), auto);
   width: 100%;
   min-width: min-content;
   position: sticky;
@@ -134,11 +138,18 @@
   background-color: var(--sf-color-bg-subtle);
 }
 
+/* A header group keeps its row semantics but no box: its cells are placed in
+   the block's grid directly, by explicit column start and row. */
+.headerRow {
+  display: contents;
+}
+
 /* Same per-cell edge model as body cells (see `.cell`): each header cell draws
    its own right + bottom separator via two custom properties, so a seam can be
-   erased per-column — e.g. an ungrouped leaf merging up through its empty
-   placeholder cell to fill the full header height. The bottom edge of the last
-   header row is the header/body divider.
+   erased per column. A header whose column has no parent above it (an ungrouped
+   leaf, a collapsed group) is one cell spanning those rows, so it needs no seam
+   erased at all. The bottom edge of the last header row is the header/body
+   divider.
 
    Each header is a raised key (the material layer's lit and shade bands, one
    per custom property so a merged pair can drop the band on its shared edge);
@@ -182,31 +193,12 @@
   --sf-hdr-wall: var(--sf-groove-wall);
 }
 
-/* Placeholder above an ungrouped leaf: erase the seam (and the key's shade
-   band) below it so the empty top cell reads as one full-height header with
-   the titled leaf underneath, which drops its lit band in turn. */
-.headerCell[data-merge-bottom] {
-  --sf-cell-edge-b: 0 0 transparent;
-  --sf-hdr-shade: 0 0 transparent;
-  /* One face across the merged pair: each half shows its half of a ramp
-     drawn at twice the height, so the crown runs top to bottom unbroken. */
-  background-size: 100% 200%;
-  background-position: top;
-}
-.headerCell[data-merge-top] {
-  --sf-hdr-lit: 0 0 transparent;
-  --sf-hdr-wall: 0 0 transparent;
-  background-size: 100% 200%;
-  background-position: bottom;
-}
-
-/* The pair already paints as one full-height key, but the title sat in the
-   bottom half with a blank cell over it. Lift the in-flow content by half a
-   header row so it reads as centred across the whole key, which is what the
-   merged face already promises (issue #101). The select zone and the resize
-   handle are absolutely positioned and keep their own geometry. */
-.headerCell[data-merge-top] > :not(.selectZone):not(.resizeHandle) {
-  translate: 0 calc(var(--sf-unit) * -0.75);
+/* A key that spans more than one header row (its placeholders' rows plus its
+   own) fills its grid area, so the face ramp, the edge bands and the resize
+   handle all cover the whole key and the title centres in it. */
+.headerCell[data-span-rows] {
+  block-size: auto;
+  align-self: stretch;
 }
 
 /* Sort direction arrow — a slim ↑/↓ in the accent colour, smaller than the
@@ -402,16 +394,16 @@
    from the row onto the cells leaves the leftover transparent without changing
    track widths; `min-width: max-content` holds the columns at their preferred
    width (so they don't shrink) on both the header and the body. */
-.viewport[data-column-fill] .headerRow {
+.viewport[data-column-fill] .headerBlock {
   background-color: transparent;
   min-width: max-content;
 }
 /* Fixed columns (the spreadsheet state after the first resize, `data-fixed`):
    the header and body hold the columns' total width instead of shrinking the
    tracks to the viewport, so the row scrolls when wider than the viewport and
-   leaves slack to the right when narrower. The header row keeps its own
+   leaves slack to the right when narrower. The header block keeps its own
    background across the viewport (its `width: 100%` still applies). */
-.viewport[data-fixed] .headerRow {
+.viewport[data-fixed] .headerBlock {
   min-width: max-content;
 }
 .viewport[data-fixed] .body {
@@ -548,7 +540,7 @@
 
 .row {
   display: grid;
-  /* Tracks from the viewport's --sf-datatable-template (see .headerRow). */
+  /* Tracks from the viewport's --sf-datatable-template (see .headerBlock). */
   grid-template-columns: var(--sf-datatable-template);
   min-width: min-content;
   /* Own stacking context so a frozen cell's z-index stays scoped to its row and
@@ -684,8 +676,11 @@
   cursor: pointer;
   user-select: none;
 }
-.cornerCell[data-merge-bottom] {
-  --sf-cell-edge-b: 0 0 transparent;
+/* The corner spans every header row (see the block above), so it stretches
+   past its one-row size to fill them. */
+.cornerCell {
+  block-size: auto;
+  align-self: stretch;
 }
 
 /* The column-select zone: a slim strip along a leaf header's top edge. Invisible

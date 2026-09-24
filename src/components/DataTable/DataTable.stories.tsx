@@ -957,7 +957,7 @@ export const CellBackgroundContrast: Story = () => (
     data={cellRows}
     columns={[cellColumns[0] as ColumnDef<Cellish>, cellColumns[2] as ColumnDef<Cellish>]}
     height={260}
-    cellBackground={({ value, rowIndex, columnId }) =>
+    cellBackground={({ rowIndex, columnId }) =>
       columnId !== "variance"
         ? undefined
         : rowIndex % 2 === 0
