@@ -6,6 +6,19 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.36.0 — 2026-09-24
+
+### Minor
+
+- Add PieChart (pie and donut) for a few parts of one whole: sorted slices, printed shares, a grouped long tail, a percent tick ring, and a centre readout in the donut's hole
+- BarChart: stack the series into one bar per category with 'stacked' ('percent' for the 100% mix); negatives hang below the baseline and uncoloured segments step the neutral ramp or 'dither'
+- Charts take one shared way to format numbers and labels: valueFormat, tickFormat, categoryFormat (a label naming a position) and seriesFormat (a label naming a dataset from the series prop), accepted by every chart
+
+### Patch
+
+- The part-to-whole ink ramp keeps its sparsest step readable (0.24 of the ink, not 0.14), so the last series no longer sinks into a dark-mode page; affects Marimekko as well as the new PieChart and stacked BarChart
+- Write five in-source NUL separators as escapes, so text tools stop treating DotPlot, BoxPlot, Slopegraph, AgentComposer and the Notebook graph as binary files
+
 ## v2.35.1 — 2026-09-10
 
 ### Patch
