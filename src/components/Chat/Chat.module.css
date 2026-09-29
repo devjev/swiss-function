@@ -51,15 +51,10 @@
   margin-block-start: var(--sf-unit);
 }
 
-/* User messages — right-aligned bubble with a tinted bg (~12% primary mixed
-   with the page bg) + matching hairline border, max 75% width so they don't
-   span the full column. Elevation-2 lifts the bubble off the page. */
-/* A user message is a strip of label-maker tape, not a box: bold monospace
-   letters embossed on a run of the primary colour, in the page colour, the
-   run following the lines (box-decoration-break clones the padding and the
-   edge bands onto every line fragment). The tape wears the material layer's
-   edge bands and the letters are barely raised in its light: half a pixel of
-   lit edge toward the light, half a pixel of shade away from it. Right-aligned, so it reads as the other voice. */
+/* The user's voice, whichever surface carries it: right-aligned, so it reads
+   as the other party, and capped at 75% of the column so it never spans the
+   full width. The letterforms belong to the surface, not the role: only the
+   tape stamps them in monospace. */
 .userMessage {
   align-self: flex-end;
   max-inline-size: 75%;
@@ -70,26 +65,212 @@
   display: inline;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* One unit per line, so the message stays on the grid whatever surface it
+     wears (the tape's padding overhangs the line box). */
+  line-height: var(--sf-unit);
+}
+
+/* --- Message surfaces (the `messageStyle` prop) ---------------------------
+   Four readings, chosen per role: `plain` (no surface at all, the default for
+   the assistant), `box`, `tape` (the default for the user) and `squircle`.
+   The classes below are the surfaces; the voice above is the role's. */
+
+/* The raised box: the material layer's key recipe at message scale, one light,
+   the edge bands over an elevation cast. The 1px border comes out of the
+   padding (half a unit block, one unit inline), so the block stays a whole
+   number of units tall. */
+.raised {
+  --sf-message-fill: var(--sf-color-bg-subtle);
+  padding: calc(var(--sf-unit) / 2 - 1px) calc(var(--sf-unit) - 1px);
+  border: 1px solid var(--sf-color-border-subtle);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-message-fill);
+  box-shadow: var(--sf-edge), var(--sf-elevation-2);
+}
+
+/* The squircle: the same key with a superellipse round-over (the curve
+   |x|^4 + |y|^4 = 1, which is what `corner-shape: squircle` draws), so its
+   bands are the filleted pair rather than the hard chamfer. */
+.squircle {
+  composes: raised;
+  --sq-radius: calc(var(--sf-unit) * 0.75);
+  /* The face's base colour: the dish ramp (added from `lib/surface`) rides it.
+     The scoop runs deeper than a control's: a message is a big face, and at the
+     system amplitude a ramp that wide reads as a wash rather than a hollow. */
+  --sf-cap: var(--sf-message-fill);
+  --sf-curve-scale: 0.45;
+  border-radius: var(--sq-radius);
+  box-shadow: var(--sf-edge-soft), var(--sf-elevation-2);
+}
+@supports (corner-shape: squircle) {
+  .squircle {
+    corner-shape: squircle;
+  }
+}
+
+/* The scoop belongs to the message's own face: anything sitting on it (a
+   button, a chip, a keycap) keeps the system amplitude. */
+.squircle > * {
+  --sf-curve-scale: 1;
+}
+
+/* The same curve where `corner-shape` is missing (Safari, Firefox), built by
+   hand. A mask cuts the corners of a backing element instead: four corner
+   cells carrying the curve, scaled to the radius, plus two bars for
+   everything between them. The message keeps its own box (the border stays,
+   turned transparent), so the padding and the vertical grid are identical on
+   both paths, and it paints nothing itself: a mask would cut its cast away
+   with the corners, and neither a border nor an inset band can follow a mask,
+   so the backing element redraws them as stacked shapes, the cast as the
+   drop-shadow of their parent. */
+.squircleBack {
+  display: none;
+}
+
+@supports not (corner-shape: squircle) {
+  /* Both selectors carry two classes so they beat the composed `bowl`
+     whatever order the stylesheets land in. */
+  .message.squircle,
+  .userContent.squircle {
+    background-color: transparent;
+    /* The dish rides the face element below, not the message's own box. */
+    background-image: none;
+    border-color: transparent;
+    box-shadow: none;
+    /* A stacking context, so the backing element paints behind the message's
+       own content and not behind the chat's background. */
+    isolation: isolate;
+    position: relative;
+  }
+
+  .squircleBack {
+    --sq-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' preserveAspectRatio='none'%3E%3Cpath d='M0 1L0.002 0.72L0.006 0.604L0.014 0.517L0.025 0.444L0.039 0.381L0.056 0.326L0.077 0.277L0.101 0.233L0.128 0.194L0.159 0.159L0.194 0.128L0.233 0.101L0.277 0.077L0.326 0.056L0.381 0.039L0.444 0.025L0.517 0.014L0.604 0.006L0.72 0.002L1 0L1 1Z' fill='%23fff'/%3E%3C/svg%3E");
+    --sq-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' preserveAspectRatio='none'%3E%3Cpath d='M1 1L0.998 0.72L0.994 0.604L0.986 0.517L0.975 0.444L0.961 0.381L0.944 0.326L0.923 0.277L0.899 0.233L0.872 0.194L0.841 0.159L0.806 0.128L0.767 0.101L0.723 0.077L0.674 0.056L0.619 0.039L0.556 0.025L0.483 0.014L0.396 0.006L0.28 0.002L0 0L0 1Z' fill='%23fff'/%3E%3C/svg%3E");
+    --sq-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' preserveAspectRatio='none'%3E%3Cpath d='M1 0L0.998 0.28L0.994 0.396L0.986 0.483L0.975 0.556L0.961 0.619L0.944 0.674L0.923 0.723L0.899 0.767L0.872 0.806L0.841 0.841L0.806 0.872L0.767 0.899L0.723 0.923L0.674 0.944L0.619 0.961L0.556 0.975L0.483 0.986L0.396 0.994L0.28 0.998L0 1L0 0Z' fill='%23fff'/%3E%3C/svg%3E");
+    --sq-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' preserveAspectRatio='none'%3E%3Cpath d='M0 0L0.002 0.28L0.006 0.396L0.014 0.483L0.025 0.556L0.039 0.619L0.056 0.674L0.077 0.723L0.101 0.767L0.128 0.806L0.159 0.841L0.194 0.872L0.233 0.899L0.277 0.923L0.326 0.944L0.381 0.961L0.444 0.975L0.517 0.986L0.604 0.994L0.72 0.998L1 1L1 0Z' fill='%23fff'/%3E%3C/svg%3E");
+    display: block;
+    position: absolute;
+    /* The containing block is the padding box, so the border box is 1px out. */
+    inset: -1px;
+    z-index: -1;
+    pointer-events: none;
+    filter: var(--sf-elevation-2-drop);
+  }
+
+  /* `content` only on the pseudo-elements: on a real element it is content
+     replacement, and Firefox and WebKit then paint nothing at all. */
+  .squircleBack::before,
+  .squircleBack::after {
+    content: "";
+  }
+
+  .squircleBack::before,
+  .squircleBack::after,
+  .squircleFace {
+    position: absolute;
+    mask-image:
+      var(--sq-tl), var(--sq-tr), var(--sq-br), var(--sq-bl), linear-gradient(#000, #000),
+      linear-gradient(#000, #000);
+    mask-size:
+      var(--_sq-r) var(--_sq-r),
+      var(--_sq-r) var(--_sq-r),
+      var(--_sq-r) var(--_sq-r),
+      var(--_sq-r) var(--_sq-r),
+      100% max(0px, 100% - 2 * var(--_sq-r)),
+      max(0px, 100% - 2 * var(--_sq-r)) 100%;
+    mask-position:
+      left top,
+      right top,
+      right bottom,
+      left bottom,
+      center,
+      center;
+    mask-repeat: no-repeat;
+  }
+
+  /* The hairline, the shape in the border colour; the face sits 1px inside it. */
+  .squircleBack::before {
+    --_sq-r: var(--sq-radius);
+    inset: 0;
+    background-color: var(--sf-color-border-subtle);
+  }
+
+  /* The chamfer, the next 1px in: the fill under the two bands, lit toward the
+     light and shaded away from it. */
+  .squircleBack::after {
+    --_sq-r: calc(var(--sq-radius) - 1px);
+    inset: 1px;
+    background-color: var(--sf-message-fill);
+    background-image: linear-gradient(
+      var(--sf-light-angle),
+      var(--sf-edge-lit-color),
+      rgb(0 0 0 / 0) 50%,
+      var(--sf-edge-shade-color)
+    );
+  }
+
+  /* The face, everything inside the chamfer: the same dish ramp the native
+     path paints on the message itself (the class comes from `lib/surface`). */
+  .squircleFace {
+    --_sq-r: calc(var(--sq-radius) - 2px);
+    /* Above the two rings: a pseudo-element paints after its element's real
+       children, so the chamfer would otherwise cover the face. */
+    z-index: 1;
+    --sf-cap: var(--sf-message-fill);
+    --sf-curve-scale: 0.45;
+    inset: 2px;
+    background-color: var(--sf-message-fill);
+  }
+}
+
+/* The tape: a strip of label-maker tape rather than a box. Bold letters
+   embossed on a run of the primary colour, in the page colour, the run
+   following the lines (box-decoration-break clones the padding and the edge
+   bands onto every line fragment). The foreground token is re-set, not just
+   `color`, so rendered markdown inside an assistant's tape follows it too. */
+.tape {
+  --sf-color-fg: var(--sf-color-bg);
   padding: 0.2em 0.5em;
+  /* The stamped letters of a label: monospace and bold, whoever is speaking. */
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-weight: var(--sf-font-weight-bold);
   letter-spacing: 0.02em;
   background-color: var(--sf-color-primary);
-  color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
   box-shadow: var(--sf-edge);
   /* Embossed letters: the lit edge on the light's side, the shade away from
      it, on the light vector the whole material layer reads. */
   text-shadow:
     calc(var(--sf-light-x) * 0.5px) calc(var(--sf-light-y) * 0.5px) 0 rgb(255 255 255 / 0.1),
     calc(var(--sf-light-x) * -0.5px) calc(var(--sf-light-y) * -0.5px) 0 rgb(0 0 0 / 0.12);
+}
+
+/* A run of tape on the user's line: inline, so each line fragment is its own
+   strip. */
+.userContent.tape {
+  display: inline;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  /* Room between the strips of consecutive lines, so each line reads as its
-     own piece of tape rather than one solid block. */
-  /* One unit per line: the tape's padding overhangs the line box (the
-     fragments overlap in one colour), so the message stays on the grid. */
-  line-height: var(--sf-unit);
+}
+
+/* A box or a squircle on the user's line hugs the text and keeps its own lines
+   left-aligned inside the right-aligned bubble; the fill is the primary colour
+   at a twelfth, so the voice stays marked without shouting. */
+.userContent.raised {
+  --sf-message-fill: color-mix(in oklch, var(--sf-color-primary) 12%, var(--sf-color-bg));
+  display: inline-block;
+  text-align: start;
+}
+
+/* The assistant's block spans the column (prose and rich parts read better
+   full width); its tape hugs the text instead of following each line. A block
+   box does not overhang its lines the way an inline fragment does, so the tape
+   keeps only its inline padding and stays a whole number of units tall. */
+.message.tape {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  padding-block: 0;
 }
 
 /* Input row — pinned at the bottom with a hairline above. align-items: end so
@@ -116,27 +297,32 @@
    (= 1.5u). */
 .input {
   flex: 1;
-  /* Room for the send key at the field's end. */
-  padding-inline-end: calc(var(--sf-unit) * 1.75);
   /* Auto-grow on modern browsers (Chrome 123+, Safari 17.4+, Firefox 128+).
      Older browsers fall back to single line at min-block-size. */
   field-sizing: content;
+}
+/* Everything here fights a declaration of TextEdit's own, so it needs the extra
+   `.inputRow` specificity to win regardless of which stylesheet a consumer's
+   bundler puts last: the `border` and `padding` shorthands (the padding keeps
+   the send key's corner clear, so a line wraps before it instead of running
+   under it), the `resize` handle (which would sit under the key) and the
+   groove. Hover stays neutral too. Flush with the chat's frame, the field keeps
+   only its top border (the rule under the messages); its sides and bottom would
+   double the chat's own. */
+.inputRow .input,
+.inputRow .input:hover:not(:disabled) {
+  /* Room for the send key at the field's end: the key (1.25u) plus its inset
+     and a half-unit gutter. */
+  padding-inline-end: calc(var(--sf-unit) * 2);
+  border-color: var(--sf-chat-input-border);
+  border-inline: 0;
+  border-block-end: 0;
+  border-radius: 0;
   resize: none;
   min-block-size: calc(var(--sf-unit) * 1.5);
   max-block-size: calc(var(--sf-unit) * 8);
   /* The slot: the groove recipe, as Input. */
   box-shadow: var(--sf-groove);
-}
-/* Override TextEdit's primary `border` shorthand — needs the extra `.inputRow`
-   specificity to beat it regardless of stylesheet order. Hover stays neutral too.
-   Flush with the chat's frame, the field keeps only its top border (the rule
-   under the messages); its sides and bottom would double the chat's own. */
-.inputRow .input,
-.inputRow .input:hover:not(:disabled) {
-  border-color: var(--sf-chat-input-border);
-  border-inline: 0;
-  border-block-end: 0;
-  border-radius: 0;
 }
 /* The chat clips at its frame, so the ring paints inside the field. */
 .inputRow .input:focus-visible {

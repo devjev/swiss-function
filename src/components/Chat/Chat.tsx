@@ -1,6 +1,7 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { bowlClass } from "../../lib/surface";
 import { Button, type ButtonVariant } from "../Button";
 import { ArrowUp } from "../Icon";
 import { Markdown } from "../Markdown";
@@ -15,6 +16,19 @@ import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
 export type { ChatChoice, ChatStepStatus, ChatTreeNode };
 
 export type ChatRole = "user" | "assistant";
+
+/** How a message's surface reads:
+ *  - `plain`: no surface, the text sits on the page.
+ *  - `box`: a raised box, the material layer's key at message scale.
+ *  - `tape`: a strip of label-maker tape, a run of the primary colour with
+ *    the letters embossed in the page colour.
+ *  - `squircle`: the raised box with a superellipse round-over. */
+export type ChatMessageStyle = "plain" | "box" | "tape" | "squircle";
+
+/** One style for both voices, or one per role. */
+export type ChatMessageStyles =
+  | ChatMessageStyle
+  | { user?: ChatMessageStyle; assistant?: ChatMessageStyle };
 
 /** A plain markdown / text block. */
 export interface ChatTextPart {
@@ -138,6 +152,14 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
    *  neutral `--sf-color-border` token; pass e.g. `var(--sf-color-primary)` to
    *  restore the accented look. */
   borderColor?: string;
+  /** How each voice shows up: `plain` (no surface), `box` (a raised box),
+   *  `tape` (the label-maker run) or `squircle` (the raised box with a
+   *  round-over). One value styles both roles; an object styles them apart.
+   *  Default `{ user: "tape", assistant: "plain" }`. The role keeps its place
+   *  whichever surface carries it: the user's turn is right-aligned and capped
+   *  at 75% of the column, the assistant's runs across it. The stamped
+   *  monospace letters belong to the tape, not to the user. */
+  messageStyle?: ChatMessageStyles;
   /** Container height. Default `calc(var(--sf-unit) * 20)` (= ~480px). */
   height?: number | string;
   /** Whether the input is disabled (e.g., while the assistant is still streaming). */
@@ -151,6 +173,34 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   reveal?: false | { mode?: "dramatic" | "stream"; charIntervalMs?: number; tailLength?: number };
 }
 
+/** The tape is the user's turn by default; the assistant's prose sits on the
+ *  page, as it has since the component shipped. */
+const DEFAULT_STYLE: Record<ChatRole, ChatMessageStyle> = { user: "tape", assistant: "plain" };
+
+/** The class each style paints. `plain` carries no surface at all. */
+const STYLE_CLASS: Record<ChatMessageStyle, string | undefined> = {
+  plain: undefined,
+  box: styles.raised,
+  tape: styles.tape,
+  // The squircle's face is scooped: the bowl ramp over the fill colour.
+  squircle: cx(styles.squircle, bowlClass),
+};
+
+/** The squircle's backing element. Browsers with `corner-shape` cut the
+ *  corners themselves and this stays `display: none`; the others get the same
+ *  curve from the masks it carries (see Chat.module.css). */
+const squircleBack = (style: ChatMessageStyle) =>
+  style === "squircle" ? (
+    <span className={styles.squircleBack} aria-hidden="true">
+      <span className={cx(styles.squircleFace, bowlClass)} />
+    </span>
+  ) : null;
+
+function resolveStyle(prop: ChatMessageStyles | undefined, role: ChatRole): ChatMessageStyle {
+  if (typeof prop === "string") return prop;
+  return prop?.[role] ?? DEFAULT_STYLE[role];
+}
+
 export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   {
     messages,
@@ -162,6 +212,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     sendLabel = "Send",
     sendVariant = "secondary",
     borderColor,
+    messageStyle,
     height,
     disabled,
     reveal,
@@ -422,20 +473,35 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
         onScroll={handleScroll}
       >
         <div ref={contentRef} className={styles.content}>
-          {messages.map((msg) => (
-            <article
-              key={msg.id}
-              className={cx(styles.message, msg.role === "user" && styles.userMessage)}
-              data-role={msg.role}
-              aria-label={msg.role === "user" ? "You" : "Assistant"}
-            >
-              {msg.role === "user" ? (
-                <span className={styles.userContent}>{msg.content}</span>
-              ) : (
-                renderAssistant(msg)
-              )}
-            </article>
-          ))}
+          {messages.map((msg) => {
+            const isUser = msg.role === "user";
+            const style = resolveStyle(messageStyle, msg.role);
+            // The surface goes on the user's run, so the tape follows its
+            // lines and a box hugs the text, and on the assistant's whole
+            // block, which carries prose and rich parts.
+            const surface = STYLE_CLASS[style];
+            return (
+              <article
+                key={msg.id}
+                className={cx(styles.message, isUser ? styles.userMessage : surface)}
+                data-role={msg.role}
+                data-style={style}
+                aria-label={isUser ? "You" : "Assistant"}
+              >
+                {isUser ? (
+                  <span className={cx(styles.userContent, surface)}>
+                    {squircleBack(style)}
+                    {msg.content}
+                  </span>
+                ) : (
+                  <>
+                    {squircleBack(style)}
+                    {renderAssistant(msg)}
+                  </>
+                )}
+              </article>
+            );
+          })}
         </div>
       </div>
       <form

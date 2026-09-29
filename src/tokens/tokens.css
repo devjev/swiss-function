@@ -184,6 +184,40 @@
       calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.08),
       calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 32px rgb(0 0 0 / 0.12);
 
+    /* The same cast in filter syntax, for a shape a box-shadow cannot follow:
+       one that is masked or clipped (the shadow would be cut away with it) or
+       drawn in SVG. `filter: var(--sf-elevation-N-drop)` on the shape's parent.
+       The cast only: an inset (the dark theme's rim and film) is not castable
+       and stays on the element. */
+    --sf-elevation-0-drop: none;
+    --sf-elevation-1-drop: drop-shadow(
+      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.06)
+    );
+    --sf-elevation-2-drop: drop-shadow(
+        calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.05)
+      )
+      drop-shadow(
+        calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.05)
+      );
+    --sf-elevation-3-drop: drop-shadow(
+        calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.06)
+      )
+      drop-shadow(
+        calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07)
+      );
+    --sf-elevation-4-drop: drop-shadow(
+        calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07)
+      )
+      drop-shadow(
+        calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.09)
+      );
+    --sf-elevation-5-drop: drop-shadow(
+        calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.08)
+      )
+      drop-shadow(
+        calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 32px rgb(0 0 0 / 0.12)
+      );
+
     /* Recess scale — the elevation scale inverted (inset shadows), so an element
        reads as sunken *into* the surface rather than floating above it. Same six
        steps, the shadow cast by the wall on the lit side (it follows the light
@@ -241,21 +275,24 @@
        (--sf-edge-lit, --sf-edge-shade) for a cell that shares one edge with a
        neighbour. --sf-edge-soft is the same pair as a round-over (fillet:
        1.4px reach, 2px blur) for round caps. */
+    --sf-edge-lit-color: rgb(255 255 255 / 0.24);
+    --sf-edge-shade-color: rgb(0 0 0 / 0.1);
     --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
-      rgb(255 255 255 / 0.24);
+      var(--sf-edge-lit-color);
     --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
-      rgb(0 0 0 / 0.1);
+      var(--sf-edge-shade-color);
     --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
     /* A key in a joined row (ButtonGroup, ToggleGroup) has no exposed sides:
        only the top and bottom bands, from the light's vertical component, so
        the seams between keys stay flat instead of stepping light to dark. */
     --sf-edge-row:
-      inset 0 calc(var(--sf-light-y) * -1px) 0 0 rgb(255 255 255 / 0.24),
-      inset 0 calc(var(--sf-light-y) * 1px) 0 0 rgb(0 0 0 / 0.1);
+      inset 0 calc(var(--sf-light-y) * -1px) 0 0 var(--sf-edge-lit-color),
+      inset 0 calc(var(--sf-light-y) * 1px) 0 0 var(--sf-edge-shade-color);
     --sf-edge-soft:
       inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
-      rgb(255 255 255 / 0.24),
-      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.1);
+      var(--sf-edge-lit-color),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0
+      var(--sf-edge-shade-color);
 
     /* Groove: a slot cut into the surface. The wall facing the light casts a
        band onto the floor; the far wall catches the light and bounces it
@@ -407,6 +444,25 @@
       inset 0 0 0 1px rgb(255 255 255 / 0.3), inset 0 0 0 9999px rgb(255 255 255 / 0.06),
       calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 0 0 var(--sf-color-border);
 
+    /* The castable part of the dark ladder: the hard offset in the border
+       colour. The rim and the film are insets, so they stay on the element. */
+    --sf-elevation-0-drop: none;
+    --sf-elevation-1-drop: drop-shadow(
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 var(--sf-color-border)
+    );
+    --sf-elevation-2-drop: drop-shadow(
+      calc(var(--sf-light-x) * -3px) calc(var(--sf-light-y) * -3px) 0 var(--sf-color-border)
+    );
+    --sf-elevation-3-drop: drop-shadow(
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 0 var(--sf-color-border)
+    );
+    --sf-elevation-4-drop: drop-shadow(
+      calc(var(--sf-light-x) * -6px) calc(var(--sf-light-y) * -6px) 0 var(--sf-color-border)
+    );
+    --sf-elevation-5-drop: drop-shadow(
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 0 var(--sf-color-border)
+    );
+
     /* Recess (dark): sunken surfaces darken instead of lighten; the inset
        blacks need real alpha to register on #0a0a0a. */
     --sf-recess-1: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px
@@ -430,18 +486,21 @@
        A bright lit band glares on a near-black key, so the lit alpha drops
        and the shade band deepens; the groove's bounce becomes a faint lit
        lip; the caps take a soft cast instead of the hard one. */
+    --sf-edge-lit-color: rgb(255 255 255 / 0.08);
+    --sf-edge-shade-color: rgb(0 0 0 / 0.36);
     --sf-edge-lit: inset calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
-      rgb(255 255 255 / 0.08);
+      var(--sf-edge-lit-color);
     --sf-edge-shade: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 0 0
-      rgb(0 0 0 / 0.36);
+      var(--sf-edge-shade-color);
     --sf-edge: var(--sf-edge-lit), var(--sf-edge-shade);
     --sf-edge-row:
-      inset 0 calc(var(--sf-light-y) * -1px) 0 0 rgb(255 255 255 / 0.08),
-      inset 0 calc(var(--sf-light-y) * 1px) 0 0 rgb(0 0 0 / 0.36);
+      inset 0 calc(var(--sf-light-y) * -1px) 0 0 var(--sf-edge-lit-color),
+      inset 0 calc(var(--sf-light-y) * 1px) 0 0 var(--sf-edge-shade-color);
     --sf-edge-soft:
       inset calc(var(--sf-light-x) * -1.4px) calc(var(--sf-light-y) * -1.4px) 2px 0
-      rgb(255 255 255 / 0.08),
-      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0 rgb(0 0 0 / 0.36);
+      var(--sf-edge-lit-color),
+      inset calc(var(--sf-light-x) * 1.4px) calc(var(--sf-light-y) * 1.4px) 2px 0
+      var(--sf-edge-shade-color);
     --sf-groove-wall: inset calc(var(--sf-light-x) * -1.5px) calc(var(--sf-light-y) * -1.5px) 2px 0
       rgb(0 0 0 / 0.4);
     --sf-groove-bounce: inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px 0

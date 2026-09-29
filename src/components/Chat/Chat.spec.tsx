@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { Chat } from "./Chat";
+import { Chat, type ChatMessage } from "./Chat";
 
 test("renders user and assistant messages with role-distinguished styling", async ({ mount }) => {
   const c = await mount(
@@ -88,6 +88,49 @@ test("input border is neutral by default and overridable via borderColor", async
   const c = await mount(<Chat messages={[]} onSubmit={() => {}} borderColor="rgb(255, 0, 0)" />);
   const border = await c.locator("textarea").evaluate((el) => getComputedStyle(el).borderTopColor);
   expect(border).toBe("rgb(255, 0, 0)");
+});
+
+test("the field keeps the send key's corner clear, even when TextEdit's own stylesheet lands last", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<Chat messages={[]} onSubmit={() => {}} />);
+  const field = c.locator("textarea");
+  const measure = async () =>
+    await field.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      const key = el.closest("form")?.querySelector("button")?.getBoundingClientRect();
+      return {
+        padEnd: Number.parseFloat(cs.paddingInlineEnd),
+        resize: cs.resize,
+        keyWidth: key?.width ?? 0,
+        // Where a line of text can reach, against where the key starts.
+        clearance:
+          (key?.left ?? 0) -
+          (el.getBoundingClientRect().right - Number.parseFloat(cs.paddingInlineEnd)),
+      };
+    });
+
+  const before = await measure();
+  // The room reserved at the end holds the key and leaves a gutter, so a line
+  // wraps before the key instead of running under it.
+  expect(before.padEnd).toBeGreaterThan(before.keyWidth);
+  expect(before.clearance).toBeGreaterThan(0);
+  expect(before.resize).toBe("none");
+
+  // Chat's declarations fight TextEdit's own `padding` / `resize`, and a
+  // consumer's bundler decides which stylesheet lands last. Re-declare
+  // TextEdit's rule after everything and the reserved room must survive.
+  await page.evaluate(() => {
+    const el = document.querySelector("textarea") as HTMLTextAreaElement;
+    const root = [...el.classList].find((n) => n.includes("TextEdit"));
+    const style = document.createElement("style");
+    style.textContent = `.${root} { padding: calc(var(--sf-unit) / 4 - 1px) calc(var(--sf-unit) / 2); resize: vertical; }`;
+    document.head.append(style);
+  });
+  const after = await measure();
+  expect(after.padEnd).toBe(before.padEnd);
+  expect(after.resize).toBe("none");
 });
 
 test("streaming assistant message renders via StreamingTerminalText", async ({ mount, page }) => {
@@ -321,4 +364,106 @@ test("a non-retryable error shows no Retry", async ({ mount }) => {
   );
   await expect(c.getByText("Failed.")).toBeVisible();
   await expect(c.getByRole("button", { name: "Retry" })).toHaveCount(0);
+});
+
+// --- Message surfaces (`messageStyle`) ---
+
+/** The surface of a message: the user's run carries it, the assistant's block does. */
+const surfaceOf = (el: Element) => {
+  const cs = getComputedStyle(el);
+  return {
+    bg: cs.backgroundColor,
+    shadow: cs.boxShadow,
+    radius: Number.parseFloat(cs.borderTopLeftRadius),
+    display: cs.display,
+  };
+};
+
+const STYLE_MESSAGES: ChatMessage[] = [
+  { id: "u", role: "user", content: "Hi there" },
+  { id: "a", role: "assistant", content: "Hello!" },
+];
+
+test("messageStyle defaults to the tape for the user and nothing for the assistant", async ({
+  mount,
+}) => {
+  const c = await mount(<Chat messages={STYLE_MESSAGES} onSubmit={() => {}} />);
+  await expect(c.locator('[data-role="user"]')).toHaveAttribute("data-style", "tape");
+  await expect(c.locator('[data-role="assistant"]')).toHaveAttribute("data-style", "plain");
+  const agent = await c.locator('[data-role="assistant"]').evaluate(surfaceOf);
+  expect(agent.bg).toBe("rgba(0, 0, 0, 0)");
+  expect(agent.shadow).toBe("none");
+});
+
+test("messageStyle='box' raises both voices; the user's box hugs its text", async ({ mount }) => {
+  const c = await mount(<Chat messages={STYLE_MESSAGES} onSubmit={() => {}} messageStyle="box" />);
+  await expect(c.locator('[data-role="user"]')).toHaveAttribute("data-style", "box");
+  const agent = await c.locator('[data-role="assistant"]').evaluate(surfaceOf);
+  const user = await c.locator('[data-role="user"] span').first().evaluate(surfaceOf);
+  // A raised box: the edge bands over an elevation cast, on a surface fill.
+  expect(agent.shadow).not.toBe("none");
+  expect(user.shadow).not.toBe("none");
+  expect(agent.bg).not.toBe("rgba(0, 0, 0, 0)");
+  // The user's box shrink-wraps inside the right-aligned bubble.
+  expect(user.display).toBe("inline-block");
+  // Sharp by default: the 2px system radius, not a softened card.
+  expect(agent.radius).toBeLessThanOrEqual(2);
+});
+
+test("messageStyle='squircle' keeps the raise and rounds the corners over", async ({ mount }) => {
+  const c = await mount(
+    <Chat messages={STYLE_MESSAGES} onSubmit={() => {}} messageStyle="squircle" />,
+  );
+  const agent = await c.locator('[data-role="assistant"]').evaluate(surfaceOf);
+  const user = await c.locator('[data-role="user"] span').first().evaluate(surfaceOf);
+  expect(agent.shadow).not.toBe("none");
+  expect(agent.radius).toBeGreaterThan(2);
+  expect(user.radius).toBeGreaterThan(2);
+});
+
+test("a squircle message keeps the superellipse corner, and its backing element is idle where the browser cuts the corners itself", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <Chat messages={STYLE_MESSAGES} onSubmit={() => {}} messageStyle="squircle" />,
+  );
+  const native = await page.evaluate(() => CSS.supports("corner-shape: squircle"));
+  const shape = await c
+    .locator('[data-role="assistant"]')
+    .evaluate((el) => getComputedStyle(el).getPropertyValue("corner-shape"));
+  // Chromium cuts the corners itself; the backing element then paints nothing.
+  const backing = c.locator('[data-role="assistant"] [aria-hidden="true"]').first();
+  await expect(backing).toHaveCount(1);
+  const backingDisplay = await backing.evaluate((el) => getComputedStyle(el).display);
+  if (native) {
+    expect(shape).toBe("squircle");
+    expect(backingDisplay).toBe("none");
+  } else {
+    // Elsewhere the backing element draws the curve: masked layers, cast by a filter.
+    expect(backingDisplay).toBe("block");
+    const face = await backing.evaluate((el) => {
+      const child = el.firstElementChild as HTMLElement;
+      const cs = getComputedStyle(child);
+      return { mask: cs.maskImage, filter: getComputedStyle(el).filter };
+    });
+    expect(face.mask).toContain("data:image/svg+xml");
+    expect(face.filter).toContain("drop-shadow");
+  }
+});
+
+test("messageStyle styles the two roles apart", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={STYLE_MESSAGES}
+      onSubmit={() => {}}
+      messageStyle={{ user: "plain", assistant: "box" }}
+    />,
+  );
+  const user = await c.locator('[data-role="user"] span').first().evaluate(surfaceOf);
+  const agent = await c.locator('[data-role="assistant"]').evaluate(surfaceOf);
+  // Plain: the user's words on the page, no tape, no box.
+  expect(user.bg).toBe("rgba(0, 0, 0, 0)");
+  expect(user.shadow).toBe("none");
+  expect(agent.shadow).not.toBe("none");
 });

@@ -6,6 +6,8 @@ export type {
   ChatErrorContext,
   ChatErrorPart,
   ChatMessage,
+  ChatMessageStyle,
+  ChatMessageStyles,
   ChatPart,
   ChatProps,
   ChatRole,

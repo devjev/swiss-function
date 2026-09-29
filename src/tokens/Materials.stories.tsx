@@ -10,7 +10,7 @@ import { Slider } from "../components/Slider";
 import { Switch } from "../components/Switch";
 import { cx } from "../lib/cx";
 import type { ControlSurface } from "../lib/surface";
-import { surfaceClass } from "../lib/surface";
+import { bowlClass, surfaceClass } from "../lib/surface";
 
 // The material layer (tokens.css → "Material layer"): one light for every
 // control, and the tactile recipes derived from it. This story lays the raw
@@ -116,6 +116,29 @@ export const Recipes: Story = () => (
             <span style={label}>{s}, primary</span>
           </div>
         ))}
+      </div>
+      {/* The bowl is the dish hollowed on both axes, for a face too big for one
+          ramp to read as anything but a wash, so it gets a wide swatch (and
+          twice the amplitude here, to print). */}
+      <div style={{ ...row, marginBlockStart: "var(--sf-unit)" }}>
+        <div style={cell}>
+          <div
+            className={bowlClass}
+            style={
+              {
+                inlineSize: "calc(var(--sf-unit) * 9)",
+                blockSize: "calc(var(--sf-unit) * 3)",
+                "--sf-cap": "var(--sf-color-bg-subtle)",
+                "--sf-curve-scale": 2,
+                backgroundColor: "var(--sf-cap)",
+                border: "1px solid var(--sf-color-border)",
+                borderRadius: "var(--sf-radius-default)",
+                boxShadow: "var(--sf-edge), var(--sf-elevation-2)",
+              } as React.CSSProperties
+            }
+          />
+          <span style={label}>bowl (a wide face)</span>
+        </div>
       </div>
     </section>
   </div>

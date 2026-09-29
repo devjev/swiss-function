@@ -4,6 +4,7 @@ import {
   Chat,
   type ChatAction,
   type ChatMessage,
+  type ChatProps,
   type ChatThinkingPart,
   type ChatTreeNode,
 } from "./Chat";
@@ -400,6 +401,58 @@ export const ThinkingError: Story = () => {
   return (
     <div style={{ width: "min(40rem, 100%)" }}>
       <Chat messages={messages} onSubmit={() => {}} height={320} />
+    </div>
+  );
+};
+
+// --- Message surfaces ---
+
+const STYLE_TRANSCRIPT: ChatMessage[] = [
+  { id: "u1", role: "user", content: "Where did the Q3 inflows come from?" },
+  {
+    id: "a1",
+    role: "assistant",
+    content: "Two thirds from the **Swiss** share classes, the rest from the Nordic mandates.",
+  },
+  { id: "u2", role: "user", content: "Break that down by month." },
+];
+
+/**
+ * `messageStyle` picks how each voice shows up: `plain` (no surface, the text on
+ * the page), `box` (a raised box), `tape` (the label-maker run, the user's
+ * default) or `squircle` (the same key with a superellipse round-over and a
+ * lightly scooped face). Pass one value for both roles, or an object to style
+ * them apart. The role keeps its place either way: the user's turn is
+ * right-aligned and capped at 75% of the column, the assistant's runs across it.
+ * The stamped monospace letters belong to the tape, not to the user.
+ */
+export const MessageStyles: Story = () => {
+  const readings: { label: string; style: ChatProps["messageStyle"] }[] = [
+    { label: "tape + plain (default)", style: { user: "tape", assistant: "plain" } },
+    { label: "box", style: "box" },
+    { label: "tape (both voices)", style: "tape" },
+    { label: "squircle", style: "squircle" },
+    { label: "user squircle + agent box", style: { user: "squircle", assistant: "box" } },
+  ];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(20rem, 1fr))",
+        gap: "calc(var(--sf-unit) * 2)",
+      }}
+    >
+      {readings.map((r) => (
+        <div key={r.label} style={{ display: "grid", gap: "var(--sf-unit)" }}>
+          <span style={{ fontFamily: "var(--sf-font-mono)" }}>{r.label}</span>
+          <Chat
+            messages={STYLE_TRANSCRIPT}
+            onSubmit={() => {}}
+            messageStyle={r.style}
+            height={360}
+          />
+        </div>
+      ))}
     </div>
   );
 };

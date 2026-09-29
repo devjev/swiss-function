@@ -124,17 +124,25 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
 - Depth on controls comes from the **material layer** in `tokens.css`: one light
   (`--sf-light-x` / `-y`, from the top left by default; a document-level
   setting, set it on `:root` or the theme element) and the recipes derived from
-  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key; `--sf-edge-row` keeps only the top and bottom bands for a key in a joined row),
+  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key, whose colours are `--sf-edge-lit-color` / `--sf-edge-shade-color` for a shape that has to paint a band itself; `--sf-edge-row` keeps only the top and bottom bands for a key in a joined row),
   `--sf-groove` (a flush slot for fields, tracks and rails), `--sf-cap-rest` /
   `--sf-cap-pressed` (+ `-round`) for small caps, `--sf-curve` (the amplitude of
   a curved face; `--sf-curve-scale` multiplies it per subtree, which is what a
   component's `curve` prop sets) and `--sf-engrave` (a legend cut into a cap). The dark theme
-  re-declares them with its own values. Curved faces live in
+  re-declares them with its own values. `--sf-elevation-N-drop` is the same cast
+  in `filter: drop-shadow()` syntax, for a shape a box-shadow cannot follow: one
+  that is masked or clipped (the shadow would be cut away with it, so the filter
+  goes on the shape's parent) or drawn in SVG. It carries the cast only; an
+  inset, such as the dark theme's rim and film, is not castable and stays on the
+  element. Curved faces live in
   `@tarassov-ch/swiss-function/lib/surface`: `surfaceClass.dish` / `.dome` /
   `.concave` / `.flat`, painted over the element's `--sf-cap` colour, exposed by
   Button, Kbd, Switch, Slider, LaunchButton and ToggleGroup (keys) and by
   DigitInput, Input and DigitInputMicro (slots, `concave`) as `surface`; the `ControlSurface` type is
-  exported from `/button` and the barrel.
+  exported from `/button` and the barrel. The stylesheet also carries a `bowl`
+  class (composed by a component, not offered as a `surface` value): the dish
+  hollowed on both axes, for a face too big for one ramp to read as anything but
+  a wash, which is what a `Chat` squircle message wears.
 - Text-entry controls (Input, TextEdit, Combobox, DigitInput) rest on
   `--sf-color-input-bg` (a shade below the page) and lift to `--sf-color-bg` on
   focus. Override `--sf-color-input-bg` on any ancestor to retint or flatten
@@ -485,9 +493,23 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a small round solid key inside the field's end (an up arrow); the label is its accessible name. |
 | `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
 | `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
+| `messageStyle` | `ChatMessageStyle \| { user?, assistant? }` | `{ user: "tape", assistant: "plain" }` | How each voice shows up: `plain` (no surface, the text on the page), `box` (a raised box: the edge bands over an elevation-2 cast, the 2px system radius), `tape` (a strip of label-maker tape, a run of the primary colour with the letters embossed in the page colour, monospace and bold, the letterforms belonging to the tape rather than to the role) or `squircle` (the same key with a superellipse round-over and a lightly scooped face, the `bowl` ramp at 0.45 of the system amplitude). One value styles both roles; an object styles them apart. The role keeps its place either way: the user's turn is right-aligned and capped at 75% of the column, the assistant's runs across it. The surface sits on the user's run (so the tape follows its lines and a box hugs its text) and on the assistant's whole block. Each message carries its resolved value as `data-style`. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
+
+The squircle is a real superellipse (`|x|^4 + |y|^4 = 1`, which is what
+`corner-shape: squircle` draws) in every engine. Where the property exists
+(Chromium 139+) the element cuts its own corners and a `display: none` backing
+element costs nothing. Where it does not (Safari, Firefox) that backing element
+draws the same curve: a mask of four corner cells plus two bars shapes three
+stacked layers, the hairline, the chamfer and the dished face, and their parent
+carries the cast as `--sf-elevation-2-drop`, because a mask cuts a box-shadow
+away with the corners and neither a border nor an inset band can follow a mask.
+The message box itself is unchanged on both paths, so the padding and the
+vertical grid match. One difference remains: in dark mode the fallback's face is
+a few levels darker, since `--sf-elevation-2` lifts a dark surface with an inset
+film that cannot be cast.
 
 ### Rich (non-text) responses
 
@@ -559,7 +581,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
+| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |

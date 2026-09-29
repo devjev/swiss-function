@@ -140,6 +140,9 @@ export interface ChatDrawerProps {
   sendVariant?: ButtonVariant;
   /** Override the built-in chat input's border colour (any CSS colour). */
   borderColor?: string;
+  /** How each voice shows up in the built-in chat (`plain` / `box` / `tape` /
+   *  `squircle`, one value or one per role). See `Chat`'s `messageStyle`. */
+  messageStyle?: ChatProps["messageStyle"];
   /** How the built-in chat reveals streaming assistant text. Forwarded to the
    *  inner `Chat`; pass `{ mode: "stream" }` for a live token stream, or `false`
    *  for plain Markdown. See `Chat`'s `reveal`. */
@@ -295,6 +298,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     sendLabel,
     sendVariant,
     borderColor,
+    messageStyle,
     reveal,
     disabled,
     views,
@@ -495,6 +499,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       sendLabel={sendLabel}
       sendVariant={sendVariant}
       borderColor={borderColor}
+      messageStyle={messageStyle}
       reveal={reveal}
       disabled={disabled ?? thinking}
     />

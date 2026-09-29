@@ -231,6 +231,7 @@
   "chat--default",
   "chat--empty",
   "chat--error-state",
+  "chat--message-styles",
   "chat--thinking",
   "chat--thinking-error",
   "chatdrawer--centered",
