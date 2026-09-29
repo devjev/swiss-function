@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.39.0 — 2026-09-29
+
+### Minor
+
+- Chat: messageStyle picks how each voice shows up (plain, a raised box, the label-maker tape, or a raised squircle with a lightly scooped face), one value for both roles or one per role; ChatDrawer passes it through. The squircle is a real superellipse in every browser (corner-shape where it exists, a mask-built backing element where it does not), and the tape now carries the stamped monospace letters, which no longer belong to the user's role. The composer reserves the send key's corner at a specificity TextEdit's own padding cannot undo, so a long line wraps before the key instead of running under it. New in the material layer: --sf-edge-lit-color / --sf-edge-shade-color, the --sf-elevation-N-drop cast ladder in filter syntax, and a bowl face in lib/surface (the dish hollowed on both axes).
+
 ## v2.38.0 — 2026-09-24
 
 ### Minor
