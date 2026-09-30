@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.39.1 — 2026-09-30
+
+### Patch
+
+- Chat: a finished step in the thinking fan-out is no longer green. The mark says it is done; only a failure takes the danger tone. Every tick is now an icon-set glyph through the check / fail / pending slots (new: fail, pending, and a Circle icon), so an IconProvider can swap them, in the fan-out, in Picker and Selector's selected item, and on Outliner's copied-reference button.
+
 ## v2.39.0 — 2026-09-29
 
 ### Minor
