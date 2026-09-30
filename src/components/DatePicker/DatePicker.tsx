@@ -23,9 +23,11 @@ import {
   startOfPeriod,
   yearPageStart,
 } from "../../lib/date";
+import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import type { BoxElevation } from "../Box";
+import { ChevronDown, X } from "../Icon";
 import styles from "./DatePicker.module.css";
 import { type MonthView, type ParsedText, parseDateText } from "./parseDateText";
 
@@ -400,9 +402,35 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
             aria-label="Clear date"
             onClick={() => commit(null)}
           >
-            ×
+            <Glyph slot="close" fallback={X} size="0.85em" />
           </button>
         ) : null}
+        {/* The field's affordance, as on Picker: a chevron that opens the
+            calendar and turns over while it is open. The input owns the
+            semantics (role, aria-expanded), so this stays off the tab order,
+            and keeping focus off it on mousedown means closing does not bounce
+            through the input's focus handler and reopen the calendar. */}
+        <button
+          type="button"
+          className={styles.trigger}
+          tabIndex={-1}
+          disabled={disabled}
+          aria-label={open ? "Hide calendar" : "Show calendar"}
+          aria-expanded={open}
+          aria-controls={gridId}
+          data-popup-open={open || undefined}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              return;
+            }
+            setOpen(true);
+            inputRef.current?.focus();
+          }}
+        >
+          <Glyph slot="chevronDown" fallback={ChevronDown} size="0.85em" />
+        </button>
       </div>
 
       <BasePopover.Root

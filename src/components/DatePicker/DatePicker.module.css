@@ -137,9 +137,41 @@
   transform: scale(1);
 }
 
+/* The field's affordance, the same recipe as Picker's: a chevron at the end
+   that opens the calendar and turns over while it is open. Flat, a marker
+   printed on the field rather than a key sitting on it. */
+.trigger {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 0.75);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--sf-color-fg);
+  cursor: pointer;
+  transition: transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.trigger[data-popup-open] {
+  transform: rotate(180deg);
+}
+
+.trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.trigger:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .popup,
   .field,
+  .trigger,
   .day,
   .weekButton,
   .weekRow > td,

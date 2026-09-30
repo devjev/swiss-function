@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-09-30T07:11:39.854Z"
+    "date": "2026-09-30T08:34:10.518Z"
   },
-  "totalGzip": 2092111,
+  "totalGzip": 2098338,
   "entries": {
     ".": {
       "files": 365,
-      "jsRaw": 1624501,
-      "jsGzip": 479790,
+      "jsRaw": 1626847,
+      "jsGzip": 480213,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 479790,
+      "gzip": 480213,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -665,12 +665,12 @@
       "externals": ["@base-ui/react/input", "react", "react/jsx-runtime"]
     },
     "./date-picker": {
-      "files": 8,
-      "jsRaw": 37089,
-      "jsGzip": 9350,
+      "files": 12,
+      "jsRaw": 52025,
+      "jsGzip": 13333,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9350,
+      "gzip": 13333,
       "externals": ["@base-ui/react/popover", "react", "react/jsx-runtime"]
     },
     "./drawer": {
@@ -693,11 +693,11 @@
     },
     "./widget": {
       "files": 122,
-      "jsRaw": 394542,
-      "jsGzip": 118491,
+      "jsRaw": 396270,
+      "jsGzip": 118820,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 118491,
+      "gzip": 118820,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -809,11 +809,11 @@
     },
     "./notebook": {
       "files": 87,
-      "jsRaw": 284375,
-      "jsGzip": 86369,
+      "jsRaw": 286103,
+      "jsGzip": 86698,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 86369,
+      "gzip": 86698,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -868,11 +868,11 @@
     },
     "./picker": {
       "files": 13,
-      "jsRaw": 27696,
-      "jsGzip": 8905,
+      "jsRaw": 28330,
+      "jsGzip": 9049,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 8905,
+      "gzip": 9049,
       "externals": [
         "@base-ui/react/combobox",
         "@tanstack/react-virtual",
@@ -1030,11 +1030,11 @@
     },
     "./data-table": {
       "files": 70,
-      "jsRaw": 236994,
-      "jsGzip": 70162,
+      "jsRaw": 238722,
+      "jsGzip": 70491,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 70162,
+      "gzip": 70491,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -1125,11 +1125,11 @@
     },
     "./table-input": {
       "files": 33,
-      "jsRaw": 96675,
-      "jsGzip": 29000,
+      "jsRaw": 98403,
+      "jsGzip": 29329,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 29000,
+      "gzip": 29329,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -1207,11 +1207,11 @@
     },
     "./selector": {
       "files": 13,
-      "jsRaw": 32780,
-      "jsGzip": 9931,
+      "jsRaw": 33906,
+      "jsGzip": 10148,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 9931,
+      "gzip": 10148,
       "externals": [
         "@base-ui/react/combobox",
         "@tanstack/react-virtual",
@@ -1300,11 +1300,11 @@
     },
     "./vertical-form": {
       "files": 29,
-      "jsRaw": 80128,
-      "jsGzip": 24619,
+      "jsRaw": 80762,
+      "jsGzip": 24763,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 24619,
+      "gzip": 24763,
       "externals": [
         "@base-ui/react/combobox",
         "@base-ui/react/field",

@@ -382,3 +382,33 @@ test("precision keyboard: month grid arrows move 1/3, year grid pages", async ({
   await page.keyboard.press("Enter");
   await expect(input).toHaveValue("2025-11");
 });
+
+test("the field's chevron opens and closes the calendar, and turns over while it is open", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <div style={{ width: 280 }}>
+      <DatePicker aria-label="Date" />
+    </div>,
+  );
+  const chevron = c.locator("button").last();
+  // A marker one can click, not a second tab stop: the input owns the
+  // semantics (role="combobox", aria-expanded).
+  expect(await chevron.evaluate((el) => el.tabIndex)).toBe(-1);
+  // Drawn from the icon set, so an IconProvider can swap it.
+  await expect(chevron.locator("svg")).toHaveCount(1);
+
+  await chevron.click();
+  // The calendar lives in a portal, so it is on the page, not in the root.
+  await expect(page.getByRole("table")).toBeVisible();
+  await expect
+    .poll(async () => await chevron.evaluate((el) => getComputedStyle(el).transform))
+    .toBe("matrix(-1, 0, 0, -1, 0, 0)");
+
+  // Clicking again closes it, and it must not bounce back open through the
+  // input's focus handler.
+  await chevron.click();
+  await expect(page.getByRole("table")).toHaveCount(0);
+  await expect(chevron).not.toHaveAttribute("data-popup-open", /.*/);
+});
