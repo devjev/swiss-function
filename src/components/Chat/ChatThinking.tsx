@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
+import { Check, X } from "../Icon";
 import { Spinner } from "../Spinner";
 import styles from "./ChatThinking.module.css";
 import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
@@ -76,7 +78,11 @@ export function ChatThinking({
         className={cx(styles.glyph, status === "done" ? styles.done : styles.error)}
         aria-hidden="true"
       >
-        {status === "done" ? "✓" : "✗"}
+        {status === "done" ? (
+          <Glyph slot="check" fallback={Check} size="0.85em" />
+        ) : (
+          <Glyph slot="fail" fallback={X} size="0.85em" />
+        )}
       </span>
     );
 

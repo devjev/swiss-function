@@ -2,7 +2,9 @@ import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import type ReactMarkdown from "react-markdown";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { Check } from "../Icon";
 import { Markdown } from "../Markdown";
 import { TextEdit } from "../TextEdit";
 import { passthroughUrlTransform, preprocessOutlinerMarkdown } from "./markdown-extensions";
@@ -204,7 +206,7 @@ export const OutlinerBullet = forwardRef<HTMLDivElement, OutlinerBulletProps>(
           title={copied ? "Copied!" : `Copy ((${bullet.id}))`}
           data-copied={copied || undefined}
         >
-          {copied ? "✓" : "id"}
+          {copied ? <Glyph slot="check" fallback={Check} size="0.85em" /> : "id"}
         </button>
       </div>
     );

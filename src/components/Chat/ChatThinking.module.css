@@ -51,10 +51,15 @@
 }
 
 .glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1em;
   white-space: pre;
 }
+/* Done is not a colour: the check says it. Only a failure takes one. */
 .done {
-  color: var(--sf-color-success);
+  color: var(--sf-color-fg);
 }
 .error {
   color: var(--sf-color-danger);

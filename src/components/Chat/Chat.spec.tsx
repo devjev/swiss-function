@@ -209,6 +209,88 @@ test("clicking a step fires onAction with type 'thinking' and the node id", asyn
   expect(action).toEqual({ messageId: "a1", partId: "orch", type: "thinking", value: "s0" });
 });
 
+test("a finished step is not coloured: only a failure takes a tone", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "thinking",
+              status: "error",
+              defaultExpanded: true,
+              steps: [
+                { id: "a", label: "build", status: "done" },
+                { id: "b", label: "push", status: "error" },
+              ],
+            },
+          ],
+        },
+      ]}
+      onSubmit={() => {}}
+    />,
+  );
+  const colours = await c.locator('[data-testid="chat-messages"]').evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = getComputedStyle(el).getPropertyValue("--sf-color-fg").trim();
+    el.append(probe);
+    const fg = getComputedStyle(probe).color;
+    probe.remove();
+    const colorOf = (match: string) => {
+      const mark = [...el.querySelectorAll('span[aria-hidden="true"]')].find((g) =>
+        [...g.classList].some((n) => n.includes(match)),
+      );
+      return mark ? getComputedStyle(mark).color : null;
+    };
+    return { fg, done: colorOf("done"), failed: colorOf("error") };
+  });
+  expect(colours.done).toBe(colours.fg);
+  expect(colours.failed).not.toBe(colours.fg);
+});
+
+test("the step marks come from the icon set, so a consumer can swap them", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      messages={[
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "thinking",
+              status: "error",
+              defaultExpanded: true,
+              steps: [
+                { id: "a", label: "build", status: "done" },
+                { id: "b", label: "push", status: "error" },
+                { id: "c", label: "tag", status: "pending" },
+              ],
+            },
+          ],
+        },
+      ]}
+      onSubmit={() => {}}
+    />,
+  );
+  // Every mark is an <svg> from the icon set (never a typed character), so an
+  // `IconProvider` can redirect it.
+  const marks = await c.locator('[data-testid="chat-messages"]').evaluate((el) =>
+    [...el.querySelectorAll('span[aria-hidden="true"]')]
+      .filter((g) => [...g.classList].some((n) => /status|glyph/.test(n)))
+      .map((g) => ({
+        svg: !!g.querySelector("svg"),
+        text: g.textContent?.trim() ?? "",
+      })),
+  );
+  expect(marks.length).toBeGreaterThanOrEqual(4);
+  for (const m of marks) {
+    expect(m.svg).toBe(true);
+    expect(m.text).toBe("");
+  }
+});
+
 test("thinking with no steps shows just the indicator + label, no fan-out", async ({ mount }) => {
   const c = await mount(
     <Chat

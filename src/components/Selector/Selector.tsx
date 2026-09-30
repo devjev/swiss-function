@@ -2,9 +2,11 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode, RefObject } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { buildOptionRows, clusterOptions } from "../../lib/optionGroups";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
+import { Check } from "../Icon";
 import styles from "./Selector.module.css";
 
 /** A selectable item: a bare string, or an object with a separate display label.
@@ -141,7 +143,9 @@ function VirtualOptions({
               className={styles.virtualItem}
               style={{ transform: `translateY(${vrow.start}px)` }}
             >
-              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
+              <Combobox.ItemIndicator>
+                <Glyph slot="check" fallback={Check} size="0.85em" />
+              </Combobox.ItemIndicator>
               {option.label}
             </Combobox.Item>
           );

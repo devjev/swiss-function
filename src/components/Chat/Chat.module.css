@@ -98,7 +98,7 @@
      The scoop runs deeper than a control's: a message is a big face, and at the
      system amplitude a ramp that wide reads as a wash rather than a hollow. */
   --sf-cap: var(--sf-message-fill);
-  --sf-curve-scale: 0.45;
+  --sf-curve-scale: 0.3;
   border-radius: var(--sq-radius);
   box-shadow: var(--sf-edge-soft), var(--sf-elevation-2);
 }
@@ -217,7 +217,7 @@
        children, so the chamfer would otherwise cover the face. */
     z-index: 1;
     --sf-cap: var(--sf-message-fill);
-    --sf-curve-scale: 0.45;
+    --sf-curve-scale: 0.3;
     inset: 2px;
     background-color: var(--sf-message-fill);
   }

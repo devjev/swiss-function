@@ -68,6 +68,9 @@ export const SF_ICON_SLOTS = [
   "stop",
   // Widget: the settings key that opens the parameter table
   "sliders",
+  // Run state of a step in an orchestration fan-out (`check` marks the done one)
+  "fail",
+  "pending",
   // Stat / KPI delta direction
   "trendUp",
   "trendDown",
