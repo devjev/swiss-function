@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.40.1 — 2026-09-30
+
+### Patch
+
+- DatePicker: the field ends in a chevron that opens the calendar and turns over while it is open, the same affordance Picker and Selector carry, through the chevronDown icon slot. Its clear key draws the cross from the close slot instead of a typed character.
+
 ## v2.40.0 — 2026-09-30
 
 ### Minor
