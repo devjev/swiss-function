@@ -320,11 +320,43 @@
   outline-offset: var(--sf-focus-ring-offset, 1px);
 }
 
+/* The dropdown's affordance at the end of the field: flat, a marker printed on
+   the field rather than a key sitting on it, and it turns over while the list
+   is open. */
+.trigger {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: calc(var(--sf-unit) * 0.75);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--sf-color-fg);
+  cursor: pointer;
+  transition: transform var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+.trigger[data-popup-open] {
+  transform: rotate(180deg);
+}
+
+.trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.trigger:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .input,
   .inputGroup,
   .chipRemove,
-  .clear {
+  .clear,
+  .trigger {
     transition: none;
   }
 }

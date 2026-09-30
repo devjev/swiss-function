@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { Picker } from "./Picker";
+import { PickerDefaultChevron, PickerSwappedChevron } from "./Picker.harness";
 
 test("typing filters the dropdown and clicking an item selects it", async ({ mount, page }) => {
   let last = "";
@@ -272,4 +273,29 @@ test("fits inside a grid cell narrower than the input's 20-char default (issue #
   const box = await group.boundingBox();
   if (!box) throw new Error("missing bounding box");
   expect(box.width).toBeLessThanOrEqual(225);
+});
+
+test("the field carries a chevron that opens the list and turns over while it is open", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PickerDefaultChevron />);
+  const trigger = c.locator("button").last();
+  // A marker one can click, not a second tab stop: the input owns the semantics.
+  expect(await trigger.evaluate((el) => el.tabIndex)).toBe(-1);
+  await expect(trigger.locator("svg")).toHaveCount(1);
+  await expect(trigger).not.toHaveAttribute("data-popup-open", /.*/);
+
+  await trigger.click();
+  await expect(page.getByRole("option", { name: "Geneva" })).toBeVisible();
+  await expect(trigger).toHaveAttribute("data-popup-open", "");
+  // Turned over while open (polled: the turn is a transition).
+  await expect
+    .poll(async () => await trigger.evaluate((el) => getComputedStyle(el).transform))
+    .toBe("matrix(-1, 0, 0, -1, 0, 0)");
+});
+
+test("an IconProvider swaps the chevron for another set's", async ({ mount }) => {
+  const c = await mount(<PickerSwappedChevron />);
+  await expect(c.locator('[data-testid="external-chevron"]')).toHaveCount(1);
 });

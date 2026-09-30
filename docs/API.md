@@ -2505,6 +2505,8 @@ field.
 
 Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label; opening the dropdown clears it to a fresh search box (the whole list is offered, not filtered to the current selection) and restores the label if dismissed without choosing. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label, group? }`.
 
+**The dropdown's affordance:** the field ends in a chevron that opens the list and turns over while it is open. Base UI keeps it out of the tab order and leaves the semantics on the input, so it reads as a marker one can also click. The glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it with the rest of a consumer's set.
+
 **Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header). Items sharing a `group` cluster together (groups in order of first appearance); ungrouped items list first, headerless. Filtering hides a group along with its last matching item; keyboard navigation skips the headers. The headers are visual (the windowed listbox stays flat for assistive tech).
 
 | Prop | Type | Default | Notes |
@@ -2870,6 +2872,8 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 `import { Selector } from "@tarassov-ch/swiss-function/selector"`
 
 Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label, group? }`.
+
+**The dropdown's affordance:** the field ends in a chevron that opens the list and turns over while it is open. Base UI keeps it out of the tab order and leaves the semantics on the input, so it reads as a marker one can also click. The glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it with the rest of a consumer's set. Every layout carries it: the panel's search field, the inline tag input and the compact count.
 
 **Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header), exactly as in [Picker](#picker): same-group items cluster (groups in first-appearance order), ungrouped items list first headerless, a group disappears with its last filtered-out item, and keyboard navigation skips the headers (which are visual only; the windowed listbox stays flat for assistive tech). **Clicking a header toggles the whole group** over its currently visible (filtered) items: it selects the missing ones, or deselects them all when every one is selected. This is a pointer shortcut; keyboard selection stays per item.
 

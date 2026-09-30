@@ -6,7 +6,7 @@ import { Glyph } from "../../lib/icons";
 import { buildOptionRows, clusterOptions } from "../../lib/optionGroups";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
-import { Check } from "../Icon";
+import { Check, X } from "../Icon";
 import styles from "./Picker.module.css";
 
 /** A choosable item: a bare string, or an object with a separate display label.
@@ -199,7 +199,12 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
       >
         <Combobox.InputGroup data-size={size} data-elevation={elevation} className={styles.group}>
           <Combobox.Input placeholder={placeholder} />
-          {clearable && selected && <Combobox.Clear aria-label="Clear">×</Combobox.Clear>}
+          {clearable && selected && (
+            <Combobox.Clear aria-label="Clear">
+              <Glyph slot="close" fallback={X} size="0.85em" />
+            </Combobox.Clear>
+          )}
+          <Combobox.Trigger />
         </Combobox.InputGroup>
         <Combobox.Portal>
           <Combobox.Positioner sideOffset={4}>

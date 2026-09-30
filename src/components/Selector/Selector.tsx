@@ -294,6 +294,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
               )}
               <Combobox.Input placeholder={selected.length ? "" : placeholder} />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+              <Combobox.Trigger />
             </Combobox.InputGroup>
             {dropdown}
           </>
@@ -312,12 +313,20 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
                 placeholder={selected.length ? "" : placeholder}
               />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+              <Combobox.Trigger />
             </Combobox.InputGroup>
             {dropdown}
           </>
         ) : (
           <>
-            <Combobox.Input placeholder={placeholder} data-size={size} data-elevation={elevation} />
+            <div className={styles.searchField}>
+              <Combobox.Input
+                placeholder={placeholder}
+                data-size={size}
+                data-elevation={elevation}
+              />
+              <Combobox.Trigger className={styles.searchTrigger} />
+            </div>
             {dropdown}
             <div className={styles.bucket}>
               <div className={styles.bucketHeader}>
