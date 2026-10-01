@@ -37,3 +37,23 @@
 .body {
   padding: calc(var(--sf-unit) * 0.75) calc(var(--sf-unit) / 2) calc(var(--sf-unit) * 0.75 - 1px);
 }
+
+/* The plain variant: a block box and nothing else. No frame, no surface, no
+   padding and no letterforms of its own, so a custom part renders exactly as its
+   author wrote it. The class stays so `className` and the title have a root to
+   sit on. */
+.plain {
+  display: block;
+}
+
+/* The framed title bar's label without the chrome: no marker, no rule, no bar
+   height. Half a unit of air under it. */
+.plainTitle {
+  display: block;
+  margin-block-end: calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-fg);
+  user-select: none;
+}

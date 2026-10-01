@@ -1,5 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useEffect, useState } from "react";
+import { Box } from "../Box";
+import { Stat } from "../Stat";
 import {
   Chat,
   type ChatAction,
@@ -302,6 +304,49 @@ export const CustomBlock: Story = () => {
                 <span>{String(part.state)}</span>
                 <span># {String(part.latencyMs)} ms</span>
               </div>
+            </ChatBlock>
+          ) : null
+        }
+      />
+    </div>
+  );
+};
+
+/**
+ * `variant="plain"` drops the frame, the title bar and its marker, so a custom
+ * part brings its own look. The block contributes a block box and nothing else;
+ * here a `Box` carries the surface instead.
+ */
+export const CustomBlockPlain: Story = () => {
+  const [messages] = useState<ChatMessage[]>([
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Deployment finished. Current status:" },
+        { type: "status", partId: "st", service: "api", state: "healthy", latencyMs: 42 },
+      ],
+    },
+  ]);
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat
+        messages={messages}
+        onSubmit={() => {}}
+        renderPart={(part) =>
+          part.type === "status" ? (
+            <ChatBlock variant="plain">
+              <Box elevation={2} padding={1}>
+                <Stat
+                  label={String(part.service)}
+                  value={String(part.latencyMs)}
+                  valueUnit="ms"
+                  caption={String(part.state)}
+                  tone="success"
+                  size="sm"
+                />
+              </Box>
             </ChatBlock>
           ) : null
         }
