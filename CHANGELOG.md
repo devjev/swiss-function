@@ -6,6 +6,21 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.41.0 — 2026-10-02
+
+### Minor
+
+- Chat: the view holds the bottom when the composer grows into it, lets go the moment you scroll away (however small the move) instead of only past 32px, and offers a jump-to-latest key that takes the accent once a reply arrived below the fold. The transcript is a focusable `role="log"` and a streaming message is marked `aria-busy`.
+- `ChatBlock` takes a `variant`: `"framed"` (the default, today's TUI panel) or `"plain"`, which drops the frame, the surface, the padding, the letterforms and the title bar with its `●` marker, leaving a block box and the part's own markup. For a custom `renderPart` block that should look like itself. A `title` passed alongside `variant="plain"` renders as one dim line with no marker and no rule; omit it and there is no label at all.
+- DataTable: a totals row. A column's `total` (`"sum"` / `"avg"` / `"min"` / `"max"` / `"count"` / `"countUnique"`, or a function of the rows behind it) adds one summary line pinned to the bottom edge of the grid, scrolling sideways with the columns and holding its edge as the rows pass. It is the header's band mirrored to the foot of the table: the same panel tone, the same keys with their face and edge bands, the same seams, so the grid is framed top and bottom and the summary never reads as one more row. The keys are inert, a readout rather than a control. It covers every filtered row rather than the page on screen, and a tree table's roots rather than every node, so the figure never double-counts a subtotal or moves as you scroll. Named aggregates print in Swiss typography at the column's declared precision. `totals` tunes the row (`label`, `labelColumn`, `position: "top"`) or drops it with `false`; the row takes no cell coordinates, so selection, copy and the keyboard never reach it.
+- DataTable: `columnFit="content"` sizes every column to the narrowest width that still shows its content, at mount and again when the data changes, through the same measurement as the double-click on a header edge (so no column lands under its floor or breaks a group title). `headerMenu` adds a right-click Fit this column / Fit all columns on the headers. The menu is lazy-loaded, so a table that does not opt in carries none of it.
+- DataTable, Explorer: a column's `align` moves the cell's text again (the body span takes the free space, so moving the flex items alone did nothing), and a DataTable column that declares no `align` takes it from its data type: a `number` edit column ends, cells and heading, a `boolean` centres, everything else starts. `TableInput` already read a number column that way; the three now agree.
+
+### Patch
+
+- DataTable, Explorer: a filterable column's floor is its title again, not the width it happened to have. The funnel is pushed to the trailing edge with an `auto` margin, and `getComputedStyle` reports what that margin absorbed rather than `auto`, so the header measurement counted the column's whole leftover as a need: a filterable table could not be narrowed, and one that fitted its container still grew a horizontal scrollbar. The header is measured at its natural width now, where an auto margin is zero and every real margin still counts.
+- Picker, Selector: hovering a row no longer scrolls the dropdown or takes the highlight from the keyboard. A pointer highlight scrolled the hovered row into view, which slid another row under the cursor and scrolled again, so a stray mouse movement jumped the list. Hover now reads through CSS `:hover` while `data-highlighted` stays where the keyboard left it.
+
 ## v2.40.1 — 2026-09-30
 
 ### Patch
