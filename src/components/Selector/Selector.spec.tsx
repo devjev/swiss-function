@@ -446,3 +446,32 @@ test("group header toggle completes a partial selection and respects the filter"
   await page.getByRole("listbox").getByText("Switzerland").click();
   expect(last).toEqual(["zurich"]);
 });
+
+test("the pointer neither takes the keyboard's highlight nor scrolls the list", async ({
+  mount,
+  page,
+}) => {
+  // The Picker spec carries the long version; both share `useOptionScroll` and
+  // both turn Base UI's `highlightItemOnHover` off, so this pins the Selector's
+  // half of that pair.
+  const component = await mount(<SelectorHarness items={manyItems} />);
+  await component.getByRole("combobox").click();
+  const input = component.getByRole("combobox");
+
+  for (let i = 0; i < 20; i++) {
+    await input.press("ArrowDown");
+  }
+  const highlighted = page.locator('[role="option"][data-highlighted]');
+  const index = await highlighted.getAttribute("data-index");
+  const listbox = page.getByRole("listbox");
+  const before = await listbox.evaluate((el) => el.scrollTop);
+
+  const box = (await listbox.boundingBox()) as { x: number; y: number; width: number };
+  await page.mouse.move(box.x + box.width / 2, box.y + 12);
+
+  const hovered = page.locator('[role="option"]:hover');
+  await expect(hovered).toHaveCount(1);
+  expect(await listbox.evaluate((el) => el.scrollTop)).toBe(before);
+  await expect(highlighted).toHaveAttribute("data-index", index as string);
+  await expect(hovered).not.toHaveAttribute("data-highlighted");
+});

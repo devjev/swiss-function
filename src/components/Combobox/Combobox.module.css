@@ -134,8 +134,22 @@
   outline: none;
 }
 
+/* Two readings at once, because Picker and Selector turn Base UI's
+   `highlightItemOnHover` off: the pointer and the keyboard can be on different
+   rows, and both have to show. `:hover` is the row under the cursor, a plain
+   shade. `data-highlighted` is where the keyboard is, which is what Enter
+   commits, so it takes the same shade plus an accent rule down its leading
+   edge: the stronger of the two however they overlap, and told apart by a mark
+   rather than by a second shade a hair darker than the first. */
+.item:hover,
 .item[data-highlighted] {
   background-color: var(--sf-color-bg-subtle);
+}
+
+.item[data-highlighted] {
+  /* The rule is drawn inside the row (an inset shadow, not a border), so a
+     highlighted row keeps the same height and text position as every other. */
+  box-shadow: inset calc(var(--sf-unit) / 12) 0 0 0 var(--sf-color-primary);
 }
 
 .item[data-selected] {

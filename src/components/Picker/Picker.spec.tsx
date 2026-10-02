@@ -299,3 +299,45 @@ test("an IconProvider swaps the chevron for another set's", async ({ mount }) =>
   const c = await mount(<PickerSwappedChevron />);
   await expect(c.locator('[data-testid="external-chevron"]')).toHaveCount(1);
 });
+
+test("the pointer neither takes the keyboard's highlight nor scrolls the list", async ({
+  mount,
+  page,
+}) => {
+  // The bug this pins: `onItemHighlighted` fired for a pointer hover too, and
+  // scrolled the hovered row into view. Hovering a row clipped at an edge
+  // dragged the list, which slid another row under the cursor, which scrolled
+  // again — so a stray mouse movement over an open dropdown jumped it. The
+  // keyboard position was lost with it, since Base UI highlights on hover by
+  // default (`highlightItemOnHover`, off here).
+  const component = await mount(<Picker items={manyItems} />);
+  const input = component.getByRole("combobox");
+  await input.click();
+
+  for (let i = 0; i < 20; i++) {
+    await input.press("ArrowDown");
+  }
+  const highlighted = page.locator('[role="option"][data-highlighted]');
+  const index = await highlighted.getAttribute("data-index");
+  const listbox = page.getByRole("listbox");
+  const before = await listbox.evaluate((el) => el.scrollTop);
+
+  // The cursor goes to a row near the top of the window, well away from the
+  // highlighted one. `mouse.move` rather than `hover()`, which would scroll the
+  // row into view itself and so move the list before the component could.
+  const box = (await listbox.boundingBox()) as { x: number; y: number; width: number };
+  await page.mouse.move(box.x + box.width / 2, box.y + 12);
+
+  const hovered = page.locator('[role="option"]:hover');
+  await expect(hovered).toHaveCount(1);
+  expect(await hovered.getAttribute("data-index")).not.toBe(index);
+  // The list held still, and the highlight stayed where the keyboard left it.
+  expect(await listbox.evaluate((el) => el.scrollTop)).toBe(before);
+  await expect(highlighted).toHaveAttribute("data-index", index as string);
+  await expect(hovered).not.toHaveAttribute("data-highlighted");
+
+  // So Enter commits where the keyboard is, not where the pointer is.
+  const label = (await highlighted.textContent()) as string;
+  await input.press("Enter");
+  await expect(input).toHaveValue(label);
+});
