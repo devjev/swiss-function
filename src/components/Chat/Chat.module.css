@@ -21,9 +21,48 @@
   overflow-y: auto;
 }
 
+/* The jump key's perch: the last row of the scroller's content, zero height, so
+   it holds the key at the bottom of the scrollport and takes none of the
+   transcript's space. Sitting inside the scroller is what keeps a wheel over the
+   key scrolling the transcript. */
+.foot {
+  position: sticky;
+  inset-block-end: 0;
+  block-size: 0;
+}
+
+/* Jump to the latest message: shown only while the view is not following the
+   bottom, centred over the transcript's bottom edge. The key takes the accent
+   (the primary variant) once something has arrived below the fold, which is
+   also what `data-behind` marks. Nothing is drawn on the key's own `::after`:
+   on a round solid key that pseudo-element is the bevel ring. */
+.jump {
+  position: absolute;
+  inset-block-end: var(--sf-unit);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 1;
+  animation: jump-in var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* A fade, with no movement: the key is a click target the moment it appears, and
+   an entrance that shifted its box would make it unclickable until it settled. */
+@keyframes jump-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jump {
+    animation: none;
+  }
+}
+
 /* Message list — the growing content the viewport scrolls over. A
-   ResizeObserver watches this element to keep the view pinned to the bottom as
-   the streaming reveal grows it. */
+   ResizeObserver watches this element and the viewport above, so the view holds
+   the bottom both as the streaming reveal grows the list and as the composer
+   grows into the viewport's height. */
 /* The vertical rhythm is the library's: two units between messages, one
    unit between the parts of a reply and between its paragraphs, and every
    block a whole number of units tall, so text lines stay on the grid down

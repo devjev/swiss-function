@@ -1,9 +1,10 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { bowlClass } from "../../lib/surface";
 import { Button, type ButtonVariant } from "../Button";
-import { ArrowUp } from "../Icon";
+import { ArrowUp, ChevronDown } from "../Icon";
 import { Markdown } from "../Markdown";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
@@ -14,6 +15,16 @@ import { ChatThinking } from "./ChatThinking";
 import { type ChatStepStatus, ChatTree, type ChatTreeNode } from "./ChatTree";
 
 export type { ChatChoice, ChatStepStatus, ChatTreeNode };
+
+/** Sub-pixel slack when asking "is the viewport at the bottom": `scrollHeight`
+ *  and `clientHeight` are integers over fractional layout, so the true bottom
+ *  can read a pixel or two short. This is not a reading-distance threshold —
+ *  following stops on the first scroll away from the bottom, however small. */
+const BOTTOM_SLACK = 4;
+
+function distanceFromBottom(el: HTMLElement): number {
+  return el.scrollHeight - el.scrollTop - el.clientHeight;
+}
 
 export type ChatRole = "user" | "assistant";
 
@@ -226,9 +237,39 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  // Whether the viewport is pinned to the bottom. Stays true until the user
-  // scrolls up to read history — then we stop yanking the view down.
+  // Whether the viewport follows the bottom. Read by the ResizeObserver on
+  // every growth tick, so it lives in a ref; `following` mirrors it for render.
   const stickRef = useRef(true);
+  // Distance from the bottom at the last scroll or growth, to tell a scroll
+  // away from the bottom (the user is reading history) from one toward it.
+  const lastDistRef = useRef(0);
+  // The offset we last wrote ourselves. A scroll event is ours only when the
+  // view is still sitting on it: a one-shot "we wrote it" flag would be spent
+  // by a user scroll landing in the same frame as a pin, and during a stream
+  // there is a pin most frames.
+  const selfTopRef = useRef(-1);
+  // The last offset the user scrolled to, and whether the transcript has been
+  // hidden since. A `display: none` ancestor (a ChatDrawer view the user
+  // switched away from) destroys the scroll offset, so we put it back.
+  const lastTopRef = useRef(0);
+  const wasHiddenRef = useRef(false);
+  // Render state: whether the jump-to-latest key shows, and whether anything
+  // has arrived below the fold since following stopped.
+  const [following, setFollowing] = useState(true);
+  const [behind, setBehind] = useState(false);
+
+  const setFollow = useCallback((next: boolean) => {
+    stickRef.current = next;
+    setFollowing(next);
+    if (next) setBehind(false);
+  }, []);
+
+  const pinToBottom = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el || distanceFromBottom(el) <= 0) return;
+    el.scrollTop = el.scrollHeight;
+    selfTopRef.current = el.scrollTop;
+  }, []);
 
   // Fire `onError` once per error part, when it first appears (a notification,
   // never during render). Keyed by message + part identity.
@@ -294,27 +335,62 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     });
   }, []);
 
-  // Keep the viewport pinned to the bottom as content grows — not just when
-  // `messages` changes, but as the streaming reveal grows the DOM tick by tick
-  // (including the post-stream drain). A ResizeObserver on the message list
-  // catches every height change; we only follow when the user is at the bottom.
+  // Hold the bottom as the bottom moves. Two things move it, and a
+  // ResizeObserver over both catches each: the message list grows as the
+  // streaming reveal lands tick by tick (including the post-stream drain), and
+  // the viewport shrinks as the composer grows under `field-sizing: content`,
+  // which would otherwise push the newest reply out of sight while you type.
   useEffect(() => {
     const scroller = scrollerRef.current;
     const content = contentRef.current;
     if (!scroller || !content) return;
     const ro = new ResizeObserver(() => {
-      if (stickRef.current) scroller.scrollTop = scroller.scrollHeight;
+      // Zero height means a `display: none` ancestor; the offset is already
+      // gone, so there is nothing to read and nothing to follow.
+      if (scroller.clientHeight === 0) {
+        wasHiddenRef.current = true;
+        return;
+      }
+      if (wasHiddenRef.current) {
+        wasHiddenRef.current = false;
+        if (!stickRef.current) {
+          scroller.scrollTop = lastTopRef.current;
+          selfTopRef.current = scroller.scrollTop;
+        }
+      }
+      if (stickRef.current) pinToBottom();
+      else if (distanceFromBottom(scroller) > lastDistRef.current + BOTTOM_SLACK) {
+        // Something landed below the fold while the user was reading back.
+        setBehind(true);
+      }
+      lastDistRef.current = distanceFromBottom(scroller);
     });
     ro.observe(content);
+    ro.observe(scroller);
     return () => ro.disconnect();
-  }, []);
+  }, [pinToBottom]);
 
-  // Track whether the user is at the bottom (within a small threshold). Once
-  // they scroll up, auto-follow pauses; scrolling back to the bottom resumes it.
+  // Following stops the moment the view moves away from the bottom, whatever
+  // moved it (wheel, trackpad, scrollbar drag, keyboard) and however far, so we
+  // never pull against the user. It resumes on reaching the bottom again, or on
+  // the jump-to-latest key. Reaching the bottom is tested first, so a growth
+  // that lands while the user scrolls the last pixels in cannot stop it.
   const handleScroll = () => {
     const el = scrollerRef.current;
     if (!el) return;
-    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+    const dist = distanceFromBottom(el);
+    const ours = el.scrollTop === selfTopRef.current;
+    if (dist <= BOTTOM_SLACK) setFollow(true);
+    else if (!ours && dist > lastDistRef.current + 1) setFollow(false);
+    lastDistRef.current = dist;
+    lastTopRef.current = el.scrollTop;
+  };
+
+  const jumpToLatest = () => {
+    setFollow(true);
+    pinToBottom();
+    // The reply keeps arriving; the composer is where the next turn is typed.
+    inputRef.current?.focus();
   };
 
   // Restore focus to the input whenever the chat becomes interactable again
@@ -329,8 +405,8 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     if (disabled) return;
     const text = input.trim();
     if (!text) return;
-    // The user just sent a message — snap back to the bottom to follow the reply.
-    stickRef.current = true;
+    // The user just sent a message: follow the reply from the bottom again.
+    setFollow(true);
     onSubmit(text);
     setInput("");
     inputRef.current?.focus();
@@ -471,6 +547,15 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
         className={styles.messages}
         data-testid="chat-messages"
         onScroll={handleScroll}
+        // The transcript is its own scrollable region: focusable, so a keyboard
+        // user can page back through it (the composer holds focus the rest of
+        // the time), and a log, so a reply is announced. A message still being
+        // revealed is marked `aria-busy`, so assistive technology waits for the
+        // whole reply instead of each tick of it.
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region has to be reachable by keyboard (WCAG 2.1.1); the rule does not know about overflow containers.
+        tabIndex={0}
+        role="log"
+        aria-label="Conversation"
       >
         <div ref={contentRef} className={styles.content}>
           {messages.map((msg) => {
@@ -487,6 +572,9 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
                 data-role={msg.role}
                 data-style={style}
                 aria-label={isUser ? "You" : "Assistant"}
+                aria-busy={
+                  !isUser && (!!msg.isStreaming || revealing.has(msg.id)) ? true : undefined
+                }
               >
                 {isUser ? (
                   <span className={cx(styles.userContent, surface)}>
@@ -502,6 +590,27 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
               </article>
             );
           })}
+        </div>
+        {/* Inside the scroller, so a wheel over the key scrolls the transcript
+            rather than stopping at it. A zero-height sticky row holds the key at
+            the bottom of the scrollport without taking any of the content's
+            space. */}
+        <div className={styles.foot}>
+          {!following && (
+            <Button
+              variant={behind ? "primary" : "secondary"}
+              build="solid"
+              round
+              size="sm"
+              className={styles.jump}
+              data-behind={behind || undefined}
+              onClick={jumpToLatest}
+              aria-label="Jump to the latest message"
+              title="Jump to the latest message"
+            >
+              <Glyph slot="chevronDown" fallback={ChevronDown} />
+            </Button>
+          )}
         </div>
       </div>
       <form

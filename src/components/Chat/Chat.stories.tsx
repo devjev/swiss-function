@@ -1,6 +1,7 @@
 import type { Story } from "@ladle/react";
 import { useEffect, useState } from "react";
 import { Box } from "../Box";
+import { Button } from "../Button";
 import { Stat } from "../Stat";
 import {
   Chat,
@@ -498,6 +499,73 @@ export const MessageStyles: Story = () => {
           />
         </div>
       ))}
+    </div>
+  );
+};
+
+const BACKLOG: ChatMessage[] = Array.from({ length: 30 }, (_, i) => ({
+  id: `b-${i}`,
+  role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+  content:
+    i % 2 === 0
+      ? `Question ${i / 2 + 1}: how does the follow behaviour work?`
+      : `The view holds the bottom as the reply arrives. Scroll away from it and it lets go at once, however small the move, so it never pulls against you.\n\nThe key below brings you back, and takes the accent once something has arrived while you were reading up here.`,
+}));
+
+/** A transcript long enough to scroll, with a reply arriving at the bottom.
+ *  Scroll up and the view stops following: the jump-to-latest key appears over
+ *  the bottom edge and turns accent as the reply keeps growing out of sight.
+ *  Typing several lines into the composer shows the other half: the composer
+ *  grows into the transcript's space and the bottom stays in view. */
+export const Following: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(BACKLOG);
+  const [streaming, setStreaming] = useState(false);
+
+  useEffect(() => {
+    if (!streaming) return;
+    const id = `s-${Date.now()}`;
+    setMessages((prev) => [...prev, { id, role: "assistant", content: "", isStreaming: true }]);
+    let n = 0;
+    const timer = setInterval(() => {
+      n += 1;
+      const done = n >= 30;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                content:
+                  `A reply arriving a sentence at a time, so the bottom keeps moving. `.repeat(n),
+                isStreaming: !done,
+              }
+            : m,
+        ),
+      );
+      if (done) {
+        clearInterval(timer);
+        setStreaming(false);
+      }
+    }, 120);
+    return () => clearInterval(timer);
+  }, [streaming]);
+
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", maxInlineSize: "34rem" }}>
+      <Chat
+        messages={messages}
+        onSubmit={(text) => {
+          setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", content: text }]);
+          setStreaming(true);
+        }}
+        height={420}
+        disabled={streaming}
+        // Tracks the tokens as they arrive, so the bottom really does keep
+        // moving while you read further up.
+        reveal={{ mode: "stream" }}
+      />
+      <Button onClick={() => setStreaming(true)} disabled={streaming} size="sm">
+        Send a reply
+      </Button>
     </div>
   );
 };

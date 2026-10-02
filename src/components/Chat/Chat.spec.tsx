@@ -549,3 +549,131 @@ test("messageStyle styles the two roles apart", async ({ mount }) => {
   expect(user.shadow).toBe("none");
   expect(agent.shadow).not.toBe("none");
 });
+
+const LONG_TRANSCRIPT: ChatMessage[] = Array.from({ length: 40 }, (_, i) => ({
+  id: `m-${i}`,
+  role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+  content: `Message ${i}\n\nA second paragraph, so each turn is a few lines tall.`,
+}));
+
+const JUMP = 'button[aria-label="Jump to the latest message"]';
+
+test("the transcript opens at the bottom and holds it when the composer grows", async ({
+  mount,
+}) => {
+  // The bug this pins: the ResizeObserver watched the message list alone, so a
+  // composer growing under `field-sizing: content` shrank the viewport without
+  // the view following. You lost sight of the reply you were answering, by as
+  // much as the composer had grown, exactly while typing.
+  const c = await mount(<Chat messages={LONG_TRANSCRIPT} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+  const dist = () =>
+    scroller.evaluate((el) => Math.round(el.scrollHeight - el.scrollTop - el.clientHeight));
+
+  await expect.poll(dist).toBe(0);
+  const tall = await scroller.evaluate((el) => el.clientHeight);
+
+  await c.getByRole("textbox").fill("one\ntwo\nthree\nfour\nfive");
+
+  // The composer took height from the transcript, and the bottom came with it.
+  expect(await scroller.evaluate((el) => el.clientHeight)).toBeLessThan(tall);
+  await expect.poll(dist).toBe(0);
+});
+
+test("scrolling up stops the view following, and the jump key brings it back", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<Chat messages={LONG_TRANSCRIPT} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+  const jump = page.locator(JUMP);
+  const dist = () =>
+    scroller.evaluate((el) => Math.round(el.scrollHeight - el.scrollTop - el.clientHeight));
+
+  await expect.poll(dist).toBe(0);
+  await expect(jump).toHaveCount(0);
+
+  // Any move away from the bottom stops it, however small: the old rule only
+  // let go past 32px, so a nudge inside that was pulled straight back.
+  await scroller.evaluate((el) => {
+    el.scrollTop -= 12;
+  });
+  await expect(jump).toBeVisible();
+  await expect.poll(dist).toBe(12);
+
+  await jump.click();
+  await expect.poll(dist).toBe(0);
+  await expect(jump).toHaveCount(0);
+});
+
+test("scrolling back to the bottom by hand resumes following, no key needed", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<Chat messages={LONG_TRANSCRIPT} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+  const jump = page.locator(JUMP);
+
+  await scroller.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect(jump).toBeVisible();
+
+  await scroller.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(jump).toHaveCount(0);
+});
+
+test("the transcript is a focusable log, and a streaming message is marked busy", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Chat
+      messages={[
+        { id: "1", role: "user", content: "Question" },
+        { id: "2", role: "assistant", content: "Partial rep", isStreaming: true },
+      ]}
+      onSubmit={() => {}}
+    />,
+  );
+  const scroller = c.getByTestId("chat-messages");
+  // A scrollable region has to be reachable by keyboard (WCAG 2.1.1); the
+  // composer holds focus the rest of the time, so without this there is no way
+  // to page back through the history at all.
+  await expect(scroller).toHaveAttribute("tabindex", "0");
+  await expect(scroller).toHaveAttribute("role", "log");
+  await expect(scroller).toHaveAttribute("aria-label", "Conversation");
+  // `aria-busy` while the reply is still arriving, so assistive technology
+  // waits for the whole thing rather than announcing each tick of the reveal.
+  await expect(c.locator('[data-role="assistant"]')).toHaveAttribute("aria-busy", "true");
+  await expect(c.locator('[data-role="user"]')).not.toHaveAttribute("aria-busy");
+});
+
+test("a hidden transcript comes back to the offset it was left at", async ({ mount }) => {
+  // `display: none` destroys a scroll offset, so switching away from a
+  // ChatDrawer view and back used to land at the top of the history. Following
+  // is off here (the user had scrolled up), which is the case where the offset
+  // is the only thing that can restore it; when it is on, the bottom does.
+  const c = await mount(<Chat messages={LONG_TRANSCRIPT} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+  const top = () => scroller.evaluate((el) => Math.round(el.scrollTop));
+
+  await expect
+    .poll(() => scroller.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+    .toBe(0);
+  await scroller.evaluate((el) => {
+    el.scrollTop = Math.round(el.scrollHeight / 2);
+  });
+  const left = await top();
+  expect(left).toBeGreaterThan(0);
+
+  await c.evaluate((el: HTMLElement) => {
+    el.style.display = "none";
+  });
+  await c.evaluate((el: HTMLElement) => {
+    el.style.display = "";
+  });
+
+  await expect.poll(top).toBe(left);
+});
