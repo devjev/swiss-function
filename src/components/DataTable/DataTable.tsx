@@ -27,7 +27,9 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode, Ref, UIEvent } from "react";
 import {
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -76,6 +78,7 @@ import { resolveEditActivation } from "./editActivation";
 import { CellEditor, formatEditDisplay } from "./editors";
 import { Pagination } from "./Pagination";
 import { computeRowOrder, getCellValue } from "./rowOrder";
+import { startTotal } from "./totals";
 import { buildTreeMeta } from "./treeRows";
 import type {
   AdvanceHint,
@@ -86,14 +89,17 @@ import type {
   CellRange,
   CellSpanFn,
   ColumnDef,
+  ColumnFitMode,
+  ColumnTotal,
   DataTableHighlight,
   EditActivation,
   ExpandedState,
   LeafColumnDef,
   PaginateConfig,
   Selection,
+  TotalsConfig,
 } from "./types";
-import { isGroup, resolveCellBackground } from "./types";
+import { isGroup, resolveAlign, resolveCellBackground } from "./types";
 import {
   expandPlaceholderOrder,
   toEffectiveOrder,
@@ -182,6 +188,17 @@ export interface DataTableProps<T>
   cellOverflow?: CellOverflow;
   /** Called when active cell / range selection changes. */
   onSelectionChange?: (selection: Selection) => void;
+  /** Tune the totals row, the summary line pinned at the bottom edge of the
+   *  grid. Declaring a `total` on a column is what makes the row
+   *  appear; this shapes it (`label`, `labelColumn`, `position: "top"`) and
+   *  `totals={false}` drops it.
+   *
+   *  The aggregates cover every filtered row, not the page or the rows on
+   *  screen, so the number doesn't move as you scroll or page. On a tree table
+   *  they cover the root rows, so a parent's subtotal isn't counted twice. The
+   *  row is not part of the selection grid: it holds no cell coordinates and
+   *  takes no keyboard focus. */
+  totals?: boolean | TotalsConfig;
   /** Excel-style row-number gutter: a slim, frozen leading track numbering the
    *  visible rows (1-based display order, so numbers stay put on sort/filter).
    *  Clicking a number selects the whole row, dragging sweeps a span of rows,
@@ -257,6 +274,26 @@ export interface DataTableProps<T>
   /** Standard preferred width (in `--sf-unit` multiples) for columns that don't
    *  declare their own `width`. Default 8. */
   defaultColumnWidth?: number;
+  /** How columns are sized at rest.
+   *  - `"manual"` (default): each column keeps its declared `width` (or the
+   *    `defaultColumnWidth`), and the last one stretches into any slack.
+   *  - `"content"`: every resizable column is fitted to its content as soon as
+   *    the first rows are measured, and fitted again when `data` changes. The
+   *    same measurement the double-click on a header edge uses, so a column is
+   *    never put under its floor (its `minWidth` raised to what its title
+   *    needs). The body is virtualized, so the fit reads the **mounted** rows:
+   *    a longer value further down the table is not measured until it has been
+   *    on screen and the table is fitted again.
+   *
+   *  A user resize wins either way: once a column has an explicit width, it
+   *  keeps it until the next fit. */
+  columnFit?: ColumnFitMode;
+  /** Give the column headers a right-click menu offering **Fit this column**
+   *  and **Fit all columns** (the same measurement as the double-click on a
+   *  header edge, and as `columnFit="content"`). Off by default: it takes over
+   *  the browser's own context menu on the header, and not every table wants
+   *  that. Needs `resizableColumns`, since a locked column cannot be fitted. */
+  headerMenu?: boolean;
   /** Controlled px width overrides keyed by column id. Pass with
    *  `onColumnWidthsChange`. */
   columnWidths?: Record<string, number>;
@@ -691,7 +728,7 @@ function DataTableRowInner<T>({
         const active = selectionActive?.row === displayIndex && selectionActive?.col === colIndex;
         const inRange = cellInRange(displayIndex, colIndex, selectionRange);
         const isEditing = editing?.cell.row === displayIndex && editing?.cell.col === colIndex;
-        const align = colDef.align ?? "start";
+        const align = resolveAlign(colDef);
         const isFrozen = colIndex < frozenCount;
         const isLocked = resizableColumns && colDef.resizable === false;
 
@@ -782,6 +819,14 @@ function DataTableRowInner<T>({
 
 const DataTableRow = memo(DataTableRowInner) as typeof DataTableRowInner;
 
+/** The headers' right-click menu. Lazy, so Base UI's context-menu only reaches
+ *  the bundle of a table that opts into `headerMenu` (see HeaderMenu.tsx). */
+const HeaderMenu = lazy(() => import("./HeaderMenu"));
+
+/** Sentinel for "no fit has run yet", distinct from any `data` array a
+ *  consumer could pass, so the first fit is never mistaken for a repeat. */
+const NO_FIT_YET = Symbol("no-fit-yet");
+
 export function DataTable<T>(props: DataTableProps<T>) {
   const {
     data,
@@ -797,6 +842,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     headerLines: tableHeaderLines = 1,
     cellOverflow = "clamp",
     onSelectionChange,
+    totals,
     rowNumbers = false,
     selectionMode = "cell",
     highlights,
@@ -818,6 +864,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     columnGroupsCollapsed: controlledGroupsCollapsed,
     onColumnGroupsCollapsedChange,
     defaultColumnWidth,
+    columnFit = "manual",
+    headerMenu = false,
     columnWidths: controlledColumnWidths,
     defaultColumnWidths,
     onColumnWidthsChange,
@@ -1227,6 +1275,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Cell focus management (programmatic) ---
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  /** Totals cells by column index, for auto-fit: a column's sum is usually its
+   *  widest figure, so fitting to content has to measure it too. */
+  const totalsCellRefs = useRef(new Map<number, HTMLElement>());
+
   const cellKey = (r: number, c: number) => `${r}:${c}`;
   // Stable ref-registration callback so memoized flat rows keep their identity.
   const registerCell = useCallback((row: number, col: number, el: HTMLDivElement | null) => {
@@ -1422,6 +1474,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
         const lead = gutter ? gutter.getBoundingClientRect().width : 0;
         widest = Math.max(widest, lead + contentRunWidth(body));
       }
+      // The totals cell counts as content: a sum carries more digits than any
+      // single value, and a column fitted without it would clip its own total.
+      const totalsCell = totalsCellRefs.current.get(colIndex);
+      const totalsBody = totalsCell?.querySelector<HTMLElement>(`.${styles.cellBody}`);
+      if (totalsBody) widest = Math.max(widest, contentRunWidth(totalsBody));
       // The cells' inline padding follows the density (--sf-cell-pad-x, a
       // quarter to three quarters of a unit per side): read it off the header
       // cell, which pads the same way, plus a little slack.
@@ -1502,6 +1559,33 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (indices.length === 0 || !anyCell) return;
     autoFitMany(indices, anyCell);
   };
+
+  // `columnFit="content"`: size every resizable column to its content, through
+  // the same measurement the double-click on a header edge uses, so the floors
+  // and the group titles are respected identically. Runs once the first rows
+  // have mounted (the body is virtualized, so on the very first commit there
+  // is nothing to measure) and again whenever `data` changes.
+  //
+  // Not on scroll. Refitting as longer values mount would move column edges
+  // under the reader mid-scroll, which is worse than the clipping it avoids;
+  // `apiRef.autoFitColumns()` refits on demand when a host wants that.
+  const fittedForRef = useRef<unknown>(NO_FIT_YET);
+  const rowsMounted = virtualRows.length > 0;
+  useEffect(() => {
+    if (columnFit !== "content") {
+      // Leaving content mode re-arms it, so turning it back on fits again.
+      fittedForRef.current = NO_FIT_YET;
+      return;
+    }
+    if (!rowsMounted || fittedForRef.current === data) return;
+    fittedForRef.current = data;
+    autoFitColumnsRef.current();
+  }, [columnFit, data, rowsMounted]);
+
+  // The leaf column a header right-click landed on, so the menu's "Fit this
+  // column" knows its target. Null when the menu was opened over a group
+  // header or empty header space, where only "Fit all columns" applies.
+  const [menuColumnId, setMenuColumnId] = useState<string | null>(null);
 
   // The width readout (issue #102): the shared chip under the handle.
   const { readout, showReadout, hideReadout } = useWidthReadout();
@@ -2154,6 +2238,55 @@ export function DataTable<T>(props: DataTableProps<T>) {
     return 0;
   }, [getSubRows, treeColumn, visibleLeaves]);
 
+  // --- Totals row ---
+  // One column declaring a `total` is the opt-in; `totals={false}` drops the
+  // row, and the object form only shapes it.
+  const totalsConfig: TotalsConfig = typeof totals === "object" ? totals : {};
+  const totalColumns = useMemo(() => visibleLeaves.filter((c) => c.total != null), [visibleLeaves]);
+  const showTotals = totals !== false && totalColumns.length > 0;
+  const totalsPosition = totalsConfig.position ?? "bottom";
+
+  /** Each total column's rendered cell, keyed by column id. Aggregated over
+   *  EVERY filtered row (flat mode) or every root row (tree mode), so the figure
+   *  belongs to the table rather than to the page or the scroll window, and a
+   *  parent's subtotal is never counted twice. The named aggregates stream their
+   *  values through an accumulator; only a function total materializes the rows
+   *  and the values array it is handed, and only the columns that ask for them. */
+  const totalCells = useMemo(() => {
+    if (!showTotals) return null;
+    const out = new Map<string, ReactNode>();
+    const roots = order ? null : rows.filter((r) => r.depth === 0).map((r) => r.original as T);
+    const rowCount = order ? order.length : (roots?.length ?? 0);
+    const rowAt = (i: number): T => (order ? (data[order[i] as number] as T) : (roots?.[i] as T));
+    let materialized: T[] | null = null;
+    const allRows = (): T[] =>
+      (materialized ??= roots ?? Array.from({ length: rowCount }, (_, i) => rowAt(i)));
+    for (const col of totalColumns) {
+      const total = col.total as ColumnTotal<T>;
+      if (typeof total === "function") {
+        const values = new Array<unknown>(rowCount);
+        for (let i = 0; i < rowCount; i++) values[i] = getCellValue(rowAt(i), col.accessor);
+        out.set(col.id, total({ rows: allRows(), values, column: col }));
+      } else {
+        const acc = startTotal(total);
+        for (let i = 0; i < rowCount; i++) acc.add(getCellValue(rowAt(i), col.accessor));
+        out.set(col.id, acc.text(col.edit?.type === "number" ? col.edit.decimals : undefined));
+      }
+    }
+    return out;
+  }, [showTotals, totalColumns, order, data, rows]);
+
+  /** Which column carries the row's label: the one named, else the first column
+   *  with no total of its own. A column's total always wins over the label. */
+  const totalsLabelId = (() => {
+    if (!showTotals || totalsConfig.label === null) return null;
+    const named = totalsConfig.labelColumn;
+    if (named != null) {
+      return visibleLeaves.some((c) => c.id === named && c.total == null) ? named : null;
+    }
+    return visibleLeaves.find((c) => c.total == null)?.id ?? null;
+  })();
+
   // Props shared by every flat-mode row. Each one is identity-stable across a
   // resize step (only the viewport's --sf-datatable-template changes), so the
   // memoized rows bail out and a step re-renders the header alone.
@@ -2191,7 +2324,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const active = isActive(cell);
     const inRange = isInRange(cell);
     const isEditing = editing?.cell.row === rowIndex && editing?.cell.col === colIndex;
-    const align = colDef.align ?? "start";
+    const align = resolveAlign(colDef);
     const isTreeCell = colIndex === treeColIdx;
     const isFrozen = colIndex < frozenCount;
     // A column explicitly opted out of resizing (only meaningful when the table
@@ -2540,6 +2673,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const fmeta = isLeafHeader ? filterMeta.get(header.column.id) : undefined;
     const filterValue = fmeta ? header.column.getFilterValue() : undefined;
     const isFiltered = filterValue != null;
+    // A heading sits where its column's cells sit: a right-aligned number
+    // column gets a right-aligned title, which is how a figure and its label
+    // read as one column. Group headings stay centred over their span.
+    const leafDef = isLeafHeader && leafStart >= 0 ? visibleLeaves[leafStart] : undefined;
+    const headerAlign = leafDef ? resolveAlign(leafDef) : "start";
     const colSelected =
       isLeafHeader &&
       fullHeightRange &&
@@ -2575,7 +2713,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             ...dnd?.style,
           } as CSSProperties
         }
-        data-align={isGroupHeader ? "center" : "start"}
+        data-align={isGroupHeader ? "center" : headerAlign}
         data-surface={headerSurface}
         data-tinted={headerColor != null || undefined}
         // A multi-line title: the key grows to its lines (see .headerCell[data-lines]).
@@ -2591,6 +2729,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
         // The sorted column's header sits pressed (see .headerCell[data-sorted]).
         data-sorted={sortDir || undefined}
         onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+        // Which column the header menu acts on. A group header reports null, so
+        // the menu offers only "Fit all columns".
+        onContextMenu={
+          headerMenu ? () => setMenuColumnId(isLeafHeader ? header.column.id : null) : undefined
+        }
         {...(dnd?.listeners ?? {})}
       >
         {!header.isPlaceholder && (
@@ -2699,6 +2842,57 @@ export function DataTable<T>(props: DataTableProps<T>) {
     );
   };
 
+  /** The totals row: one summary line on the same column tracks as the body,
+   *  sticky at the bottom edge of the scrollport (or under the header, with
+   *  `position: "top"`) so it stays in view while the rows scroll past, and
+   *  scrolling sideways with the columns because it lives inside the scrollport.
+   *  Flat, not a key: it is a readout, not a control. It carries no cell
+   *  coordinates, so selection, copy and the keyboard never reach it. */
+  const totalsRow =
+    showTotals && totalCells && !showEmpty ? (
+      <div
+        className={styles.totals}
+        role="row"
+        data-position={totalsPosition}
+        style={{ height: rowHeight }}
+      >
+        {rowNumbers && (
+          <div
+            aria-hidden="true"
+            className={styles.rowNumberCell}
+            data-frozen-edge={frozenCount === 0 || undefined}
+          />
+        )}
+        {visibleLeaves.map((colDef, colIndex) => {
+          const total = totalCells.get(colDef.id);
+          const isLabel = total === undefined && colDef.id === totalsLabelId;
+          const isFrozen = colIndex < frozenCount;
+          return (
+            <div
+              key={colDef.id}
+              ref={(el) => {
+                if (el) totalsCellRefs.current.set(colIndex, el);
+                else totalsCellRefs.current.delete(colIndex);
+              }}
+              role={isLabel ? "rowheader" : "gridcell"}
+              className={cx(styles.totalsCell, surfaceClass[headerSurface])}
+              data-surface={headerSurface}
+              data-align={isLabel ? "start" : resolveAlign(colDef)}
+              data-label={isLabel || undefined}
+              data-frozen={isFrozen || undefined}
+              data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
+              style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
+              onPointerEnter={(e) => revealClipped(e.currentTarget)}
+            >
+              <span className={styles.cellBody}>
+                {isLabel ? (totalsConfig.label ?? "Total") : total}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    ) : null;
+
   return (
     <div className={cx(styles.wrapper, className)} style={style} {...rest}>
       <div
@@ -2786,7 +2980,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               }
               return false;
             };
-            const headerRows = (
+            const headerBlock = (
               <div ref={headerRowRef} className={styles.headerBlock} role="rowgroup">
                 {/* Corner cell over the row-number gutter: one cell across every
                     header row, so the select-all target is the whole corner. */}
@@ -2828,6 +3022,29 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 ))}
               </div>
             );
+            // The header's right-click menu (opt-in): one Root over the whole
+            // header block rather than one per cell, with the clicked column
+            // recorded on the way in. Fit is the same measurement as the
+            // double-click on a handle, so every floor and group title holds.
+            // Until the menu module has loaded, the plain header block: the
+            // headers are fully usable, only the right-click menu waits.
+            const headerRows = headerMenu ? (
+              <Suspense fallback={headerBlock}>
+                <HeaderMenu
+                  header={headerBlock}
+                  onFitColumn={
+                    menuColumnId != null && resizableColumnIds.has(menuColumnId)
+                      ? () => autoFitColumnsRef.current([menuColumnId])
+                      : undefined
+                  }
+                  onFitAll={
+                    resizableColumnIds.size > 0 ? () => autoFitColumnsRef.current() : undefined
+                  }
+                />
+              </Suspense>
+            ) : (
+              headerBlock
+            );
             if (!reorderableColumns) return headerRows;
             const sortable = (
               <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>
@@ -2857,6 +3074,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
               </DndContext>
             );
           })()}
+
+          {totalsPosition === "top" ? totalsRow : null}
 
           {/* Body */}
           {showEmpty ? (
@@ -2969,6 +3188,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
               })}
             </div>
           )}
+
+          {totalsPosition === "bottom" ? totalsRow : null}
         </div>
 
         {/* Dithered fade at the bottom scroll edge. Sticky + negative margin so

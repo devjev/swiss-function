@@ -498,6 +498,32 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
 
+**Following the bottom.** The transcript holds its bottom edge as the bottom
+moves, which happens for two reasons: the reply grows as it streams, and the
+composer grows under it (`field-sizing: content`, up to 8u) and takes height from
+the transcript. A `ResizeObserver` over both the message list and the scroll
+viewport catches each, so typing a long question never pushes the reply you are
+answering out of sight.
+
+Following stops the moment the view moves away from the bottom, whatever moved it
+(wheel, trackpad, scrollbar, keyboard) and however small the move, so it never
+pulls against you while you read back. A round key then appears over the
+transcript's bottom edge; it takes the accent (`data-behind`) once something has
+arrived below the fold, and pressing it returns to the bottom and resumes
+following. Scrolling back to the bottom by hand resumes it too, with no key
+press. Submitting also resumes it, so your own turn is always followed. The key
+sits inside the scroll container, so a wheel over it scrolls the transcript.
+
+**Keyboard and assistive tech.** The transcript is a focusable `role="log"`
+region named "Conversation": the composer holds focus the rest of the time, so
+without `tabindex` there would be no way to page back through the history
+(WCAG 2.1.1). A message still arriving carries `aria-busy`, so a screen reader
+waits for the whole reply rather than announcing each tick of the reveal.
+
+A `display: none` ancestor destroys a scroll offset, so the transcript restores
+the position it was left at when it comes back (switching away from a
+[ChatDrawer](#chatdrawer) view and back).
+
 The squircle is a real superellipse (`|x|^4 + |y|^4 = 1`, which is what
 `corner-shape: squircle` draws) in every engine. Where the property exists
 (Chromium 139+) the element cuts its own corners and a `display: none` backing
@@ -899,6 +925,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `selectionMode` | `"cell" \| "row" \| "column"` | `"cell"` | What a plain cell click selects. `"row"` widens every cell-driven selection to the full row (list/master-detail: click anywhere in a row, get the row), `"column"` to the full column — click, drag, Shift+click and arrow keys all produce full-axis ranges, while the active cell stays the clicked cell. Explicit gestures (gutter, header select zones, Cmd/Ctrl+A) keep their own shapes. |
 | `cellBackground` | `(ctx) => CellBackground \| undefined` | n/a | Paint a body cell's **whole background** from its own data. `ctx` is `{ value, row, rowIndex, columnId, column }`, `rowIndex` being the *data* index (as `LeafColumnDef.cell` receives), so the colour **travels with the row through sorting and filtering**, the opposite of `highlights`, which mark a fixed screen region. Return a CSS colour, or `{ color, textColor }` to pin the ink; `undefined` leaves the cell alone. The fill is the cell's own `background-color`, so it sits **under** the range tint and the highlight overlay, and a coloured cell still shows both. The ink picks itself for contrast unless `textColor` is given (see below). Memoize the function to keep the virtualized rows' re-render bail-out. |
 | `highlights` | `DataTableHighlight[]` | n/a | Persistent coloured range overlays (the Excel "coloured range reference" look: a light fill plus a solid border around the block). Each is `{ id?, range: CellRange, color?, label? }`. **Positional** (visible coordinates, like the selection and cell spans): a highlight marks a screen region and stays put when data is sorted or filtered. `color` is any CSS colour/token; omit it and colours cycle the semantic tokens by array position. Use several distinct colours to mark separate ranges (e.g. charting series). Declarative: to add one "with the mouse", capture the selection via `onSelectionChange` and push a highlight with a colour. |
+| `totals` | `boolean \| TotalsConfig` | n/a | Tune the totals row. **A column declaring a `total` is what makes the row appear**; this shapes it, and `totals={false}` drops it. `TotalsConfig` is `{ label?: ReactNode; labelColumn?: string; position?: "top" \| "bottom" }`: `label` (default `"Total"`, `null` for none) sits in `labelColumn`, else in the first column with no total of its own (a column's total always wins over the label), and `position` pins the row under the header instead of at the bottom edge. The row lives inside the scrollport, so it holds its edge while the rows scroll past and scrolls sideways with the columns, frozen cells included. It is the header's band mirrored to the foot of the table: the same panel tone, the same keys (face from `headerSurface`, edge bands, seams), so the grid is framed top and bottom and the summary never reads as one more row. The keys are inert: no hover, no press, no sort. It is **not part of the selection grid**: no cell coordinates, no keyboard focus, not in a copy. `columnFit` / auto-fit measure its cells, so a column is never fitted too narrow for its own total. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `36` | Px (matches `--sf-unit * 1.5`). |
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
@@ -911,6 +938,8 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `fillHeight` | `boolean` | `false` | Hold the full `height` even with too few rows (instead of shrinking to content), and dither the empty band below the last row — so a sparse table reads as one filled panel. Uses `columnFill`'s look when set, else a static dither; together with `columnFill` it fills both the right gutter and the bottom band. |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
+| `columnFit` | `"manual" \| "content"` | `"manual"` | How columns are sized at rest. `"manual"` keeps each column's declared `width` (or `defaultColumnWidth`), with the last one stretching into the slack. `"content"` fits every resizable column to the narrowest width that still shows its content, through the same measurement as the double-click on a header edge, so no column lands under its floor (its `minWidth` raised to what its title needs) and a group title still fits over its leaves. It fits once the first rows have mounted and again whenever `data` changes. **Not on scroll**: the body is virtualized, so the fit reads the *mounted* rows, and a longer value further down is measured only once it has been on screen and the table is fitted again. Refitting as rows scrolled past would move column edges under the reader, so it is left to `apiRef.autoFitColumns()`. A user resize wins until the next fit. Fitted columns rarely fill the container, so pair it with `columnFill` to dither the leftover space. |
+| `headerMenu` | `boolean` | `false` | Give the headers a right-click menu with **Fit this column** and **Fit all columns** (the same measurement as above). Off by default, because it takes over the browser's own context menu on the header. "Fit this column" is disabled over a group header or a locked column. The menu is **lazy-loaded** (as TableInput's drag is), so a table that does not opt in carries none of it; the trigger is marked `data-header-menu` once armed, which is the short window after mount in which a right-click still gets the browser's own menu. |
 | `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. A collapsed group drags as one unit and keeps its position on expand; order arrays always carry real leaf ids, never a collapsed group's placeholder id. |
 | `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean/date → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
 | `columnFilters` | `ColumnFiltersState` | n/a | Controlled filters (TanStack), with `onColumnFiltersChange`. |
@@ -934,8 +963,15 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 **ColumnDef** is `LeafColumnDef<T> | GroupColumnDef<T>`:
 - Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
   `width?` (u), `minWidth?` (u, default 3), `resizable?`, `headerLines?` (lines the title may take, see the table prop), `overflow?` (`"clamp" | "wrap" | "hash"`, see `cellOverflow`), `align?`
-  (`start|center|end`), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
+  (`start|center|end`), `total?` (`ColumnTotal<T>`, see below), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
   overrides the table's `editOn`), `sortable?`, `filterable?`.
+- `align` **follows the data type when it is not declared**:
+  a `number` edit column ends (its digits line up, and its heading sits over
+  them), a `boolean` one centres, everything else starts. The type signal is the
+  column's `edit` config, the same one that picks the cell editor and the filter
+  control, so a column that declares none keeps starting. An explicit `align`
+  always wins. `TableInput` already read a number column this way; the two now
+  agree. The helper is exported as `resolveAlign(column)`.
 - Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`, `color?`, `headerLines?` (kept by the collapsed placeholder).
 - `EditConfig`, the cell editor, keyed by `type`:
   - `{ type: "text" }` is a `TextEditInline` (the floating expand-on-focus editor;
@@ -947,6 +983,40 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
   - `{ type: "date"; minDate?; maxDate? }` is a `DatePicker`; commits a `Date`.
     Render the read view via the column's `cell` (e.g. ISO). Its header filter
     falls back to a value checklist over the stringified dates.
+
+**Totals row.** `total` on a column is both the opt-in and the
+content:
+
+- A named aggregate: `"sum"`, `"avg"`, `"min"`, `"max"` over the column's
+  numeric values (numeric strings count; booleans and dates do not), `"count"`
+  (rows carrying a value, a spreadsheet's COUNTA) or `"countUnique"` (distinct
+  values). They print in Swiss typography (`1'284'500`) at the column's declared
+  precision (`edit.decimals`), else at the precision of the values they were fed,
+  so float noise never reaches the screen; an average keeps two decimals at the
+  least.
+- A function, `({ rows, values, column }) => ReactNode`, for anything else: a
+  weighted average, a ratio of two columns, a unit, a label. `rows` are the rows
+  behind the total and `values` their values in this column, in display order.
+
+The aggregates cover **every filtered row**, not the page and not the rows on
+screen, so the figure does not move as you scroll or page; on a tree table they
+cover the **root rows**, so a parent's own subtotal is not counted twice. The
+named aggregates stream their values, and only a function total materializes the
+arrays it is handed, so the row costs one pass over the data per total column.
+
+```tsx
+<DataTable
+  data={desks}
+  columns={[
+    { id: "desk", header: "Desk", accessor: "desk" },
+    { id: "amount", header: "Amount", accessor: "amount",
+      edit: { type: "number", decimals: 2 }, total: "sum" },
+    { id: "share", header: "Share", accessor: "share",
+      total: ({ values }) => `${formatNumber(sum(values) * 100, { decimals: 1 })}%` },
+  ]}
+  totals={{ label: "All desks" }}
+/>
+```
 
 **Keyboard / selection:**
 - With a selected cell, arrows move the active cell one cell and scroll it into
@@ -2522,6 +2592,14 @@ Search a list and choose exactly one: the single-selection sibling of [Selector]
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flush as a groove (its default); set it to raise the control. |
 
+**Pointer and keyboard are separate.** Hovering a row does not move the
+highlight: `data-highlighted` stays where the keyboard left it (and is what Enter
+commits), while CSS `:hover` shades the row under the cursor, so a mouse crossing
+an open dropdown on its way elsewhere cannot discard the row you had arrowed to.
+A pointer hover never scrolls the windowed list either; only keyboard and
+programmatic highlight changes do, which is what keeps a stray mouse movement
+from jumping the list.
+
 **Width:** fills its container and clamps to a narrow *definite* cell (like
 [Selector](#selector)). In a shrink-to-fit parent it holds a `12rem` floor
 instead of collapsing to the search input's min-content; tune it with
@@ -2874,6 +2952,10 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label, group? }`.
 
 **The dropdown's affordance:** the field ends in a chevron that opens the list and turns over while it is open. Base UI keeps it out of the tab order and leaves the semantics on the input, so it reads as a marker one can also click. The glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it with the rest of a consumer's set. Every layout carries it: the panel's search field, the inline tag input and the compact count.
+
+**Pointer and keyboard are separate**, exactly as in [Picker](#picker): hovering
+a row shades it through CSS `:hover` but leaves `data-highlighted` where the
+keyboard put it, and a pointer hover never scrolls the windowed list.
 
 **Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header), exactly as in [Picker](#picker): same-group items cluster (groups in first-appearance order), ungrouped items list first headerless, a group disappears with its last filtered-out item, and keyboard navigation skips the headers (which are visual only; the windowed listbox stays flat for assistive tech). **Clicking a header toggles the whole group** over its currently visible (filtered) items: it selects the missing ones, or deselects them all when every one is selected. This is a pointer shortcut; keyboard selection stays per item.
 

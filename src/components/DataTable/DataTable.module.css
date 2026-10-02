@@ -780,11 +780,17 @@
   --sf-cap: color-mix(in srgb, var(--sf-color-primary) 18%, var(--sf-color-bg-subtle));
 }
 
+/* Alignment runs on both axes of the cell: `justify-content` moves a cell whose
+   content is laid out as flex items (a tree gutter, an editor), and `text-align`
+   moves the text inside `.cellBody`, which takes the free space (`flex: 1`) so
+   its ellipsis works and so `justify-content` alone would have nothing to move. */
 .cell[data-align="end"] {
   justify-content: flex-end;
+  text-align: right;
 }
 .cell[data-align="center"] {
   justify-content: center;
+  text-align: center;
 }
 
 /* Tree gutter — leading slot for the chevron + per-depth indent. */
@@ -997,6 +1003,152 @@
 .row:has([data-editing]) {
   position: relative;
   z-index: 5;
+}
+
+/* --- Totals row --------------------------------------------
+   The summary band: the body's column tracks, pinned to the bottom edge of the
+   scrollport (`data-position="top"` pins it under the header instead) and
+   scrolling sideways with the columns, because it lives inside the scrollport
+   like the sticky header.
+
+   It is the header's band mirrored to the foot of the table: the same panel
+   tone, the same keys with their face and edge bands, the same seams. That is
+   what separates it from the data, as it does at the top, so no heavy rule is
+   needed and the table reads as one piece framed top and bottom. The keys are
+   inert (no hover, no press): a readout, not a control.
+
+   Its own stacking context keeps a frozen cell's z-index inside the band, and
+   `z-index: 2` puts the whole band above the body rows it is pinned over (and
+   above the edge fade). */
+.totals {
+  /* The keys' face at the header's amplitude, so top and bottom match. */
+  --sf-curve-scale: 0.6;
+  display: grid;
+  grid-template-columns: var(--sf-datatable-template);
+  width: 100%;
+  min-width: min-content;
+  position: sticky;
+  z-index: 2;
+  isolation: isolate;
+  background-color: var(--sf-color-bg-subtle);
+}
+.totals[data-position="bottom"] {
+  bottom: 0;
+}
+/* Under the header: the measured header height (the same variable the snap
+   origin reads), falling back to 1.5u per header row before measurement. */
+.totals[data-position="top"] {
+  top: var(--sf-header-block-size, calc(var(--sf-unit) * 1.5 * var(--sf-header-rows, 1)));
+}
+
+/* One key per column, built exactly as a header key (see `.headerCell`): the
+   lit and shade bands, the wall's cast on a scooped face, and the per-cell
+   seams as custom properties. The edge toward the data is the band's divider,
+   the mirror of the header's bottom edge. */
+.totalsCell {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-data: inset 0 1px 0 var(--sf-color-border-subtle);
+  --sf-hdr-lit: var(--sf-edge-lit);
+  --sf-hdr-shade: var(--sf-edge-shade);
+  --sf-hdr-wall: 0 0 transparent;
+  --sf-hdr-base: var(--sf-color-bg-subtle);
+  --sf-cap: var(--sf-hdr-base);
+  background-color: var(--sf-cap);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sf-cell-pad-x);
+  font-size: var(--sf-cell-font);
+  /* A total is a figure; the weight is what marks it as its column's summary.
+     Full-strength ink, as everywhere. */
+  font-weight: var(--sf-font-weight-semibold);
+  color: var(--sf-color-fg);
+  box-shadow:
+    var(--sf-hdr-lit), var(--sf-hdr-wall), var(--sf-hdr-shade), var(--sf-cell-edge-r),
+    var(--sf-cell-edge-data);
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  user-select: none;
+}
+.totalsCell[data-surface="concave"],
+.totalsCell[data-surface="dish"] {
+  --sf-hdr-wall: var(--sf-groove-wall);
+}
+.totals[data-position="top"] .totalsCell {
+  --sf-cell-edge-data: inset 0 -1px 0 var(--sf-color-border-subtle);
+}
+/* The table's right edge: no trailing seam on the last key (as in the header). */
+.totalsCell:last-child {
+  --sf-cell-edge-r: 0 0 transparent;
+}
+.totalsCell[data-align="end"] {
+  justify-content: flex-end;
+  text-align: right;
+}
+.totalsCell[data-align="center"] {
+  justify-content: center;
+  text-align: center;
+}
+/* The label names the line, so it reads as a heading for the band rather than
+   as another figure. */
+.totalsCell[data-label] {
+  font-weight: var(--sf-font-weight-medium);
+}
+
+/* The row-number gutter joins the band: the summary has no number, so the cell
+   takes the band's tone and divider and drops nothing else. The edges are set
+   through the gutter cell's own variables, so the frozen-boundary rule still
+   composes on top of them (`--sf-cell-edge-b` is its second edge; in this band
+   it carries the divider, which sits above the figures). */
+.totals .rowNumberCell {
+  --sf-cell-edge-b: inset 0 1px 0 var(--sf-color-border-subtle);
+  cursor: default;
+}
+.totals[data-position="top"] .rowNumberCell {
+  --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
+}
+
+/* Frozen columns stick in the band exactly as in a body row, and the frozen
+   region's trailing edge keeps its boundary shadow there too. */
+.totalsCell[data-frozen] {
+  position: sticky;
+  z-index: 2;
+}
+.viewport[data-frozen-scrolled] .totalsCell[data-frozen-edge] {
+  box-shadow:
+    var(--sf-hdr-lit),
+    var(--sf-hdr-wall),
+    var(--sf-hdr-shade),
+    var(--sf-cell-edge-r),
+    var(--sf-cell-edge-data),
+    calc(var(--sf-unit) / 4) 0 calc(var(--sf-unit) / 3) calc(var(--sf-unit) / -4)
+    color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
+}
+
+/* Fill / fixed-column modes, mirroring `.headerBlock` and `.body`: hold the
+   columns at their total width and let the dither own the leftover (the opaque
+   keys still cover their own tracks), and keep the last key's trailing seam
+   once it is a real fixed column with space to its right. */
+.viewport[data-column-fill] .totals,
+.viewport[data-fixed] .totals {
+  min-width: max-content;
+}
+.viewport[data-column-fill] .totals {
+  background-color: transparent;
+}
+.viewport[data-column-fill] .totalsCell:last-child,
+.viewport[data-fixed] .totalsCell:last-child {
+  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+}
+
+/* With a band pinned at the bottom, the scrollport's usable bottom edge is one
+   row higher: keep the dithered fade above the summary, and keep a cell
+   scrolled into view (focus, keyboard navigation) clear of it. */
+.viewport:has(.totals[data-position="bottom"]) {
+  scroll-padding-bottom: var(--sf-row-height, calc(var(--sf-unit) * 1.5));
+}
+.viewport:has(.totals[data-position="bottom"]) .edgeFade {
+  bottom: var(--sf-row-height, calc(var(--sf-unit) * 1.5));
 }
 
 /* Pagination strip lives below the viewport. */

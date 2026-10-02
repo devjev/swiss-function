@@ -116,6 +116,15 @@ export function measureHeaderNeed(
   cell: HTMLElement,
   { label, lines = 1 }: HeaderNeedOptions,
 ): number {
+  // Measure the cell at its natural width. An `auto` margin (the filter funnel
+  // pushed to the trailing edge) absorbs the cell's free space, and
+  // `getComputedStyle` reports that used value rather than `auto`: counted as
+  // footprint it would read as a need and pin the column at whatever width it
+  // happens to have. At `max-content` there is no free space, so an auto margin
+  // resolves to zero while every real margin (the sort arrow's) stays. Set and
+  // read inside one task, so nothing is painted at this width.
+  const laid = cell.style.inlineSize;
+  cell.style.inlineSize = "max-content";
   const cs = getComputedStyle(cell);
   const padding =
     (Number.parseFloat(cs.paddingInlineStart) || 0) + (Number.parseFloat(cs.paddingInlineEnd) || 0);
@@ -133,7 +142,9 @@ export function measureHeaderNeed(
       (Number.parseFloat(ccs.marginInlineStart) || 0) +
       (Number.parseFloat(ccs.marginInlineEnd) || 0);
   }
-  const labelNeed = lines > 1 ? narrowestLabelWidth(label, lines) : contentInlineSize(label);
+  const labelRun = contentInlineSize(label);
+  cell.style.inlineSize = laid;
+  const labelNeed = lines > 1 ? narrowestLabelWidth(label, lines) : labelRun;
   const gaps = Math.max(0, inFlow - 1) * gap;
   return Math.ceil(padding + chrome + gaps + labelNeed);
 }

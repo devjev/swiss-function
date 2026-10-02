@@ -1,5 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useCallback, useRef, useState } from "react";
+import { formatNumber } from "../../lib/format";
 import { DataTable, type DataTableHandle } from "./DataTable";
 import type { Cell, CellChange, ColumnDef } from "./types";
 import { isGroup } from "./types";
@@ -1115,3 +1116,188 @@ export const CollapsedGroupAmongGroups: Story = () => (
     ]}
   />
 );
+
+/** `columnFit="content"`: every column sized to the narrowest width that still
+ *  shows its content, instead of its declared width with the last one filling
+ *  the slack. Fitted once the first rows are measured, and again when the data
+ *  changes (press Swap data: the longer names widen the Name column).
+ *
+ *  Right-click any header for the same thing on demand: Fit this column /
+ *  Fit all columns. */
+export const ColumnFitToContent: Story = () => {
+  const short = seed(60);
+  const long = short.map((p, i) => ({
+    ...p,
+    name: i % 7 === 0 ? `${p.name} Vandenberghe-Whitworth` : p.name,
+  }));
+  const [rows, setRows] = useState(short);
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", sortable: true },
+    { id: "age", header: "Age", accessor: "age", align: "end", sortable: true },
+    { id: "role", header: "Role", accessor: "role" },
+    { id: "score", header: "Score", accessor: "score", align: "end" },
+  ];
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)" }}>
+      <div style={{ display: "flex", gap: "calc(var(--sf-unit) / 2)" }}>
+        <button type="button" onClick={() => setRows(rows === short ? long : short)}>
+          Swap data
+        </button>
+      </div>
+      <DataTable data={rows} columns={columns} height={360} columnFit="content" headerMenu />
+      <span style={{ fontFamily: "var(--sf-font-mono)" }}>
+        the same table, columnFit="manual" (the default)
+      </span>
+      <DataTable data={rows} columns={columns} height={200} headerMenu />
+    </div>
+  );
+};
+
+/** A column declaring a `total` puts the summary line at the bottom edge of the
+ *  grid: pinned there while the rows scroll past it, scrolling sideways with the
+ *  columns, and covering every filtered row rather than the page on screen.
+ *  Filter the Role column (the funnels) and watch the figures follow.
+ *
+ *  The named aggregates print in Swiss typography at the column's own
+ *  precision; `total` as a function renders the cell itself (here the share of
+ *  active people, from the rows behind the total). */
+export const Totals: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", sortable: true },
+    {
+      id: "age",
+      header: "Age",
+      accessor: "age",
+      sortable: true,
+      edit: { type: "number" },
+      width: 6,
+      total: "avg",
+    },
+    {
+      id: "score",
+      header: "Score",
+      accessor: "score",
+      sortable: true,
+      edit: { type: "number", decimals: 1 },
+      width: 8,
+      total: "sum",
+    },
+    {
+      id: "active",
+      header: "Active",
+      accessor: "active",
+      edit: { type: "boolean" },
+      width: 8,
+      total: ({ values }) => {
+        const on = values.filter(Boolean).length;
+        return values.length === 0
+          ? ""
+          : `${formatNumber((on / values.length) * 100, { decimals: 0 })}%`;
+      },
+    },
+    { id: "role", header: "Role", accessor: "role", width: 10, total: "countUnique" },
+  ];
+  return <DataTable data={seed(60)} columns={columns} height={360} filterableColumns />;
+};
+
+/** The row's own knobs: `label` and `labelColumn` name the line, and
+ *  `position="top"` pins it under the header instead of at the bottom edge. */
+export const TotalsAtTop: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", total: "count" },
+    { id: "role", header: "Role", accessor: "role", width: 10 },
+    {
+      id: "score",
+      header: "Score",
+      accessor: "score",
+      edit: { type: "number", decimals: 1 },
+      width: 8,
+      total: "sum",
+    },
+  ];
+  return (
+    <div style={{ display: "grid", gap: "calc(var(--sf-unit) * 2)" }}>
+      <DataTable
+        data={seed(40)}
+        columns={columns}
+        height={240}
+        totals={{ position: "top", label: "All 40 rows", labelColumn: "role" }}
+      />
+      <DataTable data={seed(40)} columns={columns} height={240} totals={false} />
+    </div>
+  );
+};
+
+/** 100k virtualized rows with frozen columns: the total covers every row, not
+ *  the mounted window, so it does not move as you scroll, and the frozen cells
+ *  stick in the summary line as they do in a body row. */
+export const TotalsAtScale: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", width: 12 },
+    { id: "role", header: "Role", accessor: "role", width: 10 },
+    { id: "age", header: "Age", accessor: "age", edit: { type: "number" }, width: 8, total: "avg" },
+    {
+      id: "score",
+      header: "Score",
+      accessor: "score",
+      edit: { type: "number", decimals: 1 },
+      width: 10,
+      total: "sum",
+    },
+    {
+      id: "min",
+      header: "Lowest score",
+      accessor: "score",
+      align: "end",
+      width: 12,
+      total: "min",
+    },
+    {
+      id: "max",
+      header: "Highest score",
+      accessor: "score",
+      align: "end",
+      width: 12,
+      total: "max",
+    },
+  ];
+  return (
+    <DataTable
+      data={seed(100_000)}
+      columns={columns}
+      height={400}
+      frozenColumns={1}
+      rowNumbers
+      totals={{ label: "100k rows" }}
+    />
+  );
+};
+
+/** Alignment follows the data type when a column doesn't declare one: a
+ *  `number` column ends (digits line up, and the heading sits over them), a
+ *  `boolean` centres, text and dates start. An explicit `align` still wins —
+ *  here Score keeps starting. */
+export const TypedAlignment: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name", edit: { type: "text" } },
+    { id: "age", header: "Age", accessor: "age", edit: { type: "number" }, width: 6 },
+    {
+      id: "score",
+      header: "Score (align: start)",
+      accessor: "score",
+      align: "start",
+      edit: { type: "number", decimals: 1 },
+      width: 14,
+    },
+    { id: "active", header: "Active", accessor: "active", edit: { type: "boolean" }, width: 8 },
+    {
+      id: "joined",
+      header: "Joined",
+      accessor: "joined",
+      cell: ({ value }) => iso(value as Date),
+      edit: { type: "date" },
+      width: 10,
+    },
+  ];
+  return <DataTable data={seed(20)} columns={columns} height={320} />;
+};

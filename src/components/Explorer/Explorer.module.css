@@ -393,8 +393,12 @@
   text-overflow: ellipsis;
 }
 
+/* `.cellContent` takes the free space (`flex: 1`, for its ellipsis), so moving
+   the flex items is not enough to move the text: align it too (as DataTable
+   does). */
 .cell[data-align="end"] {
   justify-content: flex-end;
+  text-align: right;
 }
 
 .cellContent {

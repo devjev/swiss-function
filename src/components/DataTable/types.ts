@@ -66,7 +66,68 @@ export function resolveCellBackground(
  *  rule for numbers and dates, the cell fills with `#` while the value does
  *  not fit, so a cut number is never read as a different one; the value stays
  *  in the accessibility tree, in the copy and in the cell's `title`. */
+/** How columns are sized at rest.
+ *  - `"manual"`: declared widths, last column stretches into the slack.
+ *  - `"content"`: fitted to the mounted rows' content, refitted when the data
+ *    changes. Never under a column's floor. */
+export type ColumnFitMode = "manual" | "content";
+
 export type CellOverflow = "clamp" | "wrap" | "hash";
+
+/** Where a cell's content sits across its column. */
+export type CellAlign = "start" | "center" | "end";
+
+/** The alignment a column's cells and its heading take: the declared `align`,
+ *  else the one its data type asks for. Numbers end-align so their digits line
+ *  up column-wise, a flag centres under its title, and text starts.
+ *  The type comes from the column's `edit` config, the library's existing type
+ *  signal (it already picks the cell editor and the filter control), so a column
+ *  that declares none keeps starting. */
+export function resolveAlign<T>(col: LeafColumnDef<T>): CellAlign {
+  if (col.align != null) return col.align;
+  switch (col.edit?.type) {
+    case "number":
+      return "end";
+    case "boolean":
+      return "center";
+    default:
+      return "start";
+  }
+}
+
+/** A named aggregate for a column's cell in the totals row.
+ *  - `sum` / `avg` / `min` / `max`: over the column's numeric values.
+ *  - `count`: how many rows carry a value (a spreadsheet's COUNTA).
+ *  - `countUnique`: how many distinct values they carry.
+ *  Named aggregates print in Swiss typography (`1'284'500`) at the column's
+ *  declared precision (`edit.decimals`), else at the precision of the values
+ *  they were fed. For anything else (a weighted average, a ratio of two
+ *  columns, a label) pass a function. */
+export type TotalAggregate = "sum" | "avg" | "min" | "max" | "count" | "countUnique";
+
+/** Compute a column's totals cell from the aggregated rows. `rows` are the rows
+ *  behind the total and `values` their values in this column, in display order;
+ *  return whatever should be rendered. */
+export type TotalFn<T> = (ctx: {
+  rows: T[];
+  values: unknown[];
+  column: LeafColumnDef<T>;
+}) => ReactNode;
+
+export type ColumnTotal<T> = TotalAggregate | TotalFn<T>;
+
+/** Tuning for the totals row. The row itself appears as soon as one column
+ *  declares a `total`; this only shapes it (or `totals={false}` drops it). */
+export type TotalsConfig = {
+  /** Text in the row's leading free cell. Default `"Total"`; `null` for none. */
+  label?: ReactNode;
+  /** Which column carries the label. Default: the first column with no `total`
+   *  of its own. A column's total always wins over the label. */
+  labelColumn?: string;
+  /** Pin the row under the header instead of at the bottom edge. Default
+   *  `"bottom"`. */
+  position?: "top" | "bottom";
+};
 
 export type EditorType = "text" | "number" | "boolean" | "select" | "date";
 
@@ -121,12 +182,19 @@ export interface LeafColumnDef<T> {
   /** How this column's cells show a value that does not fit. Overrides the
    *  table's `cellOverflow`. Put `"hash"` on numeric and date columns. */
   overflow?: CellOverflow;
-  align?: "start" | "center" | "end";
+  /** Where this column's cells and heading sit. Omit to follow the data type:
+   *  a `number` edit column end-aligns, a `boolean` one centres, anything else
+   *  starts (see `resolveAlign`). */
+  align?: CellAlign;
   /** Per-column edit config. Omit to make column read-only even when table.editable. */
   edit?: EditConfig;
   /** How editing starts on this column's cells. Overrides the table's `editOn`;
    *  a per-cell `getEditActivation` overrides this. Default follows the table. */
   editOn?: EditActivation;
+  /** What this column shows in the totals row: a named aggregate over its
+   *  values, or a function that renders the cell itself. One column declaring a
+   *  total is what makes the row appear (see `DataTableProps.totals`). */
+  total?: ColumnTotal<T>;
   /** Click header to sort. Default false. */
   sortable?: boolean;
   /** Show a header filter for this column when the table's `filterableColumns` is

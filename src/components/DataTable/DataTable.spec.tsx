@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { DataTable } from "./DataTable";
 import {
   CellBackgroundHarness,
   CellOverflowHarness,
   CollapsedGroupHarness,
+  ColumnFitHarness,
   DataTableHarness,
   EditorsHarness,
   FrozenHarness,
@@ -14,6 +16,8 @@ import {
   MergeHarness,
   SelectionReportHarness,
   SnapTallHeaderHarness,
+  TotalsHarness,
+  TotalsTreeHarness,
   TreeHarness,
 } from "./DataTable.harness";
 import { SortHarness } from "./DataTable.sortHarness";
@@ -2165,4 +2169,203 @@ test("a clipped cell reveals its whole value in title on hover; a fitting one ca
   await expect(long).toHaveAttribute("title", /^A long remark that runs/);
   await short.hover();
   await expect(short).not.toHaveAttribute("title", /.+/);
+});
+
+// --- columnFit + the header menu --------------------------------------------
+
+/** Width of a leaf header, by its title. */
+async function headerWidth(c: Locator, name: string) {
+  const box = await c.getByRole("columnheader", { name }).boundingBox();
+  if (!box) throw new Error(`no box for ${name}`);
+  return box.width;
+}
+
+test("columnFit='content' sizes every column to its content, well under its declared width", async ({
+  mount,
+}) => {
+  const manual = await mount(<ColumnFitHarness fit="manual" />);
+  const declared = await headerWidth(manual, "Region");
+  await manual.unmount();
+
+  const fitted = await mount(<ColumnFitHarness fit="content" />);
+  // 16u declared against short region names: the fit must be far narrower, and
+  // never under the column's floor (its minimum raised to the title's need).
+  const min = Number(
+    await fitted.locator('[data-column-id="region"]').getAttribute("aria-valuemin"),
+  );
+  await expect.poll(() => headerWidth(fitted, "Region")).toBeLessThan(declared / 2);
+  expect(await headerWidth(fitted, "Region")).toBeGreaterThanOrEqual(min - 1);
+});
+
+test("columnFit='content' fits again when the data changes", async ({ mount }) => {
+  const c = await mount(<ColumnFitHarness fit="content" />);
+  await expect.poll(() => headerWidth(c, "Region")).toBeGreaterThan(0);
+  const short = await headerWidth(c, "Region");
+
+  await c.getByRole("button", { name: "Lengthen" }).click();
+  await expect.poll(() => headerWidth(c, "Region")).toBeGreaterThan(short + 20);
+
+  await c.getByRole("button", { name: "Lengthen" }).click();
+  await expect.poll(() => headerWidth(c, "Region")).toBeLessThan(short + 2);
+});
+
+test("columnFit='manual' (the default) leaves the declared widths alone as data changes", async ({
+  mount,
+}) => {
+  const c = await mount(<ColumnFitHarness fit="manual" />);
+  const before = await headerWidth(c, "Region");
+  await c.getByRole("button", { name: "Lengthen" }).click();
+  // Longer content must not move a manual column; it clips, wraps or hashes
+  // per cellOverflow instead.
+  await expect.poll(() => headerWidth(c, "Region")).toBe(before);
+});
+
+test("the header menu fits one column, or every column", async ({ mount, page }) => {
+  const c = await mount(<ColumnFitHarness fit="manual" menu />);
+  // The menu module is lazy; wait for the armed trigger rather than racing it.
+  await expect(c.locator("[data-header-menu]")).toBeAttached();
+  const region = await headerWidth(c, "Region");
+  const value = await headerWidth(c, "Value");
+
+  await c.getByRole("columnheader", { name: "Region" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Fit this column" }).click();
+  // That column alone: its neighbour keeps its width, the spreadsheet model.
+  await expect.poll(() => headerWidth(c, "Region")).toBeLessThan(region / 2);
+  expect(await headerWidth(c, "Value")).toBe(value);
+
+  await c.getByRole("columnheader", { name: "Value" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Fit all columns" }).click();
+  await expect.poll(() => headerWidth(c, "Value")).toBeLessThan(value / 2);
+});
+
+test("no header menu without the opt-in", async ({ mount, page }) => {
+  const c = await mount(<ColumnFitHarness fit="manual" />);
+  // Not merely late: the trigger is never rendered and the module never loads.
+  await expect(c.locator("[data-header-menu]")).toHaveCount(0);
+  await c.getByRole("columnheader", { name: "Region" }).click({ button: "right" });
+  await expect(page.getByRole("menuitem")).toHaveCount(0);
+});
+
+// --- Totals row ---
+
+test("a column's `total` adds a summary row of the aggregates", async ({ mount }) => {
+  const c = await mount(<TotalsHarness />);
+  // 1000.50 + 2000.25 + 500 + 250 + 100, at the column's declared precision.
+  await expect(c.getByRole("gridcell", { name: "3'850.75" })).toBeVisible();
+  // A function total renders whatever it returns.
+  await expect(c.getByRole("gridcell", { name: "3 on" })).toBeVisible();
+});
+
+test("the row's label sits in the first column with no total of its own", async ({ mount }) => {
+  const c = await mount(<TotalsHarness />);
+  await expect(c.getByRole("rowheader", { name: "Total" })).toBeVisible();
+});
+
+test("the label is the consumer's, in the column they name", async ({ mount }) => {
+  const c = await mount(<TotalsHarness totals={{ label: "All desks" }} />);
+  await expect(c.getByRole("rowheader", { name: "All desks" })).toBeVisible();
+});
+
+test("`totals={false}` drops the row although the columns declare totals", async ({ mount }) => {
+  const c = await mount(<TotalsHarness totals={false} />);
+  await expect(c.getByRole("rowheader", { name: "Total" })).toHaveCount(0);
+  await expect(c.getByRole("gridcell", { name: "3'850.75" })).toHaveCount(0);
+});
+
+test("no totals row on a table whose columns declare none", async ({ mount }) => {
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
+  await expect(c.getByRole("rowheader", { name: "Total" })).toHaveCount(0);
+});
+
+test("the total covers every filtered row, not the page on screen", async ({ mount }) => {
+  const c = await mount(<TotalsHarness paginate={{ pageSize: 2 }} />);
+  // Page one shows two desks; the total is still the whole table's.
+  await expect(c.getByRole("gridcell", { name: "Zurich" })).toBeVisible();
+  await expect(c.getByRole("gridcell", { name: "Basel" })).toHaveCount(0);
+  await expect(c.getByRole("gridcell", { name: "3'850.75" })).toBeVisible();
+});
+
+test("a tree table totals its root rows, so a subtotal is not counted twice", async ({ mount }) => {
+  const c = await mount(<TotalsTreeHarness />);
+  // Roots 300 + 150 with every child visible; the children's 450 is not added.
+  await expect(c.getByRole("gridcell", { name: "450", exact: true })).toBeVisible();
+});
+
+test("an empty table shows no totals row", async ({ mount }) => {
+  const c = await mount(<TotalsHarness empty />);
+  await expect(c.getByRole("rowheader", { name: "Total" })).toHaveCount(0);
+  await expect(c.getByText("No data")).toBeVisible();
+});
+
+test("the totals row holds the bottom edge while the rows scroll past it", async ({ mount }) => {
+  const c = await mount(<TotalsHarness count={200} height={200} />);
+  const totals = c.locator('[role="row"]').filter({ hasText: "Total" });
+  const before = await totals.boundingBox();
+  await c.getByRole("grid").evaluate((el) => {
+    el.scrollTop = 2000;
+  });
+  const after = await totals.boundingBox();
+  expect(after?.y).toBeCloseTo(before?.y ?? 0, 0);
+  // The figure is the table's, so scrolling does not move it either.
+  await expect(totals).toContainText("3'850.75");
+});
+
+test("the totals row takes no cell coordinates: it is not part of the selection", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<TotalsHarness />);
+  await c.getByRole("gridcell", { name: "Zurich" }).click();
+  // Down from the last row stops there rather than stepping into the summary.
+  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowDown");
+  await expect(c.getByRole("gridcell", { name: "Lugano" })).toHaveAttribute("data-active", "true");
+});
+
+test("a number column ends its cells and its heading without a declared align", async ({
+  mount,
+}) => {
+  const c = await mount(<TotalsHarness />);
+  await expect(c.getByRole("columnheader", { name: "Amount" })).toHaveAttribute(
+    "data-align",
+    "end",
+  );
+  await expect(c.getByRole("gridcell", { name: "1000.50" })).toHaveAttribute("data-align", "end");
+  // A boolean centres, and a text column still starts.
+  await expect(c.getByRole("columnheader", { name: "Active" })).toHaveAttribute(
+    "data-align",
+    "center",
+  );
+  await expect(c.getByRole("gridcell", { name: "Zurich" })).toHaveAttribute("data-align", "start");
+});
+
+test("columnFit measures the totals cell, so a column fits its own total", async ({ mount }) => {
+  // The sum (3'850.75) is wider than any value in the column (2000.25), so a
+  // fit that skipped the totals row would clip the figure the row exists for.
+  const without = await mount(<TotalsHarness fit="content" totals={false} />);
+  const narrow = await headerWidth(without, "Amount");
+  await without.unmount();
+  const with_ = await mount(<TotalsHarness fit="content" />);
+  await expect.poll(() => headerWidth(with_, "Amount")).toBeGreaterThan(narrow);
+});
+
+test("the funnel's slack is not part of the floor (issue #102 regression)", async ({ mount }) => {
+  // `margin-inline-start: auto` pushes the funnel to the trailing edge, and
+  // getComputedStyle reports the used value, the whole leftover: counted as
+  // footprint it made every filterable column's floor its rendered width, so
+  // the table could never be narrowed and a fitting one grew a scrollbar.
+  const plain = await mount(<DataTableHarness data={DATA} cols={COLUMNS} containerWidth={600} />);
+  const bare = Number(await plain.locator('[data-column-id="name"]').getAttribute("aria-valuemin"));
+  await plain.unmount();
+
+  const c = await mount(
+    <DataTableHarness data={DATA} cols={COLUMNS} filterableColumns containerWidth={600} />,
+  );
+  const withFunnel = Number(
+    await c.locator('[data-column-id="name"]').getAttribute("aria-valuemin"),
+  );
+  // The funnel itself counts (a title is never covered), its slack does not.
+  expect(withFunnel).toBeGreaterThan(bare);
+  expect(withFunnel).toBeLessThan(bare + 40);
+  const fits = await c.getByRole("grid").evaluate((el) => el.scrollWidth <= el.clientWidth);
+  expect(fits).toBe(true);
 });
