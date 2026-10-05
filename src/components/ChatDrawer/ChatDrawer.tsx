@@ -143,6 +143,11 @@ export interface ChatDrawerProps {
   /** How each voice shows up in the built-in chat (`plain` / `box` / `tape` /
    *  `squircle`, one value or one per role). See `Chat`'s `messageStyle`. */
   messageStyle?: ChatProps["messageStyle"];
+  /** Give the transcript a `Minimap` rail instead of its scrollbar (the user's
+   *  messages as labels down the side); the object form tunes its side and
+   *  width. Forwarded to `Chat`; a panel is where a long conversation is
+   *  usually read, so this is where it earns its keep. */
+  minimap?: ChatProps["minimap"];
   /** How the built-in chat reveals streaming assistant text. Forwarded to the
    *  inner `Chat`; pass `{ mode: "stream" }` for a live token stream, or `false`
    *  for plain Markdown. See `Chat`'s `reveal`. */
@@ -299,6 +304,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     sendVariant,
     borderColor,
     messageStyle,
+    minimap,
     reveal,
     disabled,
     views,
@@ -500,6 +506,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       sendVariant={sendVariant}
       borderColor={borderColor}
       messageStyle={messageStyle}
+      minimap={minimap}
       reveal={reveal}
       disabled={disabled ?? thinking}
     />

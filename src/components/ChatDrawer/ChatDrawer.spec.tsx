@@ -568,3 +568,28 @@ test("marginGap sets the gutter between margin content and the column", async ({
   });
   expect(Math.abs(gap - 48)).toBeLessThan(1);
 });
+
+test("minimap reaches the panel's transcript", async ({ mount }) => {
+  const talk: ChatMessage[] = Array.from({ length: 8 }, (_, i) =>
+    i % 2 === 0
+      ? { id: `q-${i}`, role: "user" as const, content: `Question ${i / 2 + 1}` }
+      : {
+          id: `a-${i}`,
+          role: "assistant" as const,
+          content: "An answer, a few lines long.\n\nAnd a second paragraph.",
+        },
+  );
+  const c = await mount(
+    <div style={{ inlineSize: 900, blockSize: 400 }}>
+      <ChatDrawer defaultOpen minimap messages={talk} onSubmit={() => {}}>
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  // The rail, with the questions as its labels, inside the panel.
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  await expect(c.getByRole("button", { name: "Question 1" })).toBeVisible();
+  expect(
+    await c.getByTestId("chat-messages").evaluate((el) => getComputedStyle(el).scrollbarWidth),
+  ).toBe("none");
+});

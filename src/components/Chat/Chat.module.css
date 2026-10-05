@@ -21,6 +21,19 @@
   overflow-y: auto;
 }
 
+/* While the rail's chunk is in flight the plain scroller stands in for it, and
+   hides its scrollbar so the swap is not a flash of a bar about to be replaced. */
+.messages[data-rail-pending] {
+  scrollbar-width: none;
+}
+
+/* Minimap mode: the rail takes the scroller's place in the column, and owns
+   the scrolling (and the hidden native scrollbar) from there. */
+.rail {
+  flex: 1;
+  min-block-size: 0;
+}
+
 /* The jump key's perch: the last row of the scroller's content, zero height, so
    it holds the key at the bottom of the scrollport and takes none of the
    transcript's space. Sitting inside the scroller is what keeps a wheel over the

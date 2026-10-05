@@ -110,6 +110,13 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
    *  (default, at the top) or `"center"` (in the middle). Also anchors which
    *  header reads as active. */
   jumpAlign?: "start" | "center";
+  /** Attributes merged onto the scroll element. The component owns that
+   *  element, but the semantics of the scrolling region belong to the host: a
+   *  chat transcript is a `role="log"`, a document body carries its own label,
+   *  and a test needs a handle on the thing that actually scrolls. An
+   *  `onScroll` here is the host's; the component listens on its own. The
+   *  component's ref, id, class and tabIndex always win. */
+  scrollProps?: HTMLAttributes<HTMLDivElement>;
   /** The scrollable content. The component owns the scroll container; the
    *  parent must constrain the wrapper's height (like Pane). */
   children?: ReactNode;
@@ -154,6 +161,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     minMarkerSize,
     maxMarkerSize,
     jumpAlign = "start",
+    scrollProps,
     children,
     className,
     style,
@@ -778,8 +786,14 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       {/* tabIndex: the native scrollbar is hidden, and only Chromium/Firefox
           auto-focus scrollers (and only when no focusable child exists), so an
           explicit stop keeps the content keyboard-scrollable everywhere. */}
-      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll region with its native scrollbar hidden must stay keyboard-scrollable; WebKit never auto-focuses scrollers. */}
-      <div ref={setScrollRefs} id={scrollId} className={styles.scroll} tabIndex={0}>
+      <div
+        {...scrollProps}
+        ref={setScrollRefs}
+        id={scrollId}
+        className={cx(styles.scroll, scrollProps?.className)}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll region with its native scrollbar hidden must stay keyboard-scrollable; WebKit never auto-focuses scrollers.
+        tabIndex={0}
+      >
         <div ref={setContentNode} className={styles.content}>
           {children}
         </div>

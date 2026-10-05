@@ -677,3 +677,132 @@ test("a hidden transcript comes back to the offset it was left at", async ({ mou
 
   await expect.poll(top).toBe(left);
 });
+
+// --- The minimap rail -------------------------------------------------------
+
+const QUESTIONS: ChatMessage[] = Array.from({ length: 16 }, (_, i) =>
+  i % 2 === 0
+    ? { id: `q-${i}`, role: "user" as const, content: `Question ${i / 2 + 1}` }
+    : {
+        id: `a-${i}`,
+        role: "assistant" as const,
+        content: `Answer ${(i - 1) / 2 + 1}\n\nA second paragraph, so the reply is a few lines tall.`,
+      },
+);
+
+test("no rail without the opt-in", async ({ mount }) => {
+  const c = await mount(<Chat messages={QUESTIONS} onSubmit={() => {}} height={300} />);
+  await expect(c.getByRole("scrollbar")).toHaveCount(0);
+  // The transcript keeps its own scrollbar.
+  const bar = await c
+    .getByTestId("chat-messages")
+    .evaluate((el) => getComputedStyle(el).scrollbarWidth);
+  expect(bar).not.toBe("none");
+});
+
+test("the rail replaces the scrollbar and lists the questions asked", async ({ mount }) => {
+  const c = await mount(<Chat minimap messages={QUESTIONS} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+
+  // The rail arrives with its chunk (it is loaded on demand), and the native
+  // bar is gone — before it lands too, so the swap shows no scrollbar.
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  expect(await scroller.evaluate((el) => getComputedStyle(el).scrollbarWidth)).toBe("none");
+
+  // A label per user message; the replies are blocks, which carry no text.
+  for (const n of [1, 2, 8]) {
+    await expect(c.getByRole("button", { name: `Question ${n}` })).toBeVisible();
+  }
+  await expect(c.getByRole("button", { name: /^Answer/ })).toHaveCount(0);
+
+  // The rail carries the two voices the way the transcript does: the user's
+  // labels and spans in the accent, the replies in neutral ink.
+  const accent = await c
+    .getByRole("button", { name: "Question 1" })
+    .evaluate((el) => getComputedStyle(el).color);
+  const user = await c
+    .locator('[data-role="user"] span')
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(accent).toBe(user);
+  const tones = await c
+    .locator("[data-kind]")
+    .evaluateAll((els) =>
+      els.map((el) => `${el.getAttribute("data-kind")}:${el.getAttribute("data-tone")}`),
+    );
+  expect(tones).toContain("header:primary");
+  expect(tones).toContain("block:null");
+});
+
+test("the scrolling element keeps the transcript's semantics", async ({ mount }) => {
+  // The rail owns the scroll element, so the log role, the label and the test
+  // handle move onto it rather than being lost to the wrapper.
+  const c = await mount(<Chat minimap messages={QUESTIONS} onSubmit={() => {}} height={300} />);
+  const scroller = c.getByTestId("chat-messages");
+  await expect(scroller).toHaveAttribute("role", "log");
+  await expect(scroller).toHaveAttribute("aria-label", "Conversation");
+  expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+});
+
+test("clicking a label jumps the transcript to that question", async ({ mount }) => {
+  const c = await mount(<Chat minimap messages={QUESTIONS} onSubmit={() => {}} height={300} />);
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  const scroller = c.getByTestId("chat-messages");
+  const top = () => scroller.evaluate((el) => Math.round(el.scrollTop));
+
+  // Opens at the bottom, as ever.
+  await expect
+    .poll(() =>
+      scroller.evaluate((el) => Math.round(el.scrollHeight - el.scrollTop - el.clientHeight)),
+    )
+    .toBe(0);
+  const bottom = await top();
+
+  // The question's offset within the content, which a scroll does not change
+  // (the message and the content move together).
+  const target = await c
+    .locator('[data-role="user"]')
+    .nth(1)
+    .evaluate((el) => {
+      const content = el.parentElement as HTMLElement;
+      return Math.round(el.getBoundingClientRect().top - content.getBoundingClientRect().top);
+    });
+
+  await c.getByRole("button", { name: "Question 2" }).click();
+  await expect.poll(top).toBeLessThan(bottom);
+  // It lands at the top of the view, within a line. The jump is animated, so
+  // this polls for where it settles.
+  await expect.poll(async () => Math.abs((await top()) - target)).toBeLessThan(28);
+});
+
+test("the view still holds the bottom with the rail on", async ({ mount }) => {
+  const c = await mount(<Chat minimap messages={QUESTIONS} onSubmit={() => {}} height={300} />);
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  const scroller = c.getByTestId("chat-messages");
+  const dist = () =>
+    scroller.evaluate((el) => Math.round(el.scrollHeight - el.scrollTop - el.clientHeight));
+  await expect.poll(dist).toBe(0);
+
+  // The composer growing into the transcript moves the bottom; it is followed.
+  await c.getByRole("textbox").fill("one\ntwo\nthree\nfour\nfive");
+  await expect.poll(dist).toBe(0);
+});
+
+test("the rail takes a side and a width", async ({ mount }) => {
+  const c = await mount(
+    <Chat
+      minimap={{ side: "left", width: 8 }}
+      messages={QUESTIONS}
+      onSubmit={() => {}}
+      height={300}
+    />,
+  );
+  const rail = c.getByRole("scrollbar");
+  const railBox = await rail.boundingBox();
+  const scrollBox = await c.getByTestId("chat-messages").boundingBox();
+  if (!railBox || !scrollBox) throw new Error("missing box");
+  // On the left of the transcript, and 8u wide.
+  expect(railBox.x).toBeLessThan(scrollBox.x);
+  expect(Math.round(railBox.width)).toBeGreaterThan(7 * 24);
+  expect(Math.round(railBox.width)).toBeLessThanOrEqual(8 * 24);
+});

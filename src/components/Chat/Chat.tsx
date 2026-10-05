@@ -1,11 +1,21 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { bowlClass } from "../../lib/surface";
 import { Button, type ButtonVariant } from "../Button";
 import { ArrowUp, ChevronDown } from "../Icon";
 import { Markdown } from "../Markdown";
+import { useMinimapMarkers } from "../Minimap/useMinimapMarkers";
 import { StreamingTerminalText } from "../StreamingTerminalText";
 import { TextEdit } from "../TextEdit";
 import styles from "./Chat.module.css";
@@ -141,6 +151,24 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
+/** Tuning for the transcript's `Minimap` rail (see `ChatProps.minimap`). */
+/** The rail is opt-in, so it is loaded on demand: a chat that never sets
+ *  `minimap` carries none of Minimap's geometry or styles (the pattern
+ *  DataTable's header menu uses). Until the chunk lands, the transcript renders
+ *  as the plain scroller it is without it. */
+const MinimapRail = lazy(async () => ({ default: (await import("../Minimap")).Minimap }));
+
+/** The chat rail's width in units: wider than the `--sf-minimap-width` token,
+ *  because these labels are the questions asked, not field names. */
+const CHAT_RAIL_WIDTH = 5;
+
+export interface ChatMinimap {
+  /** Which edge the rail occupies. Default `"right"`. */
+  side?: "left" | "right";
+  /** Rail width in `--sf-unit` multiples. Default 5. */
+  width?: number;
+}
+
 export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmit" | "onError"> {
   messages: ChatMessage[];
   /** Fired with the trimmed text when the user submits. Input clears automatically. */
@@ -153,6 +181,19 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
    *  hook: log / toast / auto-retry). A `retryable` error also renders a Retry,
    *  reported through `onAction` (`type: "error", value: "retry"`). */
   onError?: (error: ChatErrorContext) => void;
+  /** Replace the transcript's scrollbar with a `Minimap` rail: the user's
+   *  messages become clickable labels down the side (the questions are what you
+   *  navigate a conversation by) and the assistant's replies dithered blocks,
+   *  with the viewport band showing where you are. Worth it on a long
+   *  conversation, or a wide one (a `ChatDrawer` panel, fullscreen); a short
+   *  exchange has nothing to navigate.
+   *
+   *  `true` takes the defaults; the object form tunes the rail: `side` (right
+   *  by default) and `width` in `--sf-unit` multiples. The rail is wider here
+   *  than the `--sf-minimap-width` token (5u against 3u), because a chat's
+   *  labels are the questions asked, which are sentences, where a form's are
+   *  field names. Default `false`. */
+  minimap?: boolean | ChatMinimap;
   /** Placeholder text shown in the empty input. Default "Ask anything…". */
   placeholder?: string;
   /** Caption for the submit button. Default "Send". */
@@ -227,6 +268,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     height,
     disabled,
     reveal,
+    minimap = false,
     className,
     style,
     ...rest
@@ -234,8 +276,25 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   ref,
 ) {
   const [input, setInput] = useState("");
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  // The scroll element and the message list, held as state as well as refs: the
+  // rail owns the scroller, so turning it on (and its chunk landing) REPLACES
+  // both nodes. Handlers read the refs synchronously; the effects below key on
+  // the state, so they re-observe the new nodes instead of a detached pair.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const [contentEl, setContentEl] = useState<HTMLDivElement | null>(null);
+  const setScroller = useCallback((node: HTMLDivElement | null) => {
+    scrollerRef.current = node;
+    setScrollEl(node);
+  }, []);
+  const setContent = useCallback((node: HTMLDivElement | null) => {
+    contentRef.current = node;
+    setContentEl(node);
+  }, []);
+  /** A ref object the marker hook can key on: a new identity per content node,
+   *  so it re-measures and re-observes after a swap. */
+  const markerRoot = useMemo(() => ({ current: contentEl }), [contentEl]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Whether the viewport follows the bottom. Read by the ResizeObserver on
   // every growth tick, so it lives in a ref; `following` mirrors it for render.
@@ -257,6 +316,51 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   // has arrived below the fold since following stopped.
   const [following, setFollowing] = useState(true);
   const [behind, setBehind] = useState(false);
+
+  /** The rail's structure, measured off the transcript: a user message is a
+   *  header (its text the label, so the rail reads as the questions asked) over
+   *  a block of its own height in the accent, the colour it is spoken in down
+   *  in the transcript, and an assistant message a neutral block the height of
+   *  the reply, which is the density read. The rail then carries the two voices
+   *  the way the conversation does. Measured from the DOM, so a streaming reply
+   *  re-measures as it lands. Off, the empty source list measures and observes
+   *  nothing. */
+  const railOn = minimap !== false && minimap != null && minimap !== undefined;
+  const rail: ChatMinimap = typeof minimap === "object" ? minimap : {};
+  const measured = useMinimapMarkers(
+    markerRoot,
+    railOn
+      ? [
+          {
+            selector: '[data-role="user"]',
+            kind: "header" as const,
+            label: (el: Element) => (el.textContent ?? "").trim().slice(0, 120),
+            extent: true,
+            tone: "primary" as const,
+          },
+          { selector: '[data-role="assistant"]', kind: "block" as const },
+        ]
+      : [],
+  );
+
+  /** Each band runs to the top of the next one. A message's own box is only
+   *  part of the ground it covers: the 2u between turns is real space in the
+   *  transcript, and left out of the rail it becomes a third of it in dead air,
+   *  with a 6px tick floating over 20px of nothing. Packed, the rail reads as
+   *  one ribbon alternating the two voices (the component trims a few px off
+   *  each span, so they stay separate bands). Positions are untouched, so the
+   *  viewport band still frames exactly what is on screen. */
+  const markers = useMemo(() => {
+    if (measured.length === 0) return measured;
+    return measured.map((marker, i) => {
+      const next = measured[i + 1];
+      if (!next || marker.top == null || next.top == null) return marker;
+      const own = marker.height ?? 0;
+      const gap = next.top - marker.top - own;
+      const height = own + Math.max(0, gap) / 2;
+      return height > 0 ? { ...marker, height } : marker;
+    });
+  }, [measured]);
 
   const setFollow = useCallback((next: boolean) => {
     stickRef.current = next;
@@ -341,8 +445,8 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
   // the viewport shrinks as the composer grows under `field-sizing: content`,
   // which would otherwise push the newest reply out of sight while you type.
   useEffect(() => {
-    const scroller = scrollerRef.current;
-    const content = contentRef.current;
+    const scroller = scrollEl;
+    const content = contentEl;
     if (!scroller || !content) return;
     const ro = new ResizeObserver(() => {
       // Zero height means a `display: none` ancestor; the offset is already
@@ -368,7 +472,21 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     ro.observe(content);
     ro.observe(scroller);
     return () => ro.disconnect();
-  }, [pinToBottom]);
+  }, [pinToBottom, scrollEl, contentEl]);
+
+  // A fresh scroll element starts at the top, wherever the view was: put it
+  // back. This is the rail's chunk landing and swapping the scroller under a
+  // transcript that was already at the bottom (or scrolled back through).
+  useEffect(() => {
+    if (!scrollEl) return;
+    if (stickRef.current) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+      selfTopRef.current = scrollEl.scrollTop;
+    } else if (lastTopRef.current > 0 && scrollEl.scrollTop === 0) {
+      scrollEl.scrollTop = lastTopRef.current;
+      selfTopRef.current = scrollEl.scrollTop;
+    }
+  }, [scrollEl]);
 
   // Following stops the moment the view moves away from the bottom, whatever
   // moved it (wheel, trackpad, scrollbar drag, keyboard) and however far, so we
@@ -540,79 +658,112 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     });
   };
 
-  return (
-    <div ref={ref} {...rest} className={cx(styles.root, className)} style={wrapperStyle}>
-      <div
-        ref={scrollerRef}
-        className={styles.messages}
-        data-testid="chat-messages"
-        onScroll={handleScroll}
-        // The transcript is its own scrollable region: focusable, so a keyboard
-        // user can page back through it (the composer holds focus the rest of
-        // the time), and a log, so a reply is announced. A message still being
-        // revealed is marked `aria-busy`, so assistive technology waits for the
-        // whole reply instead of each tick of it.
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region has to be reachable by keyboard (WCAG 2.1.1); the rule does not know about overflow containers.
-        tabIndex={0}
-        role="log"
-        aria-label="Conversation"
-      >
-        <div ref={contentRef} className={styles.content}>
-          {messages.map((msg) => {
-            const isUser = msg.role === "user";
-            const style = resolveStyle(messageStyle, msg.role);
-            // The surface goes on the user's run, so the tape follows its
-            // lines and a box hugs the text, and on the assistant's whole
-            // block, which carries prose and rich parts.
-            const surface = STYLE_CLASS[style];
-            return (
-              <article
-                key={msg.id}
-                className={cx(styles.message, isUser ? styles.userMessage : surface)}
-                data-role={msg.role}
-                data-style={style}
-                aria-label={isUser ? "You" : "Assistant"}
-                aria-busy={
-                  !isUser && (!!msg.isStreaming || revealing.has(msg.id)) ? true : undefined
-                }
-              >
-                {isUser ? (
-                  <span className={cx(styles.userContent, surface)}>
-                    {squircleBack(style)}
-                    {msg.content}
-                  </span>
-                ) : (
-                  <>
-                    {squircleBack(style)}
-                    {renderAssistant(msg)}
-                  </>
-                )}
-              </article>
-            );
-          })}
-        </div>
-        {/* Inside the scroller, so a wheel over the key scrolls the transcript
+  // The transcript is its own scrollable region: focusable, so a keyboard user
+  // can page back through it (the composer holds focus the rest of the time),
+  // and a log, so a reply is announced. The same semantics either way: with a
+  // minimap the element is the rail's, so they are handed to it.
+  const scrollProps = {
+    "data-testid": "chat-messages",
+    onScroll: handleScroll,
+    role: "log",
+    "aria-label": "Conversation",
+  } as const;
+
+  const transcript = (
+    <>
+      <div ref={setContent} className={styles.content}>
+        {messages.map((msg) => {
+          const isUser = msg.role === "user";
+          const style = resolveStyle(messageStyle, msg.role);
+          // The surface goes on the user's run, so the tape follows its
+          // lines and a box hugs the text, and on the assistant's whole
+          // block, which carries prose and rich parts.
+          const surface = STYLE_CLASS[style];
+          return (
+            <article
+              key={msg.id}
+              className={cx(styles.message, isUser ? styles.userMessage : surface)}
+              data-role={msg.role}
+              data-style={style}
+              aria-label={isUser ? "You" : "Assistant"}
+              aria-busy={!isUser && (!!msg.isStreaming || revealing.has(msg.id)) ? true : undefined}
+            >
+              {isUser ? (
+                <span className={cx(styles.userContent, surface)}>
+                  {squircleBack(style)}
+                  {msg.content}
+                </span>
+              ) : (
+                <>
+                  {squircleBack(style)}
+                  {renderAssistant(msg)}
+                </>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {/* Inside the scroller, so a wheel over the key scrolls the transcript
             rather than stopping at it. A zero-height sticky row holds the key at
             the bottom of the scrollport without taking any of the content's
             space. */}
-        <div className={styles.foot}>
-          {!following && (
-            <Button
-              variant={behind ? "primary" : "secondary"}
-              build="solid"
-              round
-              size="sm"
-              className={styles.jump}
-              data-behind={behind || undefined}
-              onClick={jumpToLatest}
-              aria-label="Jump to the latest message"
-              title="Jump to the latest message"
-            >
-              <Glyph slot="chevronDown" fallback={ChevronDown} />
-            </Button>
-          )}
-        </div>
+      <div className={styles.foot}>
+        {!following && (
+          <Button
+            variant={behind ? "primary" : "secondary"}
+            build="solid"
+            round
+            size="sm"
+            className={styles.jump}
+            data-behind={behind || undefined}
+            onClick={jumpToLatest}
+            aria-label="Jump to the latest message"
+            title="Jump to the latest message"
+          >
+            <Glyph slot="chevronDown" fallback={ChevronDown} />
+          </Button>
+        )}
       </div>
+    </>
+  );
+
+  const plainScroller = (
+    <div
+      ref={setScroller}
+      className={styles.messages}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region has to be reachable by keyboard (WCAG 2.1.1); the rule does not know about overflow containers.
+      tabIndex={0}
+      // Standing in for the rail while its chunk lands: the native scrollbar
+      // stays hidden, so the swap is not a flash of a bar that is about to go.
+      data-rail-pending={railOn || undefined}
+      {...scrollProps}
+    >
+      {transcript}
+    </div>
+  );
+
+  return (
+    <div ref={ref} {...rest} className={cx(styles.root, className)} style={wrapperStyle}>
+      {railOn ? (
+        /* The rail replaces the scrollbar: Minimap owns the scroll element (so
+           `scrollerRef`, and with it the whole follow-the-bottom machinery,
+           points at it) and hides the native bar. */
+        <Suspense fallback={plainScroller}>
+          <MinimapRail
+            ref={setScroller}
+            className={styles.rail}
+            markers={markers}
+            side={rail.side}
+            width={rail.width ?? CHAT_RAIL_WIDTH}
+            scrollProps={scrollProps}
+            ariaLabel="Conversation position"
+          >
+            {transcript}
+          </MinimapRail>
+        </Suspense>
+      ) : (
+        plainScroller
+      )}
       <form
         className={styles.inputRow}
         onSubmit={(e) => {

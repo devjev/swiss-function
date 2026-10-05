@@ -512,6 +512,42 @@ const BACKLOG: ChatMessage[] = Array.from({ length: 30 }, (_, i) => ({
       : `The view holds the bottom as the reply arrives. Scroll away from it and it lets go at once, however small the move, so it never pulls against you.\n\nThe key below brings you back, and takes the accent once something has arrived while you were reading up here.`,
 }));
 
+/** A conversation with distinct questions, so the rail reads as a list of them
+ *  and the replies differ enough in length to give the blocks a density. */
+const TOPICS: ChatMessage[] = [
+  [
+    "How do I lay out a form?",
+    "Reach for `FieldLayout`: justified rows of rigid, flexible and filler fields that collapse gradually with the container, no breakpoints. A single labelled row is a bare `Field`.",
+  ],
+  [
+    "What about validation?",
+    "`Form` is the layer above: bring your own resolver, and `FormField` binds one control to a named field with its label, description and live error.\n\nPer-field `validate` runs as you go; the whole-form resolver gates `onSubmit`.",
+  ],
+  [
+    "Which chart for a share of a total?",
+    "`PieChart` for a few parts of one whole the reader already understands as one, `Treemap` once it is a hierarchy or more parts than a circle carries, and `Marimekko` when the columns must carry a second measure.",
+  ],
+  [
+    "How do I show a table of 100k rows?",
+    '`DataTable`. It virtualizes, and its columns size themselves with `columnFit="content"`.',
+  ],
+  [
+    "Can a column show its total?",
+    "Declare a `total` on it. The summary band sits at the foot of the grid, covering every filtered row rather than the page on screen, and a tree table totals its roots so a subtotal is never counted twice.",
+  ],
+  [
+    "Is there a date drill-down?",
+    '`DatePicker path={["year", "month", "day"]}`: the popup asks one step at a time, the header carries the trail, and the last step is the precision.',
+  ],
+  [
+    "And a map?",
+    "`Map`, on MapLibre. Points, areas and vectors in GeoJSON order, with a restrained basemap coloured from the tokens.",
+  ],
+].flatMap(([q, a], i) => [
+  { id: `t-${i}-q`, role: "user" as const, content: q as string },
+  { id: `t-${i}-a`, role: "assistant" as const, content: a as string },
+]);
+
 /** A transcript long enough to scroll, with a reply arriving at the bottom.
  *  Scroll up and the view stops following: the jump-to-latest key appears over
  *  the bottom edge and turns accent as the reply keeps growing out of sight.
@@ -566,6 +602,35 @@ export const Following: Story = () => {
       <Button onClick={() => setStreaming(true)} disabled={streaming} size="sm">
         Send a reply
       </Button>
+    </div>
+  );
+};
+
+/** `minimap` swaps the transcript's scrollbar for a rail: every question you
+ *  asked becomes a label down the side (click one to jump back to it), the
+ *  replies are dithered blocks whose height is their length, and the band shows
+ *  the part of the conversation on screen. Scroll, or click a label and watch
+ *  the view stop following the bottom. */
+export const WithMinimap: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(TOPICS);
+  return (
+    <div style={{ height: 520, width: "min(46rem, 100%)" }}>
+      <Chat
+        minimap
+        height="100%"
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [
+            ...prev,
+            { id: `u-${Date.now()}`, role: "user", content: text },
+            {
+              id: `a-${Date.now()}`,
+              role: "assistant",
+              content: "Noted. The rail grows a label for the question and a block for this reply.",
+            },
+          ])
+        }
+      />
     </div>
   );
 };
