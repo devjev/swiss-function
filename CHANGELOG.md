@@ -6,6 +6,13 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.42.0 — 2026-10-05
+
+### Minor
+
+- Chat: opt-in `minimap` replaces the transcript's scrollbar with a `Minimap` rail. Every question asked becomes a clickable label down the side over a span of its own height in the accent, the colour its message is spoken in down in the transcript, every reply a neutral dithered block the height of it, so the rail carries the two voices the way the conversation does. Each band takes half the space to the next one, so the 2u the transcript leaves between turns does not become a third of the rail in dead air; the viewport band shows the part on screen, and clicking a label jumps that question to the top. The rail owns the scroll element, so the transcript's `role="log"`, its label and the whole follow-the-bottom behaviour move onto it and keep working. `{ side, width }` tunes the rail (5u wide by default, wider than the `--sf-minimap-width` token, because these labels are sentences rather than field names). `ChatDrawer` forwards it, which is where a long conversation is usually read. The rail is loaded on demand, so a chat that never asks for one carries none of it. Minimap grew `scrollProps` for this: attributes merged onto the scroll element, since the component owns that element but the semantics of the scrolling region belong to its host.
+- DatePicker: a `path` picks the date by stepping down a trail instead of from the calendar. `path={["year", "month", "day"]}` asks for the year, then its months, then that month's days, one step at a time; the steps are `year` / `quarter` / `month` / `week` / `day` and each narrows the one before it (a week follows a year, since an ISO week straddles month ends; a day follows a month or a week), so `["year", "quarter", "month"]`, `["year", "week", "day"]` and `["month", "day"]` all read. The header carries the trail, each value a button back to its own step, and the paddles step the context the step sits in. The last step is the precision: the value commits there and nowhere earlier, so `["year", "quarter"]` hands back a quarter start and the field reads `2026-Q3`. `isDateDisabled` now takes the level alongside the period, so a whole year, quarter, month, week or day can be greyed out; on the calendar it is still asked at day precision only.
+
 ## v2.41.0 — 2026-10-02
 
 ### Minor
