@@ -92,6 +92,28 @@ export function formatISOMonth(year: number, month: number): string {
 /** The unit the picker commits: a day, an ISO week, a month, or a year. */
 export type DatePickerPrecision = "day" | "week" | "month" | "year";
 
+/** A step in a DatePicker `path`: the precisions, plus the quarter, which is
+ *  a reporting period rather than a precision the calendar can show. Every
+ *  period helper below takes a level, so the quarter costs the callers
+ *  nothing. */
+export type DateLevel = DatePickerPrecision | "quarter";
+
+/** 0-based quarter of `d` (Q1 is 0). */
+export function quarterOf(d: Date): number {
+  return Math.floor(d.getMonth() / 3);
+}
+
+/** First day (00:00) of the quarter containing `d`. */
+export function startOfQuarter(d: Date): Date {
+  return new Date(d.getFullYear(), quarterOf(d) * 3, 1);
+}
+
+/** `YYYY-Qn`, e.g. `2026-Q3`. Not ISO 8601 (which has no quarter form), but
+ *  the shape every spreadsheet and reporting pack uses. */
+export function formatISOQuarter(d: Date): string {
+  return `${String(d.getFullYear()).padStart(4, "0")}-Q${quarterOf(d) + 1}`;
+}
+
 /** Monday 00:00 of the ISO week containing `d`. */
 export function startOfISOWeek(d: Date): Date {
   return addDays(startOfDay(d), -mondayIndex(d));
@@ -143,7 +165,7 @@ export function formatISOYear(year: number): string {
 }
 
 /** First day (00:00) of the period containing `d`. */
-export function startOfPeriod(d: Date, precision: DatePickerPrecision): Date {
+export function startOfPeriod(d: Date, precision: DateLevel): Date {
   switch (precision) {
     case "day":
       return startOfDay(d);
@@ -151,13 +173,15 @@ export function startOfPeriod(d: Date, precision: DatePickerPrecision): Date {
       return startOfISOWeek(d);
     case "month":
       return startOfMonth(d);
+    case "quarter":
+      return startOfQuarter(d);
     case "year":
       return startOfYear(d);
   }
 }
 
 /** Last day (00:00, not 23:59) of the period containing `d`. */
-export function endOfPeriod(d: Date, precision: DatePickerPrecision): Date {
+export function endOfPeriod(d: Date, precision: DateLevel): Date {
   switch (precision) {
     case "day":
       return startOfDay(d);
@@ -165,18 +189,22 @@ export function endOfPeriod(d: Date, precision: DatePickerPrecision): Date {
       return addDays(startOfISOWeek(d), 6);
     case "month":
       return new Date(d.getFullYear(), d.getMonth(), daysInMonth(d.getFullYear(), d.getMonth()));
+    case "quarter": {
+      const last = quarterOf(d) * 3 + 2;
+      return new Date(d.getFullYear(), last, daysInMonth(d.getFullYear(), last));
+    }
     case "year":
       return new Date(d.getFullYear(), 11, 31);
   }
 }
 
-export function isSamePeriod(a: Date, b: Date, precision: DatePickerPrecision): boolean {
+export function isSamePeriod(a: Date, b: Date, precision: DateLevel): boolean {
   return isSameDay(startOfPeriod(a, precision), startOfPeriod(b, precision));
 }
 
 /** The period's ISO display string: `YYYY-MM-DD` / `YYYY-Www` / `YYYY-MM` /
  *  `YYYY`. */
-export function formatPeriod(d: Date, precision: DatePickerPrecision): string {
+export function formatPeriod(d: Date, precision: DateLevel): string {
   switch (precision) {
     case "day":
       return formatISODate(d);
@@ -184,13 +212,15 @@ export function formatPeriod(d: Date, precision: DatePickerPrecision): string {
       return formatISOWeek(d);
     case "month":
       return formatISOMonth(d.getFullYear(), d.getMonth());
+    case "quarter":
+      return formatISOQuarter(d);
     case "year":
       return formatISOYear(d.getFullYear());
   }
 }
 
 /** Step by whole periods (day/week exact; month/year clamp the day). */
-export function addPeriods(d: Date, delta: number, precision: DatePickerPrecision): Date {
+export function addPeriods(d: Date, delta: number, precision: DateLevel): Date {
   switch (precision) {
     case "day":
       return addDays(d, delta);
@@ -198,6 +228,8 @@ export function addPeriods(d: Date, delta: number, precision: DatePickerPrecisio
       return addWeeks(d, delta);
     case "month":
       return addMonthsClamped(d, delta);
+    case "quarter":
+      return addMonthsClamped(d, delta * 3);
     case "year":
       return addYearsClamped(d, delta);
   }
@@ -206,12 +238,7 @@ export function addPeriods(d: Date, delta: number, precision: DatePickerPrecisio
 /** Min/max check by OVERLAP: the period is disabled only when it lies fully
  *  before `min` or fully after `max`, so a week straddling `min` stays
  *  pickable. At day precision this reduces to the plain day comparison. */
-export function periodDisabled(
-  d: Date,
-  precision: DatePickerPrecision,
-  min?: Date,
-  max?: Date,
-): boolean {
+export function periodDisabled(d: Date, precision: DateLevel, min?: Date, max?: Date): boolean {
   if (min && endOfPeriod(d, precision).getTime() < startOfDay(min).getTime()) return true;
   if (max && startOfPeriod(d, precision).getTime() > startOfDay(max).getTime()) return true;
   return false;

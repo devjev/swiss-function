@@ -457,6 +457,73 @@
   text-decoration: line-through;
 }
 
+/* --- Drill-down path (`path`) ----------------------------------------------
+   The popup walks one step at a time, so its width must not change under the
+   reader as the steps do: it holds the widest step's measure (the 7-column day
+   grid) whatever step is showing. */
+
+.popup[data-path] {
+  min-inline-size: calc(var(--sf-unit) * 10);
+}
+
+/* The trail: the context the step sits in, then every value picked so far,
+   each a button back to its step. Full-strength ink (these are labels, not
+   metadata); only the separator between them is a marker, not reading text. */
+.trail {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  min-inline-size: 0;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-semibold);
+  white-space: nowrap;
+}
+
+.crumbStatic {
+  color: var(--sf-color-fg);
+}
+
+.crumb {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--sf-color-fg);
+  font: inherit;
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.crumb:hover,
+.crumb:focus-visible {
+  text-decoration: underline;
+}
+
+.crumb:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+.trailSeparator {
+  color: var(--sf-color-muted);
+}
+
+/* A step's grid takes the columns its options read best in (quarters and weeks
+   in two, years and months in three); a year's worth of weeks scrolls rather
+   than making the popup thirteen rows tall. */
+.periodGrid[data-cols="2"] {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* `composes` takes a bare class only, so the scrolling step is its own class
+   rather than an attribute on the grid. */
+.stepScroll {
+  composes: scrollable from "../../lib/scrollable.module.css";
+  max-block-size: calc(var(--sf-unit) * 10);
+  overflow-y: auto;
+}
+
 /* --- Parse echo ------------------------------------------------------------
    One fixed-height mono line showing what Enter will commit. */
 

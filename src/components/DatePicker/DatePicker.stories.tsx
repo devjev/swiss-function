@@ -151,3 +151,94 @@ export const ConstrainedWeek: Story = () => {
     </div>
   );
 };
+
+/**
+ * `path` turns the popup into a drill-down: one step at a time, each pick
+ * narrowing the next. The trail in the header says where you are, and every
+ * value in it goes back to its step; the paddles step the context (the year
+ * over a month, the month over a day). The last step commits.
+ */
+export const PathYearMonthDay: Story = () => {
+  const [date, setDate] = useState<Date | null>(null);
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", width: "16rem" }}>
+      <DatePicker
+        aria-label="Report date"
+        path={["year", "month", "day"]}
+        value={date}
+        onChange={setDate}
+      />
+      <span style={{ fontFamily: "var(--sf-font-mono)" }}>{date ? formatISODate(date) : "—"}</span>
+    </div>
+  );
+};
+
+/** Four paths side by side. The last step is the precision: the quarter path
+ *  commits a quarter start and shows `2026-Q3`, the week path a Monday. */
+export const PathShapes: Story = () => {
+  const [a, setA] = useState<Date | null>(new Date(2026, 6, 14));
+  const [b, setB] = useState<Date | null>(new Date(2026, 6, 14));
+  const [c, setC] = useState<Date | null>(new Date(2026, 6, 14));
+  const [d, setD] = useState<Date | null>(new Date(2026, 6, 14));
+  const row = { display: "grid", gap: "calc(var(--sf-unit) / 4)" } as const;
+  return (
+    <div style={{ display: "grid", gap: "calc(var(--sf-unit) * 1.5)", width: "16rem" }}>
+      <div style={row}>
+        <span>year › quarter › month</span>
+        <DatePicker
+          aria-label="Year, quarter, month"
+          path={["year", "quarter", "month"]}
+          value={a}
+          onChange={setA}
+        />
+      </div>
+      <div style={row}>
+        <span>year › quarter</span>
+        <DatePicker
+          aria-label="Year, quarter"
+          path={["year", "quarter"]}
+          value={b}
+          onChange={setB}
+        />
+      </div>
+      <div style={row}>
+        <span>year › week › day</span>
+        <DatePicker
+          aria-label="Year, week, day"
+          path={["year", "week", "day"]}
+          value={c}
+          onChange={setC}
+        />
+      </div>
+      <div style={row}>
+        <span>month › day (this year)</span>
+        <DatePicker aria-label="Month, day" path={["month", "day"]} value={d} onChange={setD} />
+      </div>
+    </div>
+  );
+};
+
+/** Steps that carry no data are disabled at every level: `isDateDisabled` is
+ *  asked with the period and the level it is being picked at. Here only
+ *  2024-2026 have data, Q1 is closed, the summer months are out, and weekends
+ *  cannot be picked. */
+export const PathDisabledSteps: Story = () => {
+  const [date, setDate] = useState<Date | null>(null);
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", width: "16rem" }}>
+      <DatePicker
+        aria-label="Reporting date"
+        path={["year", "quarter", "month", "day"]}
+        value={date}
+        onChange={setDate}
+        isDateDisabled={(d, level) => {
+          if (level === "year") return d.getFullYear() < 2024 || d.getFullYear() > 2026;
+          if (level === "quarter") return d.getMonth() < 3;
+          if (level === "month") return d.getMonth() === 6 || d.getMonth() === 7;
+          return d.getDay() === 0 || d.getDay() === 6;
+        }}
+      />
+      <span style={{ fontFamily: "var(--sf-font-mono)" }}>{date ? formatISODate(date) : "—"}</span>
+    </div>
+  );
+};

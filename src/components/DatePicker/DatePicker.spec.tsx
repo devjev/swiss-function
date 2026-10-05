@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatePicker } from "./DatePicker";
+import { PathHarness } from "./DatePicker.harness";
 
 // Pins the issue #30 contract: ISO by default (YYYY-MM-DD field text, Monday
 // weeks), free-text entry drives the calendar, grid keyboard nav commits.
@@ -411,4 +412,163 @@ test("the field's chevron opens and closes the calendar, and turns over while it
   await chevron.click();
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(chevron).not.toHaveAttribute("data-popup-open", /.*/);
+});
+
+// --- Drill-down path (`path`) ---------------------------------------------
+
+test("walks the path: a year, then its month, then the day, which commits", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PathHarness path={["year", "month", "day"]} />);
+  await c.getByRole("combobox").click();
+
+  // Step one: the years, with no trail yet, so the header is the page.
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a year");
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+
+  // Step two: the months of the picked year, which is now the trail.
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a month");
+  await expect(page.getByRole("button", { name: "2026", exact: true })).toBeVisible();
+  await page.getByRole("option", { name: "July 2026" }).click();
+
+  // Step three: that month's days. Nothing is committed until here.
+  await expect(c.getByTestId("committed")).toHaveText("none");
+  await page.getByRole("button", { name: "2026-07-14" }).click();
+
+  await expect(c.getByTestId("committed")).toHaveText("2026-07-14");
+  await expect(c.getByRole("combobox")).toHaveValue("2026-07-14");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+});
+
+test("the last step is the precision: a year-quarter path commits a quarter", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PathHarness path={["year", "quarter"]} />);
+  await c.getByRole("combobox").click();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a quarter");
+  await page.getByRole("option", { name: "Q3 2026" }).click();
+  // The quarter's start, shown as the period it is.
+  await expect(c.getByTestId("committed")).toHaveText("2026-07-01");
+  await expect(c.getByRole("combobox")).toHaveValue("2026-Q3");
+});
+
+test("a trail crumb goes back to its step", async ({ mount, page }) => {
+  const c = await mount(<PathHarness path={["year", "month", "day"]} />);
+  await c.getByRole("combobox").click();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  await page.getByRole("option", { name: "July 2026" }).click();
+  await expect(page.getByRole("table")).toBeVisible();
+
+  // Each value in the trail is a way back to its own step, not a label.
+  await page.getByRole("button", { name: "Jul", exact: true }).click();
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a month");
+  await page.getByRole("button", { name: "2026", exact: true }).click();
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a year");
+});
+
+test("the paddles step the context the step sits in, not the step", async ({ mount, page }) => {
+  const c = await mount(<PathHarness path={["year", "month", "day"]} />);
+  await c.getByRole("combobox").click();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  // At the month step the context is the year: › moves to 2027's months.
+  await page.getByRole("button", { name: "Next year" }).click();
+  await expect(page.getByRole("button", { name: "2027", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "July 2027" })).toBeVisible();
+});
+
+test("the veto is asked at every step, with the level", async ({ mount, page }) => {
+  const c = await mount(<PathHarness path={["year", "quarter", "month", "day"]} rule="levels" />);
+  await c.getByRole("combobox").click();
+  // Only 2024-2026 carry data.
+  await expect(page.getByRole("option", { name: "2023" })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "2025" })).toBeEnabled();
+  await page.getByRole("option", { name: "2025", exact: true }).click();
+
+  // Q1 is closed.
+  await expect(page.getByRole("option", { name: "Q1 2025" })).toBeDisabled();
+  await page.getByRole("option", { name: "Q3 2025" }).click();
+
+  // July and August are out, September is not.
+  await expect(page.getByRole("option", { name: "July 2025" })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "September 2025" })).toBeEnabled();
+  await page.getByRole("option", { name: "September 2025" }).click();
+
+  // And no weekend day: 2025-09-06 is a Saturday, the 8th a Monday.
+  await expect(page.getByRole("button", { name: "2025-09-06" })).toBeDisabled();
+  await page.getByRole("button", { name: "2025-09-08" }).click();
+  await expect(c.getByTestId("committed")).toHaveText("2025-09-08");
+});
+
+test("min/max still bound the steps, by overlap", async ({ mount, page }) => {
+  const c = await mount(
+    <PathHarness path={["year", "month"]} minDate="2026-03-15" maxDate="2026-09-30" />,
+  );
+  await c.getByRole("combobox").click();
+  await expect(page.getByRole("option", { name: "2025" })).toBeDisabled();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  // March overlaps the minimum, so it stays pickable; February does not.
+  await expect(page.getByRole("option", { name: "February 2026" })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "March 2026" })).toBeEnabled();
+  await expect(page.getByRole("option", { name: "October 2026" })).toBeDisabled();
+});
+
+test("the field is read-only in path mode: there is nothing to type", async ({ mount, page }) => {
+  const c = await mount(<PathHarness path={["year", "month"]} value="2026-07-01" />);
+  const input = c.getByRole("combobox");
+  await expect(input).toHaveAttribute("readonly", "");
+  await input.click();
+  await page.keyboard.type("2030");
+  await expect(input).toHaveValue("2026-07");
+});
+
+test("the keyboard walks the path: Down into the grid, arrows, Enter, Backspace", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PathHarness path={["year", "month"]} value="2026-07-01" />);
+  const input = c.getByRole("combobox");
+  await input.click();
+  await input.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "2026", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("option", { name: "2027", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  // Into the months of 2027, on the month the value was already on.
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a month");
+  await page.keyboard.press("Backspace");
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a year");
+});
+
+test("a week step lists the year's ISO weeks and its day step the seven", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PathHarness path={["year", "week", "day"]} />);
+  await c.getByRole("combobox").click();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a week");
+  // 2026 is a 53-week year, and W01 starts in the December before it.
+  await expect(page.getByRole("option")).toHaveCount(53);
+  await page.getByRole("option", { name: /^Week 29, 2026/ }).click();
+
+  // The day step holds that week alone: Monday the 13th to Sunday the 19th.
+  const days = page.getByRole("button", { name: /^2026-07-1[3-9]$/ });
+  await expect(days).toHaveCount(7);
+  await page.getByRole("button", { name: "2026-07-16" }).click();
+  await expect(c.getByTestId("committed")).toHaveText("2026-07-16");
+});
+
+test("a path reopens at its first step, from the committed value", async ({ mount, page }) => {
+  const c = await mount(<PathHarness path={["year", "month", "day"]} value="2026-07-14" />);
+  const input = c.getByRole("combobox");
+  await input.click();
+  await page.getByRole("option", { name: "2026", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await input.click();
+  // Back at the top of the path, not halfway down a trail nobody remembers.
+  await expect(page.getByRole("listbox")).toHaveAttribute("aria-label", "Pick a year");
 });

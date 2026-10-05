@@ -494,6 +494,7 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
 | `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `messageStyle` | `ChatMessageStyle \| { user?, assistant? }` | `{ user: "tape", assistant: "plain" }` | How each voice shows up: `plain` (no surface, the text on the page), `box` (a raised box: the edge bands over an elevation-2 cast, the 2px system radius), `tape` (a strip of label-maker tape, a run of the primary colour with the letters embossed in the page colour, monospace and bold, the letterforms belonging to the tape rather than to the role) or `squircle` (the same key with a superellipse round-over and a lightly scooped face, the `bowl` ramp at 0.3 of the system amplitude). One value styles both roles; an object styles them apart. The role keeps its place either way: the user's turn is right-aligned and capped at 75% of the column, the assistant's runs across it. The surface sits on the user's run (so the tape follows its lines and a box hugs its text) and on the assistant's whole block. Each message carries its resolved value as `data-style`. |
+| `minimap` | `boolean \| { side?: "left" \| "right"; width?: number }` | `false` | Replace the transcript's scrollbar with a [`Minimap`](#minimap) rail: every user message becomes a clickable label down the side (the questions are what you navigate a conversation by) over a span of its own height **in the accent**, the colour its message is spoken in down in the transcript, every assistant reply a neutral dithered block the height of the reply, each band taking half the space to the next one (the 2u the transcript leaves between turns is real, but left out of the rail it becomes a third of it in dead air), and the viewport band shows the part of the conversation on screen. Clicking a label jumps that question to the top; the view stops following the bottom, as any scroll does, and the jump-to-latest key brings it back. The rail owns the scroll element, so the transcript's `role="log"`, its label and its follow-the-bottom behaviour move onto it. The object form tunes the rail: `side` (right by default) and `width` in `--sf-unit` multiples (5u by default, wider than the `--sf-minimap-width` token, because these labels are sentences rather than field names). The rail is **loaded on demand**, so a chat that never asks for one carries none of it (the transcript stands in, scrollbar hidden, until the chunk lands). Worth it on a long or wide conversation; a short exchange has nothing to navigate. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
@@ -607,7 +608,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
+| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `minimap` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `minimap` gives the panel's transcript the rail instead of its scrollbar (a panel is where a long conversation is usually read). `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
@@ -1100,20 +1101,60 @@ Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`
 
 `precision` picks whole periods instead of days. `"week"`: the calendar selects entire ISO-week rows (click any row or its week number; the week column is forced on) and the field shows `YYYY-Www`; typed entry accepts `w29` / `2026-w29` plus any day-level form, which resolves to its week. `"month"`: the popup becomes a year of month cells (paddles page by year); type `2026-07`, `jul` or `jul 2027`. `"year"`: a 12-year page (paddles move a dozen years); type `2028`. The committed `Date` is always the period start: the ISO week's Monday, the 1st, or Jan 1.
 
+`path` picks the date by stepping down a trail instead of from the calendar:
+the popup shows one level at a time, each pick narrowing the next, and the last
+one commits. `["year", "month", "day"]` asks for the year, then its months, then
+that month's days; `["year", "quarter", "month"]` is the reporting-period
+reading, `["year", "week", "day"]` the ISO-week one, `["month", "day"]` picks
+within the year the paddles are on.
+
+- **The chain is fixed.** Each step narrows the one before it: a quarter follows
+  a year, a month follows a year or a quarter, a week follows a year (an ISO
+  week straddles month ends, so it is never inside a month), and a day follows a
+  month or a week. A step that cannot is dropped, with a `console.warn` naming
+  the path it used instead. The first step always stands: it carries its own
+  context.
+- **The last step is the precision.** The value commits there and nowhere
+  earlier, so `["year", "month"]` always hands back a month start and the field
+  reads `2026-07`; a path ending in `quarter` reads `2026-Q3`. `path` wins over
+  `precision`, and the field is read-only (the calendar's typed entry does not
+  apply to a path).
+- **The header is the trail.** It carries the context the step sits in and every
+  value picked so far, each a button back to its own step; the paddles step that
+  context (the year over a month, the month over a day, a page of twelve at the
+  year step). Keyboard: ArrowDown from the field enters the grid, arrows move
+  within the step, Enter picks, Backspace goes back a step, Escape closes.
+- **Every step can be vetoed.** `isDateDisabled` is called with the period's
+  start **and the level**, so a whole year, quarter, month, week or day greys
+  out (struck through, skipped by the arrows). A step is not disabled because
+  all its children are: say so at the step you mean, since scanning a year's
+  days to find out would cost 365 calls per cell. `minDate` / `maxDate` keep
+  bounding every step by overlap.
+
+```tsx
+<DatePicker
+  path={["year", "quarter", "month"]}
+  value={period}
+  onChange={setPeriod}
+  isDateDisabled={(d, level) => level === "year" && d.getFullYear() < 2024}
+/>
+```
+
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `value` | `Date \| null` | n/a | Selected date (controlled; pair with `onChange`). |
 | `defaultValue` | `Date \| null` | n/a | Initial selection (uncontrolled). |
 | `onChange` | `(date: Date \| null) => void` | n/a | Fires on commit or clear. At coarser precisions always the normalized period start. |
-| `precision` | `"day" \| "week" \| "month" \| "year"` | `"day"` | The unit the picker commits; see above. Display, placeholder and typed entry follow. |
+| `precision` | `"day" \| "week" \| "month" \| "year"` | `"day"` | The unit the picker commits; see above. Display, placeholder and typed entry follow. Ignored when `path` is set (its last step is the unit). |
+| `path` | `DateLevel[]` | n/a | Pick by stepping down a trail instead of from the calendar; see above. `DateLevel` is `"year" \| "quarter" \| "month" \| "week" \| "day"`. |
 | `placeholder` | `string` | precision's ISO shape | Field placeholder (`YYYY-MM-DD` / `YYYY-Www` / `YYYY-MM` / `YYYY`). |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Field size, mirrors `Input`. |
 | `disabled` | `boolean` | `false` | Disable the control. |
 | `clearable` | `boolean` | `true` | × button once a date is selected. |
 | `minDate` / `maxDate` | `Date` | n/a | Inclusive selectable range (day granularity). At coarser precisions a period stays pickable while it overlaps the range. |
-| `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. Day precision only; ignored at coarser precisions. |
+| `isDateDisabled` | `(date: Date, level: DateLevel) => boolean` | n/a | Veto a period on top of min/max; vetoed options are struck through and skipped by keyboard nav. Called with the period's start and the level being picked at. On the calendar it is asked at day precision only (a coarser period has no single day to ask about); with `path` it is asked at **every** step, so a whole year, quarter, month or week can be greyed out. |
 | `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. Forced on at week precision. |
-| `formatValue` | `(date: Date) => string` | precision's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
+| `formatValue` | `(date: Date) => string` | the unit's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | A cast below the field (`--sf-elevation-N`). Omitted, the field sits flush as a groove (`--sf-groove`). |
 | `aria-label` | `string` | n/a | Accessible name when not wrapped in a `Field`. |
 
@@ -2297,6 +2338,7 @@ external host-owned scroller is a planned follow-up.
 | `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, auto-following the viewport band (and more labels survive). Unset keeps the fit-everything proportional overview. |
 | `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples, a bound on outliers: a block outsized at the natural scale is compressed to the cap in place, everything after it moves up, and the rail it gives up is shared out so the picture still fills the rail with proportions among the other blocks intact (a block that only reaches the cap through that share-out is left alone). No other block is shrunk (the whole-rail scale of 2.27 bunched the rest toward the top) and no hole is left behind (the render-time cap of 2.29 to 2.34 did). The viewport band, presses, drags and header labels go through the same piecewise mapping. |
 | `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
+| `scrollProps` | `HTMLAttributes<HTMLDivElement>` | n/a | Attributes merged onto the **scroll element**. The component owns that element, but the semantics of the scrolling region belong to the host: a chat transcript is a `role="log"`, a document body carries its own label, and a test needs a handle on the thing that actually scrolls. An `onScroll` here is the host's (the component listens on its own). The component's ref, id, class and tabIndex always win. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
 `MinimapMarker`: `{ id?, top?, topFraction?, height?, heightFraction?, kind?, label?, level?, emphasis?, tone? }`.

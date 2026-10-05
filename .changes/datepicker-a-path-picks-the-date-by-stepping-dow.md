@@ -1,0 +1,4 @@
+---
+bump: minor
+---
+DatePicker: a `path` picks the date by stepping down a trail instead of from the calendar. `path={["year", "month", "day"]}` asks for the year, then its months, then that month's days, one step at a time; the steps are `year` / `quarter` / `month` / `week` / `day` and each narrows the one before it (a week follows a year, since an ISO week straddles month ends; a day follows a month or a week), so `["year", "quarter", "month"]`, `["year", "week", "day"]` and `["month", "day"]` all read. The header carries the trail, each value a button back to its own step, and the paddles step the context the step sits in. The last step is the precision: the value commits there and nowhere earlier, so `["year", "quarter"]` hands back a quarter start and the field reads `2026-Q3`. `isDateDisabled` now takes the level alongside the period, so a whole year, quarter, month, week or day can be greyed out; on the calendar it is still asked at day precision only.
