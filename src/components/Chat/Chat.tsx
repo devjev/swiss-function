@@ -151,16 +151,16 @@ export interface ChatMessage {
   isStreaming?: boolean;
 }
 
+/** The shortest message's band, in units. Every other band is proportional to
+ *  it, so this is the rail's scale as much as its floor. */
+const CHAT_MIN_BLOCK = 0.5;
+
 /** Tuning for the transcript's `Minimap` rail (see `ChatProps.minimap`). */
 /** The rail is opt-in, so it is loaded on demand: a chat that never sets
  *  `minimap` carries none of Minimap's geometry or styles (the pattern
  *  DataTable's header menu uses). Until the chunk lands, the transcript renders
  *  as the plain scroller it is without it. */
 const MinimapRail = lazy(async () => ({ default: (await import("../Minimap")).Minimap }));
-
-/** The shortest message's band, in units. Every other band is proportional to
- *  it, so this is the rail's scale as much as its floor. */
-const CHAT_MIN_BLOCK = 0.5;
 
 export interface ChatMinimap {
   /** Which edge the rail occupies. Default `"right"`. */
@@ -760,11 +760,11 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
             // below), so a theme can retune every rail; the prop lands inline
             // and wins for this one.
             width={rail.width}
-            // A conversation starts short, and a rail that stretches three
-            // turns down its whole height says nothing: the blocks keep a
-            // minimum size instead and accumulate from the top, so the rail
-            // fills as the conversation does (and scrolls once it is longer
-            // than the rail can hold).
+            // A conversation starts short, and its markers tile it: three turns
+            // blown up to the rail's full height say nothing about how much
+            // there is. The bands keep a minimum size and accumulate from the
+            // top instead, so the rail fills as the conversation does (and
+            // scrolls once it is longer than the rail can hold).
             minMarkerSize={CHAT_MIN_BLOCK}
             stretch={false}
             scrollProps={scrollProps}

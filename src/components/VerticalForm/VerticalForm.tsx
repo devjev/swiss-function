@@ -232,6 +232,14 @@ export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
    *  proportional size and position. Unset = no cap: an outsized field (a tall
    *  `TableInput`) reads honestly tall. */
   maxBlock?: number;
+  /** Stretch the rail's picture to fill its height. **On** here, against
+   *  `Minimap`'s own default: a form's rail is an index of field names, and a
+   *  smaller picture collides their pills, so the rail thins them out (a
+   *  24-field form shows 24 names stretched and 12 packed). A form is also a
+   *  fixed document, where "there is little here yet" says nothing. Pass
+   *  `false` for the packed look: the markers keep the size `minBlock` gives
+   *  them and accumulate from the top. */
+  stretch?: boolean;
   /** Render rows without the surrounding Box: no surface (border/shadow) and no
    *  box padding, for a minimal look. The `elevation` prop is then ignored.
    *  Default `false`. */
@@ -253,6 +261,7 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     navSize = "sm",
     minBlock = 0.5,
     maxBlock,
+    stretch = true,
     bare = false,
     reserveError = false,
     className,
@@ -449,6 +458,7 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
       markers={markers}
       minMarkerSize={minBlock}
       maxMarkerSize={maxBlock}
+      stretch={stretch}
       jumpAlign="center"
       // A rail label click centres the row, like the nav Picker (the label
       // marker itself spans only the caption).

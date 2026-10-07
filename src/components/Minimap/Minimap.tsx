@@ -97,16 +97,23 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   /** Minimum block-marker height in `--sf-unit` multiples. When set, block
    *  spans never compress below this: once the content is dense enough that they
    *  would, the rail's inner content grows taller than the rail and the rail
-   *  itself scrolls (auto-following the viewport band). Unset (default) keeps the
+   *  itself scrolls (auto-following the viewport band). With `stretch={false}`
+   *  it is the rail's scale as much as its floor. Unset (default) keeps the
    *  fit-everything proportional overview. */
   minMarkerSize?: number;
-  /** Stretch the markers to fill the rail. On by default: the rail is an
-   *  overview of the whole document, so its picture spans its height. Off, the
-   *  markers keep the size `minMarkerSize` gives them (the smallest span is
-   *  exactly that tall and the rest are proportional to it) and accumulate from
-   *  the top, leaving the rail empty below until the content grows into it and
-   *  then past it, where the rail scrolls as it does in min-block mode. Without
-   *  `minMarkerSize` there is no size to keep, so this does nothing. */
+  /** Stretch the markers to fill the rail. On by default: a rail is a map of
+   *  the whole document, so its picture spans its height whatever there is to
+   *  show. Off (with `minMarkerSize`, which then sets the scale), the markers
+   *  keep that size and accumulate from the top, leaving the rail empty below
+   *  until the content grows into it and then past it, where the rail scrolls
+   *  as it does in min-block mode.
+   *
+   *  Reach for it when the markers **tile** the content and it grows, like a
+   *  conversation, where a few blocks blown up to the rail's full height say
+   *  nothing about how much there is. Leave it on when they annotate parts of a
+   *  fixed document (the picture would collapse to a sliver of the rail) or
+   *  when the rail is an index of names (a smaller picture collides their pills,
+   *  so the rail thins them out). */
   stretch?: boolean;
   /** Maximum block-marker height in `--sf-unit` multiples. Caps how tall any one
    *  block renders (a sparse document otherwise gives a few very tall blocks);
