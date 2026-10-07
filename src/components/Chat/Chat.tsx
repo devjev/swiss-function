@@ -162,10 +162,6 @@ const MinimapRail = lazy(async () => ({ default: (await import("../Minimap")).Mi
  *  it, so this is the rail's scale as much as its floor. */
 const CHAT_MIN_BLOCK = 0.5;
 
-/** The chat rail's width in units: wider than the `--sf-minimap-width` token,
- *  because these labels are the questions asked, not field names. */
-const CHAT_RAIL_WIDTH = 5;
-
 export interface ChatMinimap {
   /** Which edge the rail occupies. Default `"right"`. */
   side?: "left" | "right";
@@ -193,10 +189,12 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
    *  exchange has nothing to navigate.
    *
    *  `true` takes the defaults; the object form tunes the rail: `side` (right
-   *  by default) and `width` in `--sf-unit` multiples. The rail is wider here
-   *  than the `--sf-minimap-width` token (5u against 3u), because a chat's
-   *  labels are the questions asked, which are sentences, where a form's are
-   *  field names. Default `false`. */
+   *  by default) and `width` in `--sf-unit` multiples. Without a `width` the
+   *  rail reads `--sf-chat-minimap-width`, which defaults to 5u: wider than the
+   *  `--sf-minimap-width` token (3u), because a chat's labels are the questions
+   *  asked, which are sentences, where a form's are field names. Set that
+   *  variable on any ancestor to retune every rail; the prop overrides it on
+   *  one chat. Default `false`. */
   minimap?: boolean | ChatMinimap;
   /** Placeholder text shown in the empty input. Default "Ask anything…". */
   placeholder?: string;
@@ -758,7 +756,10 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
             className={styles.rail}
             markers={markers}
             side={rail.side}
-            width={rail.width ?? CHAT_RAIL_WIDTH}
+            // Unset, the width comes from `--sf-chat-minimap-width` (the class
+            // below), so a theme can retune every rail; the prop lands inline
+            // and wins for this one.
+            width={rail.width}
             // A conversation starts short, and a rail that stretches three
             // turns down its whole height says nothing: the blocks keep a
             // minimum size instead and accumulate from the top, so the rail

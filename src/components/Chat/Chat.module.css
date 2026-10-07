@@ -30,6 +30,13 @@
 /* Minimap mode: the rail takes the scroller's place in the column, and owns
    the scrolling (and the hidden native scrollbar) from there. */
 .rail {
+  /* The rail's width. Wider than the `--sf-minimap-width` token (5u against 3u)
+     because these labels are the questions asked, which are sentences, where a
+     form's are field names. The default is a fallback here rather than a
+     declaration on the root: a value declared on the chat would shadow the one
+     an ancestor sets, and setting it app-wide is the point. `minimap={{ width }}`
+     overrides it for one chat (the prop lands inline, which beats this). */
+  --sf-minimap-width: var(--sf-chat-minimap-width, calc(var(--sf-unit) * 5));
   flex: 1;
   min-block-size: 0;
 }

@@ -847,3 +847,29 @@ test("a long conversation fills the rail and then scrolls it", async ({ mount })
     "",
   );
 });
+
+test("the rail's width is a variable the page can set, and a prop can override", async ({
+  mount,
+}) => {
+  // Unset, the rail takes `--sf-chat-minimap-width` (5u), so a theme can
+  // retune every rail it has without touching a call site.
+  const themed = await mount(
+    <div style={{ "--sf-chat-minimap-width": "72px" } as React.CSSProperties}>
+      <Chat minimap messages={QUESTIONS} onSubmit={() => {}} height={300} />
+    </div>,
+  );
+  await expect(themed.getByRole("scrollbar")).toHaveCount(1);
+  const themedRail = await themed.locator('[class*="Minimap-module_rail"]').first().boundingBox();
+  expect(Math.round(themedRail?.width ?? 0)).toBe(72);
+  await themed.unmount();
+
+  // The prop lands inline, so it wins over the variable for that one chat.
+  const pinned = await mount(
+    <div style={{ "--sf-chat-minimap-width": "72px" } as React.CSSProperties}>
+      <Chat minimap={{ width: 6 }} messages={QUESTIONS} onSubmit={() => {}} height={300} />
+    </div>,
+  );
+  await expect(pinned.getByRole("scrollbar")).toHaveCount(1);
+  const pinnedRail = await pinned.locator('[class*="Minimap-module_rail"]').first().boundingBox();
+  expect(Math.round(pinnedRail?.width ?? 0)).toBe(6 * 24);
+});
