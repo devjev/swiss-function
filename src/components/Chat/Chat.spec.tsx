@@ -806,3 +806,44 @@ test("the rail takes a side and a width", async ({ mount }) => {
   expect(Math.round(railBox.width)).toBeGreaterThan(7 * 24);
   expect(Math.round(railBox.width)).toBeLessThanOrEqual(8 * 24);
 });
+
+test("a short conversation's bands keep their size instead of filling the rail", async ({
+  mount,
+}) => {
+  // Three turns stretched down the whole rail say nothing about where you are;
+  // the bands keep a floor and accumulate from the top instead.
+  const c = await mount(
+    <Chat minimap messages={QUESTIONS.slice(0, 6)} onSubmit={() => {}} height={400} />,
+  );
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  const rail = await c.locator('[class*="Minimap-module_rail"]').first().boundingBox();
+  const last = await c.locator("[data-kind]").last().boundingBox();
+  if (!rail || !last) throw new Error("missing box");
+  // The picture ends well above the rail's own bottom.
+  expect(last.y + last.height - rail.y).toBeLessThan(rail.height * 0.7);
+  // And no single band is a slab: each stays a brick.
+  const heights = await c
+    .locator("[data-kind]")
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+  expect(Math.max(...heights)).toBeLessThan(60);
+});
+
+test("a long conversation fills the rail and then scrolls it", async ({ mount }) => {
+  const long: ChatMessage[] = Array.from({ length: 60 }, (_, i) =>
+    i % 2 === 0
+      ? { id: `q-${i}`, role: "user" as const, content: `Question ${i / 2 + 1}` }
+      : {
+          id: `a-${i}`,
+          role: "assistant" as const,
+          content: `Answer ${(i - 1) / 2 + 1}\n\nA second paragraph, so the reply is a few lines tall.`,
+        },
+  );
+  const c = await mount(<Chat minimap messages={long} onSubmit={() => {}} height={400} />);
+  await expect(c.getByRole("scrollbar")).toHaveCount(1);
+  // Past the rail's height the bands keep their size and the rail scrolls,
+  // following the viewport band (the min-block mode).
+  await expect(c.locator('[class*="Minimap-module_rail"]').first()).toHaveAttribute(
+    "data-scroll",
+    "",
+  );
+});

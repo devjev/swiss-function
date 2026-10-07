@@ -606,6 +606,32 @@ export const Following: Story = () => {
   );
 };
 
+/** The same rail on a short exchange: a handful of turns should read as a few
+ *  bricks at the top of the rail, not as a few huge blocks stretched down it. */
+export const MinimapSparse: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(TOPICS.slice(0, 6));
+  return (
+    <div style={{ height: 420, width: "min(40rem, 100%)" }}>
+      <Chat
+        minimap
+        height="100%"
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [
+            ...prev,
+            { id: `u-${Date.now()}`, role: "user", content: text },
+            {
+              id: `a-${Date.now()}`,
+              role: "assistant",
+              content: "Another turn, so the rail fills a little further.",
+            },
+          ])
+        }
+      />
+    </div>
+  );
+};
+
 /** `minimap` swaps the transcript's scrollbar for a rail: every question you
  *  asked becomes a label down the side (click one to jump back to it), the
  *  replies are dithered blocks whose height is their length, and the band shows

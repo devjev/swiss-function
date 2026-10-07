@@ -234,6 +234,7 @@
   "chat--error-state",
   "chat--following",
   "chat--message-styles",
+  "chat--minimap-sparse",
   "chat--thinking",
   "chat--thinking-error",
   "chat--with-minimap",

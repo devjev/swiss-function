@@ -205,7 +205,9 @@ export function decimateLabels(labels: readonly LabelCandidate[], minSpacing: nu
 
 /** Effective rail content height for the min block-size mode. The rail's inner
  *  content *grows* so the smallest span reaches `minBlockPx` (dense → the rail
- *  scrolls); everything stays proportional (mapped into this height).
+ *  scrolls), and with `minScale` below 1 it may *shrink* for the same reason
+ *  (sparse → the markers keep their size and the rail is empty below them);
+ *  everything stays proportional (mapped into this height).
  *  `spanRailHeights` are the markers' unfloored proportional heights at the
  *  natural `railHeight` (extent-bearing markers only). Returns `railHeight`
  *  when nothing binds. `maxScale` bounds the growth so a pathological tiny
@@ -221,6 +223,7 @@ export function railContentHeight(
   railHeight: number,
   minBlockPx: number,
   maxScale: number,
+  minScale = 1,
 ): number {
   if (railHeight <= 0) return railHeight;
   let smallest = Number.POSITIVE_INFINITY;
@@ -228,9 +231,14 @@ export function railContentHeight(
     if (h > 0 && h < smallest) smallest = h;
   }
   if (!Number.isFinite(smallest)) return railHeight;
-  // Grow so the smallest span reaches the floor (the dense, scrollable case).
-  const scale = minBlockPx > 0 && smallest < minBlockPx ? minBlockPx / smallest : 1;
-  return railHeight * clamp(scale, 1, maxScale);
+  if (!(minBlockPx > 0)) return railHeight;
+  // The height at which the smallest span is exactly the floor. Above 1 it
+  // grows the rail (the dense, scrollable case). Below 1 it shrinks it, which
+  // only a caller that has turned `stretch` off allows (minScale 0): the
+  // markers then keep that size and accumulate from the top instead of being
+  // stretched down a rail with little in it.
+  const scale = minBlockPx / smallest;
+  return railHeight * clamp(scale, minScale, maxScale);
 }
 
 /** Edge-triggered scroll-into-view for the rail when its content is taller than

@@ -158,6 +158,10 @@ export interface ChatMessage {
  *  as the plain scroller it is without it. */
 const MinimapRail = lazy(async () => ({ default: (await import("../Minimap")).Minimap }));
 
+/** The shortest message's band, in units. Every other band is proportional to
+ *  it, so this is the rail's scale as much as its floor. */
+const CHAT_MIN_BLOCK = 0.5;
+
 /** The chat rail's width in units: wider than the `--sf-minimap-width` token,
  *  because these labels are the questions asked, not field names. */
 const CHAT_RAIL_WIDTH = 5;
@@ -755,6 +759,13 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
             markers={markers}
             side={rail.side}
             width={rail.width ?? CHAT_RAIL_WIDTH}
+            // A conversation starts short, and a rail that stretches three
+            // turns down its whole height says nothing: the blocks keep a
+            // minimum size instead and accumulate from the top, so the rail
+            // fills as the conversation does (and scrolls once it is longer
+            // than the rail can hold).
+            minMarkerSize={CHAT_MIN_BLOCK}
+            stretch={false}
             scrollProps={scrollProps}
             ariaLabel="Conversation position"
           >

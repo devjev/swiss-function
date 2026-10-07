@@ -100,6 +100,14 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
    *  itself scrolls (auto-following the viewport band). Unset (default) keeps the
    *  fit-everything proportional overview. */
   minMarkerSize?: number;
+  /** Stretch the markers to fill the rail. On by default: the rail is an
+   *  overview of the whole document, so its picture spans its height. Off, the
+   *  markers keep the size `minMarkerSize` gives them (the smallest span is
+   *  exactly that tall and the rest are proportional to it) and accumulate from
+   *  the top, leaving the rail empty below until the content grows into it and
+   *  then past it, where the rail scrolls as it does in min-block mode. Without
+   *  `minMarkerSize` there is no size to keep, so this does nothing. */
+  stretch?: boolean;
   /** Maximum block-marker height in `--sf-unit` multiples. Caps how tall any one
    *  block renders (a sparse document otherwise gives a few very tall blocks);
    *  the capped block leaves a gap after it rather than overlapping, while every
@@ -159,6 +167,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     ariaLabel = "Scroll position",
     onJump,
     minMarkerSize,
+    stretch = true,
     maxMarkerSize,
     jumpAlign = "start",
     scrollProps,
@@ -208,6 +217,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   // callbacks: the live marker list / min-block prop feed the effective rail
   // content height, which the drag math and the rail auto-scroll both need.
   const markerListRef = useRef<MinimapMarker[]>([]);
+  const stretchRef = useRef(true);
   const minMarkerSizeRef = useRef<number | undefined>(undefined);
   const maxMarkerSizeRef = useRef<number | undefined>(undefined);
   const unitPxRef = useRef(MIN_TARGET_PX);
@@ -217,6 +227,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
    *  anchor): 0 = top, 0.5 = center. */
   const anchorFracRef = useRef(0);
   minMarkerSizeRef.current = minMarkerSize;
+  stretchRef.current = stretch;
   maxMarkerSizeRef.current = maxMarkerSize;
   unitPxRef.current = unitPx;
   anchorFracRef.current = jumpAlign === "center" ? 0.5 : 0;
@@ -275,7 +286,13 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     if (minMarker && scrollHeight > 0 && railHeight > 0) {
       const natural = buildRailMap(spanList, scrollHeight, railHeight, maxPx);
       const spans = spanList.map((s) => natural.toRail(s.top + s.extent) - natural.toRail(s.top));
-      railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
+      railContentH = railContentHeight(
+        spans,
+        railHeight,
+        minMarker * unit,
+        MAX_RAIL_SCALE,
+        stretchRef.current ? 1 : 0,
+      );
     }
     railContentHRef.current = railContentH;
     const railMap = buildRailMap(spanList, scrollHeight, railContentH, maxPx);

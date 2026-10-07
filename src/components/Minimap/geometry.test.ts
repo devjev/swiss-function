@@ -46,6 +46,22 @@ describe("railContentHeight (min block sizing)", () => {
     expect(railContentHeight([0, 0], 400, 12, 40)).toBe(400);
     expect(railContentHeight([], 400, 12, 40)).toBe(400);
   });
+
+  it("shrinks when the caller allows it, so sparse markers keep their size", () => {
+    // `stretch={false}`: smallest 40 against a floor of 12 → scale 0.3, so the
+    // picture takes 120 of the 400 and the rail is empty below it.
+    expect(railContentHeight([40, 80], 400, 12, 40, 0)).toBe(120);
+    // The floor is the scale: double it and the picture doubles.
+    expect(railContentHeight([40, 80], 400, 24, 40, 0)).toBe(240);
+  });
+
+  it("still grows past the rail on dense content, stretching or not", () => {
+    expect(railContentHeight([6, 30], 400, 12, 40, 0)).toBe(800);
+  });
+
+  it("without a floor there is no scale to keep, so the rail height stands", () => {
+    expect(railContentHeight([40, 80], 400, 0, 40, 0)).toBe(400);
+  });
 });
 
 describe("railScrollForBand (edge-triggered follow)", () => {
