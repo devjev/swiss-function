@@ -209,11 +209,16 @@
   position: absolute;
   /* Hug the text (a caption over the density blocks), not a full-width chip:
      the dither blocks stay the main visual, the heading rides on top-left.
-     Caps at the rail width so long headings ellipsize. */
-  inset-inline-start: 0;
+     A long heading ellipsizes at the blocks' own right edge: the label starts
+     on their left edge (the quarter-unit inset, plus a level's indent) and
+     stops a quarter unit before the rail's border, so the text never runs into
+     the gutter the blocks leave, and the ellipsis has room to read as one.
+     The indent comes in as a custom property, so both ends are written here
+     rather than one here and one inline. */
+  inset-inline-start: calc(var(--sf-unit) / 4 + var(--sf-minimap-label-indent, 0px));
   inset-inline-end: auto;
   inline-size: max-content;
-  max-inline-size: 100%;
+  max-inline-size: calc(100% - var(--sf-unit) / 2 - var(--sf-minimap-label-indent, 0px));
   display: block;
   /* A tight pill: box height hugs the label line, not the full unit, with a
      hair of horizontal padding. The rail row is still one unit tall (labelTop),

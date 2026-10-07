@@ -111,3 +111,35 @@ export function Shrinkable() {
     </div>
   );
 }
+
+/** Long headings at two depths: the labels must ellipsize at the blocks' own
+ *  right edge, not run into the rail's border, at either indent. */
+export function LongLabels() {
+  return (
+    <div style={{ height: 400, width: 520 }}>
+      <Minimap
+        markers={[
+          {
+            id: "a",
+            top: 0,
+            height: 1200,
+            kind: "header",
+            label: "A heading long enough that the rail has to cut it short",
+            level: 1,
+          },
+          {
+            id: "b",
+            top: 2000,
+            height: 1200,
+            kind: "header",
+            label: "Another heading, indented a level deeper and just as long",
+            level: 3,
+          },
+          { id: "c", top: 4000, height: 2000, kind: "block" },
+        ]}
+      >
+        <div style={{ height: 8000 }} />
+      </Minimap>
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import {
   Clustered,
   DenseScroll,
   InOuterScroller,
+  LongLabels,
   Short,
   Shrinkable,
   Tall,
@@ -287,4 +288,32 @@ test("min-block mode: a dragged band never dips below the rail's visible bottom"
     )
     .toBeLessThanOrEqual(1);
   await page.mouse.up();
+});
+
+test("a cut label stops at the blocks' gutter, not against the rail's border", async ({
+  mount,
+}) => {
+  // The label was capped at 100% of the rail from a start inset of a quarter
+  // unit, so a long heading ran that same quarter unit past the right edge and
+  // was clipped flush against the border, ellipsis and all.
+  const c = await mount(<LongLabels />);
+  const rail = await c.locator('[class*="rail"]').first().boundingBox();
+  const block = await c.locator('[data-kind="block"]').first().boundingBox();
+  if (!rail || !block) throw new Error("missing box");
+  const gutter = rail.x + rail.width - (block.x + block.width);
+  expect(Math.round(gutter)).toBe(6);
+
+  // Both labels are cut (they are far too long to fit) and both stop on the
+  // blocks' edge — the deeper indent moves the cap in with the text.
+  const labels = c.locator('button[class*="label"]');
+  await expect(labels).toHaveCount(2);
+  for (let i = 0; i < 2; i++) {
+    const box = await labels.nth(i).boundingBox();
+    if (!box) throw new Error("missing label box");
+    expect(Math.round(rail.x + rail.width - (box.x + box.width))).toBe(Math.round(gutter));
+  }
+  // And the deeper one starts further in, as its level says.
+  const first = await labels.nth(0).boundingBox();
+  const second = await labels.nth(1).boundingBox();
+  expect((second?.x ?? 0) - (first?.x ?? 0)).toBeGreaterThan(6);
 });

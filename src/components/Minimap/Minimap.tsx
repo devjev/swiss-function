@@ -875,15 +875,17 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
               className={styles.label}
               data-tone={h.marker.tone}
               data-emphasis={h.marker.emphasis ? "" : undefined}
-              style={{
-                top: h.labelTop,
-                // Level indent as position, not padding, so the caption's pill
-                // stays tight to its text at every depth. The base `--sf-unit / 4`
-                // matches the block markers' inline inset, so a label's text
-                // aligns with the left edge of the dither blocks; each level adds a
-                // half-unit.
-                insetInlineStart: `calc(var(--sf-unit) / 4 + ${h.level - 1} * var(--sf-unit) / 4)`,
-              }}
+              style={
+                {
+                  top: h.labelTop,
+                  // Level indent as position, not padding, so the caption's pill
+                  // stays tight to its text at every depth. The stylesheet adds
+                  // it to the block markers' own inset, so a label's text aligns
+                  // with the left edge of the dither blocks and its cap moves in
+                  // with it.
+                  "--sf-minimap-label-indent": `calc(${h.level - 1} * var(--sf-unit) / 4)`,
+                } as CSSProperties
+              }
               aria-current={activeKey === h.key ? "true" : undefined}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => jumpToMarker(h.marker, h.contentTop)}
