@@ -315,7 +315,7 @@ export const WithMenuBar: Story = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src", "src/components"]));
   return (
-    <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-strong)" }}>
       <MenuBar.Root>
         <MenuBar.Logo>◇ Project</MenuBar.Logo>
         <MenuBar.Menu>

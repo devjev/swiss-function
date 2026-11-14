@@ -28,7 +28,7 @@
 
 .arrow {
   fill: var(--sf-color-bg);
-  stroke: var(--sf-color-border);
+  stroke: var(--sf-color-border-strong);
   stroke-width: 1;
 }
 

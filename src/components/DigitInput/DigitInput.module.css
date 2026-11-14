@@ -52,14 +52,14 @@
   justify-content: center;
   inline-size: var(--sf-unit);
   block-size: calc(var(--sf-unit) * 1.5);
-  /* Recessed empty-slot fill, same as Input (issue #29), held in --sf-cap so the
+  /* The field fill, same as Input, held in --sf-cap so the
      cell's face (the `surface` prop: a concave floor by default, from
      lib/surface) derives from it. The active cell and the mask-mode focus
      treatment swap it for the primary block. */
   --sf-cap: var(--sf-color-input-bg);
   background-color: var(--sf-cap);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);

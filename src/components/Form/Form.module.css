@@ -24,9 +24,8 @@
 .formError {
   padding-block: calc(var(--sf-unit) / 4);
   padding-inline: calc(var(--sf-unit) / 2);
-  border-inline-start: 2px solid var(--sf-color-danger);
-  background-color: color-mix(in srgb, var(--sf-color-danger) 8%, var(--sf-color-bg));
-  color: color-mix(in srgb, var(--sf-color-danger) 72%, var(--sf-color-fg));
+  border-inline-start: 3px solid var(--sf-color-danger);
+  color: var(--sf-color-danger);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-medium);
   line-height: var(--sf-line-height-grid);

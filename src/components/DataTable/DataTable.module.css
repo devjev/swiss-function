@@ -18,7 +18,7 @@
      the header follows so labels and data stay proportionate. */
   --sf-cell-pad-x: calc(var(--sf-unit) / 2);
   --sf-cell-font: var(--sf-font-size-sm);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   outline: none;
@@ -116,9 +116,9 @@
    they can't all fit — so on horizontal scroll the header background extends
    across every column instead of clipping at the viewport edge. */
 .headerBlock {
-  /* The header keys' face (the `headerSurface` prop, a concave scoop by
-     default) at a touch over half the system amplitude: slight, enough to
-     read as a key next to the flat body cells. */
+  /* The header keys' face (the `headerSurface` prop, flat by default). A
+     curved face runs at a touch over half the system amplitude: slight,
+     enough to read as a key next to the flat body cells. */
   --sf-curve-scale: 0.6;
   display: grid;
   /* Column tracks come from --sf-datatable-template, set inline on the viewport
@@ -136,6 +136,21 @@
   top: 0;
   z-index: 1;
   background-color: var(--sf-color-bg-subtle);
+}
+
+/* The rule under the header: one ink line across every column, over the
+   cells' own bottom hairline, so the header reads as the table's head and
+   not as one more row. A pseudo-element instead of a border, so the header
+   keeps its whole-unit height. */
+.headerBlock::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 1px;
+  background-color: var(--sf-color-border-strong);
+  pointer-events: none;
+  z-index: 4;
 }
 
 /* A header group keeps its row semantics but no box: its cells are placed in
@@ -271,7 +286,7 @@
   block-size: calc(var(--sf-unit) * 1.5);
   padding: 0 calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg-subtle);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   box-shadow: var(--sf-elevation-3);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);

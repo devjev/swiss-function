@@ -277,7 +277,7 @@ export class NodeCardProgram extends NodeProgram<(typeof UNIFORMS)[number]> {
     array[i++] = card.cardHeight ?? data.size * 2;
     array[i++] = floatColor(data.color);
     array[i++] = floatColor(card.cardBg ?? "#ffffff");
-    array[i++] = floatColor(card.cardBorder ?? "#e5e7eb");
+    array[i++] = floatColor(card.cardBorder ?? "#0a0a0a");
     array[i] = nodeIndex;
   }
 

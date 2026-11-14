@@ -1,6 +1,7 @@
 import type { GlobalProvider } from "@ladle/react";
 import "../src/tokens/tokens.css";
 import "../src/tokens/reset.css";
+import "../src/tokens/fonts.css";
 import { storyDocs } from "./storyDocs";
 
 export const Provider: GlobalProvider = ({ children, globalState }) => {

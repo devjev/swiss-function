@@ -6,6 +6,10 @@
 .root {
   display: inline-flex;
   gap: 0;
+  /* Hold the keys' own width when a flex column or a grid would stretch the
+     row: the cast below is hard, and on a stretched root it would draw past
+     the last key. Set an explicit width to make the row fill. */
+  inline-size: fit-content;
   /* Joined keys: a vertical face ramp and top/bottom bands only, so the seams
      stay flat (see ButtonGroup). */
   --sf-light-angle: calc(atan2(var(--sf-light-y), 0) + 270deg);
@@ -43,7 +47,7 @@
   --sf-cap: var(--sf-color-bg);
   background-color: var(--sf-cap);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-md);

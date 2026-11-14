@@ -14,41 +14,57 @@
 
     /* Color — semantic */
     --sf-color-bg: #ffffff;
-    --sf-color-bg-subtle: #f9fafb;
+    /* The neutrals carry no hue: pure greys, so the accent is the only
+       colour on the page. */
+    --sf-color-bg-subtle: #f4f4f4;
     /* Resting fill of text-entry controls (Input, TextEdit, Combobox,
-       DigitInput): one perceptible notch below the page so an empty field
-       reads as a recessed slot, not a bare rectangle. Focus lifts the control
-       back to --sf-color-bg (the active writing surface). Deliberately a
-       separate token from -bg-subtle so input fills can be themed without
-       repainting table headers and hover states. */
-    --sf-color-input-bg: #f3f4f6;
+       DigitInput). A field is the page colour inside a control edge (see
+       --sf-color-border): the outline marks it, the fill does not. Kept as a
+       separate token from -bg so a theme can tint its fields without
+       repainting the page. */
+    --sf-color-input-bg: #ffffff;
     --sf-color-fg: #0a0a0a;
-    --sf-color-fg-subtle: #4b5563;
-    --sf-color-muted: #6b7280;
-    /* ONE neutral structural border for all chrome — panes, inputs, dividers.
-       There is deliberately a single border colour; `-strong` and `-subtle` are
-       kept only as aliases so existing references resolve to it unchanged. Do
-       not reintroduce a second structural border tone. The line is a SUBTLE
-       hairline — separation comes from the line plus elevation/spacing, never a
-       heavy edge. Primary is for state (focus/hover/checked), never a resting edge. */
-    --sf-color-border: #e5e7eb;
-    --sf-color-border-strong: var(--sf-color-border);
-    --sf-color-border-subtle: var(--sf-color-border);
+    /* Secondary text. Both clear 4.5:1 on -bg and on -bg-subtle
+       (10.9:1 and 6.5:1 on white). */
+    --sf-color-fg-subtle: #3d3d3d;
+    --sf-color-muted: #5e5e5e;
+    /* Three structural line tones, by what the line does:
+       -border-strong  the outline of a region (a table, a panel, a window, a
+                       popup) and the rules of its chrome (a title bar's
+                       underline, a pane splitter). Ink.
+       -border         the edge of a control (a field, a secondary button, a
+                       checkbox, a chip) and of a small box nested in a
+                       region. Ink in the light theme, so a field reads as a
+                       ruled box on a printed form; at least 3:1 on the page
+                       in any theme (WCAG 1.4.11).
+       -border-subtle  a line between repeated things: table cells, list
+                       rows, calendar days, menu separators, axis lines. A
+                       mid grey, visible but behind the content.
+       Pick by role, never by taste: a divider drawn in ink turns a table
+       into a cage, and a frame drawn in the divider grey dissolves the
+       region. Primary is for state (focus/hover/checked), never a resting
+       edge. */
+    --sf-color-border-strong: #0a0a0a;
+    --sf-color-border: #0a0a0a;
+    --sf-color-border-subtle: #bdbdbd;
     /* Faint hairline for DATA-VIZ scaffolding only — chart gridlines/axes and
        Skeleton placeholder edges — never structural UI borders. Derived from
        --sf-color-bg-subtle so it auto-adapts to theme and stays a touch above
        the shimmer's most-mixed moment. */
     --sf-color-gridline: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 12%);
-    --sf-color-primary: #2563eb;
+    /* The accent is a deep ultramarine. Every status colour clears 4.5:1
+       as text on -bg (primary 9.1, danger 5.7, success 5.4, warning 5.1), so
+       a status word can be set in its colour without a tinted background. */
+    --sf-color-primary: #1432c8;
     --sf-color-primary-fg: #ffffff;
-    --sf-color-primary-hover: #1d4ed8;
-    --sf-color-primary-active: #1e40af;
-    --sf-color-danger: #dc2626;
+    --sf-color-primary-hover: #0f27a0;
+    --sf-color-primary-active: #0b1d7a;
+    --sf-color-danger: #c81e1e;
     --sf-color-danger-fg: #ffffff;
-    --sf-color-danger-hover: #b91c1c;
-    --sf-color-success: #16a34a;
-    --sf-color-warning: #d97706;
-    --sf-color-focus-ring: #2563eb;
+    --sf-color-danger-hover: #a01616;
+    --sf-color-success: #0f7a36;
+    --sf-color-warning: #a85a00;
+    --sf-color-focus-ring: #1432c8;
     /* Focus-ring geometry. Every component :focus-visible rule consumes these,
        so a container can tune or disable rings for its subtree — e.g. set
        --sf-focus-ring-width: 0 inside a frame that already communicates focus
@@ -104,16 +120,18 @@
     --sf-radius-default: var(--sf-radius-xs);
 
     /* Typography */
-    --sf-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    /* "JetBrains Mono" is preferred. The library ships it as an optional
-       webfont: `import "@tarassov-ch/swiss-function/fonts.css"` at app root
-       loads it (via the optional @fontsource/jetbrains-mono dependency).
-       Without that import it falls back to the system monospace stack. */
+    /* "IBM Plex Sans" and "JetBrains Mono" are preferred. The library ships
+       both as optional webfonts: `import "@tarassov-ch/swiss-function/fonts.css"`
+       at app root loads them (via the optional @fontsource/ibm-plex-sans and
+       @fontsource/jetbrains-mono dependencies). Without that import each
+       family falls back to the system stack. */
+    --sf-font-sans:
+      "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --sf-font-mono:
       "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
     /* Monospace reads optically larger than the sans at the same font-size
        because its x-height is taller (JetBrains Mono ≈ 0.55 of the em box vs
-       ~0.52 for the system sans stack). Apply this via `font-size-adjust`
+       0.516 for IBM Plex Sans and ~0.52 for the system sans stack). Apply this via `font-size-adjust`
        wherever the mono family is used, so mono is scaled to the same x-height
        as the sans and the two look the same size side by side. Value = the
        target (sans) x-height ratio; tune here if the body sans changes. Old
@@ -162,27 +180,32 @@
     --sf-prose-heading-trail: calc(var(--sf-unit) / 2);
 
     /* Elevation scale (used by <Box>, available to any component). Six
-       discrete steps from flat (0) to deeply floating (5). Each layer
-       roughly doubles the previous offset/blur so the progression reads
-       as distinct steps. The cast falls away from the shared light
-       (--sf-light-x / -y, declared with the material layer below): each
-       offset is the light vector times the step's reach, so a surface and a
-       key agree on where the light is. */
+       discrete steps from flat (0) to deeply floating (5). The cast falls
+       away from the shared light (--sf-light-x / -y, declared with the
+       material layer below): each offset is the light vector times the
+       step's reach, so a surface and a key agree on where the light is.
+
+       Two kinds of cast. Levels 1 and 2 are for things that sit ON the
+       page (a key, a card): a hard, zero-blur offset in a mid grey, the
+       thickness of the part seen from the side. Levels 3 to 5 are for
+       things that float OVER the page (a menu, a popover, a dialog): the
+       same hard step plus a blurred shadow that grows with the height, so
+       a floater separates from what it covers. No level relies on the
+       blur alone; a surface without its own border still shows an edge. */
     --sf-elevation-0: none;
-    --sf-elevation-1: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px
-      rgb(0 0 0 / 0.06);
-    --sf-elevation-2:
-      calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 2px rgb(0 0 0 / 0.05),
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.05);
+    --sf-elevation-1: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
+      rgb(10 10 10 / 0.26);
+    --sf-elevation-2: calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0
+      rgb(10 10 10 / 0.26);
     --sf-elevation-3:
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 4px rgb(0 0 0 / 0.06),
-      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07);
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 10px rgb(0 0 0 / 0.14);
     --sf-elevation-4:
-      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 8px rgb(0 0 0 / 0.07),
-      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.09);
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 20px rgb(0 0 0 / 0.16);
     --sf-elevation-5:
-      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 16px rgb(0 0 0 / 0.08),
-      calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 32px rgb(0 0 0 / 0.12);
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
+      calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 36px rgb(0 0 0 / 0.2);
 
     /* Recess scale — the elevation scale inverted (inset shadows), so an element
        reads as sunken *into* the surface rather than floating above it. Same six
@@ -276,14 +299,15 @@
 
     /* Cap: the resting and pressed depth of a small control face (a
        checkbox, a radio, a switch thumb, a slider cap), square (-edge) or
-       round (-edge-soft). Pressed is travel: the cap keeps its face and
-       drops one step, never an inverted dent. The dark theme swaps the
-       hard cast (right for a surface, a misaligned rectangle under a 16px
-       cap, issue #78) for a soft one, so components need no dark override. */
-    --sf-cap-rest: var(--sf-edge), var(--sf-elevation-2);
-    --sf-cap-pressed: var(--sf-edge), var(--sf-elevation-1);
-    --sf-cap-rest-round: var(--sf-edge-soft), var(--sf-elevation-2);
-    --sf-cap-pressed-round: var(--sf-edge-soft), var(--sf-elevation-1);
+       round (-edge-soft). A cap is 16 to 24px, so its cast is the 1px step:
+       a 2px one reads as a second, misaligned box under it. Pressed is
+       travel: the cap keeps its face and lands on the panel, never an
+       inverted dent. The dark theme swaps the hard cast for a soft one
+       (issue #78), so components need no dark override. */
+    --sf-cap-rest: var(--sf-edge), var(--sf-elevation-1);
+    --sf-cap-pressed: var(--sf-edge);
+    --sf-cap-rest-round: var(--sf-edge-soft), var(--sf-elevation-1);
+    --sf-cap-pressed-round: var(--sf-edge-soft);
 
     /* Curve: how far a curved face departs from its flat tone at the rim,
        in OKLCH lightness (0..1). The keycap dish and the domed cap in
@@ -360,31 +384,37 @@
   [data-theme="dark"] {
     --sf-color-bg: #0a0a0a;
     --sf-color-bg-subtle: #171717;
-    --sf-color-input-bg: #171717;
+    --sf-color-input-bg: #0a0a0a;
     --sf-color-fg: #fafafa;
     --sf-color-fg-subtle: #d4d4d4;
-    --sf-color-muted: #9ca3af;
-    --sf-color-border: #262626;
-    --sf-color-border-strong: var(--sf-color-border);
-    --sf-color-primary: #3b82f6;
+    --sf-color-muted: #a3a3a3;
+    /* The same three roles as the light theme. White hairlines glare on a
+       near-black page, so the region outline is a light grey and the control
+       edge a mid grey (5.7:1 and 3.9:1 on -bg); the divider stays low. */
+    --sf-color-border-strong: #8a8a8a;
+    --sf-color-border: #6e6e6e;
+    --sf-color-border-subtle: #333333;
+    /* Primary and danger carry white text, so each sits where white on it
+       and it on the page both reach about 4.5:1. */
+    --sf-color-primary: #4868f4;
     --sf-color-primary-fg: #ffffff;
-    --sf-color-primary-hover: #60a5fa;
-    --sf-color-primary-active: #93c5fd;
-    --sf-color-danger: #ef4444;
+    --sf-color-primary-hover: #6482ff;
+    --sf-color-primary-active: #7f98ff;
+    --sf-color-danger: #e03131;
     --sf-color-danger-fg: #ffffff;
-    --sf-color-danger-hover: #f87171;
-    --sf-color-success: #22c55e;
-    --sf-color-warning: #f59e0b;
-    --sf-color-focus-ring: #60a5fa;
+    --sf-color-danger-hover: #ea5252;
+    --sf-color-success: #3fbf6f;
+    --sf-color-warning: #e5a117;
+    --sf-color-focus-ring: #7f98ff;
     --sf-color-overlay: rgb(0 0 0 / 0.6);
 
     /* Elevation (dark): near-black swallows soft drop shadows, so depth is read
        three ways, all carried by the shadow so every consumer of
        `--sf-elevation-N` gets them with no component change:
-       (1) the brutalist hard cast — a single zero-blur offset in the border
-       colour, stepping away from the shared light (to the lower right under
-       the default top-left light) and growing with the level, so the
-       surface reads like its border cast off the edge;
+       (1) the hard cast, a single zero-blur offset in a dark grey a step
+       above the page (its own literal, #2b2b2b: the border tones are far too
+       bright for a cast), stepping away from the shared light (to the lower
+       right under the default top-left light) and growing with the level;
        (2) a full-bleed white film that lifts the surface a little above the page
        bg — engaged only above level 1, and staying slight; and
        (3) a 1px inset edge that lightens with the level, so a bordered surface's
@@ -393,19 +423,19 @@
        over it at the rim. */
     --sf-elevation-1:
       inset 0 0 0 1px rgb(255 255 255 / 0.06),
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 #2b2b2b;
     --sf-elevation-2:
       inset 0 0 0 1px rgb(255 255 255 / 0.1), inset 0 0 0 9999px rgb(255 255 255 / 0.03),
-      calc(var(--sf-light-x) * -3px) calc(var(--sf-light-y) * -3px) 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -3px) calc(var(--sf-light-y) * -3px) 0 0 #2b2b2b;
     --sf-elevation-3:
       inset 0 0 0 1px rgb(255 255 255 / 0.15), inset 0 0 0 9999px rgb(255 255 255 / 0.04),
-      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 0 0 #2b2b2b;
     --sf-elevation-4:
       inset 0 0 0 1px rgb(255 255 255 / 0.22), inset 0 0 0 9999px rgb(255 255 255 / 0.05),
-      calc(var(--sf-light-x) * -6px) calc(var(--sf-light-y) * -6px) 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -6px) calc(var(--sf-light-y) * -6px) 0 0 #2b2b2b;
     --sf-elevation-5:
       inset 0 0 0 1px rgb(255 255 255 / 0.3), inset 0 0 0 9999px rgb(255 255 255 / 0.06),
-      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 0 0 var(--sf-color-border);
+      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 0 0 #2b2b2b;
 
     /* Recess (dark): sunken surfaces darken instead of lighten; the inset
        blacks need real alpha to register on #0a0a0a. */

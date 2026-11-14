@@ -16,7 +16,7 @@
   align-items: flex-end;
   gap: calc(var(--sf-unit) / 8);
   padding-inline-start: calc(var(--sf-unit) / 4);
-  border-bottom: 1px solid var(--sf-color-border);
+  border-bottom: 1px solid var(--sf-color-border-strong);
 }
 
 .tab {
@@ -29,7 +29,7 @@
   margin-block-end: -1px;
   --sf-cap: var(--sf-color-bg-subtle);
   background-color: var(--sf-cap);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-block-end: 0;
   border-start-start-radius: var(--sf-radius-default);
   border-start-end-radius: var(--sf-radius-default);

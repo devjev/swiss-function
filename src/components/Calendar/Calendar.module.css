@@ -9,7 +9,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-block-size: 0;
   block-size: 100%;
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   background: var(--sf-color-bg);
   color: var(--sf-color-fg);
@@ -24,7 +24,7 @@
   align-items: center;
   gap: var(--sf-unit);
   padding: calc(var(--sf-unit) / 2) var(--sf-unit);
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-strong);
 }
 
 .nav {
@@ -51,13 +51,17 @@
 
 /* --- Shared event styling (bars + timed blocks) ---------------------------- */
 
+/* An event is a ruled box on the page colour: a 1px outline and a 3px
+   leading rule in the event's colour, no tinted fill. The colour is carried
+   by the lines at full strength, so it stays legible as a category mark and
+   the title stays ink on the page colour. */
 .bar,
 .block {
   --cal-event-color: var(--sf-color-primary);
-  border: 1px solid color-mix(in oklab, var(--cal-event-color) 42%, transparent);
-  border-inline-start: 2px solid var(--cal-event-color);
+  border: 1px solid var(--cal-event-color);
+  border-inline-start: 3px solid var(--cal-event-color);
   border-radius: var(--sf-radius-default);
-  background: color-mix(in oklab, var(--cal-event-color) 15%, var(--sf-color-bg));
+  background: var(--sf-color-bg);
   color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
   text-align: start;
@@ -107,14 +111,14 @@
 .monthHead {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-strong);
 }
 .withWeekNum .monthHead {
   grid-template-columns: var(--cal-weeknum) repeat(7, minmax(0, 1fr));
 }
 
 .weekNumHead {
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
 .weekdayHead {
@@ -138,7 +142,7 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: var(--cal-date-band) repeat(3, auto) minmax(0, 1fr);
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
 }
 .withWeekNum .weekRow {
   grid-template-columns: var(--cal-weeknum) repeat(7, minmax(0, 1fr));
@@ -155,7 +159,7 @@
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
 .dayCell {
@@ -164,7 +168,7 @@
   align-items: flex-end;
   padding: calc(var(--sf-unit) / 4);
   border: none;
-  border-inline-start: 1px solid var(--sf-color-border);
+  border-inline-start: 1px solid var(--sf-color-border-subtle);
   background: transparent;
   cursor: pointer;
   min-inline-size: 0;
@@ -259,7 +263,7 @@
 }
 
 .weekHead {
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-strong);
 }
 
 .weekHeadRow {
@@ -268,7 +272,7 @@
 }
 
 .timeGutterHead {
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
 .weekDayHead {
@@ -277,7 +281,7 @@
   justify-content: center;
   gap: calc(var(--sf-unit) / 2);
   padding: calc(var(--sf-unit) / 2);
-  border-inline-start: 1px solid var(--sf-color-border);
+  border-inline-start: 1px solid var(--sf-color-border-subtle);
 }
 .weekDayHead[data-weekend] {
   background: var(--sf-color-bg-subtle);
@@ -308,7 +312,7 @@
   grid-template-rows: repeat(var(--cal-strip-lanes, 1), var(--cal-bar-h));
   gap: 1px 0;
   padding-block: 1px;
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
 }
 
 .allDayLabel {
@@ -320,7 +324,7 @@
   padding-inline-end: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
 .allDayStrip .bar {
@@ -346,7 +350,7 @@
 .timeGutter {
   display: grid;
   grid-template-rows: repeat(24, var(--cal-hour-h));
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 .hourLabel {
   position: relative;
@@ -367,7 +371,7 @@
 
 .dayColumn {
   position: relative;
-  border-inline-start: 1px solid var(--sf-color-border);
+  border-inline-start: 1px solid var(--sf-color-border-subtle);
   min-inline-size: 0;
 }
 .dayColumn[data-today] {
@@ -379,7 +383,7 @@
   inline-size: 100%;
   block-size: var(--cal-hour-h);
   border: none;
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
   background: transparent;
   cursor: pointer;
   padding: 0;

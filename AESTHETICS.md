@@ -56,9 +56,12 @@ read as *more* honest and direct, or just cuter? If the latter, drop it.
 Type carries the hierarchy. Weight and size do the work that color and
 ornament do elsewhere.
 
-- **Sans-serif for prose**, system stack via `--sf-font-sans`. We don't
-  ship a custom display face. The OS font is fine; it's also fast and
-  cache-stable across users.
+- **Sans-serif for prose**, IBM Plex Sans preferred via `--sf-font-sans`.
+  A system stack resolves to a different face on every platform (San
+  Francisco, Segoe UI, Roboto, an Arial clone on a bare Linux), so the
+  same screen reads differently on each. The optional `fonts.css` pins
+  one grotesque with fixed widths and a known x-height; without it the
+  token falls back to the system stack.
 - **Monospace for data**, JetBrains Mono preferred via `--sf-font-mono`.
   Inputs, code, axis labels, tabular numbers, anything the eye needs to
   scan column-aligned. Monospace reads as machine-readable on purpose:
@@ -92,15 +95,20 @@ ones recede.
   and descriptions stay full-strength. State (weekend, pending, inactive)
   is signalled by an indicator or a background tint, never by graying
   the label.
-- **One accent**, primary blue (`--sf-color-primary: #2563eb`). It marks
-  what's interactive and what's focused. Everything else is neutral.
+- **One accent**, a deep ultramarine (`--sf-color-primary: #1432c8`). It
+  marks what's interactive and what's focused. Everything else is
+  neutral, and the neutrals are pure greys: they carry no hue, so the
+  accent is the only colour on the page.
+- **Every colour passes as text.** The secondary text tones and the four
+  status colours clear 4.5:1 on the page in both themes, so a status
+  word can be set in its colour on the plain page. That is what removes
+  the need for tinted backgrounds behind coloured text.
 - **Semantic colors are reserved.** `--sf-color-danger`, `-success`,
   `-warning` mean something. Don't use them decoratively. A red bar in
   a chart should mean "negative"; a green one, "positive". A red border
   should mean "this is wrong".
 - **Dark mode is native, not a port.** Tokens are redefined under
-  `[data-theme="dark"]`; subtle borders use `color-mix` so they adapt
-  automatically. Never hard-code hex values in component CSS.
+  `[data-theme="dark"]`. Never hard-code hex values in component CSS.
 
 ### Density
 
@@ -135,12 +143,24 @@ journeying.
 
 ### Borders
 
-- **One structural border.** Every edge that frames a thing (panes,
-  cards, dialogs, popovers, menus, inputs, and the dividers inside tables
-  and lists) uses the single `--sf-color-border`. There is no "strong vs
-  subtle" tier for structure; `--sf-color-border-strong`/`-subtle` are
-  aliases of it. When you need two things to read as separate, use
-  elevation and spacing, not a second, lighter line.
+- **Three line tones, chosen by what the line does.**
+  `--sf-color-border-strong` outlines a region (a table, a panel, a
+  window, a popup) and draws the rules of its chrome (a title bar's
+  underline, the rule under a table header, a pane splitter).
+  `--sf-color-border` is the edge of a control (a field, a secondary
+  button, a checkbox, a chip) and of a small box nested in a region.
+  `--sf-color-border-subtle` separates repeated things: table cells,
+  list rows, calendar days, menu separators, axis lines. In the light
+  theme the first two are ink and the third a mid grey, so a screen
+  reads like a printed form: ruled boxes, thin rules between rows.
+- **Structure must be visible.** A region outline and a control edge
+  reach at least 3:1 on the page (WCAG 1.4.11). A frame at 1.2:1 leaves
+  the layout to be guessed from whitespace, and the page reads as
+  washed out however good the grid under it is.
+- **Pick the tone by role.** A divider drawn in ink turns a table into
+  a cage. A frame drawn in the divider grey dissolves the region. A row
+  that holds a ruled control (a VerticalForm field) takes the divider
+  tone for its own box, so the control keeps the ink.
 - **A resting border is never primary.** Inputs sit on the neutral border
   at rest; `--sf-color-primary` appears only on *state*: focus ring,
   hover, checked/selected. A blue box just sitting there means nothing.
@@ -155,11 +175,17 @@ Depth indicates layer, not personality.
 
 - **Six elevation steps** (`--sf-elevation-0` through `-5`). Surfaces
   use them sparingly. Most of the page sits at 0 or 1.
+- **In the light theme a cast is hard.** Levels 1 and 2 (a key, a card:
+  things that sit on the page) are a zero-blur offset of 1 or 2px in a
+  mid grey, the thickness of the part seen from the side. Levels 3 to 5
+  (a menu, a popover, a dialog: things that float over the page) keep
+  that hard step and add a blurred shadow that grows with the height.
+  No level relies on a faint blur alone.
 - **Dark mode reads depth three ways, since near-black swallows a soft
   drop shadow.** All ride the same `--sf-elevation-N` shadow, so every
   consumer gets them with no component change: a brutalist hard cast (a
-  zero-blur offset in the border colour, stepping to the lower-right and
-  growing with the level); a slight, full-bleed lightening film that
+  zero-blur offset in a dark grey a step above the page, stepping to the
+  lower-right and growing with the level); a slight, full-bleed lightening film that
   lifts the surface a little above the page (engaged only above level 1,
   and kept subtle); and a 1px inset edge that brightens with the level,
   so a bordered surface's rim reads progressively lighter and a
@@ -180,20 +206,23 @@ Depth indicates layer, not personality.
   dark theme re-declares the tokens (a dimmer lit band, a deeper shade
   band, a soft cast under small caps), so components carry no dark
   overrides of their own.
-- **Keys have a face.** A Button, a Kbd cap and the LaunchButton lid
-  carry the keycap dish from `lib/surface`: a little dark at the lit
-  rim, the floor at 20%, brightest at the far rim, about 0.045 OKLCH
-  lightness end to end (`--sf-curve`). The stops derive from the key's
-  own colour, so a white, a primary and a near-black key read the same
-  way in either theme, and a white rim simply stays white. A Switch thumb
-  is a dome. Faces stay on actuators: Box, Pane, Dialog and Popover are
-  flat planes. `surface="flat"` turns a face off.
-- **Text-entry surfaces rest one shade below the page**
-  (`--sf-color-input-bg`), sit in a groove, and lift to `--sf-color-bg`
-  on focus. An empty field reads as a recessed slot, not a bare rectangle
-  on the page; the moment you type into it, it becomes the page-coloured
-  writing surface with full text contrast. Input, TextEdit, Combobox and
-  DigitInput all share this behavior.
+- **Small keys have a face; wide ones are flat.** A Kbd cap and the
+  LaunchButton lid carry the keycap dish from `lib/surface`: a little
+  dark at the lit rim, the floor at 20%, brightest at the far rim, about
+  0.045 OKLCH lightness end to end (`--sf-curve`). A Switch thumb and a
+  Knob are domes, a DigitInput cell is a scoop. The ramp describes a
+  curve across a cap of one or two units. Stretched over a wide button,
+  a title bar or a table header it stops reading as a curve and becomes
+  a gradient on chrome, so Button, ToggleGroup, WindowArray title bars
+  and the DataTable and Explorer headers are flat by default: they keep
+  the edge bands and the cast, which is what makes them keys. The
+  `surface` prop opts a single key back in. Box, Pane, Dialog and
+  Popover are flat planes.
+- **A text field is a ruled box on the page colour.** Its fill
+  (`--sf-color-input-bg`) equals the page, its edge is the control
+  border, and it sits in a groove. Focus turns the edge primary and
+  doubles it to 2px. Input, TextEdit, Combobox, DatePicker and
+  DigitInput share this.
 - **No glassmorphism**, no backdrop blur, no semi-transparent overlays
   pretending to be physical. We are not simulating frosted plastic. We
   are stacking flat planes.
@@ -315,8 +344,8 @@ modern interfaces despite being objectively harder to read.
 
 Body text uses `--sf-color-fg`. Period. Muted color is for genuine
 secondary content (metadata, captions, axis labels) and even there it
-should be `--sf-color-fg-subtle` (#4b5563), not the lighter `--sf-color-muted`
-(#6b7280) unless there's a contrast-tier reason. If your text looks
+should be `--sf-color-fg-subtle` (#3d3d3d), not the lighter `--sf-color-muted`
+(#5e5e5e) unless there's a contrast-tier reason. If your text looks
 "too strong", the problem is typographic hierarchy, not color value.
 
 ### All-caps text
@@ -359,8 +388,16 @@ Avoid anything that signals "this is a feed":
 - **No drop shadows on type.** Type is for reading. Shadows are for
   depth.
 - **No gradient backgrounds for chrome.** Solid colors only on toolbars,
-  cards, headers. Gradients exist in the system for data fills
-  (chart areas, sparklines), and that's it.
+  cards, headers, wide buttons. Gradients exist in the system for data
+  fills (chart areas, sparklines) and for the face of a small cap (see
+  Depth), and that's it.
+- **No tinted fills behind coloured text.** A status chip, a calendar
+  event, an error banner: each is the page colour with its rim, a 3px
+  leading rule and its label in the status colour at full strength. A
+  10% wash of the accent behind a 60% version of it is the pastel look
+  this library avoids. A tint is for *state* (hover, selection, a drop
+  target), where it is transient and marks where the pointer or the
+  selection is.
 - **No glass / blur effects.** See "Depth" above.
 - **No skeumorphic textures.** No paper grain, no wood, no leather, no
   brushed metal.

@@ -62,7 +62,7 @@ function Demo({ side, cellSize }: { side?: "left" | "right" | "bottom"; cellSize
   };
 
   return (
-    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-strong)" }}>
       <ChatDrawer
         side={side}
         open={open}
@@ -137,7 +137,7 @@ function CenteredDemo() {
   };
 
   return (
-    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-strong)" }}>
       <ChatDrawer
         open={open}
         onOpenChange={setOpen}
@@ -304,7 +304,7 @@ function CenteredMarginsDemo() {
   ];
 
   return (
-    <div style={{ blockSize: 560, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 560, border: "1px solid var(--sf-color-border-strong)" }}>
       <ChatDrawer
         open={open}
         onOpenChange={setOpen}
@@ -390,7 +390,7 @@ function ViewsDemo() {
     setMessages([{ id: "1", role: "assistant", content: "Fresh chat. What's next?" }]);
 
   return (
-    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-strong)" }}>
       <ChatDrawer
         open={open}
         onOpenChange={setOpen}

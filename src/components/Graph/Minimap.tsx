@@ -73,7 +73,7 @@ export const GraphMinimap = forwardRef<HTMLDivElement, GraphMinimapProps>(functi
     const y1 = tf.offY + (tf.maxY - tl.y) * tf.scale;
     const x2 = tf.offX + (br.x - tf.minX) * tf.scale;
     const y2 = tf.offY + (tf.maxY - br.y) * tf.scale;
-    ctx.strokeStyle = token("--sf-color-primary", "#2563eb", canvas);
+    ctx.strokeStyle = token("--sf-color-primary", "#1432c8", canvas);
     ctx.lineWidth = 1.5;
     ctx.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
   }, [getRenderer]);

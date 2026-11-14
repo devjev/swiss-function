@@ -88,7 +88,7 @@
   padding-block: calc(var(--sf-unit) / 4);
 }
 .row:not(:first-child) {
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
 }
 
 .cell {
@@ -191,7 +191,7 @@
   grid-column: 1 / -1;
   display: flex;
   padding: calc(var(--sf-unit) / 4);
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
 }
 
 /* Disabled: the header/footer dim; the rows are already `inert`. */
@@ -254,5 +254,5 @@
   display: grid;
   align-items: center;
   column-gap: calc(var(--sf-unit) / 2);
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
 }

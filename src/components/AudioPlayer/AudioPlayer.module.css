@@ -6,7 +6,7 @@
    (`--sf-audio-player-radius`), mirroring `--sf-progress-radius`. */
 .root {
   --audio-accent: var(--sf-color-primary);
-  --audio-wave: var(--sf-color-border);
+  --audio-wave: var(--sf-color-border-subtle);
 
   display: grid;
   grid-template-columns: auto auto 1fr auto auto;
@@ -125,7 +125,7 @@
     "play stop time rate";
   row-gap: calc(var(--sf-unit) / 2);
   padding: calc(var(--sf-unit) / 2);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-audio-player-radius, var(--sf-radius-default));
   background-color: var(--sf-color-bg);
 }

@@ -135,10 +135,28 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
   Button, Kbd, Switch, Slider, LaunchButton and ToggleGroup (keys) and by
   DigitInput, Input and DigitInputMicro (slots, `concave`) as `surface`; the `ControlSurface` type is
   exported from `/button` and the barrel.
-- Text-entry controls (Input, TextEdit, Combobox, DigitInput) rest on
-  `--sf-color-input-bg` (a shade below the page) and lift to `--sf-color-bg` on
-  focus. Override `--sf-color-input-bg` on any ancestor to retint or flatten
-  them (`--sf-color-input-bg: var(--sf-color-bg)` restores the old look).
+  A ramp is for a cap of one or two units: Kbd, LaunchButton, Switch, Knob and
+  DigitInput carry one by default, while Button, ToggleGroup, WindowArray title
+  bars and the DataTable / Explorer headers are `"flat"` by default and take a
+  ramp through `surface` / `headerSurface`.
+- Structural lines come in three tones, chosen by role:
+  `--sf-color-border-strong` outlines a region (a table, a panel, a window, a
+  popup) and draws the rules of its chrome; `--sf-color-border` is the edge of
+  a control and of a small nested box; `--sf-color-border-subtle` separates
+  repeated things (cells, rows, days, menu separators, axis lines). The first
+  two reach at least 3:1 on the page in both themes. To soften the whole
+  library, override the three on any ancestor.
+- Elevation in the light theme is a hard cast: `--sf-elevation-1` / `-2` are a
+  1px / 2px zero-blur offset in a mid grey; `-3` to `-5` (floaters) add a
+  blurred shadow to that step.
+- Text-entry controls (Input, TextEdit, Combobox, DatePicker, DigitInput) are
+  ruled boxes: the fill is `--sf-color-input-bg` (the page colour by default)
+  inside the control edge, and focus turns the edge primary and doubles it.
+  Override `--sf-color-input-bg` on any ancestor to tint the fields
+  (`--sf-color-input-bg: var(--sf-color-bg-subtle)` gives a filled field).
+- Typography: `--sf-font-sans` prefers IBM Plex Sans and `--sf-font-mono`
+  JetBrains Mono. Both load through the optional `fonts.css`; without it each
+  falls back to the system stack.
 - Focus rings are tunable everywhere: every `:focus-visible` rule draws
   `var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring)` with
   `outline-offset: var(--sf-focus-ring-offset, <per-rule default>)`. Set the
@@ -353,7 +371,7 @@ A single `<button>`. Extends `ButtonHTMLAttributes<HTMLButtonElement>`.
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Height + font. Inherits from an enclosing `<ButtonGroup size>`; explicit `size` wins. |
 | `tight` | `boolean` | `false` | Compact horizontal padding (`3/16u`) + `0.25u` icon/text gap. Height still comes from `size`, so tight buttons line up with peers. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `2` | Resting depth: the shared edge bands (`--sf-edge`) plus the `--sf-elevation-N` cast. Pressed drops one step and 1px (travel, never a dent). `ghost` is always flat. A solid key ignores it: its depth is the wall. |
-| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"dish"` (`"dome"` for a solid key) | The face of the key (`lib/surface`), the same set as `Knob`: the scoop of a keycap, a rounded cap, no ramp, or a floor scooped into the cap. `ghost` is always flat. |
+| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` (`"dome"` for a solid key) | The face of the key (`lib/surface`), the same set as `Knob`: no ramp (the default: a ramp on a wide key reads as a gradient), the scoop of a keycap, a rounded cap, or a floor scooped into the cap. `ghost` is always flat. |
 | `curve` | `number` | `1` (`1.5` for a solid key) | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 | `build` | `"sheet" \| "solid"` | `"sheet"` | `sheet` is the thin key face (edge bands, a cast, 1px of travel). `solid` is the machined key of a front panel, built like `Knob`: a filleted cap over a swept side wall, one-pixel copies of the cap stacked along the light vector down to the base (3 / 4 / 6px by size, the base row darkest), no cast (the wall is the depth), the label engraved, and a press that travels one pixel short of the height onto the wall; `aria-pressed="true"` latches it down. A round solid key wears its wall as a bevel ring around the cap. `ghost` is always a sheet; keep sheets inside a `ButtonGroup`. A latched sheet key (`aria-pressed="true"`) sits sunk in place, the groove and no travel; a latched ghost key also takes its hover face. |
 | `finish` | `"brushed" \| "plain"` | `"brushed"` | The cap finish of a solid key: fine brushed lines at 3% ink, or plain. |
@@ -883,7 +901,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `empty` | `ReactNode` | n/a | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize, the spreadsheet model. **A column is never narrower than its title** (issue #102): the header floor is measured off the rendered header (its padding, its chevron, funnel and sort arrow, and the title on one line) and raises the declared minimum on every path, the auto-shrink `minmax()` track included, so a container squeeze scrolls instead of wrapping or clipping a title, and a frozen track is at least its floor. A sortable column reserves the arrow's space at rest, so sorting never moves a column edge. The floor is re-measured when the columns, `cellFontSize` or `cellPadding` change and once the webfont has loaded. Then dragging a column's trailing edge changes that column alone; its neighbours keep their widths and the row's total width follows (wider than the viewport scrolls, narrower leaves slack to the right). The first resize freezes every column at its measured width (the `1fr` filler ends), so persisting `onColumnWidthsChange` restores the exact layout. Every resizable column has a trailing handle, the last one included. Lock one via `resizable: false`. Gestures (issue #102): a drag is live and shows a **width readout** under the handle (unit multiples and px, `min` at the floor, the one place a stopped drag is explained); the pointer keeps the resize cursor over the body while a drag is captured, and at the floor the handle (and a clamped drag) show the one-way `e-resize` arrow (macOS draws it as a single arrow; Windows and GTK show the two-way one). On a focused handle, after the APG Window Splitter: arrows nudge 8px, Shift 24px, Page Up / Down 96px, Home goes to the floor, End and Enter / Space auto-fit (the twin of the double-click), Escape restores the width the handle had when it took focus. **A full-column selection resizes together** (select the columns by their header select zones or Ctrl+Space, then drag any edge inside the selection: every selected column takes the dragged width, each no lower than its own floor; double-click or Enter fits each to its own content, as Excel and Sheets do). A selection is a column selection by shape, a range spanning every row, as in Excel: the selection model carries no kind, so a cell range that happens to cover every row counts too. **Shift+drag** takes the space from the adjacent column instead of changing the row's total (AG Grid's gesture), both floors respected. **A group title never wraps either**: on the drag, keyboard and auto-fit paths a leaf stops where its group's title would need more than the group's leaves hold (the need is shared among the columns being moved); under a container squeeze the group label ellipsizes, since a grid template cannot express a constraint on a sum. Gestures are physical-direction in RTL (the edge follows the pointer / the arrow's direction; Page Up is always wider). The handle is a `role="separator"` with `aria-valuemin` (the column's floor), `aria-valuemax` (a 4096px cap, since the role defaults an absent maximum to 100), `aria-valuenow` once a px override exists and `aria-valuetext` ("240 px", "168 px, minimum"). |
 | `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
-| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"concave"` | The face of the column-header keys (`lib/surface`), a slight scoop at 0.6 of the system amplitude (`--sf-curve-scale` on the table retunes it). The sorted header sits pressed. |
+| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of the column-header keys (`lib/surface`). Flat by default; a curved face runs at 0.6 of the system amplitude (`--sf-curve-scale` on the table retunes it). The sorted header sits pressed. An ink rule (`--sf-color-border-strong`) runs under the header. |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
 | `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0 to 1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
@@ -1300,7 +1318,7 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
 | `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
 | `gridLines` | `boolean` | `false` | Spreadsheet look: every body cell draws its own right + bottom hairline (the same per-cell edge model as DataTable). |
-| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"concave"` | The face of the column-header keys (`lib/surface`), a slight scoop; the sorted header sits pressed. |
+| `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of the column-header keys (`lib/surface`), flat by default; the sorted header sits pressed. |
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
 | `cellFontSize` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Cell text size: 12 / 13 / 14 / 16px. Header + body. Independent of `cellPadding`. |
 | `columnFill` | `boolean \| { animated?, effect?, color?, density?, speed? }` | `false` | Dither filler right of fixed-width columns; a no-op when the last column already stretches (the default). |
@@ -3423,7 +3441,7 @@ Toggle button group exposing Base UI's ToggleGroup with a size cascade. Forwards
 | Prop | On | Type | Default | Notes |
 | --- | --- | --- | --- | --- |
 | `size` | `Root` | `"sm" \| "md" \| "lg"` | `"md"` | Cascades to all items. |
-| `surface` | `Root` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of every key (`lib/surface`); cascades to all items. Items are raised keys like Button; the pressed item sits down at panel level. |
+| `surface` | `Root` | `"flat" \| "dish" \| "dome"` | `"flat"` | The face of every key (`lib/surface`); cascades to all items. Items are raised keys like Button; the pressed item sits down at panel level. |
 | `curve` | `Root` | `number` | `1` | Amplitude of the face ramps as a multiple of `--sf-curve`; cascades to all items. |
 
 ## Treemap
@@ -3635,7 +3653,7 @@ With `popOutable`, every window's chrome gains a pop-out button (external-window
 | `splittable` | `boolean` | `false` | Adds the split button (two-panes icon) to every window's chrome (with at least two windows). |
 | `splitIds` / `defaultSplitIds` / `onSplitChange` | `[string, string] \| null` | `null` | Split pair in order `[half 1, half 2]`: the two windows fill the container as halves along the layout axis. Escape exits. Mutually exclusive with fullscreen; when both are set, fullscreen wins. |
 | `popOutable` | `boolean` | `false` | Adds the pop-out button (external-window icon) to every window's chrome: the content opens alone in a separate browser window and the strip keeps a placeholder. Toggle from the button (a user gesture), or popup blockers refuse the window. |
-| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"dish"` | The face of every window's title bar (`lib/surface`): the bar is a raised key with the shared edge bands, and it sits down in a groove while its handle is held. |
+| `surface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of every window's title bar (`lib/surface`): the bar is a raised key with the shared edge bands, and it sits down in a groove while its handle is held. |
 | `curve` | `number` | `1` | Amplitude of the title bars' face ramp as a multiple of `--sf-curve` (0 flattens). |
 | `poppedIds` / `defaultPoppedIds` / `onPopOutChange` | `string[]` | `[]` | Popped-out window ids (several at once is fine). A popped window leaves the strip; its window (chrome + body) shows in a separate browser window. Stale ids read as absent; a vanished window drops out and its popup closes. Wins over fullscreen/split for the same window. |
 | `popOutPip` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for pop-outs where supported (Chromium). Only one such window exists at a time, so best for popping one window at a time. See PopOut `pip`. |

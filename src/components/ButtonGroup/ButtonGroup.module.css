@@ -3,6 +3,10 @@
 .root {
   display: inline-flex;
   gap: 0;
+  /* Hold the keys' own width when a flex column or a grid would stretch the
+     row: the cast below is hard, and on a stretched root it would draw past
+     the last key. Set an explicit width to make the row fill. */
+  inline-size: fit-content;
   /* Joined keys share their sides, so the face ramp runs straight down the
      row (the light's vertical component only) instead of diagonally per key,
      which would step light to dark at every seam. Read by lib/surface on each

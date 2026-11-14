@@ -39,12 +39,12 @@ unstyled, because every rule references a `--sf-*` variable.
 ```ts
 import "@tarassov-ch/swiss-function/tokens.css"; // required
 import "@tarassov-ch/swiss-function/reset.css";  // recommended: box-model + base-font reset
-import "@tarassov-ch/swiss-function/fonts.css";  // optional: bundled JetBrains Mono webfont
+import "@tarassov-ch/swiss-function/fonts.css";  // optional: bundled IBM Plex Sans + JetBrains Mono webfonts
 ```
 
-`fonts.css` loads the monospace face that `--sf-font-mono` prefers, via the
-optional `@fontsource/jetbrains-mono` dependency. Without it, monospace text
-falls back to the system mono stack.
+`fonts.css` loads the faces that `--sf-font-sans` and `--sf-font-mono` prefer,
+via the optional `@fontsource/ibm-plex-sans` and `@fontsource/jetbrains-mono`
+dependencies. Without it, text falls back to the system sans and mono stacks.
 
 ## Quick start
 

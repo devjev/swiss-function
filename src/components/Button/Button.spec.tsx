@@ -132,14 +132,18 @@ test("a round key centres its label on the glyph's ink, text and icon alike", as
   );
   const glyph = text.locator('[class*="glyph"]');
   await expect(glyph).toHaveCount(1);
-  // A measured offset is applied inline; a capital sits high in its box, so it moves down.
+  // A measured offset is applied inline. Its direction depends on the font:
+  // a capital sits high in the box of most system sans faces and close to the
+  // centre in IBM Plex Sans, so only its presence and size are asserted. A
+  // zero second component is dropped when the style serialises.
   await expect
     .poll(() => glyph.evaluate((el) => (el as HTMLElement).style.translate))
     .toMatch(/px/);
-  const [, dy] = await glyph.evaluate((el) =>
+  const [tx = 0, ty = 0] = await glyph.evaluate((el) =>
     (el as HTMLElement).style.translate.split(" ").map(Number.parseFloat),
   );
-  expect(dy).toBeGreaterThan(0);
+  expect(Math.abs(tx)).toBeLessThan(4);
+  expect(Math.abs(ty)).toBeLessThan(4);
   await text.unmount();
   const icon = await mount(
     <Button build="solid" round aria-label="Play" size="lg">

@@ -4,7 +4,7 @@ import { Fullscreen } from "./Fullscreen";
 
 // Click the corner button to fill the viewport; Escape (or the button) exits.
 export const Default: Story = () => (
-  <Fullscreen style={{ border: "1px solid var(--sf-color-border-subtle)" }}>
+  <Fullscreen style={{ border: "1px solid var(--sf-color-border-strong)" }}>
     <div style={{ padding: "calc(var(--sf-unit) * 2)" }}>
       <p style={{ margin: 0, color: "var(--sf-color-fg)" }}>
         Any content. Hit the fullscreen button (top-right) to expand to the whole viewport.
@@ -29,7 +29,7 @@ export const WithNonIdealState: Story = () => (
 export const ButtonBottomLeft: Story = () => (
   <Fullscreen
     buttonPosition="bottom-left"
-    style={{ border: "1px solid var(--sf-color-border-subtle)" }}
+    style={{ border: "1px solid var(--sf-color-border-strong)" }}
   >
     <NonIdealState effect="grid" speed={0.5} title="Bottom-left toggle" />
   </Fullscreen>

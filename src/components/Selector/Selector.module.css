@@ -85,7 +85,7 @@
   display: grid;
   gap: calc(var(--sf-unit) / 2);
   padding: calc(var(--sf-unit) / 2);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
 }
@@ -202,7 +202,7 @@
      against the speckled tint. */
   color: var(--sf-color-fg);
   font-weight: var(--sf-font-weight-bold);
-  border-color: color-mix(in srgb, var(--sf-color-muted), transparent 55%);
+  border-color: var(--sf-color-border);
 }
 
 /* Colored density dither: a Bayer dot field of the muted tone, so the chip reads

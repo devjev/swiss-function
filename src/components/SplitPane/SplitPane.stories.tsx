@@ -9,7 +9,7 @@ function Demo({ side, resizable = true }: { side: SplitSide; resizable?: boolean
   const [open, setOpen] = useState(true);
   const [size, setSize] = useState<number | null>(null);
   return (
-    <div style={{ blockSize: 420, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 420, border: "1px solid var(--sf-color-border-strong)" }}>
       <SplitPane
         side={side}
         open={open}
@@ -85,7 +85,7 @@ export const Ratio: Story = () => {
         style={{
           inlineSize: width,
           blockSize: 260,
-          border: "1px solid var(--sf-color-border-subtle)",
+          border: "1px solid var(--sf-color-border-strong)",
         }}
       >
         <SplitPane defaultOpen side="right" defaultSize="35%" minSize={120}>
@@ -115,7 +115,7 @@ export const ShrinkingContainer: Story = () => {
         style={{
           inlineSize: narrow ? 360 : 720,
           blockSize: 260,
-          border: "1px solid var(--sf-color-border-subtle)",
+          border: "1px solid var(--sf-color-border-strong)",
         }}
       >
         <SplitPane defaultOpen side="right" defaultSize={320} minSize={120}>
@@ -144,7 +144,7 @@ export const Controlled: Story = () => {
         style={{
           inlineSize: 720,
           blockSize: 260,
-          border: "1px solid var(--sf-color-border-subtle)",
+          border: "1px solid var(--sf-color-border-strong)",
         }}
       >
         <SplitPane

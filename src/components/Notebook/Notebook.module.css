@@ -13,7 +13,7 @@
   grid-template-columns: calc(var(--sf-unit) * 2) 1fr;
   gap: var(--sf-unit);
   padding: var(--sf-unit);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background: var(--sf-color-bg);
 }

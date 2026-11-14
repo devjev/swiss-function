@@ -1,10 +1,14 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { Input } from "./Input";
 
-// Pins the recessed-slot contract (issue #29): text-entry rests one shade
-// below the page (--sf-color-input-bg) and lifts to --sf-color-bg on focus.
+// Pins the field contract: a text field is a ruled box. It rests on
+// --sf-color-input-bg (the page colour by default) inside the control edge,
+// and focus turns the edge primary and doubles it with a 1px outline.
 
-test("rests on the input fill and lifts to the page colour on focus", async ({ mount, page }) => {
+test("rests on the input fill inside the control edge; focus doubles the edge in primary", async ({
+  mount,
+  page,
+}) => {
   const c = await mount(
     <div style={{ width: 320, padding: 16 }}>
       <Input aria-label="probe" />
@@ -16,12 +20,22 @@ test("rests on the input fill and lifts to the page colour on focus", async ({ m
   );
   expect(pageBg).toBe("#ffffff");
 
-  // Resting = the dedicated input fill (--sf-color-input-bg), not the page.
-  await expect(input).toHaveCSS("background-color", "rgb(243, 244, 246)");
-  // Focus lifts to the page colour. toHaveCSS retries through the 120ms
-  // background transition.
-  await input.focus();
+  // Resting = the input fill token, which a theme can move off the page colour.
+  const inputBg = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--sf-color-input-bg").trim(),
+  );
+  expect(inputBg).toBe("#ffffff");
   await expect(input).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  // The resting edge is the control border (ink), with no outline.
+  await expect(input).toHaveCSS("border-top-color", "rgb(10, 10, 10)");
+  await expect(input).toHaveCSS("outline-style", "none");
+  // Focus: the edge turns primary and a 1px outline doubles it. toHaveCSS
+  // retries through the 120ms border transition.
+  await input.focus();
+  await expect(input).toHaveCSS("border-top-color", "rgb(20, 50, 200)");
+  await expect(input).toHaveCSS("outline-style", "solid");
+  await expect(input).toHaveCSS("outline-width", "1px");
+  await expect(input).toHaveCSS("outline-color", "rgb(20, 50, 200)");
   await input.blur();
-  await expect(input).toHaveCSS("background-color", "rgb(243, 244, 246)");
+  await expect(input).toHaveCSS("border-top-color", "rgb(10, 10, 10)");
 });

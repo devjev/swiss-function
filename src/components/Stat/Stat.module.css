@@ -42,7 +42,7 @@
 /* Standalone card: border + surface + optional depth. The 1px borders come
    out of the block padding, so the card stays a whole number of units. */
 .root[data-card] {
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   padding-block: calc(var(--sf-unit) - 1px);
 }
@@ -206,7 +206,7 @@
   display: grid;
   gap: 0;
   background: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
 }
@@ -224,7 +224,7 @@
    the group clips at its padding edge. */
 .group.dividers > .root {
   background: transparent;
-  box-shadow: 1px 1px 0 0 var(--sf-color-border);
+  box-shadow: 1px 1px 0 0 var(--sf-color-border-subtle);
 }
 .group[data-elevation="1"] {
   box-shadow: var(--sf-elevation-1);

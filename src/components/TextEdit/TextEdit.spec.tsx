@@ -29,8 +29,8 @@ test("resting border is the neutral structural token (primary is focus-only)", a
 }) => {
   const component = await mount(<TextEdit />);
   const color = await component.evaluate((el) => getComputedStyle(el).borderColor);
-  // --sf-color-border in light mode is #e5e7eb -> rgb(229, 231, 235).
-  expect(color).toBe("rgb(229, 231, 235)");
+  // --sf-color-border in light mode is #0a0a0a -> rgb(10, 10, 10).
+  expect(color).toBe("rgb(10, 10, 10)");
 });
 
 test("accepts text input", async ({ mount }) => {

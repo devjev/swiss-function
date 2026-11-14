@@ -6,7 +6,7 @@
   min-inline-size: 0;
   container-type: inline-size;
   container-name: widget;
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
@@ -27,7 +27,7 @@
      is taken out, and frame edge to rule is exactly a unit and a half. */
   block-size: calc(var(--sf-unit) * 1.5 - 1px);
   padding: 0 calc(var(--sf-unit) / 2);
-  border-block-end: 1px solid var(--sf-color-border-subtle);
+  border-block-end: 1px solid var(--sf-color-border-strong);
   background-color: var(--sf-color-bg-subtle);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);

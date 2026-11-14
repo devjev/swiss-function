@@ -21,7 +21,7 @@
   position: relative;
   min-block-size: calc(var(--sf-unit) * 4);
   overflow: hidden;
-  border: 1px solid var(--sf-color-gridline);
+  border: 1px solid var(--sf-color-border-subtle);
   background: var(--sf-color-bg);
   outline: none;
 }
@@ -45,11 +45,11 @@
 }
 
 /* A group's container: only its hairline frame and header strip show, the
-   children tile the rest. Shaded a step toward the ink so its gaps read as a
-   grid inside the group. */
+   children tile the rest. Painted in the divider tone, so the gaps between
+   its cells read as the rules of a grid inside the group. */
 .cell[data-kind="group"] {
   padding: 0;
-  background-color: color-mix(in srgb, var(--sf-color-fg) 12%, var(--sf-color-bg));
+  background-color: var(--sf-color-border-subtle);
 }
 .cell[data-kind="header"] {
   flex-direction: row;

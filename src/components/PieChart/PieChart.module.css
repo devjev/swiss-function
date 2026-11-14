@@ -160,7 +160,7 @@ g[data-faded] .leader {
   inline-size: calc(var(--sf-unit) / 2);
   block-size: calc(var(--sf-unit) / 2);
   border-radius: var(--sf-radius-default);
-  box-shadow: inset 0 0 0 1px var(--sf-color-border);
+  box-shadow: inset 0 0 0 1px var(--sf-color-border-subtle);
 }
 
 .legendValue {

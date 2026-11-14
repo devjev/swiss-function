@@ -26,7 +26,7 @@
 
 /* Optional Input-style frame around the strip. */
 .viewport[data-bordered] {
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
 }
 

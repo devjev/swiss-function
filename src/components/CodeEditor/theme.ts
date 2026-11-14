@@ -52,7 +52,7 @@ const uiTheme = EditorView.theme({
     backgroundColor: "var(--sf-color-code-bg)",
     color: "var(--sf-color-code-gutter-fg)",
     border: "none",
-    borderRight: "1px solid var(--sf-color-border)",
+    borderRight: "1px solid var(--sf-color-border-subtle)",
   },
   ".cm-foldPlaceholder": {
     backgroundColor: "transparent",
@@ -69,11 +69,11 @@ const uiTheme = EditorView.theme({
   ".cm-panels": {
     backgroundColor: "var(--sf-color-bg-subtle)",
     color: "var(--sf-color-fg)",
-    borderTop: "1px solid var(--sf-color-border)",
+    borderTop: "1px solid var(--sf-color-border-subtle)",
   },
   ".cm-tooltip": {
     backgroundColor: "var(--sf-color-bg)",
-    border: "1px solid var(--sf-color-border)",
+    border: "1px solid var(--sf-color-border-strong)",
     borderRadius: "var(--sf-radius-default)",
     color: "var(--sf-color-fg)",
   },

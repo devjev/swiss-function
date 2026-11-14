@@ -198,7 +198,7 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
    *  `false`. */
   popOutable?: boolean;
   /** The face of every window's title bar, a raised key from lib/surface:
-   *  `"dish"` (default), `"dome"`, `"concave"` or `"flat"`. */
+   *  `"flat"` (default), `"dish"`, `"dome"` or `"concave"`. */
   surface?: ControlSurface;
   /** Amplitude of the title bars' face ramp as a multiple of `--sf-curve`
    *  (1 = the token, 0 flattens). */
@@ -273,7 +273,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     gap = 0.5,
     columnMinWidth = 240,
     elevation = 1,
-    surface = "dish",
+    surface = "flat",
     curve,
     snap = false,
     controls = false,

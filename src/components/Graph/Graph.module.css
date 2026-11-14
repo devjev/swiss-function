@@ -18,7 +18,7 @@
   font-family: var(--sf-font-sans);
   color: var(--sf-color-fg);
   background: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
 }

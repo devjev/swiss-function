@@ -1,21 +1,30 @@
-/* Optional JetBrains Mono webfont for `--sf-font-mono`.
+/* Optional webfonts for `--sf-font-sans` and `--sf-font-mono`.
  *
- * The mono token prefers "JetBrains Mono" but the library never forces you to
- * load it — without it, `--sf-font-mono` falls back to the system monospace
- * stack. Import this file once at your app root to load the font and get the
- * intended aesthetics:
+ * The tokens prefer "IBM Plex Sans" and "JetBrains Mono", but the library
+ * never forces you to load them: without this file each token falls back to
+ * the system stack. Import it once at your app root to get the intended
+ * typography:
  *
  *     import "@tarassov-ch/swiss-function/fonts.css";
  *
- * This resolves the woff2 files from `@fontsource/jetbrains-mono`, which ships
- * as an optional dependency and so installs by default. If you opt out of it
- * (`npm install --no-optional`, or a registry that doesn't carry it), simply
- * don't import this file — `--sf-font-mono` falls back to the system mono
- * stack. Importing it without the dependency present fails to resolve.
+ * A system sans differs per platform (San Francisco, Segoe UI, Roboto, an
+ * Arial clone on a bare Linux), so the same screen reads differently on each.
+ * Pinning the sans fixes the letterforms, the widths and the x-height the
+ * mono is matched to (`--sf-font-mono-adjust`).
  *
- * Latin subset only (400/500/600/700 — matching the `--sf-font-weight-*`
+ * This resolves the woff2 files from `@fontsource/ibm-plex-sans` and
+ * `@fontsource/jetbrains-mono`, which ship as optional dependencies and so
+ * install by default. If you opt out of them (`npm install --no-optional`, or
+ * a registry that doesn't carry them), simply don't import this file.
+ * Importing it without the dependencies present fails to resolve.
+ *
+ * Latin subset only (400/500/600/700, matching the `--sf-font-weight-*`
  * tokens). This file is copied verbatim into dist by scripts/postbuild.mjs, so
  * the bare specifiers stay intact for the consumer's bundler to resolve. */
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-sans/latin-700.css";
 @import "@fontsource/jetbrains-mono/latin-400.css";
 @import "@fontsource/jetbrains-mono/latin-500.css";
 @import "@fontsource/jetbrains-mono/latin-600.css";

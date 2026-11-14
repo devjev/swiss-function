@@ -40,6 +40,9 @@
   inline-size: 100%;
   block-size: calc(var(--sf-unit) / 3);
   background-color: var(--sf-color-bg-subtle);
+  /* A 1px rim so the empty part of the bar has an edge on the page colour;
+     the fill paints over it. */
+  box-shadow: inset 0 0 0 1px var(--sf-color-border-subtle);
   border-radius: var(--sf-progress-radius, var(--sf-radius-default));
 }
 

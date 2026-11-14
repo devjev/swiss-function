@@ -17,7 +17,7 @@
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   background-color: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
 }
@@ -58,13 +58,28 @@
 }
 
 .headerRow {
-  /* The header keys' face amplitude (see DataTable): a slight scoop. */
+  /* The amplitude of a curved header face (see DataTable); flat by default. */
   --sf-curve-scale: 0.6;
   display: grid;
   position: sticky;
   top: 0;
   z-index: 1;
   background-color: var(--sf-color-bg-subtle);
+}
+
+/* The rule under the header: one ink line across every column, over the
+   cells' own bottom hairline, so the header reads as the table's head and
+   not as one more row. A pseudo-element instead of a border, so the header
+   keeps its whole-unit height. */
+.headerRow::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 1px;
+  background-color: var(--sf-color-border-strong);
+  pointer-events: none;
+  z-index: 4;
 }
 
 /* The same per-cell edge model as DataTable's header: each cell draws its own
@@ -178,7 +193,7 @@
   block-size: calc(var(--sf-unit) * 1.5);
   padding: 0 calc(var(--sf-unit) / 2);
   background-color: var(--sf-color-bg-subtle);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   box-shadow: var(--sf-elevation-3);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
@@ -477,7 +492,7 @@
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   background-color: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   box-shadow: var(--sf-elevation-3);
   pointer-events: none;
 }

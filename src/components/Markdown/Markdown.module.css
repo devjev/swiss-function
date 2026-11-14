@@ -154,7 +154,7 @@
 .rendered blockquote {
   margin: 0 0 var(--sf-prose-paragraph-spacing);
   padding: 0 var(--sf-unit);
-  border-inline-start: 2px solid var(--sf-color-border-subtle);
+  border-inline-start: 2px solid var(--sf-color-border);
   color: var(--sf-color-fg);
   text-wrap: pretty;
 }

@@ -11,7 +11,7 @@ export const Basic: Story = () => (
     style={{
       blockSize: "70vh",
       width: "min(40rem, 100%)",
-      border: "1px solid var(--sf-color-border-subtle)",
+      border: "1px solid var(--sf-color-border-strong)",
     }}
   >
     <Pane>
@@ -20,7 +20,7 @@ export const Basic: Story = () => (
           elevation={0}
           style={{
             padding: "calc(var(--sf-unit) / 2)",
-            borderBlockEnd: "1px solid var(--sf-color-border-subtle)",
+            borderBlockEnd: "1px solid var(--sf-color-border-strong)",
             fontWeight: "var(--sf-font-weight-semibold)",
           }}
         >
@@ -45,7 +45,7 @@ export const NoHeader: Story = () => (
     style={{
       blockSize: "60vh",
       width: "min(40rem, 100%)",
-      border: "1px solid var(--sf-color-border-subtle)",
+      border: "1px solid var(--sf-color-border-strong)",
     }}
   >
     <Pane>
@@ -72,7 +72,7 @@ export const Nested: Story = () => (
     style={{
       blockSize: "70vh",
       width: "min(48rem, 100%)",
-      border: "1px solid var(--sf-color-border-subtle)",
+      border: "1px solid var(--sf-color-border-strong)",
     }}
   >
     <Pane>
@@ -80,7 +80,7 @@ export const Nested: Story = () => (
         <Box
           style={{
             padding: "calc(var(--sf-unit) / 2)",
-            borderBlockEnd: "1px solid var(--sf-color-border-subtle)",
+            borderBlockEnd: "1px solid var(--sf-color-border-strong)",
             fontWeight: "var(--sf-font-weight-semibold)",
           }}
         >
@@ -94,7 +94,7 @@ export const Nested: Story = () => (
               style={{
                 padding: "calc(var(--sf-unit) / 2)",
                 background: "var(--sf-color-bg-subtle)",
-                borderBlockEnd: "1px solid var(--sf-color-border-subtle)",
+                borderBlockEnd: "1px solid var(--sf-color-border-strong)",
                 fontWeight: "var(--sf-font-weight-medium)",
               }}
             >

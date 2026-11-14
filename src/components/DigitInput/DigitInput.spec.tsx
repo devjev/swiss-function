@@ -217,7 +217,7 @@ test("clicking anywhere on the control focuses it; the active cell becomes a blo
   await expect(input).toBeFocused();
   const active = c.locator("[data-active]");
   const bg = await active.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe("rgb(37, 99, 235)"); // --sf-color-primary
+  expect(bg).toBe("rgb(20, 50, 200)"); // --sf-color-primary
 });
 
 test("no focus ring — the block caret is the focus indicator", async ({ mount, page }) => {
@@ -231,7 +231,7 @@ test("no focus ring — the block caret is the focus indicator", async ({ mount,
   const bg = await c
     .locator("[data-active]")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe("rgb(37, 99, 235)"); // --sf-color-primary
+  expect(bg).toBe("rgb(20, 50, 200)"); // --sf-color-primary
 });
 
 test("cells are monospace with the size-adjust pairing", async ({ mount }) => {
@@ -361,7 +361,7 @@ test("mask: the focused cell renders as the block caret; empty cells show the un
   await expect(first).toHaveAttribute("placeholder", "_");
   await first.click();
   const bg = await first.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(bg).toBe("rgb(37, 99, 235)"); // --sf-color-primary
+  expect(bg).toBe("rgb(20, 50, 200)"); // --sf-color-primary
 });
 
 test("mask: controlled numbers render complete; external null clears", async ({ mount }) => {

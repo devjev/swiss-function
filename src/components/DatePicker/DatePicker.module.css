@@ -18,10 +18,10 @@
   min-inline-size: 0;
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  /* The field's fill, the page colour by default (--sf-color-input-bg). */
   background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   /* The slot: the groove recipe, as Input (flush; `elevation` adds a cast). */
   box-shadow: var(--sf-groove);
@@ -33,6 +33,11 @@
 .field:focus-within {
   background-color: var(--sf-color-bg);
   border-color: var(--sf-color-primary);
+  /* The field has the page colour at rest, so focus cannot show as a lift of
+     the fill: the edge turns primary and doubles to 2px (an outline, so the
+     box does not move). */
+  outline: 1px solid var(--sf-color-primary);
+  outline-offset: 0;
 }
 
 .field[data-size="sm"] {
@@ -121,7 +126,7 @@
   padding: var(--sf-space-2);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-3);
   transform-origin: var(--transform-origin);
@@ -171,7 +176,7 @@
   block-size: var(--sf-unit);
   display: inline-grid;
   place-items: center;
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background: var(--sf-color-bg);
   color: var(--sf-color-fg);

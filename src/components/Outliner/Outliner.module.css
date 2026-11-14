@@ -15,7 +15,7 @@
      so the outliner reads as a contained component, not free-flowing
      indented text. */
   background-color: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   /* No horizontal padding on the box itself — the chevron column on each row
      supplies exactly 1 unit of left clearance (chevron 0.75u + gap 0.25u), so
@@ -50,7 +50,7 @@
   padding: 0 calc(var(--sf-unit) / 3);
   block-size: var(--sf-leading-base);
   background: transparent;
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   color: var(--sf-color-fg-subtle);
   font-family: var(--sf-font-mono);

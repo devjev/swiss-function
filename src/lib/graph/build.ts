@@ -69,7 +69,7 @@ export function token(name: string, fallback: string, el?: Element | null): stri
 
 /** Resolve a node's fill color from its `kind` (theme-tracking). */
 export function nodeColor(kind: string | undefined, el?: Element | null): string {
-  return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#2563eb", el);
+  return token(KIND_TOKEN[kind ?? "primary"] ?? "--sf-color-primary", "#1432c8", el);
 }
 
 /** Default node radius (graph units). `primary` nodes read as the emphasized
@@ -85,12 +85,13 @@ export function edgeSize(weight: number | undefined): number {
 }
 
 /** Resolve the default (unselected) edge stroke color. Reads `--sf-color-muted`,
- *  not `--sf-color-border-subtle`: the latter is a `color-mix()` value Sigma's
- *  WebGL color parser can't evaluate (it falls back to black — invisible on a
- *  dark background) and is too low-contrast in dark mode anyway. `--sf-color-muted`
- *  is a plain hex with adequate contrast on both canvas backgrounds. */
+ *  not `--sf-color-border-subtle`: the divider tone is too low-contrast for a
+ *  mark that carries data. `--sf-color-muted` has adequate contrast on both
+ *  canvas backgrounds. Whatever token is read here must resolve to a plain
+ *  colour: Sigma's WebGL colour parser cannot evaluate `color-mix()` and falls
+ *  back to black. */
 export function edgeColorToken(el?: Element | null): string {
-  return token("--sf-color-muted", "#6b7280", el);
+  return token("--sf-color-muted", "#5e5e5e", el);
 }
 
 /** Above this many edges, arrowheads render as plain edges: at that density

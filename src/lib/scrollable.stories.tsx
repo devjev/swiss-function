@@ -7,7 +7,7 @@ import styles from "./scrollable.module.css";
 // Prose body); here we apply it directly so the scrollbar itself is reviewable.
 
 const frame: React.CSSProperties = {
-  border: "1px solid var(--sf-color-border-subtle)",
+  border: "1px solid var(--sf-color-border-strong)",
   background: "var(--sf-color-bg)",
   padding: "calc(var(--sf-unit) / 2)",
 };

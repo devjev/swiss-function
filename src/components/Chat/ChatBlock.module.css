@@ -1,7 +1,7 @@
 /* Terminal-style framed panel. Monospace, hairline frame, faint surface, sharp
    corners — the shared shell for TUI chat blocks. */
 .root {
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg-subtle);
   font-family: var(--sf-font-mono);

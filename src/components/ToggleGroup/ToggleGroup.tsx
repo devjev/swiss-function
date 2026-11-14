@@ -12,8 +12,8 @@ import styles from "./ToggleGroup.module.css";
 interface ToggleGroupRootProps extends ComponentPropsWithoutRef<typeof BaseToggleGroup> {
   /** Cascade a size to all items. */
   size?: ButtonSize;
-  /** The face of every key: `"dish"` (default) the scoop of a keycap, `"dome"`
-   *  a rounded cap, `"flat"` no ramp. Cascades to all items. */
+  /** The face of every key: `"flat"` (default) no ramp, `"dish"` the scoop of
+   *  a keycap, `"dome"` a rounded cap. Cascades to all items. */
   surface?: ControlSurface;
   /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
    *  (1 = the token, 2 doubles it, 0 flattens the face). */
@@ -21,10 +21,10 @@ interface ToggleGroupRootProps extends ComponentPropsWithoutRef<typeof BaseToggl
   children?: ReactNode;
 }
 
-const SurfaceContext = createContext<ControlSurface>("dish");
+const SurfaceContext = createContext<ControlSurface>("flat");
 
 const Root = forwardRef<HTMLDivElement, ToggleGroupRootProps>(function ToggleGroupRoot(
-  { size, surface = "dish", curve, style, className, children, ...rest },
+  { size, surface = "flat", curve, style, className, children, ...rest },
   ref,
 ) {
   return (

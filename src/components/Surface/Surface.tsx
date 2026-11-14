@@ -128,8 +128,8 @@ export const Surface = forwardRef<HTMLDivElement, SurfaceProps>(function Surface
       host,
     );
     const hiRgb = resolveRgb(colorScale?.[1] ?? "var(--sf-color-primary)", host);
-    const frameColor = token("--sf-color-border-subtle", "#e5e5e5", host);
-    const meshColor = token("--sf-color-border", "#d4d4d4", host);
+    const frameColor = token("--sf-color-border-subtle", "#bdbdbd", host);
+    const meshColor = token("--sf-color-border-subtle", "#bdbdbd", host);
     const fgColor = token("--sf-color-fg", "#0a0a0a", host);
     const fontSans = token("--sf-font-sans", "system-ui", host);
 

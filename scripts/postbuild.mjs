@@ -35,8 +35,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
 const src = path.resolve(here, "../src");
 
-// fonts.css is the optional JetBrains Mono webfont glue. It is deliberately
-// NOT a vite input: it `@import`s bare `@fontsource/jetbrains-mono/*`
+// fonts.css is the optional webfont glue (IBM Plex Sans, JetBrains Mono). It
+// is deliberately NOT a vite input: it `@import`s bare `@fontsource/*`
 // specifiers that must reach the consumer's bundler untouched — routing it
 // through vite would try to resolve/inline them at build time against a
 // dependency that is only optional. So we copy it verbatim into dist.

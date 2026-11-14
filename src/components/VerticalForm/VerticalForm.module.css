@@ -41,7 +41,7 @@
    so the Picker stretches to the bar's width. */
 .navBar {
   display: grid;
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-strong);
   padding: calc(var(--sf-unit) / 2);
   min-inline-size: 0;
 }
@@ -51,6 +51,14 @@
 .row {
   min-inline-size: 0;
   container-type: inline-size;
+}
+
+/* A field row is one of many in a list, and it holds a ruled control: its
+   Box takes the divider tone, so the form reads as rows and the fields keep
+   the ink. Doubled class to win over Box's own border whatever the
+   stylesheet order. */
+.row.row:not(.rowBare) {
+  border-color: var(--sf-color-border-subtle);
 }
 
 /* Bare row: a plain wrapper (no Box), so no surface and no box padding. It keeps

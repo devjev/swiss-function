@@ -80,7 +80,7 @@
   flex: 1 1 0;
   min-inline-size: var(--fl-min, calc(10 * var(--sf-unit)));
   min-block-size: var(--sf-unit);
-  color: var(--sf-color-border);
+  color: var(--sf-color-border-subtle);
 }
 
 .ditherCanvas {

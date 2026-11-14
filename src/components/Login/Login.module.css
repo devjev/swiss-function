@@ -7,7 +7,7 @@
   inline-size: min(100%, calc(var(--sf-unit) * 15));
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-2);
   font-family: var(--sf-font-mono);
@@ -21,7 +21,7 @@
   gap: calc(var(--sf-unit) / 2);
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  border-block-end: 1px solid var(--sf-color-border);
+  border-block-end: 1px solid var(--sf-color-border-strong);
 }
 .title {
   font-size: var(--sf-font-size-sm);
@@ -62,7 +62,7 @@
   font-size-adjust: var(--sf-font-mono-adjust);
 }
 
-/* Terminal error line: a "! message" in the danger colour on a faint danger band. */
+/* Terminal error line: a "! message" in the danger colour inside a danger rule. */
 .error {
   display: flex;
   gap: calc(var(--sf-unit) / 2);
@@ -71,8 +71,7 @@
   padding: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-danger);
-  background-color: color-mix(in srgb, var(--sf-color-danger), transparent 90%);
-  border: 1px solid color-mix(in srgb, var(--sf-color-danger), transparent 68%);
+  border: 1px solid var(--sf-color-danger);
   border-radius: var(--sf-radius-default);
 }
 .errorMark {

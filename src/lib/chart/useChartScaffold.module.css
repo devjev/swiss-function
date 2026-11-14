@@ -6,7 +6,7 @@
 
 /* 1px structural border + breathing room: the chart reads as a framed panel. */
 .frame {
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   background: var(--sf-color-bg);
   padding: calc(var(--sf-unit) / 2);
 }

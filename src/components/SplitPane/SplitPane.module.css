@@ -71,7 +71,7 @@
 .divider::after {
   content: "";
   position: absolute;
-  background-color: var(--sf-color-border-subtle);
+  background-color: var(--sf-color-border-strong);
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 .divider[aria-orientation="vertical"]::after {

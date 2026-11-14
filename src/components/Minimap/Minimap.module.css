@@ -49,7 +49,7 @@
   grid-column: 2;
   position: relative;
   overflow: hidden;
-  border-inline-start: 1px solid var(--sf-color-border);
+  border-inline-start: 1px solid var(--sf-color-border-subtle);
   /* The rail is a drag surface: without this, touch pointers pan the page
      instead of feeding the pointer-capture drag. */
   touch-action: none;
@@ -113,7 +113,7 @@
 .wrapper[data-side="left"] .rail {
   grid-column: 1;
   border-inline-start: none;
-  border-inline-end: 1px solid var(--sf-color-border);
+  border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
 /* No overflow: single column, rail gone (out of the tab order and the

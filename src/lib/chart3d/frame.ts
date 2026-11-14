@@ -32,7 +32,7 @@ function edgeMidDepths(camera: Camera, fit: Fit) {
 
 /** Edges behind the cube center — draw before the data. */
 export function drawFrameBack(ctx: CanvasRenderingContext2D, o: FrameOptions) {
-  ctx.strokeStyle = token("--sf-color-border-subtle", "#e5e5e5", o.host);
+  ctx.strokeStyle = token("--sf-color-border-subtle", "#bdbdbd", o.host);
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (const e of edgeMidDepths(o.camera, o.fit)) {
@@ -47,7 +47,7 @@ export function drawFrameBack(ctx: CanvasRenderingContext2D, o: FrameOptions) {
 /** Front edges + axis ticks/labels — draw after the data. */
 export function drawFrameFront(ctx: CanvasRenderingContext2D, o: FrameOptions) {
   const { camera, fit } = o;
-  ctx.strokeStyle = token("--sf-color-border-subtle", "#e5e5e5", o.host);
+  ctx.strokeStyle = token("--sf-color-border-subtle", "#bdbdbd", o.host);
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (const e of edgeMidDepths(camera, fit)) {

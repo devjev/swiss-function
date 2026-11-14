@@ -648,7 +648,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const connectSourceRef = useRef<string | null>(null);
   const connectTargetRef = useRef<string | null>(null);
   // Emphasis color for the selected edge + connect endpoints (resolved at mount).
-  const selectColorRef = useRef("#2563eb");
+  const selectColorRef = useRef("#1432c8");
   // Hover highlight: the hovered node plus its incident edges + neighbour ids,
   // precomputed on enter so the reducers stay O(1) per element (no graph query
   // per edge per frame at 10k+ nodes). The fade colours de-emphasize the rest;
@@ -658,8 +658,8 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   const hoveredNodeRef = useRef<string | null>(null);
   const incidentEdgesRef = useRef<Set<string>>(new Set());
   const neighborsRef = useRef<Set<string>>(new Set());
-  const edgeFadeRef = useRef("#e5e7eb");
-  const nodeFadeRef = useRef("#6b7280");
+  const edgeFadeRef = useRef("#bdbdbd");
+  const nodeFadeRef = useRef("#5e5e5e");
 
   // Bumped whenever the graph is (re)built or a layout finishes applying, so the
   // minimap overlay knows to recompute its cached node geometry.
@@ -803,9 +803,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     graphRef.current = g;
     applyCardAttributes(g, initialData, container, nodeStyleRef.current === "card");
     appliedLayoutRef.current = initialLayout;
-    selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
-    edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
-    nodeFadeRef.current = token("--sf-color-muted", "#6b7280", container);
+    selectColorRef.current = token("--sf-color-primary", "#1432c8", container);
+    edgeFadeRef.current = token("--sf-color-border-subtle", "#bdbdbd", container);
+    nodeFadeRef.current = token("--sf-color-muted", "#5e5e5e", container);
 
     // Show edge labels only when at least one edge carries one — otherwise the
     // renderer pays for label layout it would never draw.
@@ -1311,9 +1311,9 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
     );
     applyCardAttributes(g, dataRef.current, container, nodeStyleRef.current === "card");
-    selectColorRef.current = token("--sf-color-primary", "#2563eb", container);
-    edgeFadeRef.current = token("--sf-color-border", "#e5e7eb", container);
-    nodeFadeRef.current = token("--sf-color-muted", "#6b7280", container);
+    selectColorRef.current = token("--sf-color-primary", "#1432c8", container);
+    edgeFadeRef.current = token("--sf-color-border-subtle", "#bdbdbd", container);
+    nodeFadeRef.current = token("--sf-color-muted", "#5e5e5e", container);
     renderer.setSetting("defaultNodeColor", nodeColor("primary", container));
     renderer.setSetting("labelColor", {
       attribute: "labelColor",

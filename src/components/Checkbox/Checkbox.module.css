@@ -4,7 +4,7 @@
   justify-content: center;
   width: 1.125rem;
   height: 1.125rem;
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-primary-fg);

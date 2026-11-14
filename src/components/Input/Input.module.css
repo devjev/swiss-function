@@ -6,13 +6,13 @@
      because text fills the width — clearance over weight. */
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29).
-     The fill lives in --sf-cap so an opt-in `surface` ramp (concave, the
-     scooped floor of a slot) derives from it and follows the focus lift. */
+  /* The field's fill, the page colour by default (--sf-color-input-bg). It
+     lives in --sf-cap so an opt-in `surface` ramp (concave, the scooped
+     floor of a slot) derives from it. */
   --sf-cap: var(--sf-color-input-bg);
   background-color: var(--sf-cap);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
@@ -44,6 +44,11 @@
 .root:focus {
   --sf-cap: var(--sf-color-bg);
   border-color: var(--sf-color-primary);
+  /* The field has the page colour at rest, so focus cannot show as a lift of
+     the fill: the edge turns primary and doubles to 2px (an outline, so the
+     box does not move). */
+  outline: 1px solid var(--sf-color-primary);
+  outline-offset: 0;
 }
 
 .root:disabled {

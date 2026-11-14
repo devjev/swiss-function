@@ -26,7 +26,7 @@ export const Wide: Story = () => <Reflow.Root>{columns}</Reflow.Root>;
 
 /** Forced into the collapsed accordion by a narrow wrapper. */
 export const NarrowAccordion: Story = () => (
-  <div style={{ inlineSize: 360, border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ inlineSize: 360, border: "1px solid var(--sf-color-border-strong)" }}>
     <Reflow.Root collapseAt={32}>{columns}</Reflow.Root>
   </div>
 );

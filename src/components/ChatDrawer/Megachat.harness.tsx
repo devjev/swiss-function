@@ -668,7 +668,7 @@ export function MegachatDemo({
   );
 
   return (
-    <div style={{ blockSize: 560, border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ blockSize: 560, border: "1px solid var(--sf-color-border-strong)" }}>
       <ChatDrawer
         open={open}
         onOpenChange={setOpen}

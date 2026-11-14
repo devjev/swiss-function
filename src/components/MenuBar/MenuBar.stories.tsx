@@ -93,7 +93,7 @@ function Bar({ position }: { position?: "top" | "bottom" }) {
 }
 
 export const Classic: Story = () => (
-  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-strong)" }}>
     <Bar />
     <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>
       Window content goes here. Click a menu above.
@@ -108,7 +108,7 @@ export const PositionBottom: Story = () => (
       flexDirection: "column",
       width: "min(50rem, 100%)",
       height: "70vh",
-      border: "1px solid var(--sf-color-border-subtle)",
+      border: "1px solid var(--sf-color-border-strong)",
     }}
   >
     <div style={{ flex: 1, padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>
@@ -128,7 +128,7 @@ export const PositionBottom: Story = () => (
  * Search that reads as inlaid in the bar.
  */
 export const Logo: Story = () => (
-  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-strong)" }}>
     <MenuBar.Root>
       <MenuBar.Menu>
         <MenuBar.Trigger style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>
@@ -204,7 +204,7 @@ export const Logo: Story = () => (
 export const WithState: Story = () => {
   const [theme, setTheme] = useState("light");
   return (
-    <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+    <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-strong)" }}>
       <MenuBar.Root>
         <MenuBar.Menu>
           <MenuBar.Trigger>Settings</MenuBar.Trigger>
@@ -285,7 +285,7 @@ export const Collapsible: Story = () => (
         inlineSize: "44rem",
         minInlineSize: "16rem",
         maxInlineSize: "100%",
-        border: "1px solid var(--sf-color-border-subtle)",
+        border: "1px solid var(--sf-color-border-strong)",
       }}
     >
       <AppBar />
@@ -298,7 +298,7 @@ export const Collapsible: Story = () => (
 
 /** The collapsed end-state, forced by a narrow wrapper. Click the ☰ to open the panel. */
 export const Collapsed: Story = () => (
-  <div style={{ inlineSize: 320, border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ inlineSize: 320, border: "1px solid var(--sf-color-border-strong)" }}>
     <AppBar />
     <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>Window content.</div>
   </div>
@@ -309,7 +309,7 @@ export const Collapsed: Story = () => (
  * instead of pinning it to the far edge.
  */
 export const CollapsedMenuStart: Story = () => (
-  <div style={{ inlineSize: 320, border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ inlineSize: 320, border: "1px solid var(--sf-color-border-strong)" }}>
     <AppBar menuAlign="start" />
     <div style={{ padding: "var(--sf-unit)", color: "var(--sf-color-muted)" }}>Window content.</div>
   </div>
@@ -321,7 +321,7 @@ export const CollapsedMenuStart: Story = () => (
  * line would double up.
  */
 export const Borderless: Story = () => (
-  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-subtle)" }}>
+  <div style={{ width: "min(50rem, 100%)", border: "1px solid var(--sf-color-border-strong)" }}>
     <MenuBar.Root bordered={false}>
       <MenuBar.Logo>◇ App</MenuBar.Logo>
       <MenuBar.Menu>
@@ -415,7 +415,7 @@ export const Overflow: Story = () => (
         inlineSize: "52rem",
         minInlineSize: "16rem",
         maxInlineSize: "100%",
-        border: "1px solid var(--sf-color-border-subtle)",
+        border: "1px solid var(--sf-color-border-strong)",
       }}
     >
       <OverflowBar />

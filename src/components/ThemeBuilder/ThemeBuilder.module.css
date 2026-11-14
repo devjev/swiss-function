@@ -136,7 +136,7 @@
    inside re-themes live. Painted from the tokens so its own surface follows. */
 .preview {
   padding: var(--sf-unit);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);

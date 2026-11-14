@@ -15,7 +15,7 @@
   padding-inline: calc(var(--sf-unit) / 2);
   border: 1px solid var(--sf-color-border);
   border-radius: var(--chip-radius);
-  background-color: var(--sf-color-bg-subtle);
+  background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
   font-family: var(--sf-font-sans);
   font-size: var(--sf-font-size-sm);
@@ -46,10 +46,11 @@
   padding-inline: calc(var(--sf-unit) * 0.45);
 }
 
-/* --- Tones. Neutral is the resting default above; the semantic tones tint the
-   surface, rim, and text from their accent so the colour *is* the signal (never
-   decorative — see AESTHETICS "no rainbow tag systems"). color-mix keeps them
-   theme-aware: the same rules re-resolve against dark tokens. --- */
+/* --- Tones. Neutral is the resting default above; a semantic tone draws the
+   rim and the label in its accent on the page colour, so the colour is the
+   signal (never decorative, see AESTHETICS "no rainbow tag systems"). No
+   tinted fill: the status colours clear 4.5:1 as text, so the label needs no
+   background to carry it. --- */
 .root[data-tone="primary"] {
   --chip-accent: var(--sf-color-primary);
 }
@@ -67,12 +68,8 @@
 .root[data-tone="success"],
 .root[data-tone="warning"],
 .root[data-tone="danger"] {
-  background-color: color-mix(in srgb, var(--chip-accent) 10%, var(--sf-color-bg));
-  border-color: color-mix(in srgb, var(--chip-accent) 34%, var(--sf-color-bg));
-  /* Text stays high-contrast: the accent carries the meaning, but it's pulled
-     toward the foreground so it reads as strongly as body text, not as the
-     washed-out coloured text AESTHETICS warns against. */
-  color: color-mix(in srgb, var(--chip-accent) 68%, var(--sf-color-fg));
+  border-color: var(--chip-accent);
+  color: var(--chip-accent);
 }
 
 /* Leading status marker — a small filled square (Bauhaus over a round bullet),
@@ -99,8 +96,7 @@
     border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 .root[data-interactive]:hover:not([data-disabled]) {
-  background-color: color-mix(in srgb, var(--chip-accent) 16%, var(--sf-color-bg));
-  border-color: color-mix(in srgb, var(--chip-accent) 46%, var(--sf-color-bg));
+  background-color: color-mix(in srgb, var(--chip-accent) 12%, var(--sf-color-bg));
 }
 .root[data-interactive]:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

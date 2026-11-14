@@ -30,9 +30,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   tight?: boolean;
   /** Resting depth — same `--sf-elevation-N` scale as Box. Default 2. */
   elevation?: BoxElevation;
-  /** The face of the key: `"dish"` (default for the sheet build) is the scoop
-   *  of a keycap, `"dome"` a rounded cap (default for the solid build),
-   *  `"flat"` no ramp at all. `ghost` is always flat. */
+  /** The face of the key: `"flat"` (default for the sheet build) carries no
+   *  ramp, `"dish"` is the scoop of a keycap, `"dome"` a rounded cap (default
+   *  for the solid build). A ramp suits a key up to about two units wide; on
+   *  a wider one it spreads into a gradient, so opt in per button. `ghost` is
+   *  always flat. */
   surface?: ControlSurface;
   /** Amplitude of the face ramp as a multiple of the system `--sf-curve`
    *  (1 = the token, 2 doubles it, 0 flattens the face). A solid key reads at
@@ -89,7 +91,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const resolvedSize: ButtonSize = size ?? groupSize ?? "md";
   const solid = build === "solid" && variant !== "ghost";
   const face =
-    variant === "ghost" ? surfaceClass.flat : surfaceClass[surface ?? (solid ? "dome" : "dish")];
+    variant === "ghost" ? surfaceClass.flat : surfaceClass[surface ?? (solid ? "dome" : "flat")];
   // A round key's label sits on its ink centre, measured at mount.
   const glyphRef = useRef<HTMLSpanElement>(null);
   useOpticalCentre(glyphRef, !!round, [children, resolvedSize]);

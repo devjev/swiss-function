@@ -129,7 +129,7 @@
   --btn-cap: var(--sf-color-bg);
   --btn-ink: var(--sf-engrave);
   color: var(--sf-color-fg);
-  border-color: var(--sf-color-border-subtle);
+  border-color: var(--sf-color-border);
 }
 .variantSecondary:hover:not([data-disabled]) {
   --btn-cap: var(--sf-color-bg-subtle);

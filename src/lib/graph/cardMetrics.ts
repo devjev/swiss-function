@@ -84,8 +84,8 @@ export function applyCardAttributes(
   }
   const measure = createCardMeasurer(el);
   const bg = token("--sf-color-bg", "#ffffff", el);
-  const border = token("--sf-color-border", "#e5e7eb", el);
-  const sub = token("--sf-color-fg-subtle", "#4b5563", el);
+  const border = token("--sf-color-border", "#0a0a0a", el);
+  const sub = token("--sf-color-fg-subtle", "#3d3d3d", el);
   for (const n of data.nodes) {
     if (!g.hasNode(n.id)) continue;
     const label = (g.getNodeAttribute(n.id, "label") as string | undefined) ?? n.id;

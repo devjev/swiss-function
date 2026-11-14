@@ -10,7 +10,7 @@
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-3);
   z-index: var(--sf-z-dropdown);
@@ -49,7 +49,7 @@
 .separator {
   height: 1px;
   margin: var(--sf-space-1) 0;
-  background-color: var(--sf-color-border);
+  background-color: var(--sf-color-border-subtle);
 }
 
 .groupLabel {

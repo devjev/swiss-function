@@ -2,7 +2,7 @@
   position: relative;
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   /* No overflow clipping. The texture overlay (a ::before with
      `border-radius: inherit`) is already confined to the rounded corners

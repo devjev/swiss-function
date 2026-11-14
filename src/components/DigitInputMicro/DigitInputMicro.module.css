@@ -15,7 +15,7 @@
   --sf-cap: var(--sf-color-input-bg);
   background-color: var(--sf-cap);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
@@ -29,11 +29,16 @@
     box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-/* Border highlight on focus, mirroring Input (no separate ring — the frame
-   change is the focus indicator, consistent with the input family). */
+/* Border highlight on focus, mirroring Input: the frame change is the focus
+   indicator, consistent with the input family. */
 .root:focus-within {
   --sf-cap: var(--sf-color-bg);
   border-color: var(--sf-color-primary);
+  /* The field has the page colour at rest, so focus cannot show as a lift of
+     the fill: the edge turns primary and doubles to 2px (an outline, so the
+     box does not move). */
+  outline: 1px solid var(--sf-color-primary);
+  outline-offset: 0;
 }
 
 .root[data-disabled] {

@@ -7,10 +7,10 @@
   font-family: var(--sf-font-sans);
 }
 .positionTop {
-  border-block-end: 1px solid var(--sf-color-border-subtle);
+  border-block-end: 1px solid var(--sf-color-border-strong);
 }
 .positionBottom {
-  border-block-start: 1px solid var(--sf-color-border-subtle);
+  border-block-start: 1px solid var(--sf-color-border-strong);
 }
 
 /* Top-level menu trigger ("File", "Edit", …) */

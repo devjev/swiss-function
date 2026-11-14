@@ -9,7 +9,7 @@
      contrast against the off-state floor. Theme-aware via color-mix. */
   background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 10%);
   color: var(--sf-color-primary-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-full);
   cursor: pointer;
   /* A groove cut into the panel (the shared light's wall shadow + far-wall

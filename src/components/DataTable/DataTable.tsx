@@ -220,9 +220,9 @@ export interface DataTableProps<T>
    *  keep a fixed width and never shrink. A column group is pinned only when its
    *  whole span is inside the frozen region. Default `0` (off). */
   frozenColumns?: number;
-  /** The face of the column-header keys (`lib/surface`): `"concave"` (default),
-   *  a slight scoop at 0.6 of the system amplitude, `"dome"`, `"dish"` or
-   *  `"flat"`. Set `--sf-curve-scale` on the table to retune the amplitude. */
+  /** The face of the column-header keys (`lib/surface`): `"flat"` (default),
+   *  `"concave"` (a slight scoop at 0.6 of the system amplitude), `"dome"` or
+   *  `"dish"`. Set `--sf-curve-scale` on the table to retune the amplitude. */
   headerSurface?: ControlSurface;
   /** Elastically snap scrolling to row and/or column edges (CSS `proximity`
    *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
@@ -806,7 +806,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     empty,
     resizableColumns = true,
     frozenColumns = 0,
-    headerSurface = "concave",
+    headerSurface = "flat",
     scrollSnap = "none",
     edgeFade = false,
     getCellSpan,

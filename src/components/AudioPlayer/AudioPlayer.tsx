@@ -194,7 +194,7 @@ export const AudioPlayer = forwardRef<HTMLDivElement, AudioPlayerProps>(function
       drawWaveform(ctx, width, height, data, played, hoverFractionRef.current, {
         accent,
         rest: token("--audio-wave", "#d0d7de", root),
-        hover: token("--sf-color-fg-subtle", "#4b5563", root),
+        hover: token("--sf-color-fg-subtle", "#3d3d3d", root),
       });
     } else {
       const bars = barCount(width);

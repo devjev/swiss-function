@@ -4,7 +4,7 @@
   /* Same harmonic sizing as Input. */
   block-size: calc(var(--sf-unit) * 1.5);
   padding-inline: calc(var(--sf-unit) / 2);
-  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  /* The field's fill, the page colour by default (--sf-color-input-bg). */
   background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
@@ -104,7 +104,7 @@
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-3);
   z-index: var(--sf-z-dropdown);
@@ -170,7 +170,7 @@
   inline-size: 100%;
   min-block-size: calc(var(--sf-unit) * 1.5);
   padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
-  /* Recessed empty-slot fill; focus lifts it to the page colour (issue #29). */
+  /* The field's fill, the page colour by default (--sf-color-input-bg). */
   background-color: var(--sf-color-input-bg);
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border);
@@ -259,7 +259,7 @@
   padding: 0 calc(var(--sf-unit) / 4);
   background-color: var(--sf-color-bg-subtle);
   color: var(--sf-color-fg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   /* Sharp corners — deliberately not a pill. */
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);

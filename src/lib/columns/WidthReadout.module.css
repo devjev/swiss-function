@@ -18,7 +18,7 @@
   white-space: nowrap;
   color: var(--sf-color-fg);
   background-color: var(--sf-color-bg);
-  border: 1px solid var(--sf-color-border-subtle);
+  border: 1px solid var(--sf-color-border);
   box-shadow: var(--sf-elevation-2);
   pointer-events: none;
   z-index: 3;

@@ -19,7 +19,7 @@
      lines the descriptions up. */
   grid-template-columns: auto max-content minmax(0, 1fr);
   column-gap: var(--sf-unit);
-  border: 1px solid var(--sf-color-border);
+  border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
   background-color: var(--sf-color-bg);
@@ -41,7 +41,7 @@
 
 /* Hairline dividers between rows; the outer border comes from `.table`. */
 .option:not(:first-child) {
-  border-block-start: 1px solid var(--sf-color-border);
+  border-block-start: 1px solid var(--sf-color-border-subtle);
 }
 
 .option:hover {
