@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Play, Power } from "../Icon";
 import { Button } from "./Button";
 
@@ -94,12 +95,12 @@ test("a round solid key is a circle of the size's height inside its ring", async
   );
   const box = await component.boundingBox();
   if (!box) throw new Error("no box");
-  // lg is 2u = 48px, plus the 6px wall ring on each side.
-  expect(Math.round(box.width)).toBe(60);
-  expect(Math.round(box.height)).toBe(60);
+  // lg is 2u, plus the 6px wall ring on each side.
+  expect(Math.round(box.width)).toBe(2 * U + 12);
+  expect(Math.round(box.height)).toBe(2 * U + 12);
   const face = await component.locator('[class*="face"]').boundingBox();
   if (!face) throw new Error("no face");
-  expect(Math.round(face.width)).toBe(48);
+  expect(Math.round(face.width)).toBe(2 * U);
   expect(Math.round(face.x - box.x)).toBe(6);
   const radius = await component.evaluate((el) => getComputedStyle(el).borderRadius);
   expect(radius).not.toBe("2px");

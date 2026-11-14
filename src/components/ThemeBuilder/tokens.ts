@@ -47,7 +47,7 @@ export const THEME_TOKENS: ThemeToken[] = [
   c("--sf-color-warning", "Warning", "#a85a00", "#e5a117"),
   c("--sf-color-focus-ring", "Focus ring", "#1432c8", "#7f98ff"),
   // Dimension — theme-agnostic.
-  t("--sf-unit", "Base unit", "Dimension", "1.5rem"),
+  t("--sf-unit", "Base unit", "Dimension", "1.25rem"),
   t("--sf-radius-default", "Corner radius", "Dimension", "0.125rem"),
   // Typography — theme-agnostic.
   t(
@@ -57,7 +57,7 @@ export const THEME_TOKENS: ThemeToken[] = [
     '"IBM Plex Sans", ui-sans-serif, system-ui, sans-serif',
   ),
   t("--sf-font-mono", "Mono family", "Typography", '"JetBrains Mono", ui-monospace, monospace'),
-  t("--sf-font-size-base", "Base font size", "Typography", "1rem"),
+  t("--sf-font-size-base", "Base font size", "Typography", "0.875rem"),
   // Motion — theme-agnostic.
   t("--sf-duration-fast", "Duration (fast)", "Motion", "120ms"),
   t("--sf-duration-base", "Duration (base)", "Motion", "180ms"),

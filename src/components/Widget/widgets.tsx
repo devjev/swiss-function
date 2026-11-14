@@ -104,20 +104,22 @@ export const ChartWidget = forwardRef<HTMLDivElement, ChartWidgetProps>(function
 export interface TableWidgetProps<T> extends WidgetShellProps {
   columns: ColumnDef<T>[];
   rows: T[];
-  /** Table height; the rows scroll inside it. Default: the header and rows
-   *  (a unit and a half each) rounded up to whole units, the remainder a
-   *  dithered band, so the widget stays on the grid. */
+  /** Table height; the rows scroll inside it. Default: the header (a unit
+   *  and a half) and the rows (`--sf-table-row-height` each) rounded up to
+   *  whole units, the remainder a dithered band, so the widget stays on the
+   *  grid. */
   height?: number | string;
 }
 
 /** A small table in a widget: a `DataTable` flush with the frame. */
 export function TableWidget<T>({ columns, rows, height, ...shell }: TableWidgetProps<T>) {
-  // Header + rows at a unit and a half each, rounded up so that with the
-  // title bar (a unit and a half) the widget is a whole number of units; the
-  // extra pixel is the table's top border, which overlaps the title bar's.
-  const rowUnits = (rows.length + 1) * 1.5;
-  const units = Math.ceil(rowUnits + 1.5) - 1.5;
-  const tableHeight = height ?? `calc(var(--sf-unit) * ${units} + 1px)`;
+  // The title bar and the table header (a unit and a half each) plus the rows
+  // (the table-row token, which the density sets), rounded up in CSS to a
+  // whole number of units, less the title bar; the extra pixel is the table's
+  // top border, which overlaps the title bar's.
+  const tableHeight =
+    height ??
+    `calc(round(up, calc(var(--sf-unit) * 3 + var(--sf-table-row-height) * ${rows.length}), var(--sf-unit)) - var(--sf-unit) * 1.5 + 1px)`;
   return (
     <Widget {...shell} flush>
       <div className={styles.table}>

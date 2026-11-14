@@ -7,6 +7,7 @@ import { Input } from "../../components/Input";
 import { Popover } from "../../components/Popover";
 import { cx } from "../cx";
 import { Glyph } from "../icons";
+import { DEFAULT_UNIT_PX, useCssPx, useRemeasureOnSizeChange } from "../useCssPx";
 import styles from "./ColumnFilter.module.css";
 
 export type ColumnFilterKind = "checklist" | "range";
@@ -28,9 +29,6 @@ interface ColumnFilterProps {
   /** Set the filter value; pass `undefined` to clear the column's filter. */
   onChange: (value: unknown) => void;
 }
-
-/** Fixed checklist row height (px) — the virtualizer's window unit. */
-const OPTION_ROW_PX = 24;
 
 const NO_OPTIONS: FilterOption[] = [];
 
@@ -63,12 +61,15 @@ function Checklist({
   // useVirtualizer idiom as Selector/DataTable; rows are plain divs, so
   // windowing has no composite-registration constraints.
   const listRef = useRef<HTMLDivElement>(null);
+  // A checklist row is one line of text, one unit tall: the window unit.
+  const optionRowPx = useCssPx(listRef, "var(--sf-unit)", DEFAULT_UNIT_PX);
   const virtualizer = useVirtualizer({
     count: shown.length,
     getScrollElement: () => listRef.current,
-    estimateSize: () => OPTION_ROW_PX,
+    estimateSize: () => optionRowPx,
     overscan: 8,
   });
+  useRemeasureOnSizeChange(virtualizer, optionRowPx);
 
   // Selecting everything clears the filter (no-op); any subset becomes the filter.
   const commit = (next: Set<string>) => {

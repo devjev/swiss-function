@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Explorer } from "./Explorer";
 import { ExplorerHarness } from "./Explorer.harness";
 
@@ -373,8 +374,8 @@ test("cellPadding and cellFontSize scale header + body cells", async ({ mount })
       });
   const xs = await read("xs");
   const lg = await read("lg");
-  expect(xs.pad).toBe(6);
-  expect(lg.pad).toBe(18);
+  expect(xs.pad).toBe(U / 4);
+  expect(lg.pad).toBe((U * 3) / 4);
   expect(xs.font).toBeLessThan(lg.font);
 });
 

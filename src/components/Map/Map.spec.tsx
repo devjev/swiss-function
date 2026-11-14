@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { MapHarness } from "./Map.harness";
 
 // MapLibre needs real WebGL; these specs avoid asserting rendered map pixels and
@@ -48,7 +49,7 @@ test("fill makes the map fill its parent's height", async ({ mount }) => {
 });
 
 test("without fill the map keeps its fixed default height", async ({ mount }) => {
-  // 24 × --sf-unit (1.5rem @ 16px) = 576px.
+  // 24 units.
   const c = await mount(<MapHarness />);
-  await expect(c.locator("[data-map-root]")).toHaveCSS("height", "576px");
+  await expect(c.locator("[data-map-root]")).toHaveCSS("height", `${24 * U}px`);
 });

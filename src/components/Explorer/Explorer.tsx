@@ -65,6 +65,7 @@ import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { Glyph } from "../../lib/icons";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { File, Folder } from "../Icon";
 import { Menu } from "../Menu";
@@ -240,7 +241,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     columnFill = false,
     cellPadding = "md",
     cellFontSize = "md",
-    rowHeight = 32,
+    rowHeight: rowHeightProp,
     height = "100%",
     className,
     style,
@@ -528,6 +529,10 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
 
   // --- Virtualization -----------------------------------------------------
   const viewportRef = useRef<HTMLDivElement>(null);
+  // The default row is the table-row token (as DataTable), so the density
+  // sets it; the virtualizer needs it in px.
+  const tableRowPx = useCssPx(viewportRef, "var(--sf-table-row-height)", DEFAULT_TABLE_ROW_PX);
+  const rowHeight = rowHeightProp ?? Math.round(tableRowPx);
 
   // Mirror the sticky header's measured width onto the body. The header spans
   // the full scroll width, but the body (`inline-size: 100%`) shrinks to the
@@ -554,6 +559,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     estimateSize: () => rowHeight,
     overscan: 8,
   });
+  useRemeasureOnSizeChange(virtualizer, rowHeight);
 
   // --- State setters that always go through the controlled callbacks -----
   const setSelection = (ids: Set<string>) => onSelectionChange?.(ids);

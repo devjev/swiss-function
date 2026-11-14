@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { GraphData } from "../../lib/graph/types";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { GraphHarness, GraphRemovableHarness } from "./Graph.harness";
 
 // Two nodes, no edge. With `layout="grid"` they land left + right at the same
@@ -497,7 +498,7 @@ test("fill makes the graph fill its parent's height", async ({ mount }) => {
 });
 
 test("without fill the graph keeps its fixed default height", async ({ mount }) => {
-  // 24 × --sf-unit (1.5rem @ 16px) = 576px.
+  // 24 units.
   const c = await mount(<GraphHarness />);
-  await expect(c.locator("[data-graph-root]")).toHaveCSS("height", "576px");
+  await expect(c.locator("[data-graph-root]")).toHaveCSS("height", `${24 * U}px`);
 });

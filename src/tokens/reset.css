@@ -21,6 +21,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* A density region sets its own copy size and leading, as body does for
+     the page (see tokens.css, Density). */
+  [data-density] {
+    font-size: var(--sf-font-size-md);
+    line-height: var(--sf-line-height-grid);
+  }
+
   button,
   input,
   select,

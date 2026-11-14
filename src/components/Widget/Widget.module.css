@@ -61,10 +61,10 @@
 }
 .select,
 .text {
-  inline-size: clamp(6rem, 14vw, 9rem);
+  inline-size: clamp(calc(var(--sf-unit) * 4), 14vw, calc(var(--sf-unit) * 6));
 }
 .date {
-  inline-size: 8.5rem;
+  inline-size: calc(var(--sf-unit) * 17 / 3);
 }
 .summary {
   min-inline-size: 0;

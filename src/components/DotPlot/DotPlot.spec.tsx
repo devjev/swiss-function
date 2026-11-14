@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ChartAnnotation } from "../../lib/chart";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { DotPlotHarness } from "./DotPlot.harness";
 
 const CATEGORIES = ["Alpha", "Beta", "Gamma", "Delta"];
@@ -153,7 +154,7 @@ test("many rows: the plot grows so no row drops under one unit", async ({ mount 
   const c = await mount(<DotPlotHarness categories={categories} series={series} height={240} />);
   const svg = await c.locator("svg[role='img']").boundingBox();
   if (!svg) throw new Error("no svg box");
-  expect(svg.height).toBeGreaterThanOrEqual(40 * 24 - 1);
+  expect(svg.height).toBeGreaterThanOrEqual(40 * U - 1);
   await expect(c.locator('[data-orientation="y"] [data-tick]')).toHaveCount(40);
 });
 

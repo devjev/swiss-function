@@ -53,17 +53,10 @@ export function cellLines(rowHeight: number, leading: number, breathing: number)
   return Math.max(1, Math.floor((rowHeight - breathing) / leading));
 }
 
-/** Resolve a CSS length (`var(--sf-unit)`, `calc(...)`) to px in the
- *  context of `parent`, through a hidden probe, so JS clamps agree with the
- *  token the CSS uses. Reads layout: call it at measurement time only. */
-export function measureCssLength(parent: HTMLElement, value: string): number {
-  const probe = document.createElement("div");
-  probe.style.cssText = `position:absolute;visibility:hidden;width:${value};`;
-  parent.appendChild(probe);
-  const w = probe.getBoundingClientRect().width;
-  probe.remove();
-  return w;
-}
+// `measureCssLength` lives in lib/useCssPx (no dependencies, so a component
+// that only needs the unit in px does not pull this module in); re-exported
+// here for the column code that imports it from this file.
+export { measureCssLength } from "../useCssPx";
 
 export interface HeaderNeedOptions {
   /** The header's label element (the title). Measured on `lines` lines. */

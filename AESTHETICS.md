@@ -72,9 +72,9 @@ ornament do elsewhere.
   point. Hierarchy beyond these three lives in **weight, spacing, and
   rule lines**, not in a fourth size.
 - **Two line heights**: `1.25` tight (unitless, for dense single-line
-  controls like buttons, inputs, tabs) and `--sf-line-height-grid` (an
-  absolute `1.5rem`, for block text, the value that locks prose to the baseline
-  grid regardless of font-size).
+  controls like buttons, inputs, tabs) and `--sf-line-height-grid` (one
+  unit, an absolute length, for block text: the value that locks prose to
+  the baseline grid regardless of font-size).
 - **For long-form documents**, reach for `--sf-measure` (65ch) to cap
   line length, and `text-wrap: pretty` for paragraph flow. Code,
   tables, and figures live at `--sf-measure-wide` (80ch).
@@ -115,9 +115,18 @@ ones recede.
 The page is not a slide. Information should fit on it without
 journeying.
 
-- **Spacing scales from `--sf-unit`** (1.5rem, equal to the leading of
-  body text). Every gap, padding, and component height is a multiple of
-  that unit. That's why the whole system lines up on the baseline grid.
+- **Spacing scales from `--sf-unit`**, the leading of body text. Every
+  gap, padding, and component height is a multiple of that unit. That's
+  why the whole system lines up on the baseline grid.
+- **The default density is compact**: 14px text on a 20px unit. A
+  control is 30px, a small one 20px, a table row 25px. These are the
+  metrics of a working tool: a trading screen, a spreadsheet, an IDE.
+  16px text on 24px with 36px rows is the scale of a reading page, and
+  on a screen of fields and tables it reads as a slide. A density is
+  four values (the copy size, its leading, the two neighbouring type
+  sizes); everything else follows from the unit.
+  `data-density="comfortable"` on any ancestor restores the roomier
+  16px on 24px for a reading view.
 - **No oversized whitespace for "breathing room".** Whitespace earns
   its place by separating things that need separation. If two elements
   are related, they sit close. If they aren't, they sit at one unit's
@@ -202,7 +211,7 @@ Depth indicates layer, not personality.
   Pressed is travel: the face stays, the cast drops a step and the key
   moves 1px. Never an inverted dent, which reads as a hollow tile. The
   geometry and alphas are Ambient CSS's Blender-fitted constants (MIT),
-  rescaled to the 24px unit, with the lamp's colour cast removed. The
+  rescaled to the unit, with the lamp's colour cast removed. The
   dark theme re-declares the tokens (a dimmer lit band, a deeper shade
   band, a soft cast under small caps), so components carry no dark
   overrides of their own.

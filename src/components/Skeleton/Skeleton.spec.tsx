@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Skeleton } from "./Skeleton";
 
 test("renders a div with aria-hidden by default", async ({ mount }) => {
@@ -7,16 +8,16 @@ test("renders a div with aria-hidden by default", async ({ mount }) => {
   await expect(component).toHaveAttribute("aria-hidden", "true");
 });
 
-test("default height is one --sf-unit (24px at default leading)", async ({ mount }) => {
+test("default height is one --sf-unit", async ({ mount }) => {
   const component = await mount(<Skeleton width={5} />);
   const height = await component.evaluate((el) => getComputedStyle(el).height);
-  expect(height).toBe("24px");
+  expect(height).toBe(`${U}px`);
 });
 
-test("width={5} resolves to 5 × --sf-unit (120px)", async ({ mount }) => {
+test("width={5} resolves to 5 × --sf-unit", async ({ mount }) => {
   const component = await mount(<Skeleton width={5} />);
   const width = await component.evaluate((el) => getComputedStyle(el).width);
-  expect(width).toBe("120px");
+  expect(width).toBe(`${5 * U}px`);
 });
 
 test("size shorthand applies to both width and height", async ({ mount }) => {
@@ -25,8 +26,8 @@ test("size shorthand applies to both width and height", async ({ mount }) => {
     const cs = getComputedStyle(el);
     return { width: cs.width, height: cs.height };
   });
-  expect(width).toBe("72px");
-  expect(height).toBe("72px");
+  expect(width).toBe(`${3 * U}px`);
+  expect(height).toBe(`${3 * U}px`);
 });
 
 test("shape='circle' yields a round element (radius = 50% or half of size)", async ({ mount }) => {

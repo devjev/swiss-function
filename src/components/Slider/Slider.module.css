@@ -279,7 +279,7 @@
 .root[data-orientation="vertical"] .control {
   flex-direction: column;
   inline-size: auto;
-  block-size: var(--sf-slider-length, 12rem);
+  block-size: var(--sf-slider-length, calc(var(--sf-unit) * 8));
   min-block-size: 0;
   min-inline-size: var(--sf-slider-thumb-size);
 }
@@ -313,7 +313,7 @@
 }
 .root[data-orientation="vertical"] .ticks {
   inline-size: calc(var(--sf-unit) * 0.75);
-  block-size: var(--sf-slider-length, 12rem);
+  block-size: var(--sf-slider-length, calc(var(--sf-unit) * 8));
 }
 .root[data-orientation="vertical"] .tick {
   inset-block-start: auto;

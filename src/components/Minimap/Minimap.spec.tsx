@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import {
   Clustered,
   DenseScroll,
@@ -212,14 +213,14 @@ test("min-block mode: the rail grows taller than its viewport and scrolls", asyn
   await expect
     .poll(() => rail.evaluate((el) => el.scrollHeight - el.clientHeight))
     .toBeGreaterThan(100);
-  // No block marker is shorter than 0.5u (12px at the default unit).
+  // No block marker is shorter than 0.5u.
   const minBlock = await page.evaluate(() => {
     const heights = [...document.querySelectorAll('[class*="markers"] > div')].map(
       (m) => Number.parseFloat((m as HTMLElement).style.height) || 0,
     );
     return Math.min(...heights);
   });
-  expect(minBlock).toBeGreaterThanOrEqual(11.5);
+  expect(minBlock).toBeGreaterThanOrEqual(U / 2 - 0.5);
 });
 
 test("min-block mode: the rail follows the main content scroll", async ({ mount, page }) => {

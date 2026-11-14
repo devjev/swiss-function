@@ -164,7 +164,9 @@ export interface ExplorerProps<M = unknown>
    *  `lg` enlarges it. Applies to header + body. Independent of `cellPadding`. */
   cellFontSize?: "xs" | "sm" | "md" | "lg";
 
-  /** Row height in px. Default 32 (≈ unit * 4/3). */
+  /** Row height in px. Default: the `--sf-table-row-height` token, measured
+   *  when the tree mounts (25px at the default compact density, 36px under
+   *  `data-density="comfortable"`), the same row as DataTable. */
   rowHeight?: number;
   /** Viewport height. Default `"100%"` — fills the parent (the common case
    *  in a real app layout). Pass a number for pixels (`height={500}`) or a

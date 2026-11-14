@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX } from "../../lib/useCssPx";
 import { DatePicker } from "../DatePicker";
 import { Input } from "../Input";
 import { TextEdit } from "../TextEdit";
 import { FieldLayout } from "./FieldLayout";
 
 // The unit is 1.5rem = 24px at the default root font size.
-const U = 24;
+// One --sf-unit in px at the default density.
+const U = DEFAULT_UNIT_PX;
 
 test("a rigid field holds its whole-unit width; a row with a filler justifies", async ({
   mount,
@@ -116,7 +118,7 @@ test("a resizable control defaults to a whole-unit height and snaps after a resi
   );
   const ta = c.getByRole("textbox", { name: "Notes" });
 
-  // rows=4 paints at 4.5u (108px); the snap lifts it onto the grid on mount.
+  // rows=4 paints at 4.5u; the snap lifts it onto the grid on mount.
   await expect
     .poll(async () => {
       const h = (await ta.boundingBox())?.height ?? 0;
@@ -125,10 +127,14 @@ test("a resizable control defaults to a whole-unit height and snaps after a resi
     .toBe(0);
 
   // Simulate a drag-resize to an off-grid height; it snaps to the nearest unit.
-  await ta.evaluate((el) => {
-    (el as HTMLElement).style.height = "100px";
-  });
-  await expect.poll(async () => Math.round((await ta.boundingBox())?.height ?? 0)).toBe(4 * U); // 100px → nearest 4u = 96px
+  await ta.evaluate(
+    (el, px) => {
+      (el as HTMLElement).style.height = `${px}px`;
+    },
+    4 * U + 4,
+  );
+  // A few px over 4u → the nearest unit is 4u.
+  await expect.poll(async () => Math.round((await ta.boundingBox())?.height ?? 0)).toBe(4 * U);
 });
 
 test("a rigid control keeps its width when narrow; the hint wraps beneath (issue #33)", async ({

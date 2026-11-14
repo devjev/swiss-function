@@ -4,9 +4,16 @@
     /* Foundation: typography base
        --sf-font-size-base is the default copy text size.
        --sf-leading-base is the copy text leading and the basic size unit
-       on which the rest of the system is built (spacing, density, etc.). */
-    --sf-font-size-base: 1rem;
-    --sf-leading-base: 1.5rem;
+       on which the rest of the system is built (spacing, density, etc.).
+
+       These two, with --sf-font-size-sm / -lg below, are the DENSITY of the
+       system, and the values here are the compact density, the default:
+       14px text on a 20px line. A control is 30px, a small one 20px, a
+       large one 40px. `data-density="comfortable"` on any ancestor switches
+       a subtree to 16px on 24px (36 / 24 / 48px controls); see the density
+       blocks at the end of this file. */
+    --sf-font-size-base: 0.875rem;
+    --sf-leading-base: 1.25rem;
 
     /* The basic size unit — equal to the copy text leading.
        All spacing, density, and dimensional tokens should derive from this. */
@@ -92,17 +99,20 @@
     --sf-color-code-active-line: color-mix(in srgb, var(--sf-color-fg), transparent 96%);
     --sf-color-code-matched-bracket: color-mix(in srgb, var(--sf-color-primary), transparent 65%);
 
-    /* Spacing */
+    /* Spacing: a ladder of sixths of the unit, so it follows the density.
+       The step number is the size in quarter-rems at the comfortable density
+       (--sf-space-4 is 1rem there, two thirds of the 24px unit). Prefer a
+       plain multiple of --sf-unit; this ladder is for the fractions. */
     --sf-space-0: 0;
-    --sf-space-1: 0.25rem;
-    --sf-space-2: 0.5rem;
-    --sf-space-3: 0.75rem;
-    --sf-space-4: 1rem;
-    --sf-space-5: 1.25rem;
-    --sf-space-6: 1.5rem;
-    --sf-space-8: 2rem;
-    --sf-space-10: 2.5rem;
-    --sf-space-12: 3rem;
+    --sf-space-1: calc(var(--sf-unit) / 6);
+    --sf-space-2: calc(var(--sf-unit) / 3);
+    --sf-space-3: calc(var(--sf-unit) / 2);
+    --sf-space-4: calc(var(--sf-unit) * 2 / 3);
+    --sf-space-5: calc(var(--sf-unit) * 5 / 6);
+    --sf-space-6: var(--sf-unit);
+    --sf-space-8: calc(var(--sf-unit) * 4 / 3);
+    --sf-space-10: calc(var(--sf-unit) * 5 / 3);
+    --sf-space-12: calc(var(--sf-unit) * 2);
 
     /* Radii */
     --sf-radius-xs: 0.125rem;
@@ -138,12 +148,13 @@
        browsers without font-size-adjust simply keep the current rendering. */
     --sf-font-mono-adjust: 0.52;
     /* Three sizes total. Body text sits at md (the foundation); sm and lg
-       sit ~2px on either side for secondary content and emphasis. There is
-       no xs / xl / 2xl — restraint is the point. Hierarchy beyond these
-       three lives in weight, not size. */
-    --sf-font-size-sm: 0.875rem;
+       sit 2px on either side for secondary content and emphasis (12 / 14 /
+       16px at the compact density, 14 / 16 / 18px at the comfortable one).
+       There is no xs / xl / 2xl — restraint is the point. Hierarchy beyond
+       these three lives in weight, not size. */
+    --sf-font-size-sm: 0.75rem;
     --sf-font-size-md: var(--sf-font-size-base);
-    --sf-font-size-lg: 1.125rem;
+    --sf-font-size-lg: 1rem;
     --sf-font-weight-regular: 400;
     --sf-font-weight-medium: 500;
     --sf-font-weight-semibold: 600;
@@ -355,6 +366,13 @@
     --sf-scrollbar-thumb-hover: var(--sf-color-primary);
     --sf-scrollbar-track: transparent;
 
+    /* The default body row of DataTable and Explorer. 1.25 units at the
+       compact density (25px: a 12px cell line with room to click), 1.5 units
+       under `data-density="comfortable"` (36px). A dimension token, so the
+       small-palette rule is untouched. Both components measure it in px when
+       they mount; their `rowHeight` prop overrides it per instance. */
+    --sf-table-row-height: calc(var(--sf-unit) * 1.25);
+
     /* Minimap rail width (issue #73): a slim rail (heading labels truncate to
        fit, captions ride over the density blocks). A dimension token, not a
        color, so the small-palette rule is untouched. The Minimap `width` prop
@@ -491,5 +509,68 @@
       calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.4);
     --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
       rgb(255 255 255 / 0.05);
+  }
+
+  /* Density. Four tokens set it: the copy size, its leading (the unit) and
+     the two neighbouring type sizes. Everything else in the system is a
+     multiple of the unit or one of the three sizes, so a density is these
+     four values and nothing more.
+
+     `data-density="comfortable"` restores the roomier 16px on 24px, for a
+     reading view or an app that kept the old metrics; `data-density="compact"`
+     names the default, to switch a region back inside a comfortable one. Set
+     it on any element, like `data-theme`.
+
+     These blocks come after the theme blocks so they win on an element that
+     carries both attributes. The second selector of each pair keeps a
+     `data-theme` element nested in a density region at that density (the
+     light theme block declares the default sizes again and would otherwise
+     reset them).
+
+     A component that needs the unit in px (a virtualised row height) measures
+     it once when it mounts, so set the density before the subtree mounts or
+     remount it on a change. */
+  [data-density="comfortable"],
+  [data-density="comfortable"] [data-theme] {
+    --sf-font-size-base: 1rem;
+    --sf-leading-base: 1.5rem;
+    --sf-font-size-sm: 0.875rem;
+    --sf-font-size-lg: 1.125rem;
+    --sf-table-row-height: calc(var(--sf-unit) * 1.5);
+  }
+
+  [data-density="compact"],
+  [data-density="compact"] [data-theme] {
+    --sf-font-size-base: 0.875rem;
+    --sf-leading-base: 1.25rem;
+    --sf-font-size-sm: 0.75rem;
+    --sf-font-size-lg: 1rem;
+    --sf-table-row-height: calc(var(--sf-unit) * 1.25);
+  }
+
+  /* The tokens derived from the four above. A custom property substitutes
+     its var()s where it is declared, so the values computed on the root
+     would otherwise inherit into a density region unchanged: each derived
+     token is declared again here. Keep this list in step with the first
+     block when a token there starts to read --sf-unit or a type size. */
+  [data-density],
+  [data-density] [data-theme] {
+    --sf-unit: var(--sf-leading-base);
+    --sf-font-size-md: var(--sf-font-size-base);
+    --sf-line-height-grid: var(--sf-unit);
+    --sf-space-1: calc(var(--sf-unit) / 6);
+    --sf-space-2: calc(var(--sf-unit) / 3);
+    --sf-space-3: calc(var(--sf-unit) / 2);
+    --sf-space-4: calc(var(--sf-unit) * 2 / 3);
+    --sf-space-5: calc(var(--sf-unit) * 5 / 6);
+    --sf-space-6: var(--sf-unit);
+    --sf-space-8: calc(var(--sf-unit) * 4 / 3);
+    --sf-space-10: calc(var(--sf-unit) * 5 / 3);
+    --sf-space-12: calc(var(--sf-unit) * 2);
+    --sf-prose-paragraph-spacing: calc(var(--sf-unit) / 4);
+    --sf-prose-list-item-spacing: calc(var(--sf-unit) / 6);
+    --sf-prose-heading-spacing: var(--sf-unit);
+    --sf-prose-heading-trail: calc(var(--sf-unit) / 2);
+    --sf-minimap-width: calc(var(--sf-unit) * 3);
   }
 }

@@ -5,7 +5,7 @@
   --cp-checker:
     repeating-conic-gradient(var(--sf-color-border-subtle) 0% 25%, var(--sf-color-bg) 0% 50%) 0 0 /
     12px 12px;
-  --cp-num-width: 5rem;
+  --cp-num-width: calc(var(--sf-unit) * 10 / 3);
   /* Backdrop revealed under a channel track where the colour is out of the sRGB
      gamut (the ramp goes transparent there): a fine muted hatch over the slot,
      reading as "out of range". */
@@ -19,7 +19,7 @@
 
   display: grid;
   gap: calc(var(--sf-unit) / 2);
-  inline-size: 20.5rem;
+  inline-size: calc(var(--sf-unit) * 41 / 3);
   padding: calc(var(--sf-unit) * 0.75);
   background-color: var(--sf-color-bg);
   border: 1px solid var(--sf-color-border-strong);
@@ -28,13 +28,13 @@
   font-family: var(--sf-font-sans);
 }
 .sm {
-  inline-size: 17rem;
+  inline-size: calc(var(--sf-unit) * 34 / 3);
   gap: calc(var(--sf-unit) / 3);
-  --cp-num-width: 4.25rem;
+  --cp-num-width: calc(var(--sf-unit) * 17 / 6);
 }
 .lg {
-  inline-size: 24rem;
-  --cp-num-width: 5.75rem;
+  inline-size: calc(var(--sf-unit) * 16);
+  --cp-num-width: calc(var(--sf-unit) * 23 / 6);
 }
 /* Embed cleanly in another surface (e.g. Popover.Popup): drop our own chrome. */
 .bare {
@@ -195,7 +195,7 @@ button.swatch:disabled {
 .diagram {
   position: relative;
   inline-size: 100%;
-  max-inline-size: 13.5rem;
+  max-inline-size: calc(var(--sf-unit) * 9);
   aspect-ratio: 1;
 }
 .diagram[data-interactive] {

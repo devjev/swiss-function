@@ -2,8 +2,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.125rem;
-  height: 1.125rem;
+  /* Three quarters of the unit, so the box follows the density (15px
+     compact, 18px comfortable) and sits inside one line of text. */
+  width: calc(var(--sf-unit) * 0.75);
+  height: calc(var(--sf-unit) * 0.75);
+  flex: none;
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
@@ -69,8 +72,8 @@
 }
 
 .icon {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: calc(var(--sf-unit) / 2);
+  height: calc(var(--sf-unit) / 2);
   stroke: currentColor;
   stroke-width: 3;
   fill: none;

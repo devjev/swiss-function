@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { TextEditInline } from "./TextEditInline";
 
 const LONG = "A single line at rest that is comfortably too long to fit, so it gets ellipsized.";
@@ -80,6 +81,6 @@ test("a manual resize height survives further typing", async ({ mount }) => {
 test("size maps to the Input single-line heights (md = 1.5u)", async ({ mount }) => {
   const component = await mount(<TextEditInline size="md" defaultValue="x" />);
   const height = await component.evaluate((el) => getComputedStyle(el).blockSize);
-  // --sf-unit is 1.5rem = 24px, so md is 1.5u = 36px.
-  expect(height).toBe("36px");
+  // md is 1.5u.
+  expect(height).toBe(`${1.5 * U}px`);
 });

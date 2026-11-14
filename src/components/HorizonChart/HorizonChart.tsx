@@ -44,6 +44,7 @@ import {
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import { formatNumber } from "../../lib/format";
+import { DEFAULT_UNIT_PX } from "../../lib/useCssPx";
 import {
   bandColor,
   bandPath,
@@ -149,7 +150,6 @@ interface BandShape {
 }
 
 const MAX_TOOLTIP_ROWS = 16;
-const DEFAULT_UNIT_PX = 24;
 const MAX_LABEL_UNITS = 8;
 
 function isDateValue(x: HorizonX): x is Date {

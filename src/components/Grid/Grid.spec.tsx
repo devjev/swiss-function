@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Grid } from "./Grid";
 
 test("renders a div by default with display: grid", async ({ mount }) => {
@@ -20,14 +21,14 @@ test("columns={2} produces a 2-track template", async ({ mount }) => {
   expect(template.split(/\s+/).filter(Boolean)).toHaveLength(2);
 });
 
-test("gap={1} resolves to one --sf-unit (24px at default leading)", async ({ mount }) => {
+test("gap={1} resolves to one --sf-unit", async ({ mount }) => {
   const component = await mount(
     <Grid gap={1}>
       <div>a</div>
     </Grid>,
   );
   const gap = await component.evaluate((el) => getComputedStyle(el).gap);
-  expect(gap).toBe("24px");
+  expect(gap).toBe(`${U}px`);
 });
 
 test("areas produces a quoted-rows grid-template-areas string", async ({ mount }) => {

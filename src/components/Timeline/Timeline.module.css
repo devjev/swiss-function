@@ -355,7 +355,7 @@
   font-size: calc(var(--sf-font-size-sm) * 0.85);
 }
 .viewport[data-compact][data-size="sm"] .scrubValue {
-  font-size: calc(var(--sf-font-size-sm) * 0.75);
+  font-size: max(0.625rem, calc(var(--sf-font-size-sm) * 0.75));
 }
 .viewport[data-compact] .event:hover .eventLabel,
 .viewport[data-compact] .event:focus-within .eventLabel,

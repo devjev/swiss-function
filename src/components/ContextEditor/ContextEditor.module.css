@@ -6,7 +6,7 @@
 
 .root {
   display: grid;
-  grid-template-columns: var(--sf-context-editor-left, 15rem) 1fr;
+  grid-template-columns: var(--sf-context-editor-left, calc(var(--sf-unit) * 10)) 1fr;
   grid-template-rows: minmax(0, 1fr);
   block-size: 100%;
   border: 1px solid var(--sf-color-border-strong);
@@ -199,7 +199,10 @@
 
 .row {
   display: grid;
-  grid-template-columns: calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto calc(var(--sf-unit) * 3.5);
+  grid-template-columns: calc(var(--sf-unit) * 2) minmax(calc(var(--sf-unit) * 2), 1fr) auto calc(
+      var(--sf-unit) *
+      3.5
+    );
   align-items: center;
   gap: calc(var(--sf-unit) / 2);
   padding-inline: calc(var(--sf-unit) / 2);
@@ -212,7 +215,7 @@
 /* Editable rows add a leading drag grip for reordering. */
 .rowLive {
   grid-template-columns:
-    calc(var(--sf-unit) / 1.5) calc(var(--sf-unit) * 2) minmax(3rem, 1fr) auto
+    calc(var(--sf-unit) / 1.5) calc(var(--sf-unit) * 2) minmax(calc(var(--sf-unit) * 2), 1fr) auto
     calc(var(--sf-unit) * 3.5);
 }
 

@@ -503,6 +503,8 @@ export const storyDocs: Record<string, string> = {
     "The three control heights (`size` sm/md/lg) stacked, matching the `Input` sizes. Reach for this to pick the height that fits the surrounding form density.",
   "datepicker--week-numbers":
     "Adds a leading column of ISO week numbers via `showWeekNumbers`, the full ISO 8601 posture. Turn it on when users track dates by calendar week.",
+  "density--compare":
+    'The two densities side by side on the same controls and table: the default compact metrics (14px text on a 20px unit, 30px controls, 25px table rows) and `data-density="comfortable"` (16px on 24px, 36px controls and rows). Each region carries its own `data-density` attribute.',
   "dialog--default":
     "The plain modal: trigger button, faint backdrop, `Dialog.Title` and `Dialog.Description`, and a right-aligned row of `Dialog.Close` buttons. Reach for this for a confirmation or a destructive action, where the danger variant sits beside a secondary cancel.",
   "dialog--window":
@@ -714,7 +716,7 @@ export const storyDocs: Record<string, string> = {
   "knob--stereo":
     'A hi-fi front panel on a `Box`: a large labelled volume knob, three bipolar tone controls (balance, bass, treble with `fillOrigin="center"` and a neutral tone) and a loudness `Switch`. The showcase for the material layer on a rotary control.',
   "materials--controls":
-    "Every control that wears the material layer, each in its three faces where it has one: Button, Kbd and the LaunchButton lid (dish by default), Switch (dome), Slider (flat), plus the groove slots and the caps. Read it in both themes: the tokens carry their own dark values.",
+    "Every control that wears the material layer, each in its three faces where it has one: Button (flat by default), Kbd and the LaunchButton lid (dish by default), Switch (dome), Slider (flat), plus the groove slots and the caps. Read it in both themes: the tokens carry their own dark values.",
   "materials--recipes":
     "The material layer's recipes on bare boxes: the edge bands, the groove, the cap depths, and the dish / dome faces over a neutral and a primary base. A change to a token in tokens.css can be read across the whole lattice here.",
   "map--areas-and-vectors":

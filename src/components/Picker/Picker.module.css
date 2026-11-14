@@ -8,7 +8,7 @@
      overflows (issue #25 stays fixed for cells >= this floor). `12rem` matches
      the dropdown's own `min-width`. Set `--sf-picker-min-inline-size: 0` to
      disable. Mirrors Selector. */
-  min-inline-size: var(--sf-picker-min-inline-size, 12rem);
+  min-inline-size: var(--sf-picker-min-inline-size, calc(var(--sf-unit) * 8));
 }
 
 /* The field hosts the search input plus an optional inline clear button; the

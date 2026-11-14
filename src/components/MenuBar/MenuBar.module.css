@@ -140,7 +140,7 @@
   padding-inline-start: calc(var(--sf-unit) / 2);
 }
 .search {
-  inline-size: clamp(8rem, 20vw, 14rem);
+  inline-size: clamp(calc(var(--sf-unit) * 16 / 3), 20vw, calc(var(--sf-unit) * 28 / 3));
 }
 
 /* `fill`: the slot takes the bar's remaining room and the field stretches

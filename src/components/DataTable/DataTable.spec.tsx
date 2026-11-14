@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { DataTable } from "./DataTable";
 import {
   CellBackgroundHarness,
@@ -443,9 +444,9 @@ test("dragging far left clamps the column at its minimum width", async ({ mount,
   await dragHandle(page, component.locator('[data-column-id="name"]'), -400);
   const after = await header.boundingBox();
   if (!after) throw new Error("missing header bounding box");
-  // --sf-unit is 24px, min is 3 units = 72px. Allow a little slack.
-  expect(after.width).toBeGreaterThanOrEqual(70);
-  expect(after.width).toBeLessThan(100);
+  // The minimum is 3 units. Allow a little slack.
+  expect(after.width).toBeGreaterThanOrEqual(3 * U - 2);
+  expect(after.width).toBeLessThan(3 * U + 28);
 });
 
 test("double-click the handle auto-fits the column to its content", async ({ mount, page }) => {
@@ -1021,8 +1022,8 @@ test("cellPadding and cellFontSize scale header + body cells", async ({ mount })
       });
   const xs = await read("xs");
   const lg = await read("lg");
-  expect(xs.pad).toBe(6);
-  expect(lg.pad).toBe(18);
+  expect(xs.pad).toBe(U / 4);
+  expect(lg.pad).toBe((U * 3) / 4);
   expect(xs.font).toBeLessThan(lg.font);
 });
 
@@ -1529,13 +1530,13 @@ test("a column colour tints its heading key without flattening it", async ({ mou
 // --- Per-column minWidth on every resize path (issue #100) ---------------
 
 test("a column with minWidth cannot be dragged below it", async ({ mount, page }) => {
-  // minWidth 10u = 240px at the default unit, well above the 3u global floor.
+  // minWidth 10u, well above the 3u global floor.
   const c = await mount(<CellBackgroundHarness minWidth={10} />);
   const header = c.getByRole("columnheader", { name: "Region" });
   await dragHandle(page, c.locator('[data-column-id="region"]'), -400);
   const after = await header.boundingBox();
   if (!after) throw new Error("missing header bounding box");
-  expect(after.width).toBeGreaterThanOrEqual(236);
+  expect(after.width).toBeGreaterThanOrEqual(10 * U - 4);
 });
 
 test("a column without minWidth still stops at the global floor", async ({ mount, page }) => {
@@ -1544,8 +1545,8 @@ test("a column without minWidth still stops at the global floor", async ({ mount
   await dragHandle(page, c.locator('[data-column-id="region"]'), -400);
   const after = await header.boundingBox();
   if (!after) throw new Error("missing header bounding box");
-  expect(after.width).toBeGreaterThanOrEqual(70);
-  expect(after.width).toBeLessThan(100);
+  expect(after.width).toBeGreaterThanOrEqual(3 * U - 2);
+  expect(after.width).toBeLessThan(3 * U + 28);
 });
 
 test("the keyboard resize honours minWidth too", async ({ mount, page }) => {
@@ -1556,14 +1557,20 @@ test("the keyboard resize honours minWidth too", async ({ mount, page }) => {
   for (let i = 0; i < 20; i++) await page.keyboard.press("Shift+ArrowLeft");
   const after = await header.boundingBox();
   if (!after) throw new Error("missing header bounding box");
-  expect(after.width).toBeGreaterThanOrEqual(236);
+  expect(after.width).toBeGreaterThanOrEqual(10 * U - 4);
 });
 
 test("the handle announces the column's own minimum", async ({ mount }) => {
   const c = await mount(<CellBackgroundHarness minWidth={10} />);
-  await expect(c.locator('[data-column-id="region"]')).toHaveAttribute("aria-valuemin", "240");
-  // A column with no floor of its own reports the global one (3u = 72px).
-  await expect(c.locator('[data-column-id="value"]')).toHaveAttribute("aria-valuemin", "72");
+  await expect(c.locator('[data-column-id="region"]')).toHaveAttribute(
+    "aria-valuemin",
+    String(10 * U),
+  );
+  // A column with no floor of its own reports the global one (3u).
+  await expect(c.locator('[data-column-id="value"]')).toHaveAttribute(
+    "aria-valuemin",
+    String(3 * U),
+  );
 });
 
 // --- Merged header keys carry their title centred (issue #101) -----------
@@ -1725,9 +1732,9 @@ test("headerLines: 2 wraps the title to two lines and floors the column where it
   const header = c.getByRole("columnheader", { name: "Region of incorporation" });
   const handle = c.locator('[data-column-id="region"]');
   const twoLineMin = Number(await handle.getAttribute("aria-valuemin"));
-  // Two lines need less width than one, but still more than the 72px floor.
+  // Two lines need less width than one, but still more than the 3u floor.
   expect(twoLineMin).toBeLessThan(oneLineMin);
-  expect(twoLineMin).toBeGreaterThan(72);
+  expect(twoLineMin).toBeGreaterThan(3 * U);
   await dragHandle(page, handle, -400);
   const m = await header.evaluate((el) => {
     const label = el.querySelector("span") as HTMLElement;
@@ -1741,11 +1748,11 @@ test("headerLines: 2 wraps the title to two lines and floors the column where it
   });
   expect(Math.abs(m.width - twoLineMin)).toBeLessThanOrEqual(1);
   expect(m.clipped).toBe(false);
-  // Two lines of 24px leading in a 2.5u (60px) key: never a third line.
-  expect(m.labelH).toBeGreaterThan(40);
-  expect(m.labelH).toBeLessThanOrEqual(49);
-  expect(m.cellH).toBeGreaterThanOrEqual(59);
-  expect(m.cellH).toBeLessThanOrEqual(61);
+  // Two lines of one unit of leading in a 2.5u key: never a third line.
+  expect(m.labelH).toBeGreaterThan(1.6 * U);
+  expect(m.labelH).toBeLessThanOrEqual(2 * U + 1);
+  expect(m.cellH).toBeGreaterThanOrEqual(2.5 * U - 1);
+  expect(m.cellH).toBeLessThanOrEqual(2.5 * U + 1);
 });
 
 test("a collapsed group keeps its headerLines on the placeholder key", async ({ mount, page }) => {
@@ -1758,8 +1765,8 @@ test("a collapsed group keeps its headerLines on the placeholder key", async ({ 
     return { labelH: label.getBoundingClientRect().height, lines: el.getAttribute("data-lines") };
   });
   expect(m.lines).toBe("2");
-  expect(m.labelH).toBeGreaterThan(40);
-  expect(m.labelH).toBeLessThanOrEqual(49);
+  expect(m.labelH).toBeGreaterThan(1.6 * U);
+  expect(m.labelH).toBeLessThanOrEqual(2 * U + 1);
   const key = await header.boundingBox();
   const chevron = await header.getByRole("button", { name: "Expand group" }).boundingBox();
   if (!key || !chevron) throw new Error("missing bounding box");
@@ -1769,7 +1776,7 @@ test("a collapsed group keeps its headerLines on the placeholder key", async ({ 
 // --- Cell overflow modes (issue #102) --------------------------------------
 
 test("wrap: a value takes the lines the row holds, then clamps", async ({ mount }) => {
-  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={60} />);
+  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={2.5 * U} />);
   const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
   await expect(cell).toHaveAttribute("data-wrap", "true");
   const m = await cell.evaluate((el) => {
@@ -1781,11 +1788,11 @@ test("wrap: a value takes the lines the row holds, then clamps", async ({ mount 
       whiteSpace: cs.whiteSpace,
     };
   });
-  // Two 24px lines in a 60px row.
+  // Two lines of one unit each in a 2.5u row.
   expect(m.clamp).toBe("2");
   expect(m.whiteSpace).toBe("normal");
-  expect(m.bodyH).toBeGreaterThan(40);
-  expect(m.bodyH).toBeLessThanOrEqual(49);
+  expect(m.bodyH).toBeGreaterThan(1.6 * U);
+  expect(m.bodyH).toBeLessThanOrEqual(2 * U + 1);
 });
 
 test("wrap at the default row height is one line", async ({ mount }) => {
@@ -2123,26 +2130,26 @@ test("Shift+drag inside a group trades width freely: the group's sum holds, so o
     await page.mouse.up();
     await page.keyboard.up("Shift");
   };
-  // Left: Q1 reaches its own 72px floor (the pair's sum never breaches the title).
+  // Left: Q1 reaches its own 3u floor (the pair's sum never breaches the title).
   await shiftDrag(-400);
   let a = await q1.boundingBox();
   let b = await q2.boundingBox();
   if (!a || !b) throw new Error("missing boxes");
-  expect(Math.abs(a.width - 72)).toBeLessThanOrEqual(1);
+  expect(Math.abs(a.width - 3 * U)).toBeLessThanOrEqual(1);
   expect(Math.abs(a.width + b.width - total)).toBeLessThanOrEqual(1);
   // Right: Q2 reaches its floor and Q1 takes the rest.
   await shiftDrag(400);
   a = await q1.boundingBox();
   b = await q2.boundingBox();
   if (!a || !b) throw new Error("missing boxes");
-  expect(Math.abs(b.width - 72)).toBeLessThanOrEqual(1);
+  expect(Math.abs(b.width - 3 * U)).toBeLessThanOrEqual(1);
   expect(Math.abs(a.width + b.width - total)).toBeLessThanOrEqual(1);
 });
 
 test("auto-fit on a wrap column is the width at which the value takes one line", async ({
   mount,
 }) => {
-  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={60} />);
+  const c = await mount(<CellOverflowHarness mode="wrap" rowHeight={2.5 * U} />);
   const cell = c.getByRole("gridcell").filter({ hasText: "A long remark" });
   const before = await cell.boundingBox();
   await c.locator('[data-column-id="note"]').dblclick();
@@ -2152,7 +2159,7 @@ test("auto-fit on a wrap column is the width at which the value takes one line",
   const bodyH = await cell.evaluate(
     (el) => (el.querySelector("span") as HTMLElement).getBoundingClientRect().height,
   );
-  expect(bodyH).toBeLessThanOrEqual(25);
+  expect(bodyH).toBeLessThanOrEqual(U + 1);
 });
 
 test("a clipped cell reveals its whole value in title on hover; a fitting one carries none", async ({

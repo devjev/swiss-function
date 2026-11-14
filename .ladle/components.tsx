@@ -11,10 +11,17 @@ export const Provider: GlobalProvider = ({ children, globalState }) => {
   const isPreview =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("mode") === "preview";
+  // `?density=comfortable` renders the story at the roomier density (the
+  // default is compact); see tokens.css, Density.
+  const density =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("density")
+      : null;
   const doc = storyDocs[globalState.story];
   return (
     <div
       data-theme={theme}
+      data-density={density === "comfortable" || density === "compact" ? density : undefined}
       style={{
         padding: "2rem",
         minHeight: "100vh",
@@ -32,7 +39,7 @@ export const Provider: GlobalProvider = ({ children, globalState }) => {
             borderBottom: "1px solid var(--sf-color-border)",
             color: "var(--sf-color-fg)",
             fontSize: "var(--sf-font-size-sm)",
-            lineHeight: "var(--sf-line-height-base)",
+            lineHeight: "var(--sf-line-height-grid)",
           }}
         >
           {doc}

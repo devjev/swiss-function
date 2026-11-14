@@ -129,7 +129,10 @@ export function MixedHeightsCappedForm() {
           <Input />
         </VerticalForm.Field>
         <VerticalForm.Field label="Tall">
-          <div style={{ height: 140, background: "var(--sf-color-bg-subtle)" }}>tall</div>
+          {/* 100px: tall next to the short field, yet under the 2-unit cap at
+              the rail's natural scale at either density, so only the giant
+              is capped. */}
+          <div style={{ height: 100, background: "var(--sf-color-bg-subtle)" }}>tall</div>
         </VerticalForm.Field>
         <VerticalForm.Field label="Giant">
           <div style={{ height: 1200, background: "var(--sf-color-bg-subtle)" }}>giant</div>

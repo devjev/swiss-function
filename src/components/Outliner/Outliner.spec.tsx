@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { OutlinerHarness } from "./Outliner.harness";
 import type { OutlinerValue } from "./types";
 
@@ -52,11 +53,11 @@ test("Tab in editor indents the focused bullet", async ({ mount, page }) => {
   await component.locator('[data-bullet-id="b"]').click();
   await page.keyboard.press("Tab");
   // After indent, "b" should be a child of "a". padding-inline-start = depth*unit
-  // (24px) + 1/8 unit base (3px) = 27px.
+  // + the 1/8 unit base.
   const pl = await component
     .locator('[data-bullet-id="b"]')
     .evaluate((el) => getComputedStyle(el).paddingInlineStart);
-  expect(pl).toBe("27px");
+  expect(pl).toBe(`${U + U / 8}px`);
 });
 
 test("click opens editor pre-filled with source (edit-by-default)", async ({ mount }) => {

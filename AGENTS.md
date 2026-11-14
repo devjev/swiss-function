@@ -72,6 +72,15 @@ Theme toggling is done via `data-theme="light" | "dark"` on any ancestor
 element (typically `<html>` or the app root). All color tokens swap
 automatically.
 
+Density works the same way. The default is **compact**: 14px text on a 20px
+`--sf-unit`, so a control is 30px and a table row 25px.
+`data-density="comfortable"` on any ancestor switches that subtree to 16px on
+a 24px unit (36px controls and rows); `data-density="compact"` switches a
+region back. Set it on the root for a whole app: a floater that portals to
+`<body>` (a menu, a popover, a dialog) takes the root's density, as it takes
+the root's theme. Components that need the unit in px (virtualised rows)
+measure it once when they mount, so set the density before the subtree mounts.
+
 ---
 
 ## Component catalogue
@@ -327,12 +336,18 @@ These are not suggestions.
   x-height (mono otherwise reads optically larger at the same `font-size`).
 - **Vertical rhythm**: every block is a whole number of units tall, and the
   gaps are the library's: 2u between sections or messages, 1u between the
-  parts, rows or paragraphs inside one. Text lines are 1u (`--sf-leading-base`
-  is `1.5rem`), a title bar or control 1.5u, and a frame's 1px borders come
+  parts, rows or paragraphs inside one. Text lines are 1u (`--sf-leading-base`:
+  20px at the default compact density, 24px at the comfortable one), a title
+  bar or control 1.5u, and a frame's 1px borders come
   out of its padding or bar (`calc(var(--sf-unit) * 1.5 - 1px)`), never on
   top of it. A half-unit gap is fine inside a block if the block's sum is
   whole (Stat, Widget). Never a line-height, margin or padding that isn't a
-  fraction of the unit; check with a 24px overlay when in doubt.
+  fraction of the unit; check with a one-unit overlay when in doubt. Never
+  write a size in px or rem that should follow the density: a control's box,
+  a row, a column floor are unit multiples (`round(calc(...), 1px)` when a
+  small disc or cap must land on a whole pixel). In JS, read the unit with
+  `useCssPx(ref, "var(--sf-unit)", DEFAULT_UNIT_PX)` from `lib/useCssPx`
+  instead of assuming 24 or 20.
 - **Motion**: `var(--sf-duration-fast)` / `-base` / `-slow` with
   `--sf-ease-out` or `--sf-ease-in-out`.
 - **Elevation**: `var(--sf-elevation-N)` for surface depth, including
@@ -511,7 +526,7 @@ Common requests and the right component:
 | "a colour picker" / "choose a colour" / "an OKLCH / RGB / HSL picker" / "colour channels / sliders" / "an eyedropper" / "a colour swatch" | `ColorPicker` (channel sliders across OKLCH/OKLab/RGB/HSL/HSV/LCH/Lab + hex, alpha, gamut handling; value is a CSS string). `ColorSwatch` for a preview / preset / `Popover` trigger. Colour maths at `lib/color`. Never `<input type="color">`. |
 | "a table"                                          | `DataTable` (almost always; it handles a lot)   |
 | "colour a cell by its value" / "conditional formatting" / "red/amber/green cells" / "a heatmap in a table" | `DataTable cellBackground` (data-driven, follows the row through a sort). `highlights` instead when the colour marks a fixed *region* of the grid |
-| "wrap text in cells" / "multi-line cells" / "show #### when a number doesn't fit" / "Excel-style overflow" / "a column that can't be narrowed under its title" | `DataTable cellOverflow` / a column `overflow` (`wrap` needs `rowHeight` of 60 or more; `hash` on numeric and date columns). The title floor is automatic; `headerLines` for a two-line title |
+| "wrap text in cells" / "multi-line cells" / "show #### when a number doesn't fit" / "Excel-style overflow" / "a column that can't be narrowed under its title" | `DataTable cellOverflow` / a column `overflow` (`wrap` needs a `rowHeight` of 2.5 units or more: 50px at the default density; `hash` on numeric and date columns). The title floor is automatic; `headerLines` for a two-line title |
 | "colour a column heading" / "tint the header" / "group my columns by colour" | A column `color` on a leaf or a group (tints the heading key, keeps its material) |
 | "a column that can't be squeezed below N" / "a minimum column width" | `LeafColumnDef.minWidth` (in `--sf-unit` multiples; honoured by the drag, the keyboard and auto-fit) |
 | "edit an array of objects" / "a form field that's a small editable table" / "add/remove rows of inputs" / "a repeatable row input" / "input a list of records" | `TableInput` (compact editable table as a form control; add/delete rows, `reorderable`, reuses DataTable's `edit` cell editors). Use `DataTable` instead for display/analysis at scale. |

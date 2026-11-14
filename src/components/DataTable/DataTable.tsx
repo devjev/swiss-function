@@ -68,6 +68,7 @@ import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import type { ControlSurface } from "../../lib/surface";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
+import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
 import { allFixed, buildColumnTemplate, frozenLeftOffsets, frozenTotalWidth } from "./columnWidths";
@@ -175,8 +176,9 @@ export interface DataTableProps<T>
   headerLines?: number;
   /** How body cells show a value that does not fit its column, the default for
    *  every column (a column's own `overflow` wins). `clamp` cuts with an
-   *  ellipsis; `wrap` wraps within the lines the row height holds (36px is
-   *  one line, 60px two, 84px three) and clamps there; `hash` fills the cell
+   *  ellipsis; `wrap` wraps within the lines the row height holds (one line
+   *  per unit of leading after half a unit of breathing: 50px holds two at
+   *  the compact density, 60px at the comfortable one) and clamps there; `hash` fills the cell
    *  with `#` while the value does not fit, Excel's rule for numbers and dates,
    *  so a cut number is never read as a different one (issue #102). */
   cellOverflow?: CellOverflow;
@@ -204,7 +206,9 @@ export interface DataTableProps<T>
   highlights?: DataTableHighlight[];
   /** Opt into pagination instead of virtualization. */
   paginate?: PaginateConfig;
-  /** Row height in px. Default 36 (matches --sf-unit * 1.5). */
+  /** Row height in px. Default: the `--sf-table-row-height` token, measured
+   *  when the table mounts (25px at the default compact density, 36px under
+   *  `data-density="comfortable"`). */
   rowHeight?: number;
   /** Viewport upper bound. Table sizes to content when content fits;
    *  caps and scrolls when it doesn't. Default 400px. */
@@ -321,7 +325,6 @@ export type ColumnFill =
       speed?: number;
     };
 
-const DEFAULT_ROW_HEIGHT = 36;
 const DEFAULT_HEIGHT = 400;
 
 /** Resolve a CSS length (e.g. `var(--sf-datatable-col-min)`) to px in the
@@ -801,7 +804,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     selectionMode = "cell",
     highlights,
     paginate,
-    rowHeight = DEFAULT_ROW_HEIGHT,
+    rowHeight: rowHeightProp,
     height = DEFAULT_HEIGHT,
     empty,
     resizableColumns = true,
@@ -1018,6 +1021,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Virtualization ---
   const containerRef = useRef<HTMLDivElement>(null);
+  // The default row is a token, so the density sets it; the virtualizer and
+  // the keyboard scroll steps need it in px.
+  const tableRowPx = useCssPx(containerRef, "var(--sf-table-row-height)", DEFAULT_TABLE_ROW_PX);
+  const rowHeight = rowHeightProp ?? Math.round(tableRowPx);
   const visibleRowCount = displayOrder
     ? displayOrder.length
     : paginate
@@ -1029,6 +1036,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     estimateSize: () => rowHeight,
     overscan: 8,
   });
+  useRemeasureOnSizeChange(rowVirtualizer, rowHeight);
   const virtualRows = rowVirtualizer.getVirtualItems();
 
   // The header (a real grid) sizes to the columns' total width via
@@ -1675,8 +1683,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Cell overflow modes (issue #102) ---
   // The lines a row holds, for `overflow: "wrap"`: from rowHeight and the
-  // measured leading, keeping half a unit of breathing (36px is one line,
-  // 60px two, 84px three). Published as --sf-cell-lines for the CSS clamp.
+  // measured leading, keeping half a unit of breathing (at the compact
+  // density 25px is one line, 50px two, 70px three). Published as
+  // --sf-cell-lines for the CSS clamp.
   const [leadingPx, setLeadingPx] = useState<number | null>(null);
   const cellLineCount = useMemo(
     () => (leadingPx != null && unitPx != null ? cellLines(rowHeight, leadingPx, unitPx / 2) : 1),
@@ -1688,10 +1697,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     if (visibleLeaves.some((c) => (c.overflow ?? cellOverflow) === "wrap")) {
       wrapWarned.current = true;
       console.warn(
-        `DataTable: overflow "wrap" holds one line at rowHeight ${rowHeight}; give the rows at least 60px for two lines.`,
+        `DataTable: overflow "wrap" holds one line at rowHeight ${rowHeight}; give the rows at least ${Math.ceil(leadingPx * 2 + (unitPx ?? leadingPx) / 2)}px for two lines.`,
       );
     }
-  }, [visibleLeaves, cellOverflow, cellLineCount, leadingPx, rowHeight]);
+  }, [visibleLeaves, cellOverflow, cellLineCount, leadingPx, unitPx, rowHeight]);
 
   // The hash fill: a layout pass over the mounted cells of every hash-mode
   // column after each render (the mounted set, the widths and the values can

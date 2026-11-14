@@ -17,7 +17,7 @@
    `--sf-selector-min-inline-size: 0` to disable. */
 .root[data-layout="panel"],
 .root[data-layout="inline"] {
-  min-inline-size: var(--sf-selector-min-inline-size, 12rem);
+  min-inline-size: var(--sf-selector-min-inline-size, calc(var(--sf-unit) * 8));
 }
 
 .empty {

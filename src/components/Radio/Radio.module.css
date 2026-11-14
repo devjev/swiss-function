@@ -8,8 +8,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.125rem;
-  height: 1.125rem;
+  /* Three quarters of the unit, as Checkbox. */
+  width: calc(var(--sf-unit) * 0.75);
+  height: calc(var(--sf-unit) * 0.75);
+  flex: none;
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-full);
   background-color: var(--sf-color-bg);
@@ -65,8 +67,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 0.625rem;
-  height: 0.625rem;
+  /* Odd box, odd dot: rounded to a whole pixel so the dot centres. */
+  width: round(calc(var(--sf-unit) * 0.42), 1px);
+  height: round(calc(var(--sf-unit) * 0.42), 1px);
   background-color: var(--sf-color-primary);
   border-radius: var(--sf-radius-full);
   opacity: 0;

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { HorizonChart, type HorizonSeries } from "./HorizonChart";
 import { ActivatableHorizon } from "./HorizonChart.harness";
 
@@ -232,5 +233,8 @@ test("with controls on, the first row starts below the toolbar", async ({ mount 
   ).toBeLessThanOrEqual(1);
   // Without controls the rows start at the top: the svg is exactly the rows' height.
   await expect(c.locator("svg[role='img']").nth(1)).toHaveAttribute("height", "120");
-  await expect(withControls.locator("svg[role='img']")).toHaveAttribute("height", "168");
+  await expect(withControls.locator("svg[role='img']")).toHaveAttribute(
+    "height",
+    String(120 + 2 * U),
+  );
 });

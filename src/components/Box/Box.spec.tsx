@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Box } from "./Box";
 
 test("default render: <div> with border + radius + 1u padding", async ({ mount }) => {
   const component = await mount(<Box>hi</Box>);
   await expect(component).toHaveJSProperty("tagName", "DIV");
   const padding = await component.evaluate((el) => getComputedStyle(el).padding);
-  expect(padding).toBe("24px");
+  expect(padding).toBe(`${U}px`);
 });
 
 test("data-elevation reflects the prop; box-shadow non-empty for >0", async ({ mount }) => {
@@ -31,10 +32,10 @@ test("texture absent when not set", async ({ mount }) => {
   await expect(component).not.toHaveAttribute("data-texture", /.*/);
 });
 
-test("padding={0.5} → 12px", async ({ mount }) => {
+test("padding={0.5} is half a unit", async ({ mount }) => {
   const component = await mount(<Box padding={0.5}>x</Box>);
   const p = await component.evaluate((el) => getComputedStyle(el).padding);
-  expect(p).toBe("12px");
+  expect(p).toBe(`${U / 2}px`);
 });
 
 test("padding accepts a raw CSS string", async ({ mount }) => {

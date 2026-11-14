@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import {
   Basic,
   MixedHeightsCappedForm,
@@ -100,8 +101,8 @@ test("maxBlock caps only the outsized block; the rest stay proportional", async 
   const short = heights[0] ?? 0;
   const tall = heights[1] ?? 0;
   const giant = heights[2] ?? 0;
-  // The giant block is clipped at the cap (2 units = 48px; allow rounding).
-  expect(giant).toBeLessThanOrEqual(49);
+  // The giant block is clipped at the cap (2 units; allow rounding).
+  expect(giant).toBeLessThanOrEqual(2 * U + 1);
   // The others keep their proportional read, unaffected by the cap.
   expect(tall).toBeGreaterThan(short * 1.4);
   expect(giant).toBeLessThan(tall * 2);

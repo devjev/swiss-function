@@ -46,6 +46,11 @@ import "@tarassov-ch/swiss-function/fonts.css";  // optional: bundled IBM Plex S
 via the optional `@fontsource/ibm-plex-sans` and `@fontsource/jetbrains-mono`
 dependencies. Without it, text falls back to the system sans and mono stacks.
 
+Two attributes on the root element (or any subtree) switch the tokens:
+`data-theme="light" | "dark"` and `data-density="compact" | "comfortable"`.
+The default density is compact, 14px text on a 20px unit; `comfortable` is
+16px on 24px.
+
 ## Quick start
 
 ```tsx

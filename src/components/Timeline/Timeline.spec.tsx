@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Timeline } from "./Timeline";
 import { TimelineScrubHarness } from "./Timeline.harness";
 
@@ -389,7 +390,7 @@ test("compact: event labels are hidden at rest and revealed on hover", async ({ 
   await expect(label).toHaveCSS("opacity", "1");
 });
 
-test("size scales the strip height like Input (sm/md/lg = 24/36/48), compact defaults to md", async ({
+test("size scales the strip height like Input (sm/md/lg = 1/1.5/2 units), compact defaults to md", async ({
   mount,
 }) => {
   const start = new Date("2026-01-01");
@@ -417,11 +418,11 @@ test("size scales the strip height like Input (sm/md/lg = 24/36/48), compact def
         .first()
         .evaluate((n) => n.getBoundingClientRect().height),
     );
-  expect(await h("sm")).toBe(24);
-  expect(await h("md")).toBe(36);
-  expect(await h("lg")).toBe(48);
+  expect(await h("sm")).toBe(U);
+  expect(await h("md")).toBe(1.5 * U);
+  expect(await h("lg")).toBe(2 * U);
   // Bare `compact` (no size) follows the md default.
-  expect(await h("compact")).toBe(36);
+  expect(await h("compact")).toBe(1.5 * U);
 });
 
 test("sm shrinks the floating event label to 85%", async ({ mount }) => {
@@ -444,9 +445,9 @@ test("sm shrinks the floating event label to 85%", async ({ mount }) => {
       .locator(`[data-id="${id}"] [class*="eventLabel"]`)
       .first()
       .evaluate((n) => Number.parseFloat(getComputedStyle(n).fontSize));
-  // md = --sf-font-size-sm (14px); sm = 85% of it (≈11.9px).
-  expect(await fontPx("md")).toBeCloseTo(14, 1);
-  expect(await fontPx("sm")).toBeCloseTo(11.9, 1);
+  // md = --sf-font-size-sm (12px at the default density); sm = 85% of it.
+  expect(await fontPx("md")).toBeCloseTo(12, 1);
+  expect(await fontPx("sm")).toBeCloseTo(10.2, 1);
 });
 
 test("range: dragging the start handle moves the start bound later", async ({ mount, page }) => {

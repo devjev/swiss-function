@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import type { ChatMessage } from "../Chat";
 import { MenuBar } from "../MenuBar";
 import { ChatDrawer } from "./ChatDrawer";
@@ -566,5 +567,5 @@ test("marginGap sets the gutter between margin content and the column", async ({
     if (!column) return -1;
     return column.getBoundingClientRect().left - el.getBoundingClientRect().right;
   });
-  expect(Math.abs(gap - 48)).toBeLessThan(1);
+  expect(Math.abs(gap - 2 * U)).toBeLessThan(1);
 });

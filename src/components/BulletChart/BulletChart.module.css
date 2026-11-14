@@ -285,7 +285,7 @@
   fill: var(--sf-color-fg-subtle);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: calc(var(--sf-font-size-sm) * 0.8);
+  font-size: max(0.625rem, calc(var(--sf-font-size-sm) * 0.8));
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }

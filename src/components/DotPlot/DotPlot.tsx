@@ -32,6 +32,7 @@ import {
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
 import { formatNumber as formatExact } from "../../lib/format";
+import { DEFAULT_UNIT_PX } from "../../lib/useCssPx";
 import {
   type DotPlotSort,
   fitDomain,
@@ -295,8 +296,8 @@ export const DotPlot = forwardRef<HTMLDivElement, DotPlotProps>(function DotPlot
   const [extra, setExtra] = useState(0);
   const extraRef = useRef(extra);
   extraRef.current = extra;
-  // One --sf-unit in px, from the probe (24 until measured).
-  const [unitPx, setUnitPx] = useState(24);
+  // One --sf-unit in px, from the probe (the default density's until measured).
+  const [unitPx, setUnitPx] = useState(DEFAULT_UNIT_PX);
   const fillRows = horizontal && rowHeight == null && !scaffold.expanded;
   // With the toolbar on, the rows start two units down so it sits in empty
   // space above the first row instead of over its dots.
@@ -309,7 +310,7 @@ export const DotPlot = forwardRef<HTMLDivElement, DotPlotProps>(function DotPlot
   // the rows would have on their own. Re-running on `extra` itself would read
   // a stale measurement and flip the growth off again.
   useLayoutEffect(() => {
-    const unit = probeRef.current?.offsetHeight || 24;
+    const unit = probeRef.current?.offsetHeight || DEFAULT_UNIT_PX;
     setUnitPx((u) => (u === unit ? u : unit));
     const toolbar = insetUnits
       ? plotRef.current?.querySelector<HTMLElement>('[role="toolbar"]')

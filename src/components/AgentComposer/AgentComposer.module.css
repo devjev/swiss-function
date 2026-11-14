@@ -226,7 +226,7 @@
   --kid-gap: calc(var(--sf-unit) / 6);
   /* The elbow lands on the head's vertical centre: head padding plus half the
      grid line box. */
-  --elbow-y: calc(var(--ac-pad) + 0.75rem);
+  --elbow-y: calc(var(--ac-pad) + var(--sf-unit) / 2);
   display: flex;
   flex-direction: column;
   gap: var(--kid-gap);

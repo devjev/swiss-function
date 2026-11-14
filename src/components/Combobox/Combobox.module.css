@@ -100,7 +100,7 @@
   /* `position: relative` so the popup's own z-index participates too (the bare
      value was inert on a statically-positioned popup — issue #2). */
   position: relative;
-  min-width: var(--anchor-width, 12rem);
+  min-width: var(--anchor-width, calc(var(--sf-unit) * 8));
   padding: var(--sf-space-1);
   background-color: var(--sf-color-bg);
   color: var(--sf-color-fg);
@@ -226,9 +226,9 @@
 /* When the input lives inside a group, it sheds its own border/sizing and
    just flexes to fill the remaining row. */
 .inputGroup .input {
-  flex: 1 1 6rem;
+  flex: 1 1 calc(var(--sf-unit) * 4);
   inline-size: auto;
-  min-inline-size: 6rem;
+  min-inline-size: calc(var(--sf-unit) * 4);
   block-size: auto;
   padding-inline: 0;
   border: none;

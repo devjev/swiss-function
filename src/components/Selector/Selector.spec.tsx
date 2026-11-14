@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Selector } from "./Selector";
 import { SelectorHarness } from "./Selector.harness";
 
@@ -318,7 +319,7 @@ test("panel layout holds a width floor in a shrink-to-fit parent (not the input'
 }) => {
   // In an inline-flex parent, `inline-size: 100%` is inert (the parent sizes to
   // the child), and the size=1 search input leaves a ~90px min-content — the
-  // control collapsed to that before the fix. The 12rem (192px) floor holds it.
+  // control collapsed to that before the fix. The 8u floor holds it.
   const component = await mount(
     <div style={{ display: "inline-flex" }}>
       <SelectorHarness layout="panel" />
@@ -327,7 +328,7 @@ test("panel layout holds a width floor in a shrink-to-fit parent (not the input'
   const root = component.locator('[data-layout="panel"]');
   const box = await root.boundingBox();
   if (!box) throw new Error("missing bounding box");
-  expect(box.width).toBeGreaterThanOrEqual(190);
+  expect(box.width).toBeGreaterThanOrEqual(8 * U - 2);
 });
 
 test("--sf-selector-min-inline-size overrides the width floor", async ({ mount }) => {

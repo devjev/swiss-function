@@ -13,6 +13,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
+import { DEFAULT_UNIT_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
 import { Button } from "../Button";
 import { Checkbox } from "../Checkbox";
 import type { EditConfig } from "../DataTable";
@@ -345,7 +346,10 @@ export function TableInput<T = Record<string, unknown>>({
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const useWindow = virtualize && !reorderable && value.length > 0;
-  const rowHeightPx = size === "md" ? 44 : 36;
+  // A row is its control plus the row's block padding: 1.5 units at `sm`,
+  // 11/6 of a unit at `md` (36 / 44px at the comfortable density).
+  const unitPx = useCssPx(rootRef, "var(--sf-unit)", DEFAULT_UNIT_PX);
+  const rowHeightPx = Math.round(unitPx * (size === "md" ? 11 / 6 : 1.5));
   const [scrollMargin, setScrollMargin] = useState(0);
   useLayoutEffect(() => {
     if (useWindow && bodyRef.current) setScrollMargin(bodyRef.current.offsetTop);
@@ -357,6 +361,7 @@ export function TableInput<T = Record<string, unknown>>({
     overscan: 8,
     scrollMargin,
   });
+  useRemeasureOnSizeChange(rowVirtualizer, rowHeightPx);
 
   const rowProps = {
     columns,

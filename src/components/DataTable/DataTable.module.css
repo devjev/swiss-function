@@ -33,10 +33,13 @@
   --sf-cell-pad-x: calc(var(--sf-unit) * 3 / 4);
 }
 .viewport[data-cell-font="xs"] {
-  --sf-cell-font: 0.75rem;
+  /* Two steps under the cell default (`sm`), relative to it so the ladder
+     keeps its order at every density: 12 / 13 / 14px comfortable, 10.3 /
+     11.1 / 12px compact. */
+  --sf-cell-font: calc(var(--sf-font-size-sm) * 6 / 7);
 }
 .viewport[data-cell-font="sm"] {
-  --sf-cell-font: 0.8125rem;
+  --sf-cell-font: calc(var(--sf-font-size-sm) * 13 / 14);
 }
 .viewport[data-cell-font="lg"] {
   --sf-cell-font: var(--sf-font-size-md);
