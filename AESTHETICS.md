@@ -100,8 +100,9 @@ ones recede.
   neutral, and the neutrals are pure greys: they carry no hue, so the
   accent is the only colour on the page.
 - **Every colour passes as text.** The secondary text tones and the four
-  status colours clear 4.5:1 on the page in both themes, so a status
-  word can be set in its colour on the plain page. That is what removes
+  status colours clear 4.5:1 on the page (in the dark theme primary and
+  danger reach 4.3:1 and 4.4:1, which bold or large text carries), so a
+  status word can be set in its colour on the plain page. That is what removes
   the need for tinted backgrounds behind coloured text.
 - **Semantic colors are reserved.** `--sf-color-danger`, `-success`,
   `-warning` mean something. Don't use them decoratively. A red bar in

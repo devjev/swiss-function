@@ -320,7 +320,7 @@ These are not suggestions.
   content; a frame in the divider tone dissolves the region.
 - **Status colour without a tint**: a status chip, an event, an error
   banner is the page colour with its rim, a 3px leading rule and its label
-  in the status colour at full strength (each clears 4.5:1 as text). The
+  in the status colour at full strength (4.5:1 as text, except dark primary and danger at 4.3 and 4.4). The
   one fill allowed is the full-strength one (`Chip variant="solid"`): the
   status colour as the fill with the label in the page colour (the tone's
   `-fg` token on primary and danger). Keep `color-mix` tints for state: hover, selection,
