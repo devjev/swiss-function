@@ -747,7 +747,13 @@ disjoint glob: micro-benchmarks, run only by `npm run bench`.
   **Ladle must already be running on :61000.** Compares against
   `perf/baseline.json` (±20% + 5ms floor); `npm run perf:update`
   rewrites it. Timings are machine-specific, so update only deliberately
-  on the baseline machine.
+  on the baseline machine. The probes run the full Chromium build on the
+  GPU (ANGLE over EGL): Playwright's default headless shell only has
+  software GL, which made a 10k-node Graph frame 190ms instead of 2.5ms.
+  `PERF_GL=software` restores the old setup; the baseline records the GL
+  renderer and a mismatch warns. Ladle's dev server runs React's
+  development build, which inflates render-heavy numbers; for absolute
+  figures, point `--base-url` at a `ladle build` output served statically.
 - `npm run size`: per-entry bundle cost through the dist ESM import
   graph (gzip bytes). Fails on > max(5%, 2KB) growth vs
   `perf/size-baseline.json`; `npm run size:update` rewrites. Needs a

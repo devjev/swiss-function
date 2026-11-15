@@ -19,7 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { cpus, hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchBrowser, median, openStory, readHeapMB } from "./runner.mjs";
+import { glRenderer, launchBrowser, median, openStory, readHeapMB } from "./runner.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
@@ -75,6 +75,8 @@ try {
 
 // --- Run -----------------------------------------------------------------------
 const browser = await launchBrowser();
+const gl = await glRenderer(browser).catch(() => null);
+out(`gl: ${gl ?? "none"}\n`);
 const results = {};
 
 for (const name of names) {
@@ -120,6 +122,8 @@ const meta = {
   host: hostname(),
   cpus: cpus().length,
   node: process.version,
+  gl,
+  throttle: Number(process.env.PERF_THROTTLE ?? 1),
   commit: (() => {
     try {
       return execSync("git rev-parse --short HEAD", { cwd: root }).toString().trim();
@@ -163,6 +167,16 @@ try {
 if (baseline.meta?.host && baseline.meta.host !== meta.host) {
   process.stderr.write(
     `WARNING: baseline host "${baseline.meta.host}" differs from this machine ("${meta.host}") — timings are not comparable.\n`,
+  );
+}
+if ((baseline.meta?.throttle ?? 1) !== meta.throttle) {
+  process.stderr.write(
+    `WARNING: baseline CPU throttle ${baseline.meta?.throttle ?? 1}x differs from this run (${meta.throttle}x); timings are not comparable.\n`,
+  );
+}
+if (baseline.meta?.gl !== meta.gl) {
+  process.stderr.write(
+    `WARNING: baseline GL "${baseline.meta?.gl ?? "unrecorded"}" differs from this run ("${meta.gl}"); canvas and WebGL timings are not comparable.\n`,
   );
 }
 

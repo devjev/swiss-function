@@ -31,8 +31,47 @@ export function median(xs) {
   return Math.round(value * 100) / 100;
 }
 
-export function launchBrowser() {
-  return chromium.launch({ args: ["--enable-precise-memory-info"] });
+// Hardware GL by default. Playwright's default headless build (the headless
+// shell) only has SwiftShader, and software raster then dominates every canvas
+// and WebGL frame: one frame of the 10k-node Graph story costs 186ms there
+// and 2.5ms on an integrated GPU, so the probes measured the rasterizer
+// instead of the component. The full Chromium build in headless mode reaches
+// the GPU through ANGLE's EGL backend. PERF_GL=software keeps the old setup;
+// a machine without the full build falls back to it.
+const MEMORY_ARGS = ["--enable-precise-memory-info"];
+const GPU_ARGS = [
+  "--ignore-gpu-blocklist",
+  "--enable-gpu",
+  "--disable-gpu-sandbox",
+  "--use-angle=gl-egl",
+];
+
+export async function launchBrowser() {
+  if (process.env.PERF_GL !== "software") {
+    try {
+      return await chromium.launch({ channel: "chromium", args: [...MEMORY_ARGS, ...GPU_ARGS] });
+    } catch (error) {
+      process.stderr.write(
+        `hardware GL launch failed, using software GL: ${error.message.split("\n")[0]}\n`,
+      );
+    }
+  }
+  return chromium.launch({ args: MEMORY_ARGS });
+}
+
+/** The WebGL renderer string the browser reports (SwiftShader or a GPU). */
+export async function glRenderer(browser) {
+  const page = await browser.newPage();
+  try {
+    return await page.evaluate(() => {
+      const gl = document.createElement("canvas").getContext("webgl2");
+      if (!gl) return null;
+      const info = gl.getExtension("WEBGL_debug_renderer_info");
+      return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    });
+  } finally {
+    await page.close();
+  }
 }
 
 /** Navigate to a story and wait until it's ready. Returns the Ladle frame the
@@ -59,6 +98,13 @@ export async function openStory(
   } catch {
     await page.waitForTimeout(SETTLE_MS);
     readyMs = Date.now() - navStart;
+  }
+  // PERF_THROTTLE=4 slows the CPU fourfold for the interactions (a slow
+  // laptop); load and readyMs run at full speed.
+  const throttle = Number(process.env.PERF_THROTTLE ?? 1);
+  if (throttle > 1) {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });
   }
   return { context, page, frame, readyMs };
 }

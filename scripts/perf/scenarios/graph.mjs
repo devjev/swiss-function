@@ -11,13 +11,12 @@
 // graph-settle scenario) and may still be streaming position frames during
 // this scenario's pan/zoom window.
 //
-// NOTE: headless Chromium runs WebGL on SwiftShader (software rasterization) —
-// verified unescapable on this setup: vulkan / gl-egl / ignore-blocklist flag
-// variants all fall back to SwiftShader despite live /dev/dri render nodes. A
-// full-scene 10k-node/20k-edge redraw costs ~380-600ms in software GL
-// regardless of component code, so absolute frame budgets (16.7ms) do not
-// apply here; this scenario tracks RELATIVE regressions only. On a real GPU
-// the same renders are single-digit ms.
+// GL: the runner launches the full Chromium build with hardware GL (see
+// launchBrowser in ../runner.mjs). Playwright's default headless shell only
+// has SwiftShader, where a full-scene 10k-node/20k-edge redraw costs ~190ms
+// whatever the component does; on an integrated GPU it is ~2.5ms, so absolute
+// frame budgets apply. PERF_GL=software reproduces the old numbers. The
+// baseline records the GL renderer, and a mismatch warns.
 import { boundsOf, p95, startFrameSampler, stopFrameSampler } from "../runner.mjs";
 
 export const scenarios = [

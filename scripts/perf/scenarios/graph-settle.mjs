@@ -3,11 +3,11 @@
 // [data-graph-settled] = the FA2 worker settle finished its iteration budget.
 // settledMs pins the whole nav → settled window and maxLongtaskMs pins the
 // property the worker settle buys: no multi-second main-thread block between
-// ready and settled (the old synchronous forceAtlas2 ran ~1.3-1.4s). Longtasks
-// here are dominated by SwiftShader full-scene renders (~200ms with the
-// read-only "thinline" edge program, issue #22) — like graph.mjs, this
-// scenario tracks RELATIVE regressions only; real GPUs render in single-digit
-// milliseconds.
+// ready and settled (the old synchronous forceAtlas2 ran ~1.3-1.4s). The
+// buffered observer also sees the page boot and the Graph mount, so the
+// maximum is usually the mount task (~120ms on 10k nodes), not the settle.
+// Under software GL (PERF_GL=software) full-scene renders of ~200ms dominate
+// instead; see graph.mjs.
 //
 // NOTE: not self-registering — scripts/perf/run.mjs lists scenario modules
 // centrally; add "graph-settle" there to enable this scenario.
