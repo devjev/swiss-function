@@ -36,14 +36,25 @@ npm run vrt:list    # refresh stories.json after adding/removing stories
 
 ## Tuning & non-determinism
 
-`<canvas>` / WebGL surfaces (charts, `Graph`, `Map`, the dithered
-`NonIdealState` / `Skeleton` / `FieldLayout.Filler` fills, `Spinner`) don't
-render identical frames across machines, so they can exceed the pixel budget.
-Drop those groups from the gate by story-id prefix when refreshing the manifest:
+Some `<canvas>` / WebGL stories don't render the same frame twice: `Graph`
+force layouts, the 3D `Surface`, the animated dither effects. A story whose
+data keeps arriving for longer than the screenshot timeout never settles
+either. Drop them from the gate by story-id prefix when refreshing the
+manifest. The committed manifest uses this list, measured on 2026-11-15 by
+running the canvas-heavy groups three times in each theme and dropping every
+story that failed at least once:
 
 ```bash
-VRT_EXCLUDE="graph--,map--,scatterplot--,heatmap--,surface--,pointcloud--,spinner--,skeleton--,nonidealstate--" \
+VRT_EXCLUDE="chart3d--surface--,graph--controlled-selection,graph--dense-content,graph--editable,graph--force,graph--hover-highlight,graph--lab--,graph--large-stress,graph--playground,graph--selected-node,non-ideal-state--effects4,perf--pointcloud--perf-cloud20k,perf--scatterplot--perf-points,progress--animated-effects,streaming-terminal-text--configured" \
   npm run vrt:list
+```
+
+Keep the list when you refresh the manifest, or the dropped stories come back.
+To measure again, repeat the suspect groups and count the failures:
+
+```bash
+npx playwright test -c playwright-vrt.config.ts --repeat-each=3 \
+  --grep " (graph|chart3d|non-ideal-state|progress|map|skeleton|spinner|perf)--"
 ```
 
 The per-pixel `threshold` and total `maxDiffPixels` budget live in
