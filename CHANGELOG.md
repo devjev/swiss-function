@@ -6,6 +6,18 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.0.1 — 2026-11-15
+
+### Patch
+
+- Calendar: the year view's mini months size their day columns as minmax(0, 1fr), so switching to the year view no longer measures all 504 day buttons before laying them out (layout 50ms to 40ms at 4x CPU throttling).
+- Charts: date labels reuse one Intl.DateTimeFormat per option set instead of building one per label (Scatterplot, HorizonChart, CandlestickChart, Flows). A Multiples grid of 40 daily Scatterplots mounts in one 90ms task instead of 930ms and 230ms.
+- Charts: getTextMeasurer returns the same function for the same font until the caches are cleared. Charts list it as a memo dependency, so every hover re-render recomputed every label layout; a hover sweep over a 5k-point Scatterplot now holds 33ms frames at p95 (50ms before) and allocates half as much.
+- DataTable: sorting a text column computes each row's sort key once instead of on every comparison. Sorting 100k rows by a text column takes 32ms instead of 414ms; the order is unchanged.
+- Graph: a large graph mounts about three times faster (369ms to 121ms for 10k nodes and 20k edges). Attribute writes go out in one batched update and only when a value changes; Sigma was refreshing once per written node or edge (150k refreshes per mount). Settings are written only when they differ, and the first resize callback no longer redraws.
+- Graph: layout transitions and layout writes update all node positions in one batched graph update per frame instead of one event per node and coordinate (20k events per frame on 10k nodes). A Concentric switch on 10k nodes draws its transition at 67ms per frame instead of 83ms at 4x CPU throttling.
+- Histogram: the automatic bin count, the density bandwidth and the density estimate share one sort of the sample, done in a Float64Array (native numeric sort) instead of three comparator sorts. A 100k-sample histogram with a density curve mounts in 50ms instead of 120ms.
+
 ## v3.0.0 — 2026-11-15
 
 ### Major
