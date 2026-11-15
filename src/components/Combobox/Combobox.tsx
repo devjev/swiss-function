@@ -2,8 +2,10 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { ChevronDown } from "../Icon";
 import styles from "./Combobox.module.css";
 
 const Root = BaseCombobox.Root;
@@ -121,6 +123,22 @@ const Clear = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof Base
   },
 );
 
+/** The field's own affordance: a chevron at its end that opens the list and
+ *  turns over while it is open. Base UI keeps it off the tab order and leaves
+ *  the semantics on the input, so it reads as a marker one can also click. The
+ *  glyph goes through the `chevronDown` slot, so a consumer's `IconProvider`
+ *  swaps it with the rest of their set. */
+const Trigger = forwardRef<
+  HTMLButtonElement,
+  ComponentPropsWithoutRef<typeof BaseCombobox.Trigger>
+>(function ComboboxTrigger({ className, children, ...rest }, ref) {
+  return (
+    <BaseCombobox.Trigger {...rest} ref={ref} className={mergeClassName(styles.trigger, className)}>
+      {children ?? <Glyph slot="chevronDown" fallback={ChevronDown} size="0.85em" />}
+    </BaseCombobox.Trigger>
+  );
+});
+
 // Checkmark shown on the selected items inside the dropdown list.
 const ItemIndicator = forwardRef<
   HTMLSpanElement,
@@ -167,5 +185,6 @@ export const Combobox = {
   Chip,
   ChipRemove,
   Clear,
+  Trigger,
   useFilteredItems,
 };

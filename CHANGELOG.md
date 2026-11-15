@@ -6,6 +6,52 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v2.42.0 — 2026-10-05
+
+### Minor
+
+- Chat: opt-in `minimap` replaces the transcript's scrollbar with a `Minimap` rail. Every question asked becomes a clickable label down the side over a span of its own height in the accent, the colour its message is spoken in down in the transcript, every reply a neutral dithered block the height of it, so the rail carries the two voices the way the conversation does. Each band takes half the space to the next one, so the 2u the transcript leaves between turns does not become a third of the rail in dead air; the viewport band shows the part on screen, and clicking a label jumps that question to the top. The rail owns the scroll element, so the transcript's `role="log"`, its label and the whole follow-the-bottom behaviour move onto it and keep working. `{ side, width }` tunes the rail (5u wide by default, wider than the `--sf-minimap-width` token, because these labels are sentences rather than field names). `ChatDrawer` forwards it, which is where a long conversation is usually read. The rail is loaded on demand, so a chat that never asks for one carries none of it. Minimap grew `scrollProps` for this: attributes merged onto the scroll element, since the component owns that element but the semantics of the scrolling region belong to its host.
+- DatePicker: a `path` picks the date by stepping down a trail instead of from the calendar. `path={["year", "month", "day"]}` asks for the year, then its months, then that month's days, one step at a time; the steps are `year` / `quarter` / `month` / `week` / `day` and each narrows the one before it (a week follows a year, since an ISO week straddles month ends; a day follows a month or a week), so `["year", "quarter", "month"]`, `["year", "week", "day"]` and `["month", "day"]` all read. The header carries the trail, each value a button back to its own step, and the paddles step the context the step sits in. The last step is the precision: the value commits there and nowhere earlier, so `["year", "quarter"]` hands back a quarter start and the field reads `2026-Q3`. `isDateDisabled` now takes the level alongside the period, so a whole year, quarter, month, week or day can be greyed out; on the calendar it is still asked at day precision only.
+
+## v2.41.0 — 2026-10-02
+
+### Minor
+
+- Chat: the view holds the bottom when the composer grows into it, lets go the moment you scroll away (however small the move) instead of only past 32px, and offers a jump-to-latest key that takes the accent once a reply arrived below the fold. The transcript is a focusable `role="log"` and a streaming message is marked `aria-busy`.
+- `ChatBlock` takes a `variant`: `"framed"` (the default, today's TUI panel) or `"plain"`, which drops the frame, the surface, the padding, the letterforms and the title bar with its `●` marker, leaving a block box and the part's own markup. For a custom `renderPart` block that should look like itself. A `title` passed alongside `variant="plain"` renders as one dim line with no marker and no rule; omit it and there is no label at all.
+- DataTable: a totals row. A column's `total` (`"sum"` / `"avg"` / `"min"` / `"max"` / `"count"` / `"countUnique"`, or a function of the rows behind it) adds one summary line pinned to the bottom edge of the grid, scrolling sideways with the columns and holding its edge as the rows pass. It is the header's band mirrored to the foot of the table: the same panel tone, the same keys with their face and edge bands, the same seams, so the grid is framed top and bottom and the summary never reads as one more row. The keys are inert, a readout rather than a control. It covers every filtered row rather than the page on screen, and a tree table's roots rather than every node, so the figure never double-counts a subtotal or moves as you scroll. Named aggregates print in Swiss typography at the column's declared precision. `totals` tunes the row (`label`, `labelColumn`, `position: "top"`) or drops it with `false`; the row takes no cell coordinates, so selection, copy and the keyboard never reach it.
+- DataTable: `columnFit="content"` sizes every column to the narrowest width that still shows its content, at mount and again when the data changes, through the same measurement as the double-click on a header edge (so no column lands under its floor or breaks a group title). `headerMenu` adds a right-click Fit this column / Fit all columns on the headers. The menu is lazy-loaded, so a table that does not opt in carries none of it.
+- DataTable, Explorer: a column's `align` moves the cell's text again (the body span takes the free space, so moving the flex items alone did nothing), and a DataTable column that declares no `align` takes it from its data type: a `number` edit column ends, cells and heading, a `boolean` centres, everything else starts. `TableInput` already read a number column that way; the three now agree.
+
+### Patch
+
+- DataTable, Explorer: a filterable column's floor is its title again, not the width it happened to have. The funnel is pushed to the trailing edge with an `auto` margin, and `getComputedStyle` reports what that margin absorbed rather than `auto`, so the header measurement counted the column's whole leftover as a need: a filterable table could not be narrowed, and one that fitted its container still grew a horizontal scrollbar. The header is measured at its natural width now, where an auto margin is zero and every real margin still counts.
+- Picker, Selector: hovering a row no longer scrolls the dropdown or takes the highlight from the keyboard. A pointer highlight scrolled the hovered row into view, which slid another row under the cursor and scrolled again, so a stray mouse movement jumped the list. Hover now reads through CSS `:hover` while `data-highlighted` stays where the keyboard left it.
+
+## v2.40.1 — 2026-09-30
+
+### Patch
+
+- DatePicker: the field ends in a chevron that opens the calendar and turns over while it is open, the same affordance Picker and Selector carry, through the chevronDown icon slot. Its clear key draws the cross from the close slot instead of a typed character.
+
+## v2.40.0 — 2026-09-30
+
+### Minor
+
+- Picker and Selector: the field ends in a chevron that opens the list and turns over while it is open, in every layout. It goes through the chevronDown icon slot, so an IconProvider swaps it with the rest of a consumer's set, and Base UI keeps it out of the tab order (the input owns the semantics). Picker's clear key now draws its cross from the close slot instead of a typed character. New internal Combobox.Trigger part.
+
+## v2.39.1 — 2026-09-30
+
+### Patch
+
+- Chat: a finished step in the thinking fan-out is no longer green. The mark says it is done; only a failure takes the danger tone. Every tick is now an icon-set glyph through the check / fail / pending slots (new: fail, pending, and a Circle icon), so an IconProvider can swap them, in the fan-out, in Picker and Selector's selected item, and on Outliner's copied-reference button.
+
+## v2.39.0 — 2026-09-29
+
+### Minor
+
+- Chat: messageStyle picks how each voice shows up (plain, a raised box, the label-maker tape, or a raised squircle with a lightly scooped face), one value for both roles or one per role; ChatDrawer passes it through. The squircle is a real superellipse in every browser (corner-shape where it exists, a mask-built backing element where it does not), and the tape now carries the stamped monospace letters, which no longer belong to the user's role. The composer reserves the send key's corner at a specificity TextEdit's own padding cannot undo, so a long line wraps before the key instead of running under it. New in the material layer: --sf-edge-lit-color / --sf-edge-shade-color, the --sf-elevation-N-drop cast ladder in filter syntax, and a bowl face in lib/surface (the dish hollowed on both axes).
+
 ## v2.38.0 — 2026-09-24
 
 ### Minor

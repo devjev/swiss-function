@@ -496,3 +496,63 @@ Megachat.args = { marginGap: 1 };
 Megachat.argTypes = {
   marginGap: { control: { type: "range", min: 0, max: 4, step: 0.25 } },
 };
+
+const MINIMAP_TALK: ChatMessage[] = [
+  [
+    "How do I lay out a form?",
+    "`FieldLayout`: justified rows of rigid, flexible and filler fields that collapse with the container.",
+  ],
+  [
+    "What about validation?",
+    "`Form` above it, with your own resolver. `FormField` binds one control to a named field.\n\nPer-field checks run as you type; the resolver gates the submit.",
+  ],
+  [
+    "Which chart for a share of a total?",
+    "`PieChart` for a few parts of one whole, `Treemap` once it is a hierarchy.",
+  ],
+  [
+    "A table of 100k rows?",
+    "`DataTable`. It virtualizes, and a column's `total` gives the grid a summary band.",
+  ],
+  [
+    "Is there a date drill-down?",
+    '`DatePicker path={["year", "month", "day"]}`, one step at a time.',
+  ],
+  ["And a map?", "`Map`, on MapLibre, with a basemap coloured from the tokens."],
+].flatMap(([q, a], i) => [
+  { id: `m-${i}-q`, role: "user" as const, content: q as string },
+  { id: `m-${i}-a`, role: "assistant" as const, content: a as string },
+]);
+
+/** The rail in a panel, which is where a long conversation is usually read:
+ *  every question asked becomes a label down the side, and the scrollbar goes.
+ *  Widen the panel (drag the divider, or maximize it) and the labels have more
+ *  room; `minimap={{ width: 3 }}` takes the token's narrower rail. */
+export const WithMinimap: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(MINIMAP_TALK);
+  return (
+    <ChatDrawer
+      defaultOpen
+      title="Assistant"
+      minimap
+      defaultSize={460}
+      messages={messages}
+      onSubmit={(text) =>
+        setMessages((prev) => [
+          ...prev,
+          { id: `u-${Date.now()}`, role: "user", content: text },
+          {
+            id: `a-${Date.now()}`,
+            role: "assistant",
+            content: "Noted — the rail grows a label for that question.",
+          },
+        ])
+      }
+    >
+      <div style={{ padding: "var(--sf-unit)" }}>
+        <h2>App content</h2>
+        <p>The panel pushes this aside; the rail lives inside it.</p>
+      </div>
+    </ChatDrawer>
+  );
+};

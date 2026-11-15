@@ -2,9 +2,12 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode, RefObject } from "react";
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { buildOptionRows, clusterOptions } from "../../lib/optionGroups";
+import { type ScrollToItem, useOptionScroll } from "../../lib/optionScroll";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
+import { Check } from "../Icon";
 import styles from "./Selector.module.css";
 
 /** A selectable item: a bare string, or an object with a separate display label.
@@ -63,7 +66,7 @@ function VirtualOptions({
   scrollToIndexRef,
   onGroupToggle,
 }: {
-  scrollToIndexRef: RefObject<((index: number) => void) | null>;
+  scrollToIndexRef: RefObject<ScrollToItem | null>;
   /** Fired with the values of a header's currently filtered items when the
    *  header is clicked. */
   onGroupToggle?: (values: string[]) => void;
@@ -79,15 +82,7 @@ function VirtualOptions({
     estimateSize: (i) => (rows[i]?.kind === "header" ? 28 : 40),
     overscan: 8,
   });
-  // Layout effect (not render) for render purity; child layout effects run
-  // before ancestors', so the ref is set before Base UI's open-time
-  // onItemHighlighted needs it. Base UI hands us item indexes; map to rows.
-  useLayoutEffect(() => {
-    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(itemRowIndex[index] ?? index);
-    return () => {
-      scrollToIndexRef.current = null;
-    };
-  }, [scrollToIndexRef, virtualizer, itemRowIndex]);
+  useOptionScroll(scrollToIndexRef, virtualizer, itemRowIndex);
   return (
     <Combobox.List ref={listRef} className={styles.virtualList} data-virtualized-list="">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -141,7 +136,9 @@ function VirtualOptions({
               className={styles.virtualItem}
               style={{ transform: `translateY(${vrow.start}px)` }}
             >
-              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
+              <Combobox.ItemIndicator>
+                <Glyph slot="check" fallback={Check} size="0.85em" />
+              </Combobox.ItemIndicator>
               {option.label}
             </Combobox.Item>
           );
@@ -227,7 +224,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
       );
     });
 
-  const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
+  const scrollToIndexRef = useRef<ScrollToItem | null>(null);
 
   // Clicking a group header toggles its visible items as one: select the
   // missing ones, or deselect them all when every one is already selected.
@@ -269,8 +266,13 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
         onValueChange={(next: SelectorOption[]) => setSelected(next.map((o) => o.value))}
         disabled={disabled}
         virtualized
+        /* The pointer does not take the highlight from the keyboard: a mouse
+           crossing the popup on its way elsewhere would otherwise discard the
+           row the user had arrowed to. The hovered row still reads, through
+           CSS `:hover` on the item. */
+        highlightItemOnHover={false}
         onItemHighlighted={(_item, details) => {
-          if (details.index >= 0) scrollToIndexRef.current?.(details.index);
+          if (details.index >= 0) scrollToIndexRef.current?.(details.index, details.reason);
         }}
       >
         {layout === "inline" ? (
@@ -290,6 +292,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
               )}
               <Combobox.Input placeholder={selected.length ? "" : placeholder} />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+              <Combobox.Trigger />
             </Combobox.InputGroup>
             {dropdown}
           </>
@@ -308,12 +311,20 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
                 placeholder={selected.length ? "" : placeholder}
               />
               {selected.length > 0 && <Combobox.Clear aria-label="Clear all">Clear</Combobox.Clear>}
+              <Combobox.Trigger />
             </Combobox.InputGroup>
             {dropdown}
           </>
         ) : (
           <>
-            <Combobox.Input placeholder={placeholder} data-size={size} data-elevation={elevation} />
+            <div className={styles.searchField}>
+              <Combobox.Input
+                placeholder={placeholder}
+                data-size={size}
+                data-elevation={elevation}
+              />
+              <Combobox.Trigger className={styles.searchTrigger} />
+            </div>
             {dropdown}
             <div className={styles.bucket}>
               <div className={styles.bucketHeader}>

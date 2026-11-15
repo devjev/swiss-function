@@ -136,17 +136,25 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
 - Depth on controls comes from the **material layer** in `tokens.css`: one light
   (`--sf-light-x` / `-y`, from the top left by default; a document-level
   setting, set it on `:root` or the theme element) and the recipes derived from
-  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key; `--sf-edge-row` keeps only the top and bottom bands for a key in a joined row),
+  it, the `--sf-elevation-N` / `--sf-recess-N` casts included: `--sf-edge` / `--sf-edge-soft` (the 1px lit and shade bands of a key, whose colours are `--sf-edge-lit-color` / `--sf-edge-shade-color` for a shape that has to paint a band itself; `--sf-edge-row` keeps only the top and bottom bands for a key in a joined row),
   `--sf-groove` (a flush slot for fields, tracks and rails), `--sf-cap-rest` /
   `--sf-cap-pressed` (+ `-round`) for small caps, `--sf-curve` (the amplitude of
   a curved face; `--sf-curve-scale` multiplies it per subtree, which is what a
   component's `curve` prop sets) and `--sf-engrave` (a legend cut into a cap). The dark theme
-  re-declares them with its own values. Curved faces live in
+  re-declares them with its own values. `--sf-elevation-N-drop` is the same cast
+  in `filter: drop-shadow()` syntax, for a shape a box-shadow cannot follow: one
+  that is masked or clipped (the shadow would be cut away with it, so the filter
+  goes on the shape's parent) or drawn in SVG. It carries the cast only; an
+  inset, such as the dark theme's rim and film, is not castable and stays on the
+  element. Curved faces live in
   `@tarassov-ch/swiss-function/lib/surface`: `surfaceClass.dish` / `.dome` /
   `.concave` / `.flat`, painted over the element's `--sf-cap` colour, exposed by
   Button, Kbd, Switch, Slider, LaunchButton and ToggleGroup (keys) and by
   DigitInput, Input and DigitInputMicro (slots, `concave`) as `surface`; the `ControlSurface` type is
-  exported from `/button` and the barrel.
+  exported from `/button` and the barrel. The stylesheet also carries a `bowl`
+  class (composed by a component, not offered as a `surface` value): the dish
+  hollowed on both axes, for a face too big for one ramp to read as anything but
+  a wash, which is what a `Chat` squircle message wears.
   A ramp is for a cap of one or two units: Kbd, LaunchButton, Switch, Knob and
   DigitInput carry one by default, while Button, ToggleGroup, WindowArray title
   bars and the DataTable / Explorer headers are `"flat"` by default and take a
@@ -514,9 +522,50 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a one-unit square key inside the field's end (an up arrow); the label is its accessible name. |
 | `sendVariant` | `ButtonVariant` | `"ghost"` | Submit button variant. A ghost by default (the up arrow alone, a tint on hover); `"secondary"` frames the key, `"primary"` fills it with the accent. |
 | `borderColor` | `string` | `var(--sf-color-border)` | Colour of the rule above the input field (its one border). Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
+| `messageStyle` | `ChatMessageStyle \| { user?, assistant? }` | `{ user: "tape", assistant: "plain" }` | How each voice shows up: `plain` (no surface, the text on the page), `box` (a raised box: the edge bands over an elevation-2 cast, the 2px system radius), `tape` (a strip of label-maker tape, a run of the primary colour with the letters embossed in the page colour, monospace and bold, the letterforms belonging to the tape rather than to the role) or `squircle` (the same key with a superellipse round-over and a lightly scooped face, the `bowl` ramp at 0.3 of the system amplitude). One value styles both roles; an object styles them apart. The role keeps its place either way: the user's turn is right-aligned and capped at 75% of the column, the assistant's runs across it. The surface sits on the user's run (so the tape follows its lines and a box hugs its text) and on the assistant's whole block. Each message carries its resolved value as `data-style`. |
+| `minimap` | `boolean \| { side?: "left" \| "right"; width?: number }` | `false` | Replace the transcript's scrollbar with a [`Minimap`](#minimap) rail: every user message becomes a clickable label down the side (the questions are what you navigate a conversation by) over a span of its own height **in the accent**, the colour its message is spoken in down in the transcript, every assistant reply a neutral dithered block the height of the reply, each band taking half the space to the next one and never shrinking below half a unit (so a three-turn conversation reads as a few bricks at the top of the rail rather than as slabs stretched down it, and the rail fills as the conversation does) (the 2u the transcript leaves between turns is real, but left out of the rail it becomes a third of it in dead air), and the viewport band shows the part of the conversation on screen. Clicking a label jumps that question to the top; the view stops following the bottom, as any scroll does, and the jump-to-latest key brings it back. The rail owns the scroll element, so the transcript's `role="log"`, its label and its follow-the-bottom behaviour move onto it. The object form tunes the rail: `side` (right by default) and `width` in `--sf-unit` multiples. Without a `width` the rail reads **`--sf-chat-minimap-width`**, which defaults to 5u, wider than the `--sf-minimap-width` token (4u), because these labels are sentences rather than field names; set that variable on any ancestor to retune every rail in an app, and pass `width` to override it on one chat. The rail is **loaded on demand**, so a chat that never asks for one carries none of it (the transcript stands in, scrollbar hidden, until the chunk lands). Worth it on a long or wide conversation; a short exchange has nothing to navigate. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
+
+**Following the bottom.** The transcript holds its bottom edge as the bottom
+moves, which happens for two reasons: the reply grows as it streams, and the
+composer grows under it (`field-sizing: content`, up to 8u) and takes height from
+the transcript. A `ResizeObserver` over both the message list and the scroll
+viewport catches each, so typing a long question never pushes the reply you are
+answering out of sight.
+
+Following stops the moment the view moves away from the bottom, whatever moved it
+(wheel, trackpad, scrollbar, keyboard) and however small the move, so it never
+pulls against you while you read back. A round key then appears over the
+transcript's bottom edge; it takes the accent (`data-behind`) once something has
+arrived below the fold, and pressing it returns to the bottom and resumes
+following. Scrolling back to the bottom by hand resumes it too, with no key
+press. Submitting also resumes it, so your own turn is always followed. The key
+sits inside the scroll container, so a wheel over it scrolls the transcript.
+
+**Keyboard and assistive tech.** The transcript is a focusable `role="log"`
+region named "Conversation": the composer holds focus the rest of the time, so
+without `tabindex` there would be no way to page back through the history
+(WCAG 2.1.1). A message still arriving carries `aria-busy`, so a screen reader
+waits for the whole reply rather than announcing each tick of the reveal.
+
+A `display: none` ancestor destroys a scroll offset, so the transcript restores
+the position it was left at when it comes back (switching away from a
+[ChatDrawer](#chatdrawer) view and back).
+
+The squircle is a real superellipse (`|x|^4 + |y|^4 = 1`, which is what
+`corner-shape: squircle` draws) in every engine. Where the property exists
+(Chromium 139+) the element cuts its own corners and a `display: none` backing
+element costs nothing. Where it does not (Safari, Firefox) that backing element
+draws the same curve: a mask of four corner cells plus two bars shapes three
+stacked layers, the hairline, the chamfer and the dished face, and their parent
+carries the cast as `--sf-elevation-2-drop`, because a mask cuts a box-shadow
+away with the corners and neither a border nor an inset band can follow a mask.
+The message box itself is unchanged on both paths, so the padding and the
+vertical grid match. One difference remains: in dark mode the fallback's face is
+a few levels darker, since `--sf-elevation-2` lifts a dark surface with an inset
+film that cannot be cast.
 
 ### Rich (non-text) responses
 
@@ -528,10 +577,10 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
 
 - `{ type: "text"; text }`: markdown (streams when it's the active block).
 - `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }`: a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }`, where `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
-- `{ type: "tree"; roots: ChatTreeNode[]; partId? }`: a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node glyph: a live `Spinner` while `running`, `✓`/`✗` when `done`/`error`. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: "tree"; roots: ChatTreeNode[]; partId? }`: a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node mark: a live `Spinner` while `running`, and otherwise a glyph from the icon set through the `check` / `fail` / `pending` slots, so an `IconProvider` can swap them for another set. A finished step is not coloured (the mark says it); only a failure takes the danger tone. Node click → `onAction({ type: "tree", value: nodeId })`.
 - `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }`: an assistant "working on it" block, rendered as quiet de-emphasized text (70% opacity, no frame): a spinner header ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. **Omit `steps` for a bare thinking indicator** (just the spinner + label, no fan-out). Auto-expanded while running, auto-collapsed when `done`; click the header to toggle. Drive it by updating the message over time (like `isStreaming`). Node click → `onAction({ type: "thinking", value: nodeId })`.
 - `{ type: "error"; message; requestId?; retryable?; partId? }`: a backend error (e.g. an overloaded/timeout response) shown as a small `NonIdealState`-style block with the `glitch` effect fill, the danger-toned `message`, an optional mono `requestId`, and a **Retry** when `retryable`. The app parses its raw payload into a clean `message`/`requestId` (Chat is display-only). `onError` fires once when it appears; Retry → `onAction({ type: "error", value: "retry" })`.
-- `{ type: string; partId?; [key]: unknown }`: any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, children }`) to match the built-in TUI frame.
+- `{ type: string; partId?; [key]: unknown }`: any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, variant?, children }`) to match the built-in TUI frame. `variant="plain"` drops the frame, the surface, the padding and the letterforms, leaving a block box and the part's own markup, for a custom micro-UI that should look like itself; the `title`, if given, then renders as one dim line with no marker and no rule, and omitting it leaves no label at all.
 
 `onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless: the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
 
@@ -588,7 +637,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
+| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `minimap` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `minimap` gives the panel's transcript the rail instead of its scrollbar (a panel is where a long conversation is usually read). `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
@@ -908,6 +957,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `selectionMode` | `"cell" \| "row" \| "column"` | `"cell"` | What a plain cell click selects. `"row"` widens every cell-driven selection to the full row (list/master-detail: click anywhere in a row, get the row), `"column"` to the full column — click, drag, Shift+click and arrow keys all produce full-axis ranges, while the active cell stays the clicked cell. Explicit gestures (gutter, header select zones, Cmd/Ctrl+A) keep their own shapes. |
 | `cellBackground` | `(ctx) => CellBackground \| undefined` | n/a | Paint a body cell's **whole background** from its own data. `ctx` is `{ value, row, rowIndex, columnId, column }`, `rowIndex` being the *data* index (as `LeafColumnDef.cell` receives), so the colour **travels with the row through sorting and filtering**, the opposite of `highlights`, which mark a fixed screen region. Return a CSS colour, or `{ color, textColor }` to pin the ink; `undefined` leaves the cell alone. The fill is the cell's own `background-color`, so it sits **under** the range tint and the highlight overlay, and a coloured cell still shows both. The ink picks itself for contrast unless `textColor` is given (see below). Memoize the function to keep the virtualized rows' re-render bail-out. |
 | `highlights` | `DataTableHighlight[]` | n/a | Persistent coloured range overlays (the Excel "coloured range reference" look: a light fill plus a solid border around the block). Each is `{ id?, range: CellRange, color?, label? }`. **Positional** (visible coordinates, like the selection and cell spans): a highlight marks a screen region and stays put when data is sorted or filtered. `color` is any CSS colour/token; omit it and colours cycle the semantic tokens by array position. Use several distinct colours to mark separate ranges (e.g. charting series). Declarative: to add one "with the mouse", capture the selection via `onSelectionChange` and push a highlight with a colour. |
+| `totals` | `boolean \| TotalsConfig` | n/a | Tune the totals row. **A column declaring a `total` is what makes the row appear**; this shapes it, and `totals={false}` drops it. `TotalsConfig` is `{ label?: ReactNode; labelColumn?: string; position?: "top" \| "bottom" }`: `label` (default `"Total"`, `null` for none) sits in `labelColumn`, else in the first column with no total of its own (a column's total always wins over the label), and `position` pins the row under the header instead of at the bottom edge. The row lives inside the scrollport, so it holds its edge while the rows scroll past and scrolls sideways with the columns, frozen cells included. It is the header's band mirrored to the foot of the table: the same panel tone, the same keys (face from `headerSurface`, edge bands, seams), so the grid is framed top and bottom and the summary never reads as one more row. The keys are inert: no hover, no press, no sort. It is **not part of the selection grid**: no cell coordinates, no keyboard focus, not in a copy. `columnFit` / auto-fit measure its cells, so a column is never fitted too narrow for its own total. |
 | `paginate` | `PaginateConfig` | n/a | Opt into pagination instead of virtualization. |
 | `rowHeight` | `number` | `--sf-table-row-height` | Px. Default: the token, measured at mount (25px at the default compact density, 36px under `data-density="comfortable"`). |
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
@@ -920,6 +970,8 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `fillHeight` | `boolean` | `false` | Hold the full `height` even with too few rows (instead of shrinking to content), and dither the empty band below the last row — so a sparse table reads as one filled panel. Uses `columnFill`'s look when set, else a static dither; together with `columnFill` it fills both the right gutter and the bottom band. |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
+| `columnFit` | `"manual" \| "content"` | `"manual"` | How columns are sized at rest. `"manual"` keeps each column's declared `width` (or `defaultColumnWidth`), with the last one stretching into the slack. `"content"` fits every resizable column to the narrowest width that still shows its content, through the same measurement as the double-click on a header edge, so no column lands under its floor (its `minWidth` raised to what its title needs) and a group title still fits over its leaves. It fits once the first rows have mounted and again whenever `data` changes. **Not on scroll**: the body is virtualized, so the fit reads the *mounted* rows, and a longer value further down is measured only once it has been on screen and the table is fitted again. Refitting as rows scrolled past would move column edges under the reader, so it is left to `apiRef.autoFitColumns()`. A user resize wins until the next fit. Fitted columns rarely fill the container, so pair it with `columnFill` to dither the leftover space. |
+| `headerMenu` | `boolean` | `false` | Give the headers a right-click menu with **Fit this column** and **Fit all columns** (the same measurement as above). Off by default, because it takes over the browser's own context menu on the header. "Fit this column" is disabled over a group header or a locked column. The menu is **lazy-loaded** (as TableInput's drag is), so a table that does not opt in carries none of it; the trigger is marked `data-header-menu` once armed, which is the short window after mount in which a right-click still gets the browser's own menu. |
 | `reorderableColumns` | `boolean` | `false` | Drag a leaf header to reorder columns (a leaf only moves within its own group). Click still sorts; the edge still resizes. A collapsed group drags as one unit and keeps its position on expand; order arrays always carry real leaf ids, never a collapsed group's placeholder id. |
 | `filterableColumns` | `boolean` | `false` | Show a per-column header filter (funnel). Control type follows the column's `edit.type` (text/select/boolean/date → value checklist; number → min/max range). Exclude a column with `filterable: false`. Applies live. |
 | `columnFilters` | `ColumnFiltersState` | n/a | Controlled filters (TanStack), with `onColumnFiltersChange`. |
@@ -943,8 +995,15 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 **ColumnDef** is `LeafColumnDef<T> | GroupColumnDef<T>`:
 - Leaf: `id`, `header`, `accessor` (`keyof T | (row) => unknown`), `cell?`,
   `width?` (u), `minWidth?` (u, default 3), `resizable?`, `headerLines?` (lines the title may take, see the table prop), `overflow?` (`"clamp" | "wrap" | "hash"`, see `cellOverflow`), `align?`
-  (`start|center|end`), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
+  (`start|center|end`), `total?` (`ColumnTotal<T>`, see below), `edit?` (`EditConfig`), `editOn?` (`"single" | "double"`,
   overrides the table's `editOn`), `sortable?`, `filterable?`.
+- `align` **follows the data type when it is not declared**:
+  a `number` edit column ends (its digits line up, and its heading sits over
+  them), a `boolean` one centres, everything else starts. The type signal is the
+  column's `edit` config, the same one that picks the cell editor and the filter
+  control, so a column that declares none keeps starting. An explicit `align`
+  always wins. `TableInput` already read a number column this way; the two now
+  agree. The helper is exported as `resolveAlign(column)`.
 - Group: `id`, `header`, `columns`, `defaultCollapsed?`, `collapsedCell?`, `color?`, `headerLines?` (kept by the collapsed placeholder).
 - `EditConfig`, the cell editor, keyed by `type`:
   - `{ type: "text" }` is a `TextEditInline` (the floating expand-on-focus editor;
@@ -956,6 +1015,40 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
   - `{ type: "date"; minDate?; maxDate? }` is a `DatePicker`; commits a `Date`.
     Render the read view via the column's `cell` (e.g. ISO). Its header filter
     falls back to a value checklist over the stringified dates.
+
+**Totals row.** `total` on a column is both the opt-in and the
+content:
+
+- A named aggregate: `"sum"`, `"avg"`, `"min"`, `"max"` over the column's
+  numeric values (numeric strings count; booleans and dates do not), `"count"`
+  (rows carrying a value, a spreadsheet's COUNTA) or `"countUnique"` (distinct
+  values). They print in Swiss typography (`1'284'500`) at the column's declared
+  precision (`edit.decimals`), else at the precision of the values they were fed,
+  so float noise never reaches the screen; an average keeps two decimals at the
+  least.
+- A function, `({ rows, values, column }) => ReactNode`, for anything else: a
+  weighted average, a ratio of two columns, a unit, a label. `rows` are the rows
+  behind the total and `values` their values in this column, in display order.
+
+The aggregates cover **every filtered row**, not the page and not the rows on
+screen, so the figure does not move as you scroll or page; on a tree table they
+cover the **root rows**, so a parent's own subtotal is not counted twice. The
+named aggregates stream their values, and only a function total materializes the
+arrays it is handed, so the row costs one pass over the data per total column.
+
+```tsx
+<DataTable
+  data={desks}
+  columns={[
+    { id: "desk", header: "Desk", accessor: "desk" },
+    { id: "amount", header: "Amount", accessor: "amount",
+      edit: { type: "number", decimals: 2 }, total: "sum" },
+    { id: "share", header: "Share", accessor: "share",
+      total: ({ values }) => `${formatNumber(sum(values) * 100, { decimals: 1 })}%` },
+  ]}
+  totals={{ label: "All desks" }}
+/>
+```
 
 **Keyboard / selection:**
 - With a selected cell, arrows move the active cell one cell and scroll it into
@@ -1035,24 +1128,64 @@ Before the first measurement, the padding falls back to `calc(var(--sf-unit) * 1
 
 `import { DatePicker } from "@tarassov-ch/swiss-function/date-picker"`
 
-Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control: typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th to 19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). Extends `HTMLAttributes<HTMLDivElement>`.
+Date input + calendar popup, ISO 8601 by default: the field renders `YYYY-MM-DD`, weeks start on Monday, week numbers are ISO. The text field is the primary control: typing narrows the calendar (`2026-07` jumps to July; `2026-07-1` highlights the 1st and 10th to 19th; `12 jul`, `12/7` and `12.7.2026` parse **day-first, never month-first**; `today`/`tomorrow`/`yesterday`/`+7`/`-3` work) and Enter commits the candidate echoed in the popup footer. The grid is keyboard-navigable from the field via ArrowDown (arrows move by day/week, PageUp/PageDown by month, Shift+PageUp/PageDown by year, Home/End to week bounds, Enter selects). The field ends in a chevron that opens the calendar and turns over while it is open, as on [Picker](#picker): it stays off the tab order (the input owns `role="combobox"` and `aria-expanded`), and its glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it. The clear key draws its cross from the `close` slot. Extends `HTMLAttributes<HTMLDivElement>`.
 
 `precision` picks whole periods instead of days. `"week"`: the calendar selects entire ISO-week rows (click any row or its week number; the week column is forced on) and the field shows `YYYY-Www`; typed entry accepts `w29` / `2026-w29` plus any day-level form, which resolves to its week. `"month"`: the popup becomes a year of month cells (paddles page by year); type `2026-07`, `jul` or `jul 2027`. `"year"`: a 12-year page (paddles move a dozen years); type `2028`. The committed `Date` is always the period start: the ISO week's Monday, the 1st, or Jan 1.
+
+`path` picks the date by stepping down a trail instead of from the calendar:
+the popup shows one level at a time, each pick narrowing the next, and the last
+one commits. `["year", "month", "day"]` asks for the year, then its months, then
+that month's days; `["year", "quarter", "month"]` is the reporting-period
+reading, `["year", "week", "day"]` the ISO-week one, `["month", "day"]` picks
+within the year the paddles are on.
+
+- **The chain is fixed.** Each step narrows the one before it: a quarter follows
+  a year, a month follows a year or a quarter, a week follows a year (an ISO
+  week straddles month ends, so it is never inside a month), and a day follows a
+  month or a week. A step that cannot is dropped, with a `console.warn` naming
+  the path it used instead. The first step always stands: it carries its own
+  context.
+- **The last step is the precision.** The value commits there and nowhere
+  earlier, so `["year", "month"]` always hands back a month start and the field
+  reads `2026-07`; a path ending in `quarter` reads `2026-Q3`. `path` wins over
+  `precision`, and the field is read-only (the calendar's typed entry does not
+  apply to a path).
+- **The header is the trail.** It carries the context the step sits in and every
+  value picked so far, each a button back to its own step; the paddles step that
+  context (the year over a month, the month over a day, a page of twelve at the
+  year step). Keyboard: ArrowDown from the field enters the grid, arrows move
+  within the step, Enter picks, Backspace goes back a step, Escape closes.
+- **Every step can be vetoed.** `isDateDisabled` is called with the period's
+  start **and the level**, so a whole year, quarter, month, week or day greys
+  out (struck through, skipped by the arrows). A step is not disabled because
+  all its children are: say so at the step you mean, since scanning a year's
+  days to find out would cost 365 calls per cell. `minDate` / `maxDate` keep
+  bounding every step by overlap.
+
+```tsx
+<DatePicker
+  path={["year", "quarter", "month"]}
+  value={period}
+  onChange={setPeriod}
+  isDateDisabled={(d, level) => level === "year" && d.getFullYear() < 2024}
+/>
+```
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `value` | `Date \| null` | n/a | Selected date (controlled; pair with `onChange`). |
 | `defaultValue` | `Date \| null` | n/a | Initial selection (uncontrolled). |
 | `onChange` | `(date: Date \| null) => void` | n/a | Fires on commit or clear. At coarser precisions always the normalized period start. |
-| `precision` | `"day" \| "week" \| "month" \| "year"` | `"day"` | The unit the picker commits; see above. Display, placeholder and typed entry follow. |
+| `precision` | `"day" \| "week" \| "month" \| "year"` | `"day"` | The unit the picker commits; see above. Display, placeholder and typed entry follow. Ignored when `path` is set (its last step is the unit). |
+| `path` | `DateLevel[]` | n/a | Pick by stepping down a trail instead of from the calendar; see above. `DateLevel` is `"year" \| "quarter" \| "month" \| "week" \| "day"`. |
 | `placeholder` | `string` | precision's ISO shape | Field placeholder (`YYYY-MM-DD` / `YYYY-Www` / `YYYY-MM` / `YYYY`). |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Field size, mirrors `Input`. |
 | `disabled` | `boolean` | `false` | Disable the control. |
 | `clearable` | `boolean` | `true` | × button once a date is selected. |
 | `minDate` / `maxDate` | `Date` | n/a | Inclusive selectable range (day granularity). At coarser precisions a period stays pickable while it overlaps the range. |
-| `isDateDisabled` | `(date: Date) => boolean` | n/a | Per-day veto on top of min/max; disabled days are struck through and skipped by keyboard nav. Day precision only; ignored at coarser precisions. |
+| `isDateDisabled` | `(date: Date, level: DateLevel) => boolean` | n/a | Veto a period on top of min/max; vetoed options are struck through and skipped by keyboard nav. Called with the period's start and the level being picked at. On the calendar it is asked at day precision only (a coarser period has no single day to ask about); with `path` it is asked at **every** step, so a whole year, quarter, month or week can be greyed out. |
 | `showWeekNumbers` | `boolean` | `false` | ISO week numbers in a leading column. Forced on at week precision. |
-| `formatValue` | `(date: Date) => string` | precision's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
+| `formatValue` | `(date: Date) => string` | the unit's ISO form | Custom display format for the committed value; always receives the normalized period start. Parsing still accepts ISO and day-first fragments. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | A cast below the field (`--sf-elevation-N`). Omitted, the field sits flush as a groove (`--sf-groove`). |
 | `aria-label` | `string` | n/a | Accessible name when not wrapped in a `Field`. |
 
@@ -1744,7 +1877,7 @@ A consistent, tree-shakeable icon set matched to the library's aesthetic (issue 
 
 Plus any `SVGProps` (e.g. `color`, `className`) spread to the `<svg>`.
 
-Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`), window chrome (`Expand`, `Collapse`, `Split`, `PopIn`), viewport controls (`ZoomIn`, `ZoomOut`, `Fit`, `Connect`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
+Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `Circle`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`), window chrome (`Expand`, `Collapse`, `Split`, `PopIn`), viewport controls (`ZoomIn`, `ZoomOut`, `Fit`, `Connect`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
 
 ### Pluggable icons
 
@@ -1761,7 +1894,7 @@ The mechanism is a React context, `IconProvider`, that maps **slots** (semantic 
 | `SF_ICON_SLOTS` / `IconSlot` | const / type | The slot vocabulary and its union type. |
 | `IconOverrides` / `IconRenderer` / `IconRenderProps` | types | The override-map, renderer, and render-prop types. |
 
-Slots: `chevronUp/Down/Left/Right`, `close`, `expand`, `collapse`, `split`, `popOut`, `popIn`, `zoomIn`, `zoomOut`, `fit`, `reset`, `connect`, `add`, `delete`, `search`, `check`, `menu`, `moreHorizontal`, `moreVertical`, `eye`, `eyeOff`, `lock`, `folder`, `file`, `eyedropper`. `SF_ICON_SLOTS` is **append-only**: adding a slot is additive (override maps are `Partial`, and each call site ships a fallback), so only renaming or removing one is a breaking change.
+Slots: `chevronUp/Down/Left/Right`, `close`, `expand`, `collapse`, `split`, `popOut`, `popIn`, `zoomIn`, `zoomOut`, `fit`, `reset`, `connect`, `add`, `delete`, `search`, `check`, `menu`, `moreHorizontal`, `moreVertical`, `eye`, `eyeOff`, `lock`, `folder`, `file`, `eyedropper`, `fail`, `pending` (the run state of a step in a fan-out; `check` marks the done one). `SF_ICON_SLOTS` is **append-only**: adding a slot is additive (override maps are `Partial`, and each call site ships a fallback), so only renaming or removing one is a breaking change.
 
 Swap the whole set, or a single slot (unmapped slots stay bespoke):
 
@@ -2236,8 +2369,10 @@ external host-owned scroller is a planned follow-up.
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
 | `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, in step with the content like an editor minimap: the band is at the top of the visible rail at the start, at its bottom at the end, and travels it steadily in between. A drag moves the band 1:1 through the visible rail, from the start of the content to its end. Unset keeps the fit-everything proportional overview. |
+| `stretch` | `boolean` | `true` | Stretch the markers to fill the rail. On, the rail is a map of the whole document, so its picture spans its height whatever there is to show. Off (with `minMarkerSize`, which then sets the scale: the smallest span is exactly that tall and the rest are proportional to it), the markers keep that size and **accumulate from the top**, leaving the rail empty below until the content grows into it, and past that the rail scrolls as it does in min-block mode. Reach for it when the markers **tile** content that grows, like a conversation, where a few blocks blown up to the rail's full height say nothing about how much there is (`Chat`'s rail turns it on). Leave it on when they annotate parts of a fixed document, where the picture would collapse to a sliver of the rail, or when the rail is an index of names, where a smaller picture collides their pills and the rail thins them out. |
 | `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples, a bound on outliers: a block outsized at the natural scale is compressed to the cap in place, everything after it moves up, and the rail it gives up is shared out so the picture still fills the rail with proportions among the other blocks intact (a block that only reaches the cap through that share-out is left alone). No other block is shrunk (the whole-rail scale of 2.27 bunched the rest toward the top) and no hole is left behind (the render-time cap of 2.29 to 2.34 did). The viewport band, presses, drags and header labels go through the same piecewise mapping. |
 | `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
+| `scrollProps` | `HTMLAttributes<HTMLDivElement>` | n/a | Attributes merged onto the **scroll element**. The component owns that element, but the semantics of the scrolling region belong to the host: a chat transcript is a `role="log"`, a document body carries its own label, and a test needs a handle on the thing that actually scrolls. An `onScroll` here is the host's (the component listens on its own). The component's ref, id, class and tabIndex always win. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
 
 `MinimapMarker`: `{ id?, top?, topFraction?, height?, heightFraction?, kind?, label?, level?, emphasis?, tone? }`.
@@ -2516,6 +2651,8 @@ field.
 
 Search a list and choose exactly one: the single-selection sibling of [Selector](#selector), built on a single-select Base UI Combobox. The field shows the chosen item's label; opening the dropdown clears it to a fresh search box (the whole list is offered, not filtered to the current selection) and restores the label if dismissed without choosing. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `PickerItem = string | { value, label, group? }`.
 
+**The dropdown's affordance:** the field ends in a chevron that opens the list and turns over while it is open. Base UI keeps it out of the tab order and leaves the semantics on the input, so it reads as a marker one can also click. The glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it with the rest of a consumer's set.
+
 **Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header). Items sharing a `group` cluster together (groups in order of first appearance); ungrouped items list first, headerless. Filtering hides a group along with its last matching item; keyboard navigation skips the headers. The headers are visual (the windowed listbox stays flat for assistive tech).
 
 | Prop | Type | Default | Notes |
@@ -2530,6 +2667,14 @@ Search a list and choose exactly one: the single-selection sibling of [Selector]
 | `clearable` | `boolean` | `true` | Show a clear button once selected. |
 | `emptyMessage` | `ReactNode` | `"No results"` | Dropdown empty state. |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | n/a | Resting depth of the search field (`--sf-elevation-N`, same scale as Box). Omitted leaves the field flush as a groove (its default); set it to raise the control. |
+
+**Pointer and keyboard are separate.** Hovering a row does not move the
+highlight: `data-highlighted` stays where the keyboard left it (and is what Enter
+commits), while CSS `:hover` shades the row under the cursor, so a mouse crossing
+an open dropdown on its way elsewhere cannot discard the row you had arrowed to.
+A pointer hover never scrolls the windowed list either; only keyboard and
+programmatic highlight changes do, which is what keeps a stray mouse movement
+from jumping the list.
 
 **Width:** fills its container and clamps to a narrow *definite* cell (like
 [Selector](#selector)). In a shrink-to-fit parent it holds a `12rem` floor
@@ -2881,6 +3026,12 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 `import { Selector } from "@tarassov-ch/swiss-function/selector"`
 
 Opinionated, controlled multi-select built on a Base UI Combobox. Extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`). `SelectorItem = string | { value, label, group? }`.
+
+**The dropdown's affordance:** the field ends in a chevron that opens the list and turns over while it is open. Base UI keeps it out of the tab order and leaves the semantics on the input, so it reads as a marker one can also click. The glyph goes through the `chevronDown` slot, so an [`IconProvider`](#icon) swaps it with the rest of a consumer's set. Every layout carries it: the panel's search field, the inline tag input and the compact count.
+
+**Pointer and keyboard are separate**, exactly as in [Picker](#picker): hovering
+a row shades it through CSS `:hover` but leaves `data-highlighted` where the
+keyboard put it, and a pointer hover never scrolls the windowed list.
 
 **Groups:** an item's optional `group` files it under a section header in the dropdown (its items indent one unit under the header), exactly as in [Picker](#picker): same-group items cluster (groups in first-appearance order), ungrouped items list first headerless, a group disappears with its last filtered-out item, and keyboard navigation skips the headers (which are visual only; the windowed listbox stays flat for assistive tech). **Clicking a header toggles the whole group** over its currently visible (filtered) items: it selects the missing ones, or deselects them all when every one is selected. This is a pointer shortcut; keyboard selection stays per item.
 
@@ -3555,6 +3706,7 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
 | `minBlock` | `Root` | `number` | `0.75` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). The default is the height of a rail label with its spacing, so every field keeps its name on the rail. Forwarded to `Minimap`'s `minMarkerSize`. |
 | `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples: an outsized field's block (a tall `TableInput`) is compressed to the cap and the fields after it move up, while every other block keeps its proportional size. Passed to the Minimap as `maxMarkerSize`. |
+| `stretch` | `Root` | `boolean` | `true` | Stretch the rail's picture to fill its height. **On** here, against `Minimap`'s own default, for two reasons: a form's rail is an index of field names, and a smaller picture collides their pills, so the rail thins them out (a 24-field form shows 24 names stretched and 12 packed); and a form is a fixed document, where "there is little here yet" says nothing. Pass `false` for the packed look: the blocks keep the size `minBlock` gives them and accumulate from the top. |
 
 A field's rail marker is anchored at the row top and spans the field's **real
 row height**, so the rail reads the form's density honestly: a tall control (a

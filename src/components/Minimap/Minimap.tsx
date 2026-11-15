@@ -103,9 +103,24 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   /** Minimum block-marker height in `--sf-unit` multiples. When set, block
    *  spans never compress below this: once the content is dense enough that they
    *  would, the rail's inner content grows taller than the rail and the rail
-   *  itself scrolls (in step with the content, like an editor minimap). Unset (default) keeps the
+   *  itself scrolls (in step with the content, like an editor minimap). With
+   *  `stretch={false}` it is the rail's scale as much as its floor. Unset (default) keeps the
    *  fit-everything proportional overview. */
   minMarkerSize?: number;
+  /** Stretch the markers to fill the rail. On by default: a rail is a map of
+   *  the whole document, so its picture spans its height whatever there is to
+   *  show. Off (with `minMarkerSize`, which then sets the scale), the markers
+   *  keep that size and accumulate from the top, leaving the rail empty below
+   *  until the content grows into it and then past it, where the rail scrolls
+   *  as it does in min-block mode.
+   *
+   *  Reach for it when the markers **tile** the content and it grows, like a
+   *  conversation, where a few blocks blown up to the rail's full height say
+   *  nothing about how much there is. Leave it on when they annotate parts of a
+   *  fixed document (the picture would collapse to a sliver of the rail) or
+   *  when the rail is an index of names (a smaller picture collides their pills,
+   *  so the rail thins them out). */
+  stretch?: boolean;
   /** Maximum block-marker height in `--sf-unit` multiples. Caps how tall any one
    *  block renders (a sparse document otherwise gives a few very tall blocks);
    *  the capped block leaves a gap after it rather than overlapping, while every
@@ -116,6 +131,13 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
    *  (default, at the top) or `"center"` (in the middle). Also anchors which
    *  header reads as active. */
   jumpAlign?: "start" | "center";
+  /** Attributes merged onto the scroll element. The component owns that
+   *  element, but the semantics of the scrolling region belong to the host: a
+   *  chat transcript is a `role="log"`, a document body carries its own label,
+   *  and a test needs a handle on the thing that actually scrolls. An
+   *  `onScroll` here is the host's; the component listens on its own. The
+   *  component's ref, id, class and tabIndex always win. */
+  scrollProps?: HTMLAttributes<HTMLDivElement>;
   /** The scrollable content. The component owns the scroll container; the
    *  parent must constrain the wrapper's height (like Pane). */
   children?: ReactNode;
@@ -158,8 +180,10 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     ariaLabel = "Scroll position",
     onJump,
     minMarkerSize,
+    stretch = true,
     maxMarkerSize,
     jumpAlign = "start",
+    scrollProps,
     children,
     className,
     style,
@@ -203,6 +227,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   // callbacks: the live marker list / min-block prop feed the effective rail
   // content height, which the drag math and the rail auto-scroll both need.
   const markerListRef = useRef<MinimapMarker[]>([]);
+  const stretchRef = useRef(true);
   const minMarkerSizeRef = useRef<number | undefined>(undefined);
   const maxMarkerSizeRef = useRef<number | undefined>(undefined);
   const unitPxRef = useRef(MIN_TARGET_PX);
@@ -210,6 +235,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
    *  anchor): 0 = top, 0.5 = center. */
   const anchorFracRef = useRef(0);
   minMarkerSizeRef.current = minMarkerSize;
+  stretchRef.current = stretch;
   maxMarkerSizeRef.current = maxMarkerSize;
   unitPxRef.current = unitPx;
   anchorFracRef.current = jumpAlign === "center" ? 0.5 : 0;
@@ -233,6 +259,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     unit: number;
     minMarker: number | undefined;
     maxMarker: number | undefined;
+    stretch: boolean;
     railContentH: number;
     map: RailMap;
   } | null>(null);
@@ -240,6 +267,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     const markers = markerListRef.current;
     const minMarker = minMarkerSizeRef.current;
     const maxMarker = maxMarkerSizeRef.current;
+    const stretch = stretchRef.current;
     const cached = geometryCacheRef.current;
     if (
       cached &&
@@ -248,7 +276,8 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       cached.railHeight === railHeight &&
       cached.unit === unit &&
       cached.minMarker === minMarker &&
-      cached.maxMarker === maxMarker
+      cached.maxMarker === maxMarker &&
+      cached.stretch === stretch
     ) {
       return cached;
     }
@@ -258,7 +287,13 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     if (minMarker && scrollHeight > 0 && railHeight > 0) {
       const natural = buildRailMap(spanList, scrollHeight, railHeight, maxPx);
       const spans = spanList.map((s) => natural.toRail(s.top + s.extent) - natural.toRail(s.top));
-      railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
+      railContentH = railContentHeight(
+        spans,
+        railHeight,
+        minMarker * unit,
+        MAX_RAIL_SCALE,
+        stretch ? 1 : 0,
+      );
     }
     const next = {
       markers,
@@ -267,6 +302,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       unit,
       minMarker,
       maxMarker,
+      stretch,
       railContentH,
       map: buildRailMap(spanList, scrollHeight, railContentH, maxPx),
     };
@@ -781,8 +817,14 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       {/* tabIndex: the native scrollbar is hidden, and only Chromium/Firefox
           auto-focus scrollers (and only when no focusable child exists), so an
           explicit stop keeps the content keyboard-scrollable everywhere. */}
-      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll region with its native scrollbar hidden must stay keyboard-scrollable; WebKit never auto-focuses scrollers. */}
-      <div ref={setScrollRefs} id={scrollId} className={styles.scroll} tabIndex={0}>
+      <div
+        {...scrollProps}
+        ref={setScrollRefs}
+        id={scrollId}
+        className={cx(styles.scroll, scrollProps?.className)}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll region with its native scrollbar hidden must stay keyboard-scrollable; WebKit never auto-focuses scrollers.
+        tabIndex={0}
+      >
         <div ref={setContentNode} className={styles.content}>
           {children}
         </div>
@@ -851,11 +893,11 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
                 {
                   top: h.labelTop,
                   // Level indent as position, not padding, so the caption's pill
-                  // stays tight to its text at every depth. The base `--sf-unit / 4`
-                  // matches the block markers' inline inset, so a label's text
-                  // aligns with the left edge of the dither blocks; each level adds a quarter
-                  // unit.
-                  "--minimap-label-inset": `calc(var(--sf-unit) / 4 + ${h.level - 1} * var(--sf-unit) / 4)`,
+                  // stays tight to its text at every depth. The stylesheet adds
+                  // it to the block markers' own inset, so a label's text aligns
+                  // with the left edge of the dither blocks and its cap moves in
+                  // with it.
+                  "--sf-minimap-label-indent": `calc(${h.level - 1} * var(--sf-unit) / 4)`,
                 } as CSSProperties
               }
               aria-current={activeKey === h.key ? "true" : undefined}

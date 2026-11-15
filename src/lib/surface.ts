@@ -35,6 +35,12 @@ export function curveStyle<S>(
   return { ...style, ...scale };
 }
 
+/** The dish hollowed on both axes: a face too big for one ramp to read as
+ *  anything but a wash (a message, a panel). Not a `ControlSurface`: a control
+ *  is small enough for the dish, so this is composed by the component that
+ *  needs it rather than offered as a `surface` value. */
+export const bowlClass: string = styles.bowl ?? "";
+
 export const surfaceClass: Record<ControlSurface, string> = {
   flat: styles.flat ?? "",
   dish: styles.dish ?? "",

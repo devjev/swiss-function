@@ -131,6 +131,7 @@ export const CircleCheck = /* @__PURE__ */ createIcon(
     <path d="M5 8.2 7 10.2 11 6" />
   </>,
 );
+export const Circle = /* @__PURE__ */ createIcon("Circle", <circle cx="8" cy="8" r="4.5" />);
 export const CircleX = /* @__PURE__ */ createIcon(
   "CircleX",
   <>

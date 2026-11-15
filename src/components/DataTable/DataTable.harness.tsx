@@ -643,3 +643,136 @@ export function CellOverflowHarness({
     />
   );
 }
+
+/** `columnFit` and the header menu: a wide declared width over short content,
+ *  plus a button that swaps in a longer value, so a refit is observable. */
+export function ColumnFitHarness({ fit, menu }: { fit?: "manual" | "content"; menu?: boolean }) {
+  const [long, setLong] = useState(false);
+  const rows: BgRow[] = BG_ROWS.map((r, i) => ({
+    ...r,
+    region: long && i === 0 ? "A considerably longer region name" : r.region,
+  }));
+  const columns: ColumnDef<BgRow>[] = [
+    { id: "region", header: "Region", accessor: "region", width: 16 },
+    { id: "value", header: "Value", accessor: "value", align: "end", width: 16 },
+  ];
+  return (
+    <div>
+      <button type="button" onClick={() => setLong((v) => !v)}>
+        Lengthen
+      </button>
+      <DataTable<BgRow>
+        data={rows}
+        columns={columns}
+        height={220}
+        columnFit={fit}
+        headerMenu={menu}
+      />
+    </div>
+  );
+}
+
+// --- Totals row ---
+
+type DeskRow = { desk: string; amount: number; active: boolean };
+
+/** Five desks, two of them inactive. Sum 3'850.75, average 770.15. */
+const DESK_ROWS: DeskRow[] = [
+  { desk: "Zurich", amount: 1000.5, active: true },
+  { desk: "Geneva", amount: 2000.25, active: false },
+  { desk: "Basel", amount: 500, active: true },
+  { desk: "Bern", amount: 250, active: true },
+  { desk: "Lugano", amount: 100, active: false },
+];
+
+/** The five desks plus `n - 5` filler rows that add nothing, so a scrolling
+ *  table keeps the same total. */
+function manyDesks(n: number): DeskRow[] {
+  const out = DESK_ROWS.slice();
+  for (let i = out.length; i < n; i++) out.push({ desk: `Branch ${i}`, amount: 0, active: false });
+  return out;
+}
+
+export function TotalsHarness({
+  totals,
+  paginate,
+  empty,
+  count,
+  fit,
+  height = 300,
+}: {
+  totals?: DataTableProps<DeskRow>["totals"];
+  paginate?: PaginateConfig;
+  /** No rows at all, for the empty state. */
+  empty?: boolean;
+  /** Pad to `count` rows (adding nothing to the total) so the table scrolls. */
+  count?: number;
+  /** Fit the columns to their content, the total's cell included. */
+  fit?: "manual" | "content";
+  height?: number;
+}) {
+  const rows = empty ? [] : count != null ? manyDesks(count) : DESK_ROWS;
+  const columns: ColumnDef<DeskRow>[] = [
+    { id: "desk", header: "Desk", accessor: "desk" },
+    {
+      id: "amount",
+      header: "Amount",
+      accessor: "amount",
+      edit: { type: "number", decimals: 2 },
+      total: "sum",
+    },
+    {
+      id: "active",
+      header: "Active",
+      accessor: "active",
+      edit: { type: "boolean" },
+      total: ({ values }) => `${values.filter(Boolean).length} on`,
+    },
+  ];
+  return (
+    <DataTable<DeskRow>
+      data={rows}
+      columns={columns}
+      height={height}
+      totals={totals}
+      paginate={paginate}
+      columnFit={fit}
+    />
+  );
+}
+
+/** A tree whose parents carry their children's subtotal: the totals row must
+ *  add the roots alone, or every amount is counted twice. */
+const TREE_TOTALS: TreeRow[] = [
+  {
+    id: "a",
+    name: "Equities",
+    value: 300,
+    children: [
+      { id: "a1", name: "Swiss", value: 100 },
+      { id: "a2", name: "Europe", value: 200 },
+    ],
+  },
+  {
+    id: "b",
+    name: "Bonds",
+    value: 150,
+    children: [{ id: "b1", name: "Government", value: 150 }],
+  },
+];
+
+export function TotalsTreeHarness() {
+  const columns: ColumnDef<TreeRow>[] = [
+    { id: "name", header: "Name", accessor: "name" },
+    { id: "value", header: "Value", accessor: "value", align: "end", total: "sum" },
+  ];
+  return (
+    <DataTable<TreeRow>
+      data={TREE_TOTALS}
+      columns={columns}
+      getSubRows={(r) => r.children}
+      defaultExpanded
+      height={300}
+    />
+  );
+}

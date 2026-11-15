@@ -6,6 +6,8 @@ export type {
   ChatErrorContext,
   ChatErrorPart,
   ChatMessage,
+  ChatMessageStyle,
+  ChatMessageStyles,
   ChatPart,
   ChatProps,
   ChatRole,
@@ -16,4 +18,4 @@ export type {
   ChatTreePart,
 } from "./Chat";
 export { Chat } from "./Chat";
-export { ChatBlock, type ChatBlockProps } from "./ChatBlock";
+export { ChatBlock, type ChatBlockProps, type ChatBlockVariant } from "./ChatBlock";

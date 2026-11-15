@@ -8,6 +8,7 @@ import {
   endOfPeriod,
   formatISODate,
   formatISOMonth,
+  formatISOQuarter,
   formatISOWeek,
   formatPeriod,
   isoWeek,
@@ -17,8 +18,10 @@ import {
   mondayIndex,
   monthGrid,
   periodDisabled,
+  quarterOf,
   startOfISOWeek,
   startOfPeriod,
+  startOfQuarter,
   yearPageStart,
 } from "./dateMath";
 
@@ -179,5 +182,44 @@ describe("periods", () => {
     expect(yearPageStart(2026)).toBe(2016);
     expect(yearPageStart(2028)).toBe(2028);
     expect(yearPageStart(2016)).toBe(2016);
+  });
+});
+
+describe("quarters", () => {
+  it("numbers the quarter from the month", () => {
+    expect(quarterOf(new Date(2026, 0, 31))).toBe(0);
+    expect(quarterOf(new Date(2026, 5, 1))).toBe(1);
+    expect(quarterOf(new Date(2026, 6, 14))).toBe(2);
+    expect(quarterOf(new Date(2026, 11, 31))).toBe(3);
+  });
+
+  it("starts and ends a quarter on its own months", () => {
+    const d = new Date(2026, 6, 14);
+    expect(formatISODate(startOfQuarter(d))).toBe("2026-07-01");
+    expect(formatISODate(startOfPeriod(d, "quarter"))).toBe("2026-07-01");
+    expect(formatISODate(endOfPeriod(d, "quarter"))).toBe("2026-09-30");
+    // Q1 of a leap year ends on the 31st of March, not on the 29th of February.
+    expect(formatISODate(endOfPeriod(new Date(2024, 1, 29), "quarter"))).toBe("2024-03-31");
+  });
+
+  it("prints the reporting form", () => {
+    expect(formatISOQuarter(new Date(2026, 6, 14))).toBe("2026-Q3");
+    expect(formatPeriod(new Date(2026, 0, 1), "quarter")).toBe("2026-Q1");
+  });
+
+  it("steps three months at a time, across the year", () => {
+    const q3 = new Date(2026, 6, 1);
+    expect(formatISODate(addPeriods(q3, 1, "quarter"))).toBe("2026-10-01");
+    expect(formatISODate(addPeriods(q3, 2, "quarter"))).toBe("2027-01-01");
+    expect(formatISODate(addPeriods(q3, -3, "quarter"))).toBe("2025-10-01");
+  });
+
+  it("compares and bounds quarters like any other period", () => {
+    expect(isSamePeriod(new Date(2026, 6, 1), new Date(2026, 8, 30), "quarter")).toBe(true);
+    expect(isSamePeriod(new Date(2026, 6, 1), new Date(2026, 9, 1), "quarter")).toBe(false);
+    // Overlap: the quarter holding the minimum stays pickable.
+    const min = new Date(2026, 8, 20);
+    expect(periodDisabled(new Date(2026, 6, 1), "quarter", min)).toBe(false);
+    expect(periodDisabled(new Date(2026, 3, 1), "quarter", min)).toBe(true);
   });
 });

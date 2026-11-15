@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { Picker } from "./Picker";
+import { PickerDefaultChevron, PickerSwappedChevron } from "./Picker.harness";
 
 test("typing filters the dropdown and clicking an item selects it", async ({ mount, page }) => {
   let last = "";
@@ -272,4 +273,71 @@ test("fits inside a grid cell narrower than the input's 20-char default (issue #
   const box = await group.boundingBox();
   if (!box) throw new Error("missing bounding box");
   expect(box.width).toBeLessThanOrEqual(225);
+});
+
+test("the field carries a chevron that opens the list and turns over while it is open", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<PickerDefaultChevron />);
+  const trigger = c.locator("button").last();
+  // A marker one can click, not a second tab stop: the input owns the semantics.
+  expect(await trigger.evaluate((el) => el.tabIndex)).toBe(-1);
+  await expect(trigger.locator("svg")).toHaveCount(1);
+  await expect(trigger).not.toHaveAttribute("data-popup-open", /.*/);
+
+  await trigger.click();
+  await expect(page.getByRole("option", { name: "Geneva" })).toBeVisible();
+  await expect(trigger).toHaveAttribute("data-popup-open", "");
+  // Turned over while open (polled: the turn is a transition).
+  await expect
+    .poll(async () => await trigger.evaluate((el) => getComputedStyle(el).transform))
+    .toBe("matrix(-1, 0, 0, -1, 0, 0)");
+});
+
+test("an IconProvider swaps the chevron for another set's", async ({ mount }) => {
+  const c = await mount(<PickerSwappedChevron />);
+  await expect(c.locator('[data-testid="external-chevron"]')).toHaveCount(1);
+});
+
+test("the pointer neither takes the keyboard's highlight nor scrolls the list", async ({
+  mount,
+  page,
+}) => {
+  // The bug this pins: `onItemHighlighted` fired for a pointer hover too, and
+  // scrolled the hovered row into view. Hovering a row clipped at an edge
+  // dragged the list, which slid another row under the cursor, which scrolled
+  // again — so a stray mouse movement over an open dropdown jumped it. The
+  // keyboard position was lost with it, since Base UI highlights on hover by
+  // default (`highlightItemOnHover`, off here).
+  const component = await mount(<Picker items={manyItems} />);
+  const input = component.getByRole("combobox");
+  await input.click();
+
+  for (let i = 0; i < 20; i++) {
+    await input.press("ArrowDown");
+  }
+  const highlighted = page.locator('[role="option"][data-highlighted]');
+  const index = await highlighted.getAttribute("data-index");
+  const listbox = page.getByRole("listbox");
+  const before = await listbox.evaluate((el) => el.scrollTop);
+
+  // The cursor goes to a row near the top of the window, well away from the
+  // highlighted one. `mouse.move` rather than `hover()`, which would scroll the
+  // row into view itself and so move the list before the component could.
+  const box = (await listbox.boundingBox()) as { x: number; y: number; width: number };
+  await page.mouse.move(box.x + box.width / 2, box.y + 12);
+
+  const hovered = page.locator('[role="option"]:hover');
+  await expect(hovered).toHaveCount(1);
+  expect(await hovered.getAttribute("data-index")).not.toBe(index);
+  // The list held still, and the highlight stayed where the keyboard left it.
+  expect(await listbox.evaluate((el) => el.scrollTop)).toBe(before);
+  await expect(highlighted).toHaveAttribute("data-index", index as string);
+  await expect(hovered).not.toHaveAttribute("data-highlighted");
+
+  // So Enter commits where the keyboard is, not where the pointer is.
+  const label = (await highlighted.textContent()) as string;
+  await input.press("Enter");
+  await expect(input).toHaveValue(label);
 });

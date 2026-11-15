@@ -32,7 +32,8 @@
    without touching the token (1 = the system amplitude, 0 flattens). */
 .dish,
 .dome,
-.concave {
+.concave,
+.bowl {
   --_sf-curve: calc(var(--sf-curve) * var(--sf-curve-scale, 1));
 }
 
@@ -40,8 +41,9 @@
   background-image: none;
 }
 
-.dish {
-  background-image: linear-gradient(
+.dish,
+.bowl {
+  --_sf-dish: linear-gradient(
     var(--sf-light-angle),
     oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.42) c h) 0%,
     oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.73) c h) 20%,
@@ -50,6 +52,39 @@
     oklch(from var(--sf-cap) calc(l + var(--_sf-curve) * 0.44) c h) 80%,
     oklch(from var(--sf-cap) calc(l + var(--_sf-curve)) c h) 100%
   );
+}
+
+.dish {
+  background-image: var(--_sf-dish);
+}
+
+/* Bowl: the dish hollowed in both axes, for a face too big for one ramp to
+   read as anything but a wash (a message, a panel). All four rims are walls
+   the light only grazes, so each darkens into the floor, and that step from
+   rim to floor is what reads as a hollow; the dish ramp underneath keeps the
+   light's own asymmetry, its near wall shaded and its far wall catching the
+   light. The wall colour is the cap darkened and faded to nothing over the
+   floor, so the rims deepen without tinting the middle. `--sf-curve-scale`
+   sets how deep it goes, and a big face wants more than a keycap's. */
+.bowl {
+  --_sf-wall: oklch(from var(--sf-cap) calc(l - var(--_sf-curve) * 0.8) c h);
+  --_sf-floor: oklch(from var(--_sf-wall) l c h / 0);
+  background-image:
+    linear-gradient(
+      to right,
+      var(--_sf-wall) 0%,
+      var(--_sf-floor) 22%,
+      var(--_sf-floor) 78%,
+      var(--_sf-wall) 100%
+    ),
+    linear-gradient(
+      to bottom,
+      var(--_sf-wall) 0%,
+      var(--_sf-floor) 22%,
+      var(--_sf-floor) 78%,
+      var(--_sf-wall) 100%
+    ),
+    var(--_sf-dish);
 }
 
 .dome {

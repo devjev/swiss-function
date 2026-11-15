@@ -16,17 +16,24 @@
 /* Per-node status indicator (orchestration fan-out). */
 .status,
 .statusRunning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* One cell for every state, so a row does not shift as a step advances from
+     the spinner to its mark. */
+  inline-size: 1em;
   margin-inline-end: calc(var(--sf-unit) / 3);
   white-space: pre;
 }
 .statusRunning {
   color: var(--sf-color-primary);
 }
-.pending {
-  color: var(--sf-color-fg);
-}
+/* A step's colour is not its status: the glyph already says what happened, and
+   a fan-out where every finished step turns green is decoration. Only the
+   error, the exception, takes a colour. */
+.pending,
 .done {
-  color: var(--sf-color-success);
+  color: var(--sf-color-fg);
 }
 .error {
   color: var(--sf-color-danger);

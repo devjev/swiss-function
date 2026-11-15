@@ -1,10 +1,15 @@
 import type { HTMLAttributes } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { Button } from "../Button";
+import { Check, Circle, X } from "../Icon";
 import { Spinner } from "../Spinner";
 import { ChatBlock } from "./ChatBlock";
 import styles from "./ChatTree.module.css";
+
+/** The mark sits in a monospace row, so it rides the text a touch under 1em. */
+const STEP_GLYPH_SIZE = "0.85em";
 
 /** Per-node run state for an orchestration fan-out. */
 export type ChatStepStatus = "pending" | "running" | "done" | "error";
@@ -53,16 +58,22 @@ function buildRows(roots: ChatTreeNode[]): Row[] {
 }
 
 /** Leading status indicator for a step row: a live spinner while running, else a
- *  static glyph. Omitted entirely for nodes without a status (plain trees). */
+ *  mark from the icon set, so a consumer's `IconProvider` can swap it for their
+ *  own. Omitted entirely for nodes without a status (plain trees). */
 function StepStatusGlyph({ status }: { status?: ChatStepStatus }) {
   if (status == null) return null;
   if (status === "running") {
     return <Spinner variant="braille" label="Running" className={styles.statusRunning} />;
   }
-  const glyph = status === "done" ? "✓" : status === "error" ? "✗" : "○";
   return (
     <span className={cx(styles.status, styles[status])} aria-hidden="true">
-      {glyph}
+      {status === "done" ? (
+        <Glyph slot="check" fallback={Check} size={STEP_GLYPH_SIZE} />
+      ) : status === "error" ? (
+        <Glyph slot="fail" fallback={X} size={STEP_GLYPH_SIZE} />
+      ) : (
+        <Glyph slot="pending" fallback={Circle} size={STEP_GLYPH_SIZE} />
+      )}
     </span>
   );
 }

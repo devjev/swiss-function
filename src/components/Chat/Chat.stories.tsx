@@ -1,9 +1,13 @@
 import type { Story } from "@ladle/react";
 import { useEffect, useState } from "react";
+import { Box } from "../Box";
+import { Button } from "../Button";
+import { Stat } from "../Stat";
 import {
   Chat,
   type ChatAction,
   type ChatMessage,
+  type ChatProps,
   type ChatThinkingPart,
   type ChatTreeNode,
 } from "./Chat";
@@ -309,6 +313,49 @@ export const CustomBlock: Story = () => {
   );
 };
 
+/**
+ * `variant="plain"` drops the frame, the title bar and its marker, so a custom
+ * part brings its own look. The block contributes a block box and nothing else;
+ * here a `Box` carries the surface instead.
+ */
+export const CustomBlockPlain: Story = () => {
+  const [messages] = useState<ChatMessage[]>([
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Deployment finished. Current status:" },
+        { type: "status", partId: "st", service: "api", state: "healthy", latencyMs: 42 },
+      ],
+    },
+  ]);
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <Chat
+        messages={messages}
+        onSubmit={() => {}}
+        renderPart={(part) =>
+          part.type === "status" ? (
+            <ChatBlock variant="plain">
+              <Box elevation={2} padding={1}>
+                <Stat
+                  label={String(part.service)}
+                  value={String(part.latencyMs)}
+                  valueUnit="ms"
+                  caption={String(part.state)}
+                  tone="success"
+                  size="sm"
+                />
+              </Box>
+            </ChatBlock>
+          ) : null
+        }
+      />
+    </div>
+  );
+};
+
 // --- Thinking / orchestration fan-out ---
 
 const FAN_LEAVES = ["search the web", "design schema", "build UI", "wire data", "write tests"];
@@ -400,6 +447,216 @@ export const ThinkingError: Story = () => {
   return (
     <div style={{ width: "min(40rem, 100%)" }}>
       <Chat messages={messages} onSubmit={() => {}} height={320} />
+    </div>
+  );
+};
+
+// --- Message surfaces ---
+
+const STYLE_TRANSCRIPT: ChatMessage[] = [
+  { id: "u1", role: "user", content: "Where did the Q3 inflows come from?" },
+  {
+    id: "a1",
+    role: "assistant",
+    content: "Two thirds from the **Swiss** share classes, the rest from the Nordic mandates.",
+  },
+  { id: "u2", role: "user", content: "Break that down by month." },
+];
+
+/**
+ * `messageStyle` picks how each voice shows up: `plain` (no surface, the text on
+ * the page), `box` (a raised box), `tape` (the label-maker run, the user's
+ * default) or `squircle` (the same key with a superellipse round-over and a
+ * lightly scooped face). Pass one value for both roles, or an object to style
+ * them apart. The role keeps its place either way: the user's turn is
+ * right-aligned and capped at 75% of the column, the assistant's runs across it.
+ * The stamped monospace letters belong to the tape, not to the user.
+ */
+export const MessageStyles: Story = () => {
+  const readings: { label: string; style: ChatProps["messageStyle"] }[] = [
+    { label: "tape + plain (default)", style: { user: "tape", assistant: "plain" } },
+    { label: "box", style: "box" },
+    { label: "tape (both voices)", style: "tape" },
+    { label: "squircle", style: "squircle" },
+    { label: "user squircle + agent box", style: { user: "squircle", assistant: "box" } },
+  ];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(20rem, 1fr))",
+        gap: "calc(var(--sf-unit) * 2)",
+      }}
+    >
+      {readings.map((r) => (
+        <div key={r.label} style={{ display: "grid", gap: "var(--sf-unit)" }}>
+          <span style={{ fontFamily: "var(--sf-font-mono)" }}>{r.label}</span>
+          <Chat
+            messages={STYLE_TRANSCRIPT}
+            onSubmit={() => {}}
+            messageStyle={r.style}
+            height={360}
+          />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const BACKLOG: ChatMessage[] = Array.from({ length: 30 }, (_, i) => ({
+  id: `b-${i}`,
+  role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+  content:
+    i % 2 === 0
+      ? `Question ${i / 2 + 1}: how does the follow behaviour work?`
+      : `The view holds the bottom as the reply arrives. Scroll away from it and it lets go at once, however small the move, so it never pulls against you.\n\nThe key below brings you back, and takes the accent once something has arrived while you were reading up here.`,
+}));
+
+/** A conversation with distinct questions, so the rail reads as a list of them
+ *  and the replies differ enough in length to give the blocks a density. */
+const TOPICS: ChatMessage[] = [
+  [
+    "How do I lay out a form?",
+    "Reach for `FieldLayout`: justified rows of rigid, flexible and filler fields that collapse gradually with the container, no breakpoints. A single labelled row is a bare `Field`.",
+  ],
+  [
+    "What about validation?",
+    "`Form` is the layer above: bring your own resolver, and `FormField` binds one control to a named field with its label, description and live error.\n\nPer-field `validate` runs as you go; the whole-form resolver gates `onSubmit`.",
+  ],
+  [
+    "Which chart for a share of a total?",
+    "`PieChart` for a few parts of one whole the reader already understands as one, `Treemap` once it is a hierarchy or more parts than a circle carries, and `Marimekko` when the columns must carry a second measure.",
+  ],
+  [
+    "How do I show a table of 100k rows?",
+    '`DataTable`. It virtualizes, and its columns size themselves with `columnFit="content"`.',
+  ],
+  [
+    "Can a column show its total?",
+    "Declare a `total` on it. The summary band sits at the foot of the grid, covering every filtered row rather than the page on screen, and a tree table totals its roots so a subtotal is never counted twice.",
+  ],
+  [
+    "Is there a date drill-down?",
+    '`DatePicker path={["year", "month", "day"]}`: the popup asks one step at a time, the header carries the trail, and the last step is the precision.',
+  ],
+  [
+    "And a map?",
+    "`Map`, on MapLibre. Points, areas and vectors in GeoJSON order, with a restrained basemap coloured from the tokens.",
+  ],
+].flatMap(([q, a], i) => [
+  { id: `t-${i}-q`, role: "user" as const, content: q as string },
+  { id: `t-${i}-a`, role: "assistant" as const, content: a as string },
+]);
+
+/** A transcript long enough to scroll, with a reply arriving at the bottom.
+ *  Scroll up and the view stops following: the jump-to-latest key appears over
+ *  the bottom edge and turns accent as the reply keeps growing out of sight.
+ *  Typing several lines into the composer shows the other half: the composer
+ *  grows into the transcript's space and the bottom stays in view. */
+export const Following: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(BACKLOG);
+  const [streaming, setStreaming] = useState(false);
+
+  useEffect(() => {
+    if (!streaming) return;
+    const id = `s-${Date.now()}`;
+    setMessages((prev) => [...prev, { id, role: "assistant", content: "", isStreaming: true }]);
+    let n = 0;
+    const timer = setInterval(() => {
+      n += 1;
+      const done = n >= 30;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? {
+                ...m,
+                content:
+                  `A reply arriving a sentence at a time, so the bottom keeps moving. `.repeat(n),
+                isStreaming: !done,
+              }
+            : m,
+        ),
+      );
+      if (done) {
+        clearInterval(timer);
+        setStreaming(false);
+      }
+    }, 120);
+    return () => clearInterval(timer);
+  }, [streaming]);
+
+  return (
+    <div style={{ display: "grid", gap: "var(--sf-unit)", maxInlineSize: "34rem" }}>
+      <Chat
+        messages={messages}
+        onSubmit={(text) => {
+          setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", content: text }]);
+          setStreaming(true);
+        }}
+        height={420}
+        disabled={streaming}
+        // Tracks the tokens as they arrive, so the bottom really does keep
+        // moving while you read further up.
+        reveal={{ mode: "stream" }}
+      />
+      <Button onClick={() => setStreaming(true)} disabled={streaming} size="sm">
+        Send a reply
+      </Button>
+    </div>
+  );
+};
+
+/** The same rail on a short exchange: a handful of turns should read as a few
+ *  bricks at the top of the rail, not as a few huge blocks stretched down it. */
+export const MinimapSparse: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(TOPICS.slice(0, 6));
+  return (
+    <div style={{ height: 420, width: "min(40rem, 100%)" }}>
+      <Chat
+        minimap
+        height="100%"
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [
+            ...prev,
+            { id: `u-${Date.now()}`, role: "user", content: text },
+            {
+              id: `a-${Date.now()}`,
+              role: "assistant",
+              content: "Another turn, so the rail fills a little further.",
+            },
+          ])
+        }
+      />
+    </div>
+  );
+};
+
+/** `minimap` swaps the transcript's scrollbar for a rail: every question you
+ *  asked becomes a label down the side (click one to jump back to it), the
+ *  replies are dithered blocks whose height is their length, and the band shows
+ *  the part of the conversation on screen. Scroll, or click a label and watch
+ *  the view stop following the bottom. */
+export const WithMinimap: Story = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>(TOPICS);
+  return (
+    <div style={{ height: 520, width: "min(46rem, 100%)" }}>
+      <Chat
+        minimap
+        height="100%"
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [
+            ...prev,
+            { id: `u-${Date.now()}`, role: "user", content: text },
+            {
+              id: `a-${Date.now()}`,
+              role: "assistant",
+              content: "Noted. The rail grows a label for the question and a block for this reply.",
+            },
+          ])
+        }
+      />
     </div>
   );
 };

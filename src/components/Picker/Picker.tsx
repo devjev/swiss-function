@@ -1,10 +1,13 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode, RefObject } from "react";
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { buildOptionRows, clusterOptions } from "../../lib/optionGroups";
+import { type ScrollToItem, useOptionScroll } from "../../lib/optionScroll";
 import type { BoxElevation } from "../Box";
 import { Combobox } from "../Combobox";
+import { Check, X } from "../Icon";
 import styles from "./Picker.module.css";
 
 /** A choosable item: a bare string, or an object with a separate display label.
@@ -51,7 +54,7 @@ function normalize(item: PickerItem): PickerOption {
 function VirtualOptions({
   scrollToIndexRef,
 }: {
-  scrollToIndexRef: RefObject<((index: number) => void) | null>;
+  scrollToIndexRef: RefObject<ScrollToItem | null>;
 }) {
   const filtered = Combobox.useFilteredItems<PickerOption>();
   const listRef = useRef<HTMLDivElement>(null);
@@ -64,15 +67,7 @@ function VirtualOptions({
     estimateSize: (i) => (rows[i]?.kind === "header" ? 28 : 40),
     overscan: 8,
   });
-  // Layout effect (not render) for render purity; child layout effects run
-  // before ancestors', so the ref is set before Base UI's open-time
-  // onItemHighlighted needs it. Base UI hands us item indexes; map to rows.
-  useLayoutEffect(() => {
-    scrollToIndexRef.current = (index) => virtualizer.scrollToIndex(itemRowIndex[index] ?? index);
-    return () => {
-      scrollToIndexRef.current = null;
-    };
-  }, [scrollToIndexRef, virtualizer, itemRowIndex]);
+  useOptionScroll(scrollToIndexRef, virtualizer, itemRowIndex);
   return (
     <Combobox.List ref={listRef} className={styles.virtualList} data-virtualized-list="">
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
@@ -113,7 +108,9 @@ function VirtualOptions({
               className={styles.virtualItem}
               style={{ transform: `translateY(${vrow.start}px)` }}
             >
-              <Combobox.ItemIndicator>✓</Combobox.ItemIndicator>
+              <Combobox.ItemIndicator>
+                <Glyph slot="check" fallback={Check} size="0.85em" />
+              </Combobox.ItemIndicator>
               {option.label}
             </Combobox.Item>
           );
@@ -172,7 +169,7 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  const scrollToIndexRef = useRef<((index: number) => void) | null>(null);
+  const scrollToIndexRef = useRef<ScrollToItem | null>(null);
 
   return (
     <div {...rest} ref={ref} className={cx(styles.root, className)}>
@@ -189,13 +186,23 @@ export const Picker = forwardRef<HTMLDivElement, PickerProps>(function Picker(
         onInputValueChange={(next: string) => setQuery(next)}
         disabled={disabled}
         virtualized
+        /* The pointer does not take the highlight from the keyboard: a mouse
+           crossing the popup on its way elsewhere would otherwise discard the
+           row the user had arrowed to. The hovered row still reads, through
+           CSS `:hover` on the item. */
+        highlightItemOnHover={false}
         onItemHighlighted={(_item, details) => {
-          if (details.index >= 0) scrollToIndexRef.current?.(details.index);
+          if (details.index >= 0) scrollToIndexRef.current?.(details.index, details.reason);
         }}
       >
         <Combobox.InputGroup data-size={size} data-elevation={elevation} className={styles.group}>
           <Combobox.Input placeholder={placeholder} />
-          {clearable && selected && <Combobox.Clear aria-label="Clear">×</Combobox.Clear>}
+          {clearable && selected && (
+            <Combobox.Clear aria-label="Clear">
+              <Glyph slot="close" fallback={X} size="0.85em" />
+            </Combobox.Clear>
+          )}
+          <Combobox.Trigger />
         </Combobox.InputGroup>
         <Combobox.Portal>
           <Combobox.Positioner sideOffset={4}>

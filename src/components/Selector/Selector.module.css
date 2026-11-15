@@ -237,3 +237,22 @@
   font-size: var(--sf-font-size-sm);
   white-space: nowrap;
 }
+
+/* Panel layout: the search field is a bare input, so the dropdown's chevron is
+   placed on it and the field reserves the room. The selector wins whatever
+   order the stylesheets land in, since Combobox sets the input's padding with
+   a shorthand of its own. */
+.searchField {
+  position: relative;
+  display: block;
+}
+
+.searchField input {
+  padding-inline-end: calc(var(--sf-unit) * 1.25);
+}
+
+.searchTrigger {
+  position: absolute;
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  inset-block: 0;
+}
