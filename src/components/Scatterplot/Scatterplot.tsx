@@ -44,6 +44,7 @@ import {
   useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { formatLocaleDate } from "../../lib/date/localeFormat";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
 import styles from "./Scatterplot.module.css";
@@ -259,7 +260,7 @@ function defaultTooltip(
   d: ScatterDatum & { series: string },
   seriesName: (name: string) => string,
 ): ReactNode {
-  const xLabel = isDateValue(d.x) ? d.x.toLocaleDateString() : String(d.x);
+  const xLabel = isDateValue(d.x) ? formatLocaleDate(d.x) : String(d.x);
   return (
     <>
       <div style={{ fontWeight: "var(--sf-font-weight-semibold)" }}>{seriesName(d.series)}</div>
@@ -272,7 +273,7 @@ function defaultTooltip(
 
 function formatXValue(x: ScatterX): string {
   if (isDateValue(x)) {
-    return x.toLocaleString(undefined, { month: "short", day: "numeric" });
+    return formatLocaleDate(x, { month: "short", day: "numeric" });
   }
   return formatNumber(x);
 }

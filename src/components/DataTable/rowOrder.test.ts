@@ -214,6 +214,50 @@ describe("computeRowOrder — table-core parity", () => {
     ]);
   });
 
+  it("keeps parity on awkward strings with the sort keys computed once", () => {
+    // The text comparators work on precomputed keys; table-core recomputes
+    // them per comparison. Cover what that rewrite could get wrong: case,
+    // leading zeros, long digit runs, empty strings, digit/text boundaries,
+    // numbers (NaN, Infinity) and non-strings in a string column.
+    // Two piece sets. Joined pieces merge digit runs, so the second keeps
+    // every digit piece to three digits (runs stay under 15 digits) and has
+    // no control characters: its column takes the encoded-key path. The
+    // first adds a 20-digit run and a tag character, which send the column
+    // to the run comparator.
+    const common = ["a", "B", "row", "Row", "0", "007", "7", "10", "123", " ", "-", "é", "z9", ""];
+    for (const pieces of [[...common, "99999999999999999999", "\u0001x"], common]) {
+      let seed = 7;
+      const rand = () => {
+        seed = (seed * 1103515245 + 12345) % 2147483648;
+        return seed / 2147483648;
+      };
+      const odd: unknown[] = [Number.NaN, Number.POSITIVE_INFINITY, 42, 0, null, undefined, true];
+      const rows = Array.from({ length: 400 }, (_, i) => {
+        const n = 1 + Math.floor(rand() * 4);
+        const text = Array.from(
+          { length: n },
+          () => pieces[Math.floor(rand() * pieces.length)],
+        ).join("");
+        const value = i % 23 === 0 ? odd[i % odd.length] : text;
+        const word = Array.from({ length: n }, () => WORDS[Math.floor(rand() * WORDS.length)]).join(
+          " ",
+        );
+        return { mixed: value, word: i % 5 === 0 ? word.toUpperCase() : word };
+      });
+      const cols: LeafColumnDef<(typeof rows)[number]>[] = [
+        leaf("mixed", "mixed"),
+        leaf("word", "word"),
+      ];
+      for (const sorting of [asc("mixed"), desc("mixed"), asc("word"), desc("word")]) {
+        expectParity(rows, cols, sorting);
+      }
+      expectParity(rows, cols, [
+        { id: "word", desc: false },
+        { id: "mixed", desc: true },
+      ]);
+    }
+  });
+
   it("returns a cached identity order when no sorting or filters apply", () => {
     const a = computeRowOrder(DATA, LEAVES, [], []);
     expect(Array.from(a)).toEqual(DATA.map((_, i) => i));

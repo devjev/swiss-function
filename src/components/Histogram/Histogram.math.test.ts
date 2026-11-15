@@ -191,3 +191,20 @@ describe("gaussianKde / silvermanBandwidth / linspace", () => {
     expect(linspace(0, 1, 4)).toEqual([0, 0.25, 0.5, 0.75, 1]);
   });
 });
+
+describe("sorting once per array", () => {
+  it("gives the same rules of thumb on repeat, on a copy and past non-finite values", () => {
+    const values = normalSample(3000, 2);
+    const bins = autoBinCount(values);
+    const bandwidth = silvermanBandwidth(values);
+    // Repeat on the same array (cached sort) and on a copy (fresh sort).
+    expect(autoBinCount(values)).toBe(bins);
+    expect(silvermanBandwidth(values)).toBe(bandwidth);
+    expect(autoBinCount([...values])).toBe(bins);
+    expect(silvermanBandwidth([...values])).toBe(bandwidth);
+    // Non-finite values are left out, wherever they sit.
+    const noisy = [Number.NaN, ...values, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+    expect(autoBinCount(noisy)).toBe(bins);
+    expect(silvermanBandwidth(noisy)).toBe(bandwidth);
+  });
+});

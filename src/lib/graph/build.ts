@@ -117,10 +117,84 @@ export function edgeTypeFor(
   return edgesInteractive ? "line" : "thinline";
 }
 
+type Attrs = Record<string, unknown>;
+
+/** Up to this many changed items are written one by one; more go out as one
+ *  batched update. One write fires one graph event, and Sigma answers each
+ *  with its own refresh: a pass over 30k items through single writes cost 30k
+ *  refreshes (most of a large graph's mount). A batch fires one event that
+ *  Sigma answers with one pass over every item, which is too much for a single
+ *  new edge. */
+const BATCH_MIN_ITEMS = 64;
+
+function differs(attr: Attrs, patch: Attrs): boolean {
+  for (const key in patch) if (attr[key] !== patch[key]) return true;
+  return false;
+}
+
+/** Merge `patchFor(node)` into each node whose attributes it would change,
+ *  and write nothing when none would. Returns whether anything was written. */
+export function patchNodes(
+  g: Graphology,
+  patchFor: (node: string, attr: Attrs) => Attrs | undefined,
+): boolean {
+  const patches = new Map<string, Attrs>();
+  g.forEachNode((node, attr) => {
+    const patch = patchFor(node, attr);
+    if (patch && differs(attr, patch)) patches.set(node, patch);
+  });
+  if (patches.size === 0) return false;
+  if (patches.size < BATCH_MIN_ITEMS) {
+    for (const [node, patch] of patches) g.mergeNodeAttributes(node, patch);
+  } else {
+    // No hints: Sigma then re-indexes the nodes, as it does after a single write.
+    g.updateEachNodeAttributes((node, attr) => {
+      const patch = patches.get(node);
+      return patch ? { ...attr, ...patch } : attr;
+    });
+  }
+  return true;
+}
+
+/** The edge counterpart of `patchNodes`. */
+export function patchEdges(
+  g: Graphology,
+  patchFor: (edge: string, attr: Attrs) => Attrs | undefined,
+): boolean {
+  const patches = new Map<string, Attrs>();
+  const keys = new Set<string>();
+  g.forEachEdge((edge, attr) => {
+    const patch = patchFor(edge, attr);
+    if (patch && differs(attr, patch)) {
+      patches.set(edge, patch);
+      for (const key in patch) if (attr[key] !== patch[key]) keys.add(key);
+    }
+  });
+  if (patches.size === 0) return false;
+  if (patches.size < BATCH_MIN_ITEMS) {
+    for (const [edge, patch] of patches) g.mergeEdgeAttributes(edge, patch);
+  } else {
+    // A style change moves the edge to another program through the reducer;
+    // a "type" hint makes Sigma re-index the edges for it. Without one, Sigma
+    // rewrites each edge into the program it already sits in.
+    if (keys.has("edgeStyle")) keys.add("type");
+    g.updateEachEdgeAttributes(
+      (edge, attr) => {
+        const patch = patches.get(edge);
+        return patch ? { ...attr, ...patch } : attr;
+      },
+      { attributes: [...keys] },
+    );
+  }
+  return true;
+}
+
 /** (Re)apply node/edge VISUAL attributes (label / size / color) from the render
  *  hooks onto an already-built graph, layering over the color-by-`kind` defaults.
  *  Kept separate from structure so changing `renderNode`/`renderEdge` re-themes in
- *  place without tearing down + rebuilding the renderer.
+ *  place without tearing down + rebuilding the renderer. Writes only what
+ *  changed (see `patchNodes`), so a repeated call costs one read-only pass.
+ *  Returns whether anything was written.
  *
  *  `nodeSizeBoost` is added to the kind-derived default node size (editable graphs
  *  use it so nodes don't look puny next to their thicker, easier-to-grab edges).
@@ -131,28 +205,63 @@ export function applyVisuals(
   hooks: RenderHooks,
   el?: Element | null,
   nodeSizeBoost = 0,
-): void {
+): boolean {
+  const visual = visualsFor(hooks, el, nodeSizeBoost);
+  const nodesById = byId(data.nodes);
+  const edgesById = byId(data.edges);
+  const nodesChanged = patchNodes(g, (id) => {
+    const n = nodesById.get(id);
+    return n ? visual.node(n) : undefined;
+  });
+  const edgesChanged = patchEdges(g, (id) => {
+    const e = edgesById.get(id);
+    return e ? visual.edge(e) : undefined;
+  });
+  return nodesChanged || edgesChanged;
+}
+
+/** Index items by id; the first of a duplicated id wins, as in `buildGraph`. */
+function byId<T extends { id: string }>(items: readonly T[]): Map<string, T> {
+  const map = new Map<string, T>();
+  for (const item of items) if (!map.has(item.id)) map.set(item.id, item);
+  return map;
+}
+
+/** The visual attributes of a node and of an edge: the render hooks over the
+ *  color-by-`kind` defaults. Reads each style token once per call (a handful
+ *  of reads), not once per item. */
+function visualsFor(hooks: RenderHooks, el: Element | null | undefined, nodeSizeBoost: number) {
   const edgeColor = edgeColorToken(el);
-  for (const n of data.nodes) {
-    if (!g.hasNode(n.id)) continue;
-    const custom = hooks.renderNode?.(n);
-    g.mergeNodeAttributes(n.id, {
-      label: custom?.label ?? n.label ?? n.id,
-      sublabel: custom?.sublabel ?? n.sublabel,
-      size: custom?.size ?? nodeSize(n.kind) + Math.max(0, nodeSizeBoost),
-      color: custom?.color ?? nodeColor(n.kind, el),
-    });
-  }
-  for (const e of data.edges) {
-    if (!g.hasEdge(e.id)) continue;
-    const custom = hooks.renderEdge?.(e);
-    g.mergeEdgeAttributes(e.id, {
-      label: custom?.label ?? e.label,
-      size: custom?.size ?? edgeSize(e.weight),
-      color: custom?.color ?? edgeColor,
-      edgeStyle: custom?.style,
-    });
-  }
+  const kindColors = new Map<string | undefined, string>();
+  const colorOf = (kind: string | undefined) => {
+    let color = kindColors.get(kind);
+    if (color === undefined) {
+      color = nodeColor(kind, el);
+      kindColors.set(kind, color);
+    }
+    return color;
+  };
+  const boost = Math.max(0, nodeSizeBoost);
+  return {
+    node(n: GraphNode): Attrs {
+      const custom = hooks.renderNode?.(n);
+      return {
+        label: custom?.label ?? n.label ?? n.id,
+        sublabel: custom?.sublabel ?? n.sublabel,
+        size: custom?.size ?? nodeSize(n.kind) + boost,
+        color: custom?.color ?? colorOf(n.kind),
+      };
+    },
+    edge(e: GraphData["edges"][number]): Attrs {
+      const custom = hooks.renderEdge?.(e);
+      return {
+        label: custom?.label ?? e.label,
+        size: custom?.size ?? edgeSize(e.weight),
+        color: custom?.color ?? edgeColor,
+        edgeStyle: custom?.style,
+      };
+    },
+  };
 }
 
 /** True for an edge that may be added: not a self-loop, both endpoints present,
@@ -168,8 +277,9 @@ function canAddEdge(g: Graphology, id: string, source: string, target: string): 
 
 /** Build a graphology graph from the shared data model: structure (nodes,
  *  directed edges), seed positions (pre-computed `x`/`y` honored, else
- *  random — a layout pass assigns final coordinates), and `payload`. Visual
- *  attributes are layered on by `applyVisuals`. Edges carry no per-edge `type`:
+ *  random; a layout pass assigns final coordinates), `payload`, and the
+ *  visual attributes `applyVisuals` would set, written at insertion (one pass,
+ *  not an insert pass and a visual pass). Edges carry no per-edge `type`:
  *  arrow/line/thinline rendering is the renderer's size-gated `defaultEdgeType`
  *  (see `edgeTypeFor`). */
 export function buildGraph(
@@ -179,20 +289,21 @@ export function buildGraph(
   nodeSizeBoost = 0,
 ): Graphology {
   const g = new Graphology();
+  const visual = visualsFor(hooks, el, nodeSizeBoost);
   for (const n of data.nodes) {
     g.addNode(n.id, {
       kind: n.kind,
       x: n.x ?? Math.random(),
       y: n.y ?? Math.random(),
       payload: n.data,
+      ...visual.node(n),
     });
   }
   for (const e of data.edges) {
     if (canAddEdge(g, e.id, e.source, e.target)) {
-      g.addEdgeWithKey(e.id, e.source, e.target, { payload: e.data });
+      g.addEdgeWithKey(e.id, e.source, e.target, { payload: e.data, ...visual.edge(e) });
     }
   }
-  applyVisuals(g, data, hooks, el, nodeSizeBoost);
   return g;
 }
 
@@ -275,12 +386,16 @@ export function reconcile(
 
   // Refresh structural attributes that may have changed in place (kind drives
   // color; payload feeds inspectors). Visuals (label/size/color) come next.
-  for (const n of data.nodes) {
-    if (g.hasNode(n.id)) g.mergeNodeAttributes(n.id, { kind: n.kind, payload: n.data });
-  }
-  for (const e of data.edges) {
-    if (g.hasEdge(e.id)) g.mergeEdgeAttributes(e.id, { payload: e.data });
-  }
+  const nodesById = byId(data.nodes);
+  const edgesById = byId(data.edges);
+  patchNodes(g, (id) => {
+    const n = nodesById.get(id);
+    return n ? { kind: n.kind, payload: n.data } : undefined;
+  });
+  patchEdges(g, (id) => {
+    const e = edgesById.get(id);
+    return e ? { payload: e.data } : undefined;
+  });
 
   applyVisuals(g, data, hooks, el, nodeSizeBoost);
   return structureChanged;

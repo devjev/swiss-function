@@ -15,8 +15,9 @@ import {
 } from "react";
 import Sigma from "sigma";
 import { EdgeLineProgram, type NodeHoverDrawingFunction } from "sigma/rendering";
+import type { Settings } from "sigma/settings";
 import type { NodeDisplayData, PartialButFor } from "sigma/types";
-import { animateNodes } from "sigma/utils";
+import { quadraticInOut } from "sigma/utils";
 import { cx } from "../../lib/cx";
 import {
   ARROW_MAX_EDGES,
@@ -26,6 +27,7 @@ import {
   edgeTypeFor,
   type NodeVisual,
   nodeColor,
+  patchNodes,
   type RenderHooks,
   reconcile,
   token,
@@ -33,7 +35,13 @@ import {
 import { applyCardAttributes } from "../../lib/graph/cardMetrics";
 import { NodeCardHoverProgram, NodeCardProgram } from "../../lib/graph/cardProgram";
 import { EdgeElbowProgram } from "../../lib/graph/elbowEdgeProgram";
-import { applyPositions, detachForLayout, forceIterations } from "../../lib/graph/forceLayout";
+import {
+  animatePositions,
+  applyPositions,
+  assignPositions,
+  detachForLayout,
+  forceIterations,
+} from "../../lib/graph/forceLayout";
 import { ORG_DEFAULTS, orgLayout } from "../../lib/graph/orgLayout";
 import {
   type EdgeStyle,
@@ -64,7 +72,7 @@ import styles from "./Graph.module.css";
 import { GraphMinimap } from "./Minimap";
 
 /** Per-node target coordinates, as produced by the layout functions and
- *  consumed by Sigma's `animateNodes`. */
+ *  consumed by `animatePositions`. */
 type LayoutMapping = Record<string, { x: number; y: number }>;
 
 // `NodeVisual` / `EdgeVisual` (the `renderNode`/`renderEdge` return shapes) live
@@ -224,6 +232,44 @@ const EDITABLE_NODE_SIZE_BOOST = 4;
  *  `renderLabels` threshold. Pan/zoom repaints the full scene every frame and
  *  edges dominate that cost; they reappear the moment the camera rests. */
 const HIDE_EDGES_ON_MOVE_MIN_EDGES = 5000;
+
+/** The inputs a graph's visual attributes are derived from (`applyVisuals`
+ *  plus `applyCardAttributes`). Equal inputs give equal attributes. */
+interface VisualInputs {
+  g: Graphology;
+  data: GraphData;
+  renderNode: RenderHooks["renderNode"];
+  renderEdge: RenderHooks["renderEdge"];
+  boost: number;
+  cards: boolean;
+}
+
+function sameVisualInputs(a: VisualInputs | null, b: VisualInputs): boolean {
+  return (
+    a !== null &&
+    a.g === b.g &&
+    a.data === b.data &&
+    a.renderNode === b.renderNode &&
+    a.renderEdge === b.renderEdge &&
+    a.boost === b.boost &&
+    a.cards === b.cards
+  );
+}
+
+/** Card nodes scale 1:1 with the zoom; discs keep Sigma's square-root curve.
+ *  Module constants, so `setSettingIfChanged` sees the same function twice. */
+const LINEAR_ZOOM_SIZE = (ratio: number) => ratio;
+
+/** Sigma's `setSetting` schedules a refresh, and a refresh re-indexes every
+ *  node and edge on the spot, even when the value is unchanged (13 such calls
+ *  ran on each mount). Write a setting only when it differs. */
+function setSettingIfChanged<K extends keyof Settings>(
+  renderer: Sigma,
+  key: K,
+  value: Settings[K],
+): void {
+  if (renderer.getSetting(key) !== value) renderer.setSetting(key, value);
+}
 
 /** Fallback unique id for an edge drawn via Connect mode, when the consumer
  *  doesn't supply `generateEdgeId`. Prefers `crypto.randomUUID`, else a counter. */
@@ -518,9 +564,7 @@ function computeLayout(
       },
       { measure: (id) => nodeBox(g, id), container: env.dimensions },
     );
-    g.forEachNode((n) => {
-      g.setNodeAttribute(n, "orgStacked", undefined);
-    });
+    patchNodes(g, () => ({ orgStacked: undefined }));
     return mapping;
   }
   const mapping = baseLayout(g, layout, options, env);
@@ -547,9 +591,7 @@ function baseLayout(
       });
       // Stamp spine offsets so the elbow program draws file-tree side-entry
       // connectors into stacked members (cleared on non-members).
-      g.forEachNode((n) => {
-        g.setNodeAttribute(n, "orgStacked", stacks?.get(n));
-      });
+      patchNodes(g, (n) => ({ orgStacked: stacks?.get(n) }));
       return mapping;
     }
     case "radial":
@@ -582,22 +624,10 @@ function baseLayout(
       const after: LayoutMapping = {};
       g.forEachNode((n, attr) => {
         after[n] = { x: attr.x as number, y: attr.y as number };
-        const prev = before[n];
-        if (prev) {
-          g.setNodeAttribute(n, "x", prev.x);
-          g.setNodeAttribute(n, "y", prev.y);
-        }
       });
+      assignPositions(g, before);
       return after;
     }
-  }
-}
-
-/** Write a layout mapping's coordinates onto the graph in place. */
-function assignPositions(g: Graphology, mapping: LayoutMapping): void {
-  for (const [id, pos] of Object.entries(mapping)) {
-    g.setNodeAttribute(id, "x", pos.x);
-    g.setNodeAttribute(id, "y", pos.y);
   }
 }
 
@@ -700,7 +730,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   edgeStateVisualsRef.current = edgeStateVisuals;
   const layoutOptionsKey = JSON.stringify(layoutOptions ?? {});
   const appliedLayoutOptionsRef = useRef(layoutOptionsKey);
-  // Cancels an in-flight `animateNodes` transition when a new one starts.
+  // Cancels an in-flight `animatePositions` transition when a new one starts.
   const cancelAnimationRef = useRef<(() => void) | null>(null);
   // Cancels the in-flight background force settle (kills the FA2 worker).
   // Shared by the mount + layout effects; also called from unmount cleanup.
@@ -796,6 +826,12 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // place when they actually change.
   const renderHooksRef = useRef<RenderHooks>({ renderNode, renderEdge });
   renderHooksRef.current = { renderNode, renderEdge };
+  // What the live graph's visual attributes were last derived from. The mount,
+  // data, render-hook and node-style effects all derive them, and on mount
+  // they run back to back with the same inputs; even a pass that writes
+  // nothing reads every node and edge (about 15ms on 10k nodes), so an effect
+  // whose inputs match skips it.
+  const visualsFromRef = useRef<VisualInputs | null>(null);
 
   // Latest `data`/`layout`, read by the mount effect (which runs once) to build
   // the initial graph + seed the first layout without re-running on every change.
@@ -913,6 +949,14 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     );
     graphRef.current = g;
     applyCardAttributes(g, initialData, container, nodeStyleRef.current === "card");
+    visualsFromRef.current = {
+      g,
+      data: initialData,
+      renderNode: renderHooksRef.current.renderNode,
+      renderEdge: renderHooksRef.current.renderEdge,
+      boost: editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+      cards: nodeStyleRef.current === "card",
+    };
     appliedLayoutRef.current = initialLayout;
     selectColorRef.current = token("--sf-color-primary", "#1432c8", container);
     edgeFadeRef.current = token("--sf-color-border-subtle", "#bdbdbd", container);
@@ -973,6 +1017,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
       // Edge events (click/right-click/hover) only fire when enabled; needed for
       // edge selection + the edge context menu. Off for big read-only graphs.
       enableEdgeEvents: edgesInteractive,
+      // Cards size by graph positions (see the sizing effect below); set here
+      // too, so that effect has nothing to change on mount.
+      itemSizesReference: nodeStyleRef.current === "card" ? "positions" : "screen",
+      zoomToSizeRatioFunction: nodeStyleRef.current === "card" ? LINEAR_ZOOM_SIZE : Math.sqrt,
       // Sigma hit-tests edges by color-picking their RENDERED pixels, so the
       // clickable area equals the drawn thickness. The 1.7px default is fiddly to
       // hit; give editable graphs a thicker floor so edges are easy to select /
@@ -1210,9 +1258,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     // re-measures on window `resize`, so a graph that fills a pane/tab whose size
     // changes via layout (drag, tab show, flex reflow) would otherwise stay at its
     // stale size. `resize()` re-reads the container box; `refresh()` repaints.
+    // The observer also fires once when it starts observing, at the size the
+    // constructor just measured; a refresh then re-indexes and redraws every
+    // item for nothing (about 25ms on 10k nodes). Act only on a real change.
+    const sizeKey = () =>
+      `${renderer.getDimensions().width}x${renderer.getDimensions().height}@${window.devicePixelRatio}`;
+    let lastSize = sizeKey();
     const resizeObserver = new ResizeObserver(() => {
       if (sigmaRef.current !== renderer) return;
       renderer.resize();
+      const size = sizeKey();
+      if (size === lastSize) return;
+      lastSize = size;
       renderer.refresh();
       bumpEpoch();
     });
@@ -1280,18 +1337,28 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // Reconcile the live graph IN PLACE when `data` changes: add/remove nodes &
   // edges and refresh attributes without rebuilding the renderer, so the camera
   // and existing node positions survive (see `reconcile` in lib/graph/build).
-  // No-op on first run — the mount effect already built this exact `data`.
+  // Every write is skipped when the value already holds, so the first run
+  // (the mount effect already built this exact `data`) costs one read-only
+  // pass. Graph writes and setting changes schedule Sigma's repaint
+  // themselves; only a selection change needs an explicit refresh.
   useEffect(() => {
     const g = graphRef.current;
     const renderer = sigmaRef.current;
     if (!g || !renderer) return;
-    const changed = reconcile(
+    const inputs: VisualInputs = {
       g,
       data,
-      renderHooksRef.current,
-      surfaceRef.current,
-      editable ? EDITABLE_NODE_SIZE_BOOST : 0,
-    );
+      renderNode: renderHooksRef.current.renderNode,
+      renderEdge: renderHooksRef.current.renderEdge,
+      boost: editable ? EDITABLE_NODE_SIZE_BOOST : 0,
+      cards: nodeStyleRef.current === "card",
+    };
+    // The graph was built (or last reconciled) from these very inputs.
+    if (sameVisualInputs(visualsFromRef.current, inputs)) return;
+    visualsFromRef.current = inputs;
+    const changed = reconcile(g, data, renderHooksRef.current, surfaceRef.current, inputs.boost);
+    const selectedEdgeBefore = selectedEdgeRef.current;
+    const selectedNodeBefore = selectedNodeRef.current;
     // The selected edge may have been removed by the update.
     if (selectedEdgeRef.current !== null && !g.hasEdge(selectedEdgeRef.current)) {
       selectedEdgeRef.current = null;
@@ -1308,23 +1375,34 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     }
     applyCardAttributes(g, data, surfaceRef.current, nodeStyleRef.current === "card");
     // Label rendering tracks the (possibly changed) graph size / edge labels.
-    renderer.setSetting("renderLabels", nodeStyleRef.current === "card" || g.order <= 300);
-    renderer.setSetting(
+    setSettingIfChanged(
+      renderer,
+      "renderLabels",
+      nodeStyleRef.current === "card" || g.order <= 300,
+    );
+    setSettingIfChanged(
+      renderer,
       "renderEdgeLabels",
       g.someEdge((_e, attr) => attr.label != null) && g.order <= 300,
     );
     // The edge-count gates track threshold crossings too (the renderer is built
     // once; a `data` update can grow or shrink past them). Retyping through
     // `defaultEdgeType` is atomic: no edge carries its own `type`, and the
-    // refresh below re-applies the default to every edge.
-    renderer.setSetting("hideEdgesOnMove", g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES);
-    renderer.setSetting(
+    // refresh the setting schedules re-applies the default to every edge.
+    setSettingIfChanged(renderer, "hideEdgesOnMove", g.size > HIDE_EDGES_ON_MOVE_MIN_EDGES);
+    setSettingIfChanged(
+      renderer,
       "defaultEdgeType",
       orgCardsRef.current
         ? "elbow"
         : edgeTypeFor(g.size, editable || handlersRef.current.onEdgeClick != null),
     );
-    renderer.refresh();
+    if (
+      selectedEdgeRef.current !== selectedEdgeBefore ||
+      selectedNodeRef.current !== selectedNodeBefore
+    ) {
+      renderer.refresh();
+    }
     if (changed) bumpEpoch();
   }, [data, editable, bumpEpoch]);
 
@@ -1349,15 +1427,19 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const g = graphRef.current;
     const renderer = sigmaRef.current;
     if (!g || !renderer) return;
-    applyVisuals(
+    const inputs: VisualInputs = {
       g,
-      dataRef.current,
-      { renderNode, renderEdge },
-      surfaceRef.current,
-      editable ? EDITABLE_NODE_SIZE_BOOST : 0,
-    );
-    applyCardAttributes(g, dataRef.current, surfaceRef.current, nodeStyleRef.current === "card");
-    renderer.refresh();
+      data: dataRef.current,
+      renderNode,
+      renderEdge,
+      boost: editable ? EDITABLE_NODE_SIZE_BOOST : 0,
+      cards: nodeStyleRef.current === "card",
+    };
+    if (sameVisualInputs(visualsFromRef.current, inputs)) return;
+    visualsFromRef.current = inputs;
+    // The writes schedule Sigma's repaint; unchanged visuals write nothing.
+    applyVisuals(g, inputs.data, { renderNode, renderEdge }, surfaceRef.current, inputs.boost);
+    applyCardAttributes(g, inputs.data, surfaceRef.current, inputs.cards);
   }, [renderNode, renderEdge, editable]);
 
   // With cards, node sizes reference graph POSITIONS (not screen px) under
@@ -1368,20 +1450,25 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const renderer = sigmaRef.current;
     if (!renderer) return;
     const positionsRef = nodeStyle === "card";
-    renderer.setSetting("itemSizesReference", positionsRef ? "positions" : "screen");
-    renderer.setSetting("zoomToSizeRatioFunction", positionsRef ? (r: number) => r : Math.sqrt);
+    setSettingIfChanged(renderer, "itemSizesReference", positionsRef ? "positions" : "screen");
+    setSettingIfChanged(
+      renderer,
+      "zoomToSizeRatioFunction",
+      positionsRef ? LINEAR_ZOOM_SIZE : Math.sqrt,
+    );
     // Hierarchy wiring: orthogonal elbow connectors; other modes restore the
-    // size/interactivity-gated straight edge type.
+    // size/interactivity-gated straight edge type. A changed setting schedules
+    // the repaint.
     const g = graphRef.current;
     if (g) {
-      renderer.setSetting(
+      setSettingIfChanged(
+        renderer,
         "defaultEdgeType",
         orgCardsRef.current
           ? "elbow"
           : edgeTypeFor(g.size, editableRef.current || handlersRef.current.onEdgeClick != null),
       );
     }
-    renderer.refresh();
   }, [nodeStyle, layout]);
 
   // Runtime `nodeStyle` flips: re-stamp node types/sizes and rescope the label
@@ -1391,18 +1478,22 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const g = graphRef.current;
     const renderer = sigmaRef.current;
     if (!g || !renderer) return;
-    applyVisuals(
+    const inputs: VisualInputs = {
       g,
-      dataRef.current,
-      renderHooksRef.current,
-      surfaceRef.current,
-      editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
-    );
-    applyCardAttributes(g, dataRef.current, surfaceRef.current, nodeStyle === "card");
-    renderer.setSetting("renderLabels", nodeStyle === "card" || g.order <= 300);
-    renderer.setSetting("labelDensity", nodeStyle === "card" ? 8 : 1);
-    renderer.setSetting("labelGridCellSize", nodeStyle === "card" ? 40 : 100);
-    renderer.refresh();
+      data: dataRef.current,
+      renderNode: renderHooksRef.current.renderNode,
+      renderEdge: renderHooksRef.current.renderEdge,
+      boost: editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+      cards: nodeStyle === "card",
+    };
+    if (!sameVisualInputs(visualsFromRef.current, inputs)) {
+      visualsFromRef.current = inputs;
+      applyVisuals(g, inputs.data, renderHooksRef.current, surfaceRef.current, inputs.boost);
+      applyCardAttributes(g, inputs.data, surfaceRef.current, inputs.cards);
+    }
+    setSettingIfChanged(renderer, "renderLabels", nodeStyle === "card" || g.order <= 300);
+    setSettingIfChanged(renderer, "labelDensity", nodeStyle === "card" ? 8 : 1);
+    setSettingIfChanged(renderer, "labelGridCellSize", nodeStyle === "card" ? 40 : 100);
   }, [nodeStyle]);
 
   // Re-theme on a live light↔dark switch. Node/edge fills re-tint via
@@ -1415,14 +1506,18 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const renderer = sigmaRef.current;
     const container = surfaceRef.current;
     if (!g || !renderer) return;
-    applyVisuals(
+    // The tokens changed, so the same inputs now give new colours: always apply.
+    const inputs: VisualInputs = {
       g,
-      dataRef.current,
-      renderHooksRef.current,
-      container,
-      editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
-    );
-    applyCardAttributes(g, dataRef.current, container, nodeStyleRef.current === "card");
+      data: dataRef.current,
+      renderNode: renderHooksRef.current.renderNode,
+      renderEdge: renderHooksRef.current.renderEdge,
+      boost: editableRef.current ? EDITABLE_NODE_SIZE_BOOST : 0,
+      cards: nodeStyleRef.current === "card",
+    };
+    visualsFromRef.current = inputs;
+    applyVisuals(g, inputs.data, renderHooksRef.current, container, inputs.boost);
+    applyCardAttributes(g, inputs.data, container, inputs.cards);
     selectColorRef.current = token("--sf-color-primary", "#1432c8", container);
     edgeFadeRef.current = token("--sf-color-border-subtle", "#bdbdbd", container);
     nodeFadeRef.current = token("--sf-color-muted", "#5e5e5e", container);
@@ -1445,13 +1540,20 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     const renderer = sigmaRef.current;
     const g = graphRef.current;
     const edgesInteractive = editable || onEdgeClick != null;
-    renderer?.setSetting("enableEdgeEvents", edgesInteractive);
-    renderer?.setSetting("minEdgeThickness", editable ? EDITABLE_MIN_EDGE_THICKNESS : 1.7);
+    if (renderer) {
+      setSettingIfChanged(renderer, "enableEdgeEvents", edgesInteractive);
+      setSettingIfChanged(
+        renderer,
+        "minEdgeThickness",
+        editable ? EDITABLE_MIN_EDGE_THICKNESS : 1.7,
+      );
+    }
     // Interactivity also picks the >ARROW_MAX_EDGES edge program: quads keep a
     // grabbable thickness, GL_LINES are ~1px and unclickable — retype when the
     // flag flips at runtime (`setSetting` schedules the repaint).
     if (renderer && g) {
-      renderer.setSetting(
+      setSettingIfChanged(
+        renderer,
         "defaultEdgeType",
         orgCardsRef.current ? "elbow" : edgeTypeFor(g.size, edgesInteractive),
       );
@@ -1500,10 +1602,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     }
 
     surface?.removeAttribute("data-graph-settled");
-    cancelAnimationRef.current = animateNodes(
+    cancelAnimationRef.current = animatePositions(
       g,
       targets,
-      { duration: 600, easing: "quadraticInOut" },
+      { duration: 600, easing: quadraticInOut },
       () => {
         cancelAnimationRef.current = null;
         // Layout settled — refresh the minimap's cached node geometry.

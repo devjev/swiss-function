@@ -6,7 +6,7 @@
  *  Sigma's size scaling (`renderer.scaleSize(1)` px per unit). */
 
 import type Graphology from "graphology";
-import { token } from "./build";
+import { patchNodes, token } from "./build";
 import type { CardBox } from "./orgLayout";
 import type { GraphData } from "./types";
 
@@ -69,29 +69,29 @@ export function createCardMeasurer(
 /** Stamp (or clear) card attributes on the live graph. Call after every
  *  `applyVisuals` — visuals set `label`/`size`/`color` first, cards then
  *  override `type`/`size` and add their dimensions + theme colours. Clearing
- *  restores `type: "circle"`; `applyVisuals` has already restored `size`. */
+ *  restores `type: "circle"`; `applyVisuals` has already restored `size`.
+ *  Writes only what changed; returns whether anything was written. */
 export function applyCardAttributes(
   g: Graphology,
   data: GraphData,
   el: Element | null | undefined,
   on: boolean,
-): void {
+): boolean {
+  const ids = new Set(data.nodes.map((n) => n.id));
   if (!on) {
-    for (const n of data.nodes) {
-      if (g.hasNode(n.id)) g.mergeNodeAttributes(n.id, { type: "circle" });
-    }
-    return;
+    return patchNodes(g, (id) => (ids.has(id) ? { type: "circle" } : undefined));
   }
   const measure = createCardMeasurer(el);
   const bg = token("--sf-color-bg", "#ffffff", el);
   const border = token("--sf-color-border", "#0a0a0a", el);
   const sub = token("--sf-color-fg-subtle", "#3d3d3d", el);
-  for (const n of data.nodes) {
-    if (!g.hasNode(n.id)) continue;
-    const label = (g.getNodeAttribute(n.id, "label") as string | undefined) ?? n.id;
-    const sublabel = g.getNodeAttribute(n.id, "sublabel") as string | undefined;
-    const box = measure(label, sublabel);
-    g.mergeNodeAttributes(n.id, {
+  return patchNodes(g, (id, attr) => {
+    if (!ids.has(id)) return undefined;
+    const box = measure(
+      (attr.label as string | undefined) ?? id,
+      attr.sublabel as string | undefined,
+    );
+    return {
       type: "card",
       cardWidth: box.width,
       cardHeight: box.height,
@@ -101,6 +101,6 @@ export function applyCardAttributes(
       cardBg: bg,
       cardBorder: border,
       cardSub: sub,
-    });
-  }
+    };
+  });
 }

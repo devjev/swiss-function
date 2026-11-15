@@ -43,6 +43,7 @@ import {
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { formatLocaleDate } from "../../lib/date/localeFormat";
 import { formatNumber } from "../../lib/format";
 import { DEFAULT_UNIT_PX } from "../../lib/useCssPx";
 import {
@@ -157,7 +158,7 @@ function isDateValue(x: HorizonX): x is Date {
 }
 
 function formatXValue(x: HorizonX): string {
-  if (isDateValue(x)) return x.toLocaleDateString();
+  if (isDateValue(x)) return formatLocaleDate(x);
   return formatNumber(x);
 }
 

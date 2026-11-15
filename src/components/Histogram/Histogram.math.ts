@@ -32,7 +32,7 @@ export function extent(values: readonly number[]): [number, number] | null {
 }
 
 /** The p-quantile (0..1) of an ascending array by linear interpolation. */
-export function quantileSorted(sorted: readonly number[], p: number): number {
+export function quantileSorted(sorted: ArrayLike<number>, p: number): number {
   const n = sorted.length;
   if (n === 0) return Number.NaN;
   if (n === 1) return sorted[0] as number;
@@ -43,11 +43,25 @@ export function quantileSorted(sorted: readonly number[], p: number): number {
   return (sorted[lo] as number) * (1 - t) + (sorted[hi] as number) * t;
 }
 
-function sortedFinite(values: readonly number[]): number[] {
-  const out: number[] = [];
-  for (const v of values) if (Number.isFinite(v)) out.push(v);
-  out.sort((a, b) => a - b);
-  return out;
+const sortedCache = new WeakMap<readonly number[], { length: number; sorted: Float64Array }>();
+
+/** The finite values in ascending order, sorted once per array: the bin
+ *  count, the bandwidth and the density estimate each need them, and a
+ *  comparator sort of 100k values took about 30ms per call. A Float64Array
+ *  sorts numerically in native code. An array is taken as unchanged while its
+ *  length is (chart data is immutable, as in every chart memo); callers must
+ *  not write to the result. */
+function sortedFinite(values: readonly number[]): Float64Array {
+  const hit = sortedCache.get(values);
+  if (hit && hit.length === values.length) return hit.sorted;
+  let n = 0;
+  for (const v of values) if (Number.isFinite(v)) n++;
+  const sorted = new Float64Array(n);
+  let i = 0;
+  for (const v of values) if (Number.isFinite(v)) sorted[i++] = v;
+  sorted.sort();
+  sortedCache.set(values, { length: values.length, sorted });
+  return sorted;
 }
 
 /** The bin count for a sample: the Freedman-Diaconis rule (bin width
@@ -217,8 +231,8 @@ export function gaussianKde(
   let xs: number[];
   let ws: number[];
   if (n <= KDE_EXACT_LIMIT) {
-    xs = finite;
-    ws = finite.map(() => 1 / n);
+    xs = Array.from(finite);
+    ws = xs.map(() => 1 / n);
   } else {
     const lo = finite[0] as number;
     const hi = finite[n - 1] as number;

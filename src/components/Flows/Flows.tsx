@@ -29,6 +29,7 @@ import {
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { formatLocaleDate } from "../../lib/date/localeFormat";
 import styles from "./Flows.module.css";
 
 export type { ChartScaffolding } from "../../lib/chart";
@@ -114,9 +115,7 @@ interface ResolvedPeriod {
 }
 
 function formatX(x: FlowX): string {
-  return x instanceof Date
-    ? x.toLocaleDateString(undefined, { month: "short", year: "2-digit" })
-    : String(x);
+  return x instanceof Date ? formatLocaleDate(x, { month: "short", year: "2-digit" }) : String(x);
 }
 
 /** Run each period's within-period waterfall, recording every segment's

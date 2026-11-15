@@ -47,6 +47,7 @@ import {
   xToIndex,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { formatLocaleDate } from "../../lib/date/localeFormat";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { FullscreenToggle } from "../Fullscreen";
 import styles from "./CandlestickChart.module.css";
@@ -116,9 +117,7 @@ function isDateValue(x: CandleX): x is Date {
 }
 
 function formatX(x: CandleX): string {
-  return isDateValue(x)
-    ? x.toLocaleDateString(undefined, { month: "short", day: "numeric" })
-    : formatNumber(x);
+  return isDateValue(x) ? formatLocaleDate(x, { month: "short", day: "numeric" }) : formatNumber(x);
 }
 
 /** Fit a price range with ~4% padding, snapped to nice-tick boundaries — and,

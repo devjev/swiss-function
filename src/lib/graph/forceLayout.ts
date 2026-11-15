@@ -33,6 +33,78 @@ export function detachForLayout(g: Graphology): Graphology {
   return copy;
 }
 
+/** Per-node target coordinates, as the layout functions produce them. */
+export type PositionMap = Record<string, { x: number; y: number }>;
+
+/** Write `positions` onto the live graph as ONE batched update. Two
+ *  `setNodeAttribute` calls per node fire two events per node, and Sigma
+ *  answers each with its own refresh (20k for a 10k-node layout). Nodes not
+ *  in the graph are skipped. */
+export function assignPositions(g: Graphology, positions: PositionMap): void {
+  g.updateEachNodeAttributes(
+    (node, attr) => {
+      const to = positions[node];
+      if (to) {
+        attr.x = to.x;
+        attr.y = to.y;
+      }
+      return attr;
+    },
+    { attributes: ["x", "y"] },
+  );
+}
+
+/** Sigma's `animateNodes` (same timing: wall clock, `duration`, `easing`, the
+ *  exact targets on the last frame, a cancel function back), writing each
+ *  frame as one batched update. Sigma's version sets `x` and `y` per node,
+ *  so a 10k-node transition fired 20k graph events per frame, each answered
+ *  with a refresh, and ran at 12 fps. */
+export function animatePositions(
+  g: Graphology,
+  targets: PositionMap,
+  { duration, easing }: { duration: number; easing: (t: number) => number },
+  done?: () => void,
+): () => void {
+  const start = Date.now();
+  const from = new Map<string, { x: number; y: number }>();
+  for (const node of Object.keys(targets)) {
+    if (!g.hasNode(node)) continue;
+    from.set(node, {
+      x: g.getNodeAttribute(node, "x") as number,
+      y: g.getNodeAttribute(node, "y") as number,
+    });
+  }
+  let frame: number | null = null;
+  const write = (p: number) =>
+    g.updateEachNodeAttributes(
+      (node, attr) => {
+        const to = targets[node];
+        const s = from.get(node);
+        if (to && s) {
+          attr.x = p === 1 ? to.x : to.x * p + s.x * (1 - p);
+          attr.y = p === 1 ? to.y : to.y * p + s.y * (1 - p);
+        }
+        return attr;
+      },
+      { attributes: ["x", "y"] },
+    );
+  const step = () => {
+    frame = null;
+    const t = (Date.now() - start) / duration;
+    if (t >= 1) {
+      write(1);
+      done?.();
+      return;
+    }
+    write(easing(t));
+    frame = requestAnimationFrame(step);
+  };
+  step();
+  return () => {
+    if (frame !== null) cancelAnimationFrame(frame);
+  };
+}
+
 /** Write the layout copy's `x`/`y` back onto the live graph as ONE batched
  *  update (`updateEachNodeAttributes` emits a single event, so Sigma coalesces
  *  the apply into one scheduled render — the throttle that keeps a streaming

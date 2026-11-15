@@ -473,10 +473,13 @@
   color: var(--sf-color-primary);
 }
 
+/* `minmax(0, 1fr)`, not `1fr`: a plain fr track keeps a min-content floor,
+   so laying out the year view measured all 504 day buttons before sizing
+   the tracks. Day numbers fit the narrowest mini month (8 units) anyway. */
 .miniWeekdays,
 .miniGrid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .miniWeekdays {
   gap: 1px;

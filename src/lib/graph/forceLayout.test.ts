@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildGraph } from "./build";
-import { applyPositions, detachForLayout, forceIterations } from "./forceLayout";
+import {
+  animatePositions,
+  applyPositions,
+  assignPositions,
+  detachForLayout,
+  forceIterations,
+} from "./forceLayout";
 import type { GraphData } from "./types";
 
 const hooks = {};
@@ -128,5 +134,80 @@ describe("applyPositions", () => {
 
     expect(() => applyPositions(copy, g)).not.toThrow();
     expect(g.hasNode("lone")).toBe(false);
+  });
+});
+
+describe("assignPositions / animatePositions", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Node has no requestAnimationFrame: a 16ms timer under fake time. */
+  function fakeFrames() {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+      setTimeout(() => cb(Date.now()), 16),
+    );
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
+  }
+
+  /** Count graph events of each kind (Sigma refreshes once per event). */
+  function countEvents(g: ReturnType<typeof buildGraph>) {
+    const counts = { each: 0, single: 0 };
+    g.on("eachNodeAttributesUpdated", () => counts.each++);
+    g.on("nodeAttributesUpdated", () => counts.single++);
+    return counts;
+  }
+
+  it("writes every position in one event and skips unknown nodes", () => {
+    const g = buildGraph(base(), hooks);
+    const counts = countEvents(g);
+    assignPositions(g, { a: { x: 1, y: 2 }, b: { x: 3, y: 4 }, ghost: { x: 9, y: 9 } });
+    expect(counts).toEqual({ each: 1, single: 0 });
+    expect(g.getNodeAttributes("a")).toMatchObject({ x: 1, y: 2 });
+    expect(g.getNodeAttributes("b")).toMatchObject({ x: 3, y: 4 });
+    expect(g.getNodeAttributes("lone")).toMatchObject({ x: 99, y: 99 });
+  });
+
+  it("animates with one event per frame and lands exactly on the targets", () => {
+    fakeFrames();
+    const g = buildGraph(base(), hooks);
+    const counts = countEvents(g);
+    let done = false;
+    animatePositions(g, { a: { x: 100, y: 50 } }, { duration: 100, easing: (t) => t }, () => {
+      done = true;
+    });
+    expect(counts.each).toBe(1); // the first frame runs at once
+    vi.advanceTimersByTime(48);
+    const mid = g.getNodeAttribute("a", "x") as number;
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(100);
+    vi.advanceTimersByTime(100);
+    expect(done).toBe(true);
+    expect(g.getNodeAttributes("a")).toMatchObject({ x: 100, y: 50 });
+    expect(g.getNodeAttributes("b")).toMatchObject({ x: 10, y: 10 });
+    expect(counts.single).toBe(0);
+    expect(counts.each).toBeGreaterThan(2);
+  });
+
+  it("stops when cancelled", () => {
+    fakeFrames();
+    const g = buildGraph(base(), hooks);
+    let done = false;
+    const cancel = animatePositions(
+      g,
+      { a: { x: 100, y: 0 } },
+      { duration: 100, easing: (t) => t },
+      () => {
+        done = true;
+      },
+    );
+    vi.advanceTimersByTime(32);
+    cancel();
+    const at = g.getNodeAttribute("a", "x");
+    vi.advanceTimersByTime(200);
+    expect(done).toBe(false);
+    expect(g.getNodeAttribute("a", "x")).toBe(at);
   });
 });

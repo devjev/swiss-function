@@ -58,6 +58,16 @@ describe("getTextMeasurer (estimator path)", () => {
     expect(b("42.5k")).toBe(first);
   });
 
+  it("returns the same function for a font until the caches are cleared", () => {
+    // Charts list the measurer as a memo dependency: a new function per
+    // render would recompute every label layout on every hover.
+    const a = getTextMeasurer("400 14px monospace");
+    expect(getTextMeasurer("400 14px monospace")).toBe(a);
+    expect(getTextMeasurer("400 12px monospace")).not.toBe(a);
+    clearTextMeasureCache();
+    expect(getTextMeasurer("400 14px monospace")).not.toBe(a);
+  });
+
   it("re-measures to the same value after clearTextMeasureCache", () => {
     const measure = getTextMeasurer("400 14px monospace");
     const before = measure("1.5M");

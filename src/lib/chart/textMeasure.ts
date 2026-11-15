@@ -66,9 +66,17 @@ function getMeasureContext(): CanvasRenderingContext2D | null {
 }
 
 const widthCaches = new Map<string, Map<string, number>>();
+const measurers = new Map<string, TextMeasurer>();
 
 /**
  * Text-width function for one font string, memoized per (font, text).
+ *
+ * Returns the same function for the same font until the caches are cleared
+ * (`clearTextMeasureCache`, which runs when webfonts finish loading). Charts
+ * call this during render and list the result as a memo dependency, so a new
+ * function per call recomputed every label layout on every render: a hover
+ * over a 5k-point Scatterplot re-formatted and re-measured all 5,000 x labels
+ * per pointer move.
  *
  * Caveat either way: canvas cannot reproduce `font-size-adjust` (which
  * `--sf-font-mono-adjust` uses to normalize fallback monospace x-height), so
@@ -76,6 +84,8 @@ const widthCaches = new Map<string, Map<string, number>>();
  * downstream layout adds gap slack that absorbs it.
  */
 export function getTextMeasurer(font: string): TextMeasurer {
+  const existing = measurers.get(font);
+  if (existing) return existing;
   let widths = widthCaches.get(font);
   if (!widths) {
     widths = new Map();
@@ -86,7 +96,7 @@ export function getTextMeasurer(font: string): TextMeasurer {
   const canMeasure = ctx !== null && typeof ctx.measureText === "function";
   const estimateSizePx = canMeasure ? 0 : parseFontSizePx(font);
 
-  return (text) => {
+  const measurer: TextMeasurer = (text) => {
     const hit = cache.get(text);
     if (hit !== undefined) return hit;
     let width: number;
@@ -101,6 +111,8 @@ export function getTextMeasurer(font: string): TextMeasurer {
     cache.set(text, width);
     return width;
   };
+  measurers.set(font, measurer);
+  return measurer;
 }
 
 function parseFontSizePx(font: string): number {
@@ -109,11 +121,14 @@ function parseFontSizePx(font: string): number {
   return Number.isFinite(px) ? px : DEFAULT_SIZE_PX;
 }
 
-/** Drop all memoized widths and resolved font strings. */
+/** Drop all memoized widths and resolved font strings. The next
+ *  `getTextMeasurer` call returns a new function, so memos keyed on it
+ *  recompute with the new widths. */
 export function clearTextMeasureCache(): void {
   // Clear inner maps too: live measurer closures hold them by reference.
   for (const cache of widthCaches.values()) cache.clear();
   widthCaches.clear();
+  measurers.clear();
   fontCache = new WeakMap();
 }
 
