@@ -233,28 +233,45 @@ export function railContentHeight(
   return railHeight * clamp(scale, 1, maxScale);
 }
 
-/** Edge-triggered scroll-into-view for the rail when its content is taller than
- *  its viewport: the rail scrolls only when the viewport band would leave the
- *  `[margin, viewportHeight - margin]` zone, otherwise it holds the current
- *  scroll (no jitter). `bandTop`/`bandHeight` are in rail-content coordinates. */
-export function railScrollForBand(
+/** The rail's own scroll when its content is taller than its viewport (the
+ *  min-block mode): proportional to the band's progress through the rail
+ *  content, as an editor minimap scrolls. At the start the band sits at the
+ *  top of the rail view, at the end at its bottom, and in between it travels
+ *  the view steadily, so there is always rail visible ahead of it in the
+ *  direction of travel. `bandTop` / `bandHeight` are in rail-content
+ *  coordinates; `bandTopMax` is the band's top at full scroll. The band's
+ *  height can vary along a capped rail, so the result is also bounded to keep
+ *  the whole band in view. */
+export function railScrollForProgress(
   bandTop: number,
   bandHeight: number,
+  bandTopMax: number,
   viewportHeight: number,
   contentHeight: number,
-  currentScroll: number,
-  margin: number,
 ): number {
   const maxScroll = Math.max(0, contentHeight - viewportHeight);
   if (maxScroll <= 0) return 0;
-  // Never demand more margin than the slack around the band allows.
-  const m = Math.max(0, Math.min(margin, (viewportHeight - bandHeight) / 2));
-  const topInView = bandTop - currentScroll;
-  const bottomInView = bandTop + bandHeight - currentScroll;
-  let next = currentScroll;
-  if (topInView < m) next = bandTop - m;
-  else if (bottomInView > viewportHeight - m) next = bandTop + bandHeight - (viewportHeight - m);
+  const progress = bandTopMax > 0 ? clamp(bandTop / bandTopMax, 0, 1) : 0;
+  let next = progress * maxScroll;
+  next = Math.max(next, bandTop + bandHeight - viewportHeight);
+  next = Math.min(next, bandTop);
   return clamp(next, 0, maxScroll);
+}
+
+/** The inverse, for a drag: the band top (rail-content coordinates) that
+ *  `railScrollForProgress` renders at `viewTop` in the rail's viewport. With a
+ *  rail that does not scroll, the two coordinates are the same. */
+export function bandTopForViewTop(
+  viewTop: number,
+  bandTopMax: number,
+  viewportHeight: number,
+  contentHeight: number,
+): number {
+  const maxScroll = Math.max(0, contentHeight - viewportHeight);
+  // The distance the band travels in the view from start to end.
+  const travel = bandTopMax - maxScroll;
+  if (maxScroll <= 0 || travel <= 0) return clamp(viewTop, 0, Math.max(bandTopMax, 0));
+  return clamp((viewTop / travel) * bandTopMax, 0, bandTopMax);
 }
 
 /** A content span the cap compresses: it renders `railHeight` tall from

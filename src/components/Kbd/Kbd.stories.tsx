@@ -56,3 +56,35 @@ export const InContext: Story = () => (
     ))}
   </div>
 );
+
+/** `variant="outline"`: flat ruled keys that fit in a line of text, and a
+ *  sequence (`"g u"`: G, then U) next to a chord. */
+export const Outline: Story = () => (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "0.5rem",
+      maxWidth: 320,
+      fontFamily: "var(--sf-font-sans)",
+      fontSize: "var(--sf-font-size-sm)",
+    }}
+  >
+    {(
+      [
+        ["Go to users", "g u"],
+        ["Command palette", "mod+k"],
+        ["New chat", "mod+shift+n"],
+        ["Send message", "mod+enter"],
+      ] as const
+    ).map(([label, combo]) => (
+      <div
+        key={combo}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
+        <span>{label}</span>
+        <Kbd combo={combo} variant="outline" mac={false} />
+      </div>
+    ))}
+  </div>
+);

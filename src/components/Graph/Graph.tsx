@@ -14,7 +14,7 @@ import {
   useState,
 } from "react";
 import Sigma from "sigma";
-import { drawDiscNodeLabel, EdgeLineProgram, type NodeHoverDrawingFunction } from "sigma/rendering";
+import { EdgeLineProgram, type NodeHoverDrawingFunction } from "sigma/rendering";
 import type { NodeDisplayData, PartialButFor } from "sigma/types";
 import { animateNodes } from "sigma/utils";
 import { cx } from "../../lib/cx";
@@ -34,7 +34,7 @@ import { applyCardAttributes } from "../../lib/graph/cardMetrics";
 import { NodeCardHoverProgram, NodeCardProgram } from "../../lib/graph/cardProgram";
 import { EdgeElbowProgram } from "../../lib/graph/elbowEdgeProgram";
 import { applyPositions, detachForLayout, forceIterations } from "../../lib/graph/forceLayout";
-import { orgLayout } from "../../lib/graph/orgLayout";
+import { ORG_DEFAULTS, orgLayout } from "../../lib/graph/orgLayout";
 import {
   type EdgeStyle,
   EdgeStyledArrowProgram,
@@ -241,48 +241,65 @@ interface ConnectLine {
   y2: number;
 }
 
-/** Theme-aware replacement for Sigma's default node-hover renderer, INVERTED
- *  for prominence: the label box fills with `--sf-color-fg` and the label text
- *  paints in `--sf-color-bg` (via the per-node `labelColor` attribute the
- *  label renderer reads) — the terminal-selection read, in both themes.
- *  Geometry mirrors Sigma's `drawDiscNodeHover`. */
+/** Theme-aware replacement for Sigma's default node-hover renderer, for a
+ *  hovered or selected node. Two separate pieces, so the node keeps its own
+ *  shape and colour:
+ *
+ *  - the node: a ring in the text colour around it, with a gap in the page
+ *    colour between the ring and the disc, so the disc stands clear of the
+ *    ring, of the edges under it and of the tag beside it in both themes;
+ *  - the label: a tag beside the node, a box in the text colour with the
+ *    system's corner radius and the label in the page colour (the
+ *    terminal-selection read).
+ *
+ *  Sigma draws the hovered node itself above this canvas, and the plain label
+ *  on the layer below it at `x + size + 3`; the tag sits further out, so the
+ *  strip between ring and tag is cleared to the page colour first. */
 function makeNodeHoverRenderer(el: Element | null): NodeHoverDrawingFunction {
   return (
     context,
     data: PartialButFor<NodeDisplayData, "x" | "y" | "size" | "label" | "color">,
     settings,
   ) => {
-    context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
-    context.fillStyle = token("--sf-color-fg", "#0a0a0a", el);
+    const ink = token("--sf-color-fg", "#0a0a0a", el);
+    const page = token("--sf-color-bg", "#ffffff", el);
+    const GAP = 2; // page-colour gap between the disc and its ring
+    const RING = 1.5; // ring width
+    const ringOuter = data.size + GAP + RING;
 
-    // Sigma's stock pill path (box outline + junction chord + cap arc in one
-    // self-intersecting path) leaves an unfilled seam at the cap/box junction
-    // — invisible white-on-white, glaring on the inverted fill (edges below
-    // showed through it). Fill the union as two overlapping primitives
-    // instead: seamless by construction. The inverted mass needs no stroke.
-    const PADDING = 2;
-    if (typeof data.label === "string") {
+    if (typeof data.label === "string" && data.label !== "") {
+      const size = settings.labelSize;
+      context.font = `${settings.labelWeight} ${size}px ${settings.labelFont}`;
+      const PAD_X = 5;
+      const PAD_Y = 3;
       const textWidth = context.measureText(data.label).width;
-      const boxWidth = Math.round(textWidth + 5);
-      const boxHeight = Math.round(settings.labelSize + 2 * PADDING);
-      const radius = Math.max(data.size, settings.labelSize / 2) + PADDING;
+      const boxHeight = Math.round(size + 2 * PAD_Y);
+      const boxWidth = Math.round(textWidth + 2 * PAD_X);
+      // A whole-pixel box, 3px clear of the ring.
+      const boxX = Math.round(data.x + ringOuter + 3);
+      const boxY = Math.round(data.y - boxHeight / 2);
+      // Clear the plain label under the strip between the node and the tag.
+      context.fillStyle = page;
+      context.fillRect(data.x, boxY, boxX - data.x, boxHeight);
+      context.fillStyle = ink;
       context.beginPath();
-      context.arc(data.x, data.y, radius, 0, Math.PI * 2);
+      context.roundRect(boxX, boxY, boxWidth, boxHeight, 2);
       context.fill();
-      context.fillRect(data.x, data.y - boxHeight / 2, radius + boxWidth, boxHeight);
-    } else {
-      context.beginPath();
-      context.arc(data.x, data.y, data.size + PADDING, 0, Math.PI * 2);
-      context.fill();
+      context.fillStyle = page;
+      context.textBaseline = "middle";
+      context.fillText(data.label, boxX + PAD_X, boxY + boxHeight / 2 + 0.5);
+      context.textBaseline = "alphabetic";
     }
 
-    // Text in the background colour on the inverted box; the label renderer
-    // reads the per-node `labelColor` attribute (see the Sigma settings).
-    drawDiscNodeLabel(
-      context,
-      { ...data, labelColor: token("--sf-color-bg", "#ffffff", el) },
-      settings,
-    );
+    // The ring, then the page-colour disc that leaves the gap inside it.
+    context.fillStyle = ink;
+    context.beginPath();
+    context.arc(data.x, data.y, ringOuter, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = page;
+    context.beginPath();
+    context.arc(data.x, data.y, data.size + GAP, 0, Math.PI * 2);
+    context.fill();
   };
 }
 
@@ -407,25 +424,119 @@ function forceSettings(g: Graphology, force: GraphLayoutOptions["force"]) {
   return settings;
 }
 
+/** A node's footprint in layout units: its stamped card box, or a square
+ *  around a disc (which keeps `layout="org"` + `nodeStyle="disc"` sane). */
+function nodeBox(g: Graphology, id: string): { width: number; height: number } {
+  if (g.getNodeAttribute(id, "type") === "card") {
+    const w = g.getNodeAttribute(id, "cardWidth") as number | undefined;
+    const h = g.getNodeAttribute(id, "cardHeight") as number | undefined;
+    if (typeof w === "number" && typeof h === "number") return { width: w, height: h };
+  }
+  const size = (g.getNodeAttribute(id, "size") as number | undefined) ?? 4;
+  return { width: size * 2 + 8, height: size * 2 + 8 };
+}
+
+/** Gap kept between two card boxes by `spreadForCards`, in layout units (the
+ *  org layout's sibling gap). */
+const CARD_GAP = 12;
+
+/** Scale a layout about its origin by the smallest factor at which no two
+ *  node boxes overlap (with `CARD_GAP` between them). A layout computes
+ *  abstract positions that know nothing of a card's size; scaled this way it
+ *  keeps its shape and the cards, drawn in layout units, can never lie over
+ *  each other. Two nodes at the same point cannot be parted by scaling and
+ *  are left alone.
+ *
+ *  The factor is found by bisection. Each test sorts nothing (the x order
+ *  does not change under scaling) and scans, for each node, only the
+ *  neighbours within one box width, stopping at the first overlap. */
+function spreadForCards(g: Graphology, mapping: LayoutMapping): LayoutMapping {
+  const ids = Object.keys(mapping);
+  if (ids.length < 2) return mapping;
+  const nodes = ids
+    .map((id) => {
+      const box = nodeBox(g, id);
+      const at = mapping[id] as { x: number; y: number };
+      return { id, x: at.x, y: at.y, w: box.width + CARD_GAP, h: box.height + CARD_GAP };
+    })
+    .sort((a, b) => a.x - b.x);
+  let maxW = 0;
+  for (const n of nodes) maxW = Math.max(maxW, n.w);
+  const EPS = 1e-9;
+  const clear = (scale: number): boolean => {
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i] as (typeof nodes)[number];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j] as (typeof nodes)[number];
+        const dx = (b.x - a.x) * scale;
+        if (dx >= maxW) break;
+        const dy = Math.abs(b.y - a.y) * scale;
+        if (b.x - a.x < EPS && Math.abs(b.y - a.y) < EPS) continue;
+        if (dx < (a.w + b.w) / 2 && dy < (a.h + b.h) / 2) return false;
+      }
+    }
+    return true;
+  };
+  let hi = 1;
+  for (let i = 0; i < 60 && !clear(hi); i++) hi *= 2;
+  let lo = hi / 2;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (clear(mid)) hi = mid;
+    else lo = mid;
+  }
+  const out: LayoutMapping = {};
+  for (const n of nodes) out[n.id] = { x: n.x * hi, y: n.y * hi };
+  return out;
+}
+
+interface LayoutEnv {
+  dimensions?: { width: number; height: number };
+  /** Card nodes: space every layout by the card boxes (see `computeLayout`). */
+  cards?: boolean;
+}
+
+/** The target coordinates for a layout. With card nodes every layout is
+ *  spaced by the card boxes, so cards never overlap: `org` and `tree` are the
+ *  tidy tree (the tree without stacking), and the others keep their own shape,
+ *  scaled until the boxes clear each other. */
 function computeLayout(
   g: Graphology,
   layout: LayoutKind,
   options?: GraphLayoutOptions,
-  env?: { dimensions?: { width: number; height: number } },
+  env?: LayoutEnv,
+): LayoutMapping {
+  if (env?.cards && layout === "tree") {
+    const tree = options?.tree;
+    const mapping = orgLayout(
+      g,
+      {
+        ...(tree?.rootId !== undefined ? { rootId: tree.rootId } : {}),
+        ...(tree?.direction !== undefined ? { direction: tree.direction } : {}),
+        levelGap: ORG_DEFAULTS.levelGap * (tree?.levelGap ?? 1),
+        stack: "none",
+      },
+      { measure: (id) => nodeBox(g, id), container: env.dimensions },
+    );
+    g.forEachNode((n) => {
+      g.setNodeAttribute(n, "orgStacked", undefined);
+    });
+    return mapping;
+  }
+  const mapping = baseLayout(g, layout, options, env);
+  return env?.cards && layout !== "org" ? spreadForCards(g, mapping) : mapping;
+}
+
+function baseLayout(
+  g: Graphology,
+  layout: LayoutKind,
+  options?: GraphLayoutOptions,
+  env?: LayoutEnv,
 ): LayoutMapping {
   switch (layout) {
     case "org": {
-      // Space by the stamped card boxes; the disc fallback keeps
-      // `layout="org"` + `nodeStyle="disc"` laying out sanely.
-      const measure = (id: string) => {
-        if (g.getNodeAttribute(id, "type") === "card") {
-          const w = g.getNodeAttribute(id, "cardWidth") as number | undefined;
-          const h = g.getNodeAttribute(id, "cardHeight") as number | undefined;
-          if (typeof w === "number" && typeof h === "number") return { width: w, height: h };
-        }
-        const size = (g.getNodeAttribute(id, "size") as number | undefined) ?? 4;
-        return { width: size * 2 + 8, height: size * 2 + 8 };
-      };
+      // Space by the stamped card boxes.
+      const measure = (id: string) => nodeBox(g, id);
       let stacks: Map<string, number> | undefined;
       const mapping = orgLayout(g, options?.org, {
         measure,
@@ -580,10 +691,10 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
   // Latest node style, read by the effects that re-stamp visuals (wired once).
   const nodeStyleRef = useRef(nodeStyle);
   nodeStyleRef.current = nodeStyle;
-  // Org-chart mode (org layout + cards): edges render as orthogonal elbow
-  // connectors instead of straight center-to-center lines.
+  // Hierarchy of cards (org or tree layout + cards): edges render as
+  // orthogonal elbow connectors instead of straight center-to-center lines.
   const orgCardsRef = useRef(false);
-  orgCardsRef.current = layout === "org" && nodeStyle === "card";
+  orgCardsRef.current = (layout === "org" || layout === "tree") && nodeStyle === "card";
   // Latest per-state edge visual overrides, read by the edge reducer.
   const edgeStateVisualsRef = useRef(edgeStateVisuals);
   edgeStateVisualsRef.current = edgeStateVisuals;
@@ -1124,7 +1235,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     let initialRaf = requestAnimationFrame(() => {
       initialRaf = requestAnimationFrame(() => {
         if (sigmaRef.current !== renderer) return;
-        if (initialLayout === "force" && shouldSettleAsync()) {
+        if (initialLayout === "force" && shouldSettleAsync() && nodeStyleRef.current !== "card") {
           container.setAttribute("data-graph-ready", "");
           startForceSettle(!prefersReducedMotion());
           return;
@@ -1133,6 +1244,7 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
           g,
           computeLayout(g, initialLayout, layoutOptionsRef.current, {
             dimensions: renderer.getDimensions(),
+            cards: nodeStyleRef.current === "card",
           }),
         );
         renderer.refresh();
@@ -1248,23 +1360,23 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     renderer.refresh();
   }, [renderNode, renderEdge, editable]);
 
-  // Under org + cards, node sizes reference graph POSITIONS (not screen px):
-  // cards then scale 1:1 with the layout gaps at every zoom, so they can never
-  // overlap on zoom-out and fitView frames the whole chart. Other layouts keep
-  // Sigma's screen-referenced defaults.
+  // With cards, node sizes reference graph POSITIONS (not screen px) under
+  // every layout: cards then scale 1:1 with the layout gaps at every zoom, so
+  // they can never overlap on zoom-out and fitView frames the whole chart.
+  // Discs keep Sigma's screen-referenced defaults.
   useEffect(() => {
     const renderer = sigmaRef.current;
     if (!renderer) return;
-    const positionsRef = nodeStyle === "card" && layout === "org";
+    const positionsRef = nodeStyle === "card";
     renderer.setSetting("itemSizesReference", positionsRef ? "positions" : "screen");
     renderer.setSetting("zoomToSizeRatioFunction", positionsRef ? (r: number) => r : Math.sqrt);
-    // Org-chart wiring: orthogonal elbow connectors; other modes restore the
+    // Hierarchy wiring: orthogonal elbow connectors; other modes restore the
     // size/interactivity-gated straight edge type.
     const g = graphRef.current;
     if (g) {
       renderer.setSetting(
         "defaultEdgeType",
-        positionsRef
+        orgCardsRef.current
           ? "elbow"
           : edgeTypeFor(g.size, editableRef.current || handlersRef.current.onEdgeClick != null),
       );
@@ -1366,13 +1478,16 @@ const GraphRoot = forwardRef<HTMLDivElement, GraphProps>(function Graph(
     cancelAnimationRef.current = null;
     stopForceRef.current?.();
 
-    if (layout === "force" && shouldSettleAsync()) {
+    // Cards skip the worker settle: its positions arrive frame by frame and
+    // know nothing of the card boxes; the synchronous pass is spaced by them.
+    if (layout === "force" && shouldSettleAsync() && nodeStyleRef.current !== "card") {
       startForceSettle(!prefersReducedMotion());
       return;
     }
 
     const targets = computeLayout(g, layout, layoutOptionsRef.current, {
       dimensions: renderer.getDimensions(),
+      cards: nodeStyleRef.current === "card",
     });
     const surface = surfaceRef.current;
 

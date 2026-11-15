@@ -6,18 +6,35 @@
   display: grid;
   row-gap: calc(var(--sf-unit) / 4);
   font-family: var(--sf-font-sans);
-  /* Anchor for the optional jump-to-field hotkey badge. */
-  position: relative;
 }
 
-/* Jump-to-field shortcut badge (issue #32): sits in the top-right corner,
-   aligned with the label row. Decorative — the consumer's hotkey system owns
-   the actual keypress. */
+/* Jump-to-field shortcut (issue #32): small outline keys in the label row, at
+   its end. The keys and the label share the grid's first cell (the label is
+   placed there explicitly, the other parts flow into the rows below), so the
+   keys are part of the row: they never lie over the control, and a row with
+   keys taller than the label grows to hold them. Decorative: the consumer's
+   hotkey system owns the keypress. */
 .hotkey {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 0;
+  grid-row: 1;
+  grid-column: 1;
+  justify-self: end;
+  align-self: center;
+  display: inline-flex;
   pointer-events: none;
+}
+.root[data-hotkey] > .label {
+  grid-row: 1;
+  grid-column: 1;
+  /* Room for the keys at the row's end. */
+  padding-inline-end: calc(var(--sf-unit) * 3);
+}
+/* Beside the control the keys follow the label. */
+.root[data-orientation="horizontal"] > .hotkey {
+  order: -1;
+}
+.root[data-orientation="horizontal"][data-hotkey] > .label {
+  order: -2;
+  padding-inline-end: 0;
 }
 
 .root[data-orientation="horizontal"] {

@@ -90,8 +90,17 @@ test("hotkey shows a Kbd badge and tags the field with data-hotkey", async ({ mo
     </Field>,
   );
   await expect(c).toHaveAttribute("data-hotkey", "mod+u");
-  // The Kbd badge renders the chord as keycaps (mod + u).
+  // The keys render as outline boxes (mod + u) in the label row: within the
+  // label's height, at the row's end, and clear of the control.
   await expect(c.locator("kbd")).toHaveCount(2);
+  const label = await c.locator("label").boundingBox();
+  const control = await c.locator("input").boundingBox();
+  const keys = await c.locator("[data-variant='outline']").boundingBox();
+  if (!label || !control || !keys) throw new Error("missing part");
+  expect(keys.y).toBeGreaterThanOrEqual(label.y - 0.5);
+  expect(keys.y + keys.height).toBeLessThanOrEqual(label.y + label.height + 0.5);
+  expect(keys.y + keys.height).toBeLessThanOrEqual(control.y);
+  expect(keys.x + keys.width).toBeCloseTo(control.x + control.width, 0);
 });
 
 test("focusFieldHotkey jumps focus into the matching field's control", async ({ mount }) => {

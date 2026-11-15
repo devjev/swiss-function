@@ -57,7 +57,7 @@
 
 /* Min-block / scrollable-rail mode: the inner content is taller than the rail,
    so the rail scrolls (its own scrollbar hidden; the content owns the scroll
-   affordance, and the rail auto-follows the viewport band). */
+   affordance, and the rail scrolls in step with the content). */
 .rail[data-scroll] {
   overflow-y: auto;
   scrollbar-width: none;
@@ -210,10 +210,12 @@
   /* Hug the text (a caption over the density blocks), not a full-width chip:
      the dither blocks stay the main visual, the heading rides on top-left.
      Caps at the rail width so long headings ellipsize. */
-  inset-inline-start: 0;
+  inset-inline-start: var(--minimap-label-inset, 0px);
   inset-inline-end: auto;
   inline-size: max-content;
-  max-inline-size: 100%;
+  /* The rail's width less the label's own indent: a long heading then ends
+     in an ellipsis inside the rail instead of being cut by its edge. */
+  max-inline-size: calc(100% - var(--minimap-label-inset, 0px));
   display: block;
   /* A tight pill: box height hugs the label line, not the full unit, with a
      hair of horizontal padding. The rail row is still one unit tall (labelTop),

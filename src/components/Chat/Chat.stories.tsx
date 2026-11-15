@@ -101,8 +101,8 @@ export const Empty: Story = () => {
 };
 
 /**
- * The chat is **non-primary by default** — neutral input border, secondary send
- * button. Re-accent it (and rename the button) when you want it to: `borderColor`,
+ * The chat is **non-primary by default**: a neutral rule above the input and a
+ * ghost send key. Re-accent it (and rename the button) when you want it to: `borderColor`,
  * `sendVariant`, `sendLabel`, and `placeholder`.
  */
 export const Customized: Story = () => {

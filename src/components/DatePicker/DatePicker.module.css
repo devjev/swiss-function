@@ -431,10 +431,16 @@
 }
 
 /* --- Parse echo ------------------------------------------------------------
-   One fixed-height mono line showing what Enter will commit. */
+   One fixed-height mono line showing what Enter will commit. The line keeps
+   its height while empty, so the popup does not jump while typing, but its
+   rule shows only with an echo under it. */
 
 .echo {
-  min-block-size: var(--sf-unit);
+  /* The text line, the padding above it and the rule: the same height with
+     and without an echo. */
+  box-sizing: border-box;
+  block-size: calc(var(--sf-unit) + var(--sf-space-1) + 1px);
+  line-height: var(--sf-unit);
   display: flex;
   align-items: center;
   margin-block-start: var(--sf-space-2);
@@ -444,4 +450,7 @@
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   font-weight: var(--sf-font-weight-semibold);
+}
+.echo:empty {
+  border-block-start-color: transparent;
 }

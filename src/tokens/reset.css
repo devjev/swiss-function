@@ -22,8 +22,9 @@
   }
 
   /* A density region sets its own copy size and leading, as body does for
-     the page (see tokens.css, Density). */
-  [data-density] {
+     the page (see tokens.css, Density). The root is left out: its font size
+     is what a rem measures, so a copy size there would rescale every token. */
+  [data-density]:not(:root) {
     font-size: var(--sf-font-size-md);
     line-height: var(--sf-line-height-grid);
   }

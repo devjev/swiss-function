@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bandTopForViewTop,
   buildRailMap,
   decimateLabels,
   grabZone,
@@ -10,7 +11,7 @@ import {
   markerRailHeight,
   markerRailY,
   railContentHeight,
-  railScrollForBand,
+  railScrollForProgress,
   railVisibleNext,
   resolveMarkerHeight,
   resolveMarkerTop,
@@ -48,24 +49,41 @@ describe("railContentHeight (min block sizing)", () => {
   });
 });
 
-describe("railScrollForBand (edge-triggered follow)", () => {
-  // Content 1200 tall in a 400 viewport; band is 30 tall; margin 24.
-  it("holds the scroll when the band is comfortably in view", () => {
-    expect(railScrollForBand(200, 30, 400, 1200, 100, 24)).toBe(100);
+describe("railScrollForProgress (the scrolling rail follows the band's progress)", () => {
+  // Rail content 1200 tall in a 400 viewport; band 30 tall, so its top runs
+  // from 0 to 1170 and the rail scrolls from 0 to 800.
+  it("rests at the start and reaches the end with the band", () => {
+    expect(railScrollForProgress(0, 30, 1170, 400, 1200)).toBe(0);
+    expect(railScrollForProgress(1170, 30, 1170, 400, 1200)).toBe(800);
   });
 
-  it("scrolls up when the band is above the margin", () => {
-    // Band top 100, current scroll 200 → band at -100 in view → scroll to 100-24.
-    expect(railScrollForBand(100, 30, 400, 1200, 200, 24)).toBe(76);
+  it("is proportional in between, so the band travels the view steadily", () => {
+    // Half way: rail scroll 400, band at 585 - 400 = 185 of the 370 it travels.
+    expect(railScrollForProgress(585, 30, 1170, 400, 1200)).toBe(400);
   });
 
-  it("scrolls down when the band is below the margin", () => {
-    // Band bottom 1000+30 vs viewport bottom (400 - 24) at scroll 500.
-    expect(railScrollForBand(1000, 30, 400, 1200, 500, 24)).toBe(1000 + 30 - (400 - 24));
+  it("does not scroll a rail whose content fits", () => {
+    expect(railScrollForProgress(100, 30, 370, 400, 400)).toBe(0);
   });
 
-  it("never scrolls past the content extent", () => {
-    expect(railScrollForBand(1190, 30, 400, 1200, 0, 24)).toBe(800);
+  it("keeps a band in view whose height changes along a capped rail", () => {
+    // A band taller here than at the end: plain proportion would leave its
+    // bottom below the view (585 + 300 - 400 = 485 > 400).
+    expect(railScrollForProgress(585, 300, 1170, 400, 1200)).toBe(485);
+  });
+});
+
+describe("bandTopForViewTop (the drag inverse)", () => {
+  it("round-trips with railScrollForProgress", () => {
+    for (const bandTop of [0, 100, 585, 900, 1170]) {
+      const railScroll = railScrollForProgress(bandTop, 30, 1170, 400, 1200);
+      expect(bandTopForViewTop(bandTop - railScroll, 1170, 400, 1200)).toBeCloseTo(bandTop, 6);
+    }
+  });
+
+  it("is the identity when the rail does not scroll", () => {
+    expect(bandTopForViewTop(120, 370, 400, 400)).toBe(120);
+    expect(bandTopForViewTop(999, 370, 400, 400)).toBe(370);
   });
 });
 

@@ -196,27 +196,22 @@
        material layer below): each offset is the light vector times the
        step's reach, so a surface and a key agree on where the light is.
 
-       Two kinds of cast. Levels 1 and 2 are for things that sit ON the
-       page (a key, a card): a hard, zero-blur offset in a mid grey, the
-       thickness of the part seen from the side. Levels 3 to 5 are for
-       things that float OVER the page (a menu, a popover, a dialog): the
-       same hard step plus a blurred shadow that grows with the height, so
-       a floater separates from what it covers. No level relies on the
-       blur alone; a surface without its own border still shows an edge. */
+       Every cast is hard: a zero-blur offset in the frame's ink
+       (--sf-color-border-strong), the thickness of the part seen from the
+       side. Height is the length of the offset alone: 1 and 2px for things
+       that sit ON the page (a key, a card), 3, 4 and 6px for things that
+       float OVER it (a menu, a popover, a dialog). No level blurs. */
     --sf-elevation-0: none;
     --sf-elevation-1: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0 0
-      rgb(10 10 10 / 0.26);
+      var(--sf-color-border-strong);
     --sf-elevation-2: calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0
-      rgb(10 10 10 / 0.26);
-    --sf-elevation-3:
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
-      calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 10px rgb(0 0 0 / 0.14);
-    --sf-elevation-4:
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
-      calc(var(--sf-light-x) * -8px) calc(var(--sf-light-y) * -8px) 20px rgb(0 0 0 / 0.16);
-    --sf-elevation-5:
-      calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 0 0 rgb(10 10 10 / 0.26),
-      calc(var(--sf-light-x) * -16px) calc(var(--sf-light-y) * -16px) 36px rgb(0 0 0 / 0.2);
+      var(--sf-color-border-strong);
+    --sf-elevation-3: calc(var(--sf-light-x) * -3px) calc(var(--sf-light-y) * -3px) 0 0
+      var(--sf-color-border-strong);
+    --sf-elevation-4: calc(var(--sf-light-x) * -4px) calc(var(--sf-light-y) * -4px) 0 0
+      var(--sf-color-border-strong);
+    --sf-elevation-5: calc(var(--sf-light-x) * -6px) calc(var(--sf-light-y) * -6px) 0 0
+      var(--sf-color-border-strong);
 
     /* Recess scale — the elevation scale inverted (inset shadows), so an element
        reads as sunken *into* the surface rather than floating above it. Same six
@@ -377,7 +372,7 @@
        fit, captions ride over the density blocks). A dimension token, not a
        color, so the small-palette rule is untouched. The Minimap `width` prop
        overrides it per instance. */
-    --sf-minimap-width: calc(var(--sf-unit) * 3);
+    --sf-minimap-width: calc(var(--sf-unit) * 4);
     /* Minimap heading-label size: below the sm..lg body ladder on purpose (the
        rail is a dense navigation affordance, like a scrollbar overview, not
        body copy). A component dimension token, so the three-size type ladder
@@ -571,6 +566,6 @@
     --sf-prose-list-item-spacing: calc(var(--sf-unit) / 6);
     --sf-prose-heading-spacing: var(--sf-unit);
     --sf-prose-heading-trail: calc(var(--sf-unit) / 2);
-    --sf-minimap-width: calc(var(--sf-unit) * 3);
+    --sf-minimap-width: calc(var(--sf-unit) * 4);
   }
 }

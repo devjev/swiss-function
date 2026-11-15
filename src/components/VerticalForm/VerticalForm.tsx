@@ -225,7 +225,9 @@ export interface VerticalFormProps extends HTMLAttributes<HTMLDivElement> {
   /** Size of the nav bar Picker (mirrors `Input`/`Picker` sizes). Default `sm`. */
   navSize?: "sm" | "md" | "lg";
   /** Minimum rail block height per field, in `--sf-unit` multiples. Blocks never
-   *  compress below this; a denser form scrolls its rail instead. Default `0.5`. */
+   *  compress below this; a denser form scrolls its rail instead. Default
+   *  `0.75`: the height of a rail label and its spacing, so every field keeps
+   *  its name on the rail (at `0.5` every second name was dropped). */
   minBlock?: number;
   /** Maximum rail block height per field, in `--sf-unit` multiples. Caps that
    *  one block on the rail (a gap follows it); the other blocks keep their
@@ -251,7 +253,7 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
     padding = 1,
     nav = false,
     navSize = "sm",
-    minBlock = 0.5,
+    minBlock = 0.75,
     maxBlock,
     bare = false,
     reserveError = false,
@@ -327,6 +329,13 @@ const Root = forwardRef<HTMLDivElement, VerticalFormProps>(function VerticalForm
   }, [measure]);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  // The first measure runs before paint (the rows registered in their own
+  // layout effects, which run before this one), so the rail draws its blocks
+  // and names with the form instead of a frame after it.
+  useLayoutEffect(() => {
+    measure();
+  }, [measure]);
 
   /** Recompute the active title (Picker value) from the current scroll offset,
    *  rAF-coalesced like the measure path. */

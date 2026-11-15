@@ -9,12 +9,22 @@ import styles from "./Chip.module.css";
  *  the colour carries meaning (status, priority) — not for decoration. */
 export type ChipTone = "neutral" | "primary" | "success" | "warning" | "danger";
 export type ChipSize = "sm" | "md";
+/** `"outline"` draws the rim and the label in the tone on the page colour;
+ *  `"solid"` fills the chip with the tone and sets the label in the colour
+ *  that reads on that fill. */
+export type ChipVariant = "outline" | "solid";
 
 export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
   /** Semantic colour. Default `"neutral"`. Reach for a tone only when the colour
    *  itself is information (a `danger` status, a `success` state) — a wall of
    *  differently-coloured chips with no meaning is the anti-pattern. */
   tone?: ChipTone;
+  /** `"outline"` (default) or `"solid"`: the chip filled with its tone (ink
+   *  when neutral), the label in the colour that reads on that fill (the page
+   *  colour; the tone's `-fg` token on primary and danger). Use it for the one
+   *  chip that must stand out (a count, the active filter, a failed state); a
+   *  row of solid chips in different tones is loud. */
+  variant?: ChipVariant;
   /** `"md"` (default, 1.25u tall) or `"sm"` (1u — aligns with a small Button). */
   size?: ChipSize;
   /** Pill form (`radius-full`) instead of the sharp 2px default. Sanctioned for
@@ -45,6 +55,7 @@ const sizeClass: Record<ChipSize, string> = {
 export const Chip = forwardRef<HTMLSpanElement, ChipProps>(function Chip(
   {
     tone = "neutral",
+    variant = "outline",
     size = "md",
     round,
     dot,
@@ -83,6 +94,7 @@ export const Chip = forwardRef<HTMLSpanElement, ChipProps>(function Chip(
       ref={ref}
       className={cx(styles.root, sizeClass[size], className)}
       data-tone={tone === "neutral" ? undefined : tone}
+      data-variant={variant === "solid" ? "solid" : undefined}
       data-round={round || undefined}
       data-interactive={interactive || undefined}
       data-disabled={disabled || undefined}

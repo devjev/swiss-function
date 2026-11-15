@@ -24,24 +24,6 @@ export const Elevations: Story = () => (
   </div>
 );
 
-export const WithTexture: Story = () => (
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-      gap: "calc(var(--sf-unit) * 2)",
-      padding: "var(--sf-unit)",
-    }}
-  >
-    {[0, 2, 4].map((e) => (
-      <Box key={e} elevation={e as BoxElevation} texture>
-        <strong>elevation {e}</strong>
-        <p style={{ margin: 0, color: "var(--sf-color-fg-subtle)" }}>texture on</p>
-      </Box>
-    ))}
-  </div>
-);
-
 export const PolymorphicSection: Story = () => (
   <Box render={<section />} elevation={2}>
     Rendered as a <code>&lt;section&gt;</code> via the <code>render</code> prop.

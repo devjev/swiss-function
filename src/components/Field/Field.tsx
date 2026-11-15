@@ -13,11 +13,13 @@ interface FieldRootProps extends ComponentPropsWithoutRef<typeof BaseField.Root>
   /** Show a `*` indicator on the Label. Visual hint only — add `required`
    *  to the control itself if you also want HTML required-validation. */
   required?: boolean;
-  /** Advertise a "jump to this field" shortcut (issue #32): renders a `Kbd`
-   *  badge in the corner and tags the field with `data-hotkey`. The component
+  /** Advertise a "jump to this field" shortcut (issue #32): shows the keys as
+   *  small outline `Kbd` boxes in the label row (at its end when the label is
+   *  above the control, right after the label when it is beside it) and tags
+   *  the field with `data-hotkey`. The component
    *  binds no key itself — the consumer's central hotkey system handles the
    *  press and calls `focusFieldHotkey(combo)` (or focuses the control itself).
-   *  Uses the `Kbd` combo syntax (e.g. `"mod+k"`, `"g u"`). */
+   *  Uses the `Kbd` combo syntax (e.g. `"mod+k"`, or `"g u"` for a sequence). */
   hotkey?: string;
 }
 
@@ -36,7 +38,7 @@ const Root = forwardRef<HTMLDivElement, FieldRootProps>(function FieldRoot(
     >
       {hotkey ? (
         <span className={styles.hotkey} aria-hidden="true">
-          <Kbd combo={hotkey} />
+          <Kbd combo={hotkey} variant="outline" />
         </span>
       ) : null}
       {children}

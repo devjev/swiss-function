@@ -184,12 +184,12 @@ Depth indicates layer, not personality.
 
 - **Six elevation steps** (`--sf-elevation-0` through `-5`). Surfaces
   use them sparingly. Most of the page sits at 0 or 1.
-- **In the light theme a cast is hard.** Levels 1 and 2 (a key, a card:
-  things that sit on the page) are a zero-blur offset of 1 or 2px in a
-  mid grey, the thickness of the part seen from the side. Levels 3 to 5
-  (a menu, a popover, a dialog: things that float over the page) keep
-  that hard step and add a blurred shadow that grows with the height.
-  No level relies on a faint blur alone.
+- **In the light theme a cast is hard, at every level.** It is a
+  zero-blur offset in the frame's ink, the thickness of the part seen
+  from the side. Height is the length of the offset: 1 and 2px for a key
+  or a card (things that sit on the page), 3, 4 and 6px for a menu, a
+  popover or a dialog (things that float over it). No level blurs: a
+  soft shadow beside an ink frame reads as a second, unrelated light.
 - **Dark mode reads depth three ways, since near-black swallows a soft
   drop shadow.** All ride the same `--sf-elevation-N` shadow, so every
   consumer gets them with no component change: a brutalist hard cast (a
@@ -406,7 +406,9 @@ Avoid anything that signals "this is a feed":
   10% wash of the accent behind a 60% version of it is the pastel look
   this library avoids. A tint is for *state* (hover, selection, a drop
   target), where it is transient and marks where the pointer or the
-  selection is.
+  selection is. A full-strength fill is a different thing: a solid chip
+  is the status colour with its label in the colour that reads on it, and
+  it is kept for the one chip that must stand out.
 - **No glass / blur effects.** See "Depth" above.
 - **No skeumorphic textures.** No paper grain, no wood, no leather, no
   brushed metal.

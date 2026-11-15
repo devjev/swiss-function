@@ -11,7 +11,8 @@
  *  routes through `onClose`, EXCEPT an outside press on THIS chart's own mark,
  *  which the chart handles (move / toggle the pin) — so it doesn't
  *  dismiss-then-reopen. Routing through the house `Popover` seeds the stacking
- *  band, so it clears a Dialog / Fullscreen and follows into a `PopOut` window. */
+ *  band, so it clears a Dialog / Fullscreen and follows into a `PopOut` window.
+ *  While it is open, the hover tooltip of the pinned mark is suppressed. */
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
@@ -19,7 +20,7 @@ import { X } from "../../components/Icon";
 import { Popover } from "../../components/Popover";
 import { Glyph } from "../icons";
 import styles from "./SelectionPopover.module.css";
-import { anchorRectFromPoint } from "./Tooltip";
+import { anchorRectFromPoint, pinAnchor } from "./Tooltip";
 
 export interface SelectionPopoverProps {
   open: boolean;
@@ -61,6 +62,13 @@ export function SelectionPopover({ open, plotEl, x, y, onClose, children }: Sele
       contextElement: plotEl,
     };
   }, [plotEl, x, y]);
+
+  // While open, the hover tooltip of the pinned mark stays hidden: it would
+  // sit on this popover and cover its content.
+  useEffect(() => {
+    if (!open || !anchor) return;
+    return pinAnchor(anchor.getBoundingClientRect);
+  }, [open, anchor]);
 
   if (!open || !anchor) return null;
 

@@ -10,6 +10,13 @@ import { defineConfig } from "vite";
 // scheme used by the library so class names render identically in dev/build.
 export default defineConfig({
   plugins: [react()],
+  // maplibre-gl 6 loads its worker as a separate module next to its own file
+  // (`new URL("./maplibre-gl-worker.mjs", import.meta.url)`). Pre-bundled, its
+  // file moves to `.vite/deps`, where the worker does not exist, and the map
+  // stays blank. Left out of the pre-bundle, it is served from its package.
+  optimizeDeps: {
+    exclude: ["maplibre-gl"],
+  },
   css: {
     modules: {
       generateScopedName: "[name]_[local]__[hash:base64:5]",

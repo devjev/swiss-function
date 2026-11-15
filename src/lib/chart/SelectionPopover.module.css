@@ -7,7 +7,8 @@
 }
 
 .body {
-  /* Room for the close button in the top-right corner. */
+  /* Room for the close button: it reaches half a unit into the content box,
+     and a quarter unit stays between it and the text. */
   padding-inline-end: calc(var(--sf-unit) * 0.75);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
@@ -15,13 +16,14 @@
 
 .close {
   position: absolute;
-  inset-block-start: calc(var(--sf-unit) / -4);
-  inset-inline-end: calc(var(--sf-unit) / -4);
+  /* A one-unit key a quarter unit inside the frame's corner. */
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-end: calc(var(--sf-unit) / 4);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: calc(var(--sf-unit) * 0.75);
-  block-size: calc(var(--sf-unit) * 0.75);
+  inline-size: var(--sf-unit);
+  block-size: var(--sf-unit);
   padding: 0;
   color: var(--sf-color-muted);
   background: none;

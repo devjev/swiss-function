@@ -72,6 +72,33 @@
   color: var(--chip-accent);
 }
 
+/* --- Solid: the chip filled with its tone (ink when neutral), the label in
+   the colour that reads on that fill. That is the page colour (the outline
+   form's two colours swapped), except on primary and danger, which have their
+   own `-fg` token: in the dark theme white reads better on those two than the
+   near-black page does. After the tone rules, which it overrides at equal
+   specificity. --- */
+.root[data-variant="solid"] {
+  --chip-fill: var(--sf-color-fg);
+  --chip-ink: var(--sf-color-bg);
+  border-color: var(--chip-fill);
+  background-color: var(--chip-fill);
+  color: var(--chip-ink);
+}
+.root[data-variant="solid"][data-tone] {
+  --chip-fill: var(--chip-accent);
+}
+.root[data-variant="solid"][data-tone="primary"] {
+  --chip-ink: var(--sf-color-primary-fg);
+}
+.root[data-variant="solid"][data-tone="danger"] {
+  --chip-ink: var(--sf-color-danger-fg);
+}
+/* On a fill the marker and the remove key's hover take the label's colour. */
+.root[data-variant="solid"] .dot {
+  background-color: currentColor;
+}
+
 /* Leading status marker — a small filled square (Bauhaus over a round bullet),
    or a dot when the chip itself is round, so the mark echoes the chip's corner. */
 .dot {
@@ -97,6 +124,12 @@
 }
 .root[data-interactive]:hover:not([data-disabled]) {
   background-color: color-mix(in srgb, var(--chip-accent) 12%, var(--sf-color-bg));
+}
+/* A solid chip steps its fill toward the text colour: darker in the light
+   theme, lighter in the dark one, as the hover tokens do. */
+.root[data-variant="solid"][data-interactive]:hover:not([data-disabled]) {
+  background-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
+  border-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
 }
 .root[data-interactive]:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -132,6 +165,9 @@
 .remove:hover {
   opacity: 1;
   background-color: color-mix(in srgb, var(--chip-accent) 24%, transparent);
+}
+.root[data-variant="solid"] .remove:hover {
+  background-color: color-mix(in srgb, currentColor 24%, transparent);
 }
 .remove:focus-visible {
   opacity: 1;

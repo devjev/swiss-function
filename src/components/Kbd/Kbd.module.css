@@ -34,7 +34,7 @@
   background: color-mix(in srgb, var(--sf-color-bg-subtle), black 16%);
   color: var(--sf-color-fg);
   box-shadow:
-    calc(var(--sf-light-x) * -2px) calc(var(--sf-light-y) * -2px) 3px rgb(0 0 0 / 0.28),
+    var(--sf-elevation-1),
     inset calc(var(--sf-light-x) * 1px) calc(var(--sf-light-y) * 1px) 1px rgb(0 0 0 / 0.18);
   text-shadow: var(--sf-engrave);
   font: inherit;
@@ -60,4 +60,39 @@
 .sep {
   color: var(--sf-color-muted);
   padding-inline: 1px;
+}
+
+/* One step of a combo: the keys held together. A sequence (`"g u"`) is
+   several steps, set apart by a wider gap than the one between held keys. */
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.step + .step {
+  margin-inline-start: 0.5em;
+}
+
+/* Outline: a flat ruled box per key, no body, face or cast. Sized in em of
+   the small mono legend so the whole key is lower than a line of small text
+   and can sit in a label row or a menu item without growing the line. */
+.root[data-variant="outline"] {
+  gap: 0;
+  line-height: 1;
+}
+.root[data-variant="outline"] .step {
+  gap: 2px;
+}
+.root[data-variant="outline"] .key {
+  min-inline-size: 1.4em;
+  block-size: 1.4em;
+  padding: 0 0.3em;
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  background: var(--sf-color-bg);
+  box-shadow: none;
+  text-shadow: none;
+}
+.root[data-variant="outline"] .sep {
+  padding-inline: 0;
 }

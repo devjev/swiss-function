@@ -235,27 +235,72 @@ test("min-block mode: the rail follows the main content scroll", async ({ mount,
   await expect.poll(() => rail.evaluate((el) => el.scrollTop)).toBeGreaterThan(100);
 });
 
-test("min-block mode: dragging the band to the rail edge keeps scrolling", async ({
+test("min-block mode: the band travels the visible rail as the content scrolls", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<DenseScroll />);
+  const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
+  // The band's top within the rail's viewport, as a fraction of its travel.
+  const place = (fraction: number) =>
+    page.evaluate(
+      async ([sel, f]) => {
+        const el = document.getElementById(sel as string) as HTMLElement;
+        el.scrollTop = (el.scrollHeight - el.clientHeight) * (f as number);
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const zone = document.querySelector('[role="scrollbar"]');
+        const band = (zone?.previousElementSibling as HTMLElement).getBoundingClientRect();
+        const rail = (
+          document.querySelector("[data-scroll]") as HTMLElement
+        ).getBoundingClientRect();
+        return (band.top - rail.top) / (rail.height - band.height);
+      },
+      [id, fraction] as const,
+    );
+  // Proportional, like an editor minimap: start at the top, end at the bottom,
+  // half way in the middle, so there is always rail visible ahead of the band.
+  expect(await place(0)).toBeCloseTo(0, 1);
+  expect(await place(0.5)).toBeCloseTo(0.5, 1);
+  expect(await place(1)).toBeCloseTo(1, 1);
+});
+
+test("min-block mode: dragging the band down the visible rail reaches the end", async ({
   mount,
   page,
 }) => {
   const c = await mount(<DenseScroll />);
   const rail = page.locator('[class*="rail"]').first();
-  const box = (await rail.boundingBox())!;
-  const scrollTop = async () => {
-    const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
-    return page.evaluate((sel) => (sel ? (document.getElementById(sel)?.scrollTop ?? 0) : 0), id);
-  };
-  // Grab the band at the top, drag to the bottom edge, then hold there.
-  await page.mouse.move(box.x + box.width / 2, box.y + 8);
+  const box = await rail.boundingBox();
+  if (!box) throw new Error("no rail");
+  const id = await c.locator('[role="scrollbar"]').getAttribute("aria-controls");
+  const read = () =>
+    page.evaluate((sel) => {
+      const el = document.getElementById(sel as string) as HTMLElement;
+      const zone = document.querySelector('[role="scrollbar"]');
+      const band = (zone?.previousElementSibling as HTMLElement).getBoundingClientRect();
+      return { top: el.scrollTop, max: el.scrollHeight - el.clientHeight, bandTop: band.top };
+    }, id);
+  const x = box.x + box.width / 2;
+  // Grab the band at the top and drag it half way down the rail: the band
+  // stays under the pointer and the content is half way through.
+  await page.mouse.move(x, box.y + 8);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 2, { steps: 6 });
-  const atEdge = await scrollTop();
-  await page.waitForTimeout(700); // pointer stationary at the edge
-  const afterHold = await scrollTop();
+  await page.mouse.move(x, box.y + box.height / 2, { steps: 6 });
+  await expect
+    .poll(async () => Math.abs((await read()).bandTop - (box.y + box.height / 2 - 8)))
+    .toBeLessThan(2);
+  const mid = await read();
+  expect(mid.top / mid.max).toBeGreaterThan(0.4);
+  expect(mid.top / mid.max).toBeLessThan(0.6);
+  // To the bottom edge: the content is at its end, with no holding at the edge.
+  await page.mouse.move(x, box.y + box.height - 2, { steps: 6 });
+  await expect
+    .poll(async () => {
+      const r = await read();
+      return r.max - r.top;
+    })
+    .toBeLessThan(2);
   await page.mouse.up();
-  // Edge auto-scroll advanced the content further while the pointer was still.
-  expect(afterHold).toBeGreaterThan(atEdge + 200);
 });
 
 test("min-block mode: a dragged band never dips below the rail's visible bottom", async ({

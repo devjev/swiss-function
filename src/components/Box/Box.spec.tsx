@@ -22,16 +22,6 @@ test("elevation={0} has no shadow", async ({ mount }) => {
   expect(shadow).toBe("none");
 });
 
-test("texture prop sets data-texture", async ({ mount }) => {
-  const component = await mount(<Box texture>x</Box>);
-  await expect(component).toHaveAttribute("data-texture", "true");
-});
-
-test("texture absent when not set", async ({ mount }) => {
-  const component = await mount(<Box>x</Box>);
-  await expect(component).not.toHaveAttribute("data-texture", /.*/);
-});
-
 test("padding={0.5} is half a unit", async ({ mount }) => {
   const component = await mount(<Box padding={0.5}>x</Box>);
   const p = await component.evaluate((el) => getComputedStyle(el).padding);

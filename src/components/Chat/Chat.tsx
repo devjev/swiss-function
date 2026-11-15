@@ -132,7 +132,8 @@ export interface ChatProps extends Omit<HTMLAttributes<HTMLDivElement>, "onSubmi
   placeholder?: string;
   /** Caption for the submit button. Default "Send". */
   sendLabel?: string;
-  /** Visual variant of the submit button. Default "secondary" (non-primary). */
+  /** Visual variant of the submit button, a small square key. Default
+   *  "ghost": the up arrow alone, with a tint on hover. */
   sendVariant?: ButtonVariant;
   /** Override the input field's border colour (any CSS colour). Defaults to the
    *  neutral `--sf-color-border` token; pass e.g. `var(--sf-color-primary)` to
@@ -160,7 +161,7 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
     onError,
     placeholder = "Ask anything…",
     sendLabel = "Send",
-    sendVariant = "secondary",
+    sendVariant = "ghost",
     borderColor,
     height,
     disabled,
@@ -454,18 +455,21 @@ export const Chat = forwardRef<HTMLDivElement, ChatProps>(function Chat(
           rows={1}
           className={styles.input}
         />
+        {/* The prompt sign: marks the line as editable. After the field in the
+            DOM so the field's focus can colour it. */}
+        <span className={styles.prompt} aria-hidden="true">
+          &gt;
+        </span>
         <Button
           type="submit"
           variant={sendVariant}
-          build="solid"
-          round
           size="sm"
           aria-label={sendLabel}
           title={sendLabel}
           disabled={disabled || !input.trim()}
           className={styles.send}
         >
-          <ArrowUp />
+          <ArrowUp size={0.8} />
         </Button>
       </form>
     </div>

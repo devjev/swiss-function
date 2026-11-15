@@ -65,8 +65,8 @@ test("send button is disabled when input is empty", async ({ mount }) => {
 test("send button is non-primary by default; sendLabel/sendVariant customize it", async ({
   mount,
 }) => {
-  // Two chats side by side: the default (secondary) button must NOT share the
-  // primary's fill — proving the default is de-accented — and both captions land.
+  // Two chats side by side: the default (ghost) key has no fill and so does
+  // not share the primary's, and both captions land.
   const c = await mount(
     <div>
       <Chat messages={[]} onSubmit={() => {}} sendLabel="Go" />
@@ -75,19 +75,56 @@ test("send button is non-primary by default; sendLabel/sendVariant customize it"
   );
   const defaultBg = await c
     .getByRole("button", { name: "Go" })
-    .locator('[class*="face"]')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   const primaryBg = await c
     .getByRole("button", { name: "Ship" })
-    .locator('[class*="face"]')
     .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(defaultBg).toBe("rgba(0, 0, 0, 0)");
   expect(defaultBg).not.toBe(primaryBg);
+  // A one-unit square, a quarter unit off the field's end and bottom edges.
+  const key = await c.getByRole("button", { name: "Go" }).boundingBox();
+  const field = await c.locator("textarea").first().boundingBox();
+  if (!key || !field) throw new Error("no send key");
+  expect(key.width).toBeCloseTo(key.height, 0);
+  expect(field.x + field.width - (key.x + key.width)).toBeCloseTo(key.width / 4, 0);
+  expect(field.y + field.height - (key.y + key.height)).toBeCloseTo(key.height / 4, 0);
 });
 
 test("input border is neutral by default and overridable via borderColor", async ({ mount }) => {
   const c = await mount(<Chat messages={[]} onSubmit={() => {}} borderColor="rgb(255, 0, 0)" />);
   const border = await c.locator("textarea").evaluate((el) => getComputedStyle(el).borderTopColor);
   expect(border).toBe("rgb(255, 0, 0)");
+});
+
+test("the composer shows a prompt sign that takes the accent on focus, and no ring", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<Chat messages={[]} onSubmit={() => {}} />);
+  const input = c.locator("textarea");
+  const sign = c.locator("form span[aria-hidden='true']", { hasText: ">" });
+  await expect(sign).toHaveCount(1);
+  const colour = () => sign.evaluate((el) => getComputedStyle(el).color);
+
+  await input.blur();
+  const rest = await colour();
+  // A press on the sign lands on the field and focuses it.
+  const box = await sign.boundingBox();
+  if (!box) throw new Error("no prompt sign");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(input).toBeFocused();
+  await expect.poll(colour).not.toBe(rest);
+  expect(await input.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("none");
+
+  // The sign stays on the first line as the field grows.
+  const top = (await sign.boundingBox())?.y ?? 0;
+  const fieldTop = (await input.boundingBox())?.y ?? 0;
+  await input.fill("one");
+  await input.press("Shift+Enter");
+  await input.pressSequentially("two");
+  const grownTop = (await sign.boundingBox())?.y ?? 0;
+  const grownFieldTop = (await input.boundingBox())?.y ?? 0;
+  expect(grownTop - grownFieldTop).toBeCloseTo(top - fieldTop, 0);
 });
 
 test("streaming assistant message renders via StreamingTerminalText", async ({ mount, page }) => {

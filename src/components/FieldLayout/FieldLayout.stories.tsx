@@ -93,23 +93,6 @@ export const Kinds: Story = () => (
   </Frame>
 );
 
-/**
- * A visible dither filler marks emptiness after a short hint, rather than
- * leaving blank space. Reduced motion draws a single static frame.
- */
-export const DitherFiller: Story = () => (
-  <Frame>
-    <FieldLayout>
-      <FieldLayout.Section>
-        <FieldLayout.Field label="Valid from" kind="rigid" width={8}>
-          <DatePicker defaultValue={new Date(2026, 6, 1)} />
-        </FieldLayout.Field>
-        <FieldLayout.Filler dither />
-      </FieldLayout.Section>
-    </FieldLayout>
-  </Frame>
-);
-
 /** Narrow container: rows collapse gradually until each field stands alone. */
 export const Collapsed: Story = () => (
   <Frame width={320}>

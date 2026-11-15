@@ -42,9 +42,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.title::before {
-  content: "\25CF  ";
-}
 
 /* Inline params, or the summary and the settings key, at the bar's end. */
 .controls {

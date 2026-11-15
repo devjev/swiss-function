@@ -4,11 +4,8 @@
   color: var(--sf-color-fg);
   border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
-  /* No overflow clipping. The texture overlay (a ::before with
-     `border-radius: inherit`) is already confined to the rounded corners
-     by its own border-radius — and not clipping the Box leaves room for
-     absolutely-positioned children that need to escape (e.g. a Popover
-     arrow sticking out from the popup edge). */
+  /* No overflow clipping: an absolutely positioned child may need to reach
+     past the edge (a Popover arrow sticking out of the popup). */
 }
 
 /* --- Elevation variants (drive box-shadow from system tokens) --- */
@@ -29,30 +26,4 @@
 }
 .root[data-elevation="5"] {
   box-shadow: var(--sf-elevation-5);
-}
-
-/* --- Optional noise texture --- */
-.root[data-texture]::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  /* Monochrome SVG fractal-noise tile. The feColorMatrix copies the R
-     channel into G and B so the output is true grayscale. stitchTiles
-     keeps the pattern seamless at tile boundaries. */
-  /* Lower baseFrequency = larger blobs (chunkier). numOctaves=1 keeps it
-     uniform rather than fractal-detailed. feColorMatrix scales contrast
-     (R*2 − 0.5) so the noise reads as visible patches of dark vs light
-     rather than averaging to mid-gray. */
-  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2 0 0 0 -0.5  2 0 0 0 -0.5  2 0 0 0 -0.5  0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-  mix-blend-mode: multiply;
-  opacity: 0.075;
-}
-
-/* Dark mode: flip the blend so light grains *brighten* the dark surface
-   instead of darkening it (which would barely register on a dark bg). */
-:global([data-theme="dark"]) .root[data-texture]::before {
-  mix-blend-mode: screen;
 }

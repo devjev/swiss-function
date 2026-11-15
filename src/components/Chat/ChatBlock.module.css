@@ -16,8 +16,6 @@
 .title {
   display: flex;
   align-items: center;
-  /* The dot is a flex item of its own; the gap is the space after it. */
-  gap: 1ch;
   /* A unit and a half from the frame's top edge to the rule: border-box, so
      the bar's own rule is inside, and the frame's top border comes out. */
   block-size: calc(var(--sf-unit) * 1.5 - 1px);
@@ -25,10 +23,6 @@
   color: var(--sf-color-fg);
   border-block-end: 1px solid var(--sf-color-border-subtle);
   user-select: none;
-}
-
-.title::before {
-  content: "\25CF";
 }
 
 /* Three quarters of a unit above and below (the bottom border taken out of

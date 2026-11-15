@@ -10,7 +10,9 @@
      marks printed on the panel outside it. Tick labels are HTML.
    - `.body`: the cylinder's side wall. The same disc as the cap, shifted away
      from the light by the knob's height (`--knob-h`, on the light vector), a
-     shade darker, carrying the knurl and the cast (`--sf-elevation-N`).
+     shade darker, carrying the knurl and the cast (`--sf-elevation-N`). Cap
+     and wall together stand `--knob-lift` toward the light, so the knob with
+     its cast is centred on the well.
    - `.cap`: the top face. The `surface` ramp (`lib/surface`, a dome by default,
      the lit side fixed toward the light) over `--sf-cap`, the soft round-over
      bands (`--sf-edge-soft`) at its rim, a spun finish, and the pointer.
@@ -25,6 +27,16 @@
   --knob-cap: calc(var(--sf-unit) * 2);
   --knob-ring: calc(var(--sf-unit) * 0.75);
   --knob-h: 3px;
+  /* The length of the cast at the knob's depth (the offset of its
+     `--sf-elevation-N`), and the lift: how far the cap and its wall stand
+     toward the light. The wall and the cast both fall away from the light, so
+     a cap centred on the dial leaves the knob's mass hanging to that side of
+     the well. The lift is half of wall plus cast, in whole pixels and never
+     more than the wall, which centres the silhouette on the scale. The price
+     is parallax: the pointer turns about a point `--knob-lift` off the scale's
+     centre, as on a real knob seen from the side. */
+  --knob-cast: 2px;
+  --knob-lift: min(var(--knob-h), round(down, (var(--knob-h) + var(--knob-cast)) / 2, 1px));
   --knob-angle: 0deg;
   --knob-start: -135deg;
   --knob-sweep: 270deg;
@@ -144,7 +156,8 @@
   border-radius: var(--sf-radius-full);
   --sf-cap: var(--sf-color-bg);
   background-color: oklch(from var(--sf-cap) calc(l - 0.14) c h);
-  translate: calc(var(--knob-away-x) * var(--knob-h)) calc(var(--knob-away-y) * var(--knob-h));
+  translate: calc(var(--knob-away-x) * (var(--knob-h) - var(--knob-lift)))
+    calc(var(--knob-away-y) * (var(--knob-h) - var(--knob-lift)));
   box-shadow: var(--sf-elevation-2);
   transition: box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
@@ -170,6 +183,8 @@
   border-radius: var(--sf-radius-full);
   --sf-cap: var(--sf-color-bg);
   background-color: var(--sf-cap);
+  translate: calc(var(--knob-away-x) * var(--knob-lift) * -1)
+    calc(var(--knob-away-y) * var(--knob-lift) * -1);
   box-shadow:
     var(--sf-edge-soft),
     inset 0 0 0 1px color-mix(in srgb, var(--sf-color-border) 70%, transparent);
@@ -219,7 +234,8 @@
 /* Pressed is travel: while dragged, the cap sinks toward the wall by 1px along
    the light vector and the knob's cast drops one step. */
 .root[data-dragging] .cap {
-  translate: calc(var(--knob-away-x) * 1px) calc(var(--knob-away-y) * 1px);
+  translate: calc(var(--knob-away-x) * (1px - var(--knob-lift)))
+    calc(var(--knob-away-y) * (1px - var(--knob-lift)));
 }
 .root[data-dragging] .body {
   box-shadow: var(--sf-elevation-1);
@@ -232,17 +248,32 @@
 }
 
 /* Depth override matrix on the cast (default is elevation-2 on .body). */
+.root[data-elevation="0"] {
+  --knob-cast: 0px;
+}
 .root[data-elevation="0"] .body {
   box-shadow: none;
+}
+.root[data-elevation="1"] {
+  --knob-cast: 1px;
 }
 .root[data-elevation="1"] .body {
   box-shadow: var(--sf-elevation-1);
 }
+.root[data-elevation="3"] {
+  --knob-cast: 3px;
+}
 .root[data-elevation="3"] .body {
   box-shadow: var(--sf-elevation-3);
 }
+.root[data-elevation="4"] {
+  --knob-cast: 4px;
+}
 .root[data-elevation="4"] .body {
   box-shadow: var(--sf-elevation-4);
+}
+.root[data-elevation="5"] {
+  --knob-cast: 6px;
 }
 .root[data-elevation="5"] .body {
   box-shadow: var(--sf-elevation-5);

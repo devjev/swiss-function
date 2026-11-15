@@ -227,10 +227,13 @@ export const EdgeStyles: Story = () => (
   </Frame>
 );
 
-/** Cards under a non-org layout: screen-referenced sizing, same program. */
+/** Cards under every layout: each one is spaced by the card boxes, so cards
+ *  never overlap. The tree is the tidy tree (parents centred over their
+ *  children, elbow connectors); the others keep their shape, scaled until the
+ *  boxes clear each other. Switch layouts from the toolbar; zoom in to read. */
 export const Cards: Story = () => (
   <Frame>
-    <Graph data={ORG} layout="tree" nodeStyle="card" style={{ blockSize: 520 }}>
+    <Graph data={ORG} defaultLayout="tree" nodeStyle="card" style={{ blockSize: 520 }}>
       <Graph.Controls />
     </Graph>
   </Frame>

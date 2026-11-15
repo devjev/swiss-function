@@ -44,6 +44,54 @@ export const Tones: Story = () => (
   </div>
 );
 
+/** `variant="solid"` fills the chip with its tone and sets the label in the
+ *  colour that reads on it: for the one chip that must stand out. */
+export const Solid: Story = () => {
+  const [active, setActive] = useState("open");
+  return (
+    <div style={{ display: "grid", gap: "1.25rem", fontFamily: "var(--sf-font-sans)" }}>
+      <Row label="Solid tones">
+        {TONES.map((t) => (
+          <Chip key={t} tone={t} variant="solid">
+            {t}
+          </Chip>
+        ))}
+      </Row>
+      <Row label="With status dot, pill form">
+        {TONES.map((t) => (
+          <Chip key={t} tone={t} variant="solid" round dot>
+            {t}
+          </Chip>
+        ))}
+      </Row>
+      <Row label="Small, removable">
+        <Chip size="sm" variant="solid" tone="danger">
+          3 failed
+        </Chip>
+        <Chip size="sm" variant="solid" onRemove={() => {}}>
+          draft
+        </Chip>
+        <Chip variant="solid" tone="primary" onRemove={() => {}}>
+          assigned to me
+        </Chip>
+      </Row>
+      <Row label="The active filter is solid, the others outline">
+        {["open", "closed", "all"].map((f) => (
+          <Chip
+            key={f}
+            round
+            variant={active === f ? "solid" : "outline"}
+            tone={active === f ? "primary" : "neutral"}
+            onClick={() => setActive(f)}
+          >
+            {f}
+          </Chip>
+        ))}
+      </Row>
+    </div>
+  );
+};
+
 /** Both sizes line up on the baseline grid — sm matches a small Button. */
 export const Sizes: Story = () => (
   <div style={{ display: "grid", gap: "1.25rem", fontFamily: "var(--sf-font-sans)" }}>

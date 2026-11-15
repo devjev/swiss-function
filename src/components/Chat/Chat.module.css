@@ -97,9 +97,9 @@
    to the last line as the textarea grows downward into multi-line. */
 /* The composer: the field fills the row flush with the chat's edges (no
    padding, no band of its own; the field's top border is the rule between
-   the messages and the field), and the send key, a small round solid key,
-   sits inside the field at its end, pinned to the bottom so it stays put as
-   the field grows with the text. */
+   the messages and the field), and the send key, a small square key (a ghost
+   by default: the up arrow alone), sits inside the field at its end, pinned
+   to the bottom so it stays put as the field grows with the text. */
 .inputRow {
   position: relative;
   display: flex;
@@ -116,8 +116,11 @@
    (= 1.5u). */
 .input {
   flex: 1;
-  /* Room for the send key at the field's end. */
-  padding-inline-end: calc(var(--sf-unit) * 1.75);
+  /* Room for the prompt sign (one character and a space) at the start. */
+  padding-inline-start: calc(var(--sf-unit) / 2 + 2ch);
+  /* Room for the send key at the field's end: a quarter unit of inset, the
+     one-unit key, a quarter unit of gap. */
+  padding-inline-end: calc(var(--sf-unit) * 1.5);
   /* Auto-grow on modern browsers (Chrome 123+, Safari 17.4+, Firefox 128+).
      Older browsers fall back to single line at min-block-size. */
   field-sizing: content;
@@ -138,15 +141,52 @@
   border-block-end: 0;
   border-radius: 0;
 }
-/* The chat clips at its frame, so the ring paints inside the field. */
+/* Focus shows as the caret and the prompt sign. The field spans the chat's
+   whole width, so a ring here would redraw the frame's lower edge in the
+   accent. */
 .inputRow .input:focus-visible {
-  outline-offset: var(--sf-focus-ring-offset, -2px);
+  outline: none;
 }
 
-/* The send key: inside the field, at its end, a few px off the field's bottom
-   and end edges. */
-.send {
+/* The prompt sign: a terminal `>` on the field's first line, which marks the
+   line as editable before it has focus. Ink at rest, the caret's colour while
+   the field has focus. It lies over the field's start padding and takes no
+   pointer events, so a press on it lands on the field. */
+.prompt {
   position: absolute;
-  inset-inline-end: 4px;
-  inset-block-end: 3px;
+  inset-block-start: calc(var(--sf-unit) / 4);
+  inset-inline-start: calc(var(--sf-unit) / 2);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  font-weight: var(--sf-font-weight-bold);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg);
+  pointer-events: none;
+  user-select: none;
+  transition: color var(--sf-duration-fast) var(--sf-ease-out);
+}
+.input:focus ~ .prompt {
+  color: var(--sf-color-primary);
+}
+.input:disabled ~ .prompt {
+  opacity: 0.5;
+}
+
+/* The send key: a one-unit square inside the field, a quarter unit off the
+   field's bottom and end edges, so it is centred on a one-line field. The
+   extra `.inputRow` specificity beats Button's own size rules regardless of
+   stylesheet order. */
+.inputRow .send {
+  position: absolute;
+  inset-inline-end: calc(var(--sf-unit) / 4);
+  inset-block-end: calc(var(--sf-unit) / 4);
+  --btn-pad-x: 0;
+  inline-size: var(--sf-unit);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt {
+    transition: none;
+  }
 }

@@ -82,15 +82,3 @@
   min-block-size: var(--sf-unit);
   color: var(--sf-color-border-subtle);
 }
-
-.ditherCanvas {
-  position: absolute;
-  inset: 0;
-  inline-size: 100%;
-  block-size: 100%;
-  pointer-events: none;
-  /* The engine reads its fill colour from the canvas's computed `color`. Use a
-     mid tone so the marked emptiness reads (it's a decorative placeholder, not
-     body text). */
-  color: var(--sf-color-fg-subtle);
-}

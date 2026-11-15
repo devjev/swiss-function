@@ -9,9 +9,6 @@ export type BoxElevation = 0 | 1 | 2 | 3 | 4 | 5;
 export interface BoxProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
   /** Shadow depth, 0 (flat) to 5 (very far). Default 0. */
   elevation?: BoxElevation;
-  /** Subtle monochrome noise overlay (mix-blend-mode: multiply, very low
-   *  opacity). Default false. */
-  texture?: boolean;
   /** Padding in --sf-unit multiples. Number → `calc(unit × N)`; string → raw.
    *  Default 1 unit. */
   padding?: number | string;
@@ -25,7 +22,7 @@ function toPadding(value: number | string): string {
 }
 
 export const Box = forwardRef<HTMLElement, BoxProps>(function Box(props, ref) {
-  const { elevation = 0, texture = false, padding = 1, render, className, style, ...rest } = props;
+  const { elevation = 0, padding = 1, render, className, style, ...rest } = props;
 
   const computedStyle: CSSProperties = { padding: toPadding(padding), ...style };
 
@@ -37,7 +34,6 @@ export const Box = forwardRef<HTMLElement, BoxProps>(function Box(props, ref) {
       className: cx(styles.root, className),
       style: computedStyle,
       "data-elevation": elevation,
-      "data-texture": texture || undefined,
     },
   });
 });

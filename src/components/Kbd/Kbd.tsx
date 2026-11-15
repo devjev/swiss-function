@@ -82,11 +82,35 @@ function renderKey(token: string, mac: boolean): string {
   return t.length === 1 ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
 }
 
+/** `"keycap"` is the raised 3D key; `"outline"` is a flat ruled box per key,
+ *  small enough to sit in a line of text (a label row, a menu item). */
+export type KbdVariant = "keycap" | "outline";
+
+/** Split a combo into its steps (a space separates the steps of a sequence,
+ *  as in `"g u"`), and each step into the keys held together (`+`). */
+function parseCombo(combo: string): string[][] {
+  return combo
+    .replace(/\s*\+\s*/g, "+")
+    .split(/\s+/)
+    .map((step) =>
+      step
+        .split("+")
+        .map((k) => k.trim())
+        .filter(Boolean),
+    )
+    .filter((step) => step.length > 0);
+}
+
 export interface KbdProps extends HTMLAttributes<HTMLSpanElement> {
-  /** The combination, `+`-separated. Modifiers: `mod` (⌘ on macOS, Ctrl
-   *  elsewhere), `ctrl`, `alt`/`opt`, `shift`, `meta`. Keys: letters, `enter`,
-   *  `esc`, `tab`, `space`, `arrowup`…, etc. e.g. `"mod+shift+k"`, `"alt+enter"`. */
+  /** The combination. Keys held together are `+`-separated; a space separates
+   *  the steps of a sequence (`"g u"`: G, then U). Modifiers: `mod` (⌘ on
+   *  macOS, Ctrl elsewhere), `ctrl`, `alt`/`opt`, `shift`, `meta`. Keys:
+   *  letters, `enter`, `esc`, `tab`, `space`, `arrowup`…, etc. e.g.
+   *  `"mod+shift+k"`, `"alt+enter"`. */
   combo: string;
+  /** `"keycap"` (default) the raised 3D key, or `"outline"` a flat ruled box
+   *  per key that fits in a line of text. */
+  variant?: KbdVariant;
   /** Force macOS rendering. Auto-detected from the browser otherwise; pass this
    *  for SSR/stories/tests to keep output deterministic. */
   mac?: boolean;
@@ -101,14 +125,11 @@ export interface KbdProps extends HTMLAttributes<HTMLSpanElement> {
 /** Renders a keyboard shortcut as OS-aware keycaps — ⌘⇧K on macOS,
  *  Ctrl + Shift + K elsewhere — for labels, menus, and tooltips. */
 export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
-  { combo, mac, surface = "dish", curve, style, className, ...rest },
+  { combo, mac, variant = "keycap", surface = "dish", curve, style, className, ...rest },
   ref,
 ) {
   const isMac = mac ?? detectMac();
-  const keys = combo
-    .split("+")
-    .map((k) => k.trim())
-    .filter(Boolean);
+  const steps = parseCombo(combo);
 
   return (
     <span
@@ -117,17 +138,25 @@ export const Kbd = forwardRef<HTMLSpanElement, KbdProps>(function Kbd(
       style={curveStyle(curve, style)}
       className={cx(styles.root, className)}
       data-platform={isMac ? "mac" : "other"}
+      data-variant={variant === "outline" ? "outline" : undefined}
     >
-      {keys.map((k, i) => (
+      {steps.map((keys, s) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: combo tokens have no stable identity and the list is static.
-        <Fragment key={`${k}-${i}`}>
-          {/* Off-Mac, separate the word-modifiers with a "+"; macOS glyphs read as a unit. */}
-          {i > 0 && !isMac ? <span className={styles.sep}>+</span> : null}
-          <kbd className={styles.key}>
-            <span className={cx(styles.face, surfaceClass[surface])} />
-            <span className={styles.legend}>{renderKey(k, isMac)}</span>
-          </kbd>
-        </Fragment>
+        <span key={`${keys.join("+")}-${s}`} className={styles.step}>
+          {keys.map((k, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: combo tokens have no stable identity and the list is static.
+            <Fragment key={`${k}-${i}`}>
+              {/* Off-Mac, separate the word-modifiers with a "+"; macOS glyphs read as a unit. */}
+              {i > 0 && !isMac ? <span className={styles.sep}>+</span> : null}
+              <kbd className={styles.key}>
+                {variant === "outline" ? null : (
+                  <span className={cx(styles.face, surfaceClass[surface])} />
+                )}
+                <span className={styles.legend}>{renderKey(k, isMac)}</span>
+              </kbd>
+            </Fragment>
+          ))}
+        </span>
       ))}
     </span>
   );

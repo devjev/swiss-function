@@ -69,6 +69,7 @@ export function usePointerDrag(options: UsePointerDragOptions): {
       target.removeEventListener("pointermove", handleMove);
       target.removeEventListener("pointerup", handleEnd);
       target.removeEventListener("pointercancel", handleEnd);
+      target.removeEventListener("lostpointercapture", handleEnd);
       if (o) optionsRef.current.onEnd?.(dragDelta(o, { x: e.clientX, y: e.clientY }), e);
     };
     // With pointer capture, these fire on the captured element even when the
@@ -76,6 +77,9 @@ export function usePointerDrag(options: UsePointerDragOptions): {
     target.addEventListener("pointermove", handleMove);
     target.addEventListener("pointerup", handleEnd);
     target.addEventListener("pointercancel", handleEnd);
+    // The capture can end without a pointerup (the element is hidden or
+    // removed mid-drag); without this the drag would never report its end.
+    target.addEventListener("lostpointercapture", handleEnd);
   }, []);
 
   return { onPointerDown };

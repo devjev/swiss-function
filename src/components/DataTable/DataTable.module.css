@@ -144,10 +144,14 @@
 /* The rule under the header: one ink line across every column, over the
    cells' own bottom hairline, so the header reads as the table's head and
    not as one more row. A pseudo-element instead of a border, so the header
-   keeps its whole-unit height. */
+   keeps its whole-unit height. Placed on the column tracks (an absolutely
+   positioned child of a grid takes its grid area as the containing block), so
+   it ends with the last column and never runs over the space beside the
+   columns. */
 .headerBlock::after {
   content: "";
   position: absolute;
+  grid-column: 1 / -1;
   inset-inline: 0;
   inset-block-end: 0;
   block-size: 1px;
@@ -497,18 +501,22 @@
 /* Fixed columns (the spreadsheet state after the first resize, `data-fixed`):
    the header and body hold the columns' total width instead of shrinking the
    tracks to the viewport, so the row scrolls when wider than the viewport and
-   leaves slack to the right when narrower. The header block keeps its own
-   background across the viewport (its `width: 100%` still applies). */
+   leaves slack to the right when narrower. As in fill mode, the header's
+   background moves from the block onto the cells, so the slack beside the
+   columns stays plain: no header band and no rule run over it. */
 .viewport[data-fixed] .headerBlock {
+  background-color: transparent;
   min-width: max-content;
 }
 .viewport[data-fixed] .body {
   min-width: max-content;
 }
-.viewport[data-column-fill] .headerCell {
+.viewport[data-column-fill] .headerCell,
+.viewport[data-fixed] .headerCell {
   --sf-cap: var(--sf-color-bg-subtle);
 }
-.viewport[data-column-fill] .headerCellGroup {
+.viewport[data-column-fill] .headerCellGroup,
+.viewport[data-fixed] .headerCellGroup {
   --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 3%);
 }
 .viewport[data-column-fill] .body {
@@ -517,13 +525,24 @@
 
 /* In fill mode, and once the columns are fixed, the last column is a real
    fixed column with space (the dither backdrop, or plain slack) to its right,
-   so it keeps its trailing separator (normally erased because the last column
-   is the flush-right filler). */
+   so it keeps a trailing edge (normally erased because the last column is the
+   flush-right filler). That edge is where the table's data ends, so it is in
+   the frame's tone, like the outline on the other three sides. It is drawn
+   just outside the cell: when the columns reach the viewport's edge the
+   scroll container clips it, so it never doubles the frame. */
 .viewport[data-column-fill] .headerCell:last-child,
 .viewport[data-column-fill] .cell:last-child,
 .viewport[data-fixed] .headerCell:last-child,
 .viewport[data-fixed] .cell:last-child {
-  --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
+  --sf-cell-edge-r: 1px 0 0 var(--sf-color-border-strong);
+}
+/* The same edge under the last row when the fill shows below it, with the
+   corner pixel where the two edges meet. */
+.viewport[data-fill] .row:last-child .cell {
+  --sf-cell-edge-b: 0 1px 0 var(--sf-color-border-strong);
+}
+.viewport[data-column-fill] .row:last-child .cell:last-child {
+  --sf-cell-edge-r: 1px 0 0 var(--sf-color-border-strong), 1px 1px 0 var(--sf-color-border-strong);
 }
 
 /* Grid content wrapper. Outside fill mode it is `display: contents`: it
@@ -984,10 +1003,25 @@
   inline-size: 100%;
   min-inline-size: 0;
   block-size: 100%;
+  /* A control is a unit and a half tall and a row a unit and a quarter: drop
+     the control's own floor and block padding so it is exactly the cell. */
+  min-block-size: 0;
+  padding-block: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+/* One frame while editing: the cell's active outline. Each control marks focus
+   with a ring of its own (an outline on the field or its wrapper), which would
+   draw a second frame around the first, so it is dropped here. The focus
+   selectors raise the specificity over the controls' own `:focus-within`. */
+.cell .editor,
+.cell .editor:focus-within,
+.cell .editor > div:focus-within,
+.cell .editor [data-size]:focus-within {
+  outline: none;
 }
 
 /* The inline text editor (TextEditInline) keeps its frame: it grows *downwards*
@@ -997,7 +1031,27 @@
   position: absolute;
   inset-inline: 0;
   inset-block-start: 0;
+  /* The cell's metrics, so a one-line editor is exactly the cell and the text
+     keeps its place: the row's height (its block padding is what the line and
+     the two border pixels leave), the cell's inline padding and type size. */
+  block-size: 100%;
+  --tei-py: calc((var(--sf-row-height) - var(--sf-leading-base)) / 2 - 1px);
+  --tei-px: calc(var(--sf-cell-pad-x) - 1px);
+  --tei-fs: var(--sf-cell-font);
   z-index: 3;
+}
+/* Its frame is the editing frame: the field's primary edge plus one more
+   pixel inside it, 2px in all, as the active cell's outline. The ring outside
+   the field is dropped, and so is the cell's own outline (below), which would
+   otherwise cross the editor once it has grown past the row. */
+.cell .textEditor textarea,
+.cell .textEditor textarea:focus-visible {
+  outline: 1px solid var(--sf-color-primary);
+  outline-offset: -2px;
+  border-radius: 0;
+}
+.cell[data-editing]:has(.textEditor) {
+  outline: none;
 }
 
 /* While a cell is editing, let a growing/floating editor (TextEditInline

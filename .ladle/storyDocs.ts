@@ -13,8 +13,6 @@ export const storyDocs: Record<string, string> = {
     "A grid of the six shadow depths, `elevation` 0 (flat) through 5 (furthest). Use it to pick the depth that groups a surface against its background.",
   "box--polymorphic-section":
     "A single Box rendered as a `<section>` through the `render` prop instead of the default `<div>`. Reach for `render` when the surface needs a semantic element without losing Box styling.",
-  "box--with-texture":
-    "Boxes at elevation 0, 2, and 4 with `texture` on, adding a faint monochrome noise overlay. Turn on `texture` when a flat surface needs a slight tactile grain.",
   "button--all-sizes":
     'The three heights side by side, from `size="sm"` through `"md"` to `"lg"`. Pick the size that fits the density of the surrounding UI; `md` is the default.',
   "button--all-variants":
@@ -403,6 +401,8 @@ export const storyDocs: Record<string, string> = {
     "A wrapping bucket of tags, each with an `onRemove` \u2715 that is keyboard-reachable and stops propagation so it never fires the chip's own click. Reach for this for a set of chosen items the user can dismiss one at a time.",
   "chip--sizes":
     "The two `size` values, `md` (default) and `sm`, both landing on the baseline grid; `sm` matches a small Button. Drop to `sm` for dense rows and toolbars.",
+  "chip--solid":
+    '`variant="solid"`: the chip filled with its tone (ink when neutral) and the label in the colour that reads on that fill, across the tones, the pill form with a `dot`, the small and removable forms, and a filter row where the active chip is solid. Reach for it when one chip must stand out; a row of solid chips in different tones is loud.',
   "chip--tones":
     "The five `tone` values across three readings: sharp default, with a status `dot`, and `round` pill form. Reach for a tone only when the colour is information (a `danger` or `success` state), leaving `neutral` for everything decorative.",
   "code-editor--controlled":
@@ -590,7 +590,7 @@ export const storyDocs: Record<string, string> = {
   "field--inline":
     'A checkbox sitting beside its label on one row, set by `orientation="horizontal"`. Use this for a single binary toggle where the label reads as the option itself, like an agree-to-terms checkbox.',
   "field--jump-hotkey":
-    'Fields advertising a jump-to shortcut via `hotkey` (`"g u"`, `"mod+e"`): each shows a `Kbd` badge and gets a `data-hotkey` attribute. The field binds no key itself; your app\'s central hotkey engine handles the press and calls `focusFieldHotkey(combo)`.',
+    'Fields advertising a jump-to shortcut via `hotkey` (`"g u"`, `"mod+e"`): each shows the keys as small outline boxes at the end of its label row and gets a `data-hotkey` attribute. The field binds no key itself; your app\'s central hotkey engine handles the press and calls `focusFieldHotkey(combo)`.',
   "field--multiple-controls":
     "Three fields stacked into a small form: a required text input, an input with a description, and a horizontal switch. Shows that each row is its own `Field` and you space them yourself, rather than one `Field` wrapping several controls.",
   "field--required":
@@ -601,8 +601,6 @@ export const storyDocs: Record<string, string> = {
     "A validation message rendered through `Field.Error`, shown after the control is touched and left invalid (focus then blur the empty input to trigger it). Use `Field.Error` for the live per-field error slot beneath a control.",
   "fieldlayout--collapsed":
     "A narrow 320px frame where a three-field row folds down one field at a time until each stands alone. Shows the breakpoint-free collapse: fields hold strict source order and never migrate lines, so narrowing the container just carries fewer fields per line.",
-  "fieldlayout--dither-filler":
-    "A rigid `Valid from` field followed by a `FieldLayout.Filler` with `dither`, which fills the trailing slack with a console-style dither instead of blank space. Reach for it when the emptiness after a short field should read as marked; reduced motion draws a single static frame.",
   "fieldlayout--kinds":
     'The three field kinds in one row: `kind="rigid"` holds a fixed 8u width, flexible flexes between 10u and 36u, and `FieldLayout.Filler` absorbs the slack so the row justifies to the right padding. Read this to see what each kind contributes before laying out a form.',
   "fieldlayout--playground":
@@ -687,6 +685,8 @@ export const storyDocs: Record<string, string> = {
     "One row of combos (`mod+k`, `alt+enter`, `shift+arrowup`, `esc`\u2026) rendered three ways: auto-detected for your OS, then forced macOS and Windows/Linux via the `mac` prop. Shows how `mod` resolves to \u2318 on Mac and Ctrl elsewhere, and how off-Mac keys join with a `+` separator.",
   "kbd--in-context":
     "Keycaps sitting inline at the right of menu-style rows, each `combo` paired with its action label. Reach for this to see how `Kbd` reads next to text in menus, tooltips, and command lists.",
+  "kbd--outline":
+    '`variant="outline"`: each key as a flat ruled box, lower than a line of small text, at the end of menu-style rows; the first row is a sequence (`"g u"`: G, then U), the others chords. Reach for it where the raised keycap is too heavy, such as a label row or a dense list.',
   "knob--playground":
     "Every `Knob` prop under Ladle controls: value range and step, `size`, `tone`, `fill` (colour / dither / none), `fillOrigin`, the cap `surface`, `finish`, the `drag` model, `valueLabel`, `sweep`, `marks` and `wheel`. Turn it by dragging around the dial, or with the arrow keys once focused.",
   "knob--default":
@@ -1100,7 +1100,7 @@ export const storyDocs: Record<string, string> = {
   "vertical-form--bare":
     "`bare` drops the surrounding Box from every row: no surface, no border, no padding, for a minimal look. Sections and the Minimap rail behave the same. Reach for it when you want the fields to sit flush on the page rather than as raised cards.",
   "vertical-form--dense":
-    "120 fields in a short frame: block markers never compress below `minBlock` (0.5u), so the rail itself grows taller than its viewport and scrolls, auto-following the visible band. More labels survive than in a fit-everything overview. This is what a very long form looks like on the rail.",
+    "120 fields in a short frame: block markers never compress below `minBlock` (0.75u, the height of a rail label), so the rail grows taller than its viewport and scrolls in step with the form, like an editor minimap. Every field keeps its name on the rail; drag the band down the visible rail to go from the first field to the last.",
   "vertical-form--fits-without-rail":
     "Two fields that fit the frame with no overflow, so the Minimap rail stays hidden. Shows that the rail appears only when the content actually scrolls.",
   "vertical-form--long-form":

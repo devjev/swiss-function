@@ -1,5 +1,4 @@
 import type { Story } from "@ladle/react";
-import { Box } from "../Box";
 import { Pane } from "./Pane";
 
 const longContent = Array.from({ length: 40 }, (_, i) => i + 1);
@@ -16,8 +15,7 @@ export const Basic: Story = () => (
   >
     <Pane>
       <Pane.Header>
-        <Box
-          elevation={0}
+        <div
           style={{
             padding: "calc(var(--sf-unit) / 2)",
             borderBlockEnd: "1px solid var(--sf-color-border-strong)",
@@ -25,16 +23,16 @@ export const Basic: Story = () => (
           }}
         >
           Header (auto-sized)
-        </Box>
+        </div>
       </Pane.Header>
       <Pane.Body>
-        <Box style={{ padding: "calc(var(--sf-unit) / 2)" }}>
+        <div style={{ padding: "calc(var(--sf-unit) / 2)" }}>
           {longContent.map((n) => (
             <p key={n} style={{ margin: 0 }}>
               Body row {n} — this region scrolls when its content exceeds the parent height.
             </p>
           ))}
-        </Box>
+        </div>
       </Pane.Body>
     </Pane>
   </div>
@@ -50,13 +48,13 @@ export const NoHeader: Story = () => (
   >
     <Pane>
       <Pane.Body>
-        <Box style={{ padding: "calc(var(--sf-unit) / 2)" }}>
+        <div style={{ padding: "calc(var(--sf-unit) / 2)" }}>
           {longContent.map((n) => (
             <p key={n} style={{ margin: 0 }}>
               Row {n}. Without a Header, the Body takes the whole pane (auto row collapses to 0).
             </p>
           ))}
-        </Box>
+        </div>
       </Pane.Body>
     </Pane>
   </div>
@@ -77,7 +75,7 @@ export const Nested: Story = () => (
   >
     <Pane>
       <Pane.Header>
-        <Box
+        <div
           style={{
             padding: "calc(var(--sf-unit) / 2)",
             borderBlockEnd: "1px solid var(--sf-color-border-strong)",
@@ -85,12 +83,12 @@ export const Nested: Story = () => (
           }}
         >
           Outer header
-        </Box>
+        </div>
       </Pane.Header>
       <Pane.Body>
         <Pane>
           <Pane.Header>
-            <Box
+            <div
               style={{
                 padding: "calc(var(--sf-unit) / 2)",
                 background: "var(--sf-color-bg-subtle)",
@@ -99,16 +97,16 @@ export const Nested: Story = () => (
               }}
             >
               Inner header
-            </Box>
+            </div>
           </Pane.Header>
           <Pane.Body>
-            <Box style={{ padding: "calc(var(--sf-unit) / 2)" }}>
+            <div style={{ padding: "calc(var(--sf-unit) / 2)" }}>
               {longContent.map((n) => (
                 <p key={n} style={{ margin: 0 }}>
                   Inner body row {n} — owns its own scroll.
                 </p>
               ))}
-            </Box>
+            </div>
           </Pane.Body>
         </Pane>
       </Pane.Body>

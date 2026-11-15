@@ -1,11 +1,21 @@
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import type { MinimapMarker, MinimapMarkerKind } from "./geometry";
 import {
+  bandTopForViewTop,
   buildRailMap,
   decimateLabels,
   grabZone,
@@ -15,7 +25,7 @@ import {
   mappedThumbGeometry,
   type RailMap,
   railContentHeight,
-  railScrollForBand,
+  railScrollForProgress,
   railVisibleNext,
   resolveMarkerHeight,
   resolveMarkerTop,
@@ -49,10 +59,6 @@ const MARKER_GAP_PX = 3;
  *  again. */
 const MAX_RAIL_SCALE = 40;
 
-/** Per-frame rail scroll while a band drag rests against the rail's top/bottom
- *  edge (a scrollable rail), so the drag can reach content beyond the view. */
-const EDGE_SCROLL_STEP = 8;
-
 /** Arrow-key scroll step: one unit, roughly a text line. */
 const KEY_STEP_PX = 24;
 
@@ -85,7 +91,7 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   /** Which edge the rail occupies. The DOM order (content, then rail) is fixed
    *  regardless, so the tab order is stable. Default `"right"`. */
   side?: "left" | "right";
-  /** Rail width in `--sf-unit` multiples; defaults to `--sf-minimap-width` (3u). */
+  /** Rail width in `--sf-unit` multiples; defaults to `--sf-minimap-width` (4u). */
   width?: number;
   /** Accessible name for the viewport indicator (`role="scrollbar"`).
    *  Default "Scroll position". */
@@ -97,7 +103,7 @@ export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
   /** Minimum block-marker height in `--sf-unit` multiples. When set, block
    *  spans never compress below this: once the content is dense enough that they
    *  would, the rail's inner content grows taller than the rail and the rail
-   *  itself scrolls (auto-following the viewport band). Unset (default) keeps the
+   *  itself scrolls (in step with the content, like an editor minimap). Unset (default) keeps the
    *  fit-everything proportional overview. */
   minMarkerSize?: number;
   /** Maximum block-marker height in `--sf-unit` multiples. Caps how tall any one
@@ -170,9 +176,6 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
 
   const [sizes, setSizes] = useState<RailSizes>(SIZES_ZERO);
   const [railVisible, setRailVisible] = useState(false);
-  /** Integer percent scrolled, for aria-valuenow: re-renders at most 100 times
-   *  across a full scroll, not per frame. */
-  const [pct, setPct] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   /** The rendered value of var(--sf-unit) in px (label line-height, indent
@@ -203,8 +206,6 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   const minMarkerSizeRef = useRef<number | undefined>(undefined);
   const maxMarkerSizeRef = useRef<number | undefined>(undefined);
   const unitPxRef = useRef(MIN_TARGET_PX);
-  const railContentHRef = useRef(0);
-  const draggingRef = useRef(false);
   /** Fraction of the viewport a jump lands the target at (and the active-heading
    *  anchor): 0 = top, 0.5 = center. */
   const anchorFracRef = useRef(0);
@@ -213,17 +214,64 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   unitPxRef.current = unitPx;
   anchorFracRef.current = jumpAlign === "center" ? 0.5 : 0;
 
-  /** The content-to-rail map from the scroller's live geometry, for the pointer
-   *  handlers: a scroller's scrollHeight changes without the scroller itself
-   *  resizing, so a map kept from the last measure could be stale. */
-  const liveRailMap = useCallback((scroller: HTMLElement, railContentH: number): RailMap => {
-    const scrollHeight = scroller.scrollHeight;
-    return buildRailMap(
-      spansOf(markerListRef.current, scrollHeight),
+  /** The rail's geometry for a content height and rail height: the effective
+   *  rail content height (the rail's own height in fit mode; grown so the
+   *  smallest span reaches `minMarkerSize` in the dense, scrolling mode) and
+   *  the content-to-rail map over it. `maxMarkerSize` is not a whole-rail
+   *  scale: the map compresses each outsized block to the cap in place and
+   *  moves what follows up, so one outsized block never bunches the other
+   *  markers and never leaves a hole behind it.
+   *
+   *  Built from the live sizes (a scroller's scrollHeight changes without the
+   *  scroller itself resizing) and kept until one of its inputs changes: the
+   *  per-frame scroll path and the pointer handlers then share one map
+   *  instead of rebuilding (and re-sorting the spans) on every frame. */
+  const geometryCacheRef = useRef<{
+    markers: MinimapMarker[];
+    scrollHeight: number;
+    railHeight: number;
+    unit: number;
+    minMarker: number | undefined;
+    maxMarker: number | undefined;
+    railContentH: number;
+    map: RailMap;
+  } | null>(null);
+  const railGeometry = useCallback((scrollHeight: number, railHeight: number, unit: number) => {
+    const markers = markerListRef.current;
+    const minMarker = minMarkerSizeRef.current;
+    const maxMarker = maxMarkerSizeRef.current;
+    const cached = geometryCacheRef.current;
+    if (
+      cached &&
+      cached.markers === markers &&
+      cached.scrollHeight === scrollHeight &&
+      cached.railHeight === railHeight &&
+      cached.unit === unit &&
+      cached.minMarker === minMarker &&
+      cached.maxMarker === maxMarker
+    ) {
+      return cached;
+    }
+    const maxPx = (maxMarker ?? 0) * unit;
+    const spanList = spansOf(markers, scrollHeight);
+    let railContentH = railHeight;
+    if (minMarker && scrollHeight > 0 && railHeight > 0) {
+      const natural = buildRailMap(spanList, scrollHeight, railHeight, maxPx);
+      const spans = spanList.map((s) => natural.toRail(s.top + s.extent) - natural.toRail(s.top));
+      railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
+    }
+    const next = {
+      markers,
       scrollHeight,
+      railHeight,
+      unit,
+      minMarker,
+      maxMarker,
       railContentH,
-      (maxMarkerSizeRef.current ?? 0) * unitPxRef.current,
-    );
+      map: buildRailMap(spanList, scrollHeight, railContentH, maxPx),
+    };
+    geometryCacheRef.current = next;
+    return next;
   }, []);
 
   /** Single read path: one measurement per frame drives the thumb (imperative
@@ -239,6 +287,8 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       railWidthRef.current = rail.offsetWidth || railWidthRef.current;
     }
     const railHeight = rail?.clientHeight ?? 0;
+    // Read before any style write below, so the frame has no forced layout.
+    const railScrollNow = rail?.scrollTop ?? 0;
     // The label metrics live in CSS as var(--sf-unit); measure the rendered
     // value through the probe instead of assuming 24px, so a non-16px root
     // font (or a retuned unit) cannot desynchronize the JS label math from
@@ -254,23 +304,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       setLabelPx((prev) => (prev === label ? prev : label));
     }
 
-    // Effective rail content height (min block mode): grow so the smallest span
-    // reaches minMarkerSize (dense → the rail scrolls); otherwise the rail is
-    // its own height. maxMarkerSize is not a whole-rail scale: the rail map
-    // compresses each outsized block to the cap in place and moves what
-    // follows up, so one outsized block never bunches the other markers and
-    // never leaves a hole behind it.
-    let railContentH = railHeight;
-    const minMarker = minMarkerSizeRef.current;
-    const maxPx = (maxMarkerSizeRef.current ?? 0) * unit;
-    const spanList = spansOf(markerListRef.current, scrollHeight);
-    if (minMarker && scrollHeight > 0 && railHeight > 0) {
-      const natural = buildRailMap(spanList, scrollHeight, railHeight, maxPx);
-      const spans = spanList.map((s) => natural.toRail(s.top + s.extent) - natural.toRail(s.top));
-      railContentH = railContentHeight(spans, railHeight, minMarker * unit, MAX_RAIL_SCALE);
-    }
-    railContentHRef.current = railContentH;
-    const railMap = buildRailMap(spanList, scrollHeight, railContentH, maxPx);
+    const { railContentH, map: railMap } = railGeometry(scrollHeight, railHeight, unit);
 
     // Visibility feeds on the CONTENT wrapper's height, not scrollHeight: the
     // DOM floors a scroll element's scrollHeight at its clientHeight, which
@@ -290,7 +324,6 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     );
 
     const maxScroll = scrollHeight - clientHeight;
-    setPct(maxScroll > 0 ? Math.round((scroller.scrollTop / maxScroll) * 100) : 0);
 
     // Active heading: the last header at or above the anchor line (top edge, or
     // the viewport middle when jumps center), with the at-bottom clamp (a final
@@ -328,24 +361,32 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
       if (zoneEl) {
         zoneEl.style.transform = `translateY(${zone.top}px)`;
         zoneEl.style.height = `${zone.height}px`;
+        // The scrollbar's value, written straight to the element: as state it
+        // re-rendered every marker and label once per percent scrolled.
+        const pct = maxScroll > 0 ? Math.round((scroller.scrollTop / maxScroll) * 100) : 0;
+        zoneEl.setAttribute("aria-valuenow", String(pct));
       }
-      // Scrollable rail: keep the band (its grab zone) in view by following the
-      // scroll, unless a drag is in progress (that would fight the drag mapping).
-      if (rail && railContentH > railHeight && !draggingRef.current) {
-        const next = railScrollForBand(
-          zone.top,
-          zone.height,
+      // Scrollable rail: its scroll is the band's progress through the rail
+      // content (see railScrollForProgress), during a drag too, since the
+      // drag mapping is the inverse of the same rule.
+      if (rail && railContentH > railHeight) {
+        const bandTopMax = mappedThumbGeometry(
+          railMap,
+          Math.max(maxScroll, 0),
+          clientHeight,
+          MIN_VISUAL_PX,
+        ).top;
+        const next = railScrollForProgress(
+          visual.top,
+          visual.height,
+          bandTopMax,
           railHeight,
           railContentH,
-          rail.scrollTop,
-          MIN_TARGET_PX,
         );
-        if (Math.abs(next - rail.scrollTop) > 0.5) {
-          rail.scrollTo({ top: next, behavior: "instant" });
-        }
+        if (Math.abs(next - railScrollNow) > 0.5) rail.scrollTop = next;
       }
     }
-  }, []);
+  }, [railGeometry]);
 
   /** rAF coalescing: scroll and resize events collapse into one trailing
    *  frame (the useThemeEpoch idiom). */
@@ -355,6 +396,16 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
   }, [recompute]);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  // Measure before the first paint, and again in the same commit once the
+  // rail has appeared (a collapsed rail has no height to measure). Left to
+  // the first animation frame, the content painted at full width and then
+  // reflowed as the rail came in beside it, with the band and markers a
+  // further frame behind.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(railVisible): the dependency is the trigger: the rail's box exists only once it is visible.
+  useLayoutEffect(() => {
+    recompute();
+  }, [recompute, railVisible]);
 
   // Observers live in ref callbacks, not mount effects (the useCollapse
   // rationale): the rail detaches whenever the collapse swaps it out, and a
@@ -444,131 +495,80 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
    *  starts a relative drag (preserving the grab offset); a press outside
    *  recenters the viewport on the pressed content position and continues as
    *  the same drag. One owner, no indicator/rail handler arbitration: the
-   *  indicator and zone visuals are `pointer-events: none`. */
+   *  indicator and zone visuals are `pointer-events: none`.
+   *
+   *  The drag works in the rail's VIEWPORT coordinates: the band keeps the
+   *  grab offset under the pointer and travels the visible rail from top to
+   *  bottom as the content goes from start to end. A scrolling rail follows by
+   *  the same rule the scroll path uses (railScrollForProgress), so the
+   *  pointer never has to push against an edge to reach the rest. */
   const dragOffsetRef = useRef<number | null>(null);
-  /** Pointer Y relative to the rail VIEWPORT top (not content), the input to the
-   *  drag mapping and the edge auto-scroll. */
+  /** Pointer Y relative to the rail viewport top. */
   const lastPointerYRef = useRef(0);
-  const edgeRafRef = useRef(0);
-  const edgeDirRef = useRef(0);
 
-  /** Map the last pointer position (in rail-content coords) to a main-content
-   *  scroll. Reused by onMove and by the edge auto-scroll loop. */
+  /** Map the last pointer position to a main-content scroll. */
   const applyDragScroll = useCallback(() => {
     const offset = dragOffsetRef.current;
     const scroller = scrollRef.current;
     const rail = railRef.current;
     if (offset === null || !scroller || !rail) return;
-    const railContentH = railContentHRef.current || rail.clientHeight;
-    // The band's on-screen position is `pointerY - offset` (rail scroll cancels
-    // out of the content mapping), so clamp the pointer so the band never renders
-    // past the visible rail edges (the "fold"). When the pointer runs past the
-    // clamp, the band pins at the edge and the edge auto-scroll flows content
-    // under it, instead of the band dipping below the fold.
     const railH = rail.clientHeight;
-    const map = liveRailMap(scroller, railContentH);
-    const bandH = mappedThumbGeometry(
-      map,
-      scroller.scrollTop,
-      scroller.clientHeight,
-      MIN_VISUAL_PX,
-    ).height;
-    const hi = railH - bandH + offset;
-    const pointerViewportY =
-      hi > offset ? clampNumber(lastPointerYRef.current, offset, hi) : lastPointerYRef.current;
-    const pointerContentY = pointerViewportY + rail.scrollTop;
+    const clientHeight = scroller.clientHeight;
+    const { railContentH, map } = railGeometry(scroller.scrollHeight, railH, unitPxRef.current);
+    const maxScroll = Math.max(map.scrollHeight - clientHeight, 0);
+    const bandTopMax = mappedThumbGeometry(map, maxScroll, clientHeight, MIN_VISUAL_PX).top;
+    const bandH = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX).height;
+    // The band never renders past the visible rail's edges.
+    const viewTop = clampNumber(lastPointerYRef.current - offset, 0, Math.max(railH - bandH, 0));
+    const bandTop = bandTopForViewTop(viewTop, bandTopMax, railH, railContentH);
     scroller.scrollTo({
-      top: mappedScrollTopForThumbTop(map, pointerContentY - offset, scroller.clientHeight),
+      top: mappedScrollTopForThumbTop(map, bandTop, clientHeight),
       behavior: "instant",
     });
-  }, []);
-
-  const stopEdgeScroll = useCallback(() => {
-    cancelAnimationFrame(edgeRafRef.current);
-    edgeRafRef.current = 0;
-    edgeDirRef.current = 0;
-  }, []);
-
-  /** While the drag rests against a rail edge, scroll the rail one step per
-   *  frame and re-map the band, so the band (and the main content) keeps moving
-   *  even though the pointer is stationary. Stops at the rail's scroll extent. */
-  const edgeTick = useCallback(() => {
-    const rail = railRef.current;
-    const dir = edgeDirRef.current;
-    if (!rail || dir === 0) {
-      edgeRafRef.current = 0;
-      return;
-    }
-    const maxRailScroll = rail.scrollHeight - rail.clientHeight;
-    const next = clampNumber(rail.scrollTop + dir * EDGE_SCROLL_STEP, 0, maxRailScroll);
-    rail.scrollTop = next;
-    applyDragScroll();
-    if ((dir > 0 && next >= maxRailScroll) || (dir < 0 && next <= 0)) {
-      edgeRafRef.current = 0;
-      return;
-    }
-    edgeRafRef.current = requestAnimationFrame(edgeTick);
-  }, [applyDragScroll]);
-
-  useEffect(() => stopEdgeScroll, [stopEdgeScroll]);
+  }, [railGeometry]);
 
   const railDrag = usePointerDrag({
     onStart: (origin) => {
       const scroller = scrollRef.current;
       const rail = railRef.current;
       if (!scroller || !rail) return;
-      // Rail-CONTENT coordinates: the band and markers are laid out in the
-      // (possibly taller, scrollable) content, so add the rail's own scroll.
-      const railContentH = railContentHRef.current || rail.clientHeight;
-      const railRect = rail.getBoundingClientRect();
-      lastPointerYRef.current = origin.y - railRect.top;
-      const pressY = origin.y - railRect.top + rail.scrollTop;
-      const scrollHeight = scroller.scrollHeight;
+      const railH = rail.clientHeight;
       const clientHeight = scroller.clientHeight;
-      const map = liveRailMap(scroller, railContentH);
+      const { railContentH, map } = railGeometry(scroller.scrollHeight, railH, unitPxRef.current);
+      const pointerY = origin.y - rail.getBoundingClientRect().top;
+      lastPointerYRef.current = pointerY;
+      // The band, the zone and the markers are laid out in the rail CONTENT
+      // (taller than the rail when it scrolls), so add the rail's own scroll.
+      const pressY = pointerY + rail.scrollTop;
       const visual = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
       const zone = grabZone(visual, railContentH, MIN_TARGET_PX);
+      let bandViewTop = visual.top - rail.scrollTop;
       if (pressY < zone.top || pressY > zone.top + zone.height) {
         scroller.scrollTo({
           top: mappedScrollTopForRailPress(map, pressY, clientHeight),
           behavior: "instant",
         });
+        // Where the band will render once the rail has followed the jump.
+        const band = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
+        const maxScroll = Math.max(map.scrollHeight - clientHeight, 0);
+        const bandTopMax = mappedThumbGeometry(map, maxScroll, clientHeight, MIN_VISUAL_PX).top;
+        bandViewTop =
+          band.top - railScrollForProgress(band.top, band.height, bandTopMax, railH, railContentH);
       }
       // Grab offset against the (possibly just moved) band, so the continuing
       // drag is relative either way.
-      const band = mappedThumbGeometry(map, scroller.scrollTop, clientHeight, MIN_VISUAL_PX);
-      dragOffsetRef.current = pressY - band.top;
-      draggingRef.current = true;
+      dragOffsetRef.current = pointerY - bandViewTop;
       setDragging(true);
       schedule();
     },
     onMove: (delta) => {
       const rail = railRef.current;
       if (dragOffsetRef.current === null || !rail) return;
-      const viewportY = delta.y - rail.getBoundingClientRect().top;
-      lastPointerYRef.current = viewportY;
+      lastPointerYRef.current = delta.y - rail.getBoundingClientRect().top;
       applyDragScroll();
-      // Edge auto-scroll (only when the rail itself scrolls): while the pointer
-      // rests within a unit of the top/bottom edge, keep the rail scrolling so
-      // the band can reach content beyond the visible rail.
-      const railH = rail.clientHeight;
-      const canScroll = rail.scrollHeight > railH + 1;
-      let dir = 0;
-      if (canScroll) {
-        if (viewportY >= railH - MIN_TARGET_PX) dir = 1;
-        else if (viewportY <= MIN_TARGET_PX) dir = -1;
-      }
-      edgeDirRef.current = dir;
-      if (dir !== 0) {
-        if (edgeRafRef.current === 0) edgeRafRef.current = requestAnimationFrame(edgeTick);
-      } else {
-        stopEdgeScroll();
-      }
     },
     onEnd: () => {
       dragOffsetRef.current = null;
-      draggingRef.current = false;
-      stopEdgeScroll();
       setDragging(false);
     },
   });
@@ -721,11 +721,14 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
     return survivors;
   }, [markerList, sizes, labelPx, railMap]);
 
-  // Re-run active tracking whenever the marker set changes.
-  // biome-ignore lint/correctness/useExhaustiveDependencies(markerList): the dependency is the trigger, not an input — headersRef is derived from it during render.
-  useEffect(() => {
-    schedule();
-  }, [schedule, markerList]);
+  // Re-measure whenever the marker set changes, before paint: the markers feed
+  // the rail's content height (the dense, scrolling mode) and the active
+  // heading, and a frame's delay showed as the rail resizing after its
+  // markers had already drawn.
+  // biome-ignore lint/correctness/useExhaustiveDependencies(markerList): the dependency is the trigger, not an input: headersRef is derived from it during render.
+  useLayoutEffect(() => {
+    recompute();
+  }, [recompute, markerList]);
 
   const jumpToMarker = useCallback(
     (marker: MinimapMarker, contentTop: number) => {
@@ -824,7 +827,7 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
             aria-label={ariaLabel}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={pct}
+            aria-valuenow={0}
             onKeyDown={onIndicatorKeyDown}
             onPointerDown={(event) => {
               // The zone sits above the labels: grabbing the focus marker wins
@@ -844,15 +847,17 @@ export const Minimap = forwardRef<HTMLDivElement, MinimapProps>(function Minimap
               className={styles.label}
               data-tone={h.marker.tone}
               data-emphasis={h.marker.emphasis ? "" : undefined}
-              style={{
-                top: h.labelTop,
-                // Level indent as position, not padding, so the caption's pill
-                // stays tight to its text at every depth. The base `--sf-unit / 4`
-                // matches the block markers' inline inset, so a label's text
-                // aligns with the left edge of the dither blocks; each level adds a
-                // half-unit.
-                insetInlineStart: `calc(var(--sf-unit) / 4 + ${h.level - 1} * var(--sf-unit) / 4)`,
-              }}
+              style={
+                {
+                  top: h.labelTop,
+                  // Level indent as position, not padding, so the caption's pill
+                  // stays tight to its text at every depth. The base `--sf-unit / 4`
+                  // matches the block markers' inline inset, so a label's text
+                  // aligns with the left edge of the dither blocks; each level adds a quarter
+                  // unit.
+                  "--minimap-label-inset": `calc(var(--sf-unit) / 4 + ${h.level - 1} * var(--sf-unit) / 4)`,
+                } as CSSProperties
+              }
               aria-current={activeKey === h.key ? "true" : undefined}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => jumpToMarker(h.marker, h.contentTop)}

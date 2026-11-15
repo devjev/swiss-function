@@ -1,6 +1,53 @@
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import styles from "./Tooltip.module.css";
+
+/* The anchors of the open pinned popovers (see `SelectionPopover`). A hover
+   tooltip whose anchor is one of them stays hidden: the pinned popover already
+   shows that mark, and both sit above the same point, so the tooltip would
+   cover the popover's content. A module-level store, since a chart renders the
+   tooltip and the popover as siblings with no provider between them. */
+type AnchorReader = () => DOMRect;
+const pinnedAnchors = new Set<AnchorReader>();
+const pinListeners = new Set<() => void>();
+let pinVersion = 0;
+
+function notifyPins() {
+  pinVersion += 1;
+  for (const listener of pinListeners) listener();
+}
+function subscribePins(listener: () => void) {
+  pinListeners.add(listener);
+  return () => {
+    pinListeners.delete(listener);
+  };
+}
+function readPinVersion() {
+  return pinVersion;
+}
+
+/** Register the anchor of an open pinned popover; returns the unregister. */
+export function pinAnchor(read: AnchorReader): () => void {
+  pinnedAnchors.add(read);
+  notifyPins();
+  return () => {
+    pinnedAnchors.delete(read);
+    notifyPins();
+  };
+}
+
+/** Whether `rect` is centred on a pinned anchor, to within a pixel. */
+function isPinned(rect: DOMRect): boolean {
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  for (const read of pinnedAnchors) {
+    const pin = read();
+    const px = pin.left + pin.width / 2;
+    const py = pin.top + pin.height / 2;
+    if (Math.abs(cx - px) <= 1 && Math.abs(cy - py) <= 1) return true;
+  }
+  return false;
+}
 
 export interface TooltipProps {
   open: boolean;
@@ -12,7 +59,8 @@ export interface TooltipProps {
 /**
  * Floating hover tooltip. Positions itself ABOVE the anchor by default;
  * flips below if it would overflow the viewport top. Horizontally clamped
- * to viewport edges with a small margin.
+ * to viewport edges with a small margin. Hidden while its anchor is the
+ * anchor of an open pinned popover (see `pinAnchor`).
  *
  * Not a Base UI Popover — Popover is click-driven and adds friction for
  * cursor-tracking hover. This is the minimal viable solution: a div with
@@ -21,11 +69,14 @@ export interface TooltipProps {
 export function Tooltip({ open, anchorRect, children }: TooltipProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const pins = useSyncExternalStore(subscribePins, readPinVersion, readPinVersion);
 
   // SSR safety — only access window on the client. Re-runs whenever the
   // anchor moves so the tooltip tracks across hovers within one chart.
   useLayoutEffect(() => {
-    if (!open || !anchorRect || !ref.current) {
+    // `pins` is read only to re-run this when a popover pins or unpins.
+    void pins;
+    if (!open || !anchorRect || !ref.current || isPinned(anchorRect)) {
       setPos(null);
       return;
     }
@@ -41,7 +92,7 @@ export function Tooltip({ open, anchorRect, children }: TooltipProps) {
     if (left < margin) left = margin;
     if (left > maxLeft) left = maxLeft;
     setPos({ top, left });
-  }, [open, anchorRect]);
+  }, [open, anchorRect, pins]);
 
   // Reset position when closing so the next open recomputes from scratch
   // (without this, a stale `pos` causes a one-frame flash at the old spot).

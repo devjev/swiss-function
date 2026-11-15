@@ -15,7 +15,6 @@
 import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode, RefObject } from "react";
 import { cloneElement, Fragment, forwardRef, isValidElement, useId, useRef } from "react";
 import { cx } from "../../lib/cx";
-import { type EffectName, useDitheredFill } from "../../lib/effects";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { useResizeSnap } from "../../lib/useResizeSnap";
 import styles from "./FieldLayout.module.css";
@@ -194,36 +193,21 @@ const Field = forwardRef<HTMLDivElement, FieldLayoutFieldProps>(function FieldLa
 // --- Filler -----------------------------------------------------------------
 
 export interface FieldLayoutFillerProps extends HTMLAttributes<HTMLDivElement> {
-  /** Show a visible console-style dither instead of blank space — a short
-   *  hint justifies its row structurally, but sometimes the emptiness after
-   *  it should read as marked. `true` uses a gentle default effect; a string
-   *  picks a specific one. Reduced motion draws a single static frame. */
-  dither?: boolean | EffectName;
   /** Min inline size in units before it wraps away. Default `10`. */
   min?: number;
 }
 
 const Filler = forwardRef<HTMLDivElement, FieldLayoutFillerProps>(function FieldLayoutFiller(
-  { dither = false, min = 10, className, style, children, ...rest },
+  { min = 10, className, style, children, ...rest },
   ref,
 ) {
-  // "noise" is evenly covered — reads as a marked placeholder across the strip
-  // rather than a centered motif that leaves the ends blank.
-  const effect: EffectName = typeof dither === "string" ? dither : "noise";
-  const { rootRef, canvasRef } = useDitheredFill({ effect, density: 0.5, opacity: 0.6 });
-  const setRefs = mergeRefs<HTMLDivElement>(ref, rootRef as RefObject<HTMLDivElement>);
-
   return (
     <div
       {...rest}
-      ref={setRefs}
+      ref={ref}
       className={cx(styles.filler, className)}
       style={{ "--fl-min": u(min), ...style } as CSSProperties}
     >
-      {dither ? (
-        // biome-ignore lint/a11y/noAriaHiddenOnFocusable: decorative fill canvas, no focusable content (Skeleton/NonIdealState pattern)
-        <canvas ref={canvasRef} className={styles.ditherCanvas} aria-hidden="true" />
-      ) : null}
       {children}
     </div>
   );

@@ -158,9 +158,9 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
   repeated things (cells, rows, days, menu separators, axis lines). The first
   two reach at least 3:1 on the page in both themes. To soften the whole
   library, override the three on any ancestor.
-- Elevation in the light theme is a hard cast: `--sf-elevation-1` / `-2` are a
-  1px / 2px zero-blur offset in a mid grey; `-3` to `-5` (floaters) add a
-  blurred shadow to that step.
+- Elevation in the light theme is a hard cast at every level:
+  `--sf-elevation-1` to `-5` are a zero-blur offset of 1, 2, 3, 4 and 6px in
+  `--sf-color-border-strong`. No level blurs.
 - Text-entry controls (Input, TextEdit, Combobox, DatePicker, DigitInput) are
   ruled boxes: the fill is `--sf-color-input-bg` (the page colour by default)
   inside the control edge, and focus turns the edge primary and doubles it.
@@ -338,12 +338,11 @@ All 2D charts share the measured-label behavior (chart-polish milestone): tick a
 
 `import { Box } from "@tarassov-ch/swiss-function/box"`
 
-Flexible container with elevation, optional texture, and unit-based padding. Extends `HTMLAttributes<HTMLElement>`.
+Flexible container with elevation and unit-based padding. Extends `HTMLAttributes<HTMLElement>`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `elevation` | `0 \| 1 \| 2 \| 3 \| 4 \| 5` | `0` | Shadow depth. |
-| `texture` | `boolean` | `false` | Subtle monochrome noise overlay (`mix-blend-mode: multiply`). |
 | `padding` | `number \| string` | `1` | `number` → `--sf-unit` multiples; `string` → raw CSS. |
 | `render` | `useRender.RenderProp` | `<div />` | Base UI render prop to swap the root element. |
 
@@ -511,10 +510,10 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `renderPart` | `(part, ctx) => ReactNode` | n/a | Render a custom (non-built-in) part by `type`. Return null to skip. |
 | `onAction` | `(action: ChatAction) => void` | n/a | Fired when a user interacts with a choices / tree / custom block. |
 | `onError` | `(error: ChatErrorContext) => void` | n/a | Fired **once** when an error part appears in the transcript (a notification hook: log / toast / auto-retry). `ChatErrorContext` is `{ messageId, partId?, message, requestId? }`. A `retryable` error's Retry reports separately through `onAction` (`type: "error", value: "retry"`). |
-| `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. |
-| `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a small round solid key inside the field's end (an up arrow); the label is its accessible name. |
-| `sendVariant` | `ButtonVariant` | `"secondary"` | Submit button variant. Non-primary by default; pass `"primary"` to accent it. |
-| `borderColor` | `string` | `var(--sf-color-border)` | Input field border colour. Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
+| `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. The field starts with a prompt sign (`>`, hidden from assistive technology) that marks the line as editable: ink at rest, the accent while the field has focus. The field has no focus ring; the caret and the sign show focus. |
+| `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a one-unit square key inside the field's end (an up arrow); the label is its accessible name. |
+| `sendVariant` | `ButtonVariant` | `"ghost"` | Submit button variant. A ghost by default (the up arrow alone, a tint on hover); `"secondary"` frames the key, `"primary"` fills it with the accent. |
+| `borderColor` | `string` | `var(--sf-color-border)` | Colour of the rule above the input field (its one border). Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
 | `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
@@ -694,7 +693,8 @@ A compact token: tag, filter, status marker, or removable selection. Renders a `
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Semantic colour. Use a tone only when the colour is information (status, priority), not decoratively. Tints surface, rim, and text from one accent (theme-aware via `color-mix`). |
+| `tone` | `"neutral" \| "primary" \| "success" \| "warning" \| "danger"` | `"neutral"` | Semantic colour. Use a tone only when the colour is information (status, priority), not decoratively. Draws the rim and the label in the tone's accent on the page colour. |
+| `variant` | `"outline" \| "solid"` | `"outline"` | `solid` fills the chip with its tone (ink when neutral) and sets the label, the `dot` and the ✕ in the colour that reads on that fill: the page colour, or the tone's `-fg` token on primary and danger. For the one chip that must stand out (a count, the active filter, a failed state). |
 | `size` | `"sm" \| "md"` | `"md"` | `md` is 1.25u tall; `sm` is 1u (aligns with a small `Button`). |
 | `round` | `boolean` | `false` | Pill form (`--sf-radius-full`) instead of the sharp default. |
 | `dot` | `boolean` | `false` | Leading status marker tinted to the tone: a small square, or a dot when `round`. |
@@ -706,11 +706,12 @@ A compact token: tag, filter, status marker, or removable selection. Renders a `
 ```tsx
 <Chip>design</Chip>                                  // neutral tag
 <Chip tone="danger" dot>failed</Chip>                // status marker
+<Chip tone="danger" variant="solid">3 failed</Chip>  // solid: the one that must stand out
 <Chip round onRemove={() => drop(tag)}>{tag}</Chip>  // removable pill
 <Chip round tone={active ? "primary" : "neutral"} onClick={toggle}>open</Chip>  // filter
 ```
 
-The `--chip-accent` custom property is the single knob a tone sets; the dot, hover tint, and remove-button hover all derive from it, so a consumer override is one line.
+The `--chip-accent` custom property is the single knob a tone sets; the rim, label, dot, hover tint, remove-button hover and the solid fill all derive from it, so a consumer override is one line.
 
 ## CodeEditor
 
@@ -1353,7 +1354,7 @@ Compound form field with label, description, and error. Wraps Base UI's Field.
 | --- | --- | --- | --- | --- |
 | `orientation` | `Root` | `"vertical" \| "horizontal"` | `"vertical"` | Stack vs side-by-side. |
 | `required` | `Root` | `boolean` | `false` | Visual `*` on Label; add `required` to the control for HTML validation. |
-| `hotkey` | `Root` | `string` | n/a | "Jump to this field" shortcut (issue #32). Renders a `Kbd` badge in the corner (uses the `Kbd` combo syntax, e.g. `"mod+e"`, `"g u"`) and tags the field with `data-hotkey`. Field binds **no key itself**: your app's central hotkey system handles the press and calls `focusFieldHotkey(combo)` (or focuses the control via your own ref). |
+| `hotkey` | `Root` | `string` | n/a | "Jump to this field" shortcut (issue #32). Shows the keys as small outline `Kbd` boxes in the label row, at its end (right after the label in the horizontal orientation), so they never lie over the control; uses the `Kbd` combo syntax, e.g. `"mod+e"`, or `"g u"` for a sequence. Tags the field with `data-hotkey`. Field binds **no key itself**: your app's central hotkey system handles the press and calls `focusFieldHotkey(combo)` (or focuses the control via your own ref). |
 
 `Field.Description` and `Field.Error` wire to the control via `aria-describedby`. Write the description **right after the control it explains**.
 
@@ -1365,7 +1366,7 @@ Compound form field with label, description, and error. Wraps Base UI's Field.
 
 Justified form rows of rigid / flexible / filler fields. A form is Sections; a Section is a `flex-wrap` container whose wrapped lines *are* the rows: each line justifies (fills the left padding to the right padding) because the flexible fields and fillers in it grow, and because it is flex-wrap (not grid auto-flow) fields keep **strict source order** and never migrate between lines. Narrowing the container simply carries fewer fields per line, a gradual collapse with no breakpoints, driven by the container, not the viewport. Layout is pure CSS; no ResizeObserver.
 
-**Elements / Parts:** `FieldLayout` (Root: padding + section stacking), `FieldLayout.Section` (a justified `flex-wrap` group; hierarchy comes from the 2u/1u rhythm, no headings), `FieldLayout.Field` (label + control + optional hint), `FieldLayout.Filler` (absorbs slack; optional visible dither).
+**Elements / Parts:** `FieldLayout` (Root: padding + section stacking), `FieldLayout.Section` (a justified `flex-wrap` group; hierarchy comes from the 2u/1u rhythm, no headings), `FieldLayout.Field` (label + control + optional hint), `FieldLayout.Filler` (absorbs slack).
 
 Compose each intended row with at least one grower (a flexible field, a rigid field *with a hint*, or a `Filler`) so it can always justify.
 
@@ -1377,7 +1378,6 @@ Compose each intended row with at least one grower (a flexible field, a rigid fi
 | `hint` | `Field` | `ReactNode` | n/a | Text beside the control (below it when narrow). Renders as the row's inner filler: it justifies a rigid control's line and wraps beneath last. |
 | `width` | `Field` | `number` | `8` | Fixed width for `rigid`, in units. |
 | `preferred` / `min` / `max` / `grow` | `Field` | `number` (`max`: `number \| false`) | per-kind | Override the kind's flex-basis / min / max / grow (all in units; `max={false}` = none). |
-| `dither` | `Filler` | `boolean \| EffectName` | `false` | Show a console-style dither instead of blank space; a string picks a specific effect. Reduced motion draws a single static frame. |
 | `min` | `Filler` | `number` | `10` | Min inline size before it wraps away, in units. |
 
 The **36u flexible ceiling** is deliberately above the widest row a field can end up alone in (its basis + gap + the next field's min), so a lone field still justifies instead of leaving dead space at the row's end; the genuinely-sparse case (a lone field on a wide screen) is composed with an explicit `Filler`.
@@ -1486,7 +1486,7 @@ Network graph (Sigma.js) with force/tree/org/radial/concentric/grid layouts and 
 | `defaultLayout` | `"force" \| "tree" \| "org" \| "radial" \| "concentric" \| "grid"` | `"force"` | Uncontrolled initial layout. |
 | `layoutOptions` | `GraphLayoutOptions` | n/a | Per-layout tuning (only the active layout's block is read); each field defaults to the size-derived value. `force` (`iterations` plus the full ForceAtlas2 settings: `gravity`, `scalingRatio`, `strongGravityMode`, `linLogMode`, `outboundAttractionDistribution`, `adjustSizes`, `edgeWeightInfluence`, `slowDown`, `barnesHutOptimize`, `barnesHutTheta`), `radial`/`concentric` (`scale`), `tree` (`rootId`/`direction`/`levelGap`), `grid` (`columns`), `org` (`rootId`/`direction`/`levelGap`/`nodeGap`/`stack`/`stackIndent` — gaps in absolute card px; `stack` is `"none"` (default) / `"leaves"` (leaf children as an indented vertical list under their parent, the org-chart IC list) / `{ depth: n }` (whole subtrees below that depth as nested lists) / `"auto"` (least stacking whose bounding box fits the container's aspect)). Force settings override `forceAtlas2.inferSettings` (which auto-tunes gravity/scalingRatio/BarnesHut by node count). Changing it re-runs the current layout. |
 | `onLayoutChange` | `(next: LayoutKind) => void` | n/a | Layout changed (prop/toolbar/keyboard). |
-| `nodeStyle` | `"disc" \| "card"` | `"disc"` | `"card"` renders rectangular org-chart cards: the node `label` (semibold) and optional `sublabel` (subtle) inside, a kind-coloured accent stripe on the leading edge, sized by measured text (72–224 card px). Cards bypass the 300-node label gate (density + on-screen-size culling still bound cost) and the whole card is the hover/click target. Under `layout="org"` card sizes reference graph positions, so cards keep exact proportion to the layout gaps at every zoom; under other layouts they keep Sigma's screen-referenced sizing. |
+| `nodeStyle` | `"disc" \| "card"` | `"disc"` | `"card"` renders rectangular org-chart cards: the node `label` (semibold) and optional `sublabel` (subtle) inside, a kind-coloured accent stripe on the leading edge, sized by measured text (72–224 card px). Cards bypass the 300-node label gate (density + on-screen-size culling still bound cost) and the whole card is the hover/click target. Under `layout="org"` card sizes reference graph positions, so cards keep exact proportion to the layout gaps at every zoom; under other layouts they keep Sigma's screen-referenced sizing. With cards every layout is spaced by the card boxes, so cards never overlap: `tree` is the tidy tree without stacking (parents centred over their children, elbow connectors; `layoutOptions.tree` sets root, direction and level gap), and `grid` / `radial` / `concentric` / `force` keep their shape, scaled until the boxes clear each other (the force layout then runs synchronously, without the worker settle). |
 | `onNodeClick` / `onEdgeClick` | `(id: string) => void` | n/a | Clicks (edges clickable when `editable` or this is set). |
 | `onSelectionChange` | `(id: string \| null) => void` | n/a | Selected node id (or `null`). The selected node gets a built-in persistent emphasis — accent fill + Sigma's highlight ring/label box — the node analogue of the selected-edge double stroke. |
 | `selected` | `string \| null` | n/a | Controlled selected node id. When set, that node carries the emphasis and the component reflects the prop. Omit for uncontrolled selection (a node click selects, a stage click clears, both still reported via `onSelectionChange`). `null` selects nothing. |
@@ -1805,9 +1805,10 @@ Renders a keyboard shortcut as OS-aware keycaps, for labels, menus, tooltips. Ex
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `combo` | `string` | n/a | `+`-separated combination, e.g. `"mod+shift+k"`, `"alt+enter"`. |
+| `combo` | `string` | n/a | Keys held together are `+`-separated, e.g. `"mod+shift+k"`, `"alt+enter"`. A space separates the steps of a sequence: `"g u"` is G, then U. |
+| `variant` | `"keycap" \| "outline"` | `"keycap"` | `keycap` is the raised 3D key. `outline` is a flat ruled box per key, lower than a line of small text, for a label row or a dense list (`Field`'s `hotkey` uses it). |
 | `mac` | `boolean` | auto | Force macOS rendering. Auto-detected from the browser otherwise; pass it for SSR/tests so output is deterministic. |
-| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of each keycap (`lib/surface`). |
+| `surface` | `"flat" \| "dish" \| "dome"` | `"dish"` | The face of each keycap (`lib/surface`). No effect on the outline variant. |
 | `curve` | `number` | `1` | Amplitude of the face ramp as a multiple of `--sf-curve` (2 doubles it, 0 flattens). Sets `--sf-curve-scale` on the root. |
 
 `mod` is the **primary modifier**: `⌘` on macOS, `Ctrl` elsewhere (its aliases `cmd`/`command`/`meta` follow suit, so a "cmd" shortcut never shows `⌘` off-Mac). Other modifiers: `ctrl` (`⌃`/Ctrl), `alt`/`opt` (`⌥`/Alt), `shift` (`⇧`/Shift). Named keys resolve to glyphs (`enter` → `↵`, `esc` → `Esc`, `tab` → `⇥`, `arrowup` → `↑`, …); single letters uppercase. On macOS the glyphs render adjacent (`⌘⇧K`); elsewhere modifiers join with `+` (`Ctrl + Shift + K`).
@@ -1984,6 +1985,8 @@ Like every component, it needs the library tokens at app root:
 ```ts
 import "@tarassov-ch/swiss-function/tokens.css";
 ```
+
+With Vite, leave `maplibre-gl` out of the dev pre-bundle (`optimizeDeps: { exclude: ["maplibre-gl"] }`): version 6 loads its worker from a file next to its own module, which the pre-bundle moves away, and the map then stays blank in dev.
 
 MapLibre's own stylesheet (`maplibre-gl/dist/maplibre-gl.css`) is **required** for
 the map to lay out; without it the GL canvas escapes its container and grows
@@ -2229,10 +2232,10 @@ external host-owned scroller is a planned follow-up.
 | --- | --- | --- | --- |
 | `markers` | `MinimapMarker[]` | n/a | Structural markers in content coordinates: `block` spans (dither rules) and `header` markers (clickable labels). |
 | `side` | `"left" \| "right"` | `"right"` | Rail edge, by grid placement (logical, so RTL flips it). DOM order stays content-then-rail, so the tab order is stable either way. |
-| `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (3u = 72px). |
+| `width` | `number` | n/a | Rail width in `--sf-unit` multiples; defaults to the `--sf-minimap-width` token (4u: 80px at the default density). |
 | `ariaLabel` | `string` | `"Scroll position"` | Accessible name for the `role="scrollbar"` zone. |
 | `onJump` | `(marker: MinimapMarker) => void` | n/a | Intercepts header-label jumps (virtualized hosts scroll their own scroller here). Without it the component scrolls its own container. |
-| `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, auto-following the viewport band (and more labels survive). Unset keeps the fit-everything proportional overview. |
+| `minMarkerSize` | `number` | n/a | Minimum block height in `--sf-unit` multiples. When set, block spans never compress below it: once the content is dense enough that they would, the rail's inner content grows taller than the rail and **the rail itself scrolls**, in step with the content like an editor minimap: the band is at the top of the visible rail at the start, at its bottom at the end, and travels it steadily in between. A drag moves the band 1:1 through the visible rail, from the start of the content to its end. Unset keeps the fit-everything proportional overview. |
 | `maxMarkerSize` | `number` | n/a | Maximum block height in `--sf-unit` multiples, a bound on outliers: a block outsized at the natural scale is compressed to the cap in place, everything after it moves up, and the rail it gives up is shared out so the picture still fills the rail with proportions among the other blocks intact (a block that only reaches the cap through that share-out is left alone). No other block is shrunk (the whole-rail scale of 2.27 bunched the rest toward the top) and no hole is left behind (the render-time cap of 2.29 to 2.34 did). The viewport band, presses, drags and header labels go through the same piecewise mapping. |
 | `jumpAlign` | `"start" \| "center"` | `"start"` | Where a label-click jump lands the target: at the viewport top, or its middle. Also anchors which header reads active. |
 | `children` | `ReactNode` | n/a | The scrollable content. |
@@ -2254,7 +2257,7 @@ all (nothing invisible in the tab order) while their dither rules stay.
 The forwarded ref targets the **scroll element** (read the offset, scroll
 programmatically, or hand it to a virtualizer's `getScrollElement`).
 
-Tokens: `--sf-minimap-width` (rail width, default `calc(var(--sf-unit) * 3)`),
+Tokens: `--sf-minimap-width` (rail width, default `calc(var(--sf-unit) * 4)`),
 `--sf-minimap-label-size` (heading-label font size, default `0.65rem`; below the
 sm..lg body ladder because the rail is a dense navigation affordance). Header
 labels are a compact caption that hugs its text (an opaque `--sf-color-bg` pill
@@ -2864,7 +2867,7 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | `frame` | `boolean` | `false` | 1px structural border + padding; the chart reads as a panel. |
 | `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | n/a | Click/Enter on a point, a drill-down hook. |
 | `renderTooltip` | `(datum: ScatterDatum & { series: string }) => ReactNode` | mono `(x, y)` | Custom tooltip. |
-| `selectable` | `boolean` | `false` | Click-to-freeze selection: a click pins the mark and opens a popover anchored to it (unlike the hover tooltip, it stays open) that **tracks the mark through zoom/pan**; the mark keeps an accent ring. Dismiss by clicking the mark again, clicking away, Escape, or the popover's ✕. |
+| `selectable` | `boolean` | `false` | Click-to-freeze selection: a click pins the mark and opens a popover anchored to it (unlike the hover tooltip, it stays open) that **tracks the mark through zoom/pan**; the mark keeps an accent ring. While a mark is pinned its hover tooltip stays hidden, so the popover's content is never covered. Dismiss by clicking the mark again, clicking away, Escape, or the popover's ✕. |
 | `selection` / `defaultSelection` | `ChartSelection \| null` | `null` | The pinned mark, controlled / uncontrolled. `ChartSelection` is the same datum-with-series object the chart's activate callback emits. |
 | `onSelectionChange` | `(selection: ChartSelection \| null) => void` | n/a | Fires when the pin changes (click pins/toggles it, or a dismissal clears it). |
 | `renderSelection` | `(selection: ChartSelection) => ReactNode` | falls back to `renderTooltip` | Popover body for the pinned mark — richer or interactive (links, buttons) than the hover tooltip. |
@@ -3550,7 +3553,7 @@ label and its fields become level-2), `VerticalForm.Field` (one row).
 | `padding` | `Root` | `number` | `1` | Content padding in `--sf-unit` multiples. |
 | `nav` | `Root` | `boolean` | `false` | Show a bottom navigation bar: a searchable `Picker` of every title (sections and indented fields). Selecting one centers it in the viewport; scrolling updates the Picker to the title at the viewport centre (the first at rest, so it is never empty). |
 | `navSize` | `Root` | `"sm" \| "md" \| "lg"` | `"sm"` | Size of the nav bar `Picker`. |
-| `minBlock` | `Root` | `number` | `0.5` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). Forwarded to `Minimap`'s `minMarkerSize`. |
+| `minBlock` | `Root` | `number` | `0.75` | Minimum rail block height per field in `--sf-unit` multiples; blocks never compress below this (a denser form scrolls its rail). The default is the height of a rail label with its spacing, so every field keeps its name on the rail. Forwarded to `Minimap`'s `minMarkerSize`. |
 | `maxBlock` | `Root` | `number` | n/a | Maximum rail block height per field in `--sf-unit` multiples: an outsized field's block (a tall `TableInput`) is compressed to the cap and the fields after it move up, while every other block keeps its proportional size. Passed to the Minimap as `maxMarkerSize`. |
 
 A field's rail marker is anchored at the row top and spans the field's **real
