@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { Kbd } from "../Kbd";
 import { Outliner } from "./Outliner";
-import type { OutlinerValue } from "./types";
+import type { OutlinerCompletion, OutlinerCompletionRequest, OutlinerValue } from "./types";
 
 const SAMPLE: OutlinerValue = [
   {
@@ -94,6 +94,64 @@ export const Editable: Story = () => {
           </div>
         ))}
       </dl>
+    </div>
+  );
+};
+
+const PAGES = ["Project Alpha", "Project Beta", "Team Brand Guide", "Daily/2026-11-19"];
+const COMMANDS: OutlinerCompletion[] = [
+  { label: "today", description: "Today's date", insert: "2026-11-19" },
+  { label: "tomorrow", description: "Tomorrow's date", insert: "2026-11-20" },
+  { label: "review", description: "A review checklist line", insert: "[ ] Review with [[Alice]]" },
+];
+
+function allBlocks(list: OutlinerValue): OutlinerCompletion[] {
+  return list.flatMap((b) => [
+    { label: b.content, description: `Block ${b.id}`, insert: b.id },
+    ...allBlocks(b.children ?? []),
+  ]);
+}
+
+/** Tasks, tags and completion. The outline knows no pages or commands: the
+ *  app answers `completions` for `[[`, `((`, `#` and `/`. */
+export const Assisted: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>([
+    {
+      id: "plan",
+      content: "Release plan for [[Project Alpha]] #planning",
+      children: [
+        { id: "t1", content: "[x] Freeze the API" },
+        { id: "t2", content: "[ ] Write the **migration** notes" },
+        { id: "t3", content: "[ ] Tag and publish" },
+      ],
+    },
+    { id: "try", content: "Type [[ or (( or # or / here" },
+  ]);
+  const completions = useCallback(
+    ({ trigger, query }: OutlinerCompletionRequest): OutlinerCompletion[] => {
+      const q = query.toLowerCase();
+      if (trigger === "/") return COMMANDS.filter((c) => c.label.startsWith(q));
+      if (trigger === "((") {
+        return allBlocks(value).filter((b) => b.label.toLowerCase().includes(q));
+      }
+      return PAGES.filter((name) => name.toLowerCase().includes(q)).map((label) => ({ label }));
+    },
+    [value],
+  );
+  const resolveBlockRef = useCallback((id: string) => findContent(value, id), [value]);
+  return (
+    <div style={frame}>
+      <Note>
+        Brackets close themselves and wrap a selection. Mod+B, Mod+I and Mod+K format; Mod+Enter
+        makes a block a task and ticks it. Typing [[, ((, # or / opens a list the app fills.
+      </Note>
+      <Outliner
+        value={value}
+        onChange={setValue}
+        completions={completions}
+        resolveBlockRef={resolveBlockRef}
+        aria-label="Release plan"
+      />
     </div>
   );
 };

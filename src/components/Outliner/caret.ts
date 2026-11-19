@@ -167,3 +167,18 @@ export function offsetAtX(
     p.dispose();
   }
 }
+
+/** The caret's box at `offset`, in viewport coordinates: what a popup that
+ *  belongs to that position anchors to. */
+export function caretRect(textarea: HTMLTextAreaElement, offset: number): DOMRect {
+  const p = probe(textarea);
+  try {
+    const at = p.at(offset);
+    const box = textarea.getBoundingClientRect();
+    const view = textarea.ownerDocument.defaultView;
+    const leading = view ? Number.parseFloat(view.getComputedStyle(textarea).lineHeight) : 0;
+    return new DOMRect(box.left + at.x, box.top + at.top, 0, leading || box.height);
+  } finally {
+    p.dispose();
+  }
+}

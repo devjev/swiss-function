@@ -164,6 +164,66 @@
   text-wrap: pretty;
 }
 
+/* A task block: the checkbox takes the place of the `[ ] ` marker, on the
+   first text line, and the text keeps its own column beside it. */
+.content[data-task] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: calc(var(--sf-unit) / 4);
+}
+
+.task {
+  display: grid;
+  place-items: center;
+  block-size: var(--sf-leading-base);
+}
+
+.text {
+  min-width: 0;
+}
+
+/* The completion list (`[[page`, `((block`, `#tag`, `/command`): a menu that
+   hangs under the trigger. The surface is Menu's. */
+.completions {
+  min-inline-size: calc(var(--sf-unit) * 8);
+  max-inline-size: calc(var(--sf-unit) * 18);
+  max-block-size: calc(var(--sf-unit) * 12);
+  overflow-y: auto;
+  padding: var(--sf-space-1);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-strong);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-3);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  outline: none;
+}
+
+.completion {
+  display: grid;
+  padding: var(--sf-space-2) var(--sf-space-3);
+  border-radius: var(--sf-radius-default);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.completion[data-highlighted] {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.completionLabel,
+.completionDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.completionLabel {
+  font-weight: var(--sf-font-weight-medium);
+}
+
 /* The editor: a textarea over the block's markdown source, with no chrome of
    its own, so entering a block changes nothing but the caret. The hidden
    ::after carries the same text in the same cell and gives the cell its

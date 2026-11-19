@@ -582,3 +582,188 @@ test("a drag inside one block selects its text and enters nothing", async ({ mou
   expect(await selected(component)).toEqual([]);
   expect(await page.evaluate(() => getSelection()?.toString().length ?? 0)).toBeGreaterThan(0);
 });
+
+// --- Typing assistance (milestone 3) ----------------------------------------
+
+/** The focused block's text with the caret as `|` (or a selection as `<>`). */
+async function marked(page: Page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLTextAreaElement)) return null;
+    const { value, selectionStart: s, selectionEnd: e } = el;
+    return s === e
+      ? `${value.slice(0, s)}|${value.slice(s)}`
+      : `${value.slice(0, s)}<${value.slice(s, e)}>${value.slice(e)}`;
+  });
+}
+
+const options = (page: Page) => page.getByRole("option");
+
+test("an opening bracket gets its closer; Backspace takes both", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" [[");
+  expect(await marked(page)).toBe("Bravo [[|]]");
+  await page.keyboard.type("Page]]");
+  expect(await marked(page)).toBe("Bravo [[Page]]|");
+  await expect(tree(component)).toContainText("0 b:Bravo [[Page]]");
+  await page.keyboard.type(" `");
+  expect(await marked(page)).toBe("Bravo [[Page]] `|`");
+  await page.keyboard.press("Backspace");
+  expect(await marked(page)).toBe("Bravo [[Page]] |");
+});
+
+test("a bracket or an asterisk typed over a selection wraps it", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  const editor = await caretIn(component, "b", 0);
+  await editor.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 5));
+  await page.keyboard.type("**");
+  expect(await marked(page)).toBe("**<Bravo>**");
+  await expect(tree(component)).toContainText("0 b:**Bravo**");
+});
+
+test("Mod+B, Mod+I and Mod+K format the selection", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  const editor = await caretIn(component, "a2", 0);
+  await editor.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(6, 9));
+  await page.keyboard.press("Control+b");
+  expect(await marked(page)).toBe("Alpha **<two>**");
+  await page.keyboard.press("Control+b");
+  expect(await marked(page)).toBe("Alpha <two>");
+  await page.keyboard.press("Control+i");
+  expect(await marked(page)).toBe("Alpha *<two>*");
+  await page.keyboard.press("Control+z");
+  expect(await marked(page)).toBe("Alpha <two>");
+  await page.keyboard.press("Control+k");
+  expect(await marked(page)).toBe("Alpha [two](|)");
+});
+
+test("Mod+Enter makes a task and ticks it; the checkbox does the same", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 2);
+  await page.keyboard.press("Control+Enter");
+  expect(await marked(page)).toBe("[ ] Br|avo");
+  await page.keyboard.press("Escape");
+  const box = row(component, "b").getByRole("checkbox");
+  await expect(box).not.toBeChecked();
+  await expect(row(component, "b").getByText("Bravo", { exact: true })).toBeVisible();
+
+  // Ticking does not enter the block.
+  await box.click();
+  await expect(box).toBeChecked();
+  await expect(component.locator("textarea")).toHaveCount(0);
+  await expect(tree(component)).toContainText("0 b:[x] Bravo");
+
+  // On a selected block the chord cycles on: done, then no task.
+  await row(component, "b").focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("Control+Enter");
+  await expect(tree(component)).toHaveText(/0 b:Bravo$/);
+});
+
+test("a click into a task lands on the clicked character, past the marker", async ({
+  mount,
+  page,
+}) => {
+  const initial: OutlinerValue = [{ id: "t", content: "[ ] Buy milk" }];
+  const component = await mount(<OutlinerHarness initial={initial} />);
+  const point = await row(component, "t").evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf("milk") ?? -1;
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + 1);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.left + 1, y: rect.top + rect.height / 2 };
+    }
+    return null;
+  });
+  await page.mouse.click(point?.x ?? 0, point?.y ?? 0);
+  expect(await marked(page)).toBe("[ ] Buy |milk");
+});
+
+test("#tags render as links", async ({ mount }) => {
+  const initial: OutlinerValue = [{ id: "1", content: "plan #project and #[[Two Words]]" }];
+  const component = await mount(<OutlinerHarness initial={initial} />);
+  await expect(component.getByRole("button", { name: "#project" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "#Two Words" })).toBeVisible();
+});
+
+test("[[ opens the page list; the arrows choose and Enter completes", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} withCompletions />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" [[");
+  await expect(options(page)).toHaveText(["Project Alpha", "Project Beta", "Daily notes"]);
+  await page.keyboard.type("pro");
+  await expect(options(page)).toHaveText(["Project Alpha", "Project Beta"]);
+  await expect(options(page).nth(0)).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("ArrowDown");
+  await expect(options(page).nth(1)).toHaveAttribute("aria-selected", "true");
+  // The caret stayed in the text, and the list is tied to it.
+  const editor = row(component, "b").locator("textarea");
+  await expect(editor).toBeFocused();
+  await expect(editor).toHaveAttribute("aria-activedescendant", /-1$/);
+
+  await page.keyboard.press("Enter");
+  await expect(options(page)).toHaveCount(0);
+  expect(await marked(page)).toBe("Bravo [[Project Beta]]|");
+  // Enter completed; it did not split the block.
+  await expect(tree(component)).toHaveText(/0 b:Bravo \[\[Project Beta\]\]$/);
+  // One undo takes the completion back to what was typed.
+  await page.keyboard.press("Control+z");
+  expect(await marked(page)).toBe("Bravo [[pro|]]");
+});
+
+test("the list sits under the trigger and a click on an entry completes", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TREE} withCompletions />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" #dai");
+  await expect(options(page)).toHaveText(["Daily notes"]);
+  const list = await page.getByRole("listbox").boundingBox();
+  const editor = await row(component, "b").locator("textarea").boundingBox();
+  expect(list?.y).toBeGreaterThanOrEqual((editor?.y ?? 0) + (editor?.height ?? 0));
+  expect(list?.x).toBeGreaterThan(editor?.x ?? 0);
+  await options(page).first().click();
+  expect(await marked(page)).toBe("Bravo #[[Daily notes]] |");
+  await expect(row(component, "b").locator("textarea")).toBeFocused();
+});
+
+test("Escape closes the list and leaves the caret in the text", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} withCompletions />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" /t");
+  await expect(options(page)).toHaveText(["todayToday's date", "timeThe time"]);
+  await page.keyboard.press("Escape");
+  await expect(options(page)).toHaveCount(0);
+  await expect(row(component, "b").locator("textarea")).toBeFocused();
+  // It stays closed while the same word is typed on.
+  await page.keyboard.type("o");
+  await expect(options(page)).toHaveCount(0);
+  expect(await marked(page)).toBe("Bravo /to|");
+});
+
+test("a command replaces its slash; a block reference inserts the id", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} withCompletions />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" /tod");
+  await page.keyboard.press("Tab");
+  expect(await marked(page)).toBe("Bravo 2026-11-19|");
+  await page.keyboard.type(" ((ref");
+  await expect(options(page)).toHaveCount(1);
+  await page.keyboard.press("Enter");
+  expect(await marked(page)).toBe("Bravo 2026-11-19 ((src))|");
+});
+
+test("without a completions source nothing pops up", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" [[pro");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/0 b:Bravo \[\[pro\n0 new:\]\]$/);
+});

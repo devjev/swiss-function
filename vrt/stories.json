@@ -520,6 +520,7 @@
   "notebook--document-validation",
   "notebook--error-propagation",
   "notebook--playground",
+  "outliner--assisted",
   "outliner--block-refs",
   "outliner--editable",
   "outliner--empty",

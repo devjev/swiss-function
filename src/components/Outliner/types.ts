@@ -25,6 +25,28 @@ export interface FlatBullet {
   path: BulletPath;
 }
 
+/** What opened a completion: a page reference, a block reference, a tag, or a
+ *  command. */
+export type OutlinerCompletionTrigger = "[[" | "((" | "#" | "/";
+
+export interface OutlinerCompletionRequest {
+  trigger: OutlinerCompletionTrigger;
+  /** The text typed after the trigger. */
+  query: string;
+  /** The block being edited. */
+  blockId: BulletId;
+}
+
+export interface OutlinerCompletion {
+  /** Shown in the list. */
+  label: string;
+  /** A second line of detail: a path, a block's page, what a command does. */
+  description?: string;
+  /** Written into the block in place of the query; `label` when omitted. For
+   *  `((` this is the block id, for `/` the text the command stands for. */
+  insert?: string;
+}
+
 export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   value: OutlinerValue;
   /** Every change to the tree: a keystroke in a block, a split, a merge, an
@@ -40,6 +62,13 @@ export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   /** Resolve a ((block-id)) to its bullet content (markdown).
    *  Return null to render a "missing reference" placeholder. */
   resolveBlockRef?: (id: BulletId) => string | null;
+  /** Suggestions while typing `[[`, `((`, `#` or `/` in a block: return the
+   *  entries for the query (an empty list shows nothing), now or as a promise.
+   *  The outline knows no pages or commands of its own; without this prop
+   *  nothing pops up. */
+  completions?: (
+    request: OutlinerCompletionRequest,
+  ) => OutlinerCompletion[] | Promise<OutlinerCompletion[]>;
   /** Shown in place of the first block while the outline is empty; clicking
    *  it (or Enter on it) starts the first block. */
   placeholder?: ReactNode;

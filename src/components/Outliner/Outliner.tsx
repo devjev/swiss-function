@@ -1,7 +1,9 @@
+import { Popover as BasePopover } from "@base-ui/react/popover";
 import type {
   ClipboardEvent,
   ComponentProps,
   FocusEvent,
+  InputEvent,
   KeyboardEvent,
   MouseEvent as ReactMouseEvent,
 } from "react";
@@ -9,6 +11,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useReducer,
@@ -19,7 +22,20 @@ import type ReactMarkdown from "react-markdown";
 import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { Markdown } from "../Markdown";
-import { caretLine, offsetAtX } from "./caret";
+import { Popover } from "../Popover";
+import {
+  applyCompletion,
+  type CompletionMatch,
+  cycleTask,
+  findTrigger,
+  insertLink,
+  pairInput,
+  setTaskDone,
+  type TextEdit,
+  toggleWrap,
+  unpairBackspace,
+} from "./assist";
+import { caretLine, caretRect, offsetAtX } from "./caret";
 import { isOutlineText, parseOutline, toMarkdownList, withIds } from "./clipboard";
 import { History } from "./history";
 import {
@@ -50,7 +66,7 @@ import {
   toggleCollapsed,
   updateContent,
 } from "./tree";
-import type { Bullet, BulletId, OutlinerProps, OutlinerValue } from "./types";
+import type { Bullet, BulletId, OutlinerCompletion, OutlinerProps, OutlinerValue } from "./types";
 
 type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
@@ -76,6 +92,15 @@ type Place =
   | { kind: "blocks"; anchor: BulletId; focus: BulletId }
   | null;
 
+/** An open completion list: the block and the trigger it belongs to, the
+ *  entries, and the highlighted one. */
+interface CompletionState {
+  blockId: BulletId;
+  match: CompletionMatch;
+  items: OutlinerCompletion[];
+  index: number;
+}
+
 /**
  * An outline edited as one document, after Roam Research and Logseq: a block
  * is a textarea over its markdown while the caret is in it and rendered
@@ -95,6 +120,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     generateId = defaultGenerateId,
     onWikiLinkClick,
     resolveBlockRef,
+    completions,
     placeholder = "Empty outline. Click to write.",
     className,
     onKeyDown,
@@ -111,6 +137,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   const [anchorState, setAnchorId] = useState<BulletId | null>(null);
   const [editingState, setEditingId] = useState<BulletId | null>(null);
   const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const [completionState, setCompletion] = useState<CompletionState | null>(null);
 
   const flat = useMemo(() => flatVisible(value), [value]);
   const visible = useMemo(() => new Set(flat.map((f) => f.id)), [flat]);
@@ -124,19 +151,28 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     [flat, activeId, anchorId, editingId],
   );
 
+  // The list shows for the block being edited, once there is something in it.
+  const completion =
+    completionState && completionState.blockId === editingId && completionState.items.length > 0
+      ? completionState
+      : null;
+
   // The handlers below are created once, so a keystroke re-renders one row;
   // they read what is current from here.
-  const latest = useRef({
+  const current = {
     value,
     onChange,
     readOnly,
     generateId,
+    completions,
     flat,
     activeId,
     anchorId,
     editingId,
-  });
-  latest.current = { value, onChange, readOnly, generateId, flat, activeId, anchorId, editingId };
+    completion,
+  };
+  const latest = useRef(current);
+  latest.current = current;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<BulletId, HTMLDivElement>());
@@ -153,6 +189,11 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   /** A drag or Shift+click that selected blocks: the click that ends it must
    *  not enter a block. */
   const suppressClick = useRef(false);
+  /** The completion request last sent (so a caret that has not moved does not
+   *  ask again), and the one the user closed with Escape. */
+  const requested = useRef("");
+  const dismissed = useRef("");
+  const listId = useId();
 
   // --- History ---
   const [history] = useState(() => new History<Place>());
@@ -195,6 +236,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     if (textarea.ownerDocument.activeElement !== textarea) textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(start, end);
     rowRefs.current.get(caret.id)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    refreshCompletion(caret.id);
   });
 
   // --- Focus on the selected block ---
@@ -351,10 +393,101 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     [commit],
   );
 
+  // --- Completion: `[[page`, `((block`, `#tag`, `/command` ---
+  /** Look at the caret and open, update or close the completion list. */
+  const refreshCompletion = useCallback((id: BulletId) => {
+    const source = latest.current.completions;
+    if (!source) return;
+    const textarea = editorRefs.current.get(id);
+    const match =
+      textarea && textarea.selectionStart === textarea.selectionEnd
+        ? findTrigger(textarea.value, textarea.selectionStart)
+        : null;
+    if (!match) {
+      requested.current = "";
+      dismissed.current = "";
+      setCompletion(null);
+      return;
+    }
+    // Escape closes the list for this trigger; it comes back for the next one.
+    const place = `${id}:${match.trigger}:${match.from}`;
+    if (dismissed.current === place) return;
+    const request = `${place}:${match.query}`;
+    if (requested.current === request) return;
+    requested.current = request;
+    const settle = (items: OutlinerCompletion[]) => {
+      if (requested.current !== request) return;
+      setCompletion({ blockId: id, match, items, index: 0 });
+    };
+    const result = source({ trigger: match.trigger, query: match.query, blockId: id });
+    if (Array.isArray(result)) settle(result);
+    else result.then(settle, () => settle([]));
+  }, []);
+
+  const closeCompletion = useCallback(() => {
+    const open = latest.current.completion;
+    if (open) dismissed.current = `${open.blockId}:${open.match.trigger}:${open.match.from}`;
+    setCompletion(null);
+  }, []);
+
+  /** Change the text of the block being edited and place the selection.
+   *  `typing` joins it to the run of keystrokes in progress. */
+  const applyEdit = useCallback(
+    (id: BulletId, edit: TextEdit, typing = false) => {
+      commit(updateContent(latest.current.value, id, edit.text), typing ? id : undefined);
+      pendingCaret.current = { id, start: edit.start, end: edit.end };
+      rerender();
+    },
+    [commit],
+  );
+
+  const acceptCompletion = useCallback(
+    (item: OutlinerCompletion | undefined) => {
+      const open = latest.current.completion;
+      const textarea = open && editorRefs.current.get(open.blockId);
+      if (!open || !textarea || !item) return;
+      const match = findTrigger(textarea.value, textarea.selectionStart) ?? open.match;
+      caretBefore.current = {
+        id: open.blockId,
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      };
+      setCompletion(null);
+      applyEdit(open.blockId, applyCompletion(textarea.value, match, item.insert ?? item.label));
+    },
+    [applyEdit],
+  );
+
   const handleTextChange = useCallback(
     (id: BulletId, text: string) => {
       goalX.current = null;
       commit(updateContent(latest.current.value, id, text), id);
+      refreshCompletion(id);
+    },
+    [commit, refreshCompletion],
+  );
+
+  // --- A character about to be typed: brackets come in pairs ---
+  const handleEditorBeforeInput = useCallback(
+    (id: BulletId, e: InputEvent<HTMLTextAreaElement>) => {
+      if (e.data?.length !== 1) return;
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const edit = pairInput(textarea.value, start, end, e.data);
+      if (!edit) return;
+      e.preventDefault();
+      caretBefore.current = { id, start, end };
+      applyEdit(id, edit, true);
+    },
+    [applyEdit],
+  );
+
+  const handleTaskToggle = useCallback(
+    (id: BulletId, done: boolean) => {
+      const self = findBullet(latest.current.value, id)?.bullet;
+      if (!self || latest.current.readOnly) return;
+      commit(updateContent(latest.current.value, id, setTaskDone(self.content, done)));
     },
     [commit],
   );
@@ -377,6 +510,28 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       // A caret move ends a run of typing: the next keystroke is its own step.
       if (/^(Arrow|Home|End|Page)/.test(e.key)) history.breakTyping();
 
+      // An open completion list takes the keys that choose from it.
+      const open = latest.current.completion;
+      if (open && !mod && !e.altKey && !e.shiftKey) {
+        if (vertical) {
+          e.preventDefault();
+          const step = e.key === "ArrowDown" ? 1 : -1;
+          const count = open.items.length;
+          setCompletion({ ...open, index: (open.index + step + count) % count });
+          return;
+        }
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          acceptCompletion(open.items[open.index]);
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeCompletion();
+          return;
+        }
+      }
+
       /** Apply a tree change that keeps the caret where it is. */
       const inPlace = (next: OutlinerValue) => {
         e.preventDefault();
@@ -392,6 +547,34 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
           // know nothing of a split or a merge.
           e.preventDefault();
           travel(key === "y" || e.shiftKey ? "redo" : "undo");
+          return;
+        }
+        // Formatting chords: bold, italic, link, strikethrough.
+        const format =
+          key === "b" && !e.shiftKey
+            ? toggleWrap(textarea.value, start, end, "**")
+            : key === "i" && !e.shiftKey
+              ? toggleWrap(textarea.value, start, end, "*")
+              : key === "k" && !e.shiftKey
+                ? insertLink(textarea.value, start, end)
+                : key === "s" && e.shiftKey
+                  ? toggleWrap(textarea.value, start, end, "~~")
+                  : null;
+        if (format) {
+          e.preventDefault();
+          applyEdit(id, format);
+          return;
+        }
+        if (e.key === "Enter" && !e.shiftKey) {
+          // Mod+Enter: no task, open, done.
+          e.preventDefault();
+          const text = cycleTask(textarea.value);
+          const shift = text.length - textarea.value.length;
+          applyEdit(id, {
+            text,
+            start: Math.max(0, start + shift),
+            end: Math.max(0, end + shift),
+          });
           return;
         }
         if (key === "a" && start === 0 && end === length) {
@@ -427,6 +610,12 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
           return;
         }
         case "Backspace": {
+          const unpaired = unpairBackspace(textarea.value, start, end);
+          if (unpaired) {
+            e.preventDefault();
+            applyEdit(id, unpaired, true);
+            return;
+          }
           if (!caretOnly || start !== 0) return;
           const prev = getPrevVisible(tree, id);
           if (!prev) {
@@ -518,7 +707,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         }
       }
     },
-    [commit, editAt, select, travel, history],
+    [commit, editAt, select, travel, history, applyEdit, acceptCompletion, closeCompletion],
   );
 
   /** The blocks a command on row `id` acts on: the selection's roots when the
@@ -627,7 +816,16 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       case "F2": {
         e.preventDefault();
         if (readOnly) select(id);
-        else editAt({ id, edge: "end" });
+        else if (mod && e.key === "Enter") {
+          // Mod+Enter: no task, open, done, on every selected block.
+          commit(
+            roots.reduce((tree, root) => {
+              const text = findBullet(tree, root)?.bullet.content;
+              return text === undefined ? tree : updateContent(tree, root, cycleTask(text));
+            }, value),
+          );
+          if (!selected) select(id);
+        } else editAt({ id, edge: "end" });
         return;
       }
       case "Tab": {
@@ -788,6 +986,20 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     [onWikiLinkClick, resolveBlockRef],
   );
 
+  // The list hangs under the trigger, where the query begins, and follows the
+  // textarea when the outline scrolls.
+  const completionBlock = completion?.blockId;
+  const completionFrom = completion?.match.from;
+  const completionAnchor = useMemo(() => {
+    if (completionBlock === undefined || completionFrom === undefined) return null;
+    const textarea = editorRefs.current.get(completionBlock);
+    if (!textarea) return null;
+    return {
+      getBoundingClientRect: () => caretRect(textarea, completionFrom),
+      contextElement: textarea,
+    };
+  }, [completionBlock, completionFrom]);
+
   const tabbableId =
     activeId ??
     (lastActive.current && visible.has(lastActive.current) ? lastActive.current : flat[0]?.id);
@@ -840,15 +1052,73 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
             tabbable={tabbableId === id}
             readOnly={readOnly}
             markdownComponents={markdownComponents}
+            completionListId={completion?.blockId === id ? listId : undefined}
+            completionOptionId={
+              completion?.blockId === id ? `${listId}-${completion.index}` : undefined
+            }
             onEnter={handleEnter}
             onRowMouseDown={handleRowMouseDown}
             onToggleCollapsed={handleToggleCollapsed}
+            onTaskToggle={handleTaskToggle}
             onTextChange={handleTextChange}
             onEditorKeyDown={handleEditorKeyDown}
+            onEditorBeforeInput={handleEditorBeforeInput}
+            onEditorSelect={refreshCompletion}
             registerRow={registerRow}
             registerEditor={registerEditor}
           />
         ))
+      )}
+      {completion && completionAnchor && (
+        <Popover.Root
+          open
+          modal={false}
+          onOpenChange={(open) => {
+            if (!open) closeCompletion();
+          }}
+        >
+          <Popover.Portal>
+            <Popover.Positioner
+              anchor={completionAnchor}
+              side="bottom"
+              align="start"
+              sideOffset={2}
+            >
+              {/* The focus stays in the block's text: the arrows and Enter are
+                  handled there, and the list is read through aria-activedescendant. */}
+              <BasePopover.Popup
+                className={styles.completions}
+                initialFocus={false}
+                finalFocus={false}
+                aria-label="Suggestions"
+              >
+                <div role="listbox" id={listId} aria-label="Suggestions">
+                  {completion.items.map((item, index) => (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: the list is replaced as a whole, and labels may repeat
+                      key={index}
+                      id={`${listId}-${index}`}
+                      role="option"
+                      tabIndex={-1}
+                      aria-selected={index === completion.index}
+                      data-highlighted={index === completion.index || undefined}
+                      className={styles.completion}
+                      // Keep the caret in the text while the pointer chooses.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setCompletion({ ...completion, index })}
+                      onClick={() => acceptCompletion(item)}
+                    >
+                      <span className={styles.completionLabel}>{item.label}</span>
+                      {item.description && (
+                        <span className={styles.completionDescription}>{item.description}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </BasePopover.Popup>
+            </Popover.Positioner>
+          </Popover.Portal>
+        </Popover.Root>
       )}
     </div>
   );

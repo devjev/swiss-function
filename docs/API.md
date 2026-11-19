@@ -2616,6 +2616,7 @@ give it an `aria-label`).
 | `generateId` | `() => string` | `crypto.randomUUID()` | New-bullet id factory. |
 | `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. Pass a stable function: it is a dependency of every row. |
 | `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
+| `completions` | `(request) => OutlinerCompletion[] \| Promise<OutlinerCompletion[]>` | n/a | Suggestions while typing `[[`, `((`, `#` or `/`. `request` is `{ trigger, query, blockId }`; an entry is `{ label, description?, insert? }`. Without it nothing pops up. Pass a stable function. |
 | `placeholder` | `ReactNode` | `"Empty outline. Click to write."` | Shown while `value` is empty; a click or Enter on it starts the first block. |
 
 **Two levels of focus.** In a block's text the keys edit. Escape steps out to
@@ -2639,6 +2640,9 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Shift+↑ / Shift+↓ | Select text while there is a line to go to; from the block's first / last line, select the block itself. |
 | Mod+A | Selects the block's text; pressed again (or in an empty block), every block. |
 | Mod+Z, Mod+Shift+Z / Mod+Y | Undo / redo. |
+| Mod+B, Mod+I, Mod+Shift+S | Bold (`**`), italic (`*`), strikethrough (`~~`): wraps the selection, or takes the wrap off. With nothing selected the pair goes in around the caret. |
+| Mod+K | A markdown link around the selection, the caret in its target. |
+| Mod+Enter | Task: no marker, open (`[ ] `), done (`[x] `). Also on selected blocks. |
 | Escape | Leaves the text; the block stays selected. |
 
 **Block selection.** A selected block includes its children. Shift+↑ / Shift+↓
@@ -2667,6 +2671,28 @@ indented under its marker). Pasted text becomes nested blocks when it holds a
 list item or several paragraphs separated by blank lines: after the block being
 edited (an empty one becomes the first pasted block), or after the selection.
 One line, or the lines of a single paragraph, is pasted as text.
+
+**Pairs.** Typing `[`, `(`, `{` or a backtick inserts its closer (a `(` inside
+a word stays single); typing a closer that is already next steps over it;
+Backspace between an empty pair removes both. With text selected, those keys
+and `*`, `_`, `~`, `^`, `=` wrap the selection, which stays selected, so `**`
+makes it bold.
+
+**Tasks and tags.** A block that starts with `[ ] ` or `[x] ` is a task: the
+marker renders as a `Checkbox` (a click ticks it without entering the block),
+and a copied outline carries it as a markdown task item. `#name` and
+`#[[Two Words]]` render as wiki links and report through `onWikiLinkClick` with
+the name.
+
+**Completion.** With `completions` set, `[[` (a page), `((` (a block), `#` (a
+tag) or `/` (a command) at the caret opens a list under the trigger, filled by
+your function for the text typed after it, now or as a promise (a stale answer
+is dropped). ↑ / ↓ choose, Enter or Tab complete, Escape closes the list for
+that trigger; the caret never leaves the text (`aria-activedescendant`). The
+chosen entry's `insert` (or `label`) replaces the query: a reference is closed
+with its brackets, a tag with a space is written `#[[like this]]`, and a
+command replaces its slash, so `insert` is the text the command stands for. For
+`((`, `insert` is the block id and `label` its text.
 
 **Pointer:** a click enters the block at the clicked character (the rendered
 position is mapped back to the markdown source); a drag that selects rendered

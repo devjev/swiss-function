@@ -1,2 +1,10 @@
 export { Outliner } from "./Outliner";
-export type { Bullet, BulletId, OutlinerProps, OutlinerValue } from "./types";
+export type {
+  Bullet,
+  BulletId,
+  OutlinerCompletion,
+  OutlinerCompletionRequest,
+  OutlinerCompletionTrigger,
+  OutlinerProps,
+  OutlinerValue,
+} from "./types";
