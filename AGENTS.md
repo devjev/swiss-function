@@ -178,7 +178,7 @@ Both `Reflow` and `MenuBar` (the latter only when given `collapseAt`) adapt to t
 | Component       | Use for                                                  |
 | --------------- | -------------------------------------------------------- |
 | `Explorer`      | File-tree-style hierarchical navigation: virtualized tree grid with rename-in-place, row drag-to-reorder, and DataTable's column affordances (sort/filter/resize/reorder). `gridLines` gives it full spreadsheet borders. **Explorer vs DataTable**: reach for Explorer when the data is inherently a tree the user *manipulates* (rename/move/reorder rows); reach for DataTable for tabular data at scale (cell selection/editing, column groups, frozen columns, pagination, 100k+ rows). They share their column machinery (`src/lib/columns`, `src/lib/filter`) by design, but don't merge them further: the tree-vs-flat data pipelines, row-vs-cell selection and rename-vs-cell-editor models are deliberately separate (issue #28). Column headers are raised keys (`headerSurface`, flat by default), the sorted one pressed, and a column is never narrower than its title (the measured header floor, as in DataTable), with DataTable's resize gestures: the width readout, the one-way cursor at the floor, and the splitter keys on a focused handle. |
-| `Outliner`      | Outline editor with keyboard reordering (Ctrl/Cmd+Shift+Arrows move, Tab/Shift+Tab indent). No drag. |
+| `Outliner`      | An outline edited as one document, after Roam Research and Logseq: a block is a textarea over its markdown while the caret is in it and rendered markdown otherwise, with a bullet per block and indent guides. Enter splits at the caret, Backspace at the start merges into the block above, the arrows cross blocks keeping the caret column, Tab/Shift+Tab indent and outdent, Alt+Shift+Arrows move a block, Mod+Up/Down fold. Escape leaves the text with the block selected (arrows walk the tree), Escape again releases. Controlled `value`/`onChange` (a `Bullet[]` tree; text is live, one `onChange` per keystroke), `readOnly`, `generateId`, `[[wiki links]]` (`onWikiLinkClick`) and `((block-id))` references (`resolveBlockRef`). No drag yet. |
 
 ### Charts
 
@@ -468,7 +468,7 @@ wiring beyond the target's `onExternalDrop`. See
 Keyboard reorder is deliberately not uniform: it works through a focusable
 grip (`TableInput`, `ContextEditor`) or a component-owned chord
 (`WindowArray` Shift+Arrows, `AgentComposer` Alt+Arrows, `Outliner`
-Ctrl/Cmd+Shift+Arrows). Header cells (`DataTable`/`Explorer` column
+Alt+Shift+Arrows). Header cells (`DataTable`/`Explorer` column
 reorder) are pointer-drag only: Enter/Space on a header belongs to
 sorting, so headers spread dnd-kit's `listeners` but never its
 `attributes` (announcing an inoperable keyboard pickup is worse than none).
@@ -543,7 +543,7 @@ Common requests and the right component:
 | "collapsible sections"                             | No dedicated component; use `Tabs` for peer views, or `Reflow` (collapses to accordion-style sections when narrow) |
 | "a sidebar file tree"                              | `Explorer`                                       |
 | "a minimap" / "scroll overview" / "VS Code-style scroller" / "scrollspy outline rail" | `Minimap` (structural markers + clickable heading labels; `Graph.Minimap`/`Map.Minimap` are different: canvas camera overviews) |
-| "an outline / nested list editor"                  | `Outliner`                                       |
+| "an outline / nested list editor" / "a Roam / Logseq / Workflowy-style block editor" / "bullet notes with indent and fold" | `Outliner` (a `Bullet[]` tree, markdown per block; the consumer owns pages, links and storage) |
 | "a timeline with events"                           | `Timeline`                                       |
 | "a chart" / "graph this"                           | `BarChart` / `Scatterplot` / `BridgeChart` based on shape |
 | "a stacked bar chart" / "stack the series" / "a 100% stacked bar" / "the mix per category over time" | `BarChart stacked` (`stacked="percent"` for the 100% reading; `Marimekko` when the column widths must carry a second measure, `PieChart` for one whole split once) |

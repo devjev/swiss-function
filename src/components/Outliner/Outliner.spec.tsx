@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
+import type { Locator, Page } from "@playwright/test";
 import { OutlinerHarness } from "./Outliner.harness";
 import type { OutlinerValue } from "./types";
 
@@ -15,80 +15,319 @@ const TREE: OutlinerValue = [
   { id: "b", content: "Bravo" },
 ];
 
+const row = (root: Locator, id: string) => root.locator(`[data-bullet-id="${id}"]`);
+const tree = (root: Locator) => root.getByTestId("tree");
+
+/** Enter a block and put the caret at `offset` of its source. */
+async function caretIn(root: Locator, id: string, offset: number) {
+  await row(root, id).click();
+  const editor = row(root, id).locator("textarea");
+  await expect(editor).toBeFocused();
+  await editor.evaluate((el: HTMLTextAreaElement, at) => el.setSelectionRange(at, at), offset);
+  return editor;
+}
+
+/** The id of the block that holds the caret, and where the caret is. */
+async function caret(page: Page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLTextAreaElement)) return null;
+    const id = el.closest("[data-bullet-id]")?.getAttribute("data-bullet-id") ?? "";
+    return { id: /^n\d+$/.test(id) ? "new" : id, at: el.selectionStart, text: el.value };
+  });
+}
+
 test("renders bullets with markdown content", async ({ mount }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
-  await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
-  await expect(component.getByText("Alpha one")).toBeVisible();
-  await expect(component.getByText("Bravo")).toBeVisible();
+  await expect(row(component, "a").getByText("Alpha", { exact: true })).toBeVisible();
+  await expect(row(component, "a1").getByText("Alpha one")).toBeVisible();
+  await expect(row(component, "b").getByText("Bravo")).toBeVisible();
 });
 
-test("click activates a bullet", async ({ mount }) => {
+test("a click enters the block at the clicked character", async ({ mount, page }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
-  const row = component.locator('[data-bullet-id="b"]');
-  await row.click();
-  await expect(row).toHaveAttribute("data-active", "true");
+  // The left edge of the "t" in "Alpha two".
+  const point = await row(component, "a2").evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf("two") ?? -1;
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + 1);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.left + 1, y: rect.top + rect.height / 2 };
+    }
+    return null;
+  });
+  expect(point).not.toBeNull();
+  await page.mouse.click(point?.x ?? 0, point?.y ?? 0);
+  expect(await caret(page)).toEqual({ id: "a2", at: 6, text: "Alpha two" });
 });
 
-test("readOnly: ArrowDown moves active to next visible bullet", async ({ mount, page }) => {
-  // With edit-by-default, arrow keys route to the textarea. Read-mode keyboard
-  // navigation only fires in readOnly mode.
-  const component = await mount(<OutlinerHarness initial={TREE} readOnly />);
-  await component.locator('[data-bullet-id="a"]').click();
+test("a click past the text puts the caret at the end", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} width={480} />);
+  const box = await row(component, "b").boundingBox();
+  await page.mouse.click((box?.x ?? 0) + 300, (box?.y ?? 0) + (box?.height ?? 0) / 2);
+  expect(await caret(page)).toEqual({ id: "b", at: 5, text: "Bravo" });
+});
+
+test("typing is live: every keystroke reaches onChange", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type("!!");
+  await expect(tree(component)).toContainText("0 b:Bravo!!");
+  await expect(component.getByTestId("changes")).toHaveText("2");
+});
+
+test("Enter splits the block at the caret", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 3);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/0 b:Bra\n0 new:vo$/);
+  expect(await caret(page)).toEqual({ id: "new", at: 0, text: "vo" });
+});
+
+test("Enter at the start inserts a block above and keeps the caret", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 0);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/0 new:\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 0, text: "Bravo" });
+});
+
+test("Enter in a block with open children makes the first child", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a", 5);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/^0 a:Alpha\n1 new:\n1 a1:Alpha one/);
+});
+
+test("Enter on an empty nested last block outdents it", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a2", 9);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/1 a2:Alpha two\n1 new:\n0 b:Bravo$/);
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/1 a2:Alpha two\n0 new:\n0 b:Bravo$/);
+  expect((await caret(page))?.id).toBe("new");
+});
+
+test("Shift+Enter breaks the line inside the block, and the editor grows", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  const editor = await caretIn(component, "b", 5);
+  const oneLine = (await editor.boundingBox())?.height ?? 0;
+  await page.keyboard.press("Shift+Enter");
+  await page.keyboard.type("second");
+  await expect(tree(component)).toContainText("0 b:Bravo\nsecond");
+  expect((await editor.boundingBox())?.height).toBeCloseTo(oneLine * 2, 0);
+});
+
+test("a long line soft-wraps and the editor grows with it", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} width={240} />);
+  const editor = await caretIn(component, "b", 5);
+  const oneLine = (await editor.boundingBox())?.height ?? 0;
+  await page.keyboard.type(" and a good deal more text than one narrow line can hold");
+  const grown = await editor.evaluate((el: HTMLTextAreaElement) => ({
+    height: el.getBoundingClientRect().height,
+    scroll: el.scrollHeight,
+    client: el.clientHeight,
+  }));
+  expect(grown.height).toBeGreaterThanOrEqual(oneLine * 2);
+  expect(grown.scroll).toBeLessThanOrEqual(grown.client);
+});
+
+test("Backspace at the start merges into the previous block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 0);
+  await page.keyboard.press("Backspace");
+  await expect(tree(component)).toHaveText(/1 a2:Alpha twoBravo$/);
+  expect(await caret(page)).toEqual({ id: "a2", at: 9, text: "Alpha twoBravo" });
+});
+
+test("Delete at the end merges the next block in", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a1", 9);
+  await page.keyboard.press("Delete");
+  await expect(tree(component)).toHaveText(/1 a1:Alpha oneAlpha two\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "a1", at: 9, text: "Alpha oneAlpha two" });
+});
+
+test("Arrow Down and Up cross blocks and keep the caret's column", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a1", 7);
   await page.keyboard.press("ArrowDown");
-  await expect(component.locator('[data-bullet-id="a1"]')).toHaveAttribute("data-active", "true");
+  expect(await caret(page)).toEqual({ id: "a2", at: 7, text: "Alpha two" });
+  // "Bravo" is shorter and sits one level out: the caret clamps to its end,
+  // and comes back to the same column on the way up.
+  await page.keyboard.press("ArrowDown");
+  expect((await caret(page))?.id).toBe("b");
+  await page.keyboard.press("ArrowUp");
+  expect(await caret(page)).toEqual({ id: "a2", at: 7, text: "Alpha two" });
+  await page.keyboard.press("ArrowUp");
+  expect(await caret(page)).toEqual({ id: "a1", at: 7, text: "Alpha one" });
 });
 
-test("readOnly: ArrowLeft collapses; ArrowRight expands", async ({ mount, page }) => {
-  const component = await mount(<OutlinerHarness initial={TREE} readOnly />);
-  await component.locator('[data-bullet-id="a"]').click();
+test("Arrow Up stays inside a block until its first line", async ({ mount, page }) => {
+  const initial: OutlinerValue = [
+    { id: "x", content: "first" },
+    { id: "y", content: "line one\nline two" },
+  ];
+  const component = await mount(<OutlinerHarness initial={initial} />);
+  await caretIn(component, "y", 17);
+  await page.keyboard.press("ArrowUp");
+  expect((await caret(page))?.id).toBe("y");
+  await page.keyboard.press("ArrowUp");
+  expect((await caret(page))?.id).toBe("x");
+});
+
+test("Arrow Left at the start and Right at the end cross blocks", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a2", 0);
   await page.keyboard.press("ArrowLeft");
-  await expect(component.locator('[data-bullet-id="a1"]')).toHaveCount(0);
+  expect(await caret(page)).toEqual({ id: "a1", at: 9, text: "Alpha one" });
   await page.keyboard.press("ArrowRight");
-  await expect(component.locator('[data-bullet-id="a1"]')).toBeVisible();
+  expect(await caret(page)).toEqual({ id: "a2", at: 0, text: "Alpha two" });
 });
 
-test("Tab in editor indents the focused bullet", async ({ mount, page }) => {
+test("Tab and Shift+Tab indent and outdent, the caret stays", async ({ mount, page }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
-  // Click now activates AND enters edit mode (Roam-style edit-by-default).
-  await component.locator('[data-bullet-id="b"]').click();
+  await caretIn(component, "a2", 3);
   await page.keyboard.press("Tab");
-  // After indent, "b" should be a child of "a". padding-inline-start = depth*unit
-  // + the 1/8 unit base.
-  const pl = await component
-    .locator('[data-bullet-id="b"]')
-    .evaluate((el) => getComputedStyle(el).paddingInlineStart);
-  expect(pl).toBe(`${U + U / 8}px`);
+  await expect(tree(component)).toHaveText(/1 a1:Alpha one\n2 a2:Alpha two\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "a2", at: 3, text: "Alpha two" });
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(tree(component)).toHaveText(/1 a1:Alpha one\n0 a2:Alpha two\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "a2", at: 3, text: "Alpha two" });
 });
 
-test("click opens editor pre-filled with source (edit-by-default)", async ({ mount }) => {
+test("outdent takes the following siblings along", async ({ mount, page }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
-  await component.locator('[data-bullet-id="b"]').click();
-  const ta = component.locator("textarea");
-  await expect(ta).toBeVisible();
-  await expect(ta).toBeFocused();
-  await expect(ta).toHaveValue("Bravo");
+  await caretIn(component, "a1", 0);
+  await page.keyboard.press("Shift+Tab");
+  await expect(tree(component)).toHaveText("0 a:Alpha\n0 a1:Alpha one\n1 a2:Alpha two\n0 b:Bravo");
 });
 
-test("Esc cancels edit without writing", async ({ mount, page }) => {
+test("Alt+Shift+Arrow moves the block and keeps the caret", async ({ mount, page }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
-  await component.locator('[data-bullet-id="b"]').click();
-  await page.keyboard.insertText(" extra");
+  await caretIn(component, "a1", 2);
+  await page.keyboard.press("Alt+Shift+ArrowDown");
+  await expect(tree(component)).toHaveText(/^0 a:Alpha\n1 a2:Alpha two\n1 a1:Alpha one/);
+  expect(await caret(page)).toEqual({ id: "a1", at: 2, text: "Alpha one" });
+  // Past the last sibling it enters the parent's next sibling.
+  await page.keyboard.press("Alt+Shift+ArrowDown");
+  await expect(tree(component)).toHaveText("0 a:Alpha\n1 a2:Alpha two\n0 b:Bravo\n1 a1:Alpha one");
+  expect(await caret(page)).toEqual({ id: "a1", at: 2, text: "Alpha one" });
+});
+
+test("Mod+Arrow Up and Down fold and unfold while editing", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a", 2);
+  await page.keyboard.press("Control+ArrowUp");
+  await expect(row(component, "a1")).toHaveCount(0);
+  expect(await caret(page)).toEqual({ id: "a", at: 2, text: "Alpha" });
+  await page.keyboard.press("Control+ArrowDown");
+  await expect(row(component, "a1")).toBeVisible();
+});
+
+test("Escape keeps the text and leaves the block selected", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "a1", 9);
+  await page.keyboard.type(" extra");
   await page.keyboard.press("Escape");
   await expect(component.locator("textarea")).toHaveCount(0);
-  await expect(component.getByText("Bravo", { exact: true })).toBeVisible();
+  await expect(row(component, "a1")).toHaveAttribute("data-active", "true");
+  await expect(row(component, "a1")).toBeFocused();
+  await expect(tree(component)).toContainText("1 a1:Alpha one extra");
+
+  // The arrows walk the tree; Enter goes back into the text, at its end.
+  await page.keyboard.press("ArrowDown");
+  await expect(row(component, "a2")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(row(component, "a")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toEqual({ id: "a", at: 5, text: "Alpha" });
 });
 
-test("readOnly: click does NOT open an editor", async ({ mount }) => {
-  const component = await mount(<OutlinerHarness initial={TREE} readOnly />);
-  await component.locator('[data-bullet-id="b"]').click();
+test("the keyboard gets in and out: Tab passes through, Escape releases", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await component.getByTestId("before").focus();
+  await page.keyboard.press("Tab");
+  await expect(row(component, "a")).toBeFocused();
+  // Only focused, not selected: Tab moves on.
+  await page.keyboard.press("Tab");
+  await expect(component.getByTestId("after")).toBeFocused();
+
+  // Selected, Tab indents; after Escape it moves on again.
+  await page.keyboard.press("Shift+Tab");
+  await expect(row(component, "a")).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(row(component, "a2")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("Tab");
+  await expect(tree(component)).toContainText("2 a2:Alpha two");
+  await page.keyboard.press("Escape");
+  await expect(row(component, "a2")).not.toHaveAttribute("data-active", "true");
+  await page.keyboard.press("Tab");
+  await expect(component.getByTestId("after")).toBeFocused();
+});
+
+test("focus leaving the outline drops the caret and the selection", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 2);
+  await component.getByTestId("after").click();
   await expect(component.locator("textarea")).toHaveCount(0);
+  await expect(component.locator("[data-active]")).toHaveCount(0);
 });
 
-test("[[wiki links]] render as clickable buttons", async ({ mount }) => {
+test("an empty outline starts with a click", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={[]} />);
+  await component.getByText("Empty outline").click();
+  await expect(component.locator("textarea")).toBeFocused();
+  await page.keyboard.type("First");
+  await expect(tree(component)).toHaveText("0 new:First");
+});
+
+test("readOnly: a click selects and opens no editor", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} readOnly />);
+  await row(component, "b").click();
+  await expect(component.locator("textarea")).toHaveCount(0);
+  await expect(row(component, "b")).toHaveAttribute("data-active", "true");
+});
+
+test("readOnly: the arrows walk and fold the tree", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} readOnly />);
+  await row(component, "a").click();
+  await page.keyboard.press("ArrowDown");
+  await expect(row(component, "a1")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(row(component, "a")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(row(component, "a1")).toHaveCount(0);
+  await page.keyboard.press("ArrowRight");
+  await expect(row(component, "a1")).toBeVisible();
+});
+
+test("the tree is exposed as a tree", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await expect(component.getByRole("tree")).toBeVisible();
+  await expect(row(component, "a")).toHaveAttribute("aria-expanded", "true");
+  await expect(row(component, "a1")).toHaveAttribute("aria-level", "2");
+});
+
+test("[[wiki links]] render as clickable buttons and do not enter the block", async ({ mount }) => {
   const initial: OutlinerValue = [{ id: "1", content: "see [[Page A]] and [[Page B]]" }];
   const component = await mount(<OutlinerHarness initial={initial} />);
-  await expect(component.getByRole("button", { name: "Page A" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Page B" })).toBeVisible();
+  await component.getByRole("button", { name: "Page A" }).click();
+  await expect(component.locator("textarea")).toHaveCount(0);
 });
 
 test("((id)) transcludes resolved content; missing id shows placeholder", async ({ mount }) => {
@@ -99,7 +338,6 @@ test("((id)) transcludes resolved content; missing id shows placeholder", async 
   const component = await mount(
     <OutlinerHarness initial={initial} blockRefs={{ src: "**bold source**" }} />,
   );
-  // Resolved markdown — "bold source" rendered as bold; the word "source" is visible.
   await expect(component.getByText("bold source")).toBeVisible();
   await expect(component.getByText(/ref not found.*nope/)).toBeVisible();
 });

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 export type BulletId = string;
 
@@ -25,8 +25,10 @@ export interface FlatBullet {
   path: BulletPath;
 }
 
-export interface OutlinerProps {
+export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   value: OutlinerValue;
+  /** Every change to the tree: a keystroke in a block, a split, a merge, an
+   *  indent, a move, a fold. Text is live, like any controlled input. */
   onChange: (next: OutlinerValue) => void;
   /** Read-only mode (no edit, no tree ops). Default false. */
   readOnly?: boolean;
@@ -38,6 +40,7 @@ export interface OutlinerProps {
   /** Resolve a ((block-id)) to its bullet content (markdown).
    *  Return null to render a "missing reference" placeholder. */
   resolveBlockRef?: (id: BulletId) => string | null;
-  className?: string;
-  style?: CSSProperties;
+  /** Shown in place of the first block while the outline is empty; clicking
+   *  it (or Enter on it) starts the first block. */
+  placeholder?: ReactNode;
 }

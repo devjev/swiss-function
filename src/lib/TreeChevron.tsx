@@ -10,6 +10,9 @@ interface TreeChevronProps {
   /** Click handler. Should toggle expansion. */
   onToggle: () => void;
   ariaLabel?: string;
+  /** Tab order of the toggle. A tree whose rows own the arrow keys passes -1,
+   *  so the tree is one tab stop. */
+  tabIndex?: number;
 }
 
 export function TreeChevron({
@@ -17,6 +20,7 @@ export function TreeChevron({
   visible = true,
   onToggle,
   ariaLabel,
+  tabIndex,
 }: TreeChevronProps): ReactElement {
   if (!visible) {
     return <span className={styles.chevronSlot} aria-hidden="true" />;
@@ -33,6 +37,7 @@ export function TreeChevron({
       onPointerDown={(e) => e.stopPropagation()}
       aria-label={ariaLabel ?? (expanded ? "Collapse" : "Expand")}
       aria-expanded={expanded}
+      tabIndex={tabIndex}
     >
       {/* Expand/collapse glyph routed through the chevron slots, so a consumer's
           `IconProvider` (Feather/Lucide/…) redirects the tree toggles too. The

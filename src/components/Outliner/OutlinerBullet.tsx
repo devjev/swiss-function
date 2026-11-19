@@ -1,15 +1,14 @@
-import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
-import { forwardRef, useEffect, useRef, useState } from "react";
+import type { ComponentProps, CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
+import { memo, useRef, useState } from "react";
 import type ReactMarkdown from "react-markdown";
-import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { Check } from "../Icon";
 import { Markdown } from "../Markdown";
-import { TextEdit } from "../TextEdit";
 import { passthroughUrlTransform, preprocessOutlinerMarkdown } from "./markdown-extensions";
 import styles from "./Outliner.module.css";
-import type { Bullet } from "./types";
+import { sourceOffsetAtPoint } from "./sourceOffset";
+import type { Bullet, BulletId } from "./types";
 
 type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
@@ -17,201 +16,146 @@ export interface OutlinerBulletProps {
   bullet: Bullet;
   depth: number;
   hasChildren: boolean;
+  /** The selected block (or the one being edited). */
   isActive: boolean;
   isEditing: boolean;
+  /** The one row a Tab into the outline lands on. */
+  tabbable: boolean;
   readOnly?: boolean;
-  /** Markdown component overrides — for wiki-links / block-refs. */
+  /** Markdown component overrides, for wiki links and block references. */
   markdownComponents?: Components;
-  /** Click on the content area. */
-  onActivate: () => void;
-  /** Double-click → enter edit mode. */
-  onStartEdit: () => void;
-  /** Chevron click → toggle the collapsed flag. */
-  onToggleCollapsed: () => void;
-  /** Commit a content edit. */
-  onCommit: (content: string) => void;
-  /** Bail out of edit mode without writing. */
-  onCancel: () => void;
-  /** Cmd/Ctrl+Enter: commit current AND ask the Outliner to create the next bullet. */
-  onCommitAndNew: (content: string) => void;
-  /** Backspace at start of an empty bullet: delete + focus prev. */
-  onDeleteIfEmpty: () => void;
-  /** ↑ at first line in editor: commit + nav prev (Outliner handles re-focus). */
-  onCommitAndPrev: (content: string) => void;
-  /** ↓ at last line in editor: commit + nav next. */
-  onCommitAndNext: (content: string) => void;
-  /** Tab / Shift+Tab while editing: commit then indent/outdent. */
-  onCommitAndIndent: (content: string) => void;
-  onCommitAndOutdent: (content: string) => void;
+  /** A click on the block. `offset` is the clicked position in the markdown
+   *  source; null in read-only mode. */
+  onEnter: (id: BulletId, offset: number | null) => void;
+  onToggleCollapsed: (id: BulletId) => void;
+  onTextChange: (id: BulletId, text: string) => void;
+  /** Every key pressed in the editor: the Outliner owns the rules, since most
+   *  of them change the tree. */
+  onEditorKeyDown: (id: BulletId, event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  registerRow: (id: BulletId, element: HTMLDivElement | null) => void;
+  registerEditor: (id: BulletId, element: HTMLTextAreaElement | null) => void;
 }
 
+/** Keeps the focus where it is: a press on the fold arrow or the id button
+ *  must not take the caret out of the block being edited. */
+const keepFocus = (e: MouseEvent) => e.preventDefault();
+
 /**
- * One bullet row. Owns its draft state when editing; bubbles structural intents
- * (commit-and-X, delete-if-empty) up to the Outliner for tree mutation.
+ * One block row: fold arrow, bullet, then the text as rendered markdown or,
+ * while the block is entered, as a textarea over its markdown source.
  */
-export const OutlinerBullet = forwardRef<HTMLDivElement, OutlinerBulletProps>(
-  function OutlinerBullet(props, ref) {
-    const {
-      bullet,
-      depth,
-      hasChildren,
-      isActive,
-      isEditing,
-      readOnly,
-      markdownComponents,
-      onActivate,
-      onStartEdit,
-      onToggleCollapsed,
-      onCommit,
-      onCancel,
-      onCommitAndNew,
-      onDeleteIfEmpty,
-      onCommitAndPrev,
-      onCommitAndNext,
-      onCommitAndIndent,
-      onCommitAndOutdent,
-    } = props;
+export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBulletProps) {
+  const {
+    bullet,
+    depth,
+    hasChildren,
+    isActive,
+    isEditing,
+    tabbable,
+    readOnly,
+    markdownComponents,
+    onEnter,
+    onToggleCollapsed,
+    onTextChange,
+    onEditorKeyDown,
+    registerRow,
+    registerEditor,
+  } = props;
 
-    const [draft, setDraft] = useState(bullet.content);
-    const [copied, setCopied] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [copied, setCopied] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-    const copyRef = async () => {
-      try {
-        await navigator.clipboard.writeText(`((${bullet.id}))`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1200);
-      } catch {
-        // clipboard permission denied / unsupported — silently no-op
-      }
-    };
+  const copyRef = async () => {
+    try {
+      await navigator.clipboard.writeText(`((${bullet.id}))`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // clipboard permission denied or unsupported: nothing to report
+    }
+  };
 
-    // Sync draft when entering edit mode.
-    useEffect(() => {
-      if (isEditing) {
-        setDraft(bullet.content);
-      }
-    }, [isEditing, bullet.content]);
+  const handleClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (isEditing || e.defaultPrevented) return;
+    // A link, a wiki link or a task checkbox keeps its own click.
+    if ((e.target as HTMLElement).closest("a, button, input")) return;
+    const content = contentRef.current;
+    // A drag that selected rendered text is a selection, not an entry.
+    const selection = content?.ownerDocument.defaultView?.getSelection();
+    if (selection && !selection.isCollapsed && content?.contains(selection.anchorNode)) return;
+    const offset =
+      readOnly || !content
+        ? null
+        : sourceOffsetAtPoint(content, bullet.content, e.clientX, e.clientY);
+    onEnter(bullet.id, offset);
+  };
 
-    useEffect(() => {
-      if (isEditing) {
-        textareaRef.current?.focus();
-        const len = textareaRef.current?.value.length ?? 0;
-        textareaRef.current?.setSelectionRange(len, len);
-      }
-    }, [isEditing]);
-
-    const handleEditorKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      const ta = e.currentTarget;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-        return;
-      }
-      if (e.key === "Enter") {
-        if (e.metaKey || e.ctrlKey) {
-          // Ctrl/Cmd+Enter → insert literal newline at cursor.
-          // (Browsers don't do this natively; we have to do it ourselves.)
-          e.preventDefault();
-          const start = ta.selectionStart;
-          const end = ta.selectionEnd;
-          ta.setRangeText("\n", start, end, "end");
-          setDraft(ta.value);
-        } else {
-          // Plain Enter → commit + create new sibling bullet, edit it.
-          e.preventDefault();
-          onCommitAndNew(draft);
-        }
-        return;
-      }
-      if (e.key === "Tab") {
-        e.preventDefault();
-        if (e.shiftKey) onCommitAndOutdent(draft);
-        else onCommitAndIndent(draft);
-        return;
-      }
-      if (e.key === "Backspace" && ta.selectionStart === 0 && ta.selectionEnd === 0) {
-        if (draft.trim() === "" && !hasChildren) {
-          e.preventDefault();
-          onDeleteIfEmpty();
-          return;
-        }
-      }
-      if (e.key === "ArrowUp" && ta.selectionStart === 0 && ta.selectionEnd === 0) {
-        e.preventDefault();
-        onCommitAndPrev(draft);
-        return;
-      }
-      if (
-        e.key === "ArrowDown" &&
-        ta.selectionStart === ta.value.length &&
-        ta.selectionEnd === ta.value.length
-      ) {
-        e.preventDefault();
-        onCommitAndNext(draft);
-        return;
-      }
-    };
-
-    return (
-      <div
-        ref={ref}
-        className={styles.row}
-        style={{
-          paddingInlineStart: `calc(var(--sf-unit) * ${depth} + var(--sf-unit) / 8)`,
-        }}
-        tabIndex={isActive && !isEditing ? 0 : -1}
-        data-active={isActive || undefined}
-        data-bullet-id={bullet.id}
-        onClick={() => {
-          if (!isEditing) onActivate();
-        }}
-      >
+  return (
+    <div
+      ref={(el) => registerRow(bullet.id, el)}
+      role="treeitem"
+      aria-level={depth + 1}
+      aria-expanded={hasChildren ? !bullet.collapsed : undefined}
+      aria-selected={isActive}
+      className={styles.row}
+      style={{ "--sf-outliner-depth": depth } as CSSProperties}
+      tabIndex={tabbable && !isEditing ? 0 : -1}
+      data-active={isActive || undefined}
+      data-editing={isEditing || undefined}
+      data-bullet-id={bullet.id}
+      onClick={handleClick}
+    >
+      <span className={styles.fold} onMouseDown={keepFocus}>
         <TreeChevron
           expanded={!bullet.collapsed}
           visible={hasChildren}
-          onToggle={onToggleCollapsed}
+          onToggle={() => onToggleCollapsed(bullet.id)}
+          tabIndex={-1}
         />
-        <div
-          className={styles.content}
-          onDoubleClick={(e) => {
-            if (readOnly) return;
-            e.stopPropagation();
-            onStartEdit();
-          }}
-        >
-          {isEditing ? (
-            <TextEdit
-              ref={textareaRef}
-              className={styles.bulletEditor}
-              value={draft}
-              rows={Math.max(1, draft.split("\n").length)}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => onCommit(draft)}
-              onKeyDown={handleEditorKey}
+      </span>
+      <span
+        className={styles.bullet}
+        data-collapsed={(hasChildren && bullet.collapsed) || undefined}
+        aria-hidden="true"
+      >
+        <span className={styles.dot} />
+      </span>
+      <div ref={contentRef} className={styles.content}>
+        {isEditing ? (
+          <div className={styles.editor} data-value={bullet.content}>
+            <textarea
+              ref={(el) => registerEditor(bullet.id, el)}
+              className={styles.textarea}
+              aria-label="Block text"
+              rows={1}
+              value={bullet.content}
+              onChange={(e) => onTextChange(bullet.id, e.target.value)}
+              onKeyDown={(e) => onEditorKeyDown(bullet.id, e)}
             />
-          ) : (
-            <BulletContent content={bullet.content} components={markdownComponents} />
-          )}
-        </div>
-        <button
-          type="button"
-          className={styles.copyRefButton}
-          onClick={(e) => {
-            e.stopPropagation();
-            void copyRef();
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label={`Copy block reference: ((${bullet.id}))`}
-          title={copied ? "Copied!" : `Copy ((${bullet.id}))`}
-          data-copied={copied || undefined}
-        >
-          {copied ? <Glyph slot="check" fallback={Check} size="0.85em" /> : "id"}
-        </button>
+          </div>
+        ) : (
+          <BulletContent content={bullet.content} components={markdownComponents} />
+        )}
       </div>
-    );
-  },
-);
+      <button
+        type="button"
+        className={styles.copyRefButton}
+        // A pointer affordance: the outline is one tab stop.
+        tabIndex={-1}
+        onClick={(e) => {
+          e.stopPropagation();
+          void copyRef();
+        }}
+        onMouseDown={keepFocus}
+        aria-label={`Copy block reference: ((${bullet.id}))`}
+        title={copied ? "Copied" : `Copy ((${bullet.id}))`}
+        data-copied={copied || undefined}
+      >
+        {copied ? <Glyph slot="check" fallback={Check} size="0.85em" /> : "id"}
+      </button>
+    </div>
+  );
+});
 
 interface BulletContentProps {
   content: string;
@@ -219,9 +163,8 @@ interface BulletContentProps {
 }
 
 function BulletContent({ content, components }: BulletContentProps): ReactNode {
-  if (content.trim() === "") {
-    return <span style={{ color: "var(--sf-color-muted)" }}>—</span>;
-  }
+  // An empty block is an empty line: the bullet marks it.
+  if (content.trim() === "") return <span className={styles.blank}>{"​"}</span>;
   return (
     <Markdown
       value={content}

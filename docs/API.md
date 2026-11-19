@@ -2600,16 +2600,58 @@ Also exported: `fromArrow` / `isArrowTableLike` / `ArrowTableLike` (re-exported 
 
 `import { Outliner } from "@tarassov-ch/swiss-function/outliner"`
 
-Tree outline editor with collapsible bullets, keyboard nav, wiki-links, and block-ref transclusion. Extends `HTMLAttributes<HTMLDivElement>`.
+An outline edited as one document, after Roam Research and Logseq. A block is a
+textarea over its markdown source while the caret is in it and rendered markdown
+otherwise; entering a block changes nothing on screen but the caret. Enter,
+Backspace, Tab and the arrow keys carry the caret and the structure from block
+to block. `[[wiki links]]` and `((block-id))` references render inline. Forwards
+its ref to the root and extends `HTMLAttributes<HTMLDivElement>` (`role="tree"`;
+give it an `aria-label`).
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `value` | `Bullet[]` | n/a | Tree; each bullet `{ id, content, collapsed?, children[] }`. |
-| `onChange` | `(next: Bullet[]) => void` | n/a | Any mutation (edit, indent, delete, collapse, reorder). |
-| `readOnly` | `boolean` | `false` | Navigation/read only. |
+| `value` | `Bullet[]` | n/a | Tree; each bullet `{ id, content, collapsed?, children? }`, `content` is markdown. |
+| `onChange` | `(next: Bullet[]) => void` | n/a | Every change: a keystroke, a split, a merge, an indent, a move, a fold. Text is live, like a controlled input. Unchanged bullets keep their identity. |
+| `readOnly` | `boolean` | `false` | No editing; a click selects, the arrows walk and fold the tree. |
 | `generateId` | `() => string` | `crypto.randomUUID()` | New-bullet id factory. |
-| `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. |
+| `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. Pass a stable function: it is a dependency of every row. |
 | `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
+| `placeholder` | `ReactNode` | `"Empty outline. Click to write."` | Shown while `value` is empty; a click or Enter on it starts the first block. |
+
+**Two levels of focus.** In a block's text the keys edit. Escape steps out to
+the block itself (selected); Escape again releases the selection. A Tab into the
+outline lands on one row (the last selected, else the first) without selecting
+it, so Tab passes through; the outline never holds the keyboard.
+
+**Keys in a block's text**
+
+| Key | Does |
+| --- | --- |
+| Enter | Splits the block at the caret; the new block takes the text after it. At the start of a non-empty block: an empty block goes in above. In a block with open children: the new block is the first child. On an empty nested last child: it outdents instead. |
+| Shift+Enter | A line break inside the block. |
+| Backspace at the start | Merges into the previous visible block, caret at the join. A block with children merges only into a childless previous sibling, which adopts them. |
+| Delete at the end | Merges the next visible block in, by the same rule. |
+| ↑ / ↓ | On the block's first / last visual line: moves to the neighbouring block and keeps the caret's horizontal position. |
+| ← at the start / → at the end | Crosses to the end of the previous / the start of the next block. |
+| Tab / Shift+Tab | Indent / outdent; the caret stays. An outdented block takes its following siblings along as children, so no line changes place. |
+| Alt+Shift+↑/↓, Mod+Shift+↑/↓ | Move the block among its siblings; past the first / last it enters the neighbouring parent. |
+| Mod+↑ / Mod+↓ | Fold / unfold. |
+| Escape | Leaves the text; the block stays selected. |
+
+**Keys on a selected block:** ↑ / ↓ select the neighbour, ← folds or goes to the
+parent, → unfolds or goes to the first child, Home / End, Enter or F2 enter the
+text at its end, Tab / Shift+Tab indent and outdent, the move and fold chords as
+above, Backspace / Delete remove the block (its children move up a level),
+Escape releases.
+
+**Pointer:** a click enters the block at the clicked character (the rendered
+position is mapped back to the markdown source); a drag that selects rendered
+text does not enter it. The fold arrow shows on the hovered and the active row;
+a folded block's bullet wears a ring.
+
+**CSS variables** (set on the root or an ancestor): `--sf-outliner-indent` (one
+indent step, `1` unit; the guide lines follow it) and `--sf-outliner-row-pad`
+(a block's padding above and below, `1/8` unit).
 
 ## Pane
 

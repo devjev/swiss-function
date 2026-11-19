@@ -112,6 +112,17 @@ function getSiblingsCount(bullets: OutlinerValue, parentPath: BulletPath): numbe
   return cursor.length;
 }
 
+function bulletAt(bullets: OutlinerValue, path: BulletPath): Bullet | null {
+  let list: Bullet[] | undefined = bullets;
+  let found: Bullet | null = null;
+  for (const i of path) {
+    found = list?.[i] ?? null;
+    if (!found) return null;
+    list = found.children;
+  }
+  return found;
+}
+
 // ----------------------------------------------------------------------------
 // High-level mutations (all immutable)
 // ----------------------------------------------------------------------------
@@ -190,39 +201,180 @@ export function indent(bullets: OutlinerValue, id: BulletId): OutlinerValue {
   }));
 }
 
-/** Outdent: bullet becomes the sibling immediately after its parent.
- *  No-op if already at root level. */
+/** Outdent: the bullet becomes the sibling right after its parent, and its
+ *  following siblings become its children (the Roam and Logseq default), so
+ *  no line changes its place on screen. No-op at root level. */
 export function outdent(bullets: OutlinerValue, id: BulletId): OutlinerValue {
   const f = findBullet(bullets, id);
   if (!f) return bullets;
   if (f.path.length <= 1) return bullets;
-  const { removed, rest } = removeAt(bullets, f.path);
-  if (!removed) return bullets;
   const parentPath = f.path.slice(0, -1);
+  const idx = f.path[f.path.length - 1] as number;
+  const parent = bulletAt(bullets, parentPath);
+  if (!parent) return bullets;
+  const siblings = parent.children ?? [];
+  const following = siblings.slice(idx + 1);
+  const moved: Bullet =
+    following.length > 0
+      ? { ...f.bullet, children: [...(f.bullet.children ?? []), ...following], collapsed: false }
+      : f.bullet;
+  const trimmed = updateAt(bullets, parentPath, (p) => ({
+    ...p,
+    children: siblings.slice(0, idx),
+  }));
   const parentIdx = parentPath[parentPath.length - 1] as number;
-  const insertPath: BulletPath = [...parentPath.slice(0, -1), parentIdx + 1];
-  return insertAtPath(rest, insertPath, removed);
+  return insertAtPath(trimmed, [...parentPath.slice(0, -1), parentIdx + 1], moved);
 }
 
+/** Move up among the siblings. At the first sibling the bullet crosses into
+ *  the parent's previous sibling, as its last child. */
 export function moveUp(bullets: OutlinerValue, id: BulletId): OutlinerValue {
   const f = findBullet(bullets, id);
   if (!f) return bullets;
   const lastIdx = f.path[f.path.length - 1] as number;
-  if (lastIdx === 0) return bullets;
+  const parentPath = f.path.slice(0, -1);
+  if (lastIdx > 0) {
+    const { removed, rest } = removeAt(bullets, f.path);
+    if (!removed) return bullets;
+    return insertAtPath(rest, [...parentPath, lastIdx - 1], removed);
+  }
+  const parentIdx = parentPath[parentPath.length - 1];
+  if (parentIdx === undefined || parentIdx === 0) return bullets;
   const { removed, rest } = removeAt(bullets, f.path);
   if (!removed) return bullets;
-  const insertPath: BulletPath = [...f.path.slice(0, -1), lastIdx - 1];
-  return insertAtPath(rest, insertPath, removed);
+  return updateAt(rest, [...parentPath.slice(0, -1), parentIdx - 1], (uncle) => ({
+    ...uncle,
+    children: [...(uncle.children ?? []), removed],
+    collapsed: false,
+  }));
 }
 
+/** Move down among the siblings. At the last sibling the bullet crosses into
+ *  the parent's next sibling, as its first child. */
 export function moveDown(bullets: OutlinerValue, id: BulletId): OutlinerValue {
   const f = findBullet(bullets, id);
   if (!f) return bullets;
   const lastIdx = f.path[f.path.length - 1] as number;
-  const siblingCount = getSiblingsCount(bullets, f.path.slice(0, -1));
-  if (lastIdx >= siblingCount - 1) return bullets;
+  const parentPath = f.path.slice(0, -1);
+  const siblingCount = getSiblingsCount(bullets, parentPath);
+  if (lastIdx < siblingCount - 1) {
+    const { removed, rest } = removeAt(bullets, f.path);
+    if (!removed) return bullets;
+    return insertAtPath(rest, [...parentPath, lastIdx + 1], removed);
+  }
+  const parentIdx = parentPath[parentPath.length - 1];
+  if (parentIdx === undefined) return bullets;
+  const unclePath = [...parentPath.slice(0, -1), parentIdx + 1];
+  if (!bulletAt(bullets, unclePath)) return bullets;
   const { removed, rest } = removeAt(bullets, f.path);
   if (!removed) return bullets;
-  const insertPath: BulletPath = [...f.path.slice(0, -1), lastIdx + 1];
-  return insertAtPath(rest, insertPath, removed);
+  return updateAt(rest, unclePath, (uncle) => ({
+    ...uncle,
+    children: [removed, ...(uncle.children ?? [])],
+    collapsed: false,
+  }));
+}
+
+// ----------------------------------------------------------------------------
+// Editing operations (the caret-driven ones)
+// ----------------------------------------------------------------------------
+
+/** Where the caret goes after a structural edit. */
+export interface EditResult {
+  value: OutlinerValue;
+  /** The bullet that holds the caret afterwards. */
+  focusId: BulletId;
+  /** Caret offset in that bullet's source. */
+  offset: number;
+}
+
+/** Enter in a bullet whose selection runs from `start` to `end`.
+ *
+ *  - Caret at 0 of a non-empty bullet: an empty bullet goes in above, the
+ *    caret stays where it is.
+ *  - An empty, childless, nested last child: it outdents instead.
+ *  - Otherwise the bullet splits: it keeps the text before the selection and a
+ *    new bullet takes the text after it. The new bullet is the first child
+ *    when the bullet shows children, the next sibling otherwise. */
+export function splitBullet(
+  bullets: OutlinerValue,
+  id: BulletId,
+  start: number,
+  end: number,
+  newId: BulletId,
+): EditResult | null {
+  const f = findBullet(bullets, id);
+  if (!f) return null;
+  const { content } = f.bullet;
+  const hasChildren = (f.bullet.children?.length ?? 0) > 0;
+
+  if (start === 0 && end === 0 && content.length > 0) {
+    return {
+      value: insertAtPath(bullets, f.path, { id: newId, content: "" }),
+      focusId: id,
+      offset: 0,
+    };
+  }
+
+  if (content === "" && !hasChildren && f.path.length > 1) {
+    const idx = f.path[f.path.length - 1] as number;
+    if (idx === getSiblingsCount(bullets, f.path.slice(0, -1)) - 1) {
+      return { value: outdent(bullets, id), focusId: id, offset: 0 };
+    }
+  }
+
+  const before = content.slice(0, start).trimEnd();
+  const after = content.slice(end).trimStart();
+  const fresh: Bullet = { id: newId, content: after };
+  const kept = updateAt(bullets, f.path, (b) => ({ ...b, content: before }));
+  const value =
+    hasChildren && !f.bullet.collapsed
+      ? updateAt(kept, f.path, (b) => ({ ...b, children: [fresh, ...(b.children ?? [])] }))
+      : insertAfter(kept, id, fresh);
+  return { value, focusId: newId, offset: 0 };
+}
+
+/** Append `sourceId`'s text to `targetId` and remove the source: Backspace at
+ *  the start of the source, or Delete at the end of the target. The caret lands
+ *  at the join.
+ *
+ *  A source with children merges only into a childless target that is its
+ *  previous sibling, which then adopts them; anything else would move a
+ *  subtree to another depth, so it returns null. */
+export function mergeInto(
+  bullets: OutlinerValue,
+  targetId: BulletId,
+  sourceId: BulletId,
+): EditResult | null {
+  if (targetId === sourceId) return null;
+  const t = findBullet(bullets, targetId);
+  const s = findBullet(bullets, sourceId);
+  if (!t || !s) return null;
+  const sourceChildren = s.bullet.children ?? [];
+  if (sourceChildren.length > 0) {
+    const targetChildless = (t.bullet.children?.length ?? 0) === 0;
+    const sameParent =
+      t.path.length === s.path.length && t.path.slice(0, -1).every((v, i) => v === s.path[i]);
+    const adjacent = (t.path[t.path.length - 1] as number) + 1 === s.path[s.path.length - 1];
+    if (!targetChildless || !sameParent || !adjacent) return null;
+  }
+  const offset = t.bullet.content.length;
+  const { rest } = removeAt(bullets, s.path);
+  const again = findBullet(rest, targetId);
+  if (!again) return null;
+  const value = updateAt(rest, again.path, (b) => ({
+    ...b,
+    content: b.content + s.bullet.content,
+    ...(sourceChildren.length > 0
+      ? { children: sourceChildren, collapsed: s.bullet.collapsed }
+      : null),
+  }));
+  return { value, focusId: targetId, offset };
+}
+
+/** The bullet's parent, or null at root level. */
+export function getParentId(bullets: OutlinerValue, id: BulletId): BulletId | null {
+  const f = findBullet(bullets, id);
+  if (!f || f.path.length <= 1) return null;
+  return bulletAt(bullets, f.path.slice(0, -1))?.id ?? null;
 }

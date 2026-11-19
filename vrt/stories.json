@@ -522,6 +522,7 @@
   "notebook--playground",
   "outliner--block-refs",
   "outliner--editable",
+  "outliner--empty",
   "outliner--read-only",
   "outliner--wiki-links",
   "pane--basic",

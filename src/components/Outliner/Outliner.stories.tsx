@@ -1,12 +1,14 @@
 import type { Story } from "@ladle/react";
-import { useState } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useState } from "react";
+import { Kbd } from "../Kbd";
 import { Outliner } from "./Outliner";
 import type { OutlinerValue } from "./types";
 
 const SAMPLE: OutlinerValue = [
   {
     id: "1",
-    content: "**Engineering** — *the people who build*",
+    content: "**Engineering**, *the people who build*",
     children: [
       { id: "1.1", content: "Alice" },
       {
@@ -32,79 +34,119 @@ const SAMPLE: OutlinerValue = [
       },
     ],
   },
-  { id: "3", content: "Design — see also [[Team Brand Guide]]" },
+  { id: "3", content: "Design, see also [[Team Brand Guide]]" },
+  {
+    id: "4",
+    content:
+      "A longer block, to show that the text wraps under itself and that the editor grows with it: entering this block changes nothing on screen but the caret.",
+  },
 ];
 
+const frame = { maxWidth: "calc(var(--sf-unit) * 30)" };
+
+function Note({ children }: { children: ReactNode }) {
+  return <p style={{ margin: "0 0 var(--sf-unit)" }}>{children}</p>;
+}
+
 export const ReadOnly: Story = () => (
-  <div style={{ maxWidth: "calc(var(--sf-unit) * 30)" }}>
-    <Outliner value={SAMPLE} onChange={() => {}} readOnly />
+  <div style={frame}>
+    <Note>Click a block to select it. The arrows walk and fold the tree.</Note>
+    <Outliner value={SAMPLE} onChange={() => {}} readOnly aria-label="Team" />
   </div>
 );
+
+const KEYS: Array<[string, string]> = [
+  ["enter", "Split the block at the caret"],
+  ["shift+enter", "A line break inside the block"],
+  ["backspace", "At the start: merge into the block above"],
+  ["tab", "Indent (Shift+Tab outdents)"],
+  ["alt+shift+up", "Move the block (also down)"],
+  ["mod+up", "Fold (Mod+Down unfolds)"],
+  ["escape", "Leave the text; the block stays selected"],
+];
 
 export const Editable: Story = () => {
   const [value, setValue] = useState<OutlinerValue>(SAMPLE);
   return (
-    <div style={{ maxWidth: "calc(var(--sf-unit) * 30)" }}>
-      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
-        Click a bullet to focus, ↑/↓ to nav, ←/→ to collapse/expand. Double-click or Enter/F2 to
-        edit. Tab/Shift+Tab indent/outdent. Cmd+Shift+↑/↓ to reorder. Cmd+Enter in editor commits +
-        creates a new sibling.
-      </p>
-      <Outliner value={value} onChange={setValue} />
+    <div style={frame}>
+      <Note>
+        Click into any block and type. The arrow keys move through the outline as through one
+        document.
+      </Note>
+      <Outliner value={value} onChange={setValue} aria-label="Team" />
+      <dl
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto 1fr",
+          gap: "calc(var(--sf-unit) / 4) var(--sf-unit)",
+          margin: "var(--sf-unit) 0 0",
+        }}
+      >
+        {KEYS.map(([combo, what]) => (
+          <div key={combo} style={{ display: "contents" }}>
+            <dt>
+              <Kbd combo={combo} variant="outline" />
+            </dt>
+            <dd style={{ margin: 0 }}>{what}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+};
+
+export const Empty: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>([]);
+  return (
+    <div style={frame}>
+      <Note>An empty outline starts with a click, or with Enter on the placeholder.</Note>
+      <Outliner value={value} onChange={setValue} aria-label="Notes" />
     </div>
   );
 };
 
 export const WikiLinks: Story = () => {
   const [value, setValue] = useState<OutlinerValue>([
-    { id: "1", content: "Meeting notes — see [[Project Alpha]] and [[Daily/2026-06-03]]" },
+    { id: "1", content: "Meeting notes, see [[Project Alpha]] and [[Daily/2026-06-03]]" },
     { id: "2", content: "Backlog references [[Project Alpha]]" },
     { id: "3", content: "Random thought" },
   ]);
   const [log, setLog] = useState<string[]>([]);
+  const onWikiLinkClick = useCallback((name: string) => setLog((l) => [...l, name]), []);
   return (
-    <div style={{ maxWidth: "calc(var(--sf-unit) * 30)" }}>
-      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
-        Click wiki links to log their names.
-      </p>
-      <Outliner
-        value={value}
-        onChange={setValue}
-        onWikiLinkClick={(name) => setLog((l) => [...l, name])}
-      />
-      <pre style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
-        clicks: {log.join(", ")}
-      </pre>
+    <div style={frame}>
+      <Note>
+        Click a wiki link to log its name. A click on the text around it enters the block.
+      </Note>
+      <Outliner value={value} onChange={setValue} onWikiLinkClick={onWikiLinkClick} />
+      <pre style={{ fontSize: "var(--sf-font-size-sm)" }}>clicks: {log.join(", ")}</pre>
     </div>
   );
 };
 
+function findContent(list: OutlinerValue, target: string): string | null {
+  for (const b of list) {
+    if (b.id === target) return b.content;
+    const nested = b.children ? findContent(b.children, target) : null;
+    if (nested != null) return nested;
+  }
+  return null;
+}
+
 export const BlockRefs: Story = () => {
-  const initial: OutlinerValue = [
+  const [value, setValue] = useState<OutlinerValue>([
     { id: "src", content: "**The source bullet** that gets referenced." },
     { id: "a", content: "Body of A, which transcludes: ((src))" },
     { id: "b", content: "Another bullet that also refs ((src))" },
     { id: "c", content: "And one that points at a missing id: ((nope))" },
-  ];
-  const [value, setValue] = useState<OutlinerValue>(initial);
-  const resolveBlockRef = (id: string) => {
-    const findInTree = (list: typeof value, target: string): string | null => {
-      for (const b of list) {
-        if (b.id === target) return b.content;
-        if (b.children) {
-          const c = findInTree(b.children, target);
-          if (c != null) return c;
-        }
-      }
-      return null;
-    };
-    return findInTree(value, id);
-  };
+  ]);
+  const resolveBlockRef = useCallback((id: string) => findContent(value, id), [value]);
   return (
-    <div style={{ maxWidth: "calc(var(--sf-unit) * 30)" }}>
-      <p style={{ fontSize: "var(--sf-font-size-sm)", color: "var(--sf-color-muted)" }}>
-        ((id)) transcludes the referenced bullet. Edit "The source bullet" — references update.
-      </p>
+    <div style={frame}>
+      <Note>
+        ((id)) transcludes the referenced bullet. Edit "The source bullet" and the references
+        follow.
+      </Note>
       <Outliner value={value} onChange={setValue} resolveBlockRef={resolveBlockRef} />
     </div>
   );
