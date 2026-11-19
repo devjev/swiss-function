@@ -1127,3 +1127,336 @@ test("frame={false} drops the border and the padding", async ({ mount }) => {
   });
   expect(box).toEqual(["0px", "0px"]);
 });
+
+// --- Block types ---
+
+const content = (root: Locator, id: string) => row(root, id).locator('[class*="content"]').first();
+
+test("a heading is read from the text; Mod+Alt+digit sets and removes it", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <OutlinerHarness initial={[{ id: "h", content: "# Title" }, ...TREE]} />,
+  );
+  await expect(content(component, "h")).toHaveAttribute("data-kind", "heading");
+  await expect(content(component, "h")).toHaveAttribute("data-level", "1");
+  await expect(content(component, "h")).toHaveText("Title");
+  const sizes = await Promise.all(
+    ["h", "b"].map((id) => content(component, id).evaluate((el) => getComputedStyle(el).fontSize)),
+  );
+  expect(Number.parseFloat(sizes[0] ?? "")).toBeGreaterThan(Number.parseFloat(sizes[1] ?? ""));
+
+  await caretIn(component, "b", 2);
+  await page.keyboard.press("Control+Alt+2");
+  expect(await caret(page)).toEqual({ id: "b", at: 5, text: "## Bravo" });
+  // The source is edited in the heading's face.
+  await expect(content(component, "b")).toHaveAttribute("data-level", "2");
+  await page.keyboard.press("Control+Alt+1");
+  expect(await caret(page)).toEqual({ id: "b", at: 4, text: "# Bravo" });
+  await page.keyboard.press("Control+Alt+1");
+  expect(await caret(page)).toEqual({ id: "b", at: 2, text: "Bravo" });
+  // On selected blocks too.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Shift+ArrowUp");
+  await page.keyboard.press("Control+Alt+3");
+  await expect(tree(component)).toContainText("1 a2:### Alpha two\n0 b:### Bravo");
+});
+
+test("a numbered block continues its list, and the list renumbers itself", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={[{ id: "x", content: "" }]} />);
+  await caretIn(component, "x", 0);
+  await page.keyboard.type("1. one");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toEqual({ id: "new", at: 3, text: "2. " });
+  await page.keyboard.type("two");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("three");
+  await expect(tree(component)).toHaveText("0 x:1. one\n0 new:2. two\n0 new:3. three");
+  // The number shows in front of the text, in place of the marker.
+  await page.keyboard.press("Escape");
+  await expect(content(component, "x")).toHaveText("1.one");
+  // Moving a block renumbers the run.
+  await page.keyboard.press("Alt+Shift+ArrowUp");
+  await page.keyboard.press("Alt+Shift+ArrowUp");
+  await expect(tree(component)).toHaveText("0 new:1. three\n0 x:2. one\n0 new:3. two");
+  // Enter on an empty number ends the list.
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toMatchObject({ text: "2. " });
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toMatchObject({ at: 0, text: "" });
+  await expect(tree(component)).toHaveText("0 new:1. three\n0 new:\n0 x:1. one\n0 new:2. two");
+});
+
+test("quotes, callouts and dividers render from their markers", async ({ mount, page }) => {
+  const component = await mount(
+    <OutlinerHarness
+      initial={[
+        { id: "q", content: "> said" },
+        { id: "w", content: "> [!warning] careful" },
+        { id: "d", content: "---" },
+        { id: "b", content: "Bravo" },
+      ]}
+    />,
+  );
+  await expect(row(component, "q").locator("blockquote")).toHaveText("said");
+  const callout = row(component, "w").locator('[class*="callout"][data-tone]');
+  await expect(callout).toHaveAttribute("data-tone", "warning");
+  await expect(callout).toHaveText("Warningcareful");
+  await expect(row(component, "d").locator("hr")).toBeVisible();
+  // A click into the callout lands in its text, past the marker.
+  await row(component, "w")
+    .getByText("careful")
+    .click({ position: { x: 1, y: 8 } });
+  expect(await caret(page)).toMatchObject({ id: "w", at: 13 });
+  // Mod+Shift+. quotes a block and takes the quote off.
+  await caretIn(component, "b", 5);
+  await page.keyboard.press("Control+Shift+Period");
+  expect(await caret(page)).toEqual({ id: "b", at: 7, text: "> Bravo" });
+  await page.keyboard.press("Control+Shift+Period");
+  expect(await caret(page)).toEqual({ id: "b", at: 5, text: "Bravo" });
+});
+
+test("a code fence makes a code block: Enter and Tab stay inside it", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={[{ id: "c", content: "" }]} />);
+  await caretIn(component, "c", 0);
+  await page.keyboard.type("```js");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toEqual({ id: "c", at: 6, text: "```js\n\n```" });
+  await page.keyboard.type("if (a) {");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Tab");
+  await page.keyboard.type("b[0]");
+  // No pairing in code, one block, the indentation kept.
+  expect(await caret(page)).toMatchObject({ text: "```js\nif (a) {\n  b[0]\n```" });
+  await expect(component.getByTestId("changes")).not.toHaveText("0");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toMatchObject({ text: "```js\nif (a) {\n  b[0]\n  \n```" });
+  // After the closing fence Enter is a new block again.
+  await page.keyboard.press("Control+End");
+  await page.keyboard.press("Enter");
+  expect(await caret(page)).toEqual({ id: "new", at: 0, text: "" });
+  await expect(row(component, "c").locator("pre")).toContainText("if (a) {");
+});
+
+test("tasks in progress and cancelled; a parent counts its tasks", async ({ mount }) => {
+  const component = await mount(
+    <OutlinerHarness
+      initial={[
+        {
+          id: "p",
+          content: "Plan",
+          children: [
+            { id: "t1", content: "[x] done" },
+            { id: "t2", content: "[/] going" },
+            { id: "t3", content: "[-] dropped" },
+            { id: "t4", content: "[ ] open" },
+            { id: "n", content: "a note" },
+          ],
+        },
+      ]}
+    />,
+  );
+  const count = row(component, "p").getByRole("img", { name: "1 of 3 tasks done" });
+  await expect(count).toHaveText("1/3");
+  await expect(row(component, "t2").getByRole("checkbox")).toHaveAttribute("aria-checked", "mixed");
+  await row(component, "t2").getByRole("checkbox").click();
+  await expect(tree(component)).toContainText("1 t2:[x] going");
+  await expect(row(component, "p").getByRole("img")).toHaveText("2/3");
+  await expect(row(component, "t3").locator('[class*="text"]')).toHaveCSS(
+    "text-decoration-line",
+    "line-through",
+  );
+  await row(component, "t3").getByRole("button", { name: "Cancelled. Reopen" }).click();
+  await expect(tree(component)).toContainText("1 t3:[ ] dropped");
+  await expect(row(component, "p").getByRole("img")).toHaveText("2/4");
+});
+
+test("a due date is a chip that opens a calendar", async ({ mount, page }) => {
+  const component = await mount(
+    <OutlinerHarness
+      initial={[
+        { id: "late", content: "[ ] ship @2020-01-10" },
+        { id: "done", content: "[x] shipped @2020-01-10" },
+      ]}
+      width={480}
+    />,
+  );
+  const chip = row(component, "late").locator('[class*="due"]');
+  await expect(chip).toHaveText("2020-01-10");
+  await expect(chip).toHaveAttribute("data-late", "true");
+  await expect(row(component, "done").locator('[class*="due"]')).not.toHaveAttribute("data-late");
+  // The chip sits on the text line.
+  expect((await row(component, "late").boundingBox())?.height).toBe(25);
+  await chip.click();
+  const field = page.getByRole("dialog", { name: "Due date" }).locator("input");
+  await expect(field).toBeFocused();
+  await field.fill("2031-03-04");
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toContainText("0 late:[ ] ship @2031-03-04");
+  await expect(page.getByRole("dialog", { name: "Due date" })).toHaveCount(0);
+  await expect(chip).toHaveText("2031-03-04");
+  await expect(chip).not.toHaveAttribute("data-late");
+  // Nothing was entered on the way.
+  await expect(component.locator("textarea")).toHaveCount(0);
+});
+
+test("a property shows its name and value; a click lands in the value", async ({ mount, page }) => {
+  const component = await mount(
+    <OutlinerHarness initial={[{ id: "s", content: "status:: in review" }]} width={480} />,
+  );
+  await expect(row(component, "s").locator('[class*="key"]')).toHaveText("status");
+  await row(component, "s")
+    .getByText("in review")
+    .click({ position: { x: 1, y: 8 } });
+  expect(await caret(page)).toEqual({ id: "s", at: 9, text: "status:: in review" });
+});
+
+const TABLE: OutlinerValue = [
+  {
+    id: "t",
+    content: "{{table}}",
+    collapsed: true,
+    children: [
+      { id: "h", content: "Name", children: [{ id: "h2", content: "Age" }] },
+      { id: "r", content: "**Ada**", children: [{ id: "r2", content: "36" }] },
+    ],
+  },
+];
+
+test("a table shows its child blocks; a click on a cell goes to its block", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TABLE} />);
+  const table = row(component, "t").getByRole("table");
+  await expect(table.getByRole("columnheader")).toHaveText(["Name", "Age"]);
+  await expect(table.getByRole("cell")).toHaveText(["Ada", "36"]);
+  // Folded, the rows show only in the table.
+  await expect(row(component, "r2")).toHaveCount(0);
+  await table.getByRole("cell", { name: "36" }).click();
+  expect(await caret(page)).toEqual({ id: "r2", at: 2, text: "36" });
+  await page.keyboard.type("5");
+  await expect(table.getByRole("cell").nth(1)).toHaveText("365");
+});
+
+const BOARD: OutlinerValue = [
+  {
+    id: "k",
+    content: "{{kanban}}",
+    children: [
+      {
+        id: "todo",
+        content: "To do",
+        children: [
+          { id: "c1", content: "First" },
+          { id: "c2", content: "Second" },
+        ],
+      },
+      { id: "doing", content: "Doing" },
+    ],
+  },
+];
+
+test("a board shows columns and cards; dragging a card moves its block", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={BOARD} width={640} />);
+  const board = row(component, "k").locator('[class*="board"]');
+  await expect(board.getByRole("region")).toHaveCount(2);
+  const todo = board.getByRole("region", { name: "To do" });
+  const doing = board.getByRole("region", { name: "Doing" });
+  await expect(todo.locator('[class*="card"]')).toHaveText(["First", "Second"]);
+  const card = await todo.getByText("First").boundingBox();
+  const target = await doing.boundingBox();
+  if (!card || !target) throw new Error("nothing to drag");
+  await page.mouse.move(card.x + 20, card.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(card.x + 30, card.y + 14, { steps: 2 });
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height - 10, { steps: 8 });
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(
+    "0 k:{{kanban}}\n1 todo:To do\n2 c2:Second\n1 doing:Doing\n2 c1:First",
+  );
+  await expect(doing.locator('[class*="card"]')).toHaveText(["First"]);
+  // One undo step.
+  await row(component, "doing").click();
+  await page.keyboard.press("Control+z");
+  await expect(todo.locator('[class*="card"]')).toHaveText(["First", "Second"]);
+});
+
+test("an embed is the block itself: an edit in it is an edit of the block", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <OutlinerHarness
+      initial={[
+        { id: "src", content: "Source", children: [{ id: "kid", content: "Child" }] },
+        { id: "e", content: "{{embed ((src))}}" },
+        { id: "self", content: "{{embed ((self))}}" },
+        { id: "gone", content: "{{embed ((nope))}}" },
+      ]}
+      width={480}
+    />,
+  );
+  const embed = row(component, "e").getByRole("tree", { name: "Embedded block" });
+  await expect(embed.locator("[data-bullet-id]")).toHaveCount(2);
+  await embed.locator('[data-bullet-id="kid"]').getByText("Child").click();
+  const editor = embed.locator("textarea");
+  await expect(editor).toBeFocused();
+  await page.keyboard.press("End");
+  await page.keyboard.type("!");
+  await expect(tree(component)).toContainText("1 kid:Child!");
+  // The outer outline did not enter the embed's own block.
+  await expect(component.locator("textarea")).toHaveCount(1);
+  await expect(row(component, "self")).toContainText("the block embeds itself");
+  await expect(row(component, "gone")).toContainText("ref not found: nope");
+});
+
+test("an image block shows the image; its grip sets the width", async ({ mount, page }) => {
+  const pixel =
+    "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTIwIi8+";
+  const component = await mount(
+    <OutlinerHarness initial={[{ id: "i", content: `![Ridge|200](${pixel})` }]} width={600} />,
+  );
+  const image = row(component, "i").getByRole("img", { name: "Ridge" });
+  await expect(image).toBeVisible();
+  expect((await image.boundingBox())?.width).toBe(200);
+  const grip = await row(component, "i").getByRole("separator").boundingBox();
+  if (!grip) throw new Error("no grip");
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 + 60, grip.y + grip.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(`0 i:![Ridge|260](${pixel})`);
+  await expect(component.locator("textarea")).toHaveCount(0);
+});
+
+test("a pasted file is handed to onUpload and becomes a block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} withUpload />);
+  await caretIn(component, "b", 5);
+  await page.evaluate(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(["x"], "shot one.png", { type: "image/png" }));
+    transfer.items.add(new File(["x"], "notes.pdf", { type: "application/pdf" }));
+    document.activeElement?.dispatchEvent(
+      new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }),
+    );
+  });
+  await expect(tree(component)).toContainText(
+    "0 b:Bravo\n0 new:![shot one.png](upload:shot%20one.png)\n0 new:[notes.pdf](upload:notes.pdf)",
+  );
+});
+
+test("a pasted ordered list keeps its numbers", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await clipboard(page, "paste", "7. first\n8. second");
+  await expect(tree(component)).toContainText("0 new:1. first\n0 new:2. second");
+});

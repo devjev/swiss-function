@@ -1,0 +1,184 @@
+// The blocks that show something other than their text: a table and an image
+// here, a due-date chip inside the text, an embedded block. Each reads what it
+// needs from the outline through context (see context.ts).
+
+import type { MouseEvent } from "react";
+import { lazy, Suspense, useContext, useRef, useState } from "react";
+import { usePointerDrag } from "../../lib/usePointerDrag";
+import { Chip } from "../Chip";
+import { BulletContent } from "./BulletContent";
+import { type BlockImage, imageSource, isoDate, type TableCell, tableRows } from "./blocks";
+import { ActionsContext, EmbedContext, RowContext } from "./context";
+import styles from "./Outliner.module.css";
+import type { Bullet, BulletId } from "./types";
+
+const DuePicker = lazy(() => import("./DuePicker"));
+
+/** A press inside a widget is the widget's: it neither moves the caret out of
+ *  the block being edited nor enters the widget's own block. */
+const keepFocus = (e: MouseEvent) => e.preventDefault();
+
+// ----------------------------------------------------------------------------
+// Table: the block's children are the rows
+// ----------------------------------------------------------------------------
+
+export function OutlinerTable({ rows: children }: { rows: Bullet[] | undefined }) {
+  const actions = useContext(ActionsContext);
+  const rows = tableRows(children);
+  const [header, ...body] = rows;
+  if (!header) {
+    return (
+      <span className={styles.hint}>
+        Table: add rows as child blocks. A row's text is its first cell, its children the others.
+      </span>
+    );
+  }
+  const columns = Math.max(...rows.map((row) => row.length));
+  const cells = (row: TableCell[], Cell: "th" | "td") =>
+    Array.from({ length: columns }, (_, column) => {
+      const cell = row[column];
+      return (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a table cell is its position
+        <Cell key={column} scope={Cell === "th" ? "col" : undefined}>
+          {cell && (
+            // A pointer shortcut to the cell's block, which the keyboard reaches
+            // in the outline below.
+            <div
+              className={styles.cell}
+              onMouseDown={keepFocus}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest("a, button, input")) return;
+                actions?.jumpTo(cell.id);
+              }}
+            >
+              <BulletContent content={cell.content} components={actions?.markdownComponents} />
+            </div>
+          )}
+        </Cell>
+      );
+    });
+  return (
+    <div className={styles.tableWrap} data-widget="">
+      <table className={styles.table}>
+        <thead>
+          <tr>{cells(header, "th")}</tr>
+        </thead>
+        <tbody>
+          {body.map((row) => (
+            <tr key={row[0]?.id}>{cells(row, "td")}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Image: `![alt|width](url)` alone in a block
+// ----------------------------------------------------------------------------
+
+const MIN_IMAGE_PX = 40;
+
+export function OutlinerImage({ id, image }: { id: BulletId; image: BlockImage }) {
+  const actions = useContext(ActionsContext);
+  const frame = useRef<HTMLSpanElement>(null);
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const startWidth = useRef(0);
+  const widthAt = (dx: number) => {
+    const max = frame.current?.parentElement?.clientWidth ?? Number.POSITIVE_INFINITY;
+    return Math.round(Math.max(MIN_IMAGE_PX, Math.min(startWidth.current + dx, max)));
+  };
+  const drag = usePointerDrag({
+    onStart: () => {
+      startWidth.current = frame.current?.getBoundingClientRect().width ?? 0;
+    },
+    onMove: ({ dx }) => setDragWidth(widthAt(dx)),
+    onEnd: ({ dx }) => {
+      setDragWidth(null);
+      if (dx !== 0) actions?.setContent(id, imageSource(image, widthAt(dx)));
+    },
+  });
+  const width = dragWidth ?? image.width;
+  return (
+    <span
+      ref={frame}
+      className={styles.image}
+      data-widget=""
+      data-resizing={dragWidth !== null || undefined}
+      style={width === null ? undefined : { inlineSize: width }}
+    >
+      <img src={image.url} alt={image.alt} draggable={false} />
+      {!actions?.readOnly && (
+        <span
+          className={styles.imageGrip}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Image width"
+          onMouseDown={keepFocus}
+          onPointerDown={drag.onPointerDown}
+        />
+      )}
+    </span>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Embed: `{{embed ((id))}}`
+// ----------------------------------------------------------------------------
+
+export function OutlinerEmbed({ id, host }: { id: BulletId; host: BulletId }) {
+  const render = useContext(EmbedContext);
+  return (
+    <div className={styles.embed} data-widget="">
+      {render?.(id, host)}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Due date: `@2026-11-25` in a block's text
+// ----------------------------------------------------------------------------
+
+export function DueChip({ date }: { date: string }) {
+  const actions = useContext(ActionsContext);
+  const row = useContext(RowContext);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  // Late only while there is something left to do.
+  const open = row?.task === "todo" || row?.task === "doing";
+  const late = open && date < isoDate(new Date());
+  const editable = actions && row && !actions.readOnly;
+  return (
+    <>
+      <Chip
+        size="sm"
+        tone={late ? "danger" : "neutral"}
+        className={styles.due}
+        data-late={late || undefined}
+        onMouseDown={keepFocus}
+        onClick={
+          editable
+            ? (e) => {
+                e.stopPropagation();
+                setAnchor(e.currentTarget);
+              }
+            : undefined
+        }
+      >
+        {date}
+      </Chip>
+      {anchor && editable && (
+        <Suspense fallback={null}>
+          <DuePicker
+            anchor={anchor}
+            value={date}
+            onClose={() => setAnchor(null)}
+            onPick={(next) => {
+              setAnchor(null);
+              actions.setDate(row.id, date, isoDate(next));
+            }}
+          />
+        </Suspense>
+      )}
+    </>
+  );
+}

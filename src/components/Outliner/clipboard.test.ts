@@ -36,7 +36,7 @@ describe("parseOutline", () => {
   it("takes any marker, tabs and four-space indents", () => {
     expect(shape(parseOutline("* a\n\t* b\n1. c\n    + d"))).toEqual([
       ["a", ["b"]],
-      ["c", ["d"]],
+      ["1. c", ["d"]],
     ]);
   });
 

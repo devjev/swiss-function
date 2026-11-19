@@ -26,7 +26,7 @@ export function toMarkdownList(bullets: Bullet[], depth = 0): string {
   return out.join("\n");
 }
 
-const ITEM = /^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+(.*)$/;
+const ITEM = /^([ \t]*)([-*+]|\d+[.)])[ \t]+(.*)$/;
 
 const width = (space: string): number => space.replace(/\t/g, "    ").length;
 
@@ -59,7 +59,11 @@ export function parseOutline(text: string): PastedBlock[] {
     if (item) {
       open = {
         indent: width(item[1] ?? ""),
-        block: { content: (item[2] ?? "").trimEnd(), children: [] },
+        // An ordered item stays ordered: the number is part of the block.
+        block: {
+          content: `${/\d/.test(item[2] ?? "") ? "1. " : ""}${(item[3] ?? "").trimEnd()}`,
+          children: [],
+        },
         list: true,
       };
       items.push(open);

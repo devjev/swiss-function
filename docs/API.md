@@ -2619,6 +2619,7 @@ block is a `treeitem` with `aria-level`, `aria-posinset` and `aria-setsize`.
 | `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. Pass a stable function: it is a dependency of every row. |
 | `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
 | `completions` | `(request) => OutlinerCompletion[] \| Promise<OutlinerCompletion[]>` | n/a | Suggestions while typing `[[`, `((`, `#` or `/`. `request` is `{ trigger, query, blockId }`; an entry is `{ label, description?, insert? }`. Without it nothing pops up. Pass a stable function. |
+| `onUpload` | `(files: File[]) => string[] \| Promise<string[]>` | n/a | Files pasted or dropped into the outline: store them and return one URL per file. An image becomes an image block, any other file a link. Without it files are ignored. |
 | `placeholder` | `ReactNode` | `"Empty outline. Click to write."` | Shown while `value` is empty; a click or Enter on it starts the first block. |
 | `root` | `string \| null` | n/a | The zoomed block (controlled); `null` shows the whole outline. An id that is not in the tree shows the whole outline. |
 | `defaultRoot` | `string \| null` | `null` | The zoomed block when uncontrolled. |
@@ -2654,6 +2655,8 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Mod+B, Mod+I, Mod+Shift+S | Bold (`**`), italic (`*`), strikethrough (`~~`): wraps the selection, or takes the wrap off. With nothing selected the pair goes in around the caret. |
 | Mod+K | A markdown link around the selection, the caret in its target. |
 | Mod+Enter | Task: no marker, open (`[ ] `), done (`[x] `). Also on selected blocks. |
+| Mod+Alt+1 / 2 / 3 | Heading of that level; the same key again, or Mod+Alt+0, takes it off. Also on selected blocks. (AltGr, which Windows reports as Ctrl+Alt, is left alone.) |
+| Mod+Shift+. | Quote: `> ` before every line, or off again. |
 | Mod+. / Mod+, | Zoom into the block / zoom out one level. Also Alt+→ / Alt+←, except in a block's text on a Mac, where those move the caret by a word. Also on a selected block. |
 | Escape | Leaves the text; the block stays selected. |
 
@@ -2692,9 +2695,42 @@ makes it bold.
 
 **Tasks and tags.** A block that starts with `[ ] ` or `[x] ` is a task: the
 marker renders as a `Checkbox` (a click ticks it without entering the block),
-and a copied outline carries it as a markdown task item. `#name` and
-`#[[Two Words]]` render as wiki links and report through `onWikiLinkClick` with
-the name.
+and a copied outline carries it as a markdown task item. `[/] ` is a task in
+progress (the checkbox shows its mixed state; a click, or Mod+Enter, completes
+it) and `[-] ` a cancelled one (a cross in the checkbox's place and the text
+struck out; a click reopens it). A block whose direct children include tasks
+shows a count at its end, `2/5`: done over open, in progress and done;
+cancelled tasks count for neither. `#name` and `#[[Two Words]]` render as wiki
+links and report through `onWikiLinkClick` with the name.
+
+**Due dates.** `@2026-11-25` anywhere in a block renders as a `Chip`. On an
+open or in-progress task a date before today takes the danger tone
+(`data-late`). A click on the chip opens a `DatePicker` (loaded on demand); the
+picked date replaces the one in the text, as one undo step.
+
+**Block types.** What a block is, is read from how its markdown begins, the way
+a task is. `Bullet` has no type field: a type can be typed into existence, and
+a copied outline carries it as text. A block may lead with a list number and a
+task marker (in that order); without either, its text decides:
+
+| Block | Written as | Shows as |
+| --- | --- | --- |
+| Heading | `# `, `## `, `### ` | Level 1 large and bold, 2 large and medium, 3 semibold, all on the one-unit text line, so the rows keep their pitch. The source is edited in the same face. |
+| Quote | `> ` on each line | A leading rule. |
+| Callout | `> [!note]`, `[!tip]`, `[!warning]`, `[!danger]` (also `info`, `success`, `important`, `caution`, `error`) | A 3px rule and the label in the status colour, the text beside it. |
+| Divider | `---` (or `***`, `___`) alone | A hairline. |
+| Code | A fenced block | The monospace panel of `Markdown`. In the text, Enter is a line break that keeps the indentation and Tab inserts two spaces; Enter on a fresh opening fence closes it; brackets do not pair. After the closing fence Enter splits again. |
+| Numbered | `1. ` | The number in front of the text. Every run of ordered siblings is numbered by place, in the text too, on each change. Enter continues the list; Enter on an empty number ends it. A pasted ordered list keeps its numbers. |
+| Property | `key:: value` | The name in a column sibling properties share, the value as markdown. `blockProperties(bullet)` (exported) returns a block's properties, read from its direct children. |
+| Image | `![alt](url)` alone, `![alt\|320](url)` with a width | The image; dragging the grip on its trailing edge writes the width into the text. |
+| Table | `{{table}}` | Its children as rows: a row's text is its first cell, the row's children the other cells, the first row the header. A click on a cell puts the caret in that cell's block. |
+| Board | `{{kanban}}` | Its children as columns, their children as cards. Dragging a card moves its block (one undo step); a click on a card or a column title goes to its block. dnd-kit loads on demand, and the board joins an `SfDndProvider`. |
+| Embed | `{{embed ((id))}}` | The block `id` of this tree with its children, editable in place: it is the same block, shown again. A block outside the tree falls back to `resolveBlockRef` (read-only). A block that would contain its own embed shows a notice. |
+
+A table and a board render in their own block and leave the children where
+they are: unfold the block to edit them as an outline, fold it to see only the
+table or the board. Every special block is entered like any other (the arrows,
+or a click beside it) and then shows its source.
 
 **Completion.** With `completions` set, `[[` (a page), `((` (a block), `#` (a
 tag) or `/` (a command) at the caret opens a list under the trigger, filled by
@@ -2751,8 +2787,9 @@ text inside one block does not enter it. The fold arrow shows on the hovered and
 the active row; a folded block's bullet wears a ring.
 
 **CSS variables** (set on the root or an ancestor): `--sf-outliner-indent` (one
-indent step, `1` unit; the guide lines follow it) and `--sf-outliner-row-pad`
-(a block's padding above and below, `1/8` unit).
+indent step, `1` unit; the guide lines follow it), `--sf-outliner-row-pad`
+(a block's padding above and below, `1/8` unit) and `--sf-outliner-key-width`
+(the name column of a property block, `6` units).
 
 ## Pane
 

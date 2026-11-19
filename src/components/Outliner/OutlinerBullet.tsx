@@ -7,18 +7,22 @@ import type {
   PointerEvent,
   ReactNode,
 } from "react";
-import { memo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useMemo, useRef, useState } from "react";
 import type ReactMarkdown from "react-markdown";
 import { Glyph } from "../../lib/icons";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { Checkbox } from "../Checkbox";
-import { Check } from "../Icon";
-import { Markdown } from "../Markdown";
-import { taskBody, taskState } from "./assist";
-import { passthroughUrlTransform, preprocessOutlinerMarkdown } from "./markdown-extensions";
+import { Check, X } from "../Icon";
+import { BulletContent } from "./BulletContent";
+import { CALLOUT_LABEL, parseBlock, taskProgress } from "./blocks";
+import { RowContext } from "./context";
 import styles from "./Outliner.module.css";
+import { OutlinerEmbed, OutlinerImage, OutlinerTable } from "./OutlinerWidgets";
 import { sourceOffsetAtPoint } from "./sourceOffset";
 import type { Bullet, BulletId } from "./types";
+
+// The board brings dnd-kit, so it loads with the first `{{kanban}}` block.
+const OutlinerKanban = lazy(() => import("./OutlinerKanban"));
 
 type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
@@ -32,9 +36,13 @@ export interface OutlinerBulletProps {
   position: number;
   siblings: number;
   hasChildren: boolean;
-  /** The zoomed block: shown as the outline's title, with no bullet and no
-   *  fold arrow. */
+  /** The number an ordered block shows; null for any other block. */
+  ordinal: number | null;
+  /** The zoomed block: shown as the outline's title, with no bullet. */
   isTitle: boolean;
+  /** The view's root (the zoomed or the embedded block): it always shows its
+   *  children and has no fold arrow. */
+  fixedOpen: boolean;
   /** The block that holds the keyboard: the selection's focus, or the block
    *  being edited. */
   isActive: boolean;
@@ -96,7 +104,9 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     position,
     siblings,
     hasChildren,
+    ordinal,
     isTitle,
+    fixedOpen,
     isActive,
     isSelected,
     isEditing,
@@ -125,10 +135,12 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
   const [copied, setCopied] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
 
-  // A block that starts with `[ ] ` or `[x] ` is a task: the marker shows as
-  // a checkbox and the rest as the block's text.
-  const task = taskState(bullet.content);
-  const body = task ? taskBody(bullet.content) : bullet.content;
+  // What the block is, read from its text: a list number and a task marker
+  // show in front of the text, and some kinds show something else entirely.
+  const info = useMemo(() => parseBlock(bullet.content), [bullet.content]);
+  const { task } = info;
+  const rowContext = useMemo(() => ({ id: bullet.id, task }), [bullet.id, task]);
+  const progress = useMemo(() => taskProgress(bullet.children), [bullet.children]);
 
   const copyRef = async () => {
     try {
@@ -142,20 +154,74 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
     if (isEditing || e.defaultPrevented) return;
-    // A link, a wiki link or the task checkbox keeps its own click.
-    if ((e.target as HTMLElement).closest('a, button, input, [role="checkbox"]')) return;
+    // A link, a wiki link or the task checkbox keeps its own click, and so
+    // does a table, a board, an image or an embedded block in this row.
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button, input, [role="checkbox"]')) return;
+    const widget = target.closest("[data-widget]");
+    if (widget && e.currentTarget.contains(widget)) return;
     const text = textRef.current;
     // A drag that selected rendered text is a selection, not an entry.
     const selection = text?.ownerDocument.defaultView?.getSelection();
     if (selection && !selection.isCollapsed && text?.contains(selection.anchorNode)) return;
-    const offset =
-      readOnly || !text
-        ? null
-        : bullet.content.length -
-          body.length +
-          sourceOffsetAtPoint(text, body, e.clientX, e.clientY);
+    const offset = readOnly
+      ? null
+      : text
+        ? info.bodyStart +
+          sourceOffsetAtPoint(text, bullet.content.slice(info.bodyStart), e.clientX, e.clientY)
+        : bullet.content.length;
     onEnter(bullet.id, offset);
   };
+
+  const text = (
+    <div ref={textRef} className={styles.text}>
+      <RowContext value={rowContext}>
+        <BulletContent content={info.body} components={markdownComponents} />
+      </RowContext>
+    </div>
+  );
+  let main: ReactNode;
+  switch (info.kind) {
+    case "divider":
+      main = <hr className={styles.divider} />;
+      break;
+    case "callout":
+      main = (
+        <div className={styles.callout} data-tone={info.tone}>
+          <span className={styles.calloutLabel}>{CALLOUT_LABEL[info.tone ?? "note"]}</span>
+          {text}
+        </div>
+      );
+      break;
+    case "property":
+      main = (
+        <div className={styles.property}>
+          <span className={styles.key} title={info.key}>
+            {info.key}
+          </span>
+          {text}
+        </div>
+      );
+      break;
+    case "table":
+      main = <OutlinerTable rows={bullet.children} />;
+      break;
+    case "kanban":
+      main = (
+        <Suspense fallback={<span className={styles.hint}>Board</span>}>
+          <OutlinerKanban columns={bullet.children} />
+        </Suspense>
+      );
+      break;
+    case "embed":
+      main = <OutlinerEmbed id={info.ref ?? ""} host={bullet.id} />;
+      break;
+    case "image":
+      main = info.image ? <OutlinerImage id={bullet.id} image={info.image} /> : text;
+      break;
+    default:
+      main = text;
+  }
 
   return (
     <div
@@ -164,7 +230,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       aria-level={level}
       aria-posinset={position}
       aria-setsize={siblings}
-      aria-expanded={hasChildren ? isTitle || !bullet.collapsed : undefined}
+      aria-expanded={hasChildren ? fixedOpen || !bullet.collapsed : undefined}
       aria-selected={isSelected}
       className={styles.row}
       style={
@@ -188,7 +254,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       <span className={styles.fold} onMouseDown={keepFocus}>
         <TreeChevron
           expanded={!bullet.collapsed}
-          visible={hasChildren && !isTitle}
+          visible={hasChildren && !fixedOpen}
           onToggle={() => onToggleCollapsed(bullet.id)}
           tabIndex={-1}
         />
@@ -224,7 +290,13 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
           <span className={styles.dot} />
         </span>
       )}
-      <div className={styles.content} data-task={(!isEditing && task) || undefined}>
+      <div
+        className={styles.content}
+        data-view={!isEditing || undefined}
+        data-kind={info.kind === "text" ? undefined : info.kind}
+        data-level={info.level}
+        data-task={(!isEditing && task) || undefined}
+      >
         {isEditing ? (
           <div className={styles.editor} data-value={bullet.content}>
             <textarea
@@ -244,21 +316,49 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
           </div>
         ) : (
           <>
-            {task && (
-              <span className={styles.task} onMouseDown={keepFocus}>
-                <Checkbox
-                  checked={task === "done"}
-                  readOnly={readOnly}
-                  // The outline is one tab stop; Mod+Enter is the key for this.
-                  tabIndex={-1}
-                  aria-label="Done"
-                  onCheckedChange={(checked) => onTaskToggle(bullet.id, checked)}
-                />
+            {(info.ordered || task) && (
+              <span className={styles.lead} onMouseDown={keepFocus}>
+                {info.ordered && <span className={styles.number}>{ordinal ?? 1}.</span>}
+                {task === "cancelled" ? (
+                  <button
+                    type="button"
+                    className={styles.cancelled}
+                    // The outline is one tab stop; Mod+Enter is the key for this.
+                    tabIndex={-1}
+                    disabled={readOnly}
+                    aria-label="Cancelled. Reopen"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTaskToggle(bullet.id, false);
+                    }}
+                  >
+                    <Glyph slot="close" fallback={X} size="0.7em" />
+                  </button>
+                ) : (
+                  task && (
+                    <Checkbox
+                      checked={task === "done"}
+                      indeterminate={task === "doing"}
+                      readOnly={readOnly}
+                      // The outline is one tab stop; Mod+Enter is the key for this.
+                      tabIndex={-1}
+                      aria-label={task === "doing" ? "In progress" : "Done"}
+                      onCheckedChange={(checked) => onTaskToggle(bullet.id, checked)}
+                    />
+                  )
+                )}
               </span>
             )}
-            <div ref={textRef} className={styles.text}>
-              <BulletContent content={body} components={markdownComponents} />
-            </div>
+            <div className={styles.main}>{main}</div>
+            {progress && (
+              <span
+                className={styles.progress}
+                role="img"
+                aria-label={`${progress.done} of ${progress.total} tasks done`}
+              >
+                {progress.done}/{progress.total}
+              </span>
+            )}
           </>
         )}
       </div>
@@ -281,21 +381,3 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     </div>
   );
 });
-
-interface BulletContentProps {
-  content: string;
-  components?: Components;
-}
-
-function BulletContent({ content, components }: BulletContentProps): ReactNode {
-  // An empty block is an empty line: the bullet marks it.
-  if (content.trim() === "") return <span className={styles.blank}>{"​"}</span>;
-  return (
-    <Markdown
-      value={content}
-      preprocess={preprocessOutlinerMarkdown}
-      components={components}
-      urlTransform={passthroughUrlTransform}
-    />
-  );
-}

@@ -41,7 +41,10 @@ export function zoomBack(
 export function plainLabel(content: string): string {
   const line = content.split("\n", 1)[0] ?? "";
   return line
-    .replace(/^\[[ xX]\] /, "")
+    .replace(/^\d+\. /, "")
+    .replace(/^\[[ xX/-]\] /, "")
+    .replace(/^(#{1,3}|>) /, "")
+    .replace(/^\[!\w+\]\s*/, "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[\[([^\]]+)\]\]/g, "$1")
     .replace(/\(\(([^)]+)\)\)/g, "$1")

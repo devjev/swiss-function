@@ -26,6 +26,9 @@ export interface FlatBullet {
   /** Position among its siblings (0-based), and how many siblings there are. */
   index: number;
   siblings: number;
+  /** The number an ordered block (`1. `) shows: its place in the run of
+   *  ordered siblings it is in. Null for any other block. */
+  ordinal: number | null;
 }
 
 /** What opened a completion: a page reference, a block reference, a tag, or a
@@ -100,6 +103,10 @@ export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   completions?: (
     request: OutlinerCompletionRequest,
   ) => OutlinerCompletion[] | Promise<OutlinerCompletion[]>;
+  /** Files pasted or dropped into the outline: store them and return one URL
+   *  per file (now or as a promise). An image becomes an image block, any
+   *  other file a link. Without this prop files are ignored. */
+  onUpload?: (files: File[]) => string[] | Promise<string[]>;
   /** Shown in place of the first block while the outline is empty; clicking
    *  it (or Enter on it) starts the first block. */
   placeholder?: ReactNode;

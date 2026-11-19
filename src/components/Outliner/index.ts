@@ -1,3 +1,4 @@
+export { blockProperties } from "./blocks";
 export { Outliner } from "./Outliner";
 export type {
   Bullet,

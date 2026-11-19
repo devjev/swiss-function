@@ -1,3 +1,4 @@
+import { isOrdered } from "./blocks";
 import type { Bullet, BulletId, BulletPath, FlatBullet, OutlinerValue } from "./types";
 
 // ----------------------------------------------------------------------------
@@ -27,9 +28,12 @@ export function findBullet(
 export function flatVisible(bullets: OutlinerValue): FlatBullet[] {
   const out: FlatBullet[] = [];
   const walk = (list: Bullet[], depth: number, path: BulletPath) => {
+    // Ordered siblings count up; any other block ends the run.
+    let run = 0;
     list.forEach((b, i) => {
       const cur = [...path, i];
       const hasChildren = (b.children?.length ?? 0) > 0;
+      run = isOrdered(b.content) ? run + 1 : 0;
       out.push({
         id: b.id,
         bullet: b,
@@ -38,6 +42,7 @@ export function flatVisible(bullets: OutlinerValue): FlatBullet[] {
         path: cur,
         index: i,
         siblings: list.length,
+        ordinal: run > 0 ? run : null,
       });
       if (hasChildren && !b.collapsed) {
         walk(b.children ?? [], depth + 1, cur);

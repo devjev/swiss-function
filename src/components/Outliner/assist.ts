@@ -123,39 +123,10 @@ export function insertLink(text: string, start: number, end: number): TextEdit {
 }
 
 // ----------------------------------------------------------------------------
-// Tasks
+// Tasks (see blocks.ts, where every block type is read from the text)
 // ----------------------------------------------------------------------------
 
-/** A block that starts with `[ ] ` is an open task, with `[x] ` a done one:
- *  the task-list marker of GitHub-flavoured markdown, which a copied outline
- *  carries as `- [ ] text`. */
-const TASK = /^\[([ xX])\] /;
-
-export type TaskState = "todo" | "done" | null;
-
-export function taskState(text: string): TaskState {
-  const match = TASK.exec(text);
-  if (!match) return null;
-  return match[1] === " " ? "todo" : "done";
-}
-
-/** The text after the task marker (the whole text when there is none). */
-export function taskBody(text: string): string {
-  return text.replace(TASK, "");
-}
-
-/** Mod+Enter: no marker, open, done, no marker. */
-export function cycleTask(text: string): string {
-  const state = taskState(text);
-  const body = taskBody(text);
-  if (state === null) return `[ ] ${body}`;
-  return state === "todo" ? `[x] ${body}` : body;
-}
-
-/** The checkbox: open and done, either way. */
-export function setTaskDone(text: string, done: boolean): string {
-  return `[${done ? "x" : " "}] ${taskBody(text)}`;
-}
+export { cycleTask, setTaskDone, type TaskState, taskBody, taskState } from "./blocks";
 
 // ----------------------------------------------------------------------------
 // Completion

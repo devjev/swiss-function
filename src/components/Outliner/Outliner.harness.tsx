@@ -27,6 +27,8 @@ interface HarnessProps {
   tall?: boolean;
   /** Wrap the outline in an `SfDndProvider`. */
   shared?: boolean;
+  /** Take pasted and dropped files: each gets the URL `upload:<name>`. */
+  withUpload?: boolean;
   /** What the `api-edit` and `api-select` buttons act on. */
   apiTarget?: BulletId;
   apiOffset?: number;
@@ -70,6 +72,7 @@ export function OutlinerHarness({
   height,
   tall,
   shared,
+  withUpload,
   apiTarget = "",
   apiOffset,
 }: HarnessProps) {
@@ -105,6 +108,7 @@ export function OutlinerHarness({
       reorderable={reorderable}
       frame={frame}
       virtualized={rows !== undefined}
+      onUpload={withUpload ? (files) => files.map((file) => `upload:${file.name}`) : undefined}
       apiRef={api}
     />
   );

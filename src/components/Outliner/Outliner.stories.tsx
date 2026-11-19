@@ -238,6 +238,131 @@ export const Virtualized: Story = () => {
   );
 };
 
+const PICTURE =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMzIwIDEyMCI+PHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNkOWQ5ZDkiLz48cGF0aCBkPSJNMCAxMjAgTDkwIDQwIEwxNTAgOTAgTDIxMCAzMCBMMzIwIDEyMCBaIiBmaWxsPSIjOGE4YThhIi8+PC9zdmc+";
+
+/** The text block types: what a block is, is read from how its text begins. */
+export const BlockTypes: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>([
+    { id: "h1", content: "# Release 4.0" },
+    {
+      id: "h2",
+      content: "## Checklist",
+      children: [
+        { id: "t1", content: "[x] Freeze the API" },
+        { id: "t2", content: "[/] Write the migration notes @2026-11-25" },
+        { id: "t3", content: "[ ] Tag and publish @2026-01-10" },
+        { id: "t4", content: "[-] Announce on the old forum" },
+      ],
+    },
+    { id: "h3", content: "### Steps" },
+    { id: "o1", content: "1. Build" },
+    { id: "o2", content: "2. Run the gates" },
+    { id: "o3", content: "3. Ship" },
+    { id: "d", content: "---" },
+    { id: "q", content: "> Make it work, make it right, make it fast." },
+    { id: "c1", content: "> [!note] The size baseline is machine-specific." },
+    { id: "c2", content: "> [!warning] Publishing by hand races the pipeline." },
+    { id: "c3", content: "> [!danger] A tag off `main` is refused." },
+    { id: "code", content: "```sh\nnpm run build\nnpm run size\n```" },
+    {
+      id: "meta",
+      content: "Project",
+      children: [
+        { id: "p1", content: "status:: in review" },
+        { id: "p2", content: "owner:: [[Ada]]" },
+        { id: "p3", content: "due:: @2026-12-01" },
+      ],
+    },
+  ]);
+  return (
+    <div style={frame}>
+      <Note>
+        A block that begins with #, &gt;, 1., a fence or three dashes is a heading, a quote, a
+        numbered item, code or a divider. Mod+Alt+1 to 3 toggle a heading, Mod+Shift+. a quote. A
+        parent counts its tasks; a late date on an open task is marked.
+      </Note>
+      <Outliner value={value} onChange={setValue} aria-label="Block types" />
+    </div>
+  );
+};
+
+/** The blocks that show their children, or another block. */
+export const StructuredBlocks: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>([
+    {
+      id: "table",
+      content: "{{table}}",
+      collapsed: true,
+      children: [
+        {
+          id: "r0",
+          content: "Fund",
+          children: [
+            { id: "r0a", content: "AUM" },
+            { id: "r0b", content: "Change" },
+          ],
+        },
+        {
+          id: "r1",
+          content: "**Alpha**",
+          children: [
+            { id: "r1a", content: "1'284" },
+            { id: "r1b", content: "+2.1%" },
+          ],
+        },
+        {
+          id: "r2",
+          content: "Beta",
+          children: [
+            { id: "r2a", content: "640" },
+            { id: "r2b", content: "-0.4%" },
+          ],
+        },
+      ],
+    },
+    {
+      id: "board",
+      content: "{{kanban}}",
+      collapsed: true,
+      children: [
+        {
+          id: "k1",
+          content: "To do",
+          children: [
+            { id: "k1a", content: "Write the notes" },
+            { id: "k1b", content: "Review with [[Ada]]" },
+          ],
+        },
+        { id: "k2", content: "Doing", children: [{ id: "k2a", content: "Freeze the API" }] },
+        { id: "k3", content: "Done" },
+      ],
+    },
+    {
+      id: "source",
+      content: "The source block",
+      children: [{ id: "source1", content: "A child of the source" }],
+    },
+    { id: "embed", content: "{{embed ((source))}}" },
+    { id: "image", content: `![A ridge|240](${PICTURE})` },
+  ]);
+  return (
+    <div style={frame}>
+      <Note>
+        A table and a board show their child blocks; unfold them to edit the blocks. Drag a card to
+        another column. The embed is the source block itself: type in either. Drag the image's right
+        edge to size it.
+      </Note>
+      <Outliner
+        value={value}
+        onChange={setValue}
+        onUpload={(files) => files.map((file) => URL.createObjectURL(file))}
+        aria-label="Structured blocks"
+      />
+    </div>
+  );
+};
+
 export const Empty: Story = () => {
   const [value, setValue] = useState<OutlinerValue>([]);
   return (
