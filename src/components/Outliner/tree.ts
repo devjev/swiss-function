@@ -378,3 +378,45 @@ export function getParentId(bullets: OutlinerValue, id: BulletId): BulletId | nu
   if (!f || f.path.length <= 1) return null;
   return bulletAt(bullets, f.path.slice(0, -1))?.id ?? null;
 }
+
+// ----------------------------------------------------------------------------
+// Whole-block operations (a selection, the clipboard)
+// ----------------------------------------------------------------------------
+
+/** Remove a bullet together with its children. */
+export function deleteSubtree(bullets: OutlinerValue, id: BulletId): OutlinerValue {
+  const f = findBullet(bullets, id);
+  if (!f) return bullets;
+  return removeAt(bullets, f.path).rest;
+}
+
+/** Insert `fresh` as the siblings right after `id`, in order. */
+export function insertSiblingsAfter(
+  bullets: OutlinerValue,
+  id: BulletId,
+  fresh: Bullet[],
+): OutlinerValue {
+  let result = bullets;
+  let after = id;
+  for (const bullet of fresh) {
+    result = insertAfter(result, after, bullet);
+    after = bullet.id;
+  }
+  return result;
+}
+
+/** Replace a bullet's text and children (pasting into an empty block). */
+export function fillBullet(
+  bullets: OutlinerValue,
+  id: BulletId,
+  content: string,
+  children: Bullet[] | undefined,
+): OutlinerValue {
+  const f = findBullet(bullets, id);
+  if (!f) return bullets;
+  return updateAt(bullets, f.path, (b) => ({
+    ...b,
+    content,
+    ...(children?.length ? { children, collapsed: false } : null),
+  }));
+}

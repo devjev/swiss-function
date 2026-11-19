@@ -341,3 +341,244 @@ test("((id)) transcludes resolved content; missing id shows placeholder", async 
   await expect(component.getByText("bold source")).toBeVisible();
   await expect(component.getByText(/ref not found.*nope/)).toBeVisible();
 });
+
+// --- History, block selection, clipboard (milestone 2) ---------------------
+
+const WIDE: OutlinerValue = [
+  {
+    id: "a",
+    content: "Alpha",
+    children: [
+      { id: "a1", content: "Alpha one" },
+      { id: "a2", content: "Alpha two" },
+    ],
+  },
+  { id: "b", content: "Bravo" },
+  { id: "c", content: "Charlie" },
+];
+
+const selected = (root: Locator) =>
+  root
+    .locator("[data-selected]")
+    .evaluateAll((rows) => rows.map((r) => r.getAttribute("data-bullet-id")));
+
+/** Fire a clipboard event at the focused element, as the browser would, and
+ *  report what a copy put on the clipboard. */
+async function clipboard(page: Page, type: "copy" | "cut" | "paste", text = "") {
+  return page.evaluate(
+    ([kind, data]) => {
+      const transfer = new DataTransfer();
+      if (data) transfer.setData("text/plain", data);
+      const event = new ClipboardEvent(kind, {
+        clipboardData: transfer,
+        bubbles: true,
+        cancelable: true,
+      });
+      document.activeElement?.dispatchEvent(event);
+      return { text: transfer.getData("text/plain"), handled: event.defaultPrevented };
+    },
+    [type, text] as const,
+  );
+}
+
+test("undo takes back a run of typing, redo brings it back", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" and more");
+  await expect(tree(component)).toContainText("0 b:Bravo and more");
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(/0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 5, text: "Bravo" });
+  await page.keyboard.press("Control+Shift+z");
+  await expect(tree(component)).toContainText("0 b:Bravo and more");
+  expect(await caret(page)).toEqual({ id: "b", at: 14, text: "Bravo and more" });
+});
+
+test("undo crosses structure: a split, then the typing before it", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type("!");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("ArrowLeft");
+  await page.keyboard.press("Enter");
+  await expect(tree(component)).toHaveText(/0 b:Bra\n0 new:vo!$/);
+
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(/0 b:Bravo!$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 3, text: "Bravo!" });
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(/0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 5, text: "Bravo" });
+
+  await page.keyboard.press("Control+y");
+  await page.keyboard.press("Control+y");
+  await expect(tree(component)).toHaveText(/0 b:Bra\n0 new:vo!$/);
+  expect(await caret(page)).toEqual({ id: "new", at: 0, text: "vo!" });
+});
+
+test("undo restores a merge and a deleted selection", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 0);
+  await page.keyboard.press("Backspace");
+  await expect(tree(component)).toHaveText(/1 a2:Alpha twoBravo$/);
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(/1 a2:Alpha two\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 0, text: "Bravo" });
+
+  // A selected block goes with its children, and comes back with them.
+  await caretIn(component, "a", 0);
+  await page.keyboard.press("Escape");
+  expect(await selected(component)).toEqual(["a", "a1", "a2"]);
+  await page.keyboard.press("Delete");
+  await expect(tree(component)).toHaveText("0 b:Bravo");
+  await expect(row(component, "b")).toHaveAttribute("data-active", "true");
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText("0 a:Alpha\n1 a1:Alpha one\n1 a2:Alpha two\n0 b:Bravo");
+  expect(await selected(component)).toEqual(["a", "a1", "a2"]);
+});
+
+test("Shift+Arrow from a block's edge line selects it, then extends", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "b", 2);
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(component.locator("textarea")).toHaveCount(0);
+  expect(await selected(component)).toEqual(["b"]);
+  await page.keyboard.press("Shift+ArrowDown");
+  expect(await selected(component)).toEqual(["b", "c"]);
+  await page.keyboard.press("Shift+ArrowUp");
+  expect(await selected(component)).toEqual(["b"]);
+  await page.keyboard.press("Shift+ArrowUp");
+  expect(await selected(component)).toEqual(["a2", "b"]);
+  // A plain arrow goes back to one block.
+  await page.keyboard.press("ArrowUp");
+  expect(await selected(component)).toEqual(["a1"]);
+});
+
+test("Tab, the move chord and Delete act on every selected block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "b", 0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Shift+ArrowDown");
+  expect(await selected(component)).toEqual(["b", "c"]);
+
+  await page.keyboard.press("Tab");
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n1 a2:Alpha two\n1 b:Bravo\n1 c:Charlie",
+  );
+  await page.keyboard.press("Alt+Shift+ArrowUp");
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n1 b:Bravo\n1 c:Charlie\n1 a2:Alpha two",
+  );
+  expect(await selected(component)).toEqual(["b", "c"]);
+  await page.keyboard.press("Shift+Tab");
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n0 b:Bravo\n0 c:Charlie\n1 a2:Alpha two",
+  );
+  await page.keyboard.press("Backspace");
+  await expect(tree(component)).toHaveText("0 a:Alpha\n1 a1:Alpha one");
+  await expect(row(component, "a1")).toHaveAttribute("data-active", "true");
+  // One step back for the whole deletion.
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toContainText("0 b:Bravo\n0 c:Charlie\n1 a2:Alpha two");
+});
+
+test("Mod+A selects the text, then every block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "b", 2);
+  await page.keyboard.press("Control+a");
+  await expect(row(component, "b").locator("textarea")).toBeFocused();
+  await page.keyboard.press("Control+a");
+  expect(await selected(component)).toEqual(["a", "a1", "a2", "b", "c"]);
+});
+
+test("a drag from one block into another selects the blocks between", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  const from = await row(component, "a1").boundingBox();
+  const to = await row(component, "b").boundingBox();
+  await page.mouse.move((from?.x ?? 0) + 80, (from?.y ?? 0) + 10);
+  await page.mouse.down();
+  await page.mouse.move((to?.x ?? 0) + 80, (to?.y ?? 0) + 10, { steps: 4 });
+  expect(await selected(component)).toEqual(["a1", "a2", "b"]);
+  await page.mouse.up();
+  // The release is not a click into the block.
+  await expect(component.locator("textarea")).toHaveCount(0);
+  expect(await selected(component)).toEqual(["a1", "a2", "b"]);
+  // The next click is.
+  await row(component, "c").click();
+  await expect(row(component, "c").locator("textarea")).toBeFocused();
+});
+
+test("Shift+click selects from the block in use to the clicked one", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "a2", 0);
+  await row(component, "c").click({ modifiers: ["Shift"] });
+  await expect(component.locator("textarea")).toHaveCount(0);
+  expect(await selected(component)).toEqual(["a2", "b", "c"]);
+});
+
+test("copy and cut put the selected blocks on the clipboard as a markdown list", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "a", 0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Shift+ArrowDown");
+  expect(await clipboard(page, "copy")).toEqual({
+    text: "- Alpha\n  - Alpha one\n  - Alpha two\n- Bravo",
+    handled: true,
+  });
+  await expect(tree(component)).toContainText("0 a:Alpha");
+  expect((await clipboard(page, "cut")).text).toBe(
+    "- Alpha\n  - Alpha one\n  - Alpha two\n- Bravo",
+  );
+  await expect(tree(component)).toHaveText("0 c:Charlie");
+});
+
+test("pasting a list makes nested blocks; pasting a line stays text", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  // Into the text of a block: the list goes in after it.
+  await caretIn(component, "b", 5);
+  expect((await clipboard(page, "paste", "- one\n  - inner\n- two")).handled).toBe(true);
+  await expect(tree(component)).toHaveText(
+    /0 b:Bravo\n0 new:one\n1 new:inner\n0 new:two\n0 c:Charlie$/,
+  );
+  expect(await caret(page)).toEqual({ id: "new", at: 3, text: "two" });
+
+  // An empty block becomes the first pasted one.
+  await page.keyboard.press("Enter");
+  expect((await clipboard(page, "paste", "first\n\nsecond")).handled).toBe(true);
+  await expect(tree(component)).toHaveText(/0 new:two\n0 new:first\n0 new:second\n0 c:Charlie$/);
+
+  // One line is left to the textarea.
+  expect((await clipboard(page, "paste", "plain words")).handled).toBe(false);
+
+  // One undo per paste.
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(/0 new:two\n0 new:\n0 c:Charlie$/);
+});
+
+test("pasting onto a selected block inserts after it and selects the result", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await caretIn(component, "b", 0);
+  await page.keyboard.press("Escape");
+  await clipboard(page, "paste", "- x\n- y");
+  await expect(tree(component)).toHaveText(/0 b:Bravo\n0 new:x\n0 new:y\n0 c:Charlie$/);
+  expect((await selected(component)).length).toBe(2);
+});
+
+test("a drag inside one block selects its text and enters nothing", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  const box = await row(component, "a1").locator("p").boundingBox();
+  await page.mouse.move((box?.x ?? 0) + 1, (box?.y ?? 0) + 10);
+  await page.mouse.down();
+  await page.mouse.move((box?.x ?? 0) + 40, (box?.y ?? 0) + 10, { steps: 4 });
+  await page.mouse.up();
+  await expect(component.locator("textarea")).toHaveCount(0);
+  expect(await selected(component)).toEqual([]);
+  expect(await page.evaluate(() => getSelection()?.toString().length ?? 0)).toBeGreaterThan(0);
+});

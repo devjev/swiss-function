@@ -16,8 +16,11 @@ export interface OutlinerBulletProps {
   bullet: Bullet;
   depth: number;
   hasChildren: boolean;
-  /** The selected block (or the one being edited). */
+  /** The block that holds the keyboard: the selection's focus, or the block
+   *  being edited. */
   isActive: boolean;
+  /** Part of the block selection (the focus row included). */
+  isSelected: boolean;
   isEditing: boolean;
   /** The one row a Tab into the outline lands on. */
   tabbable: boolean;
@@ -27,6 +30,8 @@ export interface OutlinerBulletProps {
   /** A click on the block. `offset` is the clicked position in the markdown
    *  source; null in read-only mode. */
   onEnter: (id: BulletId, offset: number | null) => void;
+  /** A press on the row: the start of a Shift+click or a drag selection. */
+  onRowMouseDown: (id: BulletId, event: MouseEvent<HTMLDivElement>) => void;
   onToggleCollapsed: (id: BulletId) => void;
   onTextChange: (id: BulletId, text: string) => void;
   /** Every key pressed in the editor: the Outliner owns the rules, since most
@@ -50,11 +55,13 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     depth,
     hasChildren,
     isActive,
+    isSelected,
     isEditing,
     tabbable,
     readOnly,
     markdownComponents,
     onEnter,
+    onRowMouseDown,
     onToggleCollapsed,
     onTextChange,
     onEditorKeyDown,
@@ -96,14 +103,16 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       role="treeitem"
       aria-level={depth + 1}
       aria-expanded={hasChildren ? !bullet.collapsed : undefined}
-      aria-selected={isActive}
+      aria-selected={isSelected}
       className={styles.row}
       style={{ "--sf-outliner-depth": depth } as CSSProperties}
       tabIndex={tabbable && !isEditing ? 0 : -1}
       data-active={isActive || undefined}
+      data-selected={isSelected || undefined}
       data-editing={isEditing || undefined}
       data-bullet-id={bullet.id}
       onClick={handleClick}
+      onMouseDown={(e) => onRowMouseDown(bullet.id, e)}
     >
       <span className={styles.fold} onMouseDown={keepFocus}>
         <TreeChevron

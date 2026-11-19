@@ -97,11 +97,15 @@ export interface CaretLine {
   x: number;
 }
 
-/** Which visual line the caret (the selection's focus end) is on. */
-export function caretLine(textarea: HTMLTextAreaElement): CaretLine {
+/** Which visual line `offset` is on: by default the selection's end, which is
+ *  the caret when nothing is selected. */
+export function caretLine(
+  textarea: HTMLTextAreaElement,
+  offset = textarea.selectionEnd,
+): CaretLine {
   const p = probe(textarea);
   try {
-    const caret = p.at(textarea.selectionEnd);
+    const caret = p.at(offset);
     const firstTop = p.at(0).top;
     const lastTop = p.at(textarea.value.length).top;
     return {

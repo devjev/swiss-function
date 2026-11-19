@@ -2636,18 +2636,42 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Tab / Shift+Tab | Indent / outdent; the caret stays. An outdented block takes its following siblings along as children, so no line changes place. |
 | Alt+Shift+↑/↓, Mod+Shift+↑/↓ | Move the block among its siblings; past the first / last it enters the neighbouring parent. |
 | Mod+↑ / Mod+↓ | Fold / unfold. |
+| Shift+↑ / Shift+↓ | Select text while there is a line to go to; from the block's first / last line, select the block itself. |
+| Mod+A | Selects the block's text; pressed again (or in an empty block), every block. |
+| Mod+Z, Mod+Shift+Z / Mod+Y | Undo / redo. |
 | Escape | Leaves the text; the block stays selected. |
 
-**Keys on a selected block:** ↑ / ↓ select the neighbour, ← folds or goes to the
+**Block selection.** A selected block includes its children. Shift+↑ / Shift+↓
+extend the selection block by block (stepping over the children of a block that
+is already in it), Shift+Home / End to the outline's ends, Mod+A selects every
+block. With the pointer: drag from one block into another, or Shift+click, to
+select the blocks between. Rows carry `data-selected` (and `aria-selected`); the
+one that holds the keyboard also has `data-active`.
+
+**Keys on selected blocks:** ↑ / ↓ select the neighbour, ← folds or goes to the
 parent, → unfolds or goes to the first child, Home / End, Enter or F2 enter the
-text at its end, Tab / Shift+Tab indent and outdent, the move and fold chords as
-above, Backspace / Delete remove the block (its children move up a level),
-Escape releases.
+text at its end. Tab / Shift+Tab indent and outdent every selected block, the
+move chords move them together, Backspace / Delete remove them with their
+children, Mod+Z / Mod+Shift+Z undo and redo, Escape releases.
+
+**History.** One undo stack for text and structure (200 steps). A step restores
+the tree and the caret or selection as they were; keystrokes in one block join
+into one step until a one-second pause, a caret move or another edit. The steps
+are the component's own: a `value` that did not come out of its `onChange`
+clears them, and each undo or redo is reported through `onChange` like any other
+change.
+
+**Clipboard.** Copy and cut put the selected blocks on the clipboard as a
+markdown list (`text/plain`, two spaces per level, a block's further lines
+indented under its marker). Pasted text becomes nested blocks when it holds a
+list item or several paragraphs separated by blank lines: after the block being
+edited (an empty one becomes the first pasted block), or after the selection.
+One line, or the lines of a single paragraph, is pasted as text.
 
 **Pointer:** a click enters the block at the clicked character (the rendered
 position is mapped back to the markdown source); a drag that selects rendered
-text does not enter it. The fold arrow shows on the hovered and the active row;
-a folded block's bullet wears a ring.
+text inside one block does not enter it. The fold arrow shows on the hovered and
+the active row; a folded block's bullet wears a ring.
 
 **CSS variables** (set on the root or an ancestor): `--sf-outliner-indent` (one
 indent step, `1` unit; the guide lines follow it) and `--sf-outliner-row-pad`

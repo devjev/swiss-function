@@ -1,4 +1,10 @@
-import type { ComponentProps, FocusEvent, KeyboardEvent } from "react";
+import type {
+  ClipboardEvent,
+  ComponentProps,
+  FocusEvent,
+  KeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import {
   forwardRef,
   useCallback,
@@ -14,6 +20,8 @@ import { cx } from "../../lib/cx";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { Markdown } from "../Markdown";
 import { caretLine, offsetAtX } from "./caret";
+import { isOutlineText, parseOutline, toMarkdownList, withIds } from "./clipboard";
+import { History } from "./history";
 import {
   MAX_TRANSCLUSION_DEPTH,
   passthroughUrlTransform,
@@ -21,14 +29,18 @@ import {
 } from "./markdown-extensions";
 import styles from "./Outliner.module.css";
 import { OutlinerBullet } from "./OutlinerBullet";
+import { blockSelection, extendSelection } from "./selection";
 import {
   deleteBullet,
+  deleteSubtree,
+  fillBullet,
   findBullet,
   flatVisible,
   getNextVisible,
   getParentId,
   getPrevVisible,
   indent,
+  insertSiblingsAfter,
   mergeInto,
   moveDown,
   moveUp,
@@ -38,7 +50,7 @@ import {
   toggleCollapsed,
   updateContent,
 } from "./tree";
-import type { BulletId, OutlinerProps, OutlinerValue } from "./types";
+import type { Bullet, BulletId, OutlinerProps, OutlinerValue } from "./types";
 
 type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
@@ -57,6 +69,13 @@ type Caret =
   /** The first or last visual line, at a viewport x: Arrow Up / Down. */
   | { id: BulletId; clientX: number; line: "first" | "last" };
 
+/** Where the user was, kept with every undo step: the caret in a block's
+ *  text, or a selection of blocks. */
+type Place =
+  | { kind: "text"; id: BulletId; start: number; end: number }
+  | { kind: "blocks"; anchor: BulletId; focus: BulletId }
+  | null;
+
 /**
  * An outline edited as one document, after Roam Research and Logseq: a block
  * is a textarea over its markdown while the caret is in it and rendered
@@ -64,8 +83,9 @@ type Caret =
  * and the structure from block to block.
  *
  * Two levels of focus. In a block's text, the keys edit. Escape steps out to
- * the block itself (selected): the arrows walk the tree, Enter goes back in.
- * Escape again releases the selection, and Tab then leaves the outline.
+ * the block itself (selected): the arrows walk the tree, Shift extends the
+ * selection over several blocks, Enter goes back in. Escape again releases the
+ * selection, and Tab then leaves the outline.
  */
 export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outliner(props, ref) {
   const {
@@ -79,10 +99,16 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     className,
     onKeyDown,
     onBlur,
+    onCopy,
+    onCut,
+    onPaste,
     ...rest
   } = props;
 
+  // The selection runs from an anchor to a focus; `active` is the focus, the
+  // row that holds the keyboard.
   const [activeState, setActiveId] = useState<BulletId | null>(null);
+  const [anchorState, setAnchorId] = useState<BulletId | null>(null);
   const [editingState, setEditingId] = useState<BulletId | null>(null);
   const [, rerender] = useReducer((n: number) => n + 1, 0);
 
@@ -91,12 +117,26 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   // A block that left the screen (deleted, or folded away) holds neither the
   // selection nor the caret.
   const activeId = activeState && visible.has(activeState) ? activeState : null;
+  const anchorId = anchorState && visible.has(anchorState) ? anchorState : activeId;
   const editingId = !readOnly && editingState && visible.has(editingState) ? editingState : null;
+  const selection = useMemo(
+    () => (activeId && anchorId && !editingId ? blockSelection(flat, anchorId, activeId) : null),
+    [flat, activeId, anchorId, editingId],
+  );
 
   // The handlers below are created once, so a keystroke re-renders one row;
   // they read what is current from here.
-  const latest = useRef({ value, onChange, readOnly, generateId, activeId, editingId });
-  latest.current = { value, onChange, readOnly, generateId, activeId, editingId };
+  const latest = useRef({
+    value,
+    onChange,
+    readOnly,
+    generateId,
+    flat,
+    activeId,
+    anchorId,
+    editingId,
+  });
+  latest.current = { value, onChange, readOnly, generateId, flat, activeId, anchorId, editingId };
 
   const rootRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<BulletId, HTMLDivElement>());
@@ -107,6 +147,22 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   /** The last selected block: where a Tab back into the outline lands. */
   const lastActive = useRef<BulletId | null>(null);
   if (activeId) lastActive.current = activeId;
+  /** The caret as it was before the key or paste being handled changed the
+   *  text: what an undo of that change returns to. */
+  const caretBefore = useRef<{ id: BulletId; start: number; end: number } | null>(null);
+  /** A drag or Shift+click that selected blocks: the click that ends it must
+   *  not enter a block. */
+  const suppressClick = useRef(false);
+
+  // --- History ---
+  const [history] = useState(() => new History<Place>());
+  /** The tree this component last put out. Any other `value` came from
+   *  outside, and the recorded steps no longer lead to it. */
+  const emitted = useRef(value);
+  if (emitted.current !== value) {
+    history.clear();
+    emitted.current = value;
+  }
 
   const registerRow = useCallback((id: BulletId, el: HTMLDivElement | null) => {
     if (el) rowRefs.current.set(id, el);
@@ -157,33 +213,135 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     if (row && doc && (doc.activeElement === doc.body || doc.activeElement === null)) row.focus();
   }, [value]);
 
-  const commit = useCallback((next: OutlinerValue): boolean => {
-    if (next === latest.current.value) return false;
-    latest.current.onChange(next);
-    return true;
+  /** Select blocks: one, or the run from `anchor` to `focus`. */
+  const select = useCallback((focus: BulletId | null, anchor: BulletId | null = focus) => {
+    setEditingId(null);
+    setAnchorId(anchor);
+    setActiveId(focus);
   }, []);
 
   /** Put the caret in a block. */
   const editAt = useCallback((caret: Caret) => {
     pendingCaret.current = caret;
     setActiveId(caret.id);
+    setAnchorId(caret.id);
     setEditingId(caret.id);
     // The block may already be the one being edited: render anyway, so the
     // caret is applied.
     rerender();
   }, []);
 
+  /** Where the user is now. `beforeInput` asks for the caret as it was before
+   *  the keystroke being handled. */
+  const place = useCallback((beforeInput: boolean): Place => {
+    const { editingId: editing, activeId: active, anchorId: anchor } = latest.current;
+    if (editing) {
+      const before = caretBefore.current;
+      if (beforeInput && before?.id === editing) return { kind: "text", ...before };
+      const textarea = editorRefs.current.get(editing);
+      if (!textarea) return null;
+      return {
+        kind: "text",
+        id: editing,
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      };
+    }
+    return active ? { kind: "blocks", anchor: anchor ?? active, focus: active } : null;
+  }, []);
+
+  /** Put a change out, as one undo step. `typingIn` marks a keystroke in a
+   *  block, which joins the run of typing in progress. */
+  const commit = useCallback(
+    (next: OutlinerValue, typingIn?: BulletId): boolean => {
+      const current = latest.current.value;
+      if (next === current) return false;
+      history.record(
+        { value: current, ui: place(true) },
+        typingIn ? { id: typingIn, now: Date.now() } : undefined,
+      );
+      emitted.current = next;
+      latest.current.onChange(next);
+      return true;
+    },
+    [history, place],
+  );
+
+  const travel = useCallback(
+    (direction: "undo" | "redo") => {
+      if (latest.current.readOnly) return;
+      const here = { value: latest.current.value, ui: place(false) };
+      const state = direction === "undo" ? history.undo(here) : history.redo(here);
+      if (!state) return;
+      emitted.current = state.value;
+      latest.current.onChange(state.value);
+      const there = state.ui;
+      if (!there) select(null);
+      else if (there.kind === "text") editAt(there);
+      else select(there.focus, there.anchor);
+    },
+    [history, place, select, editAt],
+  );
+
   const handleEnter = useCallback(
     (id: BulletId, offset: number | null) => {
+      if (suppressClick.current) {
+        suppressClick.current = false;
+        return;
+      }
       goalX.current = null;
+      history.breakTyping();
       if (latest.current.readOnly || offset === null) {
-        setEditingId(null);
-        setActiveId(id);
+        select(id);
         return;
       }
       editAt({ id, start: offset, end: offset });
     },
-    [editAt],
+    [editAt, select, history],
+  );
+
+  // --- Selecting blocks with the pointer: Shift+click, or a drag from one
+  // block into another ---
+  const handleRowMouseDown = useCallback(
+    (id: BulletId, e: ReactMouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const root = rootRef.current;
+      if (!root) return;
+      const doc = root.ownerDocument;
+      const { activeId: active, anchorId: anchor, editingId: editing } = latest.current;
+      const from = e.shiftKey ? (anchor ?? active ?? editing) : null;
+      if (from && from !== id) {
+        // Keep the focus and the page's text selection out of it.
+        e.preventDefault();
+        suppressClick.current = true;
+        select(id, from);
+      }
+      let dragged = false;
+      const move = (ev: MouseEvent) => {
+        const under = doc.elementFromPoint(ev.clientX, ev.clientY);
+        const row = under && root.contains(under) ? under.closest("[data-bullet-id]") : null;
+        const over = row?.getAttribute("data-bullet-id");
+        if (!over || (!dragged && over === id)) return;
+        dragged = true;
+        suppressClick.current = true;
+        root.toggleAttribute("data-dragging", true);
+        doc.defaultView?.getSelection()?.removeAllRanges();
+        select(over, from ?? id);
+      };
+      const up = () => {
+        doc.removeEventListener("mousemove", move);
+        doc.removeEventListener("mouseup", up);
+        root.removeAttribute("data-dragging");
+        // The click that follows lands on a row only when the press and the
+        // release share one; either way the flag must not outlive it.
+        setTimeout(() => {
+          suppressClick.current = false;
+        }, 0);
+      };
+      doc.addEventListener("mousemove", move);
+      doc.addEventListener("mouseup", up);
+    },
+    [select],
   );
 
   const handleToggleCollapsed = useCallback(
@@ -196,7 +354,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   const handleTextChange = useCallback(
     (id: BulletId, text: string) => {
       goalX.current = null;
-      commit(updateContent(latest.current.value, id, text));
+      commit(updateContent(latest.current.value, id, text), id);
     },
     [commit],
   );
@@ -207,7 +365,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       // A key that confirms an IME composition is not a command.
       if (e.nativeEvent.isComposing || e.keyCode === 229) return;
       const textarea = e.currentTarget;
-      const { value: tree, generateId: newId } = latest.current;
+      const { value: tree, generateId: newId, flat: rows } = latest.current;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const caretOnly = start === end;
@@ -215,6 +373,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       const mod = e.metaKey || e.ctrlKey;
       const vertical = e.key === "ArrowUp" || e.key === "ArrowDown";
       if (!vertical) goalX.current = null;
+      caretBefore.current = { id, start, end };
+      // A caret move ends a run of typing: the next keystroke is its own step.
+      if (/^(Arrow|Home|End|Page)/.test(e.key)) history.breakTyping();
 
       /** Apply a tree change that keeps the caret where it is. */
       const inPlace = (next: OutlinerValue) => {
@@ -224,11 +385,31 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         rerender();
       };
 
+      if (mod && !e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === "z" || key === "y") {
+          // One history for text and structure: the textarea's own undo would
+          // know nothing of a split or a merge.
+          e.preventDefault();
+          travel(key === "y" || e.shiftKey ? "redo" : "undo");
+          return;
+        }
+        if (key === "a" && start === 0 && end === length) {
+          // The text is already selected (or empty): the next level is every block.
+          const first = rows[0];
+          const last = rows[rows.length - 1];
+          if (first && last) {
+            e.preventDefault();
+            select(last.id, first.id);
+          }
+          return;
+        }
+      }
+
       switch (e.key) {
         case "Escape": {
           e.preventDefault();
-          setEditingId(null);
-          setActiveId(id);
+          select(id);
           return;
         }
         case "Enter": {
@@ -290,10 +471,19 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
             else e.preventDefault();
             return;
           }
-          if (e.shiftKey || e.altKey || !caretOnly) {
-            goalX.current = null;
+          if (e.altKey) return;
+          if (e.shiftKey) {
+            // Shift+Arrow selects text while there is a line to go to; from the
+            // block's first / last line it selects the block itself.
+            const tip = textarea.selectionDirection === "backward" ? start : end;
+            const line = caretLine(textarea, tip);
+            if (up ? line.first : line.last) {
+              e.preventDefault();
+              select(id);
+            }
             return;
           }
+          if (!caretOnly) return;
           const line = caretLine(textarea);
           const target = up
             ? line.first && getPrevVisible(tree, id)
@@ -328,8 +518,12 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         }
       }
     },
-    [commit, editAt],
+    [commit, editAt, select, travel, history],
   );
+
+  /** The blocks a command on row `id` acts on: the selection's roots when the
+   *  row is in it, else the row alone. */
+  const targets = (id: BulletId): BulletId[] => (selection?.ids.has(id) ? selection.roots : [id]);
 
   // --- Keys on a block (selected, or focused after a Tab into the outline) ---
   const handleRootKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -343,6 +537,25 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     const mod = e.metaKey || e.ctrlKey;
     const self = findBullet(value, id)?.bullet;
     const hasChildren = (self?.children?.length ?? 0) > 0;
+    const roots = targets(id);
+
+    if (mod && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === "z" || key === "y") {
+        e.preventDefault();
+        travel(key === "y" || e.shiftKey ? "redo" : "undo");
+        return;
+      }
+      if (key === "a") {
+        const first = flat[0];
+        const last = flat[flat.length - 1];
+        if (first && last) {
+          e.preventDefault();
+          select(last.id, first.id);
+        }
+        return;
+      }
+    }
 
     switch (e.key) {
       case "ArrowUp":
@@ -350,25 +563,40 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         const up = e.key === "ArrowUp";
         e.preventDefault();
         if (e.shiftKey && (mod || e.altKey)) {
-          if (!readOnly) commit(up ? moveUp(value, id) : moveDown(value, id));
-          setActiveId(id);
+          if (readOnly) return;
+          // Each root in turn, leading with the one in the direction of travel;
+          // if that one cannot move, none does.
+          const order = up ? roots : [...roots].reverse();
+          let next = value;
+          for (const root of order) {
+            const moved = up ? moveUp(next, root) : moveDown(next, root);
+            if (moved === next) break;
+            next = moved;
+          }
+          commit(next);
+          if (!selected) select(id);
           return;
         }
         if (mod) {
           if (hasChildren) commit(setCollapsed(value, id, up));
-          setActiveId(id);
+          if (!selected) select(id);
           return;
         }
-        setActiveId((up ? getPrevVisible(value, id) : getNextVisible(value, id)) ?? id);
+        if (e.shiftKey) {
+          const anchor = selected ? (anchorId ?? id) : id;
+          select(extendSelection(flat, anchor, id, up ? -1 : 1), anchor);
+          return;
+        }
+        select((up ? getPrevVisible(value, id) : getNextVisible(value, id)) ?? id);
         return;
       }
       case "ArrowLeft": {
         e.preventDefault();
         if (hasChildren && !self?.collapsed) {
           commit(setCollapsed(value, id, true));
-          setActiveId(id);
+          select(id);
         } else {
-          setActiveId(getParentId(value, id) ?? id);
+          select(getParentId(value, id) ?? id);
         }
         return;
       }
@@ -376,9 +604,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         e.preventDefault();
         if (hasChildren && self?.collapsed) {
           commit(setCollapsed(value, id, false));
-          setActiveId(id);
+          select(id);
         } else {
-          setActiveId(self?.children?.[0]?.id ?? id);
+          select(self?.children?.[0]?.id ?? id);
         }
         return;
       }
@@ -386,46 +614,150 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       case "End": {
         e.preventDefault();
         const edge = e.key === "Home" ? flat[0] : flat[flat.length - 1];
-        setActiveId(edge?.id ?? id);
+        const to = edge?.id ?? id;
+        select(to, e.shiftKey && selected ? (anchorId ?? id) : to);
         return;
       }
       case " ": {
         e.preventDefault();
-        setActiveId(id);
+        select(id);
         return;
       }
       case "Enter":
       case "F2": {
         e.preventDefault();
-        if (readOnly) setActiveId(id);
+        if (readOnly) select(id);
         else editAt({ id, edge: "end" });
         return;
       }
       case "Tab": {
-        // Tab indents a selected block; on a block that is only focused it
+        // Tab indents the selected blocks; on a block that is only focused it
         // moves on, so the outline never holds the keyboard.
         if (readOnly || !selected || mod || e.altKey) return;
         e.preventDefault();
-        commit(e.shiftKey ? outdent(value, id) : indent(value, id));
+        commit(roots.reduce((tree, root) => (e.shiftKey ? outdent : indent)(tree, root), value));
         return;
       }
       case "Backspace":
       case "Delete": {
         if (readOnly || !selected) return;
         e.preventDefault();
-        const neighbour = getPrevVisible(value, id) ?? getNextVisible(value, id);
-        commit(deleteBullet(value, id));
-        setActiveId(neighbour);
+        removeBlocks(roots);
         return;
       }
       case "Escape": {
         if (!selected) return;
         // Release the selection; the focus stays on the row, and Tab leaves.
         e.preventDefault();
-        setActiveId(null);
+        select(null);
         return;
       }
     }
+  };
+
+  /** Delete blocks with their children, and select what was next to them. */
+  const removeBlocks = (roots: BulletId[]) => {
+    const firstIndex = flat.findIndex((f) => f.id === roots[0]);
+    const gone = new Set(roots);
+    // The row above the first root, else the first row left below them.
+    let neighbour = flat[firstIndex - 1]?.id ?? null;
+    if (!neighbour) {
+      let depth = Number.POSITIVE_INFINITY;
+      for (const row of flat.slice(Math.max(firstIndex, 0))) {
+        if (gone.has(row.id)) depth = row.depth;
+        else if (row.depth <= depth) {
+          neighbour = row.id;
+          break;
+        }
+      }
+    }
+    commit(roots.reduce((tree, root) => deleteSubtree(tree, root), value));
+    select(neighbour);
+  };
+
+  // --- Clipboard: selected blocks travel as a markdown list ---
+  const copyBlocks = (e: ClipboardEvent<HTMLDivElement>): BulletId[] | null => {
+    if (e.defaultPrevented || editingId || !selection || !activeId) return null;
+    if (e.target !== rowRefs.current.get(activeId)) return null;
+    const bullets = selection.roots
+      .map((id) => findBullet(value, id)?.bullet)
+      .filter((b): b is Bullet => b !== undefined);
+    e.clipboardData.setData("text/plain", toMarkdownList(bullets));
+    e.preventDefault();
+    return selection.roots;
+  };
+
+  const handleCopy = (e: ClipboardEvent<HTMLDivElement>) => {
+    onCopy?.(e);
+    copyBlocks(e);
+  };
+
+  const handleCut = (e: ClipboardEvent<HTMLDivElement>) => {
+    onCut?.(e);
+    if (editingId) {
+      // The textarea cuts its own text; note the caret for the undo step.
+      const textarea = editorRefs.current.get(editingId);
+      if (textarea) {
+        caretBefore.current = {
+          id: editingId,
+          start: textarea.selectionStart,
+          end: textarea.selectionEnd,
+        };
+      }
+      history.breakTyping();
+      return;
+    }
+    const roots = readOnly ? null : copyBlocks(e);
+    if (roots) removeBlocks(roots);
+  };
+
+  const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
+    onPaste?.(e);
+    if (e.defaultPrevented || readOnly) return;
+    const text = e.clipboardData.getData("text/plain");
+    if (!text) return;
+
+    if (editingId) {
+      const textarea = editorRefs.current.get(editingId);
+      if (!textarea || e.target !== textarea) return;
+      caretBefore.current = {
+        id: editingId,
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      };
+      history.breakTyping();
+      // One line, or the lines of one paragraph: the textarea pastes it as text.
+      if (!isOutlineText(text)) return;
+      e.preventDefault();
+      const fresh = withIds(parseOutline(text), generateId);
+      const [first, ...others] = fresh;
+      if (!first) return;
+      const self = findBullet(value, editingId)?.bullet;
+      const last = fresh[fresh.length - 1] as Bullet;
+      if (self && self.content === "" && !self.children?.length) {
+        // An empty block becomes the first pasted one.
+        const filled = fillBullet(value, editingId, first.content, first.children);
+        commit(insertSiblingsAfter(filled, editingId, others));
+        editAt({ id: others.length > 0 ? last.id : editingId, edge: "end" });
+      } else {
+        commit(insertSiblingsAfter(value, editingId, fresh));
+        editAt({ id: last.id, edge: "end" });
+      }
+      return;
+    }
+
+    if (!selection || !activeId || e.target !== rowRefs.current.get(activeId)) return;
+    e.preventDefault();
+    const blocks = isOutlineText(text)
+      ? parseOutline(text)
+      : [{ content: text.trim(), children: [] }];
+    const fresh = withIds(blocks, generateId);
+    const after = selection.roots[selection.roots.length - 1];
+    const first = fresh[0];
+    const last = fresh[fresh.length - 1];
+    if (!after || !first || !last) return;
+    commit(insertSiblingsAfter(value, after, fresh));
+    select(last.id, first.id);
   };
 
   // --- Focus leaving the outline drops the selection and the caret ---
@@ -440,14 +772,13 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     const doc = root.ownerDocument;
     (doc.defaultView ?? window).requestAnimationFrame(() => {
       if (root.contains(doc.activeElement)) return;
-      setEditingId(null);
-      setActiveId(null);
+      select(null);
     });
   };
 
   const startFirstBlock = () => {
     const id = generateId();
-    onChange([{ id, content: "" }]);
+    commit([{ id, content: "" }]);
     editAt({ id, edge: "start" });
   };
 
@@ -466,9 +797,13 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       {...rest}
       ref={mergeRefs(ref, rootRef)}
       role="tree"
+      aria-multiselectable="true"
       className={cx(styles.root, className)}
       onKeyDown={handleRootKeyDown}
       onBlur={handleBlur}
+      onCopy={handleCopy}
+      onCut={handleCut}
+      onPaste={handlePaste}
     >
       {flat.length === 0 && !readOnly ? (
         <div
@@ -500,11 +835,13 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
             depth={depth}
             hasChildren={hasChildren}
             isActive={activeId === id}
+            isSelected={selection?.ids.has(id) ?? false}
             isEditing={editingId === id}
             tabbable={tabbableId === id}
             readOnly={readOnly}
             markdownComponents={markdownComponents}
             onEnter={handleEnter}
+            onRowMouseDown={handleRowMouseDown}
             onToggleCollapsed={handleToggleCollapsed}
             onTextChange={handleTextChange}
             onEditorKeyDown={handleEditorKeyDown}

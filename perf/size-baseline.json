@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-19T13:19:47.941Z"
+    "date": "2026-11-19T13:32:03.717Z"
   },
-  "totalGzip": 2169625,
+  "totalGzip": 2178675,
   "entries": {
     ".": {
-      "files": 372,
-      "jsRaw": 1690794,
-      "jsGzip": 496830,
+      "files": 375,
+      "jsRaw": 1706376,
+      "jsGzip": 501355,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 496830,
+      "gzip": 501355,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -840,12 +840,12 @@
       ]
     },
     "./outliner": {
-      "files": 20,
-      "jsRaw": 58014,
-      "jsGzip": 17369,
+      "files": 23,
+      "jsRaw": 73596,
+      "jsGzip": 21894,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 17369,
+      "gzip": 21894,
       "externals": ["react", "react-markdown", "react/jsx-runtime", "remark-gfm"]
     },
     "./pane": {

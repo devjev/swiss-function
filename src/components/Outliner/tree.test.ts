@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   deleteBullet,
+  deleteSubtree,
+  fillBullet,
   findBullet,
   flatVisible,
   getNextVisible,
@@ -8,6 +10,7 @@ import {
   getPrevVisible,
   indent,
   insertAfter,
+  insertSiblingsAfter,
   mergeInto,
   moveDown,
   moveUp,
@@ -314,5 +317,33 @@ describe("getParentId", () => {
     expect(getParentId(tree, "a2x")).toBe("a2");
     expect(getParentId(tree, "a1")).toBe("a");
     expect(getParentId(tree, "a")).toBeNull();
+  });
+});
+
+describe("whole-block operations", () => {
+  it("deleteSubtree removes the bullet with its children", () => {
+    const next = deleteSubtree(tree, "a2");
+    expect(findBullet(next, "a2")).toBeNull();
+    expect(findBullet(next, "a2x")).toBeNull();
+    expect(flatVisible(next).map((f) => f.id)).toEqual(["a", "a1", "b"]);
+  });
+
+  it("insertSiblingsAfter keeps the given order", () => {
+    const next = insertSiblingsAfter(tree, "a1", [
+      { id: "x", content: "X" },
+      { id: "y", content: "Y" },
+    ]);
+    expect(findBullet(next, "a")?.bullet.children?.map((b) => b.id)).toEqual([
+      "a1",
+      "x",
+      "y",
+      "a2",
+    ]);
+  });
+
+  it("fillBullet sets the text and the children", () => {
+    const next = fillBullet(tree, "b", "filled", [{ id: "k", content: "kid" }]);
+    expect(findBullet(next, "b")?.bullet.content).toBe("filled");
+    expect(findBullet(next, "k")?.path).toEqual([1, 0]);
   });
 });

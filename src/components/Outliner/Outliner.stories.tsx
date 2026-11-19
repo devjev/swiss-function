@@ -63,6 +63,8 @@ const KEYS: Array<[string, string]> = [
   ["alt+shift+up", "Move the block (also down)"],
   ["mod+up", "Fold (Mod+Down unfolds)"],
   ["escape", "Leave the text; the block stays selected"],
+  ["shift+down", "From a block's last line: select it, then the next (also up)"],
+  ["mod+z", "Undo, text and structure alike (Mod+Shift+Z redoes)"],
 ];
 
 export const Editable: Story = () => {
@@ -71,7 +73,8 @@ export const Editable: Story = () => {
     <div style={frame}>
       <Note>
         Click into any block and type. The arrow keys move through the outline as through one
-        document.
+        document. Drag from one block into another to select several; copy and paste carry them as a
+        markdown list.
       </Note>
       <Outliner value={value} onChange={setValue} aria-label="Team" />
       <dl

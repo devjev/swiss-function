@@ -47,9 +47,15 @@
   pointer-events: none;
 }
 
-/* The selected block (Escape out of its text, or reached with the arrows). */
-.row[data-active]:not([data-editing]) {
+/* Selected blocks (Escape out of a block's text, the arrows, Shift+Arrow, a
+   drag across blocks). A block is selected with its children. */
+.row[data-selected] {
   background-color: color-mix(in srgb, var(--sf-color-bg), var(--sf-color-primary) 12%);
+}
+
+/* While a drag selects blocks, it must not select their text as well. */
+.root[data-dragging] {
+  user-select: none;
 }
 
 .row:focus-visible {
