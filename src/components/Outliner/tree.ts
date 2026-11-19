@@ -30,7 +30,15 @@ export function flatVisible(bullets: OutlinerValue): FlatBullet[] {
     list.forEach((b, i) => {
       const cur = [...path, i];
       const hasChildren = (b.children?.length ?? 0) > 0;
-      out.push({ id: b.id, bullet: b, depth, hasChildren, path: cur });
+      out.push({
+        id: b.id,
+        bullet: b,
+        depth,
+        hasChildren,
+        path: cur,
+        index: i,
+        siblings: list.length,
+      });
       if (hasChildren && !b.collapsed) {
         walk(b.children ?? [], depth + 1, cur);
       }
@@ -419,4 +427,104 @@ export function fillBullet(
     content,
     ...(children?.length ? { children, collapsed: false } : null),
   }));
+}
+
+// ----------------------------------------------------------------------------
+// Zoom, reveal and drag
+// ----------------------------------------------------------------------------
+
+/** The bullets from the top level down to `id`, the bullet itself last. Empty
+ *  when the id is not in the tree. */
+export function pathTo(bullets: OutlinerValue, id: BulletId): Bullet[] {
+  const f = findBullet(bullets, id);
+  if (!f) return [];
+  const out: Bullet[] = [];
+  let list: Bullet[] | undefined = bullets;
+  for (const i of f.path) {
+    const b: Bullet | undefined = list?.[i];
+    if (!b) return [];
+    out.push(b);
+    list = b.children;
+  }
+  return out;
+}
+
+/** Put `next` in the place of the bullet `id`. */
+export function replaceBullet(bullets: OutlinerValue, id: BulletId, next: Bullet): OutlinerValue {
+  const f = findBullet(bullets, id);
+  if (!f) return bullets;
+  return updateAt(bullets, f.path, () => next);
+}
+
+/** Unfold every ancestor of `id`, so the bullet is on screen. Returns the same
+ *  tree when nothing was folded. */
+export function expandAncestors(bullets: OutlinerValue, id: BulletId): OutlinerValue {
+  const f = findBullet(bullets, id);
+  if (!f) return bullets;
+  let result = bullets;
+  for (let depth = 1; depth < f.path.length; depth++) {
+    const path = f.path.slice(0, depth);
+    if (bulletAt(result, path)?.collapsed) {
+      result = updateAt(result, path, (b) => ({ ...b, collapsed: false }));
+    }
+  }
+  return result;
+}
+
+/** Insert `fresh` as the first children of `id`, in order, and unfold it. */
+export function prependChildren(
+  bullets: OutlinerValue,
+  id: BulletId,
+  fresh: Bullet[],
+): OutlinerValue {
+  const f = findBullet(bullets, id);
+  if (!f || fresh.length === 0) return bullets;
+  return updateAt(bullets, f.path, (b) => ({
+    ...b,
+    children: [...fresh, ...(b.children ?? [])],
+    collapsed: false,
+  }));
+}
+
+function sameShape(a: Bullet[], b: Bullet[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => {
+    const y = b[i];
+    return y !== undefined && x.id === y.id && sameShape(x.children ?? [], y.children ?? []);
+  });
+}
+
+/** Move the bullets `ids` (each with its children, kept in the given order) to
+ *  a new place: right after the sibling `afterId`, or, when that is null, to
+ *  the front of `parentId`'s children (of the top level when `parentId` is
+ *  null too). Returns the same tree when the place is inside what moves, or
+ *  when nothing would change. */
+export function moveBlocks(
+  bullets: OutlinerValue,
+  ids: BulletId[],
+  parentId: BulletId | null,
+  afterId: BulletId | null,
+): OutlinerValue {
+  const moved: Bullet[] = [];
+  for (const id of ids) {
+    const found = findBullet(bullets, id)?.bullet;
+    if (found) moved.push(found);
+  }
+  if (moved.length === 0) return bullets;
+  const inside = (id: BulletId | null) => id !== null && findBullet(moved, id) !== null;
+  if (inside(parentId) || inside(afterId)) return bullets;
+
+  let rest = bullets;
+  for (const b of moved) rest = deleteSubtree(rest, b.id);
+  let next: OutlinerValue;
+  if (afterId !== null) {
+    if (!findBullet(rest, afterId)) return bullets;
+    next = insertSiblingsAfter(rest, afterId, moved);
+  } else if (parentId !== null) {
+    if (!findBullet(rest, parentId)) return bullets;
+    next = prependChildren(rest, parentId, moved);
+  } else {
+    next = [...moved, ...rest];
+  }
+  return sameShape(bullets, next) ? bullets : next;
 }

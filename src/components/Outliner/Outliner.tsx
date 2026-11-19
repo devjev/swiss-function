@@ -1,4 +1,5 @@
 import { Popover as BasePopover } from "@base-ui/react/popover";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type {
   ClipboardEvent,
   ComponentProps,
@@ -6,12 +7,17 @@ import type {
   InputEvent,
   KeyboardEvent,
   MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  Fragment,
   forwardRef,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useId,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useReducer,
@@ -20,7 +26,10 @@ import {
 } from "react";
 import type ReactMarkdown from "react-markdown";
 import { cx } from "../../lib/cx";
+import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
+import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
+import { ChevronRight } from "../Icon";
 import { Markdown } from "../Markdown";
 import { Popover } from "../Popover";
 import {
@@ -37,6 +46,7 @@ import {
 } from "./assist";
 import { caretLine, caretRect, offsetAtX } from "./caret";
 import { isOutlineText, parseOutline, toMarkdownList, withIds } from "./clipboard";
+import type { DropTarget } from "./drag";
 import { History } from "./history";
 import {
   MAX_TRANSCLUSION_DEPTH,
@@ -45,10 +55,12 @@ import {
 } from "./markdown-extensions";
 import styles from "./Outliner.module.css";
 import { OutlinerBullet } from "./OutlinerBullet";
+import type { BulletPointerDown } from "./OutlinerDrag";
 import { blockSelection, extendSelection } from "./selection";
 import {
   deleteBullet,
   deleteSubtree,
+  expandAncestors,
   fillBullet,
   findBullet,
   flatVisible,
@@ -58,15 +70,30 @@ import {
   indent,
   insertSiblingsAfter,
   mergeInto,
+  moveBlocks,
   moveDown,
   moveUp,
   outdent,
+  pathTo,
+  prependChildren,
   setCollapsed,
   splitBullet,
   toggleCollapsed,
   updateContent,
 } from "./tree";
-import type { Bullet, BulletId, OutlinerCompletion, OutlinerProps, OutlinerValue } from "./types";
+import type {
+  Bullet,
+  BulletId,
+  FlatBullet,
+  OutlinerCompletion,
+  OutlinerHandle,
+  OutlinerProps,
+  OutlinerValue,
+} from "./types";
+import { plainLabel, zoomBack, zoomRoot, zoomView } from "./zoom";
+
+// dnd-kit arrives with the first outline that can be reordered.
+const OutlinerDrag = lazy(() => import("./OutlinerDrag"));
 
 type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
@@ -92,6 +119,49 @@ type Place =
   | { kind: "blocks"; anchor: BulletId; focus: BulletId }
   | null;
 
+/** What an undo step returns to: the zoom and the place in it. */
+interface Step {
+  root: BulletId | null;
+  place: Place;
+}
+
+let mac: boolean | null = null;
+function isMac(): boolean {
+  if (mac === null) {
+    const nav = typeof navigator === "undefined" ? null : navigator;
+    const data = (nav as (Navigator & { userAgentData?: { platform?: string } }) | null)
+      ?.userAgentData;
+    mac = /mac|iphone|ipad|ipod/i.test(data?.platform || nav?.platform || nav?.userAgent || "");
+  }
+  return mac;
+}
+
+/** The zoom keys. Mod+. and Mod+, anywhere; Alt+Right and Alt+Left as well,
+ *  except in a block's text on a Mac, where they move the caret by a word. */
+function zoomKey(
+  e: { key: string; altKey: boolean; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean },
+  inText: boolean,
+): "in" | "out" | null {
+  if (e.shiftKey) return null;
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && !e.altKey) return e.key === "." ? "in" : e.key === "," ? "out" : null;
+  if (e.altKey && !mod && !(inText && isMac())) {
+    return e.key === "ArrowRight" ? "in" : e.key === "ArrowLeft" ? "out" : null;
+  }
+  return null;
+}
+
+/** Keeps the focus where it is: a press on the breadcrumb must not take the
+ *  caret out of the block being edited. */
+const keepFocus = (e: ReactMouseEvent) => e.preventDefault();
+
+/** How long after a drag the caret is guarded: dnd-kit's sensor keeps its
+ *  document listeners for 50ms after the drop. */
+const SENSOR_TAIL_MS = 100;
+
+/** Rows rendered beyond the visible ones, each way, when virtualized. */
+const OVERSCAN = 12;
+
 /** An open completion list: the block and the trigger it belongs to, the
  *  entries, and the highlighted one. */
 interface CompletionState {
@@ -114,7 +184,7 @@ interface CompletionState {
  */
 export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outliner(props, ref) {
   const {
-    value,
+    value: fullValue,
     onChange,
     readOnly = false,
     generateId = defaultGenerateId,
@@ -122,6 +192,17 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     resolveBlockRef,
     completions,
     placeholder = "Empty outline. Click to write.",
+    root: rootProp,
+    defaultRoot = null,
+    onRootChange,
+    zoomable = true,
+    rootLabel = "Outline",
+    reorderable = true,
+    virtualized = false,
+    frame = true,
+    apiRef,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledBy,
     className,
     onKeyDown,
     onBlur,
@@ -138,9 +219,23 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   const [editingState, setEditingId] = useState<BulletId | null>(null);
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const [completionState, setCompletion] = useState<CompletionState | null>(null);
+  const [rootState, setRootState] = useState<BulletId | null>(defaultRoot);
+  /** The rows being dragged by a bullet, with their children. */
+  const [dragging, setDragging] = useState<ReadonlySet<BulletId> | null>(null);
+
+  // --- Zoom: everything below edits `value`, the view. Unzoomed it is the
+  // whole tree; zoomed, a tree of one block (see zoom.ts) ---
+  const wantedRoot = rootProp !== undefined ? rootProp : rootState;
+  const zoomed = useMemo(() => zoomRoot(fullValue, wantedRoot), [fullValue, wantedRoot]);
+  const value = useMemo(() => (zoomed ? zoomView(zoomed) : fullValue), [zoomed, fullValue]);
+  const rootId = zoomed?.id ?? null;
+  const crumbs = useMemo(
+    () => (rootId ? pathTo(fullValue, rootId).slice(0, -1) : []),
+    [fullValue, rootId],
+  );
 
   const flat = useMemo(() => flatVisible(value), [value]);
-  const visible = useMemo(() => new Set(flat.map((f) => f.id)), [flat]);
+  const visible = useMemo(() => new Map(flat.map((f, i) => [f.id, i])), [flat]);
   // A block that left the screen (deleted, or folded away) holds neither the
   // selection nor the caret.
   const activeId = activeState && visible.has(activeState) ? activeState : null;
@@ -161,6 +256,13 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   // they read what is current from here.
   const current = {
     value,
+    full: fullValue,
+    zoomed,
+    rootId,
+    rootControlled: rootProp !== undefined,
+    onRootChange,
+    zoomable,
+    virtualized,
     onChange,
     readOnly,
     generateId,
@@ -169,15 +271,21 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     activeId,
     anchorId,
     editingId,
+    selection,
     completion,
+    dragging,
   };
   const latest = useRef(current);
   latest.current = current;
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<BulletId, HTMLDivElement>());
   const editorRefs = useRef(new Map<BulletId, HTMLTextAreaElement>());
   const pendingCaret = useRef<Caret | null>(null);
+  /** Virtualized: the block that was just brought on screen, and how often
+   *  the outline has rendered since (see below). */
+  const keepVisible = useRef<{ id: BulletId; renders: number } | null>(null);
   /** The x the caret keeps while Arrow Up / Down run through several blocks. */
   const goalX = useRef<number | null>(null);
   /** The last selected block: where a Tab back into the outline lands. */
@@ -196,22 +304,75 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   const listId = useId();
 
   // --- History ---
-  const [history] = useState(() => new History<Place>());
+  const [history] = useState(() => new History<Step>());
   /** The tree this component last put out. Any other `value` came from
    *  outside, and the recorded steps no longer lead to it. */
-  const emitted = useRef(value);
-  if (emitted.current !== value) {
+  const emitted = useRef(fullValue);
+  if (emitted.current !== fullValue) {
     history.clear();
-    emitted.current = value;
+    emitted.current = fullValue;
   }
+
+  // --- Virtualization: only the rows on screen are in the DOM, plus the ones
+  // that must not leave it (the block with the caret or the focus, the outline's
+  // tab stop, a block being dragged) ---
+  const tabbableId =
+    activeId ??
+    (lastActive.current && visible.has(lastActive.current) ? lastActive.current : flat[0]?.id);
+  const rowPx = useCssPx(rootRef, "calc(var(--sf-unit) * 1.25)", DEFAULT_TABLE_ROW_PX);
+  const pinned: number[] = [];
+  if (virtualized) {
+    for (const id of [tabbableId, editingId, ...(dragging ?? [])]) {
+      const index = id ? visible.get(id) : undefined;
+      if (index !== undefined) pinned.push(index);
+    }
+  }
+  const virtualizer = useVirtualizer({
+    count: flat.length,
+    enabled: virtualized,
+    getScrollElement: () => treeRef.current,
+    estimateSize: () => rowPx,
+    overscan: OVERSCAN,
+    getItemKey: (index) => flat[index]?.id ?? index,
+    rangeExtractor: (range) => {
+      const indexes = defaultRangeExtractor(range);
+      if (pinned.length === 0) return indexes;
+      return [...new Set([...indexes, ...pinned])].sort((a, b) => a - b);
+    },
+  });
+  useRemeasureOnSizeChange(virtualizer, rowPx);
+  const virtualizerRef = useRef(virtualizer);
+  virtualizerRef.current = virtualizer;
 
   const registerRow = useCallback((id: BulletId, el: HTMLDivElement | null) => {
     if (el) rowRefs.current.set(id, el);
     else rowRefs.current.delete(id);
+    // A row's height follows its text: the virtualizer measures each one.
+    if (latest.current.virtualized) virtualizerRef.current.measureElement(el);
   }, []);
   const registerEditor = useCallback((id: BulletId, el: HTMLTextAreaElement | null) => {
     if (el) editorRefs.current.set(id, el);
     else editorRefs.current.delete(id);
+  }, []);
+
+  const holdInView = useCallback((id: BulletId) => {
+    const view = rootRef.current?.ownerDocument.defaultView;
+    if (!view) return;
+    const keep = { id, renders: 0 };
+    keepVisible.current = keep;
+    let seen = 0;
+    let quiet = 0;
+    const tick = () => {
+      if (keepVisible.current !== keep) return;
+      if (keep.renders === seen) quiet++;
+      else {
+        quiet = 0;
+        seen = keep.renders;
+      }
+      if (quiet >= 2) keepVisible.current = null;
+      else view.requestAnimationFrame(tick);
+    };
+    view.requestAnimationFrame(tick);
   }, []);
 
   // --- Caret placement, after the render that shows the block ---
@@ -236,6 +397,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     if (textarea.ownerDocument.activeElement !== textarea) textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(start, end);
     rowRefs.current.get(caret.id)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (latest.current.virtualized) holdInView(caret.id);
     refreshCompletion(caret.id);
   });
 
@@ -245,7 +407,34 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   useLayoutEffect(() => {
     if (!activeId || editingId) return;
     rowRefs.current.get(activeId)?.focus();
-  }, [activeId, editingId]);
+    if (latest.current.virtualized) holdInView(activeId);
+  }, [activeId, editingId, holdInView]);
+
+  // --- Virtualized: a block brought on screen stays there ---
+  // The rows around it take their real heights only once they are rendered,
+  // which moves it after the scroll that showed it. So it is scrolled into
+  // view again on every render, until two frames pass without one (the
+  // measuring is over) or the user's next key, press or wheel.
+  useLayoutEffect(() => {
+    const keep = keepVisible.current;
+    if (!keep) return;
+    keep.renders++;
+    rowRefs.current.get(keep.id)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !virtualized) return;
+    const release = () => {
+      keepVisible.current = null;
+    };
+    const events = ["keydown", "pointerdown", "wheel", "touchstart"] as const;
+    for (const type of events) {
+      root.addEventListener(type, release, { capture: true, passive: true });
+    }
+    return () => {
+      for (const type of events) root.removeEventListener(type, release, { capture: true });
+    };
+  }, [virtualized]);
   // A move reorders the rows, and a row the browser re-inserts loses focus.
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the tree changes
   useEffect(() => {
@@ -294,12 +483,12 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
 
   /** Put a change out, as one undo step. `typingIn` marks a keystroke in a
    *  block, which joins the run of typing in progress. */
-  const commit = useCallback(
+  const commitFull = useCallback(
     (next: OutlinerValue, typingIn?: BulletId): boolean => {
-      const current = latest.current.value;
-      if (next === current) return false;
+      const { full, rootId: root } = latest.current;
+      if (next === full) return false;
       history.record(
-        { value: current, ui: place(true) },
+        { value: full, ui: { root, place: place(true) } },
         typingIn ? { id: typingIn, now: Date.now() } : undefined,
       );
       emitted.current = next;
@@ -309,20 +498,127 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     [history, place],
   );
 
+  /** The same for a change to the view. False when nothing changed, or when
+   *  the change would take a block out of the zoomed one. */
+  const commit = useCallback(
+    (next: OutlinerValue, typingIn?: BulletId): boolean => {
+      const { value: view, full, zoomed: on } = latest.current;
+      if (next === view) return false;
+      const nextFull = on ? zoomBack(full, on, next) : next;
+      return nextFull ? commitFull(nextFull, typingIn) : false;
+    },
+    [commitFull],
+  );
+
+  const setRoot = useCallback((id: BulletId | null) => {
+    if (id === latest.current.rootId) return;
+    if (!latest.current.rootControlled) setRootState(id);
+    latest.current.onRootChange?.(id);
+  }, []);
+
   const travel = useCallback(
     (direction: "undo" | "redo") => {
       if (latest.current.readOnly) return;
-      const here = { value: latest.current.value, ui: place(false) };
+      const here = {
+        value: latest.current.full,
+        ui: { root: latest.current.rootId, place: place(false) },
+      };
       const state = direction === "undo" ? history.undo(here) : history.redo(here);
       if (!state) return;
       emitted.current = state.value;
       latest.current.onChange(state.value);
-      const there = state.ui;
+      setRoot(state.ui.root);
+      const there = state.ui.place;
       if (!there) select(null);
       else if (there.kind === "text") editAt(there);
       else select(there.focus, there.anchor);
     },
-    [history, place, select, editAt],
+    [history, place, select, editAt, setRoot],
+  );
+
+  // --- Zoom ---
+  /** Keep the caret through a zoom: the block stays, its row may move. */
+  const holdCaret = useCallback(() => {
+    const here = place(false);
+    if (here?.kind === "text") {
+      pendingCaret.current = { id: here.id, start: here.start, end: here.end };
+    }
+  }, [place]);
+
+  const zoomTo = useCallback(
+    (id: BulletId | null) => {
+      history.breakTyping();
+      holdCaret();
+      setRoot(id);
+    },
+    [history, holdCaret, setRoot],
+  );
+
+  /** One level up: the zoomed block's parent, then the whole outline. */
+  const zoomOut = useCallback(() => {
+    const { zoomed: on, full } = latest.current;
+    if (on) zoomTo(getParentId(full, on.id));
+  }, [zoomTo]);
+
+  const handleBulletClick = useCallback(
+    (id: BulletId) => {
+      if (latest.current.zoomable) zoomTo(id);
+    },
+    [zoomTo],
+  );
+
+  // --- Dragging blocks by a bullet (OutlinerDrag, loaded on demand) ---
+  const dragHandlers = useRef(new Map<BulletId, BulletPointerDown>());
+  const bindDrag = useCallback((id: BulletId, handler: BulletPointerDown | null) => {
+    if (handler) dragHandlers.current.set(id, handler);
+    else dragHandlers.current.delete(id);
+  }, []);
+  /** The caret as it was at the press on a bullet. dnd-kit's pointer sensor
+   *  clears the page's selection when the drag starts, on every
+   *  `selectionchange` while it drags and for a moment after, and in Chromium
+   *  that sends the caret of a focused textarea to its start. So the caret is
+   *  noted before the sensor sees the press, put back when the drag ends, and
+   *  again whenever the sensor undoes that, for as long as the sensor listens. */
+  const dragCaret = useRef<Place>(null);
+  const handleBulletPointerDown = useCallback(
+    (id: BulletId, e: ReactPointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return;
+      dragCaret.current = place(false);
+      dragHandlers.current.get(id)?.(e);
+    },
+    [place],
+  );
+  const dragRoots = useCallback((id: BulletId): BulletId[] => {
+    const selected = latest.current.selection;
+    return selected?.ids.has(id) ? selected.roots : [id];
+  }, []);
+  const getRootElement = useCallback(() => rootRef.current, []);
+  const getRowElement = useCallback((id: BulletId) => rowRefs.current.get(id), []);
+  const handleDraggingChange = useCallback((ids: ReadonlySet<BulletId> | null) => {
+    setDragging(ids);
+    if (ids) return;
+    const held = dragCaret.current;
+    dragCaret.current = null;
+    if (held?.kind !== "text") return;
+    pendingCaret.current = { id: held.id, start: held.start, end: held.end };
+    const doc = rootRef.current?.ownerDocument;
+    if (!doc) return;
+    const restore = () => {
+      const textarea = editorRefs.current.get(held.id);
+      if (!textarea || doc.activeElement !== textarea) return;
+      if (textarea.selectionStart !== held.start || textarea.selectionEnd !== held.end) {
+        textarea.setSelectionRange(held.start, held.end);
+      }
+    };
+    doc.addEventListener("selectionchange", restore);
+    setTimeout(() => doc.removeEventListener("selectionchange", restore), SENSOR_TAIL_MS);
+  }, []);
+  const handleDrop = useCallback(
+    (roots: BulletId[], target: DropTarget) => {
+      history.breakTyping();
+      commit(moveBlocks(latest.current.value, roots, target.parentId, target.afterId));
+    },
+    [commit, history],
   );
 
   const handleEnter = useCallback(
@@ -349,6 +645,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       if (e.button !== 0) return;
       const root = rootRef.current;
       if (!root) return;
+      // A press on the bullet starts a block drag or a zoom.
+      if ((e.target as HTMLElement).closest("[data-bullet-handle]")) return;
       const doc = root.ownerDocument;
       const { activeId: active, anchorId: anchor, editingId: editing } = latest.current;
       const from = e.shiftKey ? (anchor ?? active ?? editing) : null;
@@ -497,6 +795,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     (id: BulletId, e: KeyboardEvent<HTMLTextAreaElement>) => {
       // A key that confirms an IME composition is not a command.
       if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+      // While a block is being dragged the keys belong to the drag (Escape
+      // cancels it).
+      if (latest.current.dragging) return;
       const textarea = e.currentTarget;
       const { value: tree, generateId: newId, flat: rows } = latest.current;
       const start = textarea.selectionStart;
@@ -539,6 +840,14 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         pendingCaret.current = { id, start, end };
         rerender();
       };
+
+      const zoom = latest.current.zoomable ? zoomKey(e, true) : null;
+      if (zoom) {
+        e.preventDefault();
+        if (zoom === "in") zoomTo(id);
+        else zoomOut();
+        return;
+      }
 
       if (mod && !e.altKey) {
         const key = e.key.toLowerCase();
@@ -600,8 +909,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
           if (e.shiftKey || mod || e.altKey) return;
           e.preventDefault();
           const split = splitBullet(tree, id, start, end, newId());
-          if (!split) return;
-          commit(split.value);
+          if (!split || !commit(split.value)) return;
           editAt({ id: split.focusId, start: split.offset, end: split.offset });
           return;
         }
@@ -655,9 +963,11 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
             return;
           }
           if (mod && !e.altKey) {
+            // The zoomed block always shows its children.
             const self = findBullet(tree, id)?.bullet;
-            if (self?.children?.length) inPlace(setCollapsed(tree, id, up));
-            else e.preventDefault();
+            if (self?.children?.length && id !== latest.current.rootId) {
+              inPlace(setCollapsed(tree, id, up));
+            } else e.preventDefault();
             return;
           }
           if (e.altKey) return;
@@ -707,7 +1017,18 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         }
       }
     },
-    [commit, editAt, select, travel, history, applyEdit, acceptCompletion, closeCompletion],
+    [
+      commit,
+      editAt,
+      select,
+      travel,
+      history,
+      applyEdit,
+      acceptCompletion,
+      closeCompletion,
+      zoomTo,
+      zoomOut,
+    ],
   );
 
   /** The blocks a command on row `id` acts on: the selection's roots when the
@@ -717,7 +1038,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
   // --- Keys on a block (selected, or focused after a Tab into the outline) ---
   const handleRootKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     onKeyDown?.(e);
-    if (e.defaultPrevented || editingId) return;
+    if (e.defaultPrevented || editingId || dragging) return;
     const target = e.target as HTMLElement;
     const id = target.dataset?.bulletId;
     // Only a key on the row itself: a wiki link inside it keeps its Enter.
@@ -725,8 +1046,17 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     const selected = activeId === id;
     const mod = e.metaKey || e.ctrlKey;
     const self = findBullet(value, id)?.bullet;
-    const hasChildren = (self?.children?.length ?? 0) > 0;
+    // The zoomed block always shows its children: it does not fold.
+    const hasChildren = (self?.children?.length ?? 0) > 0 && id !== rootId;
     const roots = targets(id);
+
+    const zoom = zoomable ? zoomKey(e, false) : null;
+    if (zoom) {
+      e.preventDefault();
+      if (zoom === "in") zoomTo(id);
+      else zoomOut();
+      return;
+    }
 
     if (mod && !e.altKey) {
       const key = e.key.toLowerCase();
@@ -869,8 +1199,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
         }
       }
     }
-    commit(roots.reduce((tree, root) => deleteSubtree(tree, root), value));
-    select(neighbour);
+    if (commit(roots.reduce((tree, root) => deleteSubtree(tree, root), value))) select(neighbour);
   };
 
   // --- Clipboard: selected blocks travel as a markdown list ---
@@ -932,7 +1261,11 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
       if (!first) return;
       const self = findBullet(value, editingId)?.bullet;
       const last = fresh[fresh.length - 1] as Bullet;
-      if (self && self.content === "" && !self.children?.length) {
+      if (editingId === rootId) {
+        // The zoomed block has no siblings in view: the blocks go under it.
+        commit(prependChildren(value, editingId, fresh));
+        editAt({ id: last.id, edge: "end" });
+      } else if (self && self.content === "" && !self.children?.length) {
         // An empty block becomes the first pasted one.
         const filled = fillBullet(value, editingId, first.content, first.children);
         commit(insertSiblingsAfter(filled, editingId, others));
@@ -954,8 +1287,11 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     const first = fresh[0];
     const last = fresh[fresh.length - 1];
     if (!after || !first || !last) return;
-    commit(insertSiblingsAfter(value, after, fresh));
-    select(last.id, first.id);
+    const pasted =
+      after === rootId
+        ? prependChildren(value, after, fresh)
+        : insertSiblingsAfter(value, after, fresh);
+    if (commit(pasted)) select(last.id, first.id);
   };
 
   // --- Focus leaving the outline drops the selection and the caret ---
@@ -1000,74 +1336,211 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(function Outli
     };
   }, [completionBlock, completionFrom]);
 
-  const tabbableId =
-    activeId ??
-    (lastActive.current && visible.has(lastActive.current) ? lastActive.current : flat[0]?.id);
+  // --- Imperative controls ---
+  /** Bring a block on screen: unfold its ancestors, and zoom out when it is
+   *  outside the zoomed block. False when the id is not in the tree. */
+  const reveal = useCallback(
+    (id: BulletId): boolean => {
+      const { full, value: view, zoomed: on } = latest.current;
+      if (!findBullet(full, id)) return false;
+      if (on && !findBullet(view, id)) {
+        setRoot(null);
+        commitFull(expandAncestors(full, id));
+      } else {
+        commit(expandAncestors(view, id));
+      }
+      return true;
+    },
+    [commit, commitFull, setRoot],
+  );
+
+  useImperativeHandle(
+    apiRef,
+    (): OutlinerHandle => ({
+      focus: () => {
+        const { editingId: editing } = latest.current;
+        const target = editing
+          ? editorRefs.current.get(editing)
+          : (rootRef.current?.querySelector<HTMLElement>('[role="treeitem"][tabindex="0"]') ??
+            null);
+        target?.focus();
+      },
+      select: (id) => {
+        if (id === null) select(null);
+        else if (reveal(id)) select(id);
+      },
+      edit: (id, offset) => {
+        if (latest.current.readOnly || !reveal(id)) return;
+        history.breakTyping();
+        goalX.current = null;
+        editAt(offset === undefined ? { id, edge: "end" } : { id, start: offset, end: offset });
+      },
+      getSelection: () => {
+        const { editingId: editing, selection: selected } = latest.current;
+        const textarea = editing ? editorRefs.current.get(editing) : undefined;
+        return {
+          blocks: selected?.roots ?? [],
+          editing:
+            editing && textarea
+              ? { id: editing, start: textarea.selectionStart, end: textarea.selectionEnd }
+              : null,
+        };
+      },
+      undo: () => travel("undo"),
+      redo: () => travel("redo"),
+    }),
+    [select, editAt, reveal, travel, history],
+  );
+
+  const canDrag = reorderable && !readOnly;
+  const virtualItems = virtualized ? virtualizer.getVirtualItems() : null;
+  const allIds = useMemo(() => flat.map((f) => f.id), [flat]);
+  const mountedIds = virtualItems
+    ? virtualItems.flatMap((item) => flat[item.index]?.id ?? [])
+    : allIds;
+
+  const renderRow = (f: FlatBullet, top?: number, virtualIndex?: number) => {
+    const { id } = f;
+    const isTitle = id === rootId;
+    return (
+      <OutlinerBullet
+        key={id}
+        bullet={f.bullet}
+        // While zoomed the title sits above the first level.
+        depth={rootId ? Math.max(0, f.depth - 1) : f.depth}
+        level={f.depth + 1}
+        position={f.index + 1}
+        siblings={f.siblings}
+        hasChildren={f.hasChildren}
+        isTitle={isTitle}
+        isActive={activeId === id}
+        isSelected={selection?.ids.has(id) ?? false}
+        isEditing={editingId === id}
+        isDragging={dragging?.has(id) ?? false}
+        tabbable={tabbableId === id}
+        readOnly={readOnly}
+        top={top}
+        virtualIndex={virtualIndex}
+        markdownComponents={markdownComponents}
+        completionListId={completion?.blockId === id ? listId : undefined}
+        completionOptionId={
+          completion?.blockId === id ? `${listId}-${completion.index}` : undefined
+        }
+        onEnter={handleEnter}
+        onRowMouseDown={handleRowMouseDown}
+        onToggleCollapsed={handleToggleCollapsed}
+        onTaskToggle={handleTaskToggle}
+        onTextChange={handleTextChange}
+        onEditorKeyDown={handleEditorKeyDown}
+        onEditorBeforeInput={handleEditorBeforeInput}
+        onEditorSelect={refreshCompletion}
+        onBulletClick={zoomable && !isTitle ? handleBulletClick : undefined}
+        onBulletPointerDown={canDrag && !isTitle ? handleBulletPointerDown : undefined}
+        registerRow={registerRow}
+        registerEditor={registerEditor}
+      />
+    );
+  };
 
   return (
     <div
       {...rest}
       ref={mergeRefs(ref, rootRef)}
-      role="tree"
-      aria-multiselectable="true"
       className={cx(styles.root, className)}
+      data-frameless={!frame || undefined}
+      data-virtualized={virtualized || undefined}
       onKeyDown={handleRootKeyDown}
       onBlur={handleBlur}
       onCopy={handleCopy}
       onCut={handleCut}
       onPaste={handlePaste}
     >
-      {flat.length === 0 && !readOnly ? (
-        <div
-          role="treeitem"
-          aria-selected={false}
-          className={styles.row}
-          data-placeholder
-          tabIndex={0}
-          onClick={startFirstBlock}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" && e.key !== " ") return;
-            e.preventDefault();
-            startFirstBlock();
-          }}
-        >
-          <span className={styles.fold} />
-          <span className={styles.bullet} aria-hidden="true">
-            <span className={styles.dot} />
-          </span>
-          <div className={styles.content}>
-            <span className={styles.placeholder}>{placeholder}</span>
+      {zoomed && (
+        <nav className={styles.breadcrumb} aria-label="Zoom path">
+          <button
+            type="button"
+            className={styles.crumb}
+            onMouseDown={keepFocus}
+            onClick={() => zoomTo(null)}
+          >
+            {rootLabel}
+          </button>
+          {crumbs.map((crumb) => (
+            <Fragment key={crumb.id}>
+              <Glyph slot="chevronRight" fallback={ChevronRight} size="0.85em" />
+              <button
+                type="button"
+                className={styles.crumb}
+                onMouseDown={keepFocus}
+                onClick={() => zoomTo(crumb.id)}
+              >
+                {plainLabel(crumb.content) || "Empty block"}
+              </button>
+            </Fragment>
+          ))}
+        </nav>
+      )}
+      <div
+        ref={treeRef}
+        role="tree"
+        aria-multiselectable="true"
+        aria-label={ariaLabel ?? (ariaLabelledBy ? undefined : "Outline")}
+        aria-labelledby={ariaLabelledBy}
+        className={styles.tree}
+      >
+        {flat.length === 0 && !readOnly ? (
+          <div
+            role="treeitem"
+            aria-selected={false}
+            className={styles.row}
+            data-placeholder
+            tabIndex={0}
+            onClick={startFirstBlock}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              startFirstBlock();
+            }}
+          >
+            <span className={styles.fold} />
+            <span className={styles.bullet} aria-hidden="true">
+              <span className={styles.dot} />
+            </span>
+            <div className={styles.content}>
+              <span className={styles.placeholder}>{placeholder}</span>
+            </div>
           </div>
-        </div>
-      ) : (
-        flat.map(({ id, bullet, depth, hasChildren }) => (
-          <OutlinerBullet
-            key={id}
-            bullet={bullet}
-            depth={depth}
-            hasChildren={hasChildren}
-            isActive={activeId === id}
-            isSelected={selection?.ids.has(id) ?? false}
-            isEditing={editingId === id}
-            tabbable={tabbableId === id}
-            readOnly={readOnly}
-            markdownComponents={markdownComponents}
-            completionListId={completion?.blockId === id ? listId : undefined}
-            completionOptionId={
-              completion?.blockId === id ? `${listId}-${completion.index}` : undefined
-            }
-            onEnter={handleEnter}
-            onRowMouseDown={handleRowMouseDown}
-            onToggleCollapsed={handleToggleCollapsed}
-            onTaskToggle={handleTaskToggle}
-            onTextChange={handleTextChange}
-            onEditorKeyDown={handleEditorKeyDown}
-            onEditorBeforeInput={handleEditorBeforeInput}
-            onEditorSelect={refreshCompletion}
-            registerRow={registerRow}
-            registerEditor={registerEditor}
+        ) : virtualItems ? (
+          <div
+            role="presentation"
+            className={styles.spacer}
+            style={{ blockSize: virtualizer.getTotalSize() }}
+          >
+            {virtualItems.map((item) => {
+              const f = flat[item.index];
+              return f ? renderRow(f, item.start, item.index) : null;
+            })}
+          </div>
+        ) : (
+          flat.map((f) => renderRow(f))
+        )}
+      </div>
+      {canDrag && (
+        <Suspense fallback={null}>
+          <OutlinerDrag
+            rows={flat}
+            mounted={mountedIds}
+            floor={rootId ? 1 : 0}
+            getRoot={getRootElement}
+            getRow={getRowElement}
+            rootsFor={dragRoots}
+            bind={bindDrag}
+            onDraggingChange={handleDraggingChange}
+            onDrop={handleDrop}
+            indicatorClassName={styles.dropLine}
+            overlayClassName={styles.dragLabel}
           />
-        ))
+        </Suspense>
       )}
       {completion && completionAnchor && (
         <Popover.Root

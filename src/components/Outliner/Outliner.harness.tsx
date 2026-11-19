@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { SfDndProvider } from "../../lib/dnd";
 import { Outliner } from "./Outliner";
 import { flatVisible } from "./tree";
-import type { OutlinerCompletionRequest, OutlinerValue } from "./types";
+import type { BulletId, OutlinerCompletionRequest, OutlinerHandle, OutlinerValue } from "./types";
 
 interface HarnessProps {
   initial: OutlinerValue;
@@ -13,6 +14,22 @@ interface HarnessProps {
   /** Offer completions: a fixed set of pages, blocks, tags and commands,
    *  filtered by the query. */
   withCompletions?: boolean;
+  /** Start zoomed on this block. The zoom is printed in the `root` output. */
+  initialRoot?: BulletId;
+  zoomable?: boolean;
+  reorderable?: boolean;
+  frame?: boolean;
+  /** Replace `initial` with this many flat blocks (r0, r1, ...) and virtualize
+   *  them in a box of `height` px. */
+  rows?: number;
+  height?: number;
+  /** Give every fifth of those rows a second line. */
+  tall?: boolean;
+  /** Wrap the outline in an `SfDndProvider`. */
+  shared?: boolean;
+  /** What the `api-edit` and `api-select` buttons act on. */
+  apiTarget?: BulletId;
+  apiOffset?: number;
 }
 
 const PAGES = ["Project Alpha", "Project Beta", "Daily notes"];
@@ -45,28 +62,87 @@ export function OutlinerHarness({
   blockRefs,
   width,
   withCompletions,
+  initialRoot,
+  zoomable,
+  reorderable,
+  frame,
+  rows,
+  height,
+  tall,
+  shared,
+  apiTarget = "",
+  apiOffset,
 }: HarnessProps) {
-  const [value, setValue] = useState<OutlinerValue>(initial);
+  const many = useMemo<OutlinerValue | null>(
+    () =>
+      rows
+        ? Array.from({ length: rows }, (_, i) => ({
+            id: `r${i}`,
+            content: tall && i % 5 === 4 ? `Row ${i}\nsecond line` : `Row ${i}`,
+          }))
+        : null,
+    [rows, tall],
+  );
+  const [value, setValue] = useState<OutlinerValue>(many ?? initial);
   const [changes, setChanges] = useState(0);
+  const [root, setRoot] = useState<BulletId | null>(initialRoot ?? null);
+  const [picked, setPicked] = useState("");
+  const api = useRef<OutlinerHandle>(null);
+  const outline = (
+    <Outliner
+      value={value}
+      onChange={(next) => {
+        setValue(next);
+        setChanges((n) => n + 1);
+      }}
+      readOnly={readOnly}
+      generateId={() => `n${++minted}`}
+      resolveBlockRef={blockRefs ? (id) => blockRefs[id] ?? null : undefined}
+      completions={withCompletions ? complete : undefined}
+      root={root}
+      onRootChange={setRoot}
+      zoomable={zoomable}
+      reorderable={reorderable}
+      frame={frame}
+      virtualized={rows !== undefined}
+      apiRef={api}
+    />
+  );
   return (
     <div style={{ inlineSize: width }}>
       <button type="button" data-testid="before">
         before
       </button>
-      <Outliner
-        value={value}
-        onChange={(next) => {
-          setValue(next);
-          setChanges((n) => n + 1);
-        }}
-        readOnly={readOnly}
-        generateId={() => `n${++minted}`}
-        resolveBlockRef={blockRefs ? (id) => blockRefs[id] ?? null : undefined}
-        completions={withCompletions ? complete : undefined}
-      />
+      <div style={{ blockSize: height }}>
+        {shared ? <SfDndProvider>{outline}</SfDndProvider> : outline}
+      </div>
       <button type="button" data-testid="after">
         after
       </button>
+      <button
+        type="button"
+        data-testid="api-edit"
+        onClick={() => api.current?.edit(apiTarget, apiOffset)}
+      >
+        edit
+      </button>
+      <button type="button" data-testid="api-select" onClick={() => api.current?.select(apiTarget)}>
+        select
+      </button>
+      <button
+        type="button"
+        data-testid="api-read"
+        // Keep the focus in the outline: the selection is what is being read.
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setPicked(JSON.stringify(api.current?.getSelection()))}
+      >
+        read
+      </button>
+      <button type="button" data-testid="api-undo" onClick={() => api.current?.undo()}>
+        undo
+      </button>
+      <output data-testid="root">{root ?? "none"}</output>
+      <output data-testid="picked">{picked}</output>
       <pre data-testid="tree">
         {flatVisible(value)
           .map((f) => `${f.depth} ${/^n\d+$/.test(f.id) ? "new" : f.id}:${f.bullet.content}`)

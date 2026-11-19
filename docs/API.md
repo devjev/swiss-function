@@ -2605,8 +2605,10 @@ textarea over its markdown source while the caret is in it and rendered markdown
 otherwise; entering a block changes nothing on screen but the caret. Enter,
 Backspace, Tab and the arrow keys carry the caret and the structure from block
 to block. `[[wiki links]]` and `((block-id))` references render inline. Forwards
-its ref to the root and extends `HTMLAttributes<HTMLDivElement>` (`role="tree"`;
-give it an `aria-label`).
+its ref to the root and extends `HTMLAttributes<HTMLDivElement>`. The root is
+the frame; the blocks sit in a `role="tree"` element inside it, which takes
+`aria-label` / `aria-labelledby` (named "Outline" when neither is given). Each
+block is a `treeitem` with `aria-level`, `aria-posinset` and `aria-setsize`.
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -2618,6 +2620,15 @@ give it an `aria-label`).
 | `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
 | `completions` | `(request) => OutlinerCompletion[] \| Promise<OutlinerCompletion[]>` | n/a | Suggestions while typing `[[`, `((`, `#` or `/`. `request` is `{ trigger, query, blockId }`; an entry is `{ label, description?, insert? }`. Without it nothing pops up. Pass a stable function. |
 | `placeholder` | `ReactNode` | `"Empty outline. Click to write."` | Shown while `value` is empty; a click or Enter on it starts the first block. |
+| `root` | `string \| null` | n/a | The zoomed block (controlled); `null` shows the whole outline. An id that is not in the tree shows the whole outline. |
+| `defaultRoot` | `string \| null` | `null` | The zoomed block when uncontrolled. |
+| `onRootChange` | `(root: string \| null) => void` | n/a | The user zoomed: a bullet click, the zoom keys, a breadcrumb click, an undo into another zoom. |
+| `zoomable` | `boolean` | `true` | Lets the user zoom. `root` applies either way. |
+| `rootLabel` | `ReactNode` | `"Outline"` | The breadcrumb's first entry, which zooms out to the whole outline. |
+| `reorderable` | `boolean` | `true` | Drag a block (or the selected blocks) by its bullet. Off in read-only mode. Loads dnd-kit on demand; joins an `SfDndProvider`. |
+| `virtualized` | `boolean` | `false` | Render only the rows on screen. The outline then scrolls inside itself: give it, or its parent, a height. |
+| `frame` | `boolean` | `true` | The border, background and padding around the outline. |
+| `apiRef` | `Ref<OutlinerHandle>` | n/a | Imperative controls, below. |
 
 **Two levels of focus.** In a block's text the keys edit. Escape steps out to
 the block itself (selected); Escape again releases the selection. A Tab into the
@@ -2643,6 +2654,7 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Mod+B, Mod+I, Mod+Shift+S | Bold (`**`), italic (`*`), strikethrough (`~~`): wraps the selection, or takes the wrap off. With nothing selected the pair goes in around the caret. |
 | Mod+K | A markdown link around the selection, the caret in its target. |
 | Mod+Enter | Task: no marker, open (`[ ] `), done (`[x] `). Also on selected blocks. |
+| Mod+. / Mod+, | Zoom into the block / zoom out one level. Also Alt+→ / Alt+←, except in a block's text on a Mac, where those move the caret by a word. Also on a selected block. |
 | Escape | Leaves the text; the block stays selected. |
 
 **Block selection.** A selected block includes its children. Shift+↑ / Shift+↓
@@ -2693,6 +2705,45 @@ chosen entry's `insert` (or `label`) replaces the query: a reference is closed
 with its brackets, a tag with a space is written `#[[like this]]`, and a
 command replaces its slash, so `insert` is the text the command stands for. For
 `((`, `insert` is the block id and `label` its text.
+
+**Zoom.** A click on a bullet (or Mod+.) zooms into its block: the block is
+shown as the outline's title, its children as the first level, and a breadcrumb
+above lists its ancestors, each a way back (`rootLabel` first, for the whole
+outline). The zoomed block always shows its children, whatever its fold state.
+Edits stay inside it: a first-level block does not outdent or move out of view,
+the title cannot be deleted, and Enter in the title starts its first child.
+`onChange` always reports the whole tree. An undo step returns to the zoom it
+was made in.
+
+**Dragging.** A bullet is the handle: press it and drag to move the block with
+its children, or every selected block when the pressed one is selected. A line
+shows where they will land. It sits in the gap between two rows, and how far
+right the pointer is picks the depth among the ones that gap allows (a child of
+the row above, its sibling, or a sibling of an ancestor that ends there); a
+folded row takes no child. The dragged rows carry `data-dragging`. Escape
+cancels; a drop is one undo step. dnd-kit is loaded on demand the first time an
+editable, `reorderable` outline mounts. Inside an `SfDndProvider` the outline
+joins the shared context: a block dropped on another widget reaches that
+widget's `onExternalDrop` with `active.data.current.blockId`. The outline has
+no `onExternalDrop` of its own yet. For the keyboard, the move chords do the
+same job.
+
+**Virtualization.** With `virtualized`, only the rows near the viewport are in
+the DOM (TanStack Virtual, each row measured, since a block's height follows
+its text). The tree element is the scroll container, so the root needs a height
+(`style`, a class, or a parent with one; the root is capped at 100% of it). The
+block with the caret or the focus stays mounted when it scrolls away, and a
+block reached from afar (End, an undo, `apiRef.edit`) is scrolled into view.
+
+**`apiRef`** (`OutlinerHandle`):
+
+| Method | Does |
+| --- | --- |
+| `focus()` | Moves the keyboard into the outline: to the block being edited, else the row a Tab would land on. |
+| `select(id \| null)` | Selects one block and focuses it; `null` clears the selection. Unfolds the block's ancestors, and zooms out when it is outside the zoomed block. |
+| `edit(id, offset?)` | Puts the caret in the block's text at `offset` of its markdown source (the end when omitted), revealing it as `select` does. A no-op in read-only mode. |
+| `getSelection()` | `{ blocks, editing }`: the selected blocks' roots top to bottom (empty while a block is being edited), and `{ id, start, end }` for the block with the caret, else `null`. |
+| `undo()` / `redo()` | One step of the outline's history. |
 
 **Pointer:** a click enters the block at the clicked character (the rendered
 position is mapped back to the markdown source); a drag that selects rendered

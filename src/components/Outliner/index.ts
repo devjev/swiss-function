@@ -5,6 +5,8 @@ export type {
   OutlinerCompletion,
   OutlinerCompletionRequest,
   OutlinerCompletionTrigger,
+  OutlinerHandle,
   OutlinerProps,
+  OutlinerSelection,
   OutlinerValue,
 } from "./types";

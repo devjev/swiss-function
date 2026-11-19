@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deleteBullet,
   deleteSubtree,
+  expandAncestors,
   fillBullet,
   findBullet,
   flatVisible,
@@ -12,15 +13,18 @@ import {
   insertAfter,
   insertSiblingsAfter,
   mergeInto,
+  moveBlocks,
   moveDown,
   moveUp,
   outdent,
+  pathTo,
+  prependChildren,
   setCollapsed,
   splitBullet,
   toggleCollapsed,
   updateContent,
 } from "./tree";
-import type { OutlinerValue } from "./types";
+import type { Bullet, OutlinerValue } from "./types";
 
 const tree: OutlinerValue = [
   {
@@ -345,5 +349,71 @@ describe("whole-block operations", () => {
     const next = fillBullet(tree, "b", "filled", [{ id: "k", content: "kid" }]);
     expect(findBullet(next, "b")?.bullet.content).toBe("filled");
     expect(findBullet(next, "k")?.path).toEqual([1, 0]);
+  });
+});
+
+describe("zoom, reveal and drag helpers", () => {
+  const T: OutlinerValue = [
+    {
+      id: "a",
+      content: "A",
+      collapsed: true,
+      children: [
+        { id: "a1", content: "A1", collapsed: true, children: [{ id: "a1x", content: "A1x" }] },
+        { id: "a2", content: "A2" },
+      ],
+    },
+    { id: "b", content: "B" },
+    { id: "c", content: "C" },
+  ];
+  const shape = (list: OutlinerValue): string =>
+    list.map((b) => (b.children?.length ? `${b.id}(${shape(b.children)})` : b.id)).join(" ");
+
+  it("flatVisible reports each row's place among its siblings", () => {
+    const flat = flatVisible([{ ...(T[0] as Bullet), collapsed: false }, ...T.slice(1)]);
+    expect(flat.map((f) => `${f.id}:${f.index + 1}/${f.siblings}`)).toEqual([
+      "a:1/3",
+      "a1:1/2",
+      "a2:2/2",
+      "b:2/3",
+      "c:3/3",
+    ]);
+  });
+
+  it("pathTo lists the ancestors down to the bullet", () => {
+    expect(pathTo(T, "a1x").map((b) => b.id)).toEqual(["a", "a1", "a1x"]);
+    expect(pathTo(T, "b").map((b) => b.id)).toEqual(["b"]);
+    expect(pathTo(T, "gone")).toEqual([]);
+  });
+
+  it("expandAncestors unfolds the way to a bullet and nothing else", () => {
+    const open = expandAncestors(T, "a1x");
+    expect(flatVisible(open).map((f) => f.id)).toEqual(["a", "a1", "a1x", "a2", "b", "c"]);
+    expect(expandAncestors(T, "b")).toBe(T);
+    expect(expandAncestors(open, "a1x")).toBe(open);
+  });
+
+  it("prependChildren puts blocks first and unfolds the parent", () => {
+    const next = prependChildren(T, "a", [{ id: "n", content: "N" }]);
+    expect(shape(next)).toBe("a(n a1(a1x) a2) b c");
+    expect(next[0]?.collapsed).toBe(false);
+  });
+
+  it("moveBlocks moves blocks after a sibling, keeping their order", () => {
+    expect(shape(moveBlocks(T, ["b", "c"], "a", "a1"))).toBe("a(a1(a1x) b c a2)");
+    expect(shape(moveBlocks(T, ["a2"], null, "b"))).toBe("a(a1(a1x)) b a2 c");
+  });
+
+  it("moveBlocks with no sibling puts them first under the parent, or at the top", () => {
+    expect(shape(moveBlocks(T, ["c"], "b", null))).toBe("a(a1(a1x) a2) b(c)");
+    expect(shape(moveBlocks(T, ["c"], null, null))).toBe("c a(a1(a1x) a2) b");
+  });
+
+  it("moveBlocks refuses a place inside what moves, and a move to the same place", () => {
+    expect(moveBlocks(T, ["a"], "a1", null)).toBe(T);
+    expect(moveBlocks(T, ["a"], "a", "a2")).toBe(T);
+    expect(moveBlocks(T, ["b"], null, "a")).toBe(T);
+    expect(moveBlocks(T, ["a1"], "a", null)).toBe(T);
+    expect(moveBlocks(T, ["gone"], null, null)).toBe(T);
   });
 });

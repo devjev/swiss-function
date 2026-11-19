@@ -1,9 +1,15 @@
 import type { Story } from "@ladle/react";
 import type { ReactNode } from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Button } from "../Button";
 import { Kbd } from "../Kbd";
 import { Outliner } from "./Outliner";
-import type { OutlinerCompletion, OutlinerCompletionRequest, OutlinerValue } from "./types";
+import type {
+  OutlinerCompletion,
+  OutlinerCompletionRequest,
+  OutlinerHandle,
+  OutlinerValue,
+} from "./types";
 
 const SAMPLE: OutlinerValue = [
   {
@@ -65,6 +71,7 @@ const KEYS: Array<[string, string]> = [
   ["escape", "Leave the text; the block stays selected"],
   ["shift+down", "From a block's last line: select it, then the next (also up)"],
   ["mod+z", "Undo, text and structure alike (Mod+Shift+Z redoes)"],
+  ["mod+.", "Zoom into the block (Mod+, zooms out; a click on a bullet zooms too)"],
 ];
 
 export const Editable: Story = () => {
@@ -74,7 +81,7 @@ export const Editable: Story = () => {
       <Note>
         Click into any block and type. The arrow keys move through the outline as through one
         document. Drag from one block into another to select several; copy and paste carry them as a
-        markdown list.
+        markdown list. Drag a bullet to move its block: how far right the pointer is sets the depth.
       </Note>
       <Outliner value={value} onChange={setValue} aria-label="Team" />
       <dl
@@ -151,6 +158,81 @@ export const Assisted: Story = () => {
         completions={completions}
         resolveBlockRef={resolveBlockRef}
         aria-label="Release plan"
+      />
+    </div>
+  );
+};
+
+/** Zoomed on one block: it is the title, its children the first level, and
+ *  the breadcrumb lists the way back. */
+export const Zoomed: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>(SAMPLE);
+  const [root, setRoot] = useState<string | null>("1.2");
+  return (
+    <div style={frame}>
+      <Note>
+        A click on a bullet zooms into its block. The breadcrumb, Mod+, and Alt+Left lead back.
+        Zoomed on: {root ?? "the whole outline"}.
+      </Note>
+      <Outliner value={value} onChange={setValue} root={root} onRootChange={setRoot} />
+    </div>
+  );
+};
+
+/** No frame, for an outline that is the page. */
+export const Frameless: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>(SAMPLE);
+  return (
+    <div style={frame}>
+      <Outliner value={value} onChange={setValue} frame={false} aria-label="Team" />
+    </div>
+  );
+};
+
+/** 5000 blocks in a box: only the rows on screen are rendered. The buttons
+ *  drive the outline through `apiRef`. */
+export const Virtualized: Story = () => {
+  const initial = useMemo<OutlinerValue>(
+    () =>
+      Array.from({ length: 500 }, (_, section) => ({
+        id: `s${section}`,
+        content: `Section ${section + 1}`,
+        children: Array.from({ length: 9 }, (_, item) => ({
+          id: `s${section}.${item}`,
+          content:
+            item === 4
+              ? `Item ${item + 1}, a longer one that wraps onto a second line at this width so the rows do not all share one height`
+              : `Item ${item + 1} of section ${section + 1}`,
+        })),
+      })),
+    [],
+  );
+  const [value, setValue] = useState<OutlinerValue>(initial);
+  const api = useRef<OutlinerHandle>(null);
+  return (
+    <div style={frame}>
+      <Note>5000 blocks. The outline scrolls inside its own height.</Note>
+      <div
+        style={{
+          display: "flex",
+          gap: "calc(var(--sf-unit) / 2)",
+          marginBlockEnd: "calc(var(--sf-unit) / 2)",
+        }}
+      >
+        <Button size="sm" onClick={() => api.current?.edit("s250.4", 0)}>
+          Edit section 251, item 5
+        </Button>
+        <Button size="sm" onClick={() => api.current?.select("s499")}>
+          Select the last section
+        </Button>
+      </div>
+      <Outliner
+        value={value}
+        onChange={setValue}
+        virtualized
+        apiRef={api}
+        style={{ blockSize: "calc(var(--sf-unit) * 20)" }}
+        aria-label="A long outline"
       />
     </div>
   );

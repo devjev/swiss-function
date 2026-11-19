@@ -4,6 +4,7 @@ import type {
   InputEvent,
   KeyboardEvent,
   MouseEvent,
+  PointerEvent,
   ReactNode,
 } from "react";
 import { memo, useRef, useState } from "react";
@@ -23,14 +24,28 @@ type Components = ComponentProps<typeof ReactMarkdown>["components"];
 
 export interface OutlinerBulletProps {
   bullet: Bullet;
+  /** Indent steps. */
   depth: number;
+  /** The tree level (1-based), the position among the siblings (1-based) and
+   *  their number, for assistive technology. */
+  level: number;
+  position: number;
+  siblings: number;
   hasChildren: boolean;
+  /** The zoomed block: shown as the outline's title, with no bullet and no
+   *  fold arrow. */
+  isTitle: boolean;
   /** The block that holds the keyboard: the selection's focus, or the block
    *  being edited. */
   isActive: boolean;
   /** Part of the block selection (the focus row included). */
   isSelected: boolean;
   isEditing: boolean;
+  /** Being dragged by its bullet (or a child of a block that is). */
+  isDragging: boolean;
+  /** When virtualized: the row's offset in the scrolled list, and its index. */
+  top?: number;
+  virtualIndex?: number;
   /** The one row a Tab into the outline lands on. */
   tabbable: boolean;
   readOnly?: boolean;
@@ -57,6 +72,10 @@ export interface OutlinerBulletProps {
   onEditorBeforeInput: (id: BulletId, event: InputEvent<HTMLTextAreaElement>) => void;
   /** The caret moved. */
   onEditorSelect: (id: BulletId) => void;
+  /** A click on the bullet (zoom), and a press on it (the start of a drag).
+   *  With neither, the bullet is a plain mark. */
+  onBulletClick?: (id: BulletId) => void;
+  onBulletPointerDown?: (id: BulletId, event: PointerEvent<HTMLElement>) => void;
   registerRow: (id: BulletId, element: HTMLDivElement | null) => void;
   registerEditor: (id: BulletId, element: HTMLTextAreaElement | null) => void;
 }
@@ -73,10 +92,17 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
   const {
     bullet,
     depth,
+    level,
+    position,
+    siblings,
     hasChildren,
+    isTitle,
     isActive,
     isSelected,
     isEditing,
+    isDragging,
+    top,
+    virtualIndex,
     tabbable,
     readOnly,
     markdownComponents,
@@ -90,6 +116,8 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     onEditorKeyDown,
     onEditorBeforeInput,
     onEditorSelect,
+    onBulletClick,
+    onBulletPointerDown,
     registerRow,
     registerEditor,
   } = props;
@@ -133,15 +161,26 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     <div
       ref={(el) => registerRow(bullet.id, el)}
       role="treeitem"
-      aria-level={depth + 1}
-      aria-expanded={hasChildren ? !bullet.collapsed : undefined}
+      aria-level={level}
+      aria-posinset={position}
+      aria-setsize={siblings}
+      aria-expanded={hasChildren ? isTitle || !bullet.collapsed : undefined}
       aria-selected={isSelected}
       className={styles.row}
-      style={{ "--sf-outliner-depth": depth } as CSSProperties}
+      style={
+        {
+          "--sf-outliner-depth": depth,
+          insetBlockStart: top,
+        } as CSSProperties
+      }
       tabIndex={tabbable && !isEditing ? 0 : -1}
       data-active={isActive || undefined}
       data-selected={isSelected || undefined}
       data-editing={isEditing || undefined}
+      data-title={isTitle || undefined}
+      data-dragging={isDragging || undefined}
+      data-virtual={top !== undefined || undefined}
+      data-index={virtualIndex}
       data-bullet-id={bullet.id}
       onClick={handleClick}
       onMouseDown={(e) => onRowMouseDown(bullet.id, e)}
@@ -149,18 +188,42 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       <span className={styles.fold} onMouseDown={keepFocus}>
         <TreeChevron
           expanded={!bullet.collapsed}
-          visible={hasChildren}
+          visible={hasChildren && !isTitle}
           onToggle={() => onToggleCollapsed(bullet.id)}
           tabIndex={-1}
         />
       </span>
-      <span
-        className={styles.bullet}
-        data-collapsed={(hasChildren && bullet.collapsed) || undefined}
-        aria-hidden="true"
-      >
-        <span className={styles.dot} />
-      </span>
+      {isTitle ? (
+        <span className={styles.bullet} aria-hidden="true" />
+      ) : onBulletClick || onBulletPointerDown ? (
+        <button
+          type="button"
+          className={styles.bullet}
+          data-bullet-handle=""
+          data-collapsed={(hasChildren && bullet.collapsed) || undefined}
+          data-zoom={onBulletClick ? "" : undefined}
+          data-drag={onBulletPointerDown ? "" : undefined}
+          // A pointer affordance: the keys zoom (Mod+.) and move (Alt+Shift+Arrows).
+          tabIndex={-1}
+          aria-label={onBulletClick ? "Zoom in" : "Drag to move"}
+          onMouseDown={keepFocus}
+          onPointerDown={onBulletPointerDown && ((e) => onBulletPointerDown(bullet.id, e))}
+          onClick={(e) => {
+            e.stopPropagation();
+            onBulletClick?.(bullet.id);
+          }}
+        >
+          <span className={styles.dot} />
+        </button>
+      ) : (
+        <span
+          className={styles.bullet}
+          data-collapsed={(hasChildren && bullet.collapsed) || undefined}
+          aria-hidden="true"
+        >
+          <span className={styles.dot} />
+        </span>
+      )}
       <div className={styles.content} data-task={(!isEditing && task) || undefined}>
         {isEditing ? (
           <div className={styles.editor} data-value={bullet.content}>

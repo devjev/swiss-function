@@ -1,6 +1,8 @@
 .root {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
+  /* The breadcrumb (while zoomed), then the blocks. */
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
   font-family: var(--sf-font-sans);
   color: var(--sf-color-fg);
@@ -18,6 +20,144 @@
      through it: one line of text plus this, above and below, is the pitch of
      a table row (1.25u). */
   --sf-outliner-row-pad: calc(var(--sf-unit) / 8);
+}
+
+/* No frame: the outline sits in a framed region, or on a page of its own. */
+.root[data-frameless] {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* Virtualized: the blocks scroll inside the outline, so it needs a height of
+   its own or a parent that has one. */
+.root[data-virtualized] {
+  max-block-size: 100%;
+}
+
+.tree {
+  grid-row: 2;
+  min-inline-size: 0;
+}
+
+.root[data-virtualized] > .tree {
+  overflow-y: auto;
+}
+
+/* The scrolled list's full height; the rows on screen are placed in it. */
+.spacer {
+  position: relative;
+}
+
+.row[data-virtual] {
+  position: absolute;
+  inset-inline: 0;
+}
+
+/* Zoom: the ancestors of the zoomed block, each a way back out. A wrapping
+   line of short items, which is what flex is for. */
+.breadcrumb {
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: calc(var(--sf-unit) / 4);
+  padding-block: var(--sf-outliner-row-pad);
+  /* In line with the blocks' text. */
+  padding-inline: calc(var(--sf-unit) * 1.5) calc(var(--sf-unit) / 2);
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-muted);
+}
+
+.crumb {
+  max-inline-size: calc(var(--sf-unit) * 12);
+  padding: 0;
+  border: 0;
+  border-radius: var(--sf-radius-default);
+  background: none;
+  color: var(--sf-color-fg);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.crumb:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+/* The zoomed block: the outline's title, in the text column of its children. */
+.row[data-title] {
+  font-size: var(--sf-font-size-lg);
+  font-weight: var(--sf-font-weight-semibold);
+}
+
+/* Blocks being dragged stay where they are, dimmed, until the drop. */
+.row[data-dragging] {
+  opacity: 0.4;
+}
+
+.root[data-block-drag] {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Where the dragged blocks will land: a line under a row, starting at the
+   bullet column of the depth they take. */
+.dropLine {
+  position: absolute;
+  inset-inline-end: 0;
+  block-size: 2px;
+  margin-block-start: -1px;
+  background-color: var(--sf-color-primary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.dropLine::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  inline-size: round(calc(var(--sf-unit) / 2.5), 1px);
+  block-size: round(calc(var(--sf-unit) / 2.5), 1px);
+  translate: -100% -50%;
+  box-sizing: border-box;
+  border: 2px solid var(--sf-color-primary);
+  border-radius: var(--sf-radius-full);
+  background-color: var(--sf-color-bg);
+}
+
+/* What follows the pointer during a drag: the first block's text. */
+.dragLabel {
+  inline-size: max-content;
+  max-inline-size: calc(var(--sf-unit) * 16);
+  /* Below and right of the pointer, clear of the line it aims with. */
+  margin-block-start: var(--sf-unit);
+  margin-inline-start: var(--sf-unit);
+  padding: 0 calc(var(--sf-unit) / 2);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border: 1px solid var(--sf-color-border-strong);
+  border-radius: var(--sf-radius-default);
+  box-shadow: var(--sf-elevation-3);
+  font-family: var(--sf-font-sans);
+  font-size: var(--sf-font-size-sm);
+  /* One unit tall, borders included. */
+  line-height: calc(var(--sf-leading-base) - 2px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .row {
@@ -86,6 +226,21 @@
   place-items: center;
   inline-size: calc(var(--sf-unit) / 2);
   block-size: var(--sf-leading-base);
+  /* The bullet is a button when a click zooms or a drag moves the block. */
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  outline: none;
+}
+
+.bullet[data-drag] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.bullet[data-zoom] {
+  cursor: pointer;
 }
 
 .dot {
@@ -107,6 +262,12 @@
 
 .row[data-placeholder] .dot {
   background-color: var(--sf-color-border);
+}
+
+/* A bullet that can be clicked or dragged answers the pointer. */
+.bullet[data-bullet-handle]:hover > .dot {
+  box-shadow: 0 0 0 round(calc(var(--sf-unit) / 6), 1px)
+    color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
 }
 
 .placeholder {

@@ -767,3 +767,363 @@ test("without a completions source nothing pops up", async ({ mount, page }) => 
   await page.keyboard.press("Enter");
   await expect(tree(component)).toHaveText(/0 b:Bravo \[\[pro\n0 new:\]\]$/);
 });
+
+// --- Zoom ---
+
+const bullet = (root: Locator, id: string) => row(root, id).locator("[data-bullet-handle]");
+const zoom = (root: Locator) => root.getByTestId("root");
+const shown = (root: Locator) =>
+  root
+    .locator("[data-bullet-id]")
+    .evaluateAll((rows) => rows.map((r) => r.getAttribute("data-bullet-id")));
+
+const DEEP: OutlinerValue = [
+  {
+    id: "a",
+    content: "Alpha",
+    children: [
+      { id: "a1", content: "Alpha **one**", children: [{ id: "a1x", content: "Deep" }] },
+      { id: "a2", content: "Alpha two" },
+    ],
+  },
+  { id: "b", content: "Bravo" },
+];
+
+test("a click on a bullet zooms into the block; the breadcrumb leads back", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} />);
+  await bullet(component, "a1").click();
+  await expect(zoom(component)).toHaveText("a1");
+  expect(await shown(component)).toEqual(["a1", "a1x"]);
+  await expect(row(component, "a1")).toHaveAttribute("data-title", "true");
+  await expect(bullet(component, "a1")).toHaveCount(0);
+  // The children sit at the first level.
+  await expect(row(component, "a1x")).toHaveAttribute("aria-level", "2");
+  const indent = await row(component, "a1x").evaluate((el) => getComputedStyle(el).paddingLeft);
+  expect(indent).toBe("0px");
+
+  const path = component.getByRole("navigation", { name: "Zoom path" });
+  await expect(path.getByRole("button")).toHaveText(["Outline", "Alpha"]);
+  await path.getByRole("button", { name: "Alpha" }).click();
+  await expect(zoom(component)).toHaveText("a");
+  expect(await shown(component)).toEqual(["a", "a1", "a1x", "a2"]);
+  await path.getByRole("button", { name: "Outline" }).click();
+  await expect(zoom(component)).toHaveText("none");
+  await expect(path).toHaveCount(0);
+});
+
+test("the zoom keys keep the caret in the block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} />);
+  await caretIn(component, "a2", 3);
+  await page.keyboard.press("Control+.");
+  await expect(zoom(component)).toHaveText("a2");
+  expect(await caret(page)).toEqual({ id: "a2", at: 3, text: "Alpha two" });
+  await page.keyboard.press("Control+,");
+  await expect(zoom(component)).toHaveText("a");
+  expect(await caret(page)).toEqual({ id: "a2", at: 3, text: "Alpha two" });
+  await page.keyboard.press("Alt+ArrowLeft");
+  await expect(zoom(component)).toHaveText("none");
+  expect(await caret(page)).toEqual({ id: "a2", at: 3, text: "Alpha two" });
+  // On a selected block too.
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Alt+ArrowRight");
+  await expect(zoom(component)).toHaveText("a2");
+});
+
+test("zoomed, edits stay inside the block", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} initialRoot="a" />);
+  const before = await tree(component).textContent();
+  // A first-level block does not outdent out of view, and the title does not go.
+  await caretIn(component, "a2", 0);
+  await page.keyboard.press("Shift+Tab");
+  await row(component, "a").click();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Delete");
+  expect(await tree(component).textContent()).toBe(before);
+  // Typing in the title reaches the tree, and Enter there starts a first child.
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("!");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("new");
+  await expect(tree(component)).toContainText("0 a:Alpha!\n1 new:new\n1 a1:Alpha **one**");
+  await expect(zoom(component)).toHaveText("a");
+});
+
+test("undo returns to the zoom the change was made in", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} initialRoot="a1" />);
+  await caretIn(component, "a1x", 4);
+  await page.keyboard.type("er");
+  await page.keyboard.press("Control+,");
+  await page.keyboard.press("Control+,");
+  await expect(zoom(component)).toHaveText("none");
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toContainText("2 a1x:Deep\n");
+  await expect(zoom(component)).toHaveText("a1");
+  expect(await caret(page)).toEqual({ id: "a1x", at: 4, text: "Deep" });
+});
+
+test("readOnly zooms but does not drag; zoomable={false} leaves the bullet a mark", async ({
+  mount,
+}) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} readOnly />);
+  await expect(bullet(component, "a")).not.toHaveAttribute("data-drag", "");
+  await bullet(component, "a").click();
+  await expect(zoom(component)).toHaveText("a");
+  await component.unmount();
+  const plain = await mount(<OutlinerHarness initial={DEEP} readOnly zoomable={false} />);
+  await expect(bullet(plain, "a")).toHaveCount(0);
+});
+
+// --- Dragging blocks by the bullet ---
+
+/** Press a block's bullet and carry it to the gap under (or above) another
+ *  row, with the pointer on the bullet column of `depth`. */
+async function carry(
+  page: Page,
+  root: Locator,
+  id: string,
+  onto: string,
+  { above = false, depth = 0 } = {},
+) {
+  const from = await bullet(root, id).boundingBox();
+  const target = await row(root, onto).boundingBox();
+  if (!from || !target) throw new Error("nothing to drag");
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 12, from.y + 12, { steps: 2 });
+  await page.mouse.move(
+    target.x + 20 * (depth + 1),
+    above ? target.y + 3 : target.y + target.height - 3,
+    { steps: 6 },
+  );
+}
+
+/** dnd-kit has loaded and the bullets are draggable. */
+const dragReady = (root: Locator) => expect(root.locator('[id^="DndLiveRegion"]')).toHaveCount(1);
+
+test("a bullet drags its block to another place and depth", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await dragReady(component);
+  // Under a1, as its sibling.
+  await carry(page, component, "c", "a1", { depth: 1 });
+  await expect(row(component, "c")).toHaveAttribute("data-dragging", "true");
+  const line = component.locator('[class*="dropLine"]');
+  const under = await row(component, "a1").boundingBox();
+  const mark = await line.boundingBox();
+  expect(
+    Math.abs((mark?.y ?? 0) + 1 - ((under?.y ?? 0) + (under?.height ?? 0))),
+  ).toBeLessThanOrEqual(1);
+  // The line starts at the bullet column of depth 1.
+  expect(Math.round((mark?.x ?? 0) - (under?.x ?? 0))).toBe(35);
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n1 c:Charlie\n1 a2:Alpha two\n0 b:Bravo",
+  );
+  await expect(line).toHaveCount(0);
+  await expect(component.locator("[data-dragging]")).toHaveCount(0);
+  // The release is not a click on the bullet: nothing zoomed.
+  await expect(zoom(component)).toHaveText("none");
+
+  // Further right: a child of a1.
+  await carry(page, component, "b", "a1", { depth: 2 });
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n2 b:Bravo\n1 c:Charlie\n1 a2:Alpha two",
+  );
+
+  // Above the first row: the top of the outline. One undo per drag.
+  await carry(page, component, "c", "a", { above: true });
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(/^0 c:Charlie\n0 a:Alpha/);
+  await row(component, "c").click();
+  await page.keyboard.press("Control+z");
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a1:Alpha one\n2 b:Bravo\n1 c:Charlie\n1 a2:Alpha two",
+  );
+});
+
+test("a drag from a selected block moves the selection; Escape cancels", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await dragReady(component);
+  await row(component, "a1").click();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Shift+ArrowDown");
+  expect(await selected(component)).toEqual(["a1", "a2"]);
+  const before = await tree(component).textContent();
+  await carry(page, component, "a2", "c");
+  await expect(component.locator("[data-dragging]")).toHaveCount(2);
+  await page.keyboard.press("Escape");
+  await page.mouse.up();
+  expect(await tree(component).textContent()).toBe(before);
+  await expect(component.locator("[data-dragging]")).toHaveCount(0);
+
+  await carry(page, component, "a2", "c");
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n0 b:Bravo\n0 c:Charlie\n0 a1:Alpha one\n0 a2:Alpha two",
+  );
+  expect(await selected(component)).toEqual(["a1", "a2"]);
+});
+
+test("a block dragged with the caret in it keeps the caret", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await dragReady(component);
+  await caretIn(component, "b", 2);
+  await carry(page, component, "b", "c");
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(/0 c:Charlie\n0 b:Bravo$/);
+  expect(await caret(page)).toEqual({ id: "b", at: 2, text: "Bravo" });
+});
+
+test("zoomed, a block cannot be dropped beside the title", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} initialRoot="a" />);
+  await dragReady(component);
+  await carry(page, component, "a1", "a2", { depth: 0 });
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(
+    "0 a:Alpha\n1 a2:Alpha two\n1 a1:Alpha **one**\n2 a1x:Deep\n0 b:Bravo",
+  );
+});
+
+test("inside an SfDndProvider the outline joins its context", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} shared />);
+  await expect(async () => {
+    await carry(page, component, "c", "a", { above: true });
+    await expect(component.locator("[data-dragging]")).toHaveCount(1, { timeout: 500 });
+  }).toPass();
+  await page.mouse.up();
+  await expect(tree(component)).toHaveText(/^0 c:Charlie\n0 a:Alpha/);
+});
+
+test("reorderable={false} leaves the bullets fixed", async ({ mount, page }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} reorderable={false} />);
+  const before = await tree(component).textContent();
+  await carry(page, component, "c", "a", { above: true });
+  await page.mouse.up();
+  expect(await tree(component).textContent()).toBe(before);
+});
+
+// --- apiRef ---
+
+test("apiRef.edit reveals a block and puts the caret in it", async ({ mount, page }) => {
+  const folded: OutlinerValue = [
+    { ...(DEEP[0] as OutlinerValue[number]), collapsed: true },
+    { id: "b", content: "Bravo" },
+  ];
+  const component = await mount(
+    <OutlinerHarness initial={folded} initialRoot="b" apiTarget="a1x" apiOffset={2} />,
+  );
+  await component.getByTestId("api-edit").click();
+  await expect(zoom(component)).toHaveText("none");
+  expect(await caret(page)).toEqual({ id: "a1x", at: 2, text: "Deep" });
+  await component.getByTestId("api-read").click();
+  await expect(component.getByTestId("picked")).toHaveText(
+    '{"blocks":[],"editing":{"id":"a1x","start":2,"end":2}}',
+  );
+  // The unfolding is one undo step.
+  await component.getByTestId("api-undo").click();
+  await expect(row(component, "a1x")).toHaveCount(0);
+});
+
+test("apiRef.select selects a block and reports it", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={DEEP} apiTarget="a2" />);
+  await component.getByTestId("api-select").click();
+  await expect(row(component, "a2")).toBeFocused();
+  expect(await selected(component)).toEqual(["a2"]);
+  await component.getByTestId("api-read").click();
+  await expect(component.getByTestId("picked")).toHaveText('{"blocks":["a2"],"editing":null}');
+});
+
+// --- Virtualization, tree semantics, frame ---
+
+test("virtualized: only the rows near the viewport are in the DOM", async ({ mount, page }) => {
+  const component = await mount(
+    <OutlinerHarness initial={[]} rows={2000} height={300} apiTarget="r1500" apiOffset={1} />,
+  );
+  await expect(row(component, "r0")).toBeVisible();
+  expect(await component.locator("[data-bullet-id]").count()).toBeLessThan(60);
+  const scroller = component.getByRole("tree");
+  expect(await scroller.evaluate((el) => el.scrollHeight)).toBe(2000 * 25);
+
+  // The keyboard reaches rows that were not rendered.
+  await row(component, "r1").click();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("End");
+  await expect(row(component, "r1999")).toBeFocused();
+  await expect(row(component, "r1999")).toBeInViewport();
+  await expect(row(component, "r0")).toHaveCount(0);
+
+  // So does the host.
+  await component.getByTestId("api-edit").click();
+  expect(await caret(page)).toEqual({ id: "r1500", at: 1, text: "Row 1500" });
+  await expect(row(component, "r1500")).toBeInViewport();
+
+  // The block with the caret stays mounted when it scrolls away.
+  await expect(async () => {
+    await scroller.evaluate((el) => el.scrollTo(0, 0));
+    await expect(row(component, "r0")).toBeVisible({ timeout: 300 });
+  }).toPass();
+  await expect(row(component, "r1500").locator("textarea")).toBeFocused();
+  await page.keyboard.type("!");
+  await expect(tree(component)).toContainText("0 r1500:R!ow 1500");
+
+  // A taller block pushes the rest down. (Typing brought the caret's block
+  // back into view, as in any text field.)
+  await scroller.evaluate((el) => el.scrollTo(0, 0));
+  await caretIn(component, "r2", 5);
+  await page.keyboard.press("Shift+Enter");
+  await page.keyboard.type("second line");
+  const second = await row(component, "r2").boundingBox();
+  const third = await row(component, "r3").boundingBox();
+  expect(second?.height).toBe(45);
+  expect((third?.y ?? 0) - (second?.y ?? 0)).toBe(45);
+});
+
+test("virtualized: a block brought on screen stays there while rows are measured", async ({
+  mount,
+  page,
+}) => {
+  // Every fifth row is taller than the estimate, so the rows around the
+  // target move once they are rendered.
+  const component = await mount(
+    <OutlinerHarness initial={[]} rows={2000} height={300} tall apiTarget="r1504" apiOffset={0} />,
+  );
+  await expect(row(component, "r0")).toBeVisible();
+  const inside = () =>
+    row(component, "r1504").evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const view = (el.closest('[role="tree"]') as HTMLElement).getBoundingClientRect();
+      return box.top >= view.top - 1 && box.bottom <= view.bottom + 1;
+    });
+  await component.getByTestId("api-edit").click();
+  expect(await caret(page)).toMatchObject({ id: "r1504", at: 0 });
+  await expect.poll(inside).toBe(true);
+  await component.getByTestId("api-select").click();
+  await expect(row(component, "r1504")).toBeFocused();
+  await expect.poll(inside).toBe(true);
+});
+
+test("each block reports its level, position and siblings", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} />);
+  await expect(component.getByRole("tree", { name: "Outline" })).toBeVisible();
+  for (const [id, level, position, size] of [
+    ["a", "1", "1", "3"],
+    ["a2", "2", "2", "2"],
+    ["c", "1", "3", "3"],
+  ] as const) {
+    await expect(row(component, id)).toHaveAttribute("aria-level", level);
+    await expect(row(component, id)).toHaveAttribute("aria-posinset", position);
+    await expect(row(component, id)).toHaveAttribute("aria-setsize", size);
+  }
+});
+
+test("frame={false} drops the border and the padding", async ({ mount }) => {
+  const component = await mount(<OutlinerHarness initial={WIDE} frame={false} />);
+  const box = await component.getByRole("tree").evaluate((el) => {
+    const style = getComputedStyle(el.parentElement as HTMLElement);
+    return [style.borderTopWidth, style.paddingTop];
+  });
+  expect(box).toEqual(["0px", "0px"]);
+});
