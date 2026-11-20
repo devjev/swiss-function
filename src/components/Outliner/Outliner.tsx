@@ -40,6 +40,7 @@ import {
   findTrigger,
   insertLink,
   pairInput,
+  spanPairs,
   type TextEdit,
   toggleWrap,
   unpairBackspace,
@@ -307,6 +308,17 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         ? completionState
         : null;
 
+    // The registered types that also render a span inside a block's text, and
+    // their delimiters as pairs for the typing help (`$` closes itself).
+    const inlineTypes = useMemo(
+      () => (blockTypes ?? []).filter((type) => type.inline !== undefined),
+      [blockTypes],
+    );
+    const inlinePairs = useMemo(
+      () => spanPairs(inlineTypes.map((type) => type.inline as InlineSpan)),
+      [inlineTypes],
+    );
+
     // The handlers below are created once, so a keystroke re-renders one row;
     // they read what is current from here.
     const current = {
@@ -323,6 +335,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       generateId,
       completions,
       blockTypes,
+      spanPairs: inlinePairs,
       commandsOn,
       onUpload,
       flat,
@@ -885,7 +898,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         if (textarea.value.startsWith("```")) return;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const edit = pairInput(textarea.value, start, end, e.data);
+        const edit = pairInput(textarea.value, start, end, e.data, latest.current.spanPairs);
         if (!edit) return;
         e.preventDefault();
         caretBefore.current = { id, start, end };
@@ -1082,7 +1095,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
             return;
           }
           case "Backspace": {
-            const unpaired = unpairBackspace(textarea.value, start, end);
+            const unpaired = unpairBackspace(textarea.value, start, end, latest.current.spanPairs);
             if (unpaired) {
               e.preventDefault();
               applyEdit(id, unpaired, true);
@@ -1551,11 +1564,6 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     };
 
     // --- Markdown components for wiki-links + block-refs ---
-    // The registered types that also render a span inside a block's text.
-    const inlineTypes = useMemo(
-      () => (blockTypes ?? []).filter((type) => type.inline !== undefined),
-      [blockTypes],
-    );
     const preprocess = useMemo(() => {
       const spans = inlineTypes.map((type) => type.inline as InlineSpan);
       return (source: string) => preprocessOutlinerMarkdown(source, spans);

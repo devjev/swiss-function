@@ -10,15 +10,15 @@ import {
   createMathBlockType,
   createQueryBlockType,
 } from "./OutlinerBlocks";
+import { renderMermaid } from "./OutlinerBlocks.fixtures";
 
 let minted = 0;
 
 // How often the query ran, for the spec that types beside it.
 const counted = globalThis as { queryRuns?: number };
 
-// Math runs on KaTeX, the default. The others are stand-ins for the engines
-// an app would bring: each is enough to show that the block hands its source
-// over and shows what comes back.
+// Math runs on KaTeX, the default, and the diagram on Mermaid, passed the way
+// an app would pass it. The link preview has a stand-in for the app's server.
 const TYPES = [
   createQueryBlockType({
     run: (query, tree) => {
@@ -27,10 +27,7 @@ const TYPES = [
     },
   }),
   createMathBlockType(),
-  createDiagramBlockType({
-    render: async (source) =>
-      `<svg viewBox="0 0 100 20" width="100" height="20"><title>${source.replace(/</g, "&lt;")}</title><rect width="100" height="20" /></svg>`,
-  }),
+  createDiagramBlockType({ render: renderMermaid }),
   createDataBlockType({ maxRows: 3 }),
   createLinkPreviewBlockType({
     fetch: async (url) =>

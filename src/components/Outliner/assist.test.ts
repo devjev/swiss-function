@@ -6,6 +6,7 @@ import {
   insertLink,
   pairInput,
   setTaskDone,
+  spanPairs,
   type TextEdit,
   taskBody,
   taskState,
@@ -62,6 +63,48 @@ describe("pairInput", () => {
   it("does nothing special for other keys", () => {
     expect(type("a|", "*")).toBeNull();
     expect(type("a|", "b")).toBeNull();
+  });
+});
+
+describe("pairInput with a span's delimiter", () => {
+  const math = spanPairs([{ open: "$" }, { open: "\\(", close: "\\)" }]);
+  const type = (marked: string, key: string) => show(pairInput(...read(marked), key, math));
+
+  it("takes the one-character delimiters as pairs", () => {
+    expect(math).toEqual({ $: "$" });
+    expect(type("a|", "$")).toBe(show(pairInput(...read("a|"), "$", { $: "$" })));
+    expect(pairInput(...read("so |"), "$")).toBeNull();
+  });
+
+  it("closes an opener, steps over the closer, wraps a selection", () => {
+    expect(type("so |", "$")).toBe("so $|$");
+    expect(type("so $x|$", "$")).toBe("so $x$|");
+    expect(type("so <x^2> holds", "$")).toBe("so $<x^2>$ holds");
+  });
+
+  it("leaves a second one on the line to close the first", () => {
+    expect(type("so $x|", "$")).toBeNull();
+    expect(type("$a$ and |", "$")).toBe("$a$ and $|$");
+    // The line above does not count.
+    expect(type("$5\nso |", "$")).toBe("$5\nso $|$");
+  });
+
+  it("does not pair inside or in front of a word, or after a backslash", () => {
+    expect(type("US|", "$")).toBeNull();
+    expect(type("|x", "$")).toBeNull();
+    expect(type("\\|", "$")).toBeNull();
+  });
+
+  it("takes a digit right after the opener for a price", () => {
+    expect(type("for $|$", "5")).toBe("for $5|");
+    expect(type("for $|$", "x")).toBeNull();
+    // Between two pairs the digit is plain.
+    expect(type("$$|$$", "5")).toBeNull();
+  });
+
+  it("unpairs with Backspace", () => {
+    expect(show(unpairBackspace(...read("a $|$ b"), math))).toBe("a | b");
+    expect(unpairBackspace(...read("a $|$ b"))).toBeNull();
   });
 });
 

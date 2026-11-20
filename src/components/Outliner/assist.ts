@@ -20,17 +20,79 @@ const PAIRS: Record<string, string> = { "[": "]", "(": ")", "{": "}", "`": "`" }
 const WRAPS: Record<string, string> = { ...PAIRS, "*": "*", _: "_", "~": "~", "^": "^", "=": "=" };
 const CLOSERS = new Set(Object.values(PAIRS));
 
+/** The one-character delimiters of the registered inline spans (`$` for
+ *  math), as further pairs: opener to closer. */
+export function spanPairs(
+  spans: readonly { open: string; close?: string }[],
+): Record<string, string> {
+  const pairs: Record<string, string> = {};
+  for (const { open, close = open } of spans) {
+    if (open.length === 1 && close.length === 1) pairs[open] = close;
+  }
+  return pairs;
+}
+
+const WORD = /[\p{L}\p{N}_]/u;
+
+/** How often `mark` stands unescaped on the caret's line before the caret. */
+function countBefore(text: string, caret: number, mark: string): number {
+  let count = 0;
+  for (let at = text.lastIndexOf("\n", caret - 1) + 1; at < caret; at++) {
+    if (text[at] === "\\") at++;
+    else if (text[at] === mark) count++;
+  }
+  return count;
+}
+
+/** Typing in a span's delimiter (`$`), which also stands for itself in prose
+ *  (a price), so it pairs with more care than a bracket. */
+function pairSpan(
+  text: string,
+  start: number,
+  typed: string,
+  spans: Record<string, string>,
+): TextEdit | null {
+  const before = text[start - 1] ?? "";
+  const after = text[start] ?? "";
+  // A digit right after an opener that was just paired is a price: the closer
+  // goes. (A formula that starts with a digit is closed by hand.)
+  if (/\d/.test(typed) && spans[before] === after && before !== "") {
+    if (countBefore(text, start, before) % 2 === 1) {
+      return {
+        text: text.slice(0, start) + typed + text.slice(start + 1),
+        start: start + 1,
+        end: start + 1,
+      };
+    }
+    return null;
+  }
+  const close = spans[typed];
+  if (close === undefined) return null;
+  if (after === close) return { text, start: start + 1, end: start + 1 };
+  // Not after a backslash or inside a word, and not in front of one.
+  if (before === "\\" || WORD.test(before) || WORD.test(after)) return null;
+  // With one open on the line already, this one closes it.
+  if (close === typed && countBefore(text, start, typed) % 2 === 1) return null;
+  return {
+    text: text.slice(0, start) + typed + close + text.slice(start),
+    start: start + 1,
+    end: start + 1,
+  };
+}
+
 /** What typing `typed` does beyond inserting it, or null when it is plain
  *  input: an opener gets its closer, a closer that is already there is stepped
- *  over, and a selection is wrapped. */
+ *  over, and a selection is wrapped. `spans` adds the delimiters of the
+ *  registered inline spans (see `spanPairs`). */
 export function pairInput(
   text: string,
   start: number,
   end: number,
   typed: string,
+  spans: Record<string, string> = {},
 ): TextEdit | null {
   if (start !== end) {
-    const close = WRAPS[typed];
+    const close = WRAPS[typed] ?? spans[typed];
     if (close === undefined) return null;
     return {
       text: text.slice(0, start) + typed + text.slice(start, end) + close + text.slice(end),
@@ -42,7 +104,7 @@ export function pairInput(
     return { text, start: start + 1, end: start + 1 };
   }
   const close = PAIRS[typed];
-  if (close === undefined) return null;
+  if (close === undefined) return pairSpan(text, start, typed, spans);
   // A parenthesis inside a word is prose ("word(s)"), not a pair.
   if (typed === "(" && start > 0 && !/[\s[\](]/.test(text[start - 1] as string)) return null;
   return {
@@ -53,10 +115,16 @@ export function pairInput(
 }
 
 /** Backspace between an empty pair removes both halves. */
-export function unpairBackspace(text: string, start: number, end: number): TextEdit | null {
+export function unpairBackspace(
+  text: string,
+  start: number,
+  end: number,
+  spans: Record<string, string> = {},
+): TextEdit | null {
   if (start !== end || start === 0) return null;
   const open = text[start - 1] as string;
-  if (PAIRS[open] === undefined || text[start] !== PAIRS[open]) return null;
+  const close = PAIRS[open] ?? spans[open];
+  if (close === undefined || text[start] !== close) return null;
   return {
     text: text.slice(0, start - 1) + text.slice(start + 1),
     start: start - 1,

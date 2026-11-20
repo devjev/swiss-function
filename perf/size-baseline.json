@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-20T07:59:25.709Z"
+    "date": "2026-11-20T08:17:06.825Z"
   },
-  "totalGzip": 2323763,
+  "totalGzip": 2325555,
   "entries": {
     ".": {
       "files": 385,
-      "jsRaw": 1798314,
-      "jsGzip": 527021,
+      "jsRaw": 1801765,
+      "jsGzip": 527917,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 527021,
+      "gzip": 527917,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -841,11 +841,11 @@
     },
     "./outliner": {
       "files": 42,
-      "jsRaw": 161524,
-      "jsGzip": 47594,
+      "jsRaw": 163145,
+      "jsGzip": 47928,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 47594,
+      "gzip": 47928,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/popover",
@@ -859,11 +859,11 @@
     },
     "./outliner-blocks": {
       "files": 85,
-      "jsRaw": 320769,
-      "jsGzip": 93722,
+      "jsRaw": 322599,
+      "jsGzip": 94284,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 93722,
+      "gzip": 94284,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

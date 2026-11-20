@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { measureCssLength } from "../../lib/useCssPx";
 import { CodeEditor } from "../CodeEditor";
 import { DataTable, type LeafColumnDef } from "../DataTable";
 import {
@@ -230,17 +231,83 @@ function Rendered({
         </span>
       );
     }
-    return (
-      <span
-        className={styles.inline}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: the output of the renderer the app passed in
-        dangerouslySetInnerHTML={{ __html: markup.value }}
-      />
-    );
+    return <InlineMarkup markup={markup.value} />;
   }
   if (markup.status === "failed") return <Failure what={what} message={markup.message} />;
   if (markup.status === "pending") return <span className={styles.status}>{what}…</span>;
   return <Snapped markup={markup.value} />;
+}
+
+/** The smallest length the layout keeps: margins are set in whole steps, so
+ *  what is asked for is what is laid out. */
+const STEP = 1 / 64;
+
+/** Fit a formula into its line of text. One no taller than the line stays an
+ *  ordinary inline span, which may break across lines. A taller one (a
+ *  fraction) becomes one box, and its margins say how much of it the line
+ *  counts. A little overflow is let into the neighbours' leading and the line
+ *  keeps its height: an eighth of a unit above, where the line before has its
+ *  descenders, and a quarter below, where the next line's letters start
+ *  lower. Past that the line takes whole units more, the formula in the
+ *  middle. The text's baseline does not move. */
+function fitInline(element: HTMLElement) {
+  const probe = element.firstElementChild;
+  if (!probe) return;
+  const style = element.style;
+  // Measured as one box, without what an earlier fit set.
+  style.display = "inline-block";
+  style.marginBlock = "0";
+  const box = element.getBoundingClientRect();
+  // The probe is an empty span in the text's font: its box is the font's
+  // content area, and the line's own height is centred on that.
+  const area = probe.getBoundingClientRect();
+  const centre = (area.top + area.bottom) / 2;
+  const line = Number.parseFloat(getComputedStyle(element).lineHeight) || area.height;
+  const above = centre - box.top - line / 2;
+  const below = box.bottom - centre - line / 2;
+  if (above <= STEP && below <= STEP) {
+    style.display = "";
+    style.marginBlock = "";
+    return;
+  }
+  const unit = measureCssLength(element, "var(--sf-unit)") || line;
+  const over = Math.max(above - unit / 8, below - unit / 4);
+  const more = Math.max(0, Math.ceil((2 * over) / unit));
+  const half = (line + more * unit) / 2;
+  const steps = (length: number) => Math.floor(length / STEP) * STEP;
+  const top = steps(box.top - (centre - half));
+  if (more === 0) {
+    // Just inside the line's own height, which then is the line's height.
+    style.marginTop = `${top - STEP}px`;
+    style.marginBottom = `${steps(centre + half - box.bottom) - STEP}px`;
+  } else {
+    // The margin box is the line's height to the step.
+    style.marginTop = `${top}px`;
+    style.marginBottom = `${line + more * unit - box.height - top}px`;
+  }
+}
+
+/** A renderer's markup inside a line of text. */
+function InlineMarkup({ markup }: { markup: string }) {
+  const outer = useRef<HTMLSpanElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new markup is a new formula to fit
+  useLayoutEffect(() => {
+    const element = outer.current;
+    if (!element) return;
+    const refit = () => fitInline(element);
+    refit();
+    // The formula's fonts arrive after it: its size changes with them.
+    const fonts = element.ownerDocument.fonts;
+    fonts?.addEventListener("loadingdone", refit);
+    return () => fonts?.removeEventListener("loadingdone", refit);
+  }, [markup]);
+  return (
+    <span ref={outer} className={styles.inline}>
+      <span aria-hidden="true" />
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: the output of the renderer the app passed in */}
+      <span dangerouslySetInnerHTML={{ __html: markup }} />
+    </span>
+  );
 }
 
 /** A renderer's markup as a block. Its height is whatever the formula or the

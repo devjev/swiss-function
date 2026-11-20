@@ -2802,7 +2802,11 @@ Each is `{ name, aliases?, match?, render, command?, inline? }`:
   `open`): `$x$` for math. The span stays on one line, its source starts and
   ends with something other than a space, and no digit follows the closing
   delimiter, so `$5 and $10` stays text. A delimiter after a backslash, inside
-  code, or doubled (`$$`) is plain text.
+  code, or doubled (`$$`) is plain text. A one-character delimiter also pairs
+  while typing, like a bracket: `$` gets its closer, the closer is stepped
+  over, a selection is wrapped, Backspace in an empty pair removes both. A
+  second `$` on a line closes the first instead of opening a pair, and a digit
+  typed right after the opener is taken for a price: the closer goes.
 
 Registered types are asked first and in order, so one can take over a fenced
 block. A type that throws while rendering shows a notice in its block. The
@@ -2833,7 +2837,45 @@ so the renderer is trusted with it (the built-in KaTeX call leaves `trust` off;
 keep Mermaid's `securityLevel` strict). A renderer that throws or rejects shows
 its message in the block; inside a line the source stays, marked, with the
 message as its title. A formula or drawing block takes the next whole number of
-units above its height. Math is set at 1.1 times the text size.
+units above its height. Math is set at 1.1 times the text size. A formula
+inside a line that is taller than the line (a fraction) reaches a little into
+the leading of the lines around it and leaves its line one unit tall; a much
+taller one (a sum set with its limits) gives its line whole units more. The
+markup is remembered per renderer function and source, so pass a new function
+to draw everything again, after a theme change for example.
+
+A diagram renderer for Mermaid (the app's dependency), with the page's colours:
+
+```ts
+import mermaid from "mermaid";
+
+let drawn = 0;
+const color = (token: string) => {
+  const probe = document.body.appendChild(document.createElement("span"));
+  probe.style.color = `var(${token})`;
+  const value = getComputedStyle(probe).color; // Mermaid computes with colours: no var()
+  probe.remove();
+  return value;
+};
+
+async function renderMermaid(source: string) {
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    suppressErrorRendering: true, // the block shows the error
+    theme: "base",
+    themeVariables: {
+      primaryColor: color("--sf-color-bg"),
+      primaryTextColor: color("--sf-color-fg"),
+      primaryBorderColor: color("--sf-color-border-strong"),
+      lineColor: color("--sf-color-fg"),
+    },
+  });
+  return (await mermaid.render(`diagram-${++drawn}`, source)).svg;
+}
+
+const diagrams = createDiagramBlockType({ render: renderMermaid });
+```
 
 **Block commands.** `/` opens the list of block commands, after the app's own
 `/` entries from `completions`: Heading 1 to 3, Task, Numbered list, Quote,

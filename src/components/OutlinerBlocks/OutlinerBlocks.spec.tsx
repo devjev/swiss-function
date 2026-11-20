@@ -19,7 +19,8 @@ const DOC: OutlinerValue = [
   { id: "q", content: "{{query alpha}}" },
   { id: "m", content: "$$ x^2 $$" },
   { id: "bad", content: "$$ \\bad $$" },
-  { id: "d", content: "```mermaid\ngraph TD; a-->b\n```" },
+  { id: "d", content: "```mermaid\nflowchart LR\n  start --> done\n```" },
+  { id: "dbad", content: "```mermaid\nflowchart LR\n  start -->\n```" },
   { id: "csv", content: "```csv\nfund,aum\nAlpha,1284\nBeta,640\n```" },
   { id: "js", content: "```js\nlet a = 1;\n```" },
   { id: "url", content: "https://example.com/page" },
@@ -55,7 +56,7 @@ test("a query waits for the typing beside it to pause", async ({ mount, page }) 
   expect((await runs()) - before).toBeLessThanOrEqual(2);
 });
 
-test("math is set by KaTeX; a diagram shows what the app's renderer returns", async ({ mount }) => {
+test("math is set by KaTeX, a diagram drawn by the app's Mermaid", async ({ mount }) => {
   const component = await mount(<OutlinerBlocksHarness initial={DOC} />);
   const math = row(component, "m");
   await expect(math.locator(".katex-display annotation")).toHaveText("x^2");
@@ -65,7 +66,62 @@ test("math is set by KaTeX; a diagram shows what the app's renderer returns", as
   await expect(row(component, "bad").getByRole("alert")).toContainText(
     "Math: KaTeX parse error: Undefined control sequence: \\bad",
   );
-  await expect(row(component, "d").locator("svg title")).toHaveText("graph TD; a-->b");
+  const diagram = row(component, "d").locator('svg[id^="sf-mermaid"]');
+  await expect(diagram.locator(".nodeLabel")).toHaveText(["start", "done"]);
+  // A drawing block is a whole number of units tall (20px here), whatever
+  // height Mermaid gave the drawing.
+  const box = await diagram.locator("xpath=../..").boundingBox();
+  expect((box?.height ?? 0) % 20).toBeCloseTo(0, 1);
+  await expect(row(component, "dbad").getByRole("alert")).toContainText("Diagram: ");
+  // Mermaid left nothing of its own in the page.
+  await expect(component.page().locator("body > [id^='dsf-mermaid']")).toHaveCount(0);
+});
+
+test("a tall formula in a line keeps the row on the unit grid", async ({ mount }) => {
+  const component = await mount(
+    <OutlinerBlocksHarness
+      initial={[
+        { id: "plain", content: "a line of text" },
+        { id: "low", content: "with $x^2 + y_1$ in it" },
+        { id: "frac", content: "with $\\frac{a}{b}$ in it" },
+        { id: "nested", content: "with $\\frac{\\frac{a}{b}}{\\frac{c}{d}}$ in it" },
+        { id: "tall", content: "with $\\displaystyle\\sum_{i=1}^{N} x_i$ in it" },
+      ]}
+    />,
+  );
+  const height = async (id: string) => (await row(component, id).boundingBox())?.height ?? 0;
+  await expect(row(component, "tall").locator(".katex")).toBeVisible();
+  const line = await height("plain");
+  // The formula's fonts arrive after it, and it is fitted again then.
+  await expect(async () => {
+    expect(await height("low")).toBeCloseTo(line, 1);
+    // A fraction overflows its line a little and leaves it its height.
+    expect(await height("frac")).toBeCloseTo(line, 1);
+    expect(await height("nested")).toBeCloseTo(line, 1);
+    // A sum with its limits above and below takes two more units: it would
+    // reach into the lines around it otherwise.
+    expect(await height("tall")).toBeCloseTo(line + 40, 1);
+  }).toPass();
+  // A formula that fits is an ordinary span, which can break across lines.
+  const display = (id: string) =>
+    row(component, id)
+      .locator(".katex")
+      .locator("xpath=../..")
+      .evaluate((el) => getComputedStyle(el).display);
+  expect(await display("low")).toBe("inline");
+  expect(await display("frac")).toBe("inline-block");
+});
+
+test("$ pairs while typing when math is registered", async ({ mount, page }) => {
+  const component = await mount(<OutlinerBlocksHarness initial={[{ id: "a", content: "" }]} />);
+  await row(component, "a").click();
+  await page.keyboard.type("so $x^2");
+  await expect(tree(component)).toHaveText("0 a:so $x^2$");
+  // The closer is stepped over, and a price does not get one.
+  await page.keyboard.type("$ for $5 each");
+  await expect(tree(component)).toHaveText("0 a:so $x^2$ for $5 each");
+  await page.keyboard.press("Escape");
+  await expect(row(component, "a").locator(".katex annotation")).toHaveText(["x^2"]);
 });
 
 test("$x$ inside a block's text is math; a price is not", async ({ mount, page }) => {
