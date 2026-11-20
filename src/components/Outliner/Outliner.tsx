@@ -58,18 +58,27 @@ import {
 } from "./blocks";
 import { caretLine, caretRect, offsetAtX } from "./caret";
 import { isOutlineText, parseOutline, toMarkdownList, withIds } from "./clipboard";
-import { ActionsContext, EmbedChainContext, EmbedContext, type OutlinerActions } from "./context";
+import { type BlockCommand, blockCommands, matchCommands } from "./commands";
+import {
+  ActionsContext,
+  EmbedChainContext,
+  EmbedContext,
+  type OutlinerActions,
+  TreeContext,
+} from "./context";
 import type { DropTarget } from "./drag";
 import { History } from "./history";
 import {
+  type InlineSpan,
   MAX_TRANSCLUSION_DEPTH,
   passthroughUrlTransform,
   preprocessOutlinerMarkdown,
+  readInline,
 } from "./markdown-extensions";
 import styles from "./Outliner.module.css";
 import { OutlinerBullet } from "./OutlinerBullet";
 import type { BulletPointerDown } from "./OutlinerDrag";
-import { DueChip } from "./OutlinerWidgets";
+import { BlockBoundary, DueChip } from "./OutlinerWidgets";
 import { blockSelection, extendSelection } from "./selection";
 import {
   deleteBullet,
@@ -99,6 +108,7 @@ import type {
   Bullet,
   BulletId,
   FlatBullet,
+  OutlinerBlockType,
   OutlinerCompletion,
   OutlinerHandle,
   OutlinerProps,
@@ -198,9 +208,12 @@ const OVERSCAN = 12;
 interface CompletionState {
   blockId: BulletId;
   match: CompletionMatch;
-  items: OutlinerCompletion[];
+  items: CompletionEntry[];
   index: number;
 }
+
+/** An entry of the list: the app's, or one of the outline's block commands. */
+type CompletionEntry = OutlinerCompletion & { command?: BlockCommand };
 
 /**
  * An outline edited as one document, after Roam Research and Logseq: a block
@@ -223,6 +236,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       onWikiLinkClick,
       resolveBlockRef,
       completions,
+      blockTypes,
+      commands: commandsOn = true,
       onUpload,
       placeholder = "Empty outline. Click to write.",
       root: rootProp,
@@ -307,6 +322,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       readOnly,
       generateId,
       completions,
+      blockTypes,
+      commandsOn,
       onUpload,
       flat,
       activeId,
@@ -742,8 +759,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     // --- Completion: `[[page`, `((block`, `#tag`, `/command` ---
     /** Look at the caret and open, update or close the completion list. */
     const refreshCompletion = useCallback((id: BulletId) => {
-      const source = latest.current.completions;
-      if (!source) return;
+      const { completions: source, commandsOn: withCommands, blockTypes: types } = latest.current;
+      if (!source && !withCommands) return;
       const textarea = editorRefs.current.get(id);
       const match =
         textarea && textarea.selectionStart === textarea.selectionEnd
@@ -761,11 +778,24 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       const request = `${place}:${match.query}`;
       if (requested.current === request) return;
       requested.current = request;
+      // `/` also lists the block commands, after the app's own entries.
+      const own: CompletionEntry[] =
+        match.trigger === "/" && withCommands && textarea
+          ? matchCommands(
+              blockCommands(types),
+              match.query,
+              textarea.value.slice(0, match.from - 1) + textarea.value.slice(match.to),
+            ).map((command) => ({
+              label: command.label,
+              description: command.description,
+              command,
+            }))
+          : [];
       const settle = (items: OutlinerCompletion[]) => {
         if (requested.current !== request) return;
-        setCompletion({ blockId: id, match, items, index: 0 });
+        setCompletion({ blockId: id, match, items: [...items, ...own], index: 0 });
       };
-      const result = source({ trigger: match.trigger, query: match.query, blockId: id });
+      const result = source?.({ trigger: match.trigger, query: match.query, blockId: id }) ?? [];
       if (Array.isArray(result)) settle(result);
       else result.then(settle, () => settle([]));
     }, []);
@@ -788,20 +818,39 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     );
 
     const acceptCompletion = useCallback(
-      (item: OutlinerCompletion | undefined) => {
+      (item: CompletionEntry | undefined) => {
         const open = latest.current.completion;
         const textarea = open && editorRefs.current.get(open.blockId);
         if (!open || !textarea || !item) return;
+        const id = open.blockId;
         const match = findTrigger(textarea.value, textarea.selectionStart) ?? open.match;
         caretBefore.current = {
-          id: open.blockId,
+          id,
           start: textarea.selectionStart,
           end: textarea.selectionEnd,
         };
         setCompletion(null);
-        applyEdit(open.blockId, applyCompletion(textarea.value, match, item.insert ?? item.label));
+        if (item.command) {
+          // A block command works on the block's text without the `/query`.
+          const rest = textarea.value.slice(0, match.from - 1) + textarea.value.slice(match.to);
+          const result = item.command.apply(rest);
+          const fresh = withIds(result.children ?? [], latest.current.generateId);
+          const typed = updateContent(latest.current.value, id, result.text);
+          history.breakTyping();
+          commit(fresh.length > 0 ? prependChildren(typed, id, fresh) : typed);
+          const at = result.caret ?? result.text.length;
+          editAt({ id, start: at, end: at });
+          return;
+        }
+        if (item.onSelect) {
+          // An action of the app's: the query goes, and the app is told.
+          applyEdit(id, applyCompletion(textarea.value, match, item.insert ?? ""));
+          item.onSelect({ blockId: id });
+          return;
+        }
+        applyEdit(id, applyCompletion(textarea.value, match, item.insert ?? item.label));
       },
-      [applyEdit],
+      [applyEdit, commit, editAt, history],
     );
 
     const handleTextChange = useCallback(
@@ -1502,10 +1551,35 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     };
 
     // --- Markdown components for wiki-links + block-refs ---
-    const markdownComponents = useMemo<Components>(
-      () => buildOutlinerComponents({ onWikiLinkClick, resolveBlockRef, depth: 0 }),
-      [onWikiLinkClick, resolveBlockRef],
+    // The registered types that also render a span inside a block's text.
+    const inlineTypes = useMemo(
+      () => (blockTypes ?? []).filter((type) => type.inline !== undefined),
+      [blockTypes],
     );
+    const preprocess = useMemo(() => {
+      const spans = inlineTypes.map((type) => type.inline as InlineSpan);
+      return (source: string) => preprocessOutlinerMarkdown(source, spans);
+    }, [inlineTypes]);
+    const markdownComponents = useMemo<Components>(
+      () =>
+        buildOutlinerComponents({
+          onWikiLinkClick,
+          resolveBlockRef,
+          inlineTypes,
+          preprocess,
+          depth: 0,
+        }),
+      [onWikiLinkClick, resolveBlockRef, inlineTypes, preprocess],
+    );
+
+    // The highlighted entry stays in sight as the arrows go down a long list.
+    const highlighted = completion ? `${listId}-${completion.index}` : null;
+    useEffect(() => {
+      if (!highlighted) return;
+      rootRef.current?.ownerDocument
+        .getElementById(highlighted)
+        ?.scrollIntoView({ block: "nearest" });
+    }, [highlighted]);
 
     // The list hangs under the trigger, where the query begins, and follows the
     // textarea when the outline scrolls.
@@ -1544,6 +1618,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       () => ({
         readOnly,
         markdownComponents,
+        preprocess,
         jumpTo: (id) => {
           if (!reveal(id)) return;
           history.breakTyping();
@@ -1554,6 +1629,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         setContent: (id, content) => {
           history.breakTyping();
           commit(updateContent(latest.current.value, id, content));
+        },
+        typeContent: (id, content) => {
+          commit(updateContent(latest.current.value, id, content), id);
         },
         setDate: (id, old, next) => {
           const self = findBullet(latest.current.value, id)?.bullet;
@@ -1566,7 +1644,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           commit(moveBlocks(latest.current.value, [id], parentId, afterId));
         },
       }),
-      [readOnly, markdownComponents, reveal, history, select, editAt, commit],
+      [readOnly, markdownComponents, preprocess, reveal, history, select, editAt, commit],
     );
 
     // An embedded block is this same tree, shown again from that block down by
@@ -1595,7 +1673,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         return (
           <Markdown
             value={text}
-            preprocess={preprocessOutlinerMarkdown}
+            preprocess={preprocess}
             components={markdownComponents}
             urlTransform={passthroughUrlTransform}
           />
@@ -1615,6 +1693,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
             onWikiLinkClick={onWikiLinkClick}
             resolveBlockRef={resolveBlockRef}
             completions={completions}
+            blockTypes={blockTypes}
+            commands={commandsOn}
             onUpload={onUpload}
             aria-label="Embedded block"
           />
@@ -1693,6 +1773,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           top={top}
           virtualIndex={virtualIndex}
           markdownComponents={markdownComponents}
+          blockTypes={blockTypes}
           completionListId={completion?.blockId === id ? listId : undefined}
           completionOptionId={
             completion?.blockId === id ? `${listId}-${completion.index}` : undefined
@@ -1756,51 +1837,53 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         )}
         <ActionsContext value={actions}>
           <EmbedContext value={renderEmbed}>
-            <div
-              ref={treeRef}
-              role="tree"
-              aria-multiselectable="true"
-              aria-label={ariaLabel ?? (ariaLabelledBy ? undefined : "Outline")}
-              aria-labelledby={ariaLabelledBy}
-              className={styles.tree}
-            >
-              {flat.length === 0 && !readOnly ? (
-                <div
-                  role="treeitem"
-                  aria-selected={false}
-                  className={styles.row}
-                  data-placeholder
-                  tabIndex={0}
-                  onClick={startFirstBlock}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    startFirstBlock();
-                  }}
-                >
-                  <span className={styles.fold} />
-                  <span className={styles.bullet} aria-hidden="true">
-                    <span className={styles.dot} />
-                  </span>
-                  <div className={styles.content}>
-                    <span className={styles.placeholder}>{placeholder}</span>
+            <TreeContext value={fullValue}>
+              <div
+                ref={treeRef}
+                role="tree"
+                aria-multiselectable="true"
+                aria-label={ariaLabel ?? (ariaLabelledBy ? undefined : "Outline")}
+                aria-labelledby={ariaLabelledBy}
+                className={styles.tree}
+              >
+                {flat.length === 0 && !readOnly ? (
+                  <div
+                    role="treeitem"
+                    aria-selected={false}
+                    className={styles.row}
+                    data-placeholder
+                    tabIndex={0}
+                    onClick={startFirstBlock}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" && e.key !== " ") return;
+                      e.preventDefault();
+                      startFirstBlock();
+                    }}
+                  >
+                    <span className={styles.fold} />
+                    <span className={styles.bullet} aria-hidden="true">
+                      <span className={styles.dot} />
+                    </span>
+                    <div className={styles.content}>
+                      <span className={styles.placeholder}>{placeholder}</span>
+                    </div>
                   </div>
-                </div>
-              ) : virtualItems ? (
-                <div
-                  role="presentation"
-                  className={styles.spacer}
-                  style={{ blockSize: virtualizer.getTotalSize() }}
-                >
-                  {virtualItems.map((item) => {
-                    const f = flat[item.index];
-                    return f ? renderRow(f, item.start, item.index) : null;
-                  })}
-                </div>
-              ) : (
-                flat.map((f) => renderRow(f))
-              )}
-            </div>
+                ) : virtualItems ? (
+                  <div
+                    role="presentation"
+                    className={styles.spacer}
+                    style={{ blockSize: virtualizer.getTotalSize() }}
+                  >
+                    {virtualItems.map((item) => {
+                      const f = flat[item.index];
+                      return f ? renderRow(f, item.start, item.index) : null;
+                    })}
+                  </div>
+                ) : (
+                  flat.map((f) => renderRow(f))
+                )}
+              </div>
+            </TreeContext>
           </EmbedContext>
         </ActionsContext>
         {canDrag && (
@@ -1885,6 +1968,8 @@ Outliner.displayName = "Outliner";
 interface BuildComponentsOpts {
   onWikiLinkClick?: (name: string) => void;
   resolveBlockRef?: (id: string) => string | null;
+  inlineTypes: readonly OutlinerBlockType[];
+  preprocess: (source: string) => string;
   depth: number;
 }
 
@@ -1917,6 +2002,15 @@ function buildOutlinerComponents(opts: BuildComponentsOpts): Components {
     },
     code: ({ children, className }) => {
       const text = typeof children === "string" ? children : String(children ?? "");
+      const span = readInline(text);
+      const spanType = span && opts.inlineTypes[span.index];
+      if (span && spanType?.inline) {
+        return (
+          <BlockBoundary name={spanType.name} source={span.source}>
+            {spanType.inline.render(span.source)}
+          </BlockBoundary>
+        );
+      }
       if (text.startsWith("block-ref:")) {
         const id = text.slice("block-ref:".length);
         if (opts.depth >= MAX_TRANSCLUSION_DEPTH) {
@@ -1930,7 +2024,7 @@ function buildOutlinerComponents(opts: BuildComponentsOpts): Components {
           <span className={styles.blockRef}>
             <Markdown
               value={resolved}
-              preprocess={preprocessOutlinerMarkdown}
+              preprocess={opts.preprocess}
               components={buildOutlinerComponents({ ...opts, depth: opts.depth + 1 })}
               urlTransform={passthroughUrlTransform}
               inline

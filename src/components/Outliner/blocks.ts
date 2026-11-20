@@ -12,7 +12,7 @@
  * block (an embed).
  */
 
-import type { Bullet, BulletId, OutlinerValue } from "./types";
+import type { Bullet, BulletId, OutlinerBlockType, OutlinerValue } from "./types";
 
 export type TaskState = "todo" | "doing" | "done" | "cancelled";
 export type CalloutTone = "note" | "tip" | "warning" | "danger";
@@ -369,4 +369,47 @@ export function tableRows(children: Bullet[] | undefined): TableCell[][] {
 export function imageSource(image: BlockImage, width: number | null): string {
   const alt = width === null ? image.alt : `${image.alt}|${Math.round(width)}`;
   return `![${alt}](${image.url})`;
+}
+
+// ----------------------------------------------------------------------------
+// Registered block types
+// ----------------------------------------------------------------------------
+
+const MACRO_CALL = /^\{\{([\w-]+)(?::?\s+([\s\S]*?))?\s*\}\}$/;
+const FENCE = /^```([\w+-]*)[^\n]*\n([\s\S]*?)\n?```\s*$/;
+
+/** The body of a fenced block and its language; null when the text is not one
+ *  closed fence. */
+export function fenceBody(content: string): { language: string; body: string } | null {
+  const fence = FENCE.exec(content);
+  return fence ? { language: fence[1] ?? "", body: fence[2] ?? "" } : null;
+}
+
+/** A fenced block's markdown. */
+export function fenceSource(language: string, body: string): string {
+  return `\`\`\`${language}\n${body}\n\`\`\``;
+}
+
+/** The registered type a block is, with what it matched; null for none. */
+export function matchBlockType(
+  types: readonly OutlinerBlockType[],
+  content: string,
+): { type: OutlinerBlockType; source: string } | null {
+  const trimmed = content.trim();
+  const macro = MACRO_CALL.exec(trimmed);
+  const fence = fenceBody(content);
+  for (const type of types) {
+    const named = (name: string | undefined) =>
+      name !== undefined && (name === type.name || (type.aliases?.includes(name) ?? false));
+    const how = type.match ?? "macro";
+    if (how === "macro") {
+      if (macro && named(macro[1])) return { type, source: macro[2] ?? "" };
+    } else if (how === "fence") {
+      if (fence && named(fence.language)) return { type, source: fence.body };
+    } else {
+      const source = how(content);
+      if (source !== null) return { type, source };
+    }
+  }
+  return null;
 }

@@ -14,12 +14,12 @@ import { TreeChevron } from "../../lib/TreeChevron";
 import { Checkbox } from "../Checkbox";
 import { Check, X } from "../Icon";
 import { BulletContent } from "./BulletContent";
-import { CALLOUT_LABEL, parseBlock, taskProgress } from "./blocks";
+import { CALLOUT_LABEL, matchBlockType, parseBlock, taskProgress } from "./blocks";
 import { RowContext } from "./context";
 import styles from "./Outliner.module.css";
-import { OutlinerEmbed, OutlinerImage, OutlinerTable } from "./OutlinerWidgets";
+import { OutlinerCustom, OutlinerEmbed, OutlinerImage, OutlinerTable } from "./OutlinerWidgets";
 import { sourceOffsetAtPoint } from "./sourceOffset";
-import type { Bullet, BulletId } from "./types";
+import type { Bullet, BulletId, OutlinerBlockType } from "./types";
 
 // The board brings dnd-kit, so it loads with the first `{{kanban}}` block.
 const OutlinerKanban = lazy(() => import("./OutlinerKanban"));
@@ -59,6 +59,8 @@ export interface OutlinerBulletProps {
   readOnly?: boolean;
   /** Markdown component overrides, for wiki links and block references. */
   markdownComponents?: Components;
+  /** The app's own block types, asked before the built-in ones. */
+  blockTypes?: readonly OutlinerBlockType[];
   /** While a completion list is open for this block: its id, and the id of
    *  the highlighted option. */
   completionListId?: string;
@@ -116,6 +118,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     tabbable,
     readOnly,
     markdownComponents,
+    blockTypes,
     completionListId,
     completionOptionId,
     onEnter,
@@ -141,6 +144,10 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
   const { task } = info;
   const rowContext = useMemo(() => ({ id: bullet.id, task }), [bullet.id, task]);
   const progress = useMemo(() => taskProgress(bullet.children), [bullet.children]);
+  const custom = useMemo(
+    () => (blockTypes?.length ? matchBlockType(blockTypes, bullet.content) : null),
+    [blockTypes, bullet.content],
+  );
 
   const copyRef = async () => {
     try {
@@ -181,47 +188,50 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     </div>
   );
   let main: ReactNode;
-  switch (info.kind) {
-    case "divider":
-      main = <hr className={styles.divider} />;
-      break;
-    case "callout":
-      main = (
-        <div className={styles.callout} data-tone={info.tone}>
-          <span className={styles.calloutLabel}>{CALLOUT_LABEL[info.tone ?? "note"]}</span>
-          {text}
-        </div>
-      );
-      break;
-    case "property":
-      main = (
-        <div className={styles.property}>
-          <span className={styles.key} title={info.key}>
-            {info.key}
-          </span>
-          {text}
-        </div>
-      );
-      break;
-    case "table":
-      main = <OutlinerTable rows={bullet.children} />;
-      break;
-    case "kanban":
-      main = (
-        <Suspense fallback={<span className={styles.hint}>Board</span>}>
-          <OutlinerKanban columns={bullet.children} />
-        </Suspense>
-      );
-      break;
-    case "embed":
-      main = <OutlinerEmbed id={info.ref ?? ""} host={bullet.id} />;
-      break;
-    case "image":
-      main = info.image ? <OutlinerImage id={bullet.id} image={info.image} /> : text;
-      break;
-    default:
-      main = text;
-  }
+  if (custom) {
+    main = <OutlinerCustom type={custom.type} source={custom.source} block={bullet} />;
+  } else
+    switch (info.kind) {
+      case "divider":
+        main = <hr className={styles.divider} />;
+        break;
+      case "callout":
+        main = (
+          <div className={styles.callout} data-tone={info.tone}>
+            <span className={styles.calloutLabel}>{CALLOUT_LABEL[info.tone ?? "note"]}</span>
+            {text}
+          </div>
+        );
+        break;
+      case "property":
+        main = (
+          <div className={styles.property}>
+            <span className={styles.key} title={info.key}>
+              {info.key}
+            </span>
+            {text}
+          </div>
+        );
+        break;
+      case "table":
+        main = <OutlinerTable rows={bullet.children} />;
+        break;
+      case "kanban":
+        main = (
+          <Suspense fallback={<span className={styles.hint}>Board</span>}>
+            <OutlinerKanban columns={bullet.children} />
+          </Suspense>
+        );
+        break;
+      case "embed":
+        main = <OutlinerEmbed id={info.ref ?? ""} host={bullet.id} />;
+        break;
+      case "image":
+        main = info.image ? <OutlinerImage id={bullet.id} image={info.image} /> : text;
+        break;
+      default:
+        main = text;
+    }
 
   return (
     <div

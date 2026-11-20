@@ -51,6 +51,55 @@ export interface OutlinerCompletion {
   /** Written into the block in place of the query; `label` when omitted. For
    *  `((` this is the block id, for `/` the text the command stands for. */
   insert?: string;
+  /** A `/` command that does something instead of writing text: the `/query`
+   *  is taken out of the block (`insert`, when given, goes in its place) and
+   *  this is called. */
+  onSelect?: (context: { blockId: BulletId }) => void;
+}
+
+/** What a registered block type is given to render. */
+export interface OutlinerBlockProps {
+  /** The block, with its children. */
+  block: Bullet;
+  /** What the type matched: the arguments of `{{name args}}`, the body of
+   *  the fence, or what its `match` function returned. */
+  source: string;
+  readOnly: boolean;
+  /** Replace the block's text. Changes made this way join into one undo
+   *  step until a pause, like typing. */
+  setContent: (content: string) => void;
+  /** Put the caret in a block of the outline, unfolding the way to it. */
+  edit: (id: BulletId) => void;
+}
+
+/** A block type the app registers through `blockTypes`: which blocks it is,
+ *  and what they show while the caret is not in them. */
+export interface OutlinerBlockType {
+  /** The word in `{{name ...}}`, or the language of the fence. */
+  name: string;
+  /** Further names the type answers to (`csv` and `json` for a data block). */
+  aliases?: string[];
+  /** How a block is recognized.
+   *  - `"macro"` (default): the block is `{{name}}` or `{{name args}}`.
+   *  - `"fence"`: a fenced code block whose language is `name`.
+   *  - a function: called with the block's text; return the source to render,
+   *    or null when the block is not this type. */
+  match?: "macro" | "fence" | ((content: string) => string | null);
+  /** The block at rest. Return an element; give it a component of its own
+   *  when it holds state. */
+  render: (props: OutlinerBlockProps) => ReactNode;
+  /** A `/` command that turns an empty block into this type. */
+  command?: { label: string; description?: string; insert: string };
+  /** A span the type also renders inside any block's text, between `open` and
+   *  `close` (`$x$` for math). The span stays on one line, starts and ends
+   *  with something other than a space, and no digit follows the close; a
+   *  delimiter after a backslash, or inside code, is plain text. */
+  inline?: {
+    open: string;
+    /** Default: the same as `open`. */
+    close?: string;
+    render: (source: string) => ReactNode;
+  };
 }
 
 /** What is selected in the outline, as `apiRef.getSelection()` reports it. */
@@ -103,6 +152,14 @@ export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   completions?: (
     request: OutlinerCompletionRequest,
   ) => OutlinerCompletion[] | Promise<OutlinerCompletion[]>;
+  /** Block types of the app's own (a query, math, a diagram, a data table):
+   *  each says which blocks it is and renders them. They are asked before the
+   *  built-in types, so one can take over a fenced block. Pass a stable array:
+   *  it is a dependency of every row. */
+  blockTypes?: readonly OutlinerBlockType[];
+  /** Offer the block commands when `/` is typed (`/heading`, `/table`, a
+   *  registered type's command). Default true. */
+  commands?: boolean;
   /** Files pasted or dropped into the outline: store them and return one URL
    *  per file (now or as a promise). An image becomes an image block, any
    *  other file a link. Without this prop files are ignored. */

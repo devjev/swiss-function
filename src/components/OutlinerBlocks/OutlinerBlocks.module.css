@@ -1,0 +1,169 @@
+/* The block types an app registers with the Outliner (see OutlinerBlocks.tsx).
+   Each sits in a block's text column; whole units where it has a height. */
+
+.status {
+  color: var(--sf-color-muted);
+}
+
+/* A renderer that failed: the page colour, a leading rule and the message in
+   the danger colour, as the library draws an error. */
+.error {
+  padding-inline-start: calc(var(--sf-unit) / 2);
+  border-inline-start: 3px solid var(--sf-color-danger);
+  color: var(--sf-color-danger);
+}
+
+/* Query: what was asked, then the blocks found. */
+.query {
+  display: grid;
+}
+
+.queryHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: calc(var(--sf-unit) / 2);
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.count {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  font-weight: var(--sf-font-weight-regular);
+  color: var(--sf-color-muted);
+}
+
+.result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--sf-unit);
+  padding: calc(var(--sf-unit) / 8) calc(var(--sf-unit) / 2);
+  background: none;
+  border: 0;
+  border-block-start: 1px solid var(--sf-color-border-subtle);
+  color: var(--sf-color-fg);
+  font: inherit;
+  line-height: calc(var(--sf-leading-base) - 1px);
+  text-align: start;
+  cursor: pointer;
+}
+
+.result:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.resultText,
+.resultPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resultPath {
+  max-inline-size: calc(var(--sf-unit) * 12);
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+/* Math and diagrams: markup from a renderer. The markup is as tall as it
+   comes; the block takes the next whole number of units and centres it. */
+.rendered {
+  display: grid;
+  align-content: center;
+  min-block-size: round(up, calc(var(--sf-rendered-size, 0px) - 0.5px), var(--sf-unit));
+  overflow-x: auto;
+}
+
+.markup {
+  min-inline-size: 0;
+}
+
+/* A drawing: the SVG the renderer returned. (Not the SVGs inside a formula,
+   which KaTeX sizes itself.) */
+.markup > :global(svg) {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+/* KaTeX sets math 1.21 times the text, which matches a serif's x-height. Next
+   to this sans the figures then stand taller than the text's, so less. */
+.markup :global(.katex),
+.inline :global(.katex) {
+  font-size: 1.1em;
+}
+
+/* The unit grid spaces a formula block, as it does every block. */
+.markup :global(.katex-display) {
+  margin: 0;
+}
+
+/* A formula in a line of text leaves the line its height: KaTeX's own line
+   height is for math that stands alone. Its struts still hold what the
+   formula needs, so a tall one (a fraction) makes its line taller. */
+.inline :global(.katex) {
+  line-height: 1;
+}
+
+/* TeX the renderer refused: the source, marked. The title holds the message. */
+.inlineError {
+  color: var(--sf-color-danger);
+  text-decoration: underline wavy;
+}
+
+/* Data: a table of its own height, scrolling past `maxRows`. */
+.data {
+  min-inline-size: 0;
+}
+
+/* Link preview: a card with the page's title, description and picture. */
+.preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--sf-unit);
+  padding: calc(var(--sf-unit) / 2 - 1px) calc(var(--sf-unit) / 2);
+  border: 1px solid var(--sf-color-border);
+  border-radius: var(--sf-radius-default);
+  color: var(--sf-color-fg);
+  text-decoration: none;
+}
+
+.preview:hover {
+  background-color: var(--sf-color-bg-subtle);
+}
+
+.previewText {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.previewTitle {
+  font-weight: var(--sf-font-weight-medium);
+}
+
+.previewTitle,
+.previewSite {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.previewSite {
+  font-size: var(--sf-font-size-sm);
+  color: var(--sf-color-muted);
+}
+
+.previewImage {
+  inline-size: calc(var(--sf-unit) * 6);
+  block-size: calc(var(--sf-unit) * 4);
+  object-fit: cover;
+  border-radius: var(--sf-radius-default);
+}

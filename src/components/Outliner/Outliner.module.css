@@ -623,6 +623,11 @@
   opacity: 1;
 }
 
+/* A block type the app registered: its own content, in the block's column. */
+.custom {
+  min-inline-size: 0;
+}
+
 /* A due date (`@2026-11-25`) in a block's text. */
 /* The chip is one text line tall: set on the line's top, it leaves the line
    its height. (Its own `middle` would stretch the line by its descent.) */

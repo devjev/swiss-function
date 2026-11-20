@@ -2,15 +2,15 @@
 // here, a due-date chip inside the text, an embedded block. Each reads what it
 // needs from the outline through context (see context.ts).
 
-import type { MouseEvent } from "react";
-import { lazy, Suspense, useContext, useRef, useState } from "react";
+import type { MouseEvent, ReactNode } from "react";
+import { Component, lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Chip } from "../Chip";
 import { BulletContent } from "./BulletContent";
 import { type BlockImage, imageSource, isoDate, type TableCell, tableRows } from "./blocks";
 import { ActionsContext, EmbedContext, RowContext } from "./context";
 import styles from "./Outliner.module.css";
-import type { Bullet, BulletId } from "./types";
+import type { Bullet, BulletId, OutlinerBlockProps, OutlinerBlockType } from "./types";
 
 const DuePicker = lazy(() => import("./DuePicker"));
 
@@ -180,5 +180,71 @@ export function DueChip({ date }: { date: string }) {
         </Suspense>
       )}
     </>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// A block type the app registered (`blockTypes`)
+// ----------------------------------------------------------------------------
+
+/** What a registered type throws while rendering stays in its block. */
+export class BlockBoundary extends Component<
+  { name: string; source: string; children: ReactNode },
+  { failed: string | null; source: string }
+> {
+  override state = { failed: null as string | null, source: this.props.source };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: error instanceof Error ? error.message : String(error) };
+  }
+
+  // A changed source is a new attempt.
+  static getDerivedStateFromProps(
+    props: { source: string },
+    state: { failed: string | null; source: string },
+  ) {
+    return props.source === state.source ? null : { failed: null, source: props.source };
+  }
+
+  override render() {
+    if (this.state.failed === null) return this.props.children;
+    return (
+      <span className={styles.blockRefMissing}>
+        ⟨{this.props.name} failed: {this.state.failed}⟩
+      </span>
+    );
+  }
+}
+
+export function OutlinerCustom({
+  type,
+  source,
+  block,
+}: {
+  type: OutlinerBlockType;
+  source: string;
+  block: Bullet;
+}) {
+  const actions = useContext(ActionsContext);
+  const id = block.id;
+  const handlers = useMemo(
+    () => ({
+      setContent: (content: string) => actions?.typeContent(id, content),
+      edit: (target: BulletId) => actions?.jumpTo(target),
+    }),
+    [actions, id],
+  );
+  const props: OutlinerBlockProps = {
+    block,
+    source,
+    readOnly: actions?.readOnly ?? true,
+    ...handlers,
+  };
+  return (
+    <div className={styles.custom} data-widget="" data-block-type={type.name}>
+      <BlockBoundary name={type.name} source={source}>
+        {type.render(props)}
+      </BlockBoundary>
+    </div>
   );
 }

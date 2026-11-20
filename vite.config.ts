@@ -40,6 +40,7 @@ const componentNames = [
   "Minimap",
   "NonIdealState",
   "Outliner",
+  "OutlinerBlocks",
   "Pane",
   "PasswordInput",
   "PointCloud",
@@ -171,6 +172,9 @@ export default defineConfig({
         /^@codemirror\//,
         /^@lezer\//,
         /^@replit\/codemirror-vim/,
+        // The math block's engine (`outliner-blocks`), loaded by a dynamic
+        // import when the first formula renders.
+        /^katex/,
       ],
       input: {
         index: resolve(__dirname, "src/index.ts"),

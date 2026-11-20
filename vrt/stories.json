@@ -531,6 +531,7 @@
   "outliner--virtualized",
   "outliner--wiki-links",
   "outliner--zoomed",
+  "outliner-blocks--registered-types",
   "pane--basic",
   "pane--nested",
   "pane--no-header",

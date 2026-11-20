@@ -1,8 +1,11 @@
-export { blockProperties } from "./blocks";
+export { blockProperties, fenceBody, fenceSource } from "./blocks";
+export { useOutlinerTree } from "./context";
 export { Outliner } from "./Outliner";
 export type {
   Bullet,
   BulletId,
+  OutlinerBlockProps,
+  OutlinerBlockType,
   OutlinerCompletion,
   OutlinerCompletionRequest,
   OutlinerCompletionTrigger,

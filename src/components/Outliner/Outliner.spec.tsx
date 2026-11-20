@@ -737,7 +737,8 @@ test("Escape closes the list and leaves the caret in the text", async ({ mount, 
   const component = await mount(<OutlinerHarness initial={TREE} withCompletions />);
   await caretIn(component, "b", 5);
   await page.keyboard.type(" /t");
-  await expect(options(page)).toHaveText(["todayToday's date", "timeThe time"]);
+  // The app's entries, then the outline's own block commands.
+  await expect(options(page)).toHaveText(["todayToday's date", "timeThe time", "Task[ ] "]);
   await page.keyboard.press("Escape");
   await expect(options(page)).toHaveCount(0);
   await expect(row(component, "b").locator("textarea")).toBeFocused();

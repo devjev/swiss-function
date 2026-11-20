@@ -63,6 +63,7 @@ export * from "./components/Multiples";
 export * from "./components/NonIdealState";
 export * from "./components/Notebook";
 export * from "./components/Outliner";
+export * from "./components/OutlinerBlocks";
 export * from "./components/Pane";
 export * from "./components/PasswordInput";
 export * from "./components/Picker";

@@ -2619,6 +2619,8 @@ block is a `treeitem` with `aria-level`, `aria-posinset` and `aria-setsize`.
 | `onWikiLinkClick` | `(name: string) => void` | n/a | `[[wiki link]]` clicked. Pass a stable function: it is a dependency of every row. |
 | `resolveBlockRef` | `(id: string) => string \| null` | n/a | Resolve `((block-id))`; null → "missing" placeholder. |
 | `completions` | `(request) => OutlinerCompletion[] \| Promise<OutlinerCompletion[]>` | n/a | Suggestions while typing `[[`, `((`, `#` or `/`. `request` is `{ trigger, query, blockId }`; an entry is `{ label, description?, insert? }`. Without it nothing pops up. Pass a stable function. |
+| `blockTypes` | `readonly OutlinerBlockType[]` | n/a | Block types of the app's own, asked before the built-in ones (below). Pass a stable array. |
+| `commands` | `boolean` | `true` | Offer the block commands when `/` is typed. |
 | `onUpload` | `(files: File[]) => string[] \| Promise<string[]>` | n/a | Files pasted or dropped into the outline: store them and return one URL per file. An image becomes an image block, any other file a link. Without it files are ignored. |
 | `placeholder` | `ReactNode` | `"Empty outline. Click to write."` | Shown while `value` is empty; a click or Enter on it starts the first block. |
 | `root` | `string \| null` | n/a | The zoomed block (controlled); `null` shows the whole outline. An id that is not in the tree shows the whole outline. |
@@ -2780,6 +2782,67 @@ block reached from afar (End, an undo, `apiRef.edit`) is scrolled into view.
 | `edit(id, offset?)` | Puts the caret in the block's text at `offset` of its markdown source (the end when omitted), revealing it as `select` does. A no-op in read-only mode. |
 | `getSelection()` | `{ blocks, editing }`: the selected blocks' roots top to bottom (empty while a block is being edited), and `{ id, start, end }` for the block with the caret, else `null`. |
 | `undo()` / `redo()` | One step of the outline's history. |
+
+**Registered block types.** `blockTypes` takes types the outline does not ship.
+Each is `{ name, aliases?, match?, render, command?, inline? }`:
+
+- `match` says which blocks are the type: `"macro"` (default; the block is
+  `{{name}}` or `{{name args}}`), `"fence"` (a fenced block whose language is
+  `name` or one of `aliases`), or a function of the block's text that returns
+  the source to render, or null.
+- `render({ block, source, readOnly, setContent, edit })` returns what the block
+  shows while the caret is not in it. `source` is what matched (the macro's
+  arguments, the fence's body). `setContent` replaces the block's text (changes
+  join into one undo step until a pause, like typing); `edit(id)` puts the caret
+  in a block. Give it a component of its own when it holds state.
+- `command` (`{ label, description?, insert }`) adds a `/` command that turns an
+  empty block into the type.
+- `inline` (`{ open, close?, render(source) }`) is a span the type also renders
+  inside the text of any block, between the two delimiters (`close` defaults to
+  `open`): `$x$` for math. The span stays on one line, its source starts and
+  ends with something other than a space, and no digit follows the closing
+  delimiter, so `$5 and $10` stays text. A delimiter after a backslash, inside
+  code, or doubled (`$$`) is plain text.
+
+Registered types are asked first and in order, so one can take over a fenced
+block. A type that throws while rendering shows a notice in its block. The
+caret enters the block like any other (the arrows, or a click beside it) and
+then the source shows. `useOutlinerTree()` (exported) gives a type's component
+the whole tree and renders it again on every change, for a type that shows
+something about other blocks. `fenceBody(content)` and `fenceSource(language,
+body)` read and write a fenced block.
+
+Six types that need an engine come from a separate entry,
+`import { ... } from "@tarassov-ch/swiss-function/outliner-blocks"`, so an
+outline that registers none of them carries neither `DataTable` nor
+`CodeEditor`. The app passes the engine, except for math, which uses KaTeX (a
+dependency of the library, loaded with its stylesheet when the first formula
+renders):
+
+| Factory | Blocks | The app passes |
+| --- | --- | --- |
+| `createQueryBlockType({ run, name?, onOpen?, debounce? })` | `{{query words}}` | `run(query, tree)`: the matching blocks, now or as a promise, as `{ id, content, path? }`. It runs again when the tree changes. `searchBlocks(tree, query)` (same entry) is a plain text search. A click on a result puts the caret in that block. `debounce` (200) is how many milliseconds the tree must stay unchanged before the query runs again, so typing elsewhere in the outline does not run it per keystroke; a changed query runs at once, and `0` runs on every change. |
+| `createMathBlockType({ render?, inline? })` | `$$ ... $$` alone in a block, and `$x$` inside the text of any block | Nothing: KaTeX sets the math, and the module imports KaTeX's stylesheet itself, as `Map` does MapLibre's. `render(tex, display)` replaces KaTeX with a renderer of the app's (`display` is true for a block, false inside a line); `inline: false` leaves `$x$` as text. |
+| `createDiagramBlockType({ render, name?, aliases? })` | A fenced block in the diagram's language (default `mermaid`) | `render(source)`: SVG markup, now or as a promise. |
+| `createDataBlockType({ maxRows? })` | A fenced `csv`, `tsv` or `json` block | Nothing: the text is parsed (`parseData`) and shown in a `DataTable`, numeric columns at the end; it scrolls past `maxRows` (10). |
+| `createCodeBlockType({ extensions? })` | Any fenced block no earlier type claims (put it last) | `extensions(language)`: the CodeMirror extensions for a language. The block is a `CodeEditor` in place; its edits rewrite the fence. |
+| `createLinkPreviewBlockType({ fetch })` | A block that is one `http(s)` URL | `fetch(url)`: `{ title?, description?, site?, image? }` or null. The library makes no network call. |
+
+The markup a math or diagram renderer returns is put into the page as it is,
+so the renderer is trusted with it (the built-in KaTeX call leaves `trust` off;
+keep Mermaid's `securityLevel` strict). A renderer that throws or rejects shows
+its message in the block; inside a line the source stays, marked, with the
+message as its title. A formula or drawing block takes the next whole number of
+units above its height. Math is set at 1.1 times the text size.
+
+**Block commands.** `/` opens the list of block commands, after the app's own
+`/` entries from `completions`: Heading 1 to 3, Task, Numbered list, Quote,
+Note, Warning change the block's type and keep its text; Code block, Divider,
+Table, Board, Embed and a registered type's `command` replace the block and are
+offered only when it has no other text. Table and Board start with a few child
+blocks. A command is one undo step. `commands={false}` leaves `/` to the app.
+An entry of the app's with `onSelect({ blockId })` is an action: the `/query`
+is taken out of the block and the function is called.
 
 **Pointer:** a click enters the block at the clicked character (the rendered
 position is mapped back to the markdown source); a drag that selects rendered
