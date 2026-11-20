@@ -105,6 +105,17 @@
   line-height: 1;
 }
 
+/* One empty line of the text's font, without width: what the formula beside
+   it is measured against. The character is generated, so it is in no copy. */
+.probe {
+  display: inline-block;
+  inline-size: 0;
+}
+
+.probe::before {
+  content: "\200b";
+}
+
 /* TeX the renderer refused: the source, marked. The title holds the message. */
 .inlineError {
   color: var(--sf-color-danger);

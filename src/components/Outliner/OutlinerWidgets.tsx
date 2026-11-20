@@ -2,13 +2,14 @@
 // here, a due-date chip inside the text, an embedded block. Each reads what it
 // needs from the outline through context (see context.ts).
 
-import type { MouseEvent, ReactNode } from "react";
-import { Component, lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
+import { lazy, Suspense, useContext, useMemo, useRef, useState } from "react";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Chip } from "../Chip";
 import { BulletContent } from "./BulletContent";
 import { type BlockImage, imageSource, isoDate, type TableCell, tableRows } from "./blocks";
 import { ActionsContext, EmbedContext, RowContext } from "./context";
+import { BlockBoundary } from "./label";
 import styles from "./Outliner.module.css";
 import type { Bullet, BulletId, OutlinerBlockProps, OutlinerBlockType } from "./types";
 
@@ -186,35 +187,6 @@ export function DueChip({ date }: { date: string }) {
 // ----------------------------------------------------------------------------
 // A block type the app registered (`blockTypes`)
 // ----------------------------------------------------------------------------
-
-/** What a registered type throws while rendering stays in its block. */
-export class BlockBoundary extends Component<
-  { name: string; source: string; children: ReactNode },
-  { failed: string | null; source: string }
-> {
-  override state = { failed: null as string | null, source: this.props.source };
-
-  static getDerivedStateFromError(error: unknown) {
-    return { failed: error instanceof Error ? error.message : String(error) };
-  }
-
-  // A changed source is a new attempt.
-  static getDerivedStateFromProps(
-    props: { source: string },
-    state: { failed: string | null; source: string },
-  ) {
-    return props.source === state.source ? null : { failed: null, source: props.source };
-  }
-
-  override render() {
-    if (this.state.failed === null) return this.props.children;
-    return (
-      <span className={styles.blockRefMissing}>
-        ⟨{this.props.name} failed: {this.state.failed}⟩
-      </span>
-    );
-  }
-}
 
 export function OutlinerCustom({
   type,

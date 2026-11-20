@@ -20,6 +20,10 @@ export interface OutlinerActions {
   /** A block's markdown source to what the renderer parses: the outline's
    *  links, tags and dates, and the registered types' inline spans. */
   preprocess: (source: string) => string;
+  /** A block's text as one plain line (a breadcrumb entry, a drag label, a
+   *  query result), with the registered inline spans rendered. `plain` says
+   *  the text is such a line already. Null for an empty one. */
+  label: (content: string, plain?: boolean) => ReactNode;
   /** Put the caret at the end of a block, unfolding the way to it. */
   jumpTo: (id: BulletId) => void;
   /** Replace a block's text, as one undo step. */

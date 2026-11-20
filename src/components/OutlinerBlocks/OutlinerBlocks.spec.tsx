@@ -225,3 +225,47 @@ test("commands={false} leaves / to the app", async ({ mount, page }) => {
   await page.keyboard.type("/h");
   await expect(options(page)).toHaveCount(0);
 });
+
+test("formulas render in a query's results, the drag label and the breadcrumb", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <OutlinerBlocksHarness
+      initial={[
+        {
+          id: "p",
+          content: "## Energy $E = mc^2$",
+          children: [{ id: "c", content: "alpha is $\\alpha$, at $5" }],
+        },
+        { id: "q", content: "{{query alpha}}" },
+      ]}
+    />,
+  );
+  // The result's text, and the path of the blocks above it.
+  const result = row(component, "q").locator('button[class*="result"]');
+  const text = result.locator('[class*="resultText"]');
+  await expect(text.locator(".katex annotation")).toHaveText(["\\alpha"]);
+  await expect(text).toContainText(", at $5");
+  const path = result.locator('[class*="resultPath"]');
+  await expect(path.locator(".katex annotation")).toHaveText(["E = mc^2"]);
+  await expect(path).toContainText("Energy");
+  // The label that follows the pointer while a block is dragged.
+  await page.waitForSelector('[id^="DndLiveRegion"]', { state: "attached" });
+  const handle = await row(component, "p").locator("[data-bullet-handle]").first().boundingBox();
+  if (!handle) throw new Error("no bullet");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + 30, handle.y + 14, { steps: 4 });
+  await expect(page.locator('[class*="dragLabel"] .katex annotation')).toHaveText(["E = mc^2"]);
+  await page.mouse.up();
+  // dnd-kit swallows a click for 50ms after a drop.
+  await page.waitForTimeout(100);
+  // Zoomed into the child, the breadcrumb names the parent.
+  await row(component, "c").locator("[data-bullet-handle]").click();
+  const crumbs = component.getByRole("navigation", { name: "Zoom path" });
+  await expect(crumbs.locator(".katex annotation")).toHaveText(["E = mc^2"]);
+  await expect(crumbs).toContainText("Energy");
+  // One line of the breadcrumb's height, formula or not.
+  expect((await crumbs.boundingBox())?.height).toBeCloseTo(25, 1);
+});

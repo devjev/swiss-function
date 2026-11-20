@@ -82,7 +82,7 @@ export default function OutlinerKanban({ columns }: { columns: Bullet[] | undefi
     const card = cardOf(activeId.slice(regionId.length + 1));
     return card ? (
       <div className={styles.card} data-overlay="">
-        {plainLabel(card.content) || "Empty block"}
+        {(actions ? actions.label(card.content) : plainLabel(card.content)) || "Empty block"}
       </div>
     ) : null;
   };
@@ -166,7 +166,7 @@ function Column({
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => actions?.jumpTo(column.id)}
         >
-          {plainLabel(column.content) || "Untitled"}
+          {(actions ? actions.label(column.content) : plainLabel(column.content)) || "Untitled"}
         </button>
         <span className={styles.count}>{cards.length}</span>
       </header>

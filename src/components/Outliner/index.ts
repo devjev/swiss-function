@@ -1,5 +1,6 @@
 export { blockProperties, fenceBody, fenceSource } from "./blocks";
 export { useOutlinerTree } from "./context";
+export { OutlinerLabel } from "./label";
 export { Outliner } from "./Outliner";
 export type {
   Bullet,

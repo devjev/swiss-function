@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-20T08:17:06.825Z"
+    "date": "2026-11-20T08:31:17.114Z"
   },
-  "totalGzip": 2325555,
+  "totalGzip": 2331432,
   "entries": {
     ".": {
-      "files": 385,
-      "jsRaw": 1801765,
-      "jsGzip": 527917,
+      "files": 386,
+      "jsRaw": 1804481,
+      "jsGzip": 528979,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 527917,
+      "gzip": 528979,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -840,12 +840,12 @@
       ]
     },
     "./outliner": {
-      "files": 42,
-      "jsRaw": 163145,
-      "jsGzip": 47928,
+      "files": 43,
+      "jsRaw": 165809,
+      "jsGzip": 49013,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 47928,
+      "gzip": 49013,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/popover",
@@ -858,12 +858,12 @@
       ]
     },
     "./outliner-blocks": {
-      "files": 85,
-      "jsRaw": 322599,
-      "jsGzip": 94284,
+      "files": 88,
+      "jsRaw": 333049,
+      "jsGzip": 98014,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 94284,
+      "gzip": 98014,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

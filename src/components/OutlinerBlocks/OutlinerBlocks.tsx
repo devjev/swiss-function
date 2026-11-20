@@ -28,10 +28,10 @@ import {
   fenceSource,
   type OutlinerBlockProps,
   type OutlinerBlockType,
+  OutlinerLabel,
   type OutlinerValue,
   useOutlinerTree,
 } from "../Outliner";
-import { plainLabel } from "../Outliner/zoom";
 import { parseData, type QueryResult } from "./data";
 import styles from "./OutlinerBlocks.module.css";
 
@@ -163,8 +163,14 @@ function QueryBlock({
             options.onOpen?.(result);
           }}
         >
-          <span className={styles.resultText}>{plainLabel(result.content) || "Empty block"}</span>
-          {result.path && <span className={styles.resultPath}>{result.path}</span>}
+          <span className={styles.resultText}>
+            <OutlinerLabel content={result.content} empty="Empty block" />
+          </span>
+          {result.path && (
+            <span className={styles.resultPath}>
+              <OutlinerLabel content={result.path} plain />
+            </span>
+          )}
         </button>
       ))}
     </div>
@@ -258,32 +264,32 @@ function fitInline(element: HTMLElement) {
   style.display = "inline-block";
   style.marginBlock = "0";
   const box = element.getBoundingClientRect();
-  // The probe is an empty span in the text's font: its box is the font's
-  // content area, and the line's own height is centred on that.
-  const area = probe.getBoundingClientRect();
-  const centre = (area.top + area.bottom) / 2;
-  const line = Number.parseFloat(getComputedStyle(element).lineHeight) || area.height;
-  const above = centre - box.top - line / 2;
-  const below = box.bottom - centre - line / 2;
+  // The probe is a box of one empty line in the text's font, on the text's
+  // baseline: where a line of plain text would begin and end. (The browser
+  // does not always split a line's spare height evenly around the letters,
+  // so this is measured and not derived from the font.)
+  const line = probe.getBoundingClientRect();
+  const above = line.top - box.top;
+  const below = box.bottom - line.bottom;
   if (above <= STEP && below <= STEP) {
     style.display = "";
     style.marginBlock = "";
     return;
   }
-  const unit = measureCssLength(element, "var(--sf-unit)") || line;
+  const unit = measureCssLength(element, "var(--sf-unit)") || line.height;
   const over = Math.max(above - unit / 8, below - unit / 4);
   const more = Math.max(0, Math.ceil((2 * over) / unit));
-  const half = (line + more * unit) / 2;
+  const grow = (more * unit) / 2;
   const steps = (length: number) => Math.floor(length / STEP) * STEP;
-  const top = steps(box.top - (centre - half));
+  const top = steps(grow - above);
   if (more === 0) {
     // Just inside the line's own height, which then is the line's height.
     style.marginTop = `${top - STEP}px`;
-    style.marginBottom = `${steps(centre + half - box.bottom) - STEP}px`;
+    style.marginBottom = `${steps(grow - below) - STEP}px`;
   } else {
     // The margin box is the line's height to the step.
     style.marginTop = `${top}px`;
-    style.marginBottom = `${line + more * unit - box.height - top}px`;
+    style.marginBottom = `${line.height + more * unit - box.height - top}px`;
   }
 }
 
@@ -303,7 +309,7 @@ function InlineMarkup({ markup }: { markup: string }) {
   }, [markup]);
   return (
     <span ref={outer} className={styles.inline}>
-      <span aria-hidden="true" />
+      <span className={styles.probe} aria-hidden="true" />
       {/* biome-ignore lint/security/noDangerouslySetInnerHtml: the output of the renderer the app passed in */}
       <span dangerouslySetInnerHTML={{ __html: markup }} />
     </span>

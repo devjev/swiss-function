@@ -2802,7 +2802,10 @@ Each is `{ name, aliases?, match?, render, command?, inline? }`:
   `open`): `$x$` for math. The span stays on one line, its source starts and
   ends with something other than a space, and no digit follows the closing
   delimiter, so `$5 and $10` stays text. A delimiter after a backslash, inside
-  code, or doubled (`$$`) is plain text. A one-character delimiter also pairs
+  code, or doubled (`$$`) is plain text, and a span holds no backtick (a price
+  before a code span stays a price). The spans are also rendered where a block
+  is shown as one plain line: the breadcrumb, the label that follows a dragged
+  block, a board's column titles and a query's results. A one-character delimiter also pairs
   while typing, like a bracket: `$` gets its closer, the closer is stepped
   over, a selection is wrapped, Backspace in an empty pair removes both. A
   second `$` on a line closes the first instead of opening a pair, and a digit
@@ -2813,8 +2816,12 @@ block. A type that throws while rendering shows a notice in its block. The
 caret enters the block like any other (the arrows, or a click beside it) and
 then the source shows. `useOutlinerTree()` (exported) gives a type's component
 the whole tree and renders it again on every change, for a type that shows
-something about other blocks. `fenceBody(content)` and `fenceSource(language,
-body)` read and write a fenced block.
+something about other blocks. `<OutlinerLabel content={block.content} />`
+(exported) shows a block as the breadcrumb does: its first line without the
+markup, the registered inline spans rendered; `plain` takes a line that is a
+label already (a path of labels), `empty` is what an empty one shows.
+`fenceBody(content)` and `fenceSource(language, body)` read and write a fenced
+block.
 
 Six types that need an engine come from a separate entry,
 `import { ... } from "@tarassov-ch/swiss-function/outliner-blocks"`, so an

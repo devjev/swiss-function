@@ -10,6 +10,7 @@
  * its top, and `zoomBack` refuses it.
  */
 
+import { type InlineFound, type InlineSpan, scanInline } from "./markdown-extensions";
 import { findBullet, replaceBullet } from "./tree";
 import type { Bullet, BulletId, OutlinerValue } from "./types";
 
@@ -52,3 +53,42 @@ export function plainLabel(content: string): string {
     .replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, "$1$2")
     .trim();
 }
+
+/** `plainLabel`, with the registered inline spans (`$x$`) kept apart so they
+ *  can be rendered: plain stretches and the spans between them. `plain` says
+ *  the text is such a label already (a path of labels) and only the spans are
+ *  looked for. */
+export function labelParts(
+  content: string,
+  spans: readonly InlineSpan[],
+  plain = false,
+): (string | InlineFound)[] {
+  if (spans.length === 0) {
+    const text = plain ? content : plainLabel(content);
+    return text ? [text] : [];
+  }
+  const found: InlineFound[] = [];
+  // Each span leaves the line as one character from the private use area,
+  // which nothing in `plainLabel` reads, and comes back in its place.
+  const held = scanInline(content.split("\n", 1)[0] ?? "", spans)
+    .map((part) => {
+      if (typeof part === "string") return part;
+      found.push(part);
+      return String.fromCharCode(HELD + found.length - 1);
+    })
+    .join("");
+  const parts: (string | InlineFound)[] = [];
+  let text = "";
+  for (const ch of plain ? held : plainLabel(held)) {
+    const span = found[ch.charCodeAt(0) - HELD];
+    if (ch.length === 1 && span) {
+      if (text) parts.push(text);
+      text = "";
+      parts.push(span);
+    } else text += ch;
+  }
+  if (text) parts.push(text);
+  return parts;
+}
+/** The first of the private use characters that stand in for spans. */
+const HELD = 0xe000;

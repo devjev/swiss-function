@@ -41,7 +41,7 @@ export const RegisteredTypes: Story = () => {
   const [value, setValue] = useState<OutlinerValue>([
     {
       id: "plan",
-      content: "## Release plan",
+      content: "## Release plan for $v_{3.1}$",
       children: [
         { id: "t1", content: "[x] Freeze the API" },
         { id: "t2", content: "[ ] Review the migration notes" },

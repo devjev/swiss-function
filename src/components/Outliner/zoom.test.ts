@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { indent, outdent, updateContent } from "./tree";
 import type { OutlinerValue } from "./types";
-import { plainLabel, zoomBack, zoomRoot, zoomView } from "./zoom";
+import { labelParts, plainLabel, zoomBack, zoomRoot, zoomView } from "./zoom";
 
 const TREE: OutlinerValue = [
   {
@@ -58,5 +58,40 @@ describe("plainLabel", () => {
     );
     expect(plainLabel("an *italic* word, 2 * 3 stays")).toBe("an italic word, 2 * 3 stays");
     expect(plainLabel("")).toBe("");
+  });
+});
+
+describe("labelParts", () => {
+  const math = [{ open: "$" }];
+
+  it("is the plain label when no span is registered or found", () => {
+    expect(labelParts("**Bold** $x$", [])).toEqual(["Bold $x$"]);
+    expect(labelParts("## A *title*", math)).toEqual(["A title"]);
+    expect(labelParts("", math)).toEqual([]);
+  });
+
+  it("keeps the spans apart, with their source as written", () => {
+    expect(labelParts("[ ] **Energy** $E = m*c^{2}$ of `it`\nmore", math)).toEqual([
+      "Energy ",
+      { index: 0, source: "E = m*c^{2}" },
+      " of it",
+    ]);
+    expect(labelParts("$a$ $b$", math)).toEqual([
+      { index: 0, source: "a" },
+      " ",
+      { index: 0, source: "b" },
+    ]);
+  });
+
+  it("leaves prices and code alone", () => {
+    expect(labelParts("for $5 and `$x$`", math)).toEqual(["for $5 and $x$"]);
+  });
+
+  it("takes a line that is plain already as it is", () => {
+    expect(labelParts("1. Plans › $x^2$ › 2. More", math, true)).toEqual([
+      "1. Plans › ",
+      { index: 0, source: "x^2" },
+      " › 2. More",
+    ]);
   });
 });

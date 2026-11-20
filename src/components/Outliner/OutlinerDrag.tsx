@@ -30,7 +30,6 @@ import { measureCssLength } from "../../lib/useCssPx";
 import { type DropTarget, dropTarget } from "./drag";
 import { subtreeEnd } from "./selection";
 import type { BulletId, FlatBullet } from "./types";
-import { plainLabel } from "./zoom";
 
 export type BulletPointerDown = (event: ReactPointerEvent<HTMLElement>) => void;
 
@@ -52,6 +51,8 @@ export interface OutlinerDragProps {
   /** The rows being dragged (with their children), or null. */
   onDraggingChange: (ids: ReadonlySet<BulletId> | null) => void;
   onDrop: (roots: BulletId[], target: DropTarget) => void;
+  /** A block's text as one plain line, for the label that follows the pointer. */
+  label: (content: string) => ReactNode;
   indicatorClassName?: string;
   overlayClassName?: string;
 }
@@ -211,16 +212,16 @@ export default function OutlinerDrag(props: OutlinerDragProps) {
   // The shared provider renders the overlay in its own render pass, ahead of
   // this one, so the label is read through the ref.
   const renderOverlay = (activeId: string): ReactNode => {
-    const { rows, rootsFor } = live.current;
+    const { rows, rootsFor, label } = live.current;
     const prefix = `${regionId}:`;
     if (!activeId.startsWith(prefix)) return null;
     const roots = rootsFor(activeId.slice(prefix.length));
     const first = rows.find((r) => r.id === roots[0]);
     if (!first) return null;
-    const text = plainLabel(first.bullet.content) || "Empty block";
     return (
       <div className={overlayClassName}>
-        {roots.length > 1 ? `${text} and ${roots.length - 1} more` : text}
+        {label(first.bullet.content) ?? "Empty block"}
+        {roots.length > 1 && ` and ${roots.length - 1} more`}
       </div>
     );
   };

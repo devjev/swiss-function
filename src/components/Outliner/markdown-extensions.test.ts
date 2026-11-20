@@ -16,7 +16,7 @@ describe("markInline", () => {
   });
 
   it("gives the source back as it was written", () => {
-    const tex = "\\frac{a}{b} f((x)) #n [[p]] @2026-11-25 `q` | *r*";
+    const tex = "\\frac{a}{b} f((x)) #n [[p]] @2026-11-25 | *r*";
     expect(spans(`$${tex}$`)).toEqual([tex]);
     // Nothing in the mark is left for the outline's own passes.
     expect(pre(`$${tex}$`, math)).toBe(mark(`$${tex}$`));
@@ -26,6 +26,8 @@ describe("markInline", () => {
     expect(mark("for $5 and $10")).toBe("for $5 and $10");
     expect(mark("$5/$10")).toBe("$5/$10");
     expect(spans("costs $5 or $x$")).toEqual(["x"]);
+    // A price before code: the dollar inside the code does not close it.
+    expect(mark("for $5 and `$x$`")).toBe("for $5 and `$x$`");
   });
 
   it("needs a source that starts and ends without a space, on one line", () => {

@@ -69,6 +69,7 @@ import {
 } from "./context";
 import type { DropTarget } from "./drag";
 import { History } from "./history";
+import { BlockBoundary, renderLabel } from "./label";
 import {
   type InlineSpan,
   MAX_TRANSCLUSION_DEPTH,
@@ -79,7 +80,7 @@ import {
 import styles from "./Outliner.module.css";
 import { OutlinerBullet } from "./OutlinerBullet";
 import type { BulletPointerDown } from "./OutlinerDrag";
-import { BlockBoundary, DueChip } from "./OutlinerWidgets";
+import { DueChip } from "./OutlinerWidgets";
 import { blockSelection, extendSelection } from "./selection";
 import {
   deleteBullet,
@@ -115,7 +116,7 @@ import type {
   OutlinerProps,
   OutlinerValue,
 } from "./types";
-import { plainLabel, zoomBack, zoomRoot, zoomView } from "./zoom";
+import { zoomBack, zoomRoot, zoomView } from "./zoom";
 
 // dnd-kit arrives with the first outline that can be reordered.
 const OutlinerDrag = lazy(() => import("./OutlinerDrag"));
@@ -316,6 +317,12 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     );
     const inlinePairs = useMemo(
       () => spanPairs(inlineTypes.map((type) => type.inline as InlineSpan)),
+      [inlineTypes],
+    );
+    // A block's text as one plain line, its inline spans rendered: for the
+    // breadcrumb, the drag label, a board's titles and a query's results.
+    const label = useCallback(
+      (content: string, plain?: boolean) => renderLabel(content, inlineTypes, plain),
       [inlineTypes],
     );
 
@@ -1627,6 +1634,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         readOnly,
         markdownComponents,
         preprocess,
+        label,
         jumpTo: (id) => {
           if (!reveal(id)) return;
           history.breakTyping();
@@ -1652,7 +1660,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           commit(moveBlocks(latest.current.value, [id], parentId, afterId));
         },
       }),
-      [readOnly, markdownComponents, preprocess, reveal, history, select, editAt, commit],
+      [readOnly, markdownComponents, preprocess, label, reveal, history, select, editAt, commit],
     );
 
     // An embedded block is this same tree, shown again from that block down by
@@ -1837,7 +1845,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
                   onMouseDown={keepFocus}
                   onClick={() => zoomTo(crumb.id)}
                 >
-                  {plainLabel(crumb.content) || "Empty block"}
+                  {label(crumb.content) ?? "Empty block"}
                 </button>
               </Fragment>
             ))}
@@ -1906,6 +1914,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
               bind={bindDrag}
               onDraggingChange={handleDraggingChange}
               onDrop={handleDrop}
+              label={label}
               indicatorClassName={styles.dropLine}
               overlayClassName={styles.dragLabel}
             />

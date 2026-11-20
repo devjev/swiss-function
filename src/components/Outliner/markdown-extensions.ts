@@ -64,14 +64,17 @@ export function readInline(code: string): { index: number; source: string } | nu
 /** Where the span that opens before `from` closes, or -1. The rules are
  *  pandoc's for `$`: the source starts and ends with something other than a
  *  space, stays on one line, and no digit follows the close, so `$5 and $10`
- *  is two prices. The first closing delimiter decides: a span holds none. */
+ *  is two prices. The first closing delimiter decides: a span holds none,
+ *  and it holds no backtick either. */
 function inlineClose(source: string, from: number, close: string): number {
   const first = source[from];
   if (first === undefined || /\s/.test(first)) return -1;
   let at = from;
   while (at < source.length) {
     const ch = source[at];
-    if (ch === "\n") return -1;
+    // Code starts here: what looked like an opener was prose (a price before
+    // a code span).
+    if (ch === "\n" || ch === "`") return -1;
     if (source.startsWith(close, at)) {
       if (at === from || /\s/.test(source[at - 1] ?? "")) return -1;
       return /\d/.test(source[at + close.length] ?? "") ? -1 : at;
@@ -82,11 +85,19 @@ function inlineClose(source: string, from: number, close: string): number {
   return -1;
 }
 
-/** Replace each inline span with the code span that marks it. Code spans and
- *  fences, escaped delimiters and doubled ones (`$$`) are left as they are. */
-export function markInline(source: string, spans: readonly InlineSpan[]): string {
-  if (spans.length === 0) return source;
-  let out = "";
+/** A span found in a block's text: which of the registered spans it is, and
+ *  what stands between its delimiters. */
+export interface InlineFound {
+  index: number;
+  source: string;
+}
+
+/** The text cut into plain stretches and the inline spans between them. Code
+ *  spans and fences, escaped delimiters and doubled ones (`$$`) are plain. */
+export function scanInline(source: string, spans: readonly InlineSpan[]): (string | InlineFound)[] {
+  if (spans.length === 0) return [source];
+  const parts: (string | InlineFound)[] = [];
+  let text = "";
   let at = 0;
   scan: while (at < source.length) {
     const ch = source[at] as string;
@@ -100,7 +111,7 @@ export function markInline(source: string, spans: readonly InlineSpan[]): string
         end = source.indexOf(fence, end + 1);
       }
       const stop = end < 0 ? at + run : end + run;
-      out += source.slice(at, stop);
+      text += source.slice(at, stop);
       at = stop;
       continue;
     }
@@ -108,23 +119,38 @@ export function markInline(source: string, spans: readonly InlineSpan[]): string
       const { open, close = open } = spans[index] as InlineSpan;
       if (!source.startsWith(open, at)) continue;
       if (source.startsWith(open, at + open.length)) {
-        out += open + open;
+        text += open + open;
         at += open.length * 2;
         continue scan;
       }
       const end = inlineClose(source, at + open.length, close);
       if (end < 0) continue;
-      const body = encodeInline(source.slice(at + open.length, end));
-      if (body === null) continue;
-      out += `\`${INLINE_MARK}${index}:${body}\``;
+      if (text) parts.push(text);
+      text = "";
+      parts.push({ index, source: source.slice(at + open.length, end) });
       at = end + close.length;
       continue scan;
     }
     const step = ch === "\\" ? 2 : 1;
-    out += source.slice(at, at + step);
+    text += source.slice(at, at + step);
     at += step;
   }
-  return out;
+  if (text) parts.push(text);
+  return parts;
+}
+
+/** Replace each inline span with the code span that marks it. */
+export function markInline(source: string, spans: readonly InlineSpan[]): string {
+  if (spans.length === 0) return source;
+  return scanInline(source, spans)
+    .map((part) => {
+      if (typeof part === "string") return part;
+      const body = encodeInline(part.source);
+      const { open, close = open } = spans[part.index] as InlineSpan;
+      // Text that cannot be encoded stays as it was written.
+      return body === null ? open + part.source + close : `\`${INLINE_MARK}${part.index}:${body}\``;
+    })
+    .join("");
 }
 
 export function preprocessOutlinerMarkdown(
