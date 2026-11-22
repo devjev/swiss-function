@@ -38,6 +38,8 @@ export interface OutlinerBulletProps {
   hasChildren: boolean;
   /** The number an ordered block shows; null for any other block. */
   ordinal: number | null;
+  /** How many digits the widest number of the block's run has. */
+  ordinalDigits: number;
   /** The zoomed block: shown as the outline's title, with no bullet. */
   isTitle: boolean;
   /** The view's root (the zoomed or the embedded block): it always shows its
@@ -107,6 +109,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
     siblings,
     hasChildren,
     ordinal,
+    ordinalDigits,
     isTitle,
     fixedOpen,
     isActive,
@@ -233,6 +236,21 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
         main = text;
     }
 
+  // An ordered block's number stands where the bullet does. The title has no
+  // bullet, so its number leads the text.
+  const numbered = info.ordered && !isTitle;
+  const number = ordinal ?? 1;
+  // Narrower numbers of a run are set flush right: the style sheet puts
+  // figures in front that take the room and do not show.
+  const pad = "0".repeat(Math.max(0, ordinalDigits - String(number).length)) || undefined;
+  const mark = numbered ? (
+    <span className={styles.number} data-pad={pad}>
+      <span className={styles.figure}>{number}.</span>{" "}
+    </span>
+  ) : (
+    <span className={styles.dot} />
+  );
+
   return (
     <div
       ref={(el) => registerRow(bullet.id, el)}
@@ -271,11 +289,17 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       </span>
       {isTitle ? (
         <span className={styles.bullet} aria-hidden="true" />
+      ) : numbered && isEditing ? (
+        // The number is in the text being edited, in the place it is shown in.
+        <span className={styles.bullet} data-number="source" aria-hidden="true">
+          {pad && <span className={styles.number} data-pad={pad} />}
+        </span>
       ) : onBulletClick || onBulletPointerDown ? (
         <button
           type="button"
           className={styles.bullet}
           data-bullet-handle=""
+          data-number={numbered ? "" : undefined}
           data-collapsed={(hasChildren && bullet.collapsed) || undefined}
           data-zoom={onBulletClick ? "" : undefined}
           data-drag={onBulletPointerDown ? "" : undefined}
@@ -289,15 +313,16 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
             onBulletClick?.(bullet.id);
           }}
         >
-          <span className={styles.dot} />
+          {mark}
         </button>
       ) : (
         <span
           className={styles.bullet}
+          data-number={numbered ? "" : undefined}
           data-collapsed={(hasChildren && bullet.collapsed) || undefined}
           aria-hidden="true"
         >
-          <span className={styles.dot} />
+          {mark}
         </span>
       )}
       <div
@@ -326,9 +351,9 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
           </div>
         ) : (
           <>
-            {(info.ordered || task) && (
+            {((info.ordered && isTitle) || task) && (
               <span className={styles.lead} onMouseDown={keepFocus}>
-                {info.ordered && <span className={styles.number}>{ordinal ?? 1}.</span>}
+                {info.ordered && isTitle && <span className={styles.figure}>{number}.</span>}
                 {task === "cancelled" ? (
                   <button
                     type="button"

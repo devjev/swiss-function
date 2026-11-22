@@ -1177,9 +1177,10 @@ test("a numbered block continues its list, and the list renumbers itself", async
   await page.keyboard.press("Enter");
   await page.keyboard.type("three");
   await expect(tree(component)).toHaveText("0 x:1. one\n0 new:2. two\n0 new:3. three");
-  // The number shows in front of the text, in place of the marker.
+  // The number stands in the bullet's place, and the text is the rest.
   await page.keyboard.press("Escape");
-  await expect(content(component, "x")).toHaveText("1.one");
+  await expect(bullet(component, "x")).toHaveText("1.");
+  await expect(content(component, "x")).toHaveText("one");
   // Moving a block renumbers the run.
   await page.keyboard.press("Alt+Shift+ArrowUp");
   await page.keyboard.press("Alt+Shift+ArrowUp");
@@ -1191,6 +1192,90 @@ test("a numbered block continues its list, and the list renumbers itself", async
   await page.keyboard.press("Enter");
   expect(await caret(page)).toMatchObject({ at: 0, text: "" });
   await expect(tree(component)).toHaveText("0 new:1. three\n0 new:\n0 x:1. one\n0 new:2. two");
+});
+
+test("a numbered block's number is its bullet, and entering the block moves nothing", async ({
+  mount,
+}) => {
+  const steps = Array.from({ length: 10 }, (_, i) => ({
+    id: `s${i + 1}`,
+    content: `${i + 1}. step`,
+  }));
+  const component = await mount(
+    <OutlinerHarness
+      initial={[
+        { id: "p", content: "plain" },
+        ...steps,
+        { id: "f", content: "1. folded", collapsed: true, children: [{ id: "f1", content: "in" }] },
+      ]}
+      zoomable
+    />,
+  );
+  // Left edges of the number and of the text after it, in view or under edit.
+  const edges = (id: string) =>
+    row(component, id).evaluate((el) => {
+      const editor = el.querySelector("textarea");
+      if (editor) {
+        const probe = document.createElement("span");
+        probe.style.position = "absolute";
+        probe.style.whiteSpace = "pre";
+        probe.textContent = editor.value.slice(0, editor.value.indexOf(" ") + 1);
+        editor.parentElement?.append(probe);
+        const number = editor.getBoundingClientRect().left;
+        const text = number + probe.getBoundingClientRect().width;
+        probe.remove();
+        return { number, text };
+      }
+      const range = document.createRange();
+      const texts = (root: Element) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const found: Text[] = [];
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) found.push(node as Text);
+        return found;
+      };
+      range.selectNodeContents(texts(el.children[1] as Element)[0] as Text);
+      const number = range.getBoundingClientRect().left;
+      range.selectNodeContents(texts(el.children[2] as Element)[0] as Text);
+      return { number, text: range.getBoundingClientRect().left };
+    });
+
+  // No dot: the handle holds the number and nothing else.
+  await expect(bullet(component, "s3")).toHaveText("3.");
+  expect(await bullet(component, "s3").locator(":scope > *").count()).toBe(1);
+  await expect(bullet(component, "p")).toHaveText("");
+
+  // The run takes the width of its last number: the texts line up, and the
+  // number starts where a dot does.
+  const nine = await edges("s9");
+  const ten = await edges("s10");
+  expect(nine.text).toBeCloseTo(ten.text, 1);
+  expect(nine.number).toBeGreaterThan(ten.number + 4);
+  const dot = await bullet(component, "p").locator(":scope > *").boundingBox();
+  expect(ten.number).toBeCloseTo(dot?.x ?? 0, 1);
+
+  // Under edit the source's number and text stand where they were shown.
+  for (const id of ["s9", "s10"]) {
+    const shown = await edges(id);
+    const height = (await row(component, id).boundingBox())?.height;
+    await caretIn(component, id, 0);
+    await expect(row(component, id).locator("[data-bullet-handle]")).toHaveCount(0);
+    const edited = await edges(id);
+    expect(edited.number).toBeCloseTo(shown.number, 1);
+    expect(edited.text).toBeCloseTo(shown.text, 1);
+    expect((await row(component, id).boundingBox())?.height).toBe(height);
+  }
+
+  // A folded block is marked on its number, as a dot is by its ring.
+  const tint = (id: string) =>
+    bullet(component, id)
+      .locator(":scope > * > *")
+      .last()
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(await tint("f")).not.toBe(await tint("s1"));
+
+  // The number is the handle: a click zooms into the block.
+  await bullet(component, "s2").click();
+  await expect(component.getByRole("navigation", { name: "Zoom path" })).toBeVisible();
 });
 
 test("quotes, callouts and dividers render from their markers", async ({ mount, page }) => {

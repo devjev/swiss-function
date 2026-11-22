@@ -29,6 +29,9 @@ export interface FlatBullet {
   /** The number an ordered block (`1. `) shows: its place in the run of
    *  ordered siblings it is in. Null for any other block. */
   ordinal: number | null;
+  /** How many digits the last number of that run has, so the run's numbers
+   *  take one width. 0 for any other block. */
+  ordinalDigits: number;
 }
 
 /** What opened a completion: a page reference, a block reference, a tag, or a

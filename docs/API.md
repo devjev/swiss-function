@@ -2722,7 +2722,7 @@ task marker (in that order); without either, its text decides:
 | Callout | `> [!note]`, `[!tip]`, `[!warning]`, `[!danger]` (also `info`, `success`, `important`, `caution`, `error`) | A 3px rule and the label in the status colour, the text beside it. |
 | Divider | `---` (or `***`, `___`) alone | A hairline. |
 | Code | A fenced block | The monospace panel of `Markdown`. In the text, Enter is a line break that keeps the indentation and Tab inserts two spaces; Enter on a fresh opening fence closes it; brackets do not pair. After the closing fence Enter splits again. |
-| Numbered | `1. ` | The number in front of the text. Every run of ordered siblings is numbered by place, in the text too, on each change. Enter continues the list; Enter on an empty number ends it. A pasted ordered list keeps its numbers. |
+| Numbered | `1. ` | The number in the bullet's place: it is the block's handle (a click zooms, a drag moves) and wears the fold mark, and a run's numbers take one width. Every run of ordered siblings is numbered by place, in the text too, on each change. Enter continues the list; Enter on an empty number ends it. A pasted ordered list keeps its numbers. |
 | Property | `key:: value` | The name in a column sibling properties share, the value as markdown. `blockProperties(bullet)` (exported) returns a block's properties, read from its direct children. |
 | Image | `![alt](url)` alone, `![alt\|320](url)` with a width | The image; dragging the grip on its trailing edge writes the width into the text. |
 | Table | `{{table}}` | Its children as rows: a row's text is its first cell, the row's children the other cells, the first row the header. A click on a cell puts the caret in that cell's block. |

@@ -28,13 +28,20 @@ export function findBullet(
 export function flatVisible(bullets: OutlinerValue): FlatBullet[] {
   const out: FlatBullet[] = [];
   const walk = (list: Bullet[], depth: number, path: BulletPath) => {
-    // Ordered siblings count up; any other block ends the run.
-    let run = 0;
+    // Ordered siblings count up; any other block ends the run. A run's
+    // numbers share the width of its last one.
+    let run: FlatBullet[] = [];
+    const close = () => {
+      const digits = String(run.length).length;
+      for (const entry of run) entry.ordinalDigits = digits;
+      run = [];
+    };
     list.forEach((b, i) => {
       const cur = [...path, i];
       const hasChildren = (b.children?.length ?? 0) > 0;
-      run = isOrdered(b.content) ? run + 1 : 0;
-      out.push({
+      const ordered = isOrdered(b.content);
+      if (!ordered) close();
+      const entry: FlatBullet = {
         id: b.id,
         bullet: b,
         depth,
@@ -42,12 +49,16 @@ export function flatVisible(bullets: OutlinerValue): FlatBullet[] {
         path: cur,
         index: i,
         siblings: list.length,
-        ordinal: run > 0 ? run : null,
-      });
+        ordinal: ordered ? run.length + 1 : null,
+        ordinalDigits: 0,
+      };
+      if (ordered) run.push(entry);
+      out.push(entry);
       if (hasChildren && !b.collapsed) {
         walk(b.children ?? [], depth + 1, cur);
       }
     });
+    close();
   };
   walk(bullets, 0, []);
   return out;

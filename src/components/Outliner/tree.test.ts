@@ -63,6 +63,28 @@ describe("flatVisible / nav", () => {
     ]);
   });
 
+  it("numbers a run of ordered siblings and gives the run one width", () => {
+    const steps = Array.from({ length: 10 }, (_, i) => ({
+      id: `s${i}`,
+      content: `${i + 1}. step`,
+    }));
+    const flat = flatVisible([
+      { id: "one", content: "1. alone", children: [{ id: "kid", content: "1. nested" }] },
+      { id: "gap", content: "a break" },
+      ...steps,
+    ]);
+    const read = (id: string) => {
+      const f = flat.find((entry) => entry.id === id);
+      return [f?.ordinal, f?.ordinalDigits];
+    };
+    // A child between two numbers does not end its parent's run.
+    expect(read("one")).toEqual([1, 1]);
+    expect(read("kid")).toEqual([1, 1]);
+    expect(read("gap")).toEqual([null, 0]);
+    expect(read("s0")).toEqual([1, 2]);
+    expect(read("s9")).toEqual([10, 2]);
+  });
+
   it("hides children of collapsed parents", () => {
     const collapsed = setCollapsed(tree, "a", true);
     const flat = flatVisible(collapsed).map((f) => f.id);

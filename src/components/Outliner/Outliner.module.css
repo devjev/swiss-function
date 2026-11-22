@@ -270,6 +270,57 @@
     color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
 }
 
+/* An ordered block's number is its bullet. It is set as the text is: the
+   number, a full stop and a space in the text's face, starting where a
+   bullet's dot starts. The slot ends where the text begins, so the content's
+   own inset is taken back. While the block is edited the slot is empty and
+   the same characters of the source stand in the same place. */
+.bullet[data-number] {
+  inline-size: auto;
+  justify-items: start;
+  padding-inline-start: calc(var(--sf-unit) / 8);
+  margin-inline-end: calc(var(--sf-unit) / -4);
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: var(--sf-leading-base);
+  white-space: pre;
+}
+
+/* Under edit the slot holds no more than the room of a run's wider numbers,
+   and the text takes the dot's inset itself. */
+.bullet[data-number="source"] {
+  padding-inline-start: 0;
+  margin-inline-end: 0;
+}
+
+.bullet[data-number="source"] + .content {
+  padding-inline-start: calc(var(--sf-unit) / 8);
+}
+
+/* Figures of one width, so the texts of a run line up. */
+.number,
+.figure {
+  font-variant-numeric: tabular-nums;
+}
+
+.number[data-pad]::before {
+  content: attr(data-pad);
+  visibility: hidden;
+}
+
+/* The ring a dot wears, folded or under the pointer, is a tint behind a
+   number. */
+.figure {
+  border-radius: var(--sf-radius-default);
+}
+
+.bullet[data-number][data-collapsed] .figure,
+.bullet[data-number][data-bullet-handle]:hover .figure {
+  background-color: color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+  box-shadow: 0 0 0 round(calc(var(--sf-unit) / 10), 1px)
+    color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+}
+
 .placeholder {
   color: var(--sf-color-muted);
 }
@@ -346,11 +397,6 @@
 .main {
   grid-column: 2;
   min-inline-size: 0;
-}
-
-/* An ordered block's number: figures of one width, so the texts line up. */
-.number {
-  font-variant-numeric: tabular-nums;
 }
 
 /* A cancelled task: a cross in the checkbox's place, the text struck out. */

@@ -1778,6 +1778,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           siblings={f.siblings}
           hasChildren={f.hasChildren}
           ordinal={f.ordinal}
+          ordinalDigits={f.ordinalDigits}
           isTitle={isTitle}
           fixedOpen={isRoot}
           isActive={activeId === id}
