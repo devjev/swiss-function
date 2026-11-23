@@ -5,6 +5,7 @@ import {
   type SortingState,
   sortingFns,
 } from "@tanstack/react-table";
+import { keepAll } from "../../lib/filter/predicates";
 import { columnFilterTest } from "./filterFns";
 import type { LeafColumnDef } from "./types";
 
@@ -24,6 +25,39 @@ import type { LeafColumnDef } from "./types";
 export function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknown {
   if (typeof accessor === "function") return accessor(row);
   return (row as Record<string, unknown>)[accessor as string];
+}
+
+/** One column filter, resolved to its row test. */
+export interface ActiveColumnFilter<T> {
+  leaf: LeafColumnDef<T>;
+  test: (value: unknown) => boolean;
+}
+
+/** The column filters that remove rows, each resolved to its row test once
+ *  per pass (issue #106). An entry for a column that is gone (a leaf swapped
+ *  for its `::placeholder` by group collapse) is dropped, as table-core drops
+ *  it, and so is an inactive one (an empty checklist, an open range), which
+ *  keeps every row. */
+export function activeColumnFilters<T>(
+  byId: Map<string, LeafColumnDef<T>>,
+  filters: ColumnFiltersState,
+): ActiveColumnFilter<T>[] {
+  const out: ActiveColumnFilter<T>[] = [];
+  for (const f of filters) {
+    const leaf = byId.get(f.id);
+    if (!leaf) continue;
+    const test = columnFilterTest(leaf, f.value);
+    if (test !== keepAll) out.push({ leaf, test });
+  }
+  return out;
+}
+
+/** Whether a data row passes every active filter. */
+export function passesFilters<T>(row: T, filters: ActiveColumnFilter<T>[]): boolean {
+  for (const { leaf, test } of filters) {
+    if (!test(getCellValue(row, leaf.accessor))) return false;
+  }
+  return true;
 }
 
 /** Table-core parity: RowSorting's `getAutoSortingFn`, sniffing the filtered
@@ -218,12 +252,7 @@ export function computeRowOrder<T>(
   // TanStack silently drops state entries for columns that no longer exist
   // (e.g. a leaf swapped for its `::placeholder` by group collapse) and sort
   // entries for non-sortable columns — mirror that.
-  // Each filter becomes its row test once, before the row loop (issue #106).
-  const activeFilters: { leaf: LeafColumnDef<T>; test: (value: unknown) => boolean }[] = [];
-  for (const f of filters) {
-    const leaf = byId.get(f.id);
-    if (leaf) activeFilters.push({ leaf, test: columnFilterTest(leaf, f.value) });
-  }
+  const activeFilters = activeColumnFilters(byId, filters);
   const activeSorting = sorting.filter((s) => byId.get(s.id)?.sortable === true);
 
   if (activeFilters.length === 0 && activeSorting.length === 0) {
@@ -237,14 +266,7 @@ export function computeRowOrder<T>(
     let count = 0;
     for (let i = 0; i < data.length; i++) {
       const row = data[i] as T;
-      let keep = true;
-      for (const { leaf, test } of activeFilters) {
-        if (!test(getCellValue(row, leaf.accessor))) {
-          keep = false;
-          break;
-        }
-      }
-      if (keep) order[count++] = i;
+      if (passesFilters(row, activeFilters)) order[count++] = i;
     }
     if (count !== data.length) order = order.slice(0, count);
   }

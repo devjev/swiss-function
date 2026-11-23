@@ -535,6 +535,23 @@ export const Tree: Story = () => (
   </div>
 );
 
+const treeFilterColumns: ColumnDef<TreeNode>[] = [
+  ...treeColumns.slice(0, 2),
+  { id: "value", header: "Value", accessor: "value", width: 6, edit: { type: "number" } },
+];
+
+/** Filters on a tree reach every level (issue #108). Filter Role to Senior:
+ *  each department stays as the path to its seniors and opens. */
+export const TreeFiltered: Story = () => (
+  <DataTable<TreeNode>
+    data={treeData}
+    columns={treeFilterColumns}
+    getSubRows={(r) => r.children}
+    filterableColumns
+    height={360}
+  />
+);
+
 function buildDeepTree(depth: number, breadth: number, prefix = "n"): TreeNode {
   return {
     id: prefix,

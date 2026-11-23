@@ -82,12 +82,18 @@ const treeColumns: ColumnDef<TreeNode>[] = [
   { id: "score", header: "Score", accessor: "score", align: "end", sortable: true },
 ];
 
-/** 50k-node collapsed tree — heap + expand-toggle probe target. */
+/** 50k-node collapsed tree: heap, expand-toggle and tree-filter probe target. */
 export const PerfTree: Story = () => {
   const [data] = useState<TreeNode[]>(() => seedTree(2_500, 19));
   return (
     <div data-perf-ready="">
-      <DataTable data={data} columns={treeColumns} getSubRows={(r) => r.children} height={480} />
+      <DataTable
+        data={data}
+        columns={treeColumns}
+        getSubRows={(r) => r.children}
+        height={480}
+        filterableColumns
+      />
     </div>
   );
 };

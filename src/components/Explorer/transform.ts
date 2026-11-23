@@ -1,3 +1,4 @@
+import { filterForest, type KeptNode } from "../../lib/filter/tree";
 import type { ExplorerColumn, ExplorerNode } from "./types";
 import { isFolder } from "./types";
 
@@ -90,20 +91,20 @@ export interface ActiveFilter<M> {
 /** Prune the forest to matches, retaining the ancestor path to every match. A
  *  node that matches all filters is kept with its whole subtree; a non-matching
  *  folder survives only if some descendant matches (with non-matching children
- *  pruned); a non-matching file is dropped. Empty `filters` is identity. */
+ *  pruned); a non-matching file is dropped. Empty `filters` is identity. The
+ *  walk is `filterForest`, shared with DataTable, which filters below a match
+ *  too (issue #108). */
 export function filterTree<M>(
   nodes: ExplorerNode<M>[],
   filters: ActiveFilter<M>[],
 ): ExplorerNode<M>[] {
   if (filters.length === 0) return nodes;
   const matches = (node: ExplorerNode<M>) => filters.every((f) => f.test(f.read(node)));
-  const prune = (node: ExplorerNode<M>): ExplorerNode<M> | null => {
-    if (matches(node)) return node; // direct match → keep entire subtree
-    if (!node.children) return null; // non-matching file
-    const kept = node.children.map(prune).filter((n): n is ExplorerNode<M> => n !== null);
-    return kept.length > 0 ? { ...node, children: kept } : null;
-  };
-  return nodes.map(prune).filter((n): n is ExplorerNode<M> => n !== null);
+  // A match keeps its own node object; a path folder gets a copy holding its
+  // kept children.
+  const rebuild = (kept: KeptNode<ExplorerNode<M>>): ExplorerNode<M> =>
+    kept.children === null ? kept.node : { ...kept.node, children: kept.children.map(rebuild) };
+  return filterForest(nodes, (n) => n.children, matches, { keepMatchSubtree: true }).map(rebuild);
 }
 
 /** Every folder id in a (pruned) forest — the set to auto-expand so all retained

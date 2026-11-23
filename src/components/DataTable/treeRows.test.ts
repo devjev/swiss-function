@@ -5,29 +5,19 @@
 // Expansion state is keyed by TanStack row id, so the id scheme is pinned
 // against table-core's default getRowId too.
 import {
-  type ColumnFiltersState,
   createTable,
   type ExpandedState,
-  type FilterFn,
   getCoreRowModel,
   getExpandedRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   type SortingState,
   type Table,
   type ColumnDef as TSColumnDef,
 } from "@tanstack/react-table";
 import { describe, expect, it } from "vitest";
-import { buildTreeMeta } from "./treeRows";
+import { buildTreeMeta, filteredTreeMeta, filterTreeRows, sourceIndex } from "./treeRows";
 
 type Node = { name: string; num: number; children?: Node[] };
-
-// Same checklist filter DataTable's toTSColumn attaches (module-private there).
-const includesFilter: FilterFn<Node> = (row, columnId, filterValue) => {
-  const allowed = filterValue as string[] | undefined;
-  if (!allowed || allowed.length === 0) return true;
-  return allowed.includes(String(row.getValue(columnId)));
-};
 
 // 6 roots × 3 children, plus 2 grandchildren under each even root's first
 // child. Names carry shuffled numeric suffixes so per-level sorting is
@@ -57,8 +47,8 @@ const DATA = seedTree();
 const getSubRows = (r: Node) => r.children;
 
 const columns: TSColumnDef<Node>[] = [
-  { id: "name", accessorFn: (r: Node) => r.name, enableSorting: true, filterFn: includesFilter },
-  { id: "num", accessorFn: (r: Node) => r.num, enableSorting: true, filterFn: includesFilter },
+  { id: "name", accessorFn: (r: Node) => r.name, enableSorting: true },
+  { id: "num", accessorFn: (r: Node) => r.num, enableSorting: true },
 ];
 
 function makeTable(
@@ -66,7 +56,7 @@ function makeTable(
   subRows: (r: Node) => Node[] | undefined,
   expanded: ExpandedState,
   sorting: SortingState = [],
-  filters: ColumnFiltersState = [],
+  getRowId?: (row: Node, index: number, parent?: { id: string }) => string,
 ): Table<Node> {
   const table = createTable<Node>({
     data,
@@ -75,14 +65,14 @@ function makeTable(
     onStateChange: () => {},
     renderFallbackValue: null,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getSubRows: subRows,
+    ...(getRowId ? { getRowId } : {}),
   });
   table.setOptions((prev) => ({
     ...prev,
-    state: { ...table.initialState, expanded, sorting, columnFilters: filters },
+    state: { ...table.initialState, expanded, sorting },
   }));
   return table;
 }
@@ -94,14 +84,10 @@ function visible(table: Table<Node>) {
     .rows.map((r) => ({ id: r.id, depth: r.depth, index: r.index, original: r.original }));
 }
 
-function expectParity(
-  expanded: Record<string, boolean>,
-  sorting: SortingState = [],
-  filters: ColumnFiltersState = [],
-) {
-  const stock = makeTable(DATA, getSubRows, expanded, sorting, filters);
+function expectParity(expanded: Record<string, boolean>, sorting: SortingState = []) {
+  const stock = makeTable(DATA, getSubRows, expanded, sorting);
   const meta = buildTreeMeta(DATA, getSubRows, expanded);
-  const pruned = makeTable(DATA.slice(), meta.getSubRows, expanded, sorting, filters);
+  const pruned = makeTable(DATA.slice(), meta.getSubRows, expanded, sorting);
   expect(visible(pruned)).toEqual(visible(stock));
   return { stock, pruned, meta };
 }
@@ -147,19 +133,95 @@ describe("buildTreeMeta — table-core parity for the visible tree", () => {
     ]);
   });
 
-  it("filters with parity — a failing ancestor removes its matching descendants too", () => {
-    const expanded = { "0": true, "0.0": true, "1": true };
-    // Keep only some names; ancestors that fail drop their whole subtree in
-    // stock table-core (parent-down filtering), and must in the pruned one.
-    const names = DATA.flatMap((r) => [r.name, ...(r.children ?? []).map((c) => c.name)]);
-    const keep = names.filter((_, i) => i % 2 === 0);
-    expectParity(expanded, [], [{ id: "name", value: keep }]);
-    expectParity(expanded, [{ id: "name", desc: false }], [{ id: "name", value: keep }]);
-  });
-
   it("ignores expanded entries for rows hidden under a collapsed ancestor", () => {
     // "0.0" expanded while "0" is collapsed: neither table shows the subtree.
     const { pruned } = expectParity({ "0.0": true });
     expect(pruned.getCoreRowModel().flatRows.length).toBe(6);
+  });
+});
+
+// --- Filtered trees (issue #108) ----------------------------------------------
+
+/** A table-core instance over a filtered tree, as DataTable builds it. */
+function filteredTable(
+  matches: (row: Node) => boolean,
+  expanded: ExpandedState,
+  sorting: SortingState = [],
+) {
+  const tree = filterTreeRows(DATA, getSubRows, matches);
+  const meta = filteredTreeMeta(tree, expanded);
+  return { tree, table: makeTable(meta.data, meta.getSubRows, expanded, sorting, meta.getRowId) };
+}
+
+// Seeded names repeat across the tree, so match the rows themselves.
+const rowIs =
+  (...keep: Node[]) =>
+  (row: Node) =>
+    keep.includes(row);
+
+describe("filterTreeRows + filteredTreeMeta", () => {
+  // DATA[0] has children 0.0 (with grandchildren 0.0.0, 0.0.1), 0.1, 0.2.
+  const root = DATA[0] as Node;
+  const mid = root.children?.[0] as Node;
+  const leaf = mid.children?.[1] as Node;
+  const sibling = root.children?.[2] as Node;
+
+  it("finds a match under collapsed parents and keeps the path to it", () => {
+    const { tree } = filteredTable(rowIs(leaf), {});
+    expect(tree.roots).toEqual([root]);
+    expect(tree.nodes.get(leaf)?.id).toBe("0.0.1");
+    expect([...tree.paths]).toEqual(["0.0", "0"]);
+  });
+
+  it("names each row by its unfiltered id, so the expanded state keeps its meaning", () => {
+    // The path rows open; the leaf sits at its original id, not at "0.0.0".
+    const { table } = filteredTable(rowIs(leaf, sibling), { "0": true, "0.0": true });
+    expect(visible(table).map((r) => [r.id, r.depth, r.original])).toEqual([
+      ["0", 0, root],
+      ["0.0", 1, mid],
+      ["0.0.1", 2, leaf],
+      ["0.2", 1, sibling],
+    ]);
+  });
+
+  it("filters below a match: a matching parent drops its failing children", () => {
+    const { tree, table } = filteredTable(rowIs(root, sibling), { "0": true });
+    expect(tree.paths.size).toBe(0);
+    expect(visible(table).map((r) => r.id)).toEqual(["0", "0.2"]);
+    // hasChildren counts the kept children only.
+    expect(tree.nodes.get(root)?.hasChildren).toBe(true);
+    expect(tree.nodes.get(sibling)?.hasChildren).toBe(false);
+  });
+
+  it("withholds the children of a collapsed row from the row model", () => {
+    const { table } = filteredTable(rowIs(leaf), {});
+    expect(table.getCoreRowModel().flatRows.map((r) => r.id)).toEqual(["0"]);
+  });
+
+  it("expands everything under `true`", () => {
+    const { table } = filteredTable(rowIs(leaf, sibling), true);
+    expect(visible(table).map((r) => r.id)).toEqual(["0", "0.0", "0.0.1", "0.2"]);
+  });
+
+  it("sorts the kept rows per level", () => {
+    const keep = (row: Node) => row.num % 2 === 1;
+    const { table } = filteredTable(keep, true, [{ id: "num", desc: false }]);
+    const rows = table.getRowModel().rows;
+    for (const parent of [null, ...rows]) {
+      const siblings = rows.filter((r) => (r.getParentRow() ?? null) === parent);
+      const nums = siblings.map((r) => r.original.num);
+      expect(nums).toEqual([...nums].sort((a, b) => a - b));
+    }
+  });
+});
+
+describe("sourceIndex", () => {
+  it("reads a row's index among its unfiltered siblings from its id", () => {
+    expect(sourceIndex({ id: "0.0.1", index: 0 })).toBe(1);
+    expect(sourceIndex({ id: "4", index: 0 })).toBe(4);
+  });
+
+  it("falls back to table-core's index for an id outside the scheme", () => {
+    expect(sourceIndex({ id: "custom", index: 3 })).toBe(3);
   });
 });

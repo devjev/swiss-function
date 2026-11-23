@@ -320,13 +320,83 @@ test("tree: unchecking a value in a column filter hides that row (#106)", async 
   mount,
   page,
 }) => {
-  // A tree table filters through table-core's row model, where the checklist
-  // filter gets its allow-list resolved to a Set once per pass.
   const component = await mount(<TreeHarness data={TREE} defaultExpanded filterableColumns />);
   await component.getByRole("button", { name: "Filter Name" }).click();
   await page.getByRole("checkbox", { name: "Sales" }).click();
   await expect(component.getByRole("gridcell").filter({ hasText: "Sales" })).toHaveCount(0);
   await expect(component.getByRole("gridcell").filter({ hasText: "Engineering" })).toBeVisible();
+});
+
+// --- Tree filtering (issue #108) ---
+
+const cell = (c: Locator, text: string) => c.getByRole("gridcell").filter({ hasText: text });
+
+test("tree filter: the funnel lists the values of every level (#108)", async ({ mount, page }) => {
+  // Collapsed: the children are not in the row model, and still listed.
+  const component = await mount(<TreeHarness data={TREE} filterableColumns />);
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  for (const name of ["Alice", "Bob", "Engineering", "Sales"]) {
+    await expect(page.getByRole("checkbox", { name })).toBeVisible();
+  }
+});
+
+test("tree filter: unchecking a child keeps its parent and siblings (#108)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<TreeHarness data={TREE} defaultExpanded filterableColumns />);
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  await page.getByRole("checkbox", { name: "Alice" }).click();
+  await expect(cell(component, "Alice")).toHaveCount(0);
+  for (const name of ["Engineering", "Bob", "Sales"]) {
+    await expect(cell(component, name)).toBeVisible();
+  }
+  // Unchecking the parent keeps it as the path to its children.
+  await page.getByRole("checkbox", { name: "Engineering" }).click();
+  await expect(cell(component, "Engineering")).toBeVisible();
+  await expect(cell(component, "Bob")).toBeVisible();
+});
+
+test("tree filter: a match under a collapsed parent shows its path open; clearing restores the expansion (#108)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<TreeHarness data={TREE} filterableColumns />);
+  await expect(cell(component, "Bob")).toHaveCount(0);
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  await page.getByRole("checkbox", { name: "Select all" }).click(); // none
+  await page.getByRole("checkbox", { name: "Bob" }).click();
+  await page.keyboard.press("Escape");
+  await expect(cell(component, "Engineering")).toBeVisible();
+  await expect(cell(component, "Bob")).toBeVisible();
+  await expect(cell(component, "Alice")).toHaveCount(0);
+  await expect(cell(component, "Sales")).toHaveCount(0);
+
+  // The path row collapses by hand, and opens again.
+  await component.getByRole("button", { name: "Collapse row" }).click();
+  await expect(cell(component, "Bob")).toHaveCount(0);
+  await component.getByRole("button", { name: "Expand row" }).click();
+  await expect(cell(component, "Bob")).toBeVisible();
+
+  // Clearing the filter brings back the user's expansion: all collapsed.
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  await page.getByRole("checkbox", { name: "Select all" }).click();
+  await page.keyboard.press("Escape");
+  await expect(cell(component, "Sales")).toBeVisible();
+  await expect(cell(component, "Bob")).toHaveCount(0);
+  await expect(cell(component, "Alice")).toHaveCount(0);
+});
+
+test("a click inside the filter popover does not sort the column", async ({ mount, page }) => {
+  // The popover is portalled, but React bubbles its clicks to the header.
+  const component = await mount(
+    <TreeHarness data={TREE} defaultExpanded filterableColumns sortable />,
+  );
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  await page.getByRole("checkbox", { name: "Sales" }).click();
+  await expect(cell(component, "Sales")).toHaveCount(0);
+  await expect(component.locator("[data-sorted]")).toHaveCount(0);
+  await expect(component.getByRole("gridcell").first()).toHaveText("Engineering");
 });
 
 test("tree: collapsing clears the active cell", async ({ mount, page }) => {

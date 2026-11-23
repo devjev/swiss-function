@@ -63,16 +63,18 @@
     "datatable-funnel-10k": {
       "funnelOpenMs": 39.8,
       "searchKeyMs": 12.1,
-      "toggleMs": 40.7,
+      "toggleMs": 30.9,
       "readyMs": 1106,
-      "heapMB": 45.05
+      "heapMB": 42.21
     },
     "datatable-tree-50k": {
-      "treeHeapMB": 47.43,
-      "expandMs": 39.1,
-      "collapseMs": 41.6,
-      "readyMs": 1105,
-      "heapMB": 63.6
+      "treeHeapMB": 48.01,
+      "expandMs": 37.1,
+      "collapseMs": 38.1,
+      "filterMs": 79.2,
+      "filteredHeapMB": 87.11,
+      "readyMs": 1119,
+      "heapMB": 87.11
     },
     "graph-settle-large": {
       "settledAfterReadyMs": 2293,

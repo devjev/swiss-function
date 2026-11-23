@@ -211,8 +211,13 @@ export function ColumnFilter({ label, kind, options, value, active, onChange }: 
               (the `tight` Button's 3/16u); only the block padding grows to 3/8u
               when the popover holds a full-size input (range, or a searchable
               checklist) so the field doesn't crowd the top/bottom edges. */}
+          {/* The popup is portalled, but React still bubbles its events to the
+              header that renders it: a checkbox click would sort the column
+              and a pointerdown would start a column reorder. */}
           <Popover.Popup
             className={styles.popup}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             style={{
               paddingBlock:
                 kind === "range" || resolved.length > 6

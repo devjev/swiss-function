@@ -239,13 +239,16 @@ export function TreeHarness({
   data,
   defaultExpanded,
   filterableColumns,
+  sortable,
 }: {
   data: TreeRow[];
   defaultExpanded?: true | Record<string, boolean>;
   filterableColumns?: boolean;
+  /** Makes the Name column sortable. */
+  sortable?: boolean;
 }) {
   const columns: ColumnDef<TreeRow>[] = [
-    { id: "name", header: "Name", accessor: "name" },
+    { id: "name", header: "Name", accessor: "name", sortable },
     { id: "value", header: "Value", accessor: "value", align: "end" },
   ];
   return (

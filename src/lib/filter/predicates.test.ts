@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { checklistTest, rangeTest } from "./predicates";
+import { checklistTest, keepAll, rangeTest } from "./predicates";
 
 describe("checklistTest", () => {
   it("keeps everything when the allow-list is empty", () => {
     expect(checklistTest([])("anything")).toBe(true);
     expect(checklistTest(undefined)("anything")).toBe(true);
+  });
+
+  it("returns the shared keepAll test for an inactive filter", () => {
+    expect(checklistTest([])).toBe(keepAll);
+    expect(checklistTest(undefined)).toBe(keepAll);
+    expect(checklistTest(["a"])).not.toBe(keepAll);
   });
 
   it("matches a cell by its string form", () => {
@@ -37,5 +43,11 @@ describe("rangeTest", () => {
   it("drops a value that is not a number when a bound is set", () => {
     expect(rangeTest([0, undefined])("n/a")).toBe(false);
     expect(rangeTest([undefined, undefined])("n/a")).toBe(true);
+  });
+
+  it("returns the shared keepAll test for an open range", () => {
+    expect(rangeTest(undefined)).toBe(keepAll);
+    expect(rangeTest([undefined, undefined])).toBe(keepAll);
+    expect(rangeTest([0, undefined])).not.toBe(keepAll);
   });
 });

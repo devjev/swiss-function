@@ -2,9 +2,12 @@ import type { FilterFn } from "@tanstack/react-table";
 import { checklistTest, rangeTest } from "../../lib/filter/predicates";
 import type { LeafColumnDef } from "./types";
 
-/** Column filters for both DataTable paths: `computeRowOrder` for flat tables,
- *  table-core's filtered row model for tree tables. Either way a filter value
- *  becomes its row test once per filtering pass (issue #106). */
+/** Column filters. DataTable filters outside table-core on both paths
+ *  (`computeRowOrder` for flat tables, `filterTreeRows` for trees, issue #108),
+ *  each turning a filter value into its row test once per pass (issue #106).
+ *  The table-core filter functions below stay on the columns: they set how
+ *  `column.setFilterValue` treats a value (only `undefined` removes the
+ *  entry), and rowOrder.test.ts checks flat-table parity against them. */
 
 type RowTest = (value: unknown) => boolean;
 type Range = [number | undefined, number | undefined] | undefined;
@@ -17,8 +20,9 @@ export function columnFilterTest<T>(leaf: LeafColumnDef<T>, value: unknown): Row
   return isRange(leaf) ? rangeTest(value as Range) : checklistTest(value as string[] | undefined);
 }
 
-// Table-core calls `resolveFilterValue` once per filter per pass and hands its
-// result to the filter function for every row, so each row gets a ready test.
+// Where table-core does filter (the parity tests), it calls
+// `resolveFilterValue` once per filter per pass and hands its result to the
+// filter function for every row, so each row gets a ready test.
 
 /** Checklist filter: keep rows whose stringified value is allowed. */
 export const includesFilter: FilterFn<unknown> = (row, columnId, test) =>

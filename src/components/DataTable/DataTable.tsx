@@ -16,7 +16,6 @@ import {
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   type Header,
   type SortingState,
@@ -78,9 +77,9 @@ import { resolveEditActivation } from "./editActivation";
 import { CellEditor, formatEditDisplay } from "./editors";
 import { filterFnFor } from "./filterFns";
 import { Pagination } from "./Pagination";
-import { computeRowOrder, getCellValue } from "./rowOrder";
+import { activeColumnFilters, computeRowOrder, getCellValue, passesFilters } from "./rowOrder";
 import { startTotal } from "./totals";
-import { buildTreeMeta } from "./treeRows";
+import { buildTreeMeta, filteredTreeMeta, filterTreeRows, sourceIndex } from "./treeRows";
 import type {
   AdvanceHint,
   Cell,
@@ -503,7 +502,7 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
     ...(meta ? { meta } : {}),
     cell: def.cell
       ? ({ getValue, row }) =>
-          def.cell?.({ value: getValue(), row: row.original, rowIndex: row.index })
+          def.cell?.({ value: getValue(), row: row.original, rowIndex: sourceIndex(row) })
       : ({ getValue }) => {
           const v = getValue();
           return v == null ? "" : String(v);
@@ -960,23 +959,83 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // O(roots) copy). `expanded === true` prunes nothing — skip the walk and
   // keep the raw inputs (which also keeps toggleExpanded's true→record
   // conversion over rowsById complete). Accepted drift (cf. the flat-mode
-  // note above): sorting/filtering only ever see visible rows, so the
-  // auto-sort type sniff can pick a different fn while the type-revealing
-  // rows sit in a collapsed subtree. Inline getSubRows lambdas change
-  // identity every parent render; the walk depends only on its behaviour, so
-  // it's read through a ref to keep the memo keyed on data + expansion.
+  // note above): sorting only ever sees visible rows, so the auto-sort type
+  // sniff can pick a different fn while the type-revealing rows sit in a
+  // collapsed subtree. Filtering walks the whole tree (see treeFilter).
+  // Inline getSubRows lambdas change identity every parent render; the walk
+  // depends only on their behaviour, so it's read through a ref to keep the
+  // memo keyed on data + expansion.
   const getSubRowsRef = useRef(getSubRows);
   getSubRowsRef.current = getSubRows;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: getSubRows is read through a ref (see above)
+
+  // --- Tree mode: column filters (issue #108) ---
+  // A tree table filters every level itself before table-core sees the rows:
+  // a row stays when it matches or a descendant does (the path to a match),
+  // and a match's children are filtered too. The walk covers the whole tree,
+  // collapsed subtrees included, and runs only while a filter is active.
+  // Table-core filters nothing (manualFiltering): its root-down filtered row
+  // model dropped a parent's matching children, and could not see a match
+  // under a pruned, collapsed parent.
+  const treeFilter = useMemo(() => {
+    const getSub = getSubRowsRef.current;
+    if (flatMode || !getSub) return null;
+    const active = activeColumnFilters(new Map(visibleLeaves.map((l) => [l.id, l])), columnFilters);
+    if (active.length === 0) return null;
+    return filterTreeRows(
+      data,
+      (row) => getSub(row) ?? undefined,
+      (row) => passesFilters(row, active),
+    );
+  }, [flatMode, data, visibleLeaves, columnFilters]);
+
+  // While a filter is active the rows on the path to a match show expanded,
+  // without writing to the expanded state: clearing the filter brings the
+  // user's expansion back. A path row collapsed by hand stays collapsed until
+  // the filtered tree changes; every other row toggles the expanded state as
+  // usual.
+  const [collapsedPaths, setCollapsedPaths] = useState<{
+    tree: NonNullable<typeof treeFilter>;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  const closedPaths = treeFilter && collapsedPaths?.tree === treeFilter ? collapsedPaths.ids : null;
+  const shownExpanded = useMemo<ExpandedState>(() => {
+    if (!treeFilter) return expandedState;
+    if (expandedState === true) {
+      if (!closedPaths || closedPaths.size === 0) return true;
+      const all: Record<string, boolean> = {};
+      for (const { id } of treeFilter.nodes.values()) if (!closedPaths.has(id)) all[id] = true;
+      return all;
+    }
+    if (treeFilter.paths.size === 0) return expandedState;
+    const shown = { ...expandedState };
+    for (const id of treeFilter.paths) shown[id] = !closedPaths?.has(id);
+    return shown;
+  }, [treeFilter, closedPaths, expandedState]);
+  const toggleTreeRow = (row: { id: string; toggleExpanded: () => void }) => {
+    if (!treeFilter?.paths.has(row.id)) {
+      row.toggleExpanded();
+      return;
+    }
+    const ids = new Set(closedPaths);
+    if (!ids.delete(row.id)) ids.add(row.id);
+    setCollapsedPaths({ tree: treeFilter, ids });
+  };
+
   const treeMeta = useMemo(() => {
     const getSub = getSubRowsRef.current;
     if (flatMode || !getSub) return null;
+    if (treeFilter) return filteredTreeMeta(treeFilter, shownExpanded);
     if (expandedState === true) {
-      return { info: null, data, getSubRows: (row: T) => getSub(row) ?? undefined };
+      return {
+        info: null,
+        data,
+        getSubRows: (row: T) => getSub(row) ?? undefined,
+        getRowId: undefined,
+      };
     }
     const { info, getSubRows: pruned } = buildTreeMeta(data, getSub, expandedState);
-    return { info, data: data.slice(), getSubRows: pruned };
-  }, [flatMode, data, expandedState]);
+    return { info, data: data.slice(), getSubRows: pruned, getRowId: undefined };
+  }, [flatMode, data, expandedState, treeFilter, shownExpanded]);
   const treeInfo = treeMeta?.info ?? null;
 
   const table = useReactTable({
@@ -985,9 +1044,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
     // TanStack orders its (effective) leaf columns, so it gets the derived
     // effective order, not the raw real-id state (which a collapsed group's
     // placeholder is absent from).
-    state: { sorting, expanded: expandedState, columnOrder: orderedLeafIds, columnFilters },
+    state: { sorting, expanded: shownExpanded, columnOrder: orderedLeafIds, columnFilters },
     manualSorting: flatMode,
-    manualFiltering: flatMode,
+    // Both paths filter outside table-core: computeRowOrder for flat tables,
+    // filterTreeRows for trees.
+    manualFiltering: true,
     onSortingChange: setSorting,
     onColumnOrderChange: (updater) =>
       // Persisted order carries real leaf ids only (see expandPlaceholderOrder).
@@ -1002,15 +1063,18 @@ export function DataTable<T>(props: DataTableProps<T>) {
       setColumnFilters(
         (typeof updater === "function" ? updater(columnFilters) : updater) as ColumnFiltersState,
       ),
+    // A toggle reaches here only for a row off the filter's path (see
+    // toggleTreeRow), so it applies to the user's expanded state.
     onExpandedChange: (updater) =>
       setExpanded(
         (typeof updater === "function" ? updater(expandedState) : updater) as ExpandedState,
       ),
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    ...(treeMeta ? { getSubRows: treeMeta.getSubRows } : {}),
+    // Always set in tree mode: useReactTable merges options into the previous
+    // ones, so an omitted key would keep a stale getRowId.
+    ...(treeMeta ? { getSubRows: treeMeta.getSubRows, getRowId: treeMeta.getRowId } : {}),
   });
   const rows = table.getRowModel().rows;
 
@@ -1255,14 +1319,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   });
 
   // --- Clear selection when the visible matrix shape changes (tree / group toggle) ---
-  const lastStructuralVersion = useRef<string>(`${treeVersion}|${groupsVersion}`);
+  // A path row collapsed under a filter changes the matrix too (closedPaths).
+  const lastStructuralVersion = useRef<unknown[]>([treeVersion, groupsVersion, closedPaths]);
   useEffect(() => {
-    const v = `${treeVersion}|${groupsVersion}`;
-    if (lastStructuralVersion.current !== v) {
+    const v = [treeVersion, groupsVersion, closedPaths];
+    if (lastStructuralVersion.current.some((x, i) => x !== v[i])) {
       setActive(null);
       lastStructuralVersion.current = v;
     }
-  }, [treeVersion, groupsVersion, setActive]);
+  }, [treeVersion, groupsVersion, closedPaths, setActive]);
 
   // --- Cell focus management (programmatic) ---
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -2330,7 +2395,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const bg = cellBackgroundProps(cellBackground, {
       value: getCellValue(row.original as T, colDef.accessor),
       row: row.original as T,
-      rowIndex: row.index,
+      rowIndex: sourceIndex(row),
       column: colDef,
     });
     const mergeRight = mergeMap?.suppressRight.has(key) || undefined;
@@ -2353,7 +2418,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 treeInfo ? (treeInfo.get(row.original)?.hasChildren ?? false) : row.getCanExpand()
               }
               expanded={row.getIsExpanded()}
-              onToggle={() => row.toggleExpanded()}
+              onToggle={() => toggleTreeRow(row)}
               ariaLabel={row.getIsExpanded() ? "Collapse row" : "Expand row"}
             />
           </span>
@@ -2400,7 +2465,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
           if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
           if (isEditing || !isColumnEditable(colIndex)) return;
           if (
-            resolveActivation(row.index, colDef.id, row.original as T, colDef.editOn) === "single"
+            resolveActivation(sourceIndex(row), colDef.id, row.original as T, colDef.editOn) ===
+            "single"
           ) {
             startEdit(cell);
           }
@@ -2468,7 +2534,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [data, visibleLeaves],
   );
   /** Distinct values of a text column as checklist options, computed on first
-   *  funnel open and cached until `data`/columns change. */
+   *  funnel open and cached until `data`/columns change. getSubRows is read
+   *  through its ref, as for the tree walk. */
   const getDistinctOptions = useCallback(
     (columnId: string): FilterOption[] => {
       const hit = distinctOptionsCache.get(columnId);
@@ -2476,10 +2543,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
       const leaf = visibleLeaves.find((l) => l.id === columnId);
       if (!leaf) return [];
       const seen = new Set<string>();
-      for (const row of data) {
-        const v = getCellValue(row, leaf.accessor);
-        seen.add(v == null ? "" : String(v));
-      }
+      // A tree table lists the values of every level (issue #108).
+      const getSub = getSubRowsRef.current;
+      const scan = (rows: readonly T[]) => {
+        for (const row of rows) {
+          const v = getCellValue(row, leaf.accessor);
+          seen.add(v == null ? "" : String(v));
+          const sub = getSub?.(row);
+          if (sub && sub.length > 0) scan(sub);
+        }
+      };
+      scan(data);
       const options = [...seen]
         .sort(optionCollator.compare)
         .map((s) => ({ value: s, label: s === "" ? "(empty)" : s }));

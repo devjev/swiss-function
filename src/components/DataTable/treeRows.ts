@@ -8,7 +8,13 @@
  * `getSubRows` that withholds children of collapsed rows, so hidden subtrees
  * are never materialized. Visible-row parity with a stock table-core instance
  * (ids, order, depth, index, originals) is pinned by treeRows.test.ts.
+ *
+ * With a column filter active, `filterTreeRows` walks the whole tree instead
+ * (issue #108) and `filteredTreeMeta` hands table-core the kept rows under
+ * the same pruning and the same ids.
  */
+
+import { filterForest, type KeptNode } from "../../lib/filter/tree";
 
 export interface TreeNodeInfo {
   id: string;
@@ -50,4 +56,75 @@ export function buildTreeMeta<T>(
       return meta && expanded[meta.id] ? (getSubRows(row) ?? undefined) : undefined;
     },
   };
+}
+
+// --- Filtered trees (issue #108) ---------------------------------------------
+
+/** A kept node of a filtered tree: its row id in the unfiltered tree, so the
+ *  expanded state keeps its meaning, and its kept children. */
+export interface FilteredNodeInfo<T> extends TreeNodeInfo {
+  children: T[];
+}
+
+export interface FilteredTree<T> {
+  /** The kept roots, in their original order. */
+  roots: T[];
+  /** Every kept node. `hasChildren` counts kept children only. */
+  nodes: Map<T, FilteredNodeInfo<T>>;
+  /** Ids of the kept rows that fail the filter themselves: the path to a
+   *  match, shown expanded while the filter is active. */
+  paths: Set<string>;
+}
+
+/** Filter a tree table's data on every level: a row stays when it matches or
+ *  a descendant does, and a matching row's children are filtered too. Walks
+ *  the whole tree, collapsed subtrees included, so a match under a collapsed
+ *  parent is found. Runs only while a filter is active. */
+export function filterTreeRows<T>(
+  data: T[],
+  getSubRows: (row: T) => T[] | undefined,
+  matches: (row: T) => boolean,
+): FilteredTree<T> {
+  const nodes = new Map<T, FilteredNodeInfo<T>>();
+  const paths = new Set<string>();
+  const index = (kept: KeptNode<T>[], prefix: string): T[] =>
+    kept.map(({ node, index: i, match, children }) => {
+      // The unfiltered tree's id (see buildTreeMeta), from the original index.
+      const id = prefix === "" ? String(i) : `${prefix}.${i}`;
+      const keptChildren = children ? index(children, id) : [];
+      nodes.set(node, { id, hasChildren: keptChildren.length > 0, children: keptChildren });
+      if (!match) paths.add(id);
+      return node;
+    });
+  return { roots: index(filterForest(data, getSubRows, matches), ""), nodes, paths };
+}
+
+/** The row-model inputs for a filtered tree under an expanded state. Hands
+ *  table-core the kept rows alone, withholds the children of collapsed rows
+ *  (as buildTreeMeta does), and names each row by its unfiltered id. */
+export function filteredTreeMeta<T>(
+  tree: FilteredTree<T>,
+  expanded: true | Record<string, boolean>,
+) {
+  const open = (id: string) => expanded === true || !!expanded[id];
+  return {
+    info: tree.nodes as Map<T, TreeNodeInfo>,
+    // A fresh array: the core row model memoizes on data identity.
+    data: tree.roots.slice(),
+    getSubRows: (row: T): T[] | undefined => {
+      const node = tree.nodes.get(row);
+      return node?.hasChildren && open(node.id) ? node.children : undefined;
+    },
+    getRowId: (row: T, index: number, parent?: { id: string }): string =>
+      tree.nodes.get(row)?.id ?? (parent ? `${parent.id}.${index}` : String(index)),
+  };
+}
+
+/** A tree row's position among its siblings in the consumer's data: the last
+ *  step of its id. TanStack's own `row.index` counts the rows it was handed,
+ *  which under a filter are the kept siblings only. */
+export function sourceIndex(row: { id: string; index: number }): number {
+  const dot = row.id.lastIndexOf(".");
+  const n = Number(dot < 0 ? row.id : row.id.slice(dot + 1));
+  return Number.isInteger(n) ? n : row.index;
 }
