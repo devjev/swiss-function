@@ -6,6 +6,17 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.3.0 — 2026-11-23
+
+### Minor
+
+- Outliner: highlights. `==text==` marks text in yellow, `=={green}text==` in one of six colours (yellow, green, blue, pink, orange, purple), and pasted `^^text^^` reads as yellow. Mod+Shift+H highlights the selection and, pressed again inside a highlight, steps through the colours and then takes it off; `/highlight` picks a colour by name. New tokens `--sf-color-highlight-*` (light and dark, listed in ThemeBuilder). `Markdown` takes `remarkPlugins`, further remark plugins after remark-gfm.
+
+### Patch
+
+- DataTable: a checklist filter tests each row against a Set built once per filtering pass. Unchecking one of 10k distinct values tested every row against a 9,999-entry array; the toggle took 240ms in a production build and now takes 31ms. Tree tables get the same through table-core's `resolveFilterValue`. DataTable and Explorer share the filter tests in `lib/filter`.
+- Outliner: a numbered block's number is its bullet. A numbered block showed a dot and then its number; the number now stands in the bullet's place, is the block's handle (a click zooms, a drag moves) and is tinted when the block is folded. The numbers of a run take the width of the last one, so the texts line up past nine. Entering a numbered block moves nothing: the source's number stands where the bullet's did.
+
 ## v3.2.0 — 2026-11-20
 
 ### Minor
