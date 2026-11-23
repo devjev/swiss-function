@@ -100,3 +100,30 @@ test("Today returns navigation to the current date", async ({ mount }) => {
   const expected = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
   await expect(c.getByTestId("mirror")).toHaveAttribute("data-last-nav", expected);
 });
+
+test("week view: the day columns line up with their headings under a classic scrollbar", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<CalendarHarness defaultView="week" />);
+  // Headless Chromium draws overlay scrollbars, which take no width. A stable
+  // gutter reserves one, as a classic scrollbar does on Windows and Linux.
+  await page.addStyleTag({
+    content: '[class*="weekBody"]{ scrollbar-gutter: stable !important; }',
+  });
+  const edges = (selector: string) =>
+    c.locator(selector).evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.right)];
+      }),
+    );
+  await expect
+    .poll(async () => JSON.stringify(await edges('[class*="weekDayHead"]')))
+    .toBe(JSON.stringify(await edges('[class*="dayColumn"]')));
+  // The gutter is really there: the hour grid is narrower than its scroller.
+  const reserved = await c
+    .locator('[class*="weekBody"]')
+    .evaluate((el) => el.offsetWidth - el.clientWidth);
+  expect(reserved).toBeGreaterThan(0);
+});

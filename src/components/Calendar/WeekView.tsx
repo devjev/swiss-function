@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { addDays, isSameDay, startOfDay, startOfISOWeek } from "../../lib/date";
 import { Pane } from "../Pane";
@@ -59,9 +59,35 @@ export function WeekView({
     if (el) el.scrollTop = el.scrollHeight * (7 / 24);
   }, [weekKey]);
 
+  // The hour grid scrolls under a header that does not. A classic scrollbar
+  // (Windows, most Linux desktops, Firefox with overlay scrollbars off) takes
+  // its width from the grid alone, so the day columns came out narrower than
+  // their headings and drifted left, by the bar's full width at the right
+  // edge. The header's end is padded by the same width. Overlay scrollbars
+  // take none, and the padding stays 0.
+  const [scrollbar, setScrollbar] = useState(0);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => {
+      const s = getComputedStyle(el);
+      const borders =
+        Number.parseFloat(s.borderInlineStartWidth) + Number.parseFloat(s.borderInlineEndWidth);
+      setScrollbar(Math.max(0, el.offsetWidth - el.clientWidth - borders));
+    };
+    measure();
+    // The content box narrows when a scrollbar appears, which fires this.
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
     <Pane className={styles.week}>
-      <Pane.Header className={styles.weekHead}>
+      <Pane.Header
+        className={styles.weekHead}
+        style={scrollbar > 0 ? { paddingInlineEnd: scrollbar } : undefined}
+      >
         <div className={styles.weekHeadRow}>
           <div className={styles.timeGutterHead} aria-hidden="true" />
           {days.map((day) => {
