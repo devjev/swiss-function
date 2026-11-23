@@ -124,6 +124,33 @@ test("week view: the day columns line up with their headings under a classic scr
   // The gutter is really there: the hour grid is narrower than its scroller.
   const reserved = await c
     .locator('[class*="weekBody"]')
-    .evaluate((el) => el.offsetWidth - el.clientWidth);
+    .evaluate((el) => (el as HTMLElement).offsetWidth - el.clientWidth);
   expect(reserved).toBeGreaterThan(0);
+});
+
+test("week view: a short event shows its time whole, and the all-day label keeps one line", async ({
+  mount,
+}) => {
+  const c = await mount(<CalendarHarness defaultView="week" shortEvent />);
+  // Standup runs 09:00-09:15: one line tall, its time inside the block.
+  const standup = c.locator('button[title="Standup"]').first();
+  const fit = await standup.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const time = (el.querySelector('[class*="blockTime"]') as HTMLElement).getBoundingClientRect();
+    return {
+      height: box.height,
+      inside: time.top >= box.top - 0.5 && time.bottom <= box.bottom + 0.5,
+    };
+  });
+  expect(fit.height).toBeGreaterThanOrEqual(20);
+  expect(fit.inside).toBe(true);
+  await expect(standup).toContainText("09:00");
+  await expect(standup).toContainText("Standup");
+  const label = c.locator('[class*="allDayLabel"]');
+  const lines = await label.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    return range.getClientRects().length;
+  });
+  expect(lines).toBe(1);
 });

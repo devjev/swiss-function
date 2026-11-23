@@ -3,6 +3,7 @@ import {
   type CalendarEvent,
   dayEventCount,
   eventOccursOnDay,
+  HOUR_UNITS,
   lastDay,
   layoutDay,
   layoutWeekRow,
@@ -131,6 +132,34 @@ describe("layoutDay: overlap columns", () => {
     const out = layoutDay([e], day);
     expect(out[0]?.top).toBe(0);
     expect(out[0]?.height).toBeCloseTo(2 / 24);
+  });
+});
+
+describe("layoutDay: short events", () => {
+  const day = new Date(2026, 2, 10);
+  const at = (id: string, h: number, m1: number, m2: number): CalendarEvent => ({
+    id,
+    title: id,
+    start: new Date(2026, 2, 10, h, m1),
+    end: new Date(2026, 2, 10, h, m2),
+  });
+  // One unit, the height of a line of text, as a fraction of the day.
+  const oneLine = 1 / (24 * HOUR_UNITS);
+
+  it("draws a 15-minute event one line tall", () => {
+    const [block] = layoutDay([at("s", 9, 0, 15)], day);
+    expect(block?.height).toBeCloseTo(oneLine);
+  });
+
+  it("sets two short events in a row side by side, so neither covers the other", () => {
+    const out = layoutDay([at("a", 9, 0, 15), at("b", 9, 15, 30)], day);
+    expect(pick(out, "a").column).not.toBe(pick(out, "b").column);
+    expect(new Set(out.map((b) => b.columns))).toEqual(new Set([2]));
+  });
+
+  it("keeps an event longer than a line at its own height", () => {
+    const [block] = layoutDay([at("h", 9, 0, 59)], day);
+    expect(block?.height).toBeCloseTo(59 / (24 * 60));
   });
 });
 

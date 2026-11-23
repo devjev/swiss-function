@@ -7,11 +7,13 @@ import styles from "./Calendar.module.css";
 import {
   type CalendarEvent,
   dayDelta,
+  HOUR_UNITS,
   lastDay,
   layoutDay,
   layoutWeekRow,
   type RowBar,
   type TimedBlock,
+  TWO_LINE_BLOCK,
   timedEnd,
   weekdayLabels,
 } from "./calendarLayout";
@@ -56,7 +58,9 @@ export function WeekView({
   // biome-ignore lint/correctness/useExhaustiveDependencies: weekKey is the re-run trigger, not an input; the effect resets the scroll each time the week changes, it doesn't read it.
   useEffect(() => {
     const el = bodyRef.current;
-    if (el) el.scrollTop = el.scrollHeight * (7 / 24);
+    // Half a unit above the 07:00 line, so its label, which sits across the
+    // line, is not cut by the top edge.
+    if (el) el.scrollTop = (el.scrollHeight / 24) * (7 - 0.5 / HOUR_UNITS);
   }, [weekKey]);
 
   // The hour grid scrolls under a header that does not. A classic scrollbar
@@ -231,10 +235,9 @@ function TimedBlockView({
   const { event } = block;
   const gap = 2; // px between side-by-side columns
   const widthPct = 100 / block.columns;
-  // A block under ~40 min is too short for two lines: show the title inline with
-  // the time, and drop it entirely when even that won't fit (~20 min).
-  const tiny = block.height < 0.028;
-  const compact = block.height < 0.045;
+  // Too short for two lines (under ~90 min): the title follows the time on
+  // one line and takes what room is left.
+  const compact = block.height < TWO_LINE_BLOCK;
   return (
     <button
       type="button"
@@ -256,9 +259,9 @@ function TimedBlockView({
         <>
           <span className={styles.blockTime}>
             {hhmm(event.start)}
-            {event.end ? `-${hhmm(timedEnd(event))}` : ""}
+            {event.end ? <span className={styles.blockEnd}>-{hhmm(timedEnd(event))}</span> : null}
           </span>
-          {!tiny && <span className={styles.blockTitle}>{event.title}</span>}
+          <span className={styles.blockTitle}>{event.title}</span>
         </>
       )}
     </button>

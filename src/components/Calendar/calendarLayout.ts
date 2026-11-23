@@ -47,9 +47,21 @@ export function weekdayLabels(format: "short" | "narrow" = "short"): string[] {
  *  visible block in the hour grid. */
 const DEFAULT_EVENT_MINUTES = 30;
 const DAY_MS = 86_400_000;
-/** Smallest drawn block height, as a fraction of the day (~15 min), so a
- *  zero-length event stays grabbable. */
-const MIN_BLOCK = 15 / (24 * 60);
+/** An hour row's height in units: `--cal-hour-h` in Calendar.module.css. */
+export const HOUR_UNITS = 1.75;
+
+/** A height in units as a fraction of the day. */
+const unitsOfDay = (units: number) => units / (24 * HOUR_UNITS);
+
+/** Smallest drawn block: one line of text (one unit, ~34 min), so a short
+ *  event shows its time instead of a clipped sliver. A short event also
+ *  counts this long when blocks are laid side by side, so two of them in a
+ *  row sit in two columns instead of one covering the other. */
+const MIN_BLOCK = unitsOfDay(1);
+
+/** The height under which a block sets its time and title on one line: two
+ *  lines take two units plus the block's padding and borders. */
+export const TWO_LINE_BLOCK = unitsOfDay(2.6);
 
 /** Resolved end instant of a timed event (never mutates the event). */
 export function timedEnd(event: CalendarEvent): Date {

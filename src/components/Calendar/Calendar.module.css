@@ -1,8 +1,10 @@
 .root {
   --cal-bar-h: calc(var(--sf-unit) - 2px);
   --cal-date-band: var(--sf-unit);
+  /* HOUR_UNITS in calendarLayout.ts: the block sizes are measured in it. */
   --cal-hour-h: calc(var(--sf-unit) * 1.75);
-  --cal-gutter: calc(var(--sf-unit) * 2);
+  /* Holds the "all-day" label on one line at either density. */
+  --cal-gutter: calc(var(--sf-unit) * 2.5);
   --cal-weeknum: calc(var(--sf-unit) * 1.5);
 
   display: grid;
@@ -324,6 +326,7 @@
   padding-inline-end: calc(var(--sf-unit) / 2);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
+  white-space: nowrap;
   border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
@@ -400,12 +403,17 @@
   gap: 1px;
   padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
   min-block-size: 0;
+  /* The time drops its end where the block is too narrow (see .blockEnd). */
+  container-type: inline-size;
 }
+/* One line: the time, then the title in what room is left. The shortest
+   block is one unit; its line fits inside the 1px borders. */
 .blockTiny {
   flex-direction: row;
   align-items: baseline;
   gap: calc(var(--sf-unit) / 2);
   padding-block: 0;
+  line-height: calc(var(--sf-unit) - 2px);
 }
 .blockTime {
   font-family: var(--sf-font-mono);
@@ -413,6 +421,23 @@
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   flex: none;
+  white-space: nowrap;
+}
+/* A side-by-side column too narrow for "09:00-09:15" shows "09:00": the
+   end wrapped onto a second line, or was cut off. The query measures the
+   block's content box, inside its padding and rules; the full time takes
+   75px of it at the compact density and 87px at the comfortable one. In
+   rem: an em in a container query resolves against the initial font size,
+   not the block's small text. */
+@container (inline-size < 5.75rem) {
+  .blockEnd {
+    display: none;
+  }
+}
+/* On one line the title needs the room more than the end: the block's
+   height already shows how long the event runs. */
+.blockTiny .blockEnd {
+  display: none;
 }
 .blockTitle {
   font-size: var(--sf-font-size-sm);

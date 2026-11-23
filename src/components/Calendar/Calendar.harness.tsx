@@ -19,7 +19,21 @@ export const HARNESS_EVENTS: CalendarEvent[] = [
  * attributes on a probe element the spec reads. Uncontrolled by default so the
  * spec can drive navigation and view switching through the real UI.
  */
-export function CalendarHarness({ events = HARNESS_EVENTS, ...props }: Partial<CalendarProps>) {
+/** A 15-minute event, for the short-block layout (opt-in, so the other
+ *  specs' counts stay as they are). */
+const STANDUP: CalendarEvent = {
+  id: "standup",
+  title: "Standup",
+  start: at(11, 9, 0),
+  end: at(11, 9, 15),
+};
+
+export function CalendarHarness({
+  events: given = HARNESS_EVENTS,
+  shortEvent = false,
+  ...props
+}: Partial<CalendarProps> & { shortEvent?: boolean }) {
+  const events = shortEvent ? [...given, STANDUP] : given;
   const [lastEvent, setLastEvent] = useState("");
   const [lastDate, setLastDate] = useState("");
   const [lastView, setLastView] = useState("");

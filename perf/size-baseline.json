@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-23T14:10:15.489Z"
+    "date": "2026-11-23T14:21:06.044Z"
   },
-  "totalGzip": 2350624,
+  "totalGzip": 2351282,
   "entries": {
     ".": {
       "files": 390,
-      "jsRaw": 1818656,
-      "jsGzip": 533887,
+      "jsRaw": 1819794,
+      "jsGzip": 534216,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 533887,
+      "gzip": 534216,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -281,11 +281,11 @@
     },
     "./calendar": {
       "files": 23,
-      "jsRaw": 60140,
-      "jsGzip": 19182,
+      "jsRaw": 61278,
+      "jsGzip": 19511,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 19182,
+      "gzip": 19511,
       "externals": [
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
