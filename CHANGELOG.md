@@ -6,6 +6,19 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.4.0 — 2026-11-23
+
+### Minor
+
+- Text links take their own tokens, the text and the decoration apart: --sf-link-color, -font-weight, -font-style, -decoration-line, -decoration-style, -decoration-color, -decoration-thickness, -underline-offset and three hover tokens, with a set per kind (wiki links, #tags, external links) that falls back to the base. By default a link is set in the text colour around it under a thin accent rule, an external link carries a ↗ marker, a #tag reads as accent text without a rule, and a focused link shows the focus ring (#109).
+
+### Patch
+
+- Calendar: in the week view the day columns line up with their headings under a classic scrollbar (Windows, most Linux desktops); the hour grid's scrollbar had narrowed the columns alone.
+- Calendar week view: the all-day label keeps one line; an event shorter than a line of text is drawn one line tall, with its start time and title, and two such events in a row sit side by side; a narrow event shows its start time alone instead of wrapping the range; the view opens with the 07:00 label whole.
+- DataTable: a tree table's column filters reach every level. A row stays when it or a descendant matches, the path to a match shows open while the filter is active (the expanded state is left as it was), and a text column's checklist lists the values of every level (#108).
+- DataTable and Explorer: a click inside a column's filter popover no longer sorts that column (toggling a value re-sorted the table).
+
 ## v3.3.0 — 2026-11-23
 
 ### Minor
