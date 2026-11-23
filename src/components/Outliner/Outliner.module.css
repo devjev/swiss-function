@@ -787,25 +787,21 @@
   }
 }
 
-/* Wiki link: a clickable inline button styled as a link. */
+/* Wiki link and tag: an inline button with the look of a link. Its colour
+   and rule come from the link tokens, by its `data-link` kind (see
+   Markdown.module.css, issue #109); this resets the button alone. */
 .wikiLink {
   display: inline;
   padding: 0;
   background: none;
   border: none;
-  color: var(--sf-color-primary);
   font: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.wikiLink:hover {
-  color: var(--sf-color-primary-hover);
 }
 
 /* Highlighter mark (==text==, issue #107): the colour's token as the
-   background, and everything inside in ink, links and tags too, which keep
-   their underline: the dark accent reads only 2.5:1 on a dark mark. The
+   background, and everything inside in ink, links and tags too, their rule
+   in the ink as well: the dark accent reads only 2.5:1 on a dark mark. The
    padding is horizontal only, so the line keeps its unit. */
 .root :global(mark[data-highlight]) {
   padding: 0 calc(var(--sf-unit) / 8);
@@ -830,10 +826,10 @@
 .root :global(mark[data-highlight="purple"]) {
   background-color: var(--sf-color-highlight-purple);
 }
-.root :global(mark[data-highlight] a),
-.root :global(mark[data-highlight]) .wikiLink,
-.root :global(mark[data-highlight]) .wikiLink:hover {
+/* Any link kind, at rest and on hover; beats the link rules on specificity. */
+.root :global(mark[data-highlight]) :is(a, [data-link]) {
   color: var(--sf-color-fg);
+  text-decoration-color: currentColor;
 }
 
 /* Block reference: an inline-block quoted card with a left rule. */

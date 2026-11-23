@@ -351,6 +351,14 @@ These are not suggestions.
   small disc or cap must land on a whole pixel). In JS, read the unit with
   `useCssPx(ref, "var(--sf-unit)", DEFAULT_UNIT_PX)` from `lib/useCssPx`
   instead of assuming 24 or 20.
+- **Links**: a text link is styled from the `--sf-link-*` tokens, the text
+  (`-color`, `-font-weight`, `-font-style`) and the decoration
+  (`-decoration-line`, `-decoration-style`, `-decoration-color`,
+  `-decoration-thickness`, `-underline-offset`, plus `-hover-*`) apart, with
+  a set per kind (`--sf-link-wiki-*`, `--sf-link-tag-*`,
+  `--sf-link-external-*`) falling back to the base. Set them on any ancestor
+  to restyle links; never out-specify `.rendered a`. See docs/API.md →
+  Markdown → Text links.
 - **Motion**: `var(--sf-duration-fast)` / `-base` / `-slow` with
   `--sf-ease-out` or `--sf-ease-in-out`.
 - **Elevation**: `var(--sf-elevation-N)` for surface depth, including

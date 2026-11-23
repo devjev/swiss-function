@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { CSSProperties } from "react";
 import { OutlinerHarness } from "./Outliner.harness";
 import type { OutlinerValue } from "./types";
 
@@ -757,6 +758,26 @@ test("#tags render as links", async ({ mount }) => {
   const component = await mount(<OutlinerHarness initial={initial} />);
   await expect(component.getByRole("button", { name: "#project" })).toBeVisible();
   await expect(component.getByRole("button", { name: "#Two Words" })).toBeVisible();
+});
+
+test("a tag reads as a label and takes its own link tokens (#109)", async ({ mount }) => {
+  const initial: OutlinerValue = [{ id: "1", content: "plan #project for [[Page A]]" }];
+  const component = await mount(
+    <div style={{ "--sf-link-tag-color": "rgb(0, 120, 0)" } as CSSProperties}>
+      <OutlinerHarness initial={initial} />
+    </div>,
+  );
+  const style = (name: string) =>
+    component.getByRole("button", { name }).evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { kind: el.getAttribute("data-link"), color: s.color, line: s.textDecorationLine };
+    });
+  const tag = await style("#project");
+  const wiki = await style("Page A");
+  expect(tag).toEqual({ kind: "tag", color: "rgb(0, 120, 0)", line: "none" });
+  expect(wiki.kind).toBe("wiki");
+  expect(wiki.line).toBe("underline");
+  expect(wiki.color).not.toBe("rgb(0, 120, 0)");
 });
 
 test("[[ opens the page list; the arrows choose and Enter completes", async ({ mount, page }) => {

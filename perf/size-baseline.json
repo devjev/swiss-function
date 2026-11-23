@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-23T13:57:45.742Z"
+    "date": "2026-11-23T14:10:15.489Z"
   },
-  "totalGzip": 2350235,
+  "totalGzip": 2350624,
   "entries": {
     ".": {
       "files": 390,
-      "jsRaw": 1818502,
-      "jsGzip": 533826,
+      "jsRaw": 1818656,
+      "jsGzip": 533887,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 533826,
+      "gzip": 533887,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -66,9 +66,9 @@
       "files": 1,
       "jsRaw": 0,
       "jsGzip": 0,
-      "cssRaw": 35229,
-      "cssGzip": 10594,
-      "gzip": 10594,
+      "cssRaw": 36037,
+      "cssGzip": 10858,
+      "gzip": 10858,
       "externals": []
     },
     "./reset.css": {
@@ -841,11 +841,11 @@
     },
     "./outliner": {
       "files": 44,
-      "jsRaw": 174688,
-      "jsGzip": 51973,
+      "jsRaw": 174842,
+      "jsGzip": 52034,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 51973,
+      "gzip": 52034,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/popover",
@@ -859,11 +859,11 @@
     },
     "./outliner-blocks": {
       "files": 92,
-      "jsRaw": 343954,
-      "jsGzip": 101881,
+      "jsRaw": 343952,
+      "jsGzip": 101884,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 101881,
+      "gzip": 101884,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

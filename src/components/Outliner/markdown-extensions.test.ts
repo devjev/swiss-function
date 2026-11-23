@@ -71,15 +71,13 @@ describe("preprocessOutlinerMarkdown", () => {
 
   it("turns a #tag into a wiki link that keeps its hash", () => {
     expect(pre("note #project and #área/sub-1")).toBe(
-      "note [#project](wiki:project) and [#área/sub-1](wiki:%C3%A1rea%2Fsub-1)",
+      "note [#project](tag:project) and [#área/sub-1](tag:%C3%A1rea%2Fsub-1)",
     );
-    expect(pre("#start")).toBe("[#start](wiki:start)");
+    expect(pre("#start")).toBe("[#start](tag:start)");
   });
 
   it("takes #[[Two Words]] as one tag", () => {
-    expect(pre("see #[[Project Alpha]] now")).toBe(
-      "see [#Project Alpha](wiki:Project%20Alpha) now",
-    );
+    expect(pre("see #[[Project Alpha]] now")).toBe("see [#Project Alpha](tag:Project%20Alpha) now");
   });
 
   it("leaves headings, hashes inside words and URL fragments alone", () => {

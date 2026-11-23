@@ -1,5 +1,5 @@
 import type { Story } from "@ladle/react";
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { Markdown } from "./Markdown";
 
 const SAMPLE = `# Heading 1
@@ -40,6 +40,37 @@ function greet(name: string) {
 export const Rendered: Story = () => (
   <div style={{ maxWidth: "calc(var(--sf-unit) * 28)" }}>
     <Markdown value={SAMPLE} />
+  </div>
+);
+
+const LINKS = `A [link inside the app](/settings) and [one that leaves it](https://example.com).
+Mail goes to [the desk](mailto:desk@example.com).
+
+**A link in [bold text](/bold) stays bold**, and _one in [italics](/italic) stays italic_.
+`;
+
+const RESTYLED = {
+  "--sf-link-color": "var(--sf-color-primary)",
+  "--sf-link-decoration-style": "dotted",
+  "--sf-link-decoration-color": "currentColor",
+  "--sf-link-external-marker": "none",
+  "--sf-link-hover-decoration-thickness": "2px",
+} as CSSProperties;
+
+/** Text links take their own tokens for the text and the decoration
+ *  (issue #109). The second panel sets five of them on its wrapper. */
+export const Links: Story = () => (
+  <div
+    style={{
+      display: "grid",
+      gap: "calc(var(--sf-unit) * 2)",
+      maxWidth: "calc(var(--sf-unit) * 28)",
+    }}
+  >
+    <Markdown value={LINKS} />
+    <div style={RESTYLED}>
+      <Markdown value={LINKS} />
+    </div>
   </div>
 );
 

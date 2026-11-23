@@ -91,6 +91,18 @@
     --sf-focus-ring-width: 2px;
     --sf-color-overlay: rgb(0 0 0 / 0.4);
 
+    /* Text links (issue #109): --sf-link-color, -font-weight, -font-style,
+       -decoration-line, -decoration-style, -decoration-color,
+       -decoration-thickness, -underline-offset, -hover-color,
+       -hover-decoration-color and -hover-decoration-thickness, and the same
+       set per kind (--sf-link-wiki-*, --sf-link-tag-*, --sf-link-external-*,
+       plus --sf-link-external-marker). Like --sf-focus-ring-offset they have
+       NO global value on purpose: the link rule in Markdown.module.css reads
+       each at the link with its default as the fallback, so a value set on
+       any ancestor applies below it and a kind follows the base. A value
+       declared here would resolve once, at the root, and a panel that sets
+       --sf-link-color would not reach the hover or kind tokens. */
+
     /* Color — code syntax (CodeEditor). Deliberately monochrome: no syntax
        rainbow. Roles separate by WEIGHT (bold) and SLANT (italic), with the
        single brand accent for keywords/tags/links — everything else is fg,

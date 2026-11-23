@@ -2232,6 +2232,55 @@ Rendered Markdown (react-markdown + GFM) with optional double-click edit mode an
 | `inline` | `boolean` | `false` | `<span>` wrappers, flattened paragraphs; editing unsupported. |
 | `measured` | `boolean` | `false` | Cap prose to `--sf-measure`. `<Prose>` sets this. |
 
+### Text links
+
+Every text link the library renders (Markdown, and through it Prose, Chat,
+StreamingTerminalText, Notebook prose and the Outliner) is styled from link
+tokens, the text and the decoration apart (issue #109). None is declared in
+`tokens.css`: each is read at the link with its default as the fallback, so
+a token set on any ancestor (`:root`, a panel, a theme scope) applies below
+it. By default a link is set in the text colour around it, under a thin
+accent rule; hover thickens the rule.
+
+| Token | Sets | Default |
+| --- | --- | --- |
+| `--sf-link-color` | Text colour | `currentColor` (the text around the link) |
+| `--sf-link-font-weight` | Weight | inherited |
+| `--sf-link-font-style` | Style | inherited |
+| `--sf-link-decoration-line` | `underline`, `none`, `overline`, `line-through` | `underline` |
+| `--sf-link-decoration-style` | `solid`, `dotted`, `dashed`, `wavy`, `double` | `solid` |
+| `--sf-link-decoration-color` | Decoration colour | `--sf-color-primary` |
+| `--sf-link-decoration-thickness` | Rule weight | `1px` |
+| `--sf-link-underline-offset` | Gap under the baseline | `0.2em` |
+| `--sf-link-hover-color` | Text colour on hover | the rest colour |
+| `--sf-link-hover-decoration-color` | Decoration colour on hover | the rest colour |
+| `--sf-link-hover-decoration-thickness` | Rule weight on hover | the rest weight + 1px |
+
+Three kinds read their own set, `--sf-link-<kind>-<property>` with each
+property above (`--sf-link-tag-color`, `--sf-link-external-hover-color`, …),
+which falls back to the base token; a kind's hover falls back to the base
+hover, then to the kind's rest value.
+
+| Kind | Which links | Default |
+| --- | --- | --- |
+| `wiki` | The Outliner's `[[wiki links]]` | As the base. |
+| `tag` | The Outliner's `#tags` | Accent text, no decoration (`--sf-link-tag-decoration-line: none`); `--sf-color-primary-hover` on hover. |
+| `external` | A link whose `href` starts with `http:`, `https:` or `mailto:` | As the base, followed by a `↗` marker in the link's face and colour. `--sf-link-external-marker` sets the marker's text; `none` hides it. |
+
+A focused link shows the library's focus ring. Inside an Outliner highlight a
+link stays in the ink, its rule too, whatever the tokens say: the accent reads
+2.5:1 on a dark mark.
+
+```css
+/* Accent links with a dotted rule, and no marker on external links. */
+:root {
+  --sf-link-color: var(--sf-color-primary);
+  --sf-link-decoration-style: dotted;
+  --sf-link-decoration-color: currentColor;
+  --sf-link-external-marker: none;
+}
+```
+
 ## Menu
 
 `import { Menu } from "@tarassov-ch/swiss-function/menu"`
@@ -2704,8 +2753,9 @@ progress (the checkbox shows its mixed state; a click, or Mod+Enter, completes
 it) and `[-] ` a cancelled one (a cross in the checkbox's place and the text
 struck out; a click reopens it). A block whose direct children include tasks
 shows a count at its end, `2/5`: done over open, in progress and done;
-cancelled tasks count for neither. `#name` and `#[[Two Words]]` render as wiki
-links and report through `onWikiLinkClick` with the name.
+cancelled tasks count for neither. `#name` and `#[[Two Words]]` render as tags
+(accent text, no rule; the `tag` link kind, see Markdown → Text links) and
+report through `onWikiLinkClick` with the name.
 
 **Highlights.** `==text==` is a highlight in the default colour, yellow;
 `=={green}text==` names one of `yellow`, `green`, `blue`, `pink`, `orange` and

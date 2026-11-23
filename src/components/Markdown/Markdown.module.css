@@ -88,13 +88,149 @@
   margin-block-start: var(--sf-prose-list-item-spacing);
 }
 
-.rendered a {
-  color: var(--sf-color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* --- Text links (issue #109) ---------------------------------------------
+   The text and the decoration take separate tokens (--sf-link-*), and three
+   kinds take their own (--sf-link-wiki-*, --sf-link-tag-*,
+   --sf-link-external-*), each falling back to the base token. Every token is
+   read here, at the link, with its default as the last fallback: a token set
+   on any ancestor applies below it, and the theme swap needs no second
+   declaration. The private --_link-* hold the resolved values that the rest
+   and hover rules apply. A kind rule redefines them; hover falls back to
+   the base hover token, then to the kind's rest value. The Outliner marks
+   its wiki-link and tag buttons with `data-link`. */
+.rendered :is(a, [data-link]) {
+  --_link-color: var(--sf-link-color, currentColor);
+  --_link-line: var(--sf-link-decoration-line, underline);
+  --_link-style: var(--sf-link-decoration-style, solid);
+  --_link-rule: var(--sf-link-decoration-color, var(--sf-color-primary));
+  --_link-thickness: var(--sf-link-decoration-thickness, 1px);
+  --_link-offset: var(--sf-link-underline-offset, 0.2em);
+  --_link-hover-color: var(--sf-link-hover-color, var(--_link-color));
+  --_link-hover-rule: var(--sf-link-hover-decoration-color, var(--_link-rule));
+  --_link-hover-thickness: var(
+    --sf-link-hover-decoration-thickness,
+    calc(var(--_link-thickness) + 1px)
+  );
+  color: var(--_link-color);
+  font-weight: var(--sf-link-font-weight, inherit);
+  font-style: var(--sf-link-font-style, inherit);
+  text-decoration-line: var(--_link-line);
+  text-decoration-style: var(--_link-style);
+  text-decoration-color: var(--_link-rule);
+  text-decoration-thickness: var(--_link-thickness);
+  text-underline-offset: var(--_link-offset);
+  /* A rule that would cut through descenders skips them. */
+  text-decoration-skip-ink: auto;
 }
-.rendered a:hover {
-  color: var(--sf-color-primary-hover);
+
+.rendered [data-link="wiki"] {
+  --_link-color: var(--sf-link-wiki-color, var(--sf-link-color, currentColor));
+  --_link-line: var(--sf-link-wiki-decoration-line, var(--sf-link-decoration-line, underline));
+  --_link-style: var(--sf-link-wiki-decoration-style, var(--sf-link-decoration-style, solid));
+  --_link-rule: var(
+    --sf-link-wiki-decoration-color,
+    var(--sf-link-decoration-color, var(--sf-color-primary))
+  );
+  --_link-thickness: var(
+    --sf-link-wiki-decoration-thickness,
+    var(--sf-link-decoration-thickness, 1px)
+  );
+  --_link-offset: var(--sf-link-wiki-underline-offset, var(--sf-link-underline-offset, 0.2em));
+  --_link-hover-color: var(
+    --sf-link-wiki-hover-color,
+    var(--sf-link-hover-color, var(--_link-color))
+  );
+  --_link-hover-rule: var(
+    --sf-link-wiki-hover-decoration-color,
+    var(--sf-link-hover-decoration-color, var(--_link-rule))
+  );
+  --_link-hover-thickness: var(
+    --sf-link-wiki-hover-decoration-thickness,
+    var(--sf-link-hover-decoration-thickness, calc(var(--_link-thickness) + 1px))
+  );
+  font-weight: var(--sf-link-wiki-font-weight, var(--sf-link-font-weight, inherit));
+  font-style: var(--sf-link-wiki-font-style, var(--sf-link-font-style, inherit));
+}
+
+/* A tag reads as a label: accent text, no rule. */
+.rendered [data-link="tag"] {
+  --_link-color: var(--sf-link-tag-color, var(--sf-color-primary));
+  --_link-line: var(--sf-link-tag-decoration-line, none);
+  --_link-style: var(--sf-link-tag-decoration-style, var(--sf-link-decoration-style, solid));
+  --_link-rule: var(
+    --sf-link-tag-decoration-color,
+    var(--sf-link-decoration-color, var(--sf-color-primary))
+  );
+  --_link-thickness: var(
+    --sf-link-tag-decoration-thickness,
+    var(--sf-link-decoration-thickness, 1px)
+  );
+  --_link-offset: var(--sf-link-tag-underline-offset, var(--sf-link-underline-offset, 0.2em));
+  --_link-hover-color: var(
+    --sf-link-tag-hover-color,
+    var(--sf-link-hover-color, var(--sf-color-primary-hover))
+  );
+  --_link-hover-rule: var(
+    --sf-link-tag-hover-decoration-color,
+    var(--sf-link-hover-decoration-color, var(--_link-rule))
+  );
+  --_link-hover-thickness: var(
+    --sf-link-tag-hover-decoration-thickness,
+    var(--sf-link-hover-decoration-thickness, calc(var(--_link-thickness) + 1px))
+  );
+  font-weight: var(--sf-link-tag-font-weight, var(--sf-link-font-weight, inherit));
+  font-style: var(--sf-link-tag-font-style, var(--sf-link-font-style, inherit));
+}
+
+/* A link that leaves the app. */
+.rendered a:is([href^="http:"], [href^="https:"], [href^="mailto:"]) {
+  --_link-color: var(--sf-link-external-color, var(--sf-link-color, currentColor));
+  --_link-line: var(--sf-link-external-decoration-line, var(--sf-link-decoration-line, underline));
+  --_link-style: var(--sf-link-external-decoration-style, var(--sf-link-decoration-style, solid));
+  --_link-rule: var(
+    --sf-link-external-decoration-color,
+    var(--sf-link-decoration-color, var(--sf-color-primary))
+  );
+  --_link-thickness: var(
+    --sf-link-external-decoration-thickness,
+    var(--sf-link-decoration-thickness, 1px)
+  );
+  --_link-offset: var(--sf-link-external-underline-offset, var(--sf-link-underline-offset, 0.2em));
+  --_link-hover-color: var(
+    --sf-link-external-hover-color,
+    var(--sf-link-hover-color, var(--_link-color))
+  );
+  --_link-hover-rule: var(
+    --sf-link-external-hover-decoration-color,
+    var(--sf-link-hover-decoration-color, var(--_link-rule))
+  );
+  --_link-hover-thickness: var(
+    --sf-link-external-hover-decoration-thickness,
+    var(--sf-link-hover-decoration-thickness, calc(var(--_link-thickness) + 1px))
+  );
+  font-weight: var(--sf-link-external-font-weight, var(--sf-link-font-weight, inherit));
+  font-style: var(--sf-link-external-font-style, var(--sf-link-font-style, inherit));
+}
+
+/* The marker after an external link: a character in the link's own face
+   and colour. Inline-block, so the link's rule does not run under it. */
+.rendered a:is([href^="http:"], [href^="https:"], [href^="mailto:"])::after {
+  content: var(--sf-link-external-marker, "\2197");
+  display: inline-block;
+  margin-inline-start: 0.1em;
+  text-decoration: none;
+}
+
+.rendered :is(a, [data-link]):hover {
+  color: var(--_link-hover-color);
+  text-decoration-color: var(--_link-hover-rule);
+  text-decoration-thickness: var(--_link-hover-thickness);
+}
+
+.rendered :is(a, [data-link]):focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+  border-radius: var(--sf-radius-default);
 }
 
 .rendered :where(strong, b) {

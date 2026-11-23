@@ -2002,12 +2002,19 @@ function buildOutlinerComponents(opts: BuildComponentsOpts): Components {
       if (typeof href === "string" && href.startsWith("date:")) {
         return <DueChip date={href.slice("date:".length)} />;
       }
-      if (typeof href === "string" && href.startsWith("wiki:")) {
-        const name = decodeURIComponent(href.slice("wiki:".length));
+      // A wiki link or a tag (issue #109): both open the page by name, and
+      // `data-link` gives each its own link tokens (see Markdown.module.css).
+      const kind =
+        typeof href === "string" && (href.startsWith("wiki:") || href.startsWith("tag:"))
+          ? href.slice(0, href.indexOf(":"))
+          : null;
+      if (kind && typeof href === "string") {
+        const name = decodeURIComponent(href.slice(kind.length + 1));
         return (
           <button
             type="button"
             className={styles.wikiLink}
+            data-link={kind}
             onClick={(e) => {
               e.stopPropagation();
               opts.onWikiLinkClick?.(name);

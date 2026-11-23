@@ -408,14 +408,15 @@ export const WikiLinks: Story = () => {
   const [value, setValue] = useState<OutlinerValue>([
     { id: "1", content: "Meeting notes, see [[Project Alpha]] and [[Daily/2026-06-03]]" },
     { id: "2", content: "Backlog references [[Project Alpha]]" },
-    { id: "3", content: "Random thought" },
+    { id: "3", content: "Random thought, filed under #ideas and #[[Next Quarter]]" },
+    { id: "4", content: "Source: [the vendor's notes](https://example.com/notes)" },
   ]);
   const [log, setLog] = useState<string[]>([]);
   const onWikiLinkClick = useCallback((name: string) => setLog((l) => [...l, name]), []);
   return (
     <div style={frame}>
       <Note>
-        Click a wiki link to log its name. A click on the text around it enters the block.
+        Click a wiki link or a tag to log its name. A click on the text around it enters the block.
       </Note>
       <Outliner value={value} onChange={setValue} onWikiLinkClick={onWikiLinkClick} />
       <pre style={{ fontSize: "var(--sf-font-size-sm)" }}>clicks: {log.join(", ")}</pre>

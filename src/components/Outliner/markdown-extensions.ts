@@ -1,7 +1,8 @@
 /**
  * Outliner-flavor markdown:
  * - `[[Name]]` → wiki link (custom click handler)
- * - `#name` and `#[[Two Words]]` → a tag, which is a wiki link to that name
+ * - `#name` and `#[[Two Words]]` → a tag: a link to that name with the `tag:`
+ *   scheme, so it renders as a tag (issue #109) and opens like a wiki link
  * - `((bullet-id))` → transcluded block reference (consumer-resolved)
  * - `@2026-11-25` → a due date, shown as a chip
  * - `$x$` and any other span a registered block type declares (`inline`) →
@@ -164,8 +165,8 @@ export function preprocessOutlinerMarkdown(
   // formula is not a highlight's business.
   return holdEscapedDelimiters(markInline(source, inline))
     .replace(WIKI_RE, (_, name) => `[${name}](wiki:${encodeURIComponent(name)})`)
-    .replace(BRACKET_TAG_RE, (_, name) => `[#${name}](wiki:`)
-    .replace(TAG_RE, (_, name) => `[#${name}](wiki:${encodeURIComponent(name)})`)
+    .replace(BRACKET_TAG_RE, (_, name) => `[#${name}](tag:`)
+    .replace(TAG_RE, (_, name) => `[#${name}](tag:${encodeURIComponent(name)})`)
     .replace(BLOCK_RE, (_, id) => `\`block-ref:${id}\``)
     .replace(DATE_RE, (_, date) => `[${date}](date:${date})`);
 }
@@ -173,5 +174,5 @@ export function preprocessOutlinerMarkdown(
 export const MAX_TRANSCLUSION_DEPTH = 8;
 
 /** Allow any URL scheme (react-markdown sanitizes unknown schemes by default,
- *  which strips our `wiki:` links). */
+ *  which strips our `wiki:` and `tag:` links). */
 export const passthroughUrlTransform = (url: string): string => url;
