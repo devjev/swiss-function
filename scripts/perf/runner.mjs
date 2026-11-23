@@ -135,70 +135,125 @@ export async function stopFrameSampler(frame) {
   return deltas.length > 1 ? deltas.slice(1) : deltas;
 }
 
-/** Measure input→paint for one discrete interaction: arm a double-rAF paint
- *  timer, run `dispatch()` (Playwright input), read the delta back. Returns
- *  milliseconds, or null if nothing painted within 2s. */
-export async function measureInteraction(frame, dispatch) {
-  // Load-bearing settle: while headless Chromium's frame clock is "hot" (a
-  // recent measurement or animation keeps vsync-aligned BeginFrames coming),
-  // both armed rAFs wait for 60Hz ticks and the metric absorbs a full extra
-  // vsync (~+16.7ms) regardless of app cost — a chained measurement reads
-  // ~30ms for ~3ms of real work. After ~250ms of frame idleness the scheduler
-  // issues immediate on-demand BeginFrames and the double-rAF closes right
-  // after the interaction's actual paint (~13ms floor). Verified with a no-op
-  // dispatch in the hoverMove slot: hot 30.1ms vs cold ~13.5ms (2026-07-04,
-  // issues #8/#9 residual investigation).
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  await frame.evaluate(() => {
-    window.__interactionStart = performance.now();
-    window.__interactionPaintMs = null;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.__interactionPaintMs = performance.now() - window.__interactionStart;
-      });
-    });
-  });
-  await dispatch();
-  await frame
-    .waitForFunction(() => window.__interactionPaintMs != null, undefined, { timeout: 2000 })
-    .catch(() => {});
-  const ms = await frame.evaluate(() => window.__interactionPaintMs);
-  return ms == null ? null : Math.round(ms * 100) / 100;
+/** The event that starts an interaction's clock (issue #103). The clock used
+ *  to start before `dispatch()`, so Playwright's own work ahead of the input
+ *  fell inside it: a locator click waits two frames for its target to hold
+ *  still and then moves the pointer onto it, and the double rAF could close
+ *  during that wait. The metric then read the hover, not the interaction: a
+ *  29ms DataTable sort read 11ms, a 320ms filter toggle 11ms. Now a
+ *  capture-phase listener on the story
+ *  window starts the clock when the anchor event arrives, before any handler
+ *  of the page runs, and the frames are requested from there.
+ *
+ *  Anchor on the event the component's handler listens on. A sort runs on
+ *  `click`; a combobox opens on `mousedown`, which arrives in the same task as
+ *  its `pointerdown`; chart hover runs on `pointerover` (a move within one
+ *  element fires only `pointermove`, so `move` takes whichever comes first).
+ *  An anchor later than the work reads the floor; one earlier in the gesture
+ *  (a `pointerdown` for a `click` handler) can let the frames close before
+ *  the work starts. `key` narrows a keydown to one key, so the Shift of
+ *  Shift+ArrowRight does not start the clock. */
+export const ANCHOR = {
+  click: { types: ["click"] },
+  press: { types: ["pointerdown"] },
+  move: { types: ["pointerover", "pointermove"] },
+  wheel: { types: ["wheel"] },
+  key: (key) => ({ types: ["keydown"], key }),
+};
+
+/** Measure input→paint for one discrete interaction: from the `anchor` event
+ *  (see ANCHOR) to the second animation frame after it, while `dispatch()`
+ *  (Playwright input) runs. Returns milliseconds, or null if nothing painted
+ *  within 2s. */
+export function measureInteraction(frame, dispatch, { anchor } = {}) {
+  return measureFrom(frame, dispatch, anchor, false);
 }
 
 /** Like `measureInteraction`, but for interactions whose visible result lands
  *  after the input's own paint (popup opens: Base UI mounts the portal content
- *  in a later flush, so the double-rAF closes on the click's trivial paint and
- *  under-reports — issue #16). Polls rAF until the in-page `predicate`
- *  (self-contained source, serialized into the page) holds, then stamps the
- *  next paint. Same load-bearing 300ms cold-clock settle as
- *  `measureInteraction` (see the comment there) and the same 2s
- *  timeout-with-null semantics, so numbers stay comparable. */
-export async function measureInteractionUntil(frame, dispatch, predicate) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+ *  in a later flush, so the double-rAF closes on the input's trivial paint and
+ *  under-reports, issue #16). From the anchor event, polls rAF until the
+ *  in-page `predicate` (self-contained source, serialized into the page)
+ *  holds, then stamps the next paint. Same 2s timeout-with-null semantics, so
+ *  numbers stay comparable. */
+export async function measureInteractionUntil(frame, dispatch, predicate, { anchor } = {}) {
   await frame.evaluate(`void (window.__interactionPredicate = (${predicate}))`);
-  await frame.evaluate(() => {
-    window.__interactionStart = performance.now();
-    window.__interactionPaintMs = null;
-    const poll = () => {
-      // In-page deadline mirrors the waitForFunction timeout below, so a
-      // never-true predicate can't leave a stale loop stamping a later run.
-      if (performance.now() - window.__interactionStart > 2000) return;
-      if (window.__interactionPredicate()) {
-        requestAnimationFrame(() => {
-          window.__interactionPaintMs = performance.now() - window.__interactionStart;
-        });
-        return;
+  return measureFrom(frame, dispatch, anchor, true);
+}
+
+function describeAnchor(anchor) {
+  return `${anchor.types.join("/")}${anchor.key == null ? "" : ` ${anchor.key}`}`;
+}
+
+async function measureFrom(frame, dispatch, anchor, until) {
+  if (!anchor?.types?.length) {
+    throw new Error("measureInteraction needs an `anchor`, the event that starts the clock");
+  }
+  // The settle is required: while headless Chromium's frame clock is "hot" (a
+  // recent measurement or animation keeps vsync-aligned BeginFrames coming),
+  // both rAFs wait for 60Hz ticks and the metric absorbs a full extra vsync
+  // (~+16.7ms) regardless of app cost: a chained measurement reads ~30ms for
+  // ~3ms of real work. After ~250ms of frame idleness the scheduler issues
+  // immediate on-demand BeginFrames and the double-rAF closes right after the
+  // interaction's actual paint (~13ms floor). Verified with a no-op dispatch
+  // in the hoverMove slot: hot 30.1ms vs cold ~13.5ms (2026-07-04, issues
+  // #8/#9 residual investigation).
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await frame.evaluate(
+    ({ types, key, until }) => {
+      // A token per measurement, so frames still pending from a measurement
+      // that timed out cannot stamp this one.
+      const id = (window.__interactionId ?? 0) + 1;
+      window.__interactionId = id;
+      window.__interactionStart = null;
+      window.__interactionPaintMs = null;
+      const stamp = () => {
+        if (window.__interactionId !== id) return;
+        window.__interactionPaintMs = performance.now() - window.__interactionStart;
+      };
+      const start = (event) => {
+        if (key != null && event.key !== key) return;
+        window.__interactionDisarm();
+        window.__interactionStart = performance.now();
+        if (!until) {
+          requestAnimationFrame(() => requestAnimationFrame(stamp));
+          return;
+        }
+        const poll = () => {
+          // In-page deadline mirrors the waitForFunction timeout, so a
+          // never-true predicate can't leave a loop running into a later run.
+          if (window.__interactionId !== id) return;
+          if (performance.now() - window.__interactionStart > 2000) return;
+          if (window.__interactionPredicate()) {
+            requestAnimationFrame(stamp);
+            return;
+          }
+          requestAnimationFrame(poll);
+        };
+        requestAnimationFrame(poll);
+      };
+      window.__interactionDisarm = () => {
+        for (const type of types) window.removeEventListener(type, start, true);
+      };
+      for (const type of types) {
+        window.addEventListener(type, start, { capture: true, passive: true });
       }
-      requestAnimationFrame(poll);
-    };
-    requestAnimationFrame(poll);
-  });
+    },
+    { types: anchor.types, key: anchor.key ?? null, until },
+  );
   await dispatch();
   await frame
     .waitForFunction(() => window.__interactionPaintMs != null, undefined, { timeout: 2000 })
     .catch(() => {});
-  const ms = await frame.evaluate(() => window.__interactionPaintMs);
+  const { ms, started } = await frame.evaluate(() => {
+    window.__interactionDisarm();
+    return { ms: window.__interactionPaintMs, started: window.__interactionStart != null };
+  });
+  if (!started) {
+    process.stderr.write(
+      `  anchor "${describeAnchor(anchor)}" never arrived; the metric is null\n`,
+    );
+  }
   return ms == null ? null : Math.round(ms * 100) / 100;
 }
 

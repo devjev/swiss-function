@@ -2,7 +2,7 @@
 // used to materialize a Row (~2.6KB) per hidden node — 157MB at 50k; pruning
 // collapsed subtrees keeps hidden nodes off the row model. Heap is read after
 // forced GC so the number pins Row materialization, not allocation noise.
-import { measureInteraction, readHeapMB } from "../runner.mjs";
+import { ANCHOR, measureInteraction, readHeapMB } from "../runner.mjs";
 
 export const scenarios = [
   {
@@ -16,9 +16,13 @@ export const scenarios = [
       metrics.treeHeapMB = await readHeapMB(frame);
       // Expand + collapse the first root (visible-tree rebuild latency).
       const expand = frame.getByRole("button", { name: "Expand row" }).first();
-      metrics.expandMs = await measureInteraction(frame, () => expand.click());
+      metrics.expandMs = await measureInteraction(frame, () => expand.click(), {
+        anchor: ANCHOR.click,
+      });
       const collapse = frame.getByRole("button", { name: "Collapse row" }).first();
-      metrics.collapseMs = await measureInteraction(frame, () => collapse.click());
+      metrics.collapseMs = await measureInteraction(frame, () => collapse.click(), {
+        anchor: ANCHOR.click,
+      });
       return metrics;
     },
   },

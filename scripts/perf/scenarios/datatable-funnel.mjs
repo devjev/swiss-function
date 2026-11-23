@@ -3,7 +3,7 @@
 // measured wall-clock-to-populated (option checkboxes present) — a pre-armed
 // double-rAF closes on the click's trivial paint and under-reported a 4,965ms
 // mount task as 12ms.
-import { measureInteraction, measureInteractionUntil } from "../runner.mjs";
+import { ANCHOR, measureInteraction, measureInteractionUntil } from "../runner.mjs";
 
 export const scenarios = [
   {
@@ -18,14 +18,19 @@ export const scenarios = [
         frame,
         () => trigger.click(),
         "() => document.querySelectorAll('[role=\"checkbox\"]').length > 1",
+        { anchor: ANCHOR.click },
       );
       // First search keystroke over the full 10k-value set.
       await frame.getByRole("textbox", { name: "Search values" }).click();
-      metrics.searchKeyMs = await measureInteraction(frame, () => page.keyboard.type("z"));
+      metrics.searchKeyMs = await measureInteraction(frame, () => page.keyboard.type("z"), {
+        anchor: ANCHOR.key("z"),
+      });
       // Toggle one option on the full list (commit + 10k-row refilter).
       await frame.getByRole("textbox", { name: "Search values" }).fill("");
       const box = frame.getByRole("checkbox").nth(1);
-      metrics.toggleMs = await measureInteraction(frame, () => box.click());
+      metrics.toggleMs = await measureInteraction(frame, () => box.click(), {
+        anchor: ANCHOR.click,
+      });
       return metrics;
     },
   },

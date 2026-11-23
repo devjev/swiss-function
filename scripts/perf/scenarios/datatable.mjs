@@ -1,6 +1,7 @@
 // DataTable: virtualized scroll over 100k rows (existing story) + discrete
 // interactions on a 10k-row sortable/filterable grid (perf story).
 import {
+  ANCHOR,
   boundsOf,
   measureInteraction,
   p95,
@@ -36,13 +37,17 @@ export const scenarios = [
       const metrics = {};
       // Sortable header click → sorted repaint (10k rows re-ordered).
       const header = frame.locator("[role='columnheader'][data-sortable]").first();
-      metrics.sortMs = await measureInteraction(frame, () => header.click());
+      metrics.sortMs = await measureInteraction(frame, () => header.click(), {
+        anchor: ANCHOR.click,
+      });
       // Column resize: one keyboard step on the first resize separator.
       const grip = frame.getByRole("separator").first();
       if ((await grip.count()) > 0) {
         await grip.focus();
-        metrics.resizeStepMs = await measureInteraction(frame, () =>
-          page.keyboard.press("ArrowRight"),
+        metrics.resizeStepMs = await measureInteraction(
+          frame,
+          () => page.keyboard.press("ArrowRight"),
+          { anchor: ANCHOR.key("ArrowRight") },
         );
       }
       return metrics;

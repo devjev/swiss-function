@@ -1,6 +1,12 @@
 // WindowArray: p95 frame during a scripted drag-rearrange loop, plus
 // keyboard-move and gutter-resize input→paint on a 12-column / ~54-window strip.
-import { measureInteraction, p95, startFrameSampler, stopFrameSampler } from "../runner.mjs";
+import {
+  ANCHOR,
+  measureInteraction,
+  p95,
+  startFrameSampler,
+  stopFrameSampler,
+} from "../runner.mjs";
 
 export const scenarios = [
   {
@@ -33,15 +39,19 @@ export const scenarios = [
 
       // Discrete: Shift+Arrow keyboard move → strip repaint.
       await handle.click();
-      metrics.keyboardMoveMs = await measureInteraction(frame, () =>
-        page.keyboard.press("Shift+ArrowRight"),
+      metrics.keyboardMoveMs = await measureInteraction(
+        frame,
+        () => page.keyboard.press("Shift+ArrowRight"),
+        { anchor: ANCHOR.key("ArrowRight") },
       );
 
       // Discrete: gutter resize keyboard step → track repaint.
       const gutter = frame.getByRole("separator").first();
       await gutter.focus();
-      metrics.resizeStepMs = await measureInteraction(frame, () =>
-        page.keyboard.press("ArrowRight"),
+      metrics.resizeStepMs = await measureInteraction(
+        frame,
+        () => page.keyboard.press("ArrowRight"),
+        { anchor: ANCHOR.key("ArrowRight") },
       );
       return metrics;
     },

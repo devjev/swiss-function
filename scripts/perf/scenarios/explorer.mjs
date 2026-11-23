@@ -1,5 +1,6 @@
 // Explorer: scroll an ~11k-node tree; toggle a folder; select a row.
 import {
+  ANCHOR,
   boundsOf,
   measureInteraction,
   p95,
@@ -33,18 +34,23 @@ export const scenarios = [
       });
       await page.waitForTimeout(120);
 
-      // Folder toggle → subtree collapse repaint (click the first chevron).
+      // Folder toggle → subtree collapse repaint (click the first chevron;
+      // the chevron toggles on click).
       const chevron = await frame.$("[role='treegrid'] svg");
       if (chevron) {
         const cb = await chevron.boundingBox();
         if (cb) {
-          metrics.toggleMs = await measureInteraction(frame, () =>
-            page.mouse.click(cb.x + cb.width / 2, cb.y + cb.height / 2),
+          metrics.toggleMs = await measureInteraction(
+            frame,
+            () => page.mouse.click(cb.x + cb.width / 2, cb.y + cb.height / 2),
+            { anchor: ANCHOR.click },
           );
         }
       }
-      // Row select → selection repaint.
-      metrics.selectMs = await measureInteraction(frame, () => page.mouse.click(cx, box.y + 90));
+      // Row select → selection repaint (a row selects on pointerdown).
+      metrics.selectMs = await measureInteraction(frame, () => page.mouse.click(cx, box.y + 90), {
+        anchor: ANCHOR.press,
+      });
       return metrics;
     },
   },

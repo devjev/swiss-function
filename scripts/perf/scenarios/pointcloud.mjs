@@ -5,6 +5,7 @@
 // relative-regression signal, not a budget. dragMove readings sit at/near the
 // runner's ~13ms double-rAF floor — treat small deltas as noise.
 import {
+  ANCHOR,
   boundsOf,
   measureInteraction,
   p95,
@@ -27,9 +28,17 @@ export const scenarios = [
       // Discrete: single orbit pointermove → repaint (project + sort + draw).
       await page.mouse.move(cx, cy);
       await page.mouse.down();
-      metrics.dragMoveMs = await measureInteraction(frame, () => page.mouse.move(cx + 40, cy + 20));
-      metrics.dragMove2Ms = await measureInteraction(frame, () =>
-        page.mouse.move(cx - 30, cy - 15),
+      metrics.dragMoveMs = await measureInteraction(
+        frame,
+        () => page.mouse.move(cx + 40, cy + 20),
+        {
+          anchor: ANCHOR.move,
+        },
+      );
+      metrics.dragMove2Ms = await measureInteraction(
+        frame,
+        () => page.mouse.move(cx - 30, cy - 15),
+        { anchor: ANCHOR.move },
       );
 
       // Continuous: ~30 interpolated moves along an ellipse while dragging.

@@ -3,6 +3,7 @@
 // re-render must bail out at one fiber instead of re-reconciling 5k circles /
 // 1k candle groups; see issue #14).
 import {
+  ANCHOR,
   boundsOf,
   measureInteraction,
   p95,
@@ -23,7 +24,9 @@ function hoverRun(hoverTarget) {
     const target = hoverTarget ? await boundsOf(frame, hoverTarget) : null;
     const tx = target ? target.x + target.width / 2 : box.x + box.width / 2;
     const ty = target ? target.y + target.height / 2 : box.y + box.height / 2;
-    metrics.hoverMoveMs = await measureInteraction(frame, () => page.mouse.move(tx, ty));
+    metrics.hoverMoveMs = await measureInteraction(frame, () => page.mouse.move(tx, ty), {
+      anchor: ANCHOR.move,
+    });
 
     // Continuous: sweep across the plot for ~3s — every point/candle crossing
     // fires a delegated enter/leave pair.
@@ -56,7 +59,9 @@ function zoomRun() {
 
     // Plain wheel is gated behind a click (page-scroll protection) — arm first.
     await page.mouse.click(cx, cy);
-    metrics.zoomStepMs = await measureInteraction(frame, () => page.mouse.wheel(0, -240));
+    metrics.zoomStepMs = await measureInteraction(frame, () => page.mouse.wheel(0, -240), {
+      anchor: ANCHOR.wheel,
+    });
 
     await startFrameSampler(frame);
     const deadline = Date.now() + 2000;

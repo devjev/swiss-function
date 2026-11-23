@@ -1,6 +1,6 @@
 // Heatmap: readiness IS the metric for a 10k-cell SVG grid; plus
 // hover→tooltip/crosshair paint.
-import { boundsOf, measureInteraction } from "../runner.mjs";
+import { ANCHOR, boundsOf, measureInteraction } from "../runner.mjs";
 
 export const scenarios = [
   {
@@ -10,11 +10,15 @@ export const scenarios = [
     async run({ page, frame }) {
       const box = await boundsOf(frame, "svg");
       const metrics = {};
-      metrics.hoverMs = await measureInteraction(frame, () =>
-        page.mouse.move(box.x + box.width / 2, box.y + box.height / 2),
+      metrics.hoverMs = await measureInteraction(
+        frame,
+        () => page.mouse.move(box.x + box.width / 2, box.y + box.height / 2),
+        { anchor: ANCHOR.move },
       );
-      metrics.hoverMoveMs = await measureInteraction(frame, () =>
-        page.mouse.move(box.x + box.width / 3, box.y + box.height / 3),
+      metrics.hoverMoveMs = await measureInteraction(
+        frame,
+        () => page.mouse.move(box.x + box.width / 3, box.y + box.height / 3),
+        { anchor: ANCHOR.move },
       );
       return metrics;
     },

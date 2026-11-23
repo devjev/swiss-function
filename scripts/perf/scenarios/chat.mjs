@@ -1,6 +1,12 @@
 // Chat: keystroke→paint with a 200-message markdown transcript mounted;
 // send→message-appears; p95 frame during a scripted 40-chunk stream.
-import { measureInteraction, p95, startFrameSampler, stopFrameSampler } from "../runner.mjs";
+import {
+  ANCHOR,
+  measureInteraction,
+  p95,
+  startFrameSampler,
+  stopFrameSampler,
+} from "../runner.mjs";
 
 export const scenarios = [
   {
@@ -14,10 +20,14 @@ export const scenarios = [
 
       // Keystroke → paint. With 200 markdown messages mounted this is the
       // "does typing re-parse the transcript" metric.
-      metrics.keystrokeMs = await measureInteraction(frame, () => page.keyboard.type("x"));
+      metrics.keystrokeMs = await measureInteraction(frame, () => page.keyboard.type("x"), {
+        anchor: ANCHOR.key("x"),
+      });
 
       // Send → user message appears.
-      metrics.sendMs = await measureInteraction(frame, () => page.keyboard.press("Enter"));
+      metrics.sendMs = await measureInteraction(frame, () => page.keyboard.press("Enter"), {
+        anchor: ANCHOR.key("Enter"),
+      });
       await page.waitForTimeout(100);
 
       // Streaming: click the story's stream trigger and sample ~3.5s of frames

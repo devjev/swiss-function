@@ -1,122 +1,124 @@
 {
   "meta": {
-    "date": "2026-07-04T21:00:24.345Z",
-    "host": "cascade",
+    "date": "2026-11-23T10:15:45.276Z",
+    "host": "wjt",
     "cpus": 32,
     "node": "v26.2.0",
-    "commit": "e136968",
+    "gl": "ANGLE (AMD, AMD Ryzen 9 9950X3D 16-Core Processor (radeonsi raphael_mendocino ACO), OpenGL ES 3.2)",
+    "throttle": 1,
+    "commit": "366f012",
     "runs": 5
   },
   "results": {
     "datatable-scroll-100k": {
       "p95FrameMs": 16.7,
-      "readyMs": 725,
-      "heapMB": 45.19
+      "readyMs": 1118,
+      "heapMB": 67.28
     },
     "datatable-interactions-10k": {
-      "sortMs": 5.8,
-      "resizeStepMs": 9.8,
-      "readyMs": 714,
-      "heapMB": 24.09
+      "sortMs": 28.6,
+      "resizeStepMs": 9.6,
+      "readyMs": 1106,
+      "heapMB": 40
     },
     "explorer-tree-11k": {
       "p95FrameMs": 16.7,
-      "toggleMs": 15.5,
-      "selectMs": 13.1,
-      "readyMs": 731,
-      "heapMB": 39.36
+      "toggleMs": 16.6,
+      "selectMs": 12.1,
+      "readyMs": 1100,
+      "heapMB": 78.97
     },
     "graph-panzoom-large": {
-      "p95FrameMs": 216.6,
-      "readyMs": 1735,
-      "heapMB": 115.37
+      "p95FrameMs": 50,
+      "readyMs": 1291,
+      "heapMB": 170.11
     },
     "windowarray-strip-54": {
-      "p95DragFrameMs": 16.7,
-      "keyboardMoveMs": 16.4,
-      "resizeStepMs": 12.4,
-      "readyMs": 682,
-      "heapMB": 31.17
+      "p95DragFrameMs": 16.8,
+      "keyboardMoveMs": 18.6,
+      "resizeStepMs": 15.6,
+      "readyMs": 1089,
+      "heapMB": 49.51
     },
     "selector-1000": {
-      "openMs": 11.3,
-      "filterKeyMs": 10.4,
-      "arrowMs": 11.8,
-      "readyMs": 719,
-      "heapMB": 21.25
+      "openMs": 35.9,
+      "filterKeyMs": 11.9,
+      "arrowMs": 7.2,
+      "readyMs": 1097,
+      "heapMB": 32.57
     },
     "heatmap-dense-100": {
-      "hoverMs": 11.7,
-      "hoverMoveMs": 12.1,
-      "readyMs": 676,
-      "heapMB": 33.32
+      "hoverMs": 8.4,
+      "hoverMoveMs": 12,
+      "readyMs": 1279,
+      "heapMB": 46.91
     },
     "chat-transcript-200": {
-      "keystrokeMs": 14.8,
-      "sendMs": 12.2,
+      "keystrokeMs": 16.1,
+      "sendMs": 21,
       "p95StreamFrameMs": 16.7,
-      "readyMs": 693,
-      "heapMB": 26.46
+      "readyMs": 1195,
+      "heapMB": 54.3
     },
     "datatable-funnel-10k": {
-      "funnelOpenMs": 74.6,
-      "searchKeyMs": 10.8,
-      "toggleMs": 2.9,
-      "readyMs": 706,
-      "heapMB": 33.46
+      "funnelOpenMs": 44.5,
+      "searchKeyMs": 13.8,
+      "toggleMs": 319.9,
+      "readyMs": 1088,
+      "heapMB": 46.28
     },
     "datatable-tree-50k": {
-      "treeHeapMB": 32.32,
-      "expandMs": 11.8,
-      "collapseMs": 12.4,
-      "readyMs": 716,
-      "heapMB": 47.9
+      "treeHeapMB": 47.43,
+      "expandMs": 39.1,
+      "collapseMs": 41.6,
+      "readyMs": 1105,
+      "heapMB": 63.6
     },
     "graph-settle-large": {
-      "settledAfterReadyMs": 6959,
-      "maxLongtaskMs": 946,
-      "readyMs": 1710,
-      "heapMB": 97.63
+      "settledAfterReadyMs": 2293,
+      "maxLongtaskMs": 217,
+      "readyMs": 1283,
+      "heapMB": 114.57
     },
     "picker-1000": {
-      "openMs": 63.4,
-      "filterKeyMs": 13.9,
-      "backspaceMs": 13.9,
-      "arrowMs": 13.3,
-      "readyMs": 717,
-      "heapMB": 21.13
+      "openMs": 34.2,
+      "filterKeyMs": 12.2,
+      "backspaceMs": 8.7,
+      "arrowMs": 9.1,
+      "readyMs": 1097,
+      "heapMB": 32.88
     },
     "scatterplot-hover-5k": {
-      "hoverMoveMs": 12.5,
-      "p95SweepFrameMs": 50,
-      "readyMs": 760,
-      "heapMB": 52.28
+      "hoverMoveMs": 14.5,
+      "p95SweepFrameMs": 33.4,
+      "readyMs": 1255,
+      "heapMB": 62.18
     },
     "candlestick-hover-1000": {
-      "hoverMoveMs": 14.2,
-      "p95SweepFrameMs": 16.7,
-      "readyMs": 696,
-      "heapMB": 23.29
+      "hoverMoveMs": 12.4,
+      "p95SweepFrameMs": 16.8,
+      "readyMs": 1092,
+      "heapMB": 37.77
     },
     "pointcloud-orbit-20k": {
-      "dragMoveMs": 13.3,
-      "dragMove2Ms": 7.4,
-      "p95FrameMs": 16.7,
-      "heapMB": 24.3,
-      "readyMs": 666
+      "dragMoveMs": 11.1,
+      "dragMove2Ms": 12.5,
+      "p95FrameMs": 16.8,
+      "heapMB": 35.13,
+      "readyMs": 1062
     },
     "skeleton-fills-24": {
       "p95FrameMs": 16.7,
       "glCreated": 1,
       "glLost": 0,
-      "readyMs": 1020,
-      "heapMB": 18.15
+      "readyMs": 1079,
+      "heapMB": 30.08
     },
     "scatterplot-zoom-50k": {
-      "zoomStepMs": 4.3,
+      "zoomStepMs": 18.1,
       "p95ZoomFrameMs": 16.7,
-      "readyMs": 686,
-      "heapMB": 25.99
+      "readyMs": 1084,
+      "heapMB": 37.68
     }
   }
 }

@@ -755,6 +755,12 @@ disjoint glob: micro-benchmarks, run only by `npm run bench`.
   renderer and a mismatch warns. Ladle's dev server runs React's
   development build, which inflates render-heavy numbers; for absolute
   figures, point `--base-url` at a `ladle build` output served statically.
+  Each input→paint probe names its `anchor` (`ANCHOR` in
+  `scripts/perf/runner.mjs`): the DOM event the component's handler runs
+  on (`click` for a sort, `pointerdown` for a combobox opening on
+  mousedown, a keydown for one key). The clock starts when that event
+  arrives, so Playwright's actionability wait and hover stay outside it.
+  A run on a busy machine shows as a high `readyMs`; rerun it.
 - `npm run size`: per-entry bundle cost through the dist ESM import
   graph (gzip bytes). Fails on > max(5%, 2KB) growth vs
   `perf/size-baseline.json`; `npm run size:update` rewrites. Needs a
