@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-22T08:42:39.104Z"
+    "date": "2026-11-23T10:43:39.602Z"
   },
-  "totalGzip": 2332203,
+  "totalGzip": 2333864,
   "entries": {
     ".": {
-      "files": 386,
-      "jsRaw": 1805710,
-      "jsGzip": 529310,
+      "files": 388,
+      "jsRaw": 1805607,
+      "jsGzip": 529498,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 529310,
+      "gzip": 529498,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -375,12 +375,12 @@
       ]
     },
     "./explorer": {
-      "files": 49,
-      "jsRaw": 125866,
-      "jsGzip": 40452,
+      "files": 50,
+      "jsRaw": 125965,
+      "jsGzip": 40605,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 40452,
+      "gzip": 40605,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
@@ -692,12 +692,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./widget": {
-      "files": 126,
-      "jsRaw": 428223,
-      "jsGzip": 126492,
+      "files": 128,
+      "jsRaw": 428562,
+      "jsGzip": 126822,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 126492,
+      "gzip": 126822,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -808,12 +808,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./notebook": {
-      "files": 92,
-      "jsRaw": 317824,
-      "jsGzip": 94538,
+      "files": 94,
+      "jsRaw": 318163,
+      "jsGzip": 94868,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 94538,
+      "gzip": 94868,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -858,12 +858,12 @@
       ]
     },
     "./outliner-blocks": {
-      "files": 88,
-      "jsRaw": 333414,
-      "jsGzip": 98123,
+      "files": 90,
+      "jsRaw": 333753,
+      "jsGzip": 98453,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 98123,
+      "gzip": 98453,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -1068,12 +1068,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 75,
-      "jsRaw": 270422,
-      "jsGzip": 78325,
+      "files": 77,
+      "jsRaw": 270761,
+      "jsGzip": 78655,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 78325,
+      "gzip": 78655,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",

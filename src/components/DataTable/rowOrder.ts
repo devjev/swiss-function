@@ -5,6 +5,7 @@ import {
   type SortingState,
   sortingFns,
 } from "@tanstack/react-table";
+import { columnFilterTest } from "./filterFns";
 import type { LeafColumnDef } from "./types";
 
 /** Row-order math for flat (non-tree) DataTables.
@@ -23,24 +24,6 @@ import type { LeafColumnDef } from "./types";
 export function getCellValue<T>(row: T, accessor: LeafColumnDef<T>["accessor"]): unknown {
   if (typeof accessor === "function") return accessor(row);
   return (row as Record<string, unknown>)[accessor as string];
-}
-
-/** DataTable's checklist filter (`includesFilter`) on a raw value: keep rows
- *  whose stringified value is in the allowed set; an empty set keeps all. */
-function passesChecklist(value: unknown, filterValue: unknown): boolean {
-  const allowed = filterValue as string[] | undefined;
-  if (!allowed || allowed.length === 0) return true;
-  return allowed.includes(String(value));
-}
-
-/** DataTable's numeric range filter (`rangeFilter`) on a raw value: keep rows
- *  within [min, max]; a blank bound is open. */
-function passesRange(value: unknown, filterValue: unknown): boolean {
-  const [min, max] = (filterValue as [number | undefined, number | undefined]) ?? [];
-  const v = Number(value);
-  if (min != null && !(v >= min)) return false;
-  if (max != null && !(v <= max)) return false;
-  return true;
 }
 
 /** Table-core parity: RowSorting's `getAutoSortingFn`, sniffing the filtered
@@ -235,10 +218,11 @@ export function computeRowOrder<T>(
   // TanStack silently drops state entries for columns that no longer exist
   // (e.g. a leaf swapped for its `::placeholder` by group collapse) and sort
   // entries for non-sortable columns — mirror that.
-  const activeFilters: { leaf: LeafColumnDef<T>; value: unknown }[] = [];
+  // Each filter becomes its row test once, before the row loop (issue #106).
+  const activeFilters: { leaf: LeafColumnDef<T>; test: (value: unknown) => boolean }[] = [];
   for (const f of filters) {
     const leaf = byId.get(f.id);
-    if (leaf) activeFilters.push({ leaf, value: f.value });
+    if (leaf) activeFilters.push({ leaf, test: columnFilterTest(leaf, f.value) });
   }
   const activeSorting = sorting.filter((s) => byId.get(s.id)?.sortable === true);
 
@@ -254,10 +238,8 @@ export function computeRowOrder<T>(
     for (let i = 0; i < data.length; i++) {
       const row = data[i] as T;
       let keep = true;
-      for (const { leaf, value } of activeFilters) {
-        // Filter kind follows the edit type, exactly as toTSColumn wires it.
-        const v = getCellValue(row, leaf.accessor);
-        if (leaf.edit?.type === "number" ? !passesRange(v, value) : !passesChecklist(v, value)) {
+      for (const { leaf, test } of activeFilters) {
+        if (!test(getCellValue(row, leaf.accessor))) {
           keep = false;
           break;
         }

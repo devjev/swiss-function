@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { checklistTest, rangeTest } from "../../lib/filter/predicates";
 import {
   type ActiveFilter,
-  checklistTest,
   collectKeptFolderIds,
   filterTree,
   makeComparator,
   naturalCompare,
-  rangeTest,
   readCellValue,
   sortTree,
 } from "./transform";
@@ -148,19 +147,6 @@ describe("filterTree", () => {
     // ts AND size<=15 → only a.ts(10).
     expect(out.map((n) => n.id)).toEqual(["src"]);
     expect(out[0]!.children!.map((n) => n.id)).toEqual(["a.ts"]);
-  });
-});
-
-describe("predicates", () => {
-  it("checklistTest keeps everything when the allow-list is empty", () => {
-    expect(checklistTest([])("anything")).toBe(true);
-    expect(checklistTest(undefined)("anything")).toBe(true);
-  });
-  it("rangeTest honours open bounds", () => {
-    expect(rangeTest([10, undefined])(10)).toBe(true);
-    expect(rangeTest([10, undefined])(9)).toBe(false);
-    expect(rangeTest([undefined, 10])(11)).toBe(false);
-    expect(rangeTest(undefined)(123)).toBe(true);
   });
 });
 

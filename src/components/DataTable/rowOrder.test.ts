@@ -1,12 +1,11 @@
 // Parity suite: computeRowOrder must produce the exact row order a real
 // table-core instance produces when configured the way DataTable configures
-// it (accessorFn columns, enableSorting from `sortable`, checklist/range
-// filterFns from `edit.type`). Imports go through @tanstack/react-table —
+// it (accessorFn columns, enableSorting from `sortable`, DataTable's own
+// checklist/range filterFns from `edit.type`). Imports go through @tanstack/react-table —
 // table-core is only a transitive dependency and re-exported in full.
 import {
   type ColumnFiltersState,
   createTable,
-  type FilterFn,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
@@ -14,22 +13,9 @@ import {
   type ColumnDef as TSColumnDef,
 } from "@tanstack/react-table";
 import { describe, expect, it } from "vitest";
+import { filterFnFor } from "./filterFns";
 import { computeRowOrder } from "./rowOrder";
 import type { LeafColumnDef } from "./types";
-
-// Same filter fns DataTable's toTSColumn attaches (module-private there).
-const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
-  const allowed = filterValue as string[] | undefined;
-  if (!allowed || allowed.length === 0) return true;
-  return allowed.includes(String(row.getValue(columnId)));
-};
-const rangeFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
-  const [min, max] = (filterValue as [number | undefined, number | undefined]) ?? [];
-  const v = Number(row.getValue(columnId));
-  if (min != null && !(v >= min)) return false;
-  if (max != null && !(v <= max)) return false;
-  return true;
-};
 
 function tanstackOrder<T>(
   data: T[],
@@ -44,7 +30,7 @@ function tanstackOrder<T>(
         ? def.accessor(row)
         : (row as Record<string, unknown>)[def.accessor as string],
     enableSorting: def.sortable ?? false,
-    filterFn: (def.edit?.type === "number" ? rangeFilter : includesFilter) as FilterFn<T>,
+    filterFn: filterFnFor(def),
   }));
   const table = createTable<T>({
     data,
@@ -177,6 +163,18 @@ describe("computeRowOrder — table-core parity", () => {
 
   it("keeps everything on an empty checklist", () => {
     expectParity(DATA, LEAVES, [], [{ id: "word", value: [] }]);
+  });
+
+  it("matches a checklist on a non-string column by the values' string form", () => {
+    const order = expectParity(DATA, LEAVES, [], [{ id: "flag", value: ["true"] }]);
+    expect(order.length).toBe(DATA.filter((r) => r.flag).length);
+  });
+
+  it("drops only the unchecked value of a checklist that allows all but one", () => {
+    const allowed = DATA.map((r) => r.name).filter((n) => n !== "Row 7");
+    const order = expectParity(DATA, LEAVES, asc("name"), [{ id: "name", value: allowed }]);
+    expect(order.length).toBe(DATA.length - 1);
+    for (const i of order) expect((DATA[i] as Rec).name).not.toBe("Row 7");
   });
 
   it("applies a range filter, including open bounds", () => {

@@ -13,7 +13,6 @@ import {
 import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import {
   type ColumnFiltersState,
-  type FilterFn,
   flexRender,
   getCoreRowModel,
   getExpandedRowModel,
@@ -77,6 +76,7 @@ import { allFixed, buildColumnTemplate, frozenLeftOffsets, frozenTotalWidth } fr
 import styles from "./DataTable.module.css";
 import { resolveEditActivation } from "./editActivation";
 import { CellEditor, formatEditDisplay } from "./editors";
+import { filterFnFor } from "./filterFns";
 import { Pagination } from "./Pagination";
 import { computeRowOrder, getCellValue } from "./rowOrder";
 import { startTotal } from "./totals";
@@ -420,27 +420,10 @@ function cellBackgroundProps<T>(
   };
 }
 
-/** Checklist filter: keep rows whose stringified value is in the allowed set.
- *  Only runs when a filter entry exists, so an empty set is treated as "keep". */
-const includesFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
-  const allowed = filterValue as string[] | undefined;
-  if (!allowed || allowed.length === 0) return true;
-  return allowed.includes(String(row.getValue(columnId)));
-};
-
 /** Shared collator for the funnel's option sort. The default (non-numeric)
  *  collator matches bare `a.localeCompare(b)` ordering exactly — do NOT swap
  *  in Explorer's numeric naturalCompare, which changes option order (#17). */
 const optionCollator = new Intl.Collator();
-
-/** Numeric range filter: keep rows within [min, max]; a blank bound is open. */
-const rangeFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
-  const [min, max] = (filterValue as [number | undefined, number | undefined]) ?? [];
-  const v = Number(row.getValue(columnId));
-  if (min != null && !(v >= min)) return false;
-  if (max != null && !(v <= max)) return false;
-  return true;
-};
 
 /** Walk a ColumnDef tree, returning leaf defs in display order. */
 function flatLeaves<T>(defs: ColumnDef<T>[]): LeafColumnDef<T>[] {
@@ -515,8 +498,8 @@ function toTSColumn<T>(def: ColumnDef<T>): TSColumnDef<T> {
     accessorFn: (row: T) => getCellValue(row, def.accessor),
     enableSorting: def.sortable ?? false,
     // Filter kind follows the edit type: numbers use a range, everything else a
-    // value checklist. Harmless on unfiltered columns (only runs with an entry).
-    filterFn: (def.edit?.type === "number" ? rangeFilter : includesFilter) as FilterFn<T>,
+    // value checklist.
+    filterFn: filterFnFor(def),
     ...(meta ? { meta } : {}),
     cell: def.cell
       ? ({ getValue, row }) =>

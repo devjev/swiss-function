@@ -61,6 +61,7 @@ import {
   type ColumnFilterKind,
   type FilterOption,
 } from "../../lib/filter/ColumnFilter";
+import { checklistTest, rangeTest } from "../../lib/filter/predicates";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
 import { Glyph } from "../../lib/icons";
 import { surfaceClass } from "../../lib/surface";
@@ -74,12 +75,10 @@ import { computeDropZone, dropZoneEqual, findNode, flatten } from "./dnd";
 import styles from "./Explorer.module.css";
 import { RenameField } from "./RenameField";
 import {
-  checklistTest,
   collectKeptFolderIds,
   filterTree,
   makeComparator,
   naturalCompare,
-  rangeTest,
   sortTree,
 } from "./transform";
 import type { ExplorerColumn, ExplorerNode, ExplorerProps, ExplorerSort } from "./types";

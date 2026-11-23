@@ -238,9 +238,11 @@ type TreeRow = { id: string; name: string; value: number; children?: TreeRow[] }
 export function TreeHarness({
   data,
   defaultExpanded,
+  filterableColumns,
 }: {
   data: TreeRow[];
   defaultExpanded?: true | Record<string, boolean>;
+  filterableColumns?: boolean;
 }) {
   const columns: ColumnDef<TreeRow>[] = [
     { id: "name", header: "Name", accessor: "name" },
@@ -252,6 +254,7 @@ export function TreeHarness({
       columns={columns}
       getSubRows={(r) => r.children}
       defaultExpanded={defaultExpanded}
+      filterableColumns={filterableColumns}
       height={300}
     />
   );

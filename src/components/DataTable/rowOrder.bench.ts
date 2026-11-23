@@ -25,6 +25,13 @@ const rows100k = makeRows(100_000, seededRandom(22));
 const byName: SortingState = [{ id: "name", desc: false }];
 const byValueDesc: SortingState = [{ id: "value", desc: true }];
 const alphaOnly: ColumnFiltersState = [{ id: "kind", value: ["alpha"] }];
+// A high-cardinality checklist with one value unchecked (issue #106): 10k
+// distinct names, 9,999 allowed. The cost of a linear allow-list test grows
+// with rows × allowed values.
+const distinct10k: Row[] = rows10k.map((r, i) => ({ ...r, name: `Row ${i}` }));
+const allButOne: ColumnFiltersState = [
+  { id: "name", value: distinct10k.slice(1).map((r) => r.name) },
+];
 
 describe("DataTable computeRowOrder", () => {
   bench(
@@ -63,6 +70,14 @@ describe("DataTable computeRowOrder", () => {
     "checklist filter + sort by value (100k)",
     () => {
       computeRowOrder(rows100k, LEAVES, byValueDesc, alphaOnly);
+    },
+    BENCH,
+  );
+
+  bench(
+    "checklist filter, 9,999 of 10k distinct values allowed (10k)",
+    () => {
+      computeRowOrder(distinct10k, LEAVES, [], allButOne);
     },
     BENCH,
   );

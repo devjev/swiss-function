@@ -316,6 +316,19 @@ test("tree: a collapsed parent keeps its expand chevron and expands (pruned subt
   await expect(component.getByRole("gridcell").filter({ hasText: "Bob" })).toBeVisible();
 });
 
+test("tree: unchecking a value in a column filter hides that row (#106)", async ({
+  mount,
+  page,
+}) => {
+  // A tree table filters through table-core's row model, where the checklist
+  // filter gets its allow-list resolved to a Set once per pass.
+  const component = await mount(<TreeHarness data={TREE} defaultExpanded filterableColumns />);
+  await component.getByRole("button", { name: "Filter Name" }).click();
+  await page.getByRole("checkbox", { name: "Sales" }).click();
+  await expect(component.getByRole("gridcell").filter({ hasText: "Sales" })).toHaveCount(0);
+  await expect(component.getByRole("gridcell").filter({ hasText: "Engineering" })).toBeVisible();
+});
+
 test("tree: collapsing clears the active cell", async ({ mount, page }) => {
   const component = await mount(<TreeHarness data={TREE} defaultExpanded />);
   // Click Alice (a child cell)

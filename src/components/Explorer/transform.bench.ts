@@ -1,6 +1,7 @@
 import { bench, describe } from "vitest";
 import { BENCH, seededRandom } from "../../../perf/benchOptions";
-import { checklistTest, filterTree, makeComparator, rangeTest, sortTree } from "./transform";
+import { checklistTest, rangeTest } from "../../lib/filter/predicates";
+import { filterTree, makeComparator, sortTree } from "./transform";
 import type { ExplorerNode } from "./types";
 
 interface Meta {

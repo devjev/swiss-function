@@ -106,28 +106,6 @@ export function filterTree<M>(
   return nodes.map(prune).filter((n): n is ExplorerNode<M> => n !== null);
 }
 
-/** Keep-set test for a checklist filter. An empty/undefined allow-list keeps
- *  everything (an inactive filter). */
-export function checklistTest(allowed: string[] | undefined): (value: unknown) => boolean {
-  if (!allowed || allowed.length === 0) return () => true;
-  const set = new Set(allowed);
-  return (value) => set.has(String(value));
-}
-
-/** Numeric range test; a blank bound is open. Undefined range keeps everything. */
-export function rangeTest(
-  range: [number | undefined, number | undefined] | undefined,
-): (value: unknown) => boolean {
-  const [min, max] = range ?? [];
-  if (min == null && max == null) return () => true;
-  return (value) => {
-    const n = Number(value);
-    if (min != null && !(n >= min)) return false;
-    if (max != null && !(n <= max)) return false;
-    return true;
-  };
-}
-
 /** Every folder id in a (pruned) forest — the set to auto-expand so all retained
  *  matches are revealed. */
 export function collectKeptFolderIds<M>(nodes: ExplorerNode<M>[]): Set<string> {

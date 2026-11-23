@@ -1,12 +1,12 @@
 {
   "meta": {
-    "date": "2026-11-23T10:15:45.276Z",
+    "date": "2026-11-23T10:40:32.704Z",
     "host": "wjt",
     "cpus": 32,
     "node": "v26.2.0",
     "gl": "ANGLE (AMD, AMD Ryzen 9 9950X3D 16-Core Processor (radeonsi raphael_mendocino ACO), OpenGL ES 3.2)",
     "throttle": 1,
-    "commit": "366f012",
+    "commit": "15e4871",
     "runs": 5
   },
   "results": {
@@ -61,11 +61,11 @@
       "heapMB": 54.3
     },
     "datatable-funnel-10k": {
-      "funnelOpenMs": 44.5,
-      "searchKeyMs": 13.8,
-      "toggleMs": 319.9,
-      "readyMs": 1088,
-      "heapMB": 46.28
+      "funnelOpenMs": 39.8,
+      "searchKeyMs": 12.1,
+      "toggleMs": 40.7,
+      "readyMs": 1106,
+      "heapMB": 45.05
     },
     "datatable-tree-50k": {
       "treeHeapMB": 47.43,
