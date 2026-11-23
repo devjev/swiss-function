@@ -638,6 +638,74 @@ test("Mod+B, Mod+I and Mod+K format the selection", async ({ mount, page }) => {
   expect(await marked(page)).toBe("Alpha [two](|)");
 });
 
+test("Mod+Shift+H highlights the selection and steps through the colours (#107)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  const editor = await caretIn(component, "a2", 0);
+  await editor.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(6, 9));
+  await page.keyboard.press("Control+Shift+h");
+  expect(await marked(page)).toBe("Alpha ==<two>==");
+  for (const color of ["green", "blue", "pink", "orange", "purple"]) {
+    await page.keyboard.press("Control+Shift+h");
+    expect(await marked(page)).toBe(`Alpha =={${color}}<two>==`);
+  }
+  // After the last colour the highlight comes off.
+  await page.keyboard.press("Control+Shift+h");
+  expect(await marked(page)).toBe("Alpha <two>");
+  await page.keyboard.press("Control+z");
+  expect(await marked(page)).toBe("Alpha =={purple}<two>==");
+});
+
+test("a highlight renders as a mark in its colour, with its links in ink (#107)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <OutlinerHarness
+      initial={[{ id: "h", content: "==plain== and =={green}see [[Page]]==" }, ...TREE]}
+    />,
+  );
+  const marks = row(component, "h").locator("mark[data-highlight]");
+  await expect(marks).toHaveCount(2);
+  await expect(marks.nth(0)).toHaveAttribute("data-highlight", "yellow");
+  await expect(marks.nth(0)).toHaveText("plain");
+  await expect(marks.nth(1)).toHaveAttribute("data-highlight", "green");
+  await expect(marks.nth(1)).toHaveText("see Page");
+  const paint = await marks.nth(1).evaluate((el) => {
+    const link = el.querySelector("button, a") as HTMLElement;
+    const probe = document.createElement("span");
+    probe.style.color = "var(--sf-color-fg)";
+    probe.style.backgroundColor = "var(--sf-color-highlight-green)";
+    el.append(probe);
+    const want = getComputedStyle(probe);
+    const out = {
+      background: getComputedStyle(el).backgroundColor,
+      token: want.backgroundColor,
+      link: getComputedStyle(link).color,
+      ink: want.color,
+    };
+    probe.remove();
+    return out;
+  });
+  expect(paint.background).toBe(paint.token);
+  expect(paint.link).toBe(paint.ink);
+});
+
+test("/green puts a green highlight's pair where the slash stood (#107)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<OutlinerHarness initial={TREE} />);
+  await caretIn(component, "b", 5);
+  await page.keyboard.type(" /green");
+  await expect(options(page)).toHaveText(["Highlight green=={green}…=="]);
+  await page.keyboard.press("Enter");
+  expect(await marked(page)).toBe("Bravo =={green}|==");
+  await page.keyboard.type("go");
+  await expect(tree(component)).toContainText("0 b:Bravo =={green}go==");
+});
+
 test("Mod+Enter makes a task and ticks it; the checkbox does the same", async ({ mount, page }) => {
   const component = await mount(<OutlinerHarness initial={TREE} />);
   await caretIn(component, "b", 2);

@@ -9,6 +9,7 @@
 
 import { setHeading } from "./blocks";
 import type { PastedBlock } from "./clipboard";
+import { HIGHLIGHT_COLORS, highlightOpener } from "./highlight";
 import type { OutlinerBlockType } from "./types";
 
 export interface CommandResult {
@@ -26,8 +27,9 @@ export interface BlockCommand {
   keywords?: string;
   /** Offered only in a block with no other text: the command replaces it. */
   whenEmpty?: boolean;
-  /** `text` is the block's text without the `/query`. */
-  apply: (text: string) => CommandResult;
+  /** `text` is the block's text without the `/query`; `at` is where the
+   *  query stood in it. */
+  apply: (text: string, at: number) => CommandResult;
 }
 
 const leaf = (content: string, children: PastedBlock[] = []): PastedBlock => ({
@@ -111,6 +113,21 @@ const BUILT_IN: BlockCommand[] = [
   },
 ];
 
+/** A highlight in each colour (issue #107): the pair goes in where the
+ *  `/highlight` was typed, the caret between its halves. */
+const HIGHLIGHTS: BlockCommand[] = HIGHLIGHT_COLORS.map((color) => {
+  const opener = highlightOpener(color);
+  return {
+    label: `Highlight ${color}`,
+    description: `${opener}…==`,
+    keywords: "mark marker colour color",
+    apply: (text, at) => ({
+      text: `${text.slice(0, at)}${opener}==${text.slice(at)}`,
+      caret: at + opener.length,
+    }),
+  };
+});
+
 /** The commands on offer: the built-in ones, then one per registered block
  *  type that declares a command. */
 export function blockCommands(types: readonly OutlinerBlockType[] | undefined): BlockCommand[] {
@@ -127,7 +144,7 @@ export function blockCommands(types: readonly OutlinerBlockType[] | undefined): 
         ]
       : [],
   );
-  return [...BUILT_IN, ...custom];
+  return [...BUILT_IN, ...HIGHLIGHTS, ...custom];
 }
 
 /** The commands that answer to `query` in a block whose other text is `rest`:

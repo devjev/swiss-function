@@ -2,6 +2,7 @@ import { type ComponentProps, type ReactNode, useContext } from "react";
 import type ReactMarkdown from "react-markdown";
 import { Markdown } from "../Markdown";
 import { ActionsContext } from "./context";
+import { OUTLINER_REMARK_PLUGINS } from "./highlight";
 import { passthroughUrlTransform, preprocessOutlinerMarkdown } from "./markdown-extensions";
 import styles from "./Outliner.module.css";
 
@@ -23,6 +24,7 @@ export function BulletContent({ content, components }: BulletContentProps): Reac
       preprocess={preprocess}
       components={components}
       urlTransform={passthroughUrlTransform}
+      remarkPlugins={OUTLINER_REMARK_PLUGINS}
     />
   );
 }

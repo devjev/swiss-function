@@ -35,6 +35,11 @@ export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
   /** Override URL sanitization. Pass `(url) => url` to allow custom schemes
    *  (e.g. `wiki:` for Outliner-style links). */
   urlTransform?: ComponentProps<typeof ReactMarkdown>["urlTransform"];
+  /** Further remark plugins, run after remark-gfm (e.g. a syntax extension
+   *  that needs the parsed tree, as the Outliner's highlights do). Pass a
+   *  stable array, from module scope or a memo: a new array re-parses the
+   *  source on every render. */
+  remarkPlugins?: ComponentProps<typeof ReactMarkdown>["remarkPlugins"];
   /** Render inline — uses `<span>` wrappers and flattens paragraphs so the
    *  output is safe to embed inside `<p>` or other inline contexts. Block
    *  elements (headings, lists, code blocks) still produce their natural
@@ -56,6 +61,7 @@ export function Markdown(props: MarkdownProps) {
     preprocess,
     components,
     urlTransform,
+    remarkPlugins,
     inline = false,
     measured = false,
     className,
@@ -112,6 +118,10 @@ export function Markdown(props: MarkdownProps) {
     [inline, components],
   );
   const source = useMemo(() => (preprocess ? preprocess(value) : value), [preprocess, value]);
+  const plugins = useMemo(
+    () => (remarkPlugins?.length ? [...REMARK_PLUGINS, ...remarkPlugins] : REMARK_PLUGINS),
+    [remarkPlugins],
+  );
 
   if (editing) {
     const rows = Math.max(editRows, draft.split("\n").length + 1);
@@ -135,7 +145,7 @@ export function Markdown(props: MarkdownProps) {
     <span className={styles.empty}>{placeholder}</span>
   ) : (
     <MemoizedReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
+      remarkPlugins={plugins}
       components={effectiveComponents}
       urlTransform={urlTransform}
     >

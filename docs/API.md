@@ -2228,6 +2228,7 @@ Rendered Markdown (react-markdown + GFM) with optional double-click edit mode an
 | `preprocess` | `(source: string) => string` | n/a | Transform source before parse (render mode only). |
 | `components` | `ReactMarkdown["components"]` | n/a | Override renderers. |
 | `urlTransform` | `ReactMarkdown["urlTransform"]` | n/a | Custom URL sanitization. |
+| `remarkPlugins` | `ReactMarkdown["remarkPlugins"]` | n/a | Further remark plugins, run after remark-gfm: a syntax extension that needs the parsed tree (the Outliner's highlights use it). Pass a stable array (module scope or a memo); a new array re-parses on every render. |
 | `inline` | `boolean` | `false` | `<span>` wrappers, flattened paragraphs; editing unsupported. |
 | `measured` | `boolean` | `false` | Cap prose to `--sf-measure`. `<Prose>` sets this. |
 
@@ -2656,6 +2657,7 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Mod+Z, Mod+Shift+Z / Mod+Y | Undo / redo. |
 | Mod+B, Mod+I, Mod+Shift+S | Bold (`**`), italic (`*`), strikethrough (`~~`): wraps the selection, or takes the wrap off. With nothing selected the pair goes in around the caret. |
 | Mod+K | A markdown link around the selection, the caret in its target. |
+| Mod+Shift+H | Highlight: wraps the selection in `==` (yellow, the default; with nothing selected the pair goes in around the caret). With the caret or the selection inside a highlight it writes the next colour into the opener (green, blue, pink, orange, purple), and after the last one takes the highlight off. |
 | Mod+Enter | Task: no marker, open (`[ ] `), done (`[x] `). Also on selected blocks. |
 | Mod+Alt+1 / 2 / 3 | Heading of that level; the same key again, or Mod+Alt+0, takes it off. Also on selected blocks. (AltGr, which Windows reports as Ctrl+Alt, is left alone.) |
 | Mod+Shift+. | Quote: `> ` before every line, or off again. |
@@ -2704,6 +2706,20 @@ struck out; a click reopens it). A block whose direct children include tasks
 shows a count at its end, `2/5`: done over open, in progress and done;
 cancelled tasks count for neither. `#name` and `#[[Two Words]]` render as wiki
 links and report through `onWikiLinkClick` with the name.
+
+**Highlights.** `==text==` is a highlight in the default colour, yellow;
+`=={green}text==` names one of `yellow`, `green`, `blue`, `pink`, `orange` and
+`purple` (any other `{word}` stays text inside a yellow highlight). Pasted
+`^^text^^` (Roam, Logseq) reads as yellow. A delimiter is exactly two `=` (or
+`^`) with a word on its inner side, so `a == b == c` stays text; a highlight
+holds bold, links, tags and inline spans but does not nest, opens and closes at
+one level of formatting, and leaves code alone; `\==` is a literal `==`. It
+renders as `<mark data-highlight="green">` on its token,
+`--sf-color-highlight-green`, with everything inside it, links and tags too, in
+`--sf-color-fg` (the dark accent reads only 2.5:1 on a dark mark). The six
+tokens have light and dark values that keep text above 11:1, and ThemeBuilder
+lists them. One-line labels (the breadcrumb, a drag label, board titles, query
+results) drop the markup, as they drop bold.
 
 **Due dates.** `@2026-11-25` anywhere in a block renders as a `Chip`. On an
 open or in-progress task a date before today takes the danger tone
@@ -2886,7 +2902,9 @@ const diagrams = createDiagramBlockType({ render: renderMermaid });
 
 **Block commands.** `/` opens the list of block commands, after the app's own
 `/` entries from `completions`: Heading 1 to 3, Task, Numbered list, Quote,
-Note, Warning change the block's type and keep its text; Code block, Divider,
+Note, Warning change the block's type and keep its text; Highlight yellow to
+Highlight purple put a highlight's pair where the `/` stood, the caret inside
+(they answer to `/highlight`, a colour's name and `/mark`); Code block, Divider,
 Table, Board, Embed and a registered type's `command` replace the block and are
 offered only when it has no other text. Table and Board start with a few child
 blocks. A command is one undo step. `commands={false}` leaves `/` to the app.

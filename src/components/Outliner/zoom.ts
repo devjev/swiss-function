@@ -10,6 +10,7 @@
  * its top, and `zoomBack` refuses it.
  */
 
+import { HIGHLIGHT_COLORS } from "./highlight";
 import { type InlineFound, type InlineSpan, scanInline } from "./markdown-extensions";
 import { findBullet, replaceBullet } from "./tree";
 import type { Bullet, BulletId, OutlinerValue } from "./types";
@@ -37,6 +38,9 @@ export function zoomBack(
   return replaceBullet(value, root.id, root.collapsed ? { ...rest, collapsed: true } : rest);
 }
 
+/** A highlight's opener with its colour name: `=={green}`. */
+const HIGHLIGHT_OPENER = new RegExp(`==\\{(?:${HIGHLIGHT_COLORS.join("|")})\\}`, "g");
+
 /** A block's text as one plain line, for the breadcrumb and the drag label:
  *  the first line, without the task marker and the common inline markup. */
 export function plainLabel(content: string): string {
@@ -49,6 +53,7 @@ export function plainLabel(content: string): string {
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[\[([^\]]+)\]\]/g, "$1")
     .replace(/\(\(([^)]+)\)\)/g, "$1")
+    .replace(HIGHLIGHT_OPENER, "")
     .replace(/(\*\*|__|~~|\^\^|==|`)/g, "")
     .replace(/(^|\s)[*_](\S[^*_]*?)[*_](?=\s|$|[.,;:!?])/g, "$1$2")
     .trim();

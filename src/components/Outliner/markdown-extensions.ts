@@ -6,6 +6,8 @@
  * - `@2026-11-25` → a due date, shown as a chip
  * - `$x$` and any other span a registered block type declares (`inline`) →
  *   a code span the type renders
+ * - `\=` and `\^` → held for the highlight transform (`highlight.ts`), which
+ *   reads `==text==` from the parsed tree
  *
  * Naive regex preprocess: it does not skip code fences or spans. Acceptable
  * for v1; tighter parsing (a remark plugin) can come later if needed. The
@@ -14,6 +16,7 @@
  */
 
 import { DATE_RE } from "./blocks";
+import { holdEscapedDelimiters } from "./highlight";
 
 // Backslash-escape preserved: `\[[foo]]` stays literal.
 const WIKI_RE = /(?<!\\)\[\[([^\]\n]+)\]\]/g;
@@ -157,7 +160,9 @@ export function preprocessOutlinerMarkdown(
   source: string,
   inline: readonly InlineSpan[] = [],
 ): string {
-  return markInline(source, inline)
+  // After the inline spans, whose sources are encoded: an escaped `\=` in a
+  // formula is not a highlight's business.
+  return holdEscapedDelimiters(markInline(source, inline))
     .replace(WIKI_RE, (_, name) => `[${name}](wiki:${encodeURIComponent(name)})`)
     .replace(BRACKET_TAG_RE, (_, name) => `[#${name}](wiki:`)
     .replace(TAG_RE, (_, name) => `[#${name}](wiki:${encodeURIComponent(name)})`)

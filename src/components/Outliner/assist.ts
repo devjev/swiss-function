@@ -4,6 +4,8 @@
  * finding and applying a completion (`[[page`, `((block`, `#tag`, `/command`).
  */
 
+import { findHighlights, HIGHLIGHT_COLORS, highlightOpener } from "./highlight";
+
 /** A change to a block's text, with the selection that follows it. */
 export interface TextEdit {
   text: string;
@@ -178,6 +180,47 @@ export function toggleWrap(text: string, start: number, end: number, marker: str
     text: text.slice(0, start) + marker + selected + marker + text.slice(end),
     start: start + m,
     end: end + m,
+  };
+}
+
+/** Mod+Shift+H. Outside a highlight it wraps the selection in `==` (the
+ *  default colour; with nothing selected the pair goes in around the caret).
+ *  With the selection inside one, it writes the next colour into the opener,
+ *  and after the last colour it takes the highlight off. A `^^` highlight
+ *  steps to `=={green}`. */
+export function cycleHighlight(text: string, start: number, end: number): TextEdit {
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  const lineEnd = text.indexOf("\n", start);
+  const line = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
+  const span = findHighlights(line).find(
+    (s) => start >= lineStart + s.from && end <= lineStart + s.to,
+  );
+  if (!span) return toggleWrap(text, start, end, "==");
+
+  const from = lineStart + span.from;
+  const closeAt = lineStart + span.to - 2;
+  const next = HIGHLIGHT_COLORS[HIGHLIGHT_COLORS.indexOf(span.color) + 1];
+  const opener = next ? highlightOpener(next) : "";
+  const closer = next ? "==" : "";
+  // A position keeps its place in the text around the rewritten delimiters.
+  const move = (pos: number) => {
+    let out = pos;
+    if (pos > closeAt) out -= Math.min(pos - closeAt, 2) - (pos >= closeAt + 2 ? closer.length : 0);
+    if (pos > from) {
+      out -= Math.min(pos - from, span.opener);
+      out += pos >= from + span.opener ? opener.length : 0;
+    }
+    return out;
+  };
+  return {
+    text:
+      text.slice(0, from) +
+      opener +
+      text.slice(from + span.opener, closeAt) +
+      closer +
+      text.slice(closeAt + 2),
+    start: move(start),
+    end: move(end),
   };
 }
 

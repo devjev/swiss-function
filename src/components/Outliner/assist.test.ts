@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCompletion,
+  cycleHighlight,
   cycleTask,
   findTrigger,
   insertLink,
@@ -141,6 +142,38 @@ describe("toggleWrap", () => {
     expect(italic("a ***<word>*** b")).toBe("a **<word>** b");
     expect(bold("a *<word>* b")).toBe("a ***<word>*** b");
     expect(italic("a *<word>* b")).toBe("a <word> b");
+  });
+});
+
+describe("cycleHighlight", () => {
+  const cycle = (marked: string) => show(cycleHighlight(...read(marked)));
+
+  it("wraps the selection in the default colour, or puts the pair around the caret", () => {
+    expect(cycle("a <word> b")).toBe("a ==<word>== b");
+    expect(cycle("a | b")).toBe("a ==|== b");
+  });
+
+  it("steps through the colours from inside a highlight, then takes it off", () => {
+    expect(cycle("a ==<word>== b")).toBe("a =={green}<word>== b");
+    expect(cycle("a =={green}<word>== b")).toBe("a =={blue}<word>== b");
+    expect(cycle("=={blue}wo|rd==")).toBe("=={pink}wo|rd==");
+    expect(cycle("=={pink}<word>==")).toBe("=={orange}<word>==");
+    expect(cycle("=={orange}<word>==")).toBe("=={purple}<word>==");
+    expect(cycle("a =={purple}<word>== b")).toBe("a <word> b");
+  });
+
+  it("keeps a selection of the whole highlight around it", () => {
+    expect(cycle("a <==word==> b")).toBe("a <=={green}word==> b");
+    expect(cycle("a <=={purple}word==> b")).toBe("a <word> b");
+  });
+
+  it("turns a ^^ highlight into a green one", () => {
+    expect(cycle("^^wo|rd^^")).toBe("=={green}wo|rd==");
+  });
+
+  it("works on the highlight the caret is in, on the caret's line", () => {
+    expect(cycle("==a== and ==b|==")).toBe("==a== and =={green}b|==");
+    expect(cycle("==a==\nb|")).toBe("==a==\nb==|==");
   });
 });
 

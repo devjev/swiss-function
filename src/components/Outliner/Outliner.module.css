@@ -803,6 +803,39 @@
   color: var(--sf-color-primary-hover);
 }
 
+/* Highlighter mark (==text==, issue #107): the colour's token as the
+   background, and everything inside in ink, links and tags too, which keep
+   their underline: the dark accent reads only 2.5:1 on a dark mark. The
+   padding is horizontal only, so the line keeps its unit. */
+.root :global(mark[data-highlight]) {
+  padding: 0 calc(var(--sf-unit) / 8);
+  border-radius: var(--sf-radius-default);
+  background-color: var(--sf-color-highlight-yellow);
+  color: var(--sf-color-fg);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.root :global(mark[data-highlight="green"]) {
+  background-color: var(--sf-color-highlight-green);
+}
+.root :global(mark[data-highlight="blue"]) {
+  background-color: var(--sf-color-highlight-blue);
+}
+.root :global(mark[data-highlight="pink"]) {
+  background-color: var(--sf-color-highlight-pink);
+}
+.root :global(mark[data-highlight="orange"]) {
+  background-color: var(--sf-color-highlight-orange);
+}
+.root :global(mark[data-highlight="purple"]) {
+  background-color: var(--sf-color-highlight-purple);
+}
+.root :global(mark[data-highlight] a),
+.root :global(mark[data-highlight]) .wikiLink,
+.root :global(mark[data-highlight]) .wikiLink:hover {
+  color: var(--sf-color-fg);
+}
+
 /* Block reference: an inline-block quoted card with a left rule. */
 .blockRef {
   display: inline-block;

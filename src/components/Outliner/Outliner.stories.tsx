@@ -373,6 +373,37 @@ export const Empty: Story = () => {
   );
 };
 
+const HIGHLIGHTS: OutlinerValue = [
+  {
+    id: "h1",
+    content: "Q3 close: ==revenue up 4%==, =={green}audit passed==, =={pink}two open findings==",
+  },
+  {
+    id: "h2",
+    content:
+      "=={blue}Rates== moved first; =={orange}see [[Treasury]] and #fx for the hedge== then [[Risk]]",
+    children: [
+      { id: "h3", content: "=={purple}**Decision:** hold the duration==" },
+      { id: "h4", content: "Pasted from Roam: ^^check the covenant^^" },
+      { id: "h5", content: "Left as text: `==code==`, a == b == c, and \\==escaped==" },
+    ],
+  },
+];
+
+export const Highlights: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>(HIGHLIGHTS);
+  return (
+    <div style={frame}>
+      <Note>
+        <Kbd combo="mod+shift+h" variant="outline" /> highlights the selection. Pressed again inside
+        a highlight it steps through yellow, green, blue, pink, orange and purple, then takes the
+        highlight off. <code>/highlight</code> lists the colours by name.
+      </Note>
+      <Outliner value={value} onChange={setValue} aria-label="Highlights" />
+    </div>
+  );
+};
+
 export const WikiLinks: Story = () => {
   const [value, setValue] = useState<OutlinerValue>([
     { id: "1", content: "Meeting notes, see [[Project Alpha]] and [[Daily/2026-06-03]]" },

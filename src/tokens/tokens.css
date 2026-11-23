@@ -71,6 +71,15 @@
     --sf-color-danger-hover: #a01616;
     --sf-color-success: #0f7a36;
     --sf-color-warning: #a85a00;
+    /* Highlighter marks (the Outliner's ==text==), the one place colour is
+       the author's to choose and carries no status. Each lets --sf-color-fg
+       clear 13:1 on it; links inside a highlight are set in -fg too. */
+    --sf-color-highlight-yellow: #faea89;
+    --sf-color-highlight-green: #b7f3c2;
+    --sf-color-highlight-blue: #b9e1fe;
+    --sf-color-highlight-pink: #ffcadd;
+    --sf-color-highlight-orange: #fed5b5;
+    --sf-color-highlight-purple: #e2ccfd;
     --sf-color-focus-ring: #1432c8;
     /* Focus-ring geometry. Every component :focus-visible rule consumes these,
        so a container can tune or disable rings for its subtree — e.g. set
@@ -455,6 +464,14 @@
     --sf-color-danger-hover: #ea5252;
     --sf-color-success: #3fbf6f;
     --sf-color-warning: #e5a117;
+    /* Deep marks under light text (11:1 and more). The accent reads only
+       2.5:1 on them, which is why a highlight sets its links in -fg. */
+    --sf-color-highlight-yellow: #413801;
+    --sf-color-highlight-green: #154222;
+    --sf-color-highlight-blue: #043c5a;
+    --sf-color-highlight-pink: #57243a;
+    --sf-color-highlight-orange: #542c03;
+    --sf-color-highlight-purple: #422b5b;
     --sf-color-focus-ring: #7f98ff;
     --sf-color-overlay: rgb(0 0 0 / 0.6);
 

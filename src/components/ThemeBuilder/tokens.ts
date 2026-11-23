@@ -46,6 +46,13 @@ export const THEME_TOKENS: ThemeToken[] = [
   c("--sf-color-success", "Success", "#0f7a36", "#3fbf6f"),
   c("--sf-color-warning", "Warning", "#a85a00", "#e5a117"),
   c("--sf-color-focus-ring", "Focus ring", "#1432c8", "#7f98ff"),
+  // The highlighter's marks (the Outliner's ==text==, issue #107).
+  c("--sf-color-highlight-yellow", "Highlight yellow", "#faea89", "#413801"),
+  c("--sf-color-highlight-green", "Highlight green", "#b7f3c2", "#154222"),
+  c("--sf-color-highlight-blue", "Highlight blue", "#b9e1fe", "#043c5a"),
+  c("--sf-color-highlight-pink", "Highlight pink", "#ffcadd", "#57243a"),
+  c("--sf-color-highlight-orange", "Highlight orange", "#fed5b5", "#542c03"),
+  c("--sf-color-highlight-purple", "Highlight purple", "#e2ccfd", "#422b5b"),
   // Dimension — theme-agnostic.
   t("--sf-unit", "Base unit", "Dimension", "1.25rem"),
   t("--sf-radius-default", "Corner radius", "Dimension", "0.125rem"),

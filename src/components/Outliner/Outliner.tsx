@@ -37,6 +37,7 @@ import { Popover } from "../Popover";
 import {
   applyCompletion,
   type CompletionMatch,
+  cycleHighlight,
   findTrigger,
   insertLink,
   pairInput,
@@ -68,6 +69,7 @@ import {
   TreeContext,
 } from "./context";
 import type { DropTarget } from "./drag";
+import { OUTLINER_REMARK_PLUGINS } from "./highlight";
 import { History } from "./history";
 import { BlockBoundary, renderLabel } from "./label";
 import {
@@ -853,7 +855,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         if (item.command) {
           // A block command works on the block's text without the `/query`.
           const rest = textarea.value.slice(0, match.from - 1) + textarea.value.slice(match.to);
-          const result = item.command.apply(rest);
+          const result = item.command.apply(rest, match.from - 1);
           const fresh = withIds(result.children ?? [], latest.current.generateId);
           const typed = updateContent(latest.current.value, id, result.text);
           history.breakTyping();
@@ -1014,7 +1016,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
             travel(key === "y" || e.shiftKey ? "redo" : "undo");
             return;
           }
-          // Formatting chords: bold, italic, link, strikethrough.
+          // Formatting chords: bold, italic, link, strikethrough, highlight.
           const format =
             key === "b" && !e.shiftKey
               ? toggleWrap(textarea.value, start, end, "**")
@@ -1024,7 +1026,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
                   ? insertLink(textarea.value, start, end)
                   : key === "s" && e.shiftKey
                     ? toggleWrap(textarea.value, start, end, "~~")
-                    : null;
+                    : key === "h" && e.shiftKey
+                      ? cycleHighlight(textarea.value, start, end)
+                      : null;
           if (format) {
             e.preventDefault();
             applyEdit(id, format);
@@ -1692,6 +1696,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
             preprocess={preprocess}
             components={markdownComponents}
             urlTransform={passthroughUrlTransform}
+            remarkPlugins={OUTLINER_REMARK_PLUGINS}
           />
         );
       }
@@ -2045,6 +2050,7 @@ function buildOutlinerComponents(opts: BuildComponentsOpts): Components {
               preprocess={opts.preprocess}
               components={buildOutlinerComponents({ ...opts, depth: opts.depth + 1 })}
               urlTransform={passthroughUrlTransform}
+              remarkPlugins={OUTLINER_REMARK_PLUGINS}
               inline
             />
           </span>
