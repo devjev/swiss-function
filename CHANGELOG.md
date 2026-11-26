@@ -6,6 +6,23 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.6.0 — 2026-11-26
+
+### Minor
+
+- Charts under a finger: a finger that rests 300ms on a plot takes the crosshair and the tooltip with it until it lifts (the touch form of hover). Before the rest the gesture stays the page's scroll or a zoomable chart's pan, and a pinch zooms as before. Every chart with a hover reading has it through the shared scaffold; `useScrub` in `lib/chart` is the hook.
+- Charts on a narrow plot: with `controls`, a plot narrower than the tool palette (a phone) folds the toolbar into one row: a tool key that shows the armed tool and opens the tools as a named menu, Reset, and Delete while an annotation is selected. The zoom keys move into that menu for a mouse and drop out for a finger, which pinches. The full toolbar covered about 40% of a 390px plot and ran past its frame.
+- `DataTable` and `Explorer`: `columnShrink` (`"auto"` by default, `"squeeze"`, `"hold"`). On a touch device the columns now keep their width and the table scrolls sideways, where every column used to shrink to its minimum, with each cell cut by an ellipsis, before the table scrolled anyway. A mouse keeps the squeeze. The switch is the `--sf-table-column-hold` token (0, or 1 under `pointer: coarse`), read in the track's minimum; `columnShrink="squeeze"` restores the old behaviour on touch. A dithered fade on the trailing edge shows while there is more to scroll (follows the hold state; `edgeFade={false}` removes it, `edgeFade` on shows it for a mouse too). `Explorer`'s header now follows a sideways scroll of the tree, and a tree column with no `width` holds at 200px.
+- `WindowArray` in a narrow container: the vertical orientation no longer squeezes the windows of a column side by side under the width of a title bar. `windowMinWidth` (px, default 240) is the least a window is wide there; a band wraps its windows onto further lines of the same height, so a five-window column on a phone is five full-width windows in order. The order, the keyboard and the reported `WindowMove` are unchanged; a band keeps one resize gutter, which sets its lines' height; the horizontal strip is untouched.
+
+### Patch
+
+- Chart labels in narrow plots: the idle axis parts its minimum and maximum labels when they would print over each other (their tick marks stay on the data; an axis too short for both prints the maximum alone); `Timeline` measures its tick labels and prints every second, third, sixth or twelfth one where neighbours would touch, keeping every tick mark; an annotation label that would cover an earlier annotation's label takes the other side of its anchor.
+- `DataTable`: frozen columns that take more than half of the table's width stop being pinned and scroll with the rest, on any device, and pin again when the table widens (the `rowNumbers` gutter stays). A 192px frozen column left 134px for everything else on a phone. On touch, the last column's resize handle no longer reaches past the grid, which gave every fitting table a few px of sideways scroll.
+- `npm run mobile` counts a control cut by the screen edge with nothing to scroll it back (an overlay wider than its frame), skips `inert` subtrees, names SVG elements by their class, and treats an annotation label over a mark's own label as layering.
+- Safe areas: the full-screen forms of the charts and of `ChatDrawer` pad themselves by the `--sf-safe-*` tokens, and a full-screen `Graph` or `Map` keeps its canvas edge to edge and moves its `Controls`, `Minimap`, fullscreen key and the map attribution in. A full-screen surface publishes the insets to its corner overlays as `--sf-fs-*`.
+- `Selector layout="compact"` is never narrower than its count, Clear and chevron (a tight flex row cut them off); in `layout="inline"` the chips hidden behind the overflow mark are `inert`, so an unseen remove key takes no tap and no Tab stop. `ChatDrawer`'s `menu` slot clips and keeps room for a folded `MenuBar`'s overflow key instead of letting the bar draw under the action keys.
+
 ## v3.5.0 — 2026-11-26
 
 ### Minor
