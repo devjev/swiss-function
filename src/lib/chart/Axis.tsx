@@ -13,6 +13,10 @@ export interface AxisTick {
   major?: boolean;
   /** Full text when `label` was ellipsized; rendered as the label's title. */
   title?: string;
+  /** Px to move the label along the axis, toward its end (right on x, up on
+   *  y), while the tick mark stays at `position`: two endpoint labels that
+   *  would collide are parted this way (`partEndpoints`). */
+  labelOffset?: number;
 }
 
 export type AxisOrientation = "x" | "y";
@@ -50,7 +54,15 @@ export const Axis = forwardRef<HTMLDivElement, AxisProps>(function Axis(
             data-tick-major={tick.major || undefined}
           >
             <span className={styles.tickMark} aria-hidden="true" />
-            <span className={styles.tickLabel} title={tick.title}>
+            <span
+              className={styles.tickLabel}
+              title={tick.title}
+              style={
+                tick.labelOffset
+                  ? { translate: isX ? `${tick.labelOffset}px 0` : `0 ${-tick.labelOffset}px` }
+                  : undefined
+              }
+            >
               {tick.label}
             </span>
           </div>

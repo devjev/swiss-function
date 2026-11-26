@@ -1,6 +1,7 @@
 import type { Active } from "@dnd-kit/core";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 import type { HTMLAttributes, ReactNode } from "react";
+import type { ColumnShrink } from "../../lib/columns/columnHold";
 import type { EffectName } from "../../lib/effects";
 import type { FilterOption } from "../../lib/filter/ColumnFilter";
 import type { ControlSurface } from "../../lib/surface";
@@ -140,8 +141,29 @@ export interface ExplorerProps<M = unknown>
    *  everything). Default "No data". */
   empty?: ReactNode;
 
-  /** Dithered fade at the bottom scroll edge, signalling more rows below.
-   *  `true` for defaults, or tune `rows` (fade height) / `density`. */
+  /** What the columns do when they don't fit the tree's width.
+   *  - `"squeeze"`: every shrinkable column shrinks toward its minimum (its
+   *    `minWidth`, raised to what its title needs), and the tree scrolls
+   *    sideways only when even the minimums don't fit.
+   *  - `"hold"`: every column keeps its width and the tree scrolls sideways as
+   *    soon as they don't fit. A column with no `width` holds at 120px and
+   *    still fills the slack when there is room.
+   *  - `"auto"` (default): squeeze for a mouse, hold on a device whose primary
+   *    pointer is a finger. Read from the `--sf-table-column-hold` token (0 or
+   *    1), so an ancestor can set it for a region.
+   *
+   *  A column with a numeric `width` in a tree without `resizableColumns` is a
+   *  fixed track already and holds either way. A `width` written as a flexible
+   *  track size (`"2fr"`, `"auto"`) has no length to hold and keeps squeezing. */
+  columnShrink?: ColumnShrink;
+
+  /** Dithered fades at the scroll edges, signalling there is more to scroll.
+   *  The **bottom** edge fades the last rows and is off unless `edgeFade` is
+   *  set. The **trailing** edge (the right one in a left-to-right page) fades
+   *  the columns cut by it, only while there is more to scroll that way; by
+   *  default it is on where the columns hold their width (`columnShrink`) and
+   *  off where they squeeze. `true` turns both on, `false` both off; an object
+   *  tunes `rows` (the bottom fade's height) and `density`. */
   edgeFade?: boolean | { rows?: number; density?: number };
 
   /** Dither filler for space right of fixed-width columns. See

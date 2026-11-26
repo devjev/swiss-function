@@ -24,6 +24,7 @@ import type { ChartScaffolding } from "./scaffolding";
 import type { AnnotationEditor } from "./useAnnotationEditor";
 import { useAnnotationEditor } from "./useAnnotationEditor";
 import scaffoldStyles from "./useChartScaffold.module.css";
+import { useScrub } from "./useScrub";
 import type { Domain, Viewport } from "./useViewport";
 import { useViewport } from "./useViewport";
 
@@ -118,6 +119,10 @@ export function useChartScaffold({
     formatValue: value.formatValue,
     axis: value.axis ?? "y",
   });
+
+  // A finger that rests on the plot scrubs the reading (the touch form of
+  // hover), unless a drawing tool or the zoom marquee owns the drag.
+  useScrub(plotRef, !editor.toolArmed && !viewport.marqueeArmed);
 
   const interactive = !!zoomable || editingEnabled;
 

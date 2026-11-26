@@ -116,7 +116,11 @@
    taking the room in between. A transparent MenuBar with a Search sits here. */
 .menu {
   flex: 1;
-  min-inline-size: 0;
+  /* Room for a folded bar's one overflow key; the title gives way first. */
+  min-inline-size: calc(var(--sf-unit) * 1.5);
+  /* A bar that cannot fold is cut at the slot; it never draws under the
+     action keys. Give a MenuBar here `collapse="items"`. */
+  overflow: clip;
   display: flex;
   align-items: center;
 }
@@ -193,6 +197,10 @@
   position: fixed;
   inset: 0;
   z-index: var(--sf-z-modal);
+  /* Clear of a notch and the home indicator (0 on a plain viewport); the
+     thinking effect behind the content still fills the screen. */
+  box-sizing: border-box;
+  padding: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
 }
 
 .chatWrap {

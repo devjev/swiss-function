@@ -15,6 +15,8 @@
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { cx } from "../cx";
 import styles from "./Annotations.module.css";
+import { type LabelRequest, placeAnnotationLabels } from "./annotationLabels";
+import { getTextMeasurer, resolveTickFont } from "./textMeasure";
 
 export type AnnotationX = number | Date;
 
@@ -145,6 +147,93 @@ export function AnnotationsLayer({
       }
     : undefined;
 
+  // Label spots: the preferred one first, then the other side of the anchor,
+  // taken when the preferred one would print over an earlier label.
+  const font = resolveTickFont(null);
+  const fontSize = Number.parseFloat(/([\d.]+)px/.exec(font)?.[1] ?? "12") || 12;
+  const measureText = getTextMeasurer(font);
+  const readouts = annotations.map((a) => (a.type === "measure" ? measureReadout(a) : ""));
+  const spots = placeAnnotationLabels(
+    annotations.map((a, i): LabelRequest | null => {
+      switch (a.type) {
+        case "hline": {
+          if (!a.label) return null;
+          const y = yPx(a.y);
+          return {
+            text: a.label,
+            spots: [
+              { x: 4, y: y - 4, anchor: "start" },
+              { x: 4, y: y + fontSize + 2, anchor: "start" },
+            ],
+          };
+        }
+        case "vline": {
+          if (!a.label) return null;
+          const x = xPx(a.x);
+          return {
+            text: a.label,
+            spots: [
+              { x: x + 4, y: 12, anchor: "start" },
+              { x: x - 4, y: 12, anchor: "end" },
+            ],
+          };
+        }
+        case "line": {
+          if (!a.label) return null;
+          const x = (xPx(a.x1) + xPx(a.x2)) / 2;
+          const y = (yPx(a.y1) + yPx(a.y2)) / 2;
+          return {
+            text: a.label,
+            spots: [
+              { x, y: y - 6, anchor: "middle" },
+              { x, y: y + fontSize + 4, anchor: "middle" },
+            ],
+          };
+        }
+        case "rect": {
+          if (!a.label) return null;
+          const left = Math.min(xPx(a.x1), xPx(a.x2));
+          const y1 = a.y1 != null ? yPx(a.y1) : height;
+          const y2 = a.y2 != null ? yPx(a.y2) : 0;
+          return {
+            text: a.label,
+            spots: [
+              { x: left + 4, y: Math.min(y1, y2) + 12, anchor: "start" },
+              { x: left + 4, y: Math.max(y1, y2) - 4, anchor: "start" },
+            ],
+          };
+        }
+        case "text":
+          // A note is its own anchor: it does not move, others move around it.
+          return { text: a.text, spots: [{ x: xPx(a.x), y: yPx(a.y), anchor: "start" }] };
+        case "measure": {
+          const x = (xPx(a.x1) + xPx(a.x2)) / 2;
+          const y = (yPx(a.y1) + yPx(a.y2)) / 2;
+          return {
+            text: readouts[i] ?? "",
+            spots: [
+              { x, y: y - 8, anchor: "middle" },
+              { x, y: y + fontSize + 6, anchor: "middle" },
+            ],
+          };
+        }
+        default:
+          return null;
+      }
+    }),
+    // The labels are semibold; the measurer reads the regular weight.
+    (text) => measureText(text) * 1.06,
+    fontSize,
+  );
+  function measureReadout(a: Extract<ChartAnnotation, { type: "measure" }>): string {
+    // Cap to 4 significant digits before formatting: drawn anchors come from
+    // pixel inversion and carry float noise.
+    const dy = Number((a.y2 - a.y1).toPrecision(4));
+    const pct =
+      a.y1 !== 0 ? ` (${dy >= 0 ? "+" : ""}${((dy / Math.abs(a.y1)) * 100).toFixed(1)}%)` : "";
+    return `${formatXDelta(a.x1, a.x2)}  Δ ${formatY(dy)}${pct}`;
+  }
+
   return (
     // No aria-hidden needed: the chart <svg> is role="img", so this whole
     // subtree is already presentational to assistive tech.
@@ -162,6 +251,8 @@ export function AnnotationsLayer({
         const isDraft = editing != null && i === editing.draftIndex;
         const interactive = editing != null && !isDraft && !editing.toolArmed;
         const isSelected = interactive && i === editing.selectedIndex;
+        const spot = spots[i];
+        const labelAt = spot ? { x: spot.x, y: spot.y, textAnchor: spot.anchor } : null;
         const itemProps = {
           "data-annotation": "",
           "data-idx": i,
@@ -181,8 +272,8 @@ export function AnnotationsLayer({
                   className={styles.refLine}
                   style={{ stroke: color }}
                 />
-                {a.label ? (
-                  <text x={4} y={y - 4} className={styles.label} style={{ fill: color }}>
+                {a.label && labelAt ? (
+                  <text {...labelAt} className={styles.label} style={{ fill: color }}>
                     {a.label}
                   </text>
                 ) : null}
@@ -205,8 +296,8 @@ export function AnnotationsLayer({
                   className={styles.refLine}
                   style={{ stroke: color }}
                 />
-                {a.label ? (
-                  <text x={x + 4} y={12} className={styles.label} style={{ fill: color }}>
+                {a.label && labelAt ? (
+                  <text {...labelAt} className={styles.label} style={{ fill: color }}>
                     {a.label}
                   </text>
                 ) : null}
@@ -232,14 +323,8 @@ export function AnnotationsLayer({
                   className={styles.trendLine}
                   style={{ stroke: color }}
                 />
-                {a.label ? (
-                  <text
-                    x={(x1 + x2) / 2}
-                    y={(y1 + y2) / 2 - 6}
-                    textAnchor="middle"
-                    className={styles.label}
-                    style={{ fill: color }}
-                  >
+                {a.label && labelAt ? (
+                  <text {...labelAt} className={styles.label} style={{ fill: color }}>
                     {a.label}
                   </text>
                 ) : null}
@@ -272,8 +357,8 @@ export function AnnotationsLayer({
                   className={styles.region}
                   style={{ fill: color }}
                 />
-                {a.label ? (
-                  <text x={left + 4} y={top + 12} className={styles.label} style={{ fill: color }}>
+                {a.label && labelAt ? (
+                  <text {...labelAt} className={styles.label} style={{ fill: color }}>
                     {a.label}
                   </text>
                 ) : null}
@@ -321,14 +406,7 @@ export function AnnotationsLayer({
             const y1 = yPx(a.y1);
             const x2 = xPx(a.x2);
             const y2 = yPx(a.y2);
-            // Cap to 4 significant digits before formatting: drawn anchors
-            // come from pixel inversion and carry float noise.
-            const dy = Number((a.y2 - a.y1).toPrecision(4));
-            const pct =
-              a.y1 !== 0
-                ? ` (${dy >= 0 ? "+" : ""}${((dy / Math.abs(a.y1)) * 100).toFixed(1)}%)`
-                : "";
-            const readout = `${formatXDelta(a.x1, a.x2)}  Δ ${formatY(dy)}${pct}`;
+            const readout = readouts[i];
             return (
               <g key={key} {...itemProps}>
                 <line
@@ -354,9 +432,9 @@ export function AnnotationsLayer({
                   style={{ fill: color }}
                 />
                 <text
-                  x={(x1 + x2) / 2}
-                  y={(y1 + y2) / 2 - 8}
-                  textAnchor="middle"
+                  x={labelAt?.x ?? (x1 + x2) / 2}
+                  y={labelAt?.y ?? (y1 + y2) / 2 - 8}
+                  textAnchor={labelAt?.textAnchor ?? "middle"}
                   className={styles.label}
                   style={{ fill: color }}
                 >

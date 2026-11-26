@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { Explorer } from "./Explorer";
 import type { ExplorerNode } from "./types";
 
@@ -191,6 +191,60 @@ export function ExplorerHarness({
         }}
       />
       <div data-testid="last-op">{lastOp}</div>
+    </div>
+  );
+}
+
+// --- Column-shrink harness ---
+
+// Four resizable columns (520px of preferred widths) in a narrow wrapper: they
+// do not fit, so the tree either squeezes them or holds them and scrolls
+// (`columnShrink`). `tokenHold` sets the `--sf-table-column-hold` token on the
+// wrapper, which is what `"auto"` reads (1 under a coarse pointer).
+export function ColumnShrinkHarness({
+  width = 320,
+  columnShrink,
+  edgeFade,
+  tokenHold,
+  resizable = true,
+}: {
+  width?: number;
+  columnShrink?: "auto" | "squeeze" | "hold";
+  edgeFade?: boolean;
+  tokenHold?: 0 | 1;
+  /** Off: the plain tree, a stretching name column beside fixed ones. */
+  resizable?: boolean;
+}) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src"]));
+  return (
+    <div
+      style={
+        {
+          width,
+          height: 240,
+          ...(tokenHold != null ? { "--sf-table-column-hold": tokenHold } : null),
+        } as CSSProperties
+      }
+    >
+      <Explorer
+        nodes={seed}
+        resizableColumns={resizable}
+        columnShrink={columnShrink}
+        edgeFade={edgeFade}
+        columns={[
+          resizable ? { id: "name", header: "Name", width: 180 } : { id: "name", header: "Name" },
+          {
+            id: "size",
+            header: "Size",
+            width: 100,
+            render: (n) => (n.meta?.size == null ? "" : String(n.meta.size)),
+          },
+          { id: "kind", header: "Kind", width: 100, render: (n) => n.meta?.kind ?? "" },
+          { id: "path", header: "Path", width: 140, render: (n) => n.id },
+        ]}
+        expandedIds={expandedIds}
+        onExpandedChange={setExpandedIds}
+      />
     </div>
   );
 }

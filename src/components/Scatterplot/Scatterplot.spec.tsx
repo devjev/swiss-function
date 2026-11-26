@@ -537,3 +537,145 @@ test("applies dashed and dotted stroke patterns to series lines", async ({ mount
   expect(await dash(2)).not.toBe("none"); // dotted
   expect(await cap(2)).toBe("round"); // dotted uses round caps to read as dots
 });
+
+// --- Narrow plots and touch (issue #110) -----------------------------------
+
+test("narrow plot: the toolbar takes its compact form and the tool key lists the tools", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<EditableScatterplot width={280} />);
+  const bar = c.getByRole("toolbar", { name: "Chart controls" });
+  await expect(bar).toHaveAttribute("data-compact", "");
+  // The seven-key palette is gone; one key names the armed tool.
+  await expect(c.getByRole("group", { name: "Annotation tool" })).toHaveCount(0);
+  const toolKey = c.getByRole("button", { name: "Tool: Select" });
+  await expect(toolKey).toBeVisible();
+  // Nothing to delete yet, so no Delete key.
+  await expect(c.getByRole("button", { name: "Delete annotation" })).toHaveCount(0);
+
+  // The bar stays inside the plot and clear of the far corner.
+  const plot = c.locator("[class*='_plot_']").first();
+  const barBox = await bar.boundingBox();
+  const plotBox = await plot.boundingBox();
+  if (!barBox || !plotBox) throw new Error("no layout");
+  expect(barBox.x + barBox.width).toBeLessThanOrEqual(plotBox.x + plotBox.width);
+  expect(barBox.height).toBeLessThan(50);
+
+  // The menu loads on demand; the key is a menu trigger once it has.
+  await expect(toolKey).toHaveAttribute("aria-haspopup", "menu");
+  await toolKey.click();
+  await page.getByRole("menuitemradio", { name: "Trend line" }).click();
+  await expect(c.getByRole("button", { name: "Tool: Trend line" })).toBeVisible();
+});
+
+test("wide plot: the toolbar keeps its full palette", async ({ mount }) => {
+  const c = await mount(<EditableScatterplot />);
+  const bar = c.getByRole("toolbar", { name: "Chart controls" });
+  await expect(bar).not.toHaveAttribute("data-compact", "");
+  await expect(c.getByRole("button", { name: "Zoom in" })).toBeVisible();
+  await expect(c.getByRole("button", { name: "Measure" })).toBeVisible();
+});
+
+test("idle axis: a minimum and maximum a few px apart are parted, not overprinted", async ({
+  mount,
+}) => {
+  // A flat series under a wide shared domain: 500 and 505 sit about 1px apart.
+  const c = await mount(
+    <div style={{ width: 480 }}>
+      <Scatterplot
+        series={[
+          {
+            name: "Flat",
+            data: [
+              { x: 1, y: 500 },
+              { x: 2, y: 505 },
+              { x: 3, y: 502 },
+            ],
+          },
+        ]}
+        yDomain={[0, 1000]}
+        height={240}
+        showLegend={false}
+      />
+    </div>,
+  );
+  const labels = c.locator("[data-orientation='y'] [data-tick] span:last-child");
+  await expect(labels).toHaveCount(2);
+  const a = await labels.nth(0).boundingBox();
+  const b = await labels.nth(1).boundingBox();
+  if (!a || !b) throw new Error("no layout");
+  const [upper, lower] = a.y < b.y ? [a, b] : [b, a];
+  expect(upper.y + upper.height).toBeLessThanOrEqual(lower.y + 1);
+});
+
+test("fullscreen clears a notch: the frame pads and the key moves in by the safe area", async ({
+  mount,
+  page,
+}) => {
+  // Emulation has no safe areas; the tokens that carry them are set by hand.
+  await page.addStyleTag({
+    content:
+      ":root { --sf-safe-top: 47px; --sf-safe-right: 0px; --sf-safe-bottom: 34px; --sf-safe-left: 0px; }",
+  });
+  const c = await mount(<EditableScatterplot fullscreen />);
+  const key = c.getByRole("button", { name: "Enter fullscreen" });
+  const restTop = (await key.boundingBox())?.y ?? 0;
+  await key.click();
+  const root = c.locator("[data-expanded]");
+  await expect(root).toHaveCount(1);
+  const padding = await root.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const unit = Number.parseFloat(cs.paddingLeft);
+    return {
+      top: Number.parseFloat(cs.paddingTop) - unit,
+      bottom: Number.parseFloat(cs.paddingBottom) - unit,
+    };
+  });
+  expect(padding).toEqual({ top: 47, bottom: 34 });
+  const exit = c.getByRole("button", { name: "Exit fullscreen" });
+  const exitTop = (await exit.boundingBox())?.y ?? 0;
+  // The key keeps its half-unit inset, measured from under the notch.
+  expect(exitTop).toBeGreaterThanOrEqual(47);
+  expect(restTop).toBeGreaterThanOrEqual(0);
+});
+
+test.describe("touch", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 700 } });
+
+  test("a finger that rests on the plot scrubs the reading from point to point", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(
+      <div style={{ width: 340 }}>
+        <Scatterplot series={SERIES} height={240} showLegend={false} />
+      </div>,
+    );
+    const plot = c.locator("[class*='_plot_']").first();
+    const box = await plot.boundingBox();
+    if (!box) throw new Error("no layout");
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: string, x?: number, y?: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type: type as "touchStart",
+        touchPoints: x == null || y == null ? [] : [{ x, y, id: 1 }],
+      });
+    const y = box.y + box.height / 2;
+    const tip = page.getByRole("tooltip");
+
+    await touch("touchStart", box.x + box.width * 0.1, y);
+    await expect(tip).toHaveCount(0);
+    await page.waitForTimeout(400);
+    // Rested: the nearest point (the first) is read.
+    await expect(tip).toContainText("12");
+    for (let i = 1; i <= 8; i++) {
+      await touch("touchMove", box.x + box.width * (0.1 + 0.1 * i), y);
+    }
+    // The finger is at the far end: the last point is read.
+    await expect(tip).toContainText("22");
+    await expect(plot).toHaveAttribute("data-scrubbing", "");
+    await touch("touchEnd");
+    await expect(plot).not.toHaveAttribute("data-scrubbing", "");
+  });
+});

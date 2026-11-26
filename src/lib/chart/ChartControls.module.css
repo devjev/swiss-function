@@ -5,6 +5,8 @@
   inset-block-start: calc(var(--sf-unit) / 4);
   inset-inline-start: calc(var(--sf-unit) / 4);
   z-index: 1;
+  /* The clusters wrap onto rows. When the plot is narrower than the widest
+     cluster the component swaps to its compact form (ChartControls.tsx). */
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -18,4 +20,17 @@
 .cluster {
   display: flex;
   gap: calc(var(--sf-unit) / 4);
+}
+
+/* The compact form's tool list: glyph, name, a check on the armed one. */
+.menuItem {
+  gap: calc(var(--sf-unit) / 2);
+}
+.menuLabel {
+  flex: 1;
+}
+
+/* The compact form is one row whatever the plot's width. */
+.root[data-compact] {
+  flex-wrap: nowrap;
 }

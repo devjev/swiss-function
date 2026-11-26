@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { type CSSProperties, useRef, useState } from "react";
 import { DataTable, type DataTableHandle, type DataTableProps } from "./DataTable";
 import type { CellChange, ColumnDef, EditActivation, PaginateConfig } from "./types";
 
@@ -204,9 +204,11 @@ export function EditorsHarness({ onCellChange }: { onCellChange?: (c: CellChange
 export function FrozenHarness({
   width = 360,
   frozenColumns = 2,
+  rowNumbers,
 }: {
   width?: number;
   frozenColumns?: number;
+  rowNumbers?: boolean;
 }) {
   const columns: ColumnDef<Row>[] = [
     { id: "name", header: "Name", accessor: "name", width: 10 },
@@ -226,7 +228,13 @@ export function FrozenHarness({
   }));
   return (
     <div style={{ width }}>
-      <DataTable<Row> data={data} columns={columns} height={240} frozenColumns={frozenColumns} />
+      <DataTable<Row>
+        data={data}
+        columns={columns}
+        height={240}
+        frozenColumns={frozenColumns}
+        rowNumbers={rowNumbers}
+      />
     </div>
   );
 }
@@ -780,5 +788,56 @@ export function TotalsTreeHarness() {
       defaultExpanded
       height={300}
     />
+  );
+}
+
+// --- Column-shrink harness ---
+
+// Six default-width columns in a narrow wrapper: they do not fit, so the
+// table either squeezes them or holds them and scrolls (`columnShrink`).
+// `tokenHold` sets the `--sf-table-column-hold` token on the wrapper, which is
+// what `"auto"` reads (1 under a coarse pointer).
+export function ColumnShrinkHarness({
+  width = 320,
+  columnShrink,
+  edgeFade,
+  tokenHold,
+}: {
+  width?: number;
+  columnShrink?: DataTableProps<Row>["columnShrink"];
+  edgeFade?: DataTableProps<Row>["edgeFade"];
+  tokenHold?: 0 | 1;
+}) {
+  const columns: ColumnDef<Row>[] = [
+    { id: "name", header: "Name", accessor: "name" },
+    { id: "age", header: "Age", accessor: "age" },
+    ...Array.from({ length: 4 }, (_, i) => ({
+      id: `c${i}`,
+      header: `Col ${i}`,
+      accessor: () => `Value ${i}`,
+    })),
+  ];
+  const data: Row[] = Array.from({ length: 8 }, (_, i) => ({
+    name: `Name ${i}`,
+    age: 20 + i,
+    active: i % 2 === 0,
+  }));
+  return (
+    <div
+      style={
+        {
+          width,
+          ...(tokenHold != null ? { "--sf-table-column-hold": tokenHold } : null),
+        } as CSSProperties
+      }
+    >
+      <DataTable<Row>
+        data={data}
+        columns={columns}
+        height={240}
+        columnShrink={columnShrink}
+        edgeFade={edgeFade}
+      />
+    </div>
   );
 }

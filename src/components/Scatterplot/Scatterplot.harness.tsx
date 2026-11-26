@@ -19,14 +19,17 @@ export function EditableScatterplot({
   initial = [],
   onChange,
   fullscreen = false,
+  width = 480,
 }: {
   initial?: ChartAnnotation[];
   onChange?: (next: ChartAnnotation[]) => void;
   fullscreen?: boolean;
+  /** Container width in px: under about 400 the toolbar takes its compact form. */
+  width?: number;
 }) {
   const [list, setList] = useState<ChartAnnotation[]>(initial);
   return (
-    <div style={{ width: 480 }}>
+    <div style={{ width }}>
       <Scatterplot
         series={SERIES}
         height={240}

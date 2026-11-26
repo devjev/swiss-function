@@ -201,23 +201,40 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
   // reviewed and unchecked in the dropdown, so the control never grows vertically.
   const chipsRef = useRef<HTMLDivElement>(null);
   const [overflowing, setOverflowing] = useState(false);
+  // How many chips lie whole inside the row. The ones past the cut are made
+  // inert: a remove key nobody sees must not take a tap or a Tab stop.
+  const [chipsInView, setChipsInView] = useState(Number.POSITIVE_INFINITY);
   useLayoutEffect(() => {
     if (layout !== "inline") return;
     const el = chipsRef.current;
     if (!el) return;
     // A 1px slack keeps sub-pixel rounding from reporting a phantom overflow.
-    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1);
+    const measure = () => {
+      const over = el.scrollWidth > el.clientWidth + 1;
+      setOverflowing(over);
+      if (!over) {
+        setChipsInView(Number.POSITIVE_INFINITY);
+        return;
+      }
+      const edge = el.getBoundingClientRect().right + 1;
+      let inView = 0;
+      for (const chip of el.children) {
+        if (chip.getBoundingClientRect().right > edge) break;
+        inView++;
+      }
+      setChipsInView(inView);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [layout, selected, size]);
 
-  const renderChips = () =>
-    selected.map((v) => {
+  const renderChips = (inView = Number.POSITIVE_INFINITY) =>
+    selected.map((v, i) => {
       const label = byValue.get(v)?.label ?? v;
       return (
-        <Combobox.Chip key={v} className={styles.chip}>
+        <Combobox.Chip key={v} className={styles.chip} inert={i >= inView ? true : undefined}>
           {label}
           <Combobox.ChipRemove aria-label={`Remove ${label}`}>×</Combobox.ChipRemove>
         </Combobox.Chip>
@@ -283,7 +300,7 @@ export const Selector = forwardRef<HTMLDivElement, SelectorProps>(function Selec
               className={styles.inlineGroup}
             >
               <Combobox.Chips ref={chipsRef} className={styles.inlineChips}>
-                {renderChips()}
+                {renderChips(chipsInView)}
               </Combobox.Chips>
               {overflowing && (
                 <span className={styles.overflowEllipsis} aria-hidden="true">

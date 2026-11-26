@@ -214,14 +214,16 @@ controls. Nothing here needs switching on.
 | `--sf-hit-min` | `0px` | `2.75rem` (44px) | The side of the area a small control answers on. The control keeps its size; an invisible pseudo-element carries the area (`lib/hitArea`). |
 | `--sf-hit-tight` | `0px` | `1.5rem` (24px) | The same for a control that sits against others, and the least a drag handle is wide. The WCAG 2.5.8 minimum. |
 | `--sf-text-entry-min` | `0px` | `1rem` (16px) | The floor of every text field's font size. iOS zooms the page when a field under 16px takes focus. |
-| `--sf-safe-top` / `-right` / `-bottom` / `-left` | `env(safe-area-inset-*)` | same | The part of each screen edge a notch or the home indicator covers. 0 unless the page's viewport meta has `viewport-fit=cover`. `Drawer`, a maximized `Dialog` and `Fullscreen` pad themselves by them. |
+| `--sf-table-column-hold` | `0` | `1` | Whether the columns of a `DataTable` or an `Explorer` hold their width when they do not fit: 0, they squeeze toward their minimum before the table scrolls; 1, they keep their width and the table scrolls sideways at once. A number (0 or 1) multiplied into each track's minimum. The components' `columnShrink` prop overrides it per instance. |
+| `--sf-safe-top` / `-right` / `-bottom` / `-left` | `env(safe-area-inset-*)` | same | The part of each screen edge a notch or the home indicator covers. 0 unless the page's viewport meta has `viewport-fit=cover`. `Drawer`, a maximized `Dialog`, `Fullscreen`, a full-screen chart and a full-screen `ChatDrawer` pad themselves by them; a full-screen `Graph` or `Map` keeps its canvas edge to edge and moves its `Controls`, `Minimap` and fullscreen key in. A surface that fills the screen publishes the insets to what sits in its corners as `--sf-fs-top` / `-right` / `-bottom` / `-left` (0 elsewhere). |
 
 The density follows too: with a coarse pointer the root is 16px on a 24px unit
 (the `comfortable` values) unless it carries `data-density`. Set
 `data-density="compact"` on the root to keep the dense metrics on a phone; the
-three touch tokens still apply. Set a token on any ancestor to override it
+touch tokens still apply. Set a token on any ancestor to override it
 (`--sf-hit-min: 2.75rem` on a kiosk whose touch screen reports a mouse, `0px`
-to switch the expansion off).
+to switch the expansion off; `--sf-table-column-hold: 0` to keep the tables of
+a region squeezing on a phone).
 
 **Hit areas**, `import { hitArea } from "@tarassov-ch/swiss-function/lib/hit-area"`.
 Class names that grow a control's hit area without changing its size. Add one
@@ -259,11 +261,23 @@ long press; a `DataTable` cell opens its editor on a second tap; `SplitPane`
 and `ChatDrawer` overlay their panel in a narrow container; a windowed
 `Dialog` fills a phone's screen; `Calendar` shows as many days as fit;
 `Outliner` shows a toolbar for the structure commands above the on-screen
-keyboard.
+keyboard; a chart reads the value under a finger that rests on its plot (the
+long-press scrub, below) and folds its toolbar into one tool key on a narrow
+plot; `WindowArray` stacks the windows of a column instead of squeezing them.
+
+**The long-press scrub** is the touch form of a chart's hover. A finger that
+rests 300ms on the plot (within 8px) takes the crosshair and the tooltip with
+it until it lifts; the reading stays, as after a tap, until the next press.
+Before the rest the gesture is the page's (it scrolls) or a zoomable chart's
+(it pans); a pinch zooms as before. It is off while a drawing tool or the
+zoom marquee is armed. Every chart with a hover reading over `data-idx` marks
+or over its plot has it (`useScrub` in `lib/chart`, wired by the shared
+scaffold).
 
 **Checking it**: `npm run mobile` renders every story at 390 x 844 with touch
-emulation and counts page overflow, clipped controls, colliding text, hit
-areas under 24px and text fields under 16px against
+emulation and counts page overflow, controls cut by a clipping ancestor or by
+the screen edge, colliding text, hit areas under 24px and text fields under
+16px against
 `perf/mobile-baseline.json`. `VRT_PHONE=1 npm run vrt` adds the same viewport
 to the pixel gate.
 
@@ -754,7 +768,7 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
 | `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `minimap` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `minimap` gives the panel's transcript the rail instead of its scrollbar (a panel is where a long conversation is usually read). `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
-| `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. |
+| `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. The slot clips: give a `MenuBar` here `collapse="items"` so it folds into its overflow key in a narrow panel (the slot keeps room for that key; the title gives way first). |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
 | `views` | `ChatDrawerView[]` | n/a | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
 | `activeView` / `defaultActiveView` / `onActiveViewChange` | n/a | first view | Active view id (controlled / uncontrolled / change callback). |
@@ -1078,10 +1092,11 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `height` | `number \| string` | `400` | Viewport cap; sizes to content when it fits. |
 | `empty` | `ReactNode` | n/a | Empty-state slot. |
 | `resizableColumns` | `boolean` | `true` | Drag/keyboard column resize, the spreadsheet model. **A column is never narrower than its title** (issue #102): the header floor is measured off the rendered header (its padding, its chevron, funnel and sort arrow, and the title on one line) and raises the declared minimum on every path, the auto-shrink `minmax()` track included, so a container squeeze scrolls instead of wrapping or clipping a title, and a frozen track is at least its floor. A sortable column reserves the arrow's space at rest, so sorting never moves a column edge. The floor is re-measured when the columns, `cellFontSize` or `cellPadding` change and once the webfont has loaded. Then dragging a column's trailing edge changes that column alone; its neighbours keep their widths and the row's total width follows (wider than the viewport scrolls, narrower leaves slack to the right). The first resize freezes every column at its measured width (the `1fr` filler ends), so persisting `onColumnWidthsChange` restores the exact layout. Every resizable column has a trailing handle, the last one included. Lock one via `resizable: false`. Gestures (issue #102): a drag is live and shows a **width readout** under the handle (unit multiples and px, `min` at the floor, the one place a stopped drag is explained); the pointer keeps the resize cursor over the body while a drag is captured, and at the floor the handle (and a clamped drag) show the one-way `e-resize` arrow (macOS draws it as a single arrow; Windows and GTK show the two-way one). On a focused handle, after the APG Window Splitter: arrows nudge 8px, Shift 24px, Page Up / Down 96px, Home goes to the floor, End and Enter / Space auto-fit (the twin of the double-click), Escape restores the width the handle had when it took focus. **A full-column selection resizes together** (select the columns by their header select zones or Ctrl+Space, then drag any edge inside the selection: every selected column takes the dragged width, each no lower than its own floor; double-click or Enter fits each to its own content, as Excel and Sheets do). A selection is a column selection by shape, a range spanning every row, as in Excel: the selection model carries no kind, so a cell range that happens to cover every row counts too. **Shift+drag** takes the space from the adjacent column instead of changing the row's total (AG Grid's gesture), both floors respected. **A group title never wraps either**: on the drag, keyboard and auto-fit paths a leaf stops where its group's title would need more than the group's leaves hold (the need is shared among the columns being moved); under a container squeeze the group label ellipsizes, since a grid template cannot express a constraint on a sum. Gestures are physical-direction in RTL (the edge follows the pointer / the arrow's direction; Page Up is always wider). The handle is a `role="separator"` with `aria-valuemin` (the column's floor), `aria-valuemax` (a 4096px cap, since the role defaults an absent maximum to 100), `aria-valuenow` once a px override exists and `aria-valuetext` ("240 px", "168 px, minimum"). |
-| `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). |
+| `frozenColumns` | `number` | `0` | Freeze the first N leaf columns (pinned left while the rest scroll, the horizontal sticky-header analogue). Frozen columns keep a fixed width and don't shrink. A column group is pinned only when its whole span is inside the frozen region (a straddling group scrolls). **They release in a narrow table**: while the frozen columns' total width is more than half the width of the scroll viewport they scroll with the rest (pinned, they would leave the other columns less than half the table), and they pin again when the table grows. The rule is the same for a mouse and a finger, follows the table's own width (its container observer), and leaves the `rowNumbers` gutter pinned; the gutter's width is not counted. Released columns keep their fixed width. |
+| `columnShrink` | `"auto" \| "squeeze" \| "hold"` | `"auto"` | What the columns do when they don't fit the table's width. `"squeeze"`: every column shrinks toward its minimum (`minWidth`, raised to what its title needs) and the table scrolls sideways only when even the minimums don't fit. `"hold"`: every column keeps its width (its `width`, the `defaultColumnWidth`, or the width a resize gave it) and the table scrolls sideways as soon as they don't fit; the last column still fills the slack when there is room. `"auto"`: squeeze for a mouse, hold where the primary pointer is a finger, since a squeezed column on a phone shows an ellipsis in every cell and the table scrolls anyway. `"auto"` reads the `--sf-table-column-hold` token (0, or 1 under `@media (pointer: coarse)`), so an ancestor can set it for a region. See "Columns that hold their width" below. |
 | `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of the column-header keys (`lib/surface`). Flat by default; a curved face runs at 0.6 of the system amplitude (`--sf-curve-scale` on the table retunes it). The sorted header sits pressed. An ink rule (`--sf-color-border-strong`) runs under the header. |
 | `scrollSnap` | `"none" \| "rows" \| "columns" \| "both"` | `"none"` | Proximity scroll-snap. |
-| `edgeFade` | `boolean \| { rows?: number; density?: number }` | `false` | Dithered bottom-edge fade. `rows` = depth in rows (2), `density` = peak dot opacity 0 to 1 (1). |
+| `edgeFade` | `boolean \| { rows?: number; density?: number }` | follows `columnShrink` | Dithered fades at the scroll edges. The **bottom** fade covers the last rows and is off unless `edgeFade` is set. The **trailing-edge** fade (the right edge in a left-to-right page) is the cue that the table scrolls sideways, for a touch screen whose scrollbars stay hidden until a swipe: it covers the header and the rows, and shows only while there is more to scroll that way (it goes when the last column is in view). Left unset, the trailing fade is on where the columns hold their width and off where they squeeze (see `columnShrink`). `true` or an object turns both fades on, `false` both off; an explicit value always wins. `rows` = depth of the bottom fade in rows (2), `density` = peak dot opacity 0 to 1 (1). |
 | `columnFill` | `boolean \| { animated?: boolean; effect?: EffectName; color?: string; density?: number; speed?: number }` | `false` | Don't stretch the last column; keep columns fixed and fill the leftover space with a dither panel. `true` = static CSS dither; object opts into the animated WebGL dither / tunes it (`speed` is the animation rate, animated only). |
 | `fillHeight` | `boolean` | `false` | Hold the full `height` even with too few rows (instead of shrinking to content), and dither the empty band below the last row — so a sparse table reads as one filled panel. Uses `columnFill`'s look when set, else a static dither; together with `columnFill` it fills both the right gutter and the bottom band. |
 | `defaultColumnWidth` | `number` | `8` | Standard preferred width (in `--sf-unit` multiples) for columns without their own `width`. |
@@ -1237,6 +1252,27 @@ Before the first measurement, the padding falls back to `calc(var(--sf-unit) * 1
 ```tsx
 <DataTable data={rows} columns={columns} scrollSnap="rows"
            edgeFade={{ rows: 4, density: 0.6 }} />
+```
+
+**Columns that hold their width** (`columnShrink`). A resting track is
+`minmax(min, preferred)`, and the minimum is
+`max(floor, calc(preferred * var(--sf-column-hold)))`: the floor is the
+column's `minWidth` raised to its measured header need, and `--sf-column-hold`
+is an internal property the table sets to 0 (`"squeeze"`), 1 (`"hold"`) or the
+`--sf-table-column-hold` token (`"auto"`). At 0 the product is a zero length and
+the track is today's `minmax(floor, preferred)`; at 1 it is the preferred width.
+The choice is made in CSS, so there is no pointer test in JS and the template is
+the same string either way. The last column keeps its `1fr` maximum and holds at
+the width it would have as any other column. Every resize path is unchanged: a
+drag, a key step, auto-fit and `columnFit="content"` write px widths, and a
+written width is the preferred width, so it is held too.
+
+```tsx
+// Hold everywhere, with the sideways cue.
+<DataTable data={rows} columns={columns} columnShrink="hold" />
+
+// Keep squeezing on touch, for a table of two or three short columns.
+<DataTable data={rows} columns={columns} columnShrink="squeeze" />
 ```
 
 ## DatePicker
@@ -1583,7 +1619,8 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `icon` | `(node) => ReactNode` | n/a | Override the per-node glyph. |
 | `showHeader` | `boolean` | `true` | Column header row. |
 | `empty` | `ReactNode` | `"No data"` | Shown when there are no rows (empty `nodes` or a filter pruned everything). |
-| `edgeFade` | `boolean \| { rows?, density? }` | `false` | Dithered fade at the bottom scroll edge. |
+| `columnShrink` | `"auto" \| "squeeze" \| "hold"` | `"auto"` | What the columns do when they don't fit the tree's width, as in DataTable. `"squeeze"`: every shrinkable column shrinks toward its minimum and the tree scrolls sideways only when the minimums don't fit. `"hold"`: every column keeps its width and the tree scrolls sideways as soon as they don't fit; the header follows the scroll. `"auto"`: squeeze for a mouse, hold where the primary pointer is a finger (the `--sf-table-column-hold` token). With `resizableColumns` every track is `minmax(max(floor, calc(preferred * var(--sf-column-hold))), preferred)`. Without it a numeric `width` is a fixed track and holds either way, and a column with no `width` (`1fr`) holds at 120px (the first one, the tree column, at 200px, so a name two levels down is not cut) and still fills the slack when there is room. A `width` written as a flexible track size (`"2fr"`, `"auto"`) has no length to hold and keeps squeezing. |
+| `edgeFade` | `boolean \| { rows?, density? }` | follows `columnShrink` | Dithered fades at the scroll edges, as in DataTable. The bottom fade is off unless `edgeFade` is set. The trailing-edge fade, over the header and the rows, shows only while there is more to scroll that way; left unset it is on where the columns hold their width and off where they squeeze. `true` or an object turns both on, `false` both off. |
 | `gridLines` | `boolean` | `false` | Spreadsheet look: every body cell draws its own right + bottom hairline (the same per-cell edge model as DataTable). |
 | `headerSurface` | `"flat" \| "dish" \| "dome" \| "concave"` | `"flat"` | The face of the column-header keys (`lib/surface`), flat by default; the sorted header sits pressed. |
 | `cellPadding` | `"xs" \| "sm" \| "md" \| "lg"` | `"md"` | Horizontal cell padding (the cell "margins"): 6 / 8 / 12 / 18px. Header + body. |
@@ -3525,13 +3562,13 @@ Responsive scatter plot with optional lines, multi-series, scaffolding modes, an
 | `xLabel` / `yLabel` | `string` | n/a | Axis labels. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 12)` | px or CSS value. |
 | `showLegend` | `boolean` | `true` when >1 series | Legend below the x-axis. |
-| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. In full mode, axes are adaptive: tick step/precision recompute from the domain and pixel density; date axes walk a calendar ladder (5 min → hour → day → month → year) with promoted (bolder) boundary ticks; tiny-span-at-large-magnitude windows factor a shared offset into a corner readout. |
+| `scaffolding` | `"minimal" \| "hover" \| "full"` | `"hover"` | Axis posture. In full mode, axes are adaptive: tick step/precision recompute from the domain and pixel density; date axes walk a calendar ladder (5 min → hour → day → month → year) with promoted (bolder) boundary ticks; tiny-span-at-large-magnitude windows factor a shared offset into a corner readout. The idle axis prints the data's minimum and maximum: when the two labels would touch (a flat series under a shared domain, a plot narrower than two labels) they are moved apart while their tick marks stay on the data, and an axis too short for both prints the maximum alone. |
 | `zoomable` | `boolean` | `false` | Interactive viewport: wheel zooms at the cursor (plain wheel after a click; ctrl/⌘+wheel and pinch always), drag pans, double-click resets; ←/→ `+` `-` `0` on the focused chart; `aria-live` range announcements; Reset button while zoomed. Series past ~4 points/px decimate (min/max per pixel column, spikes survive). |
 | `zoomOutLimit` | `number` | `1` | How far zoom-out may go **past** the data (into empty margin to the sides), as a multiple of the x span; `Infinity` = arbitrary. `1` stops at the data. Reset still returns to the data. |
 | `onXDomainChange` | `(domain: [number, number] \| [Date, Date] \| null) => void` | n/a | Fires on every viewport change (`null` = reset). Semantic-zoom hook: load finer-grained data when the window narrows. |
-| `annotations` | `ChartAnnotation[]` | n/a | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document, so persist it as-is. |
+| `annotations` | `ChartAnnotation[]` | n/a | Serializable, data-anchored overlay: `hline`/`vline`/`line`/`rect`/`text`/`measure` (Δx/Δy/Δ% ruler). Anchors are data values, so drawings survive zoom/pan/resize. The array is the document, so persist it as-is. A label that would print over an earlier annotation's label takes the other side of its anchor (below its line, left of a `vline`); the choice follows the array order alone, so a persisted set renders the same on every load. |
 | `onAnnotationsChange` | `(annotations: ChartAnnotation[]) => void` | n/a | With `controls`, enables annotation **editing** (see below). Fires with the complete next array. |
-| `controls` | `boolean` | `false` | On-chart toolbar overlay: zoom-to-region mode (arm, then drag the band to zoom to; Escape disarms), step zoom out, Reset (when `zoomable`) + the annotation tool palette (when `onAnnotationsChange` is set). Absorbs the corner Reset button. |
+| `controls` | `boolean` | `false` | On-chart toolbar overlay: zoom-to-region mode (arm, then drag the band to zoom to; Escape disarms), step zoom out, Reset (when `zoomable`) + the annotation tool palette (when `onAnnotationsChange` is set). Absorbs the corner Reset button. On a plot narrower than the palette (a phone) the toolbar takes a compact form on one row: a tool key that shows the armed tool and opens a menu of the tools by name, Reset, and Delete while an annotation is selected. The zoom keys move into that menu for a mouse and drop out for a finger, which pinches. The same on every chart with `controls`. |
 | `fullscreen` | `boolean` | `false` | Maximize-to-viewport toggle in the corner; Escape exits. |
 | `frame` | `boolean` | `false` | 1px structural border + padding; the chart reads as a panel. |
 | `onPointActivate` | `(datum: ScatterDatum & { series: string }) => void` | n/a | Click/Enter on a point, a drill-down hook. |
@@ -3575,8 +3612,10 @@ keyboard put it, and a pointer hover never scrolls the windowed list.
 | `compactLabel` | `(count: number) => ReactNode` | `` `${n} item(s)` `` | Count wording, `compact` only. |
 
 **Layouts:** `panel` (search + chip bucket below), `inline` (chips inside the
-field, one row, overflow shows a trailing `⋯`), `compact` (collapses to "N items"
-+ Clear for tight spaces; review/uncheck in the dropdown).
+field, one row, overflow shows a trailing `⋯`; the chips past the cut are
+`inert`, so a remove key nobody sees takes no tap and no Tab stop), `compact`
+(collapses to "N items" + Clear for tight spaces; review/uncheck in the
+dropdown).
 
 **Width:** the control fills its container (`inline-size: 100%`) and, in a
 narrow *definite* cell, clamps to fill it rather than overflow. In a
@@ -3586,7 +3625,9 @@ collapsing to the search input's min-content; set
 `--sf-selector-min-inline-size` (e.g. `0`) to change it. `compact` opts out of
 the floor by design: its root shrinks to content so it tucks into a toolbar, but
 a `width`/`inline-size` set on the control (className or inline style) wins and
-the field fills it. To pin an exact width in any layout, set `width`/`inline-size`
+the field fills it. It is never narrower than its count, Clear and chevron
+(`min-inline-size: min-content`): only the search input gives way, so put it
+in a row that wraps when the row can run out of room. To pin an exact width in any layout, set `width`/`inline-size`
 on the control (it wins over the fill).
 
 ```tsx
@@ -4110,7 +4151,7 @@ Horizontal time axis with ticks, event markers, optional scrubbing/range selecti
 | `showNow` | `boolean` | `true` | Faint line at the current time. |
 | `maxLanes` | `number` | `3` | Max label-stacking lanes. Labels that can't be placed collision-free within them are hidden at rest and revealed on hover/focus (markers stay visible). |
 | `pxPerDay` | `number` | n/a | Minimum px per day: the track gets a min inline size of `days × pxPerDay`, so a too-wide range scrolls horizontally instead of compressing. Unset = fit-to-container. |
-| `tickSpacing` | `number` | tuned (~80 to 200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. |
+| `tickSpacing` | `number` | tuned (~80 to 200px) | Target min px between ticks; unit chosen so neighbours sit at least this far apart. Larger = sparser. Labels are measured: where neighbours would touch (a day of hourly ticks on a phone), every k-th label is printed and every tick mark stays. k steps 1, 2, 3, 6, 12 for hours, 1, 2, 7, 14 for days, 1, 3, 6 for months, and counts from midnight, a Monday or January, so the labels hold still while the range scrolls. |
 | `compact` | `boolean` | `false` | Condensed strip, labels hidden at rest. |
 | `size` | `"sm" \| "md" \| "lg"` | `"md"` | Strip height; implies the strip. `sm` value label shrinks to 75%. |
 | `bordered` | `boolean` | `false` | Input-style frame. |
@@ -4339,6 +4380,8 @@ A window-manager main area in the style of Niri's scrollable tiling: an infinite
 
 When the container is narrower than `verticalBelow` (with the default `orientation="auto"`), the strip transposes: it scrolls top-to-bottom, each column becomes a full-width band whose height is the column's width value, and the column's windows sit side by side inside the band. Arrow keys, Shift+moves, drops, gutter resizing, snap, and paddles all follow the layout axis; the model, ids, and `WindowMove` indices are identical in both orientations.
 
+A window in a band is never narrower than `windowMinWidth` (240px by default). A band holds as many windows per line as fit at that width (at least one) and wraps the rest onto further lines of the same band, in order: a band of n windows at p per line has `ceil(n / p)` lines, the windows of a short last line share its width evenly, every line is as tall as the band, and two lines are one `gap` apart. The band keeps its one resize gutter, which sets the height of each of its lines. Only the placement changes: DOM order, keyboard order (left/right walk the band across its line breaks, up/down switch bands) and `WindowMove` indices are the same as on an unwrapped band, and a focus move scrolls the window's own line into view. With one window per line the root carries `data-stacked` and a dragged window's insertion side follows the pointer's vertical position (a horizontal drop line), as on the horizontal strip. With the defaults a container under `verticalBelow` (480px) has room for one 240px window, so each window takes a full-width line; two or more per line need a larger `verticalBelow`, a forced `orientation="vertical"`, or a smaller `windowMinWidth`. Where every band's windows fit, the layout is the unwrapped one, and the horizontal strip never wraps.
+
 Wheel scrolling is native: a plain wheel scrolls the window body under the pointer, and **Shift+wheel** scrolls the strip sideways (the browser's standard horizontal-scroll gesture). In the vertical orientation a plain wheel scrolls the strip top-to-bottom. Keyboard navigation, the paddle `controls`, and drag still scroll the strip.
 
 With `splittable`, every window's chrome gains a split button (a two-panes icon; needs at least two windows): clicking it opens a small dialog that preselects the clicked window as half 1 and asks which window fills half 2, and on confirm the two fill the container as halves along the layout axis (left/right on the horizontal strip, top/bottom when vertical), meeting flush at a hairline divider. Inside a half the maximize button is hidden and the pressed split button exits; Escape exits too, and so does removing either member window. Split and fullscreen are mutually exclusive: when both are set, fullscreen wins, and entering one exits the other.
@@ -4368,6 +4411,7 @@ With `popOutable`, every window's chrome gains a pop-out button (external-window
 | `apiRef` | `Ref<WindowArrayHandle>` | n/a | Imperative handle for a consumer's central hotkey system (issue #32): `switchColumn("prev" \| "next")` and `focusActive()`. WindowArray binds **no** column-switch shortcut itself; wire your own keys (e.g. Alt+Arrow) and call the handle. Replaces the removed `hotkeys` prop. |
 | `orientation` | `"auto" \| "horizontal" \| "vertical"` | `"auto"` | Layout axis. `"auto"` watches the container's width and goes vertical below `verticalBelow`; the explicit values force a mode. |
 | `verticalBelow` | `number` | `480` | Container width (px) below which `"auto"` transposes to the vertical strip. |
+| `windowMinWidth` | `number` | `240` | Narrowest a window gets (px) beside its neighbours in a band of the vertical orientation. A band holds `max(1, floor(available / (windowMinWidth + gap)))` windows per line, `available` being the strip's inner width, and wraps the rest onto further lines of the same band. No effect on the horizontal strip. |
 
 | Prop (Column) | Type | Default | Notes |
 | --- | --- | --- | --- |

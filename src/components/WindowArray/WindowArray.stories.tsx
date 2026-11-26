@@ -163,10 +163,12 @@ export const ManyColumns: Story = () => (
 );
 
 /** Below 480px of container width the auto orientation transposes the strip:
- *  it scrolls top-to-bottom, columns become full-width bands, and stacked
- *  windows sit side by side. Drag the container's resize corner across the
- *  breakpoint to watch it flip — arrows, Shift+moves, gutter resizing,
- *  paddles, and Alt+hotkeys all follow the layout axis. */
+ *  it scrolls top-to-bottom and columns become full-width bands. A band holds
+ *  as many windows per line as stay at least `windowMinWidth` (240px) wide,
+ *  so at this width each window takes a line of its own, in order. Drag the
+ *  container's resize corner across the breakpoint to watch it flip: arrows,
+ *  Shift+moves, gutter resizing, paddles, and Alt+hotkeys all follow the
+ *  layout axis. */
 export const NarrowVertical: Story = () => (
   <div
     style={{

@@ -27,6 +27,7 @@ import {
   minMaxDownsample,
   niceDomain,
   niceTicks,
+  partEndpointLabels,
   resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
@@ -41,6 +42,7 @@ import {
   useAnnotationEditor,
   useChartSelection,
   useMeasuredPlot,
+  useScrub,
   useViewport,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
@@ -444,6 +446,9 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
     suspended: editor.toolArmed,
     formatValue: formatDomainValue,
   });
+  // A finger that rests on the plot scrubs the crosshair (the touch form of
+  // hover), unless a drawing tool or the zoom marquee owns the drag.
+  useScrub(plotRef, !editor.toolArmed && !viewport.marqueeArmed);
 
   const resolvedXDomain: [number, number] = zoomable ? viewport.domain : staticXDomain;
 
@@ -599,7 +604,10 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       key: t.label,
     }));
     const keep = thinLabels(boxes, { previousKeys: prevXTickKeys.current });
-    const ticks = raw.filter((_, i) => keep[i]);
+    // Idle endpoints are parted in a plot narrower than its two labels.
+    const ticks = isTufte
+      ? partEndpointLabels(raw, boxes, keep, plotSize.width, 6)
+      : raw.filter((_, i) => keep[i]);
     prevXTickKeys.current = new Set(ticks.map((t) => t.label));
     return { ticks, offsetLabel };
   }, [resolvedXDomain, isDateAxis, plotSize.width, isTufte, visibleSeries, measure, format]);
@@ -650,7 +658,13 @@ export const Scatterplot = forwardRef<HTMLDivElement, ScatterplotProps>(function
       key: t.label,
     }));
     const keep = thinLabels(boxes);
-    return { ticks: raw.filter((_, i) => keep[i]), offsetLabel };
+    // The idle axis prints the data's minimum and maximum, both always kept.
+    // Close together (a flat series under a shared domain) they are parted;
+    // on an axis too short for two labels the maximum alone is printed.
+    const ticks = isTufte
+      ? partEndpointLabels(raw, boxes, keep, plotSize.height)
+      : raw.filter((_, i) => keep[i]);
+    return { ticks, offsetLabel };
   }, [
     resolvedYDomain,
     isTufte,

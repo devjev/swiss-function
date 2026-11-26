@@ -200,6 +200,38 @@ export const NarrowContainer: Story = () => (
   </div>
 );
 
+/** `columnShrink`: what the columns do when they don't fit. Both tables hold
+ *  six default-width columns in a 20rem container. `"squeeze"` shrinks every
+ *  column toward its minimum before the table scrolls, so the cells show an
+ *  ellipsis. `"hold"` keeps every column at its width and the table scrolls
+ *  sideways at once; the dithered fade on the trailing edge says there is more
+ *  that way, and goes when the last column is in view. The default, `"auto"`,
+ *  squeezes for a mouse and holds on a touch screen (the
+ *  `--sf-table-column-hold` token). */
+export const HoldOrSqueeze: Story = () => {
+  const columns: ColumnDef<Person>[] = [
+    { id: "name", header: "Name", accessor: "name" },
+    { id: "role", header: "Role", accessor: "role" },
+    { id: "age", header: "Age", accessor: "age", edit: { type: "number" } },
+    { id: "score", header: "Score", accessor: "score", edit: { type: "number", decimals: 1 } },
+    { id: "joined", header: "Joined", accessor: "joined", cell: ({ value }) => iso(value as Date) },
+    { id: "active", header: "Active", accessor: "active", edit: { type: "boolean" } },
+  ];
+  const data = seed(12);
+  return (
+    <div style={{ display: "grid", gap: "calc(var(--sf-unit) * 2)" }}>
+      {(["squeeze", "hold"] as const).map((mode) => (
+        <div key={mode} style={{ display: "grid", gap: "calc(var(--sf-unit) / 2)" }}>
+          <p style={{ margin: 0, fontSize: "var(--sf-font-size-sm)" }}>columnShrink="{mode}"</p>
+          <div style={{ width: "min(20rem, 100%)" }}>
+            <DataTable data={data} columns={columns} height={240} columnShrink={mode} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Excel-style column resizing (on by default). Drag a header's trailing edge,
 // double-click it to auto-fit content, or focus it and use Arrow keys
 // (Shift = larger step). The "Active" column is locked with resizable: false.
@@ -727,9 +759,11 @@ export const MergedCells: Story = () => (
 );
 
 // Freeze the first N columns (here 2) so they stay pinned to the left while the
-// rest scroll horizontally — the column analogue of the sticky header. A soft
-// shadow marks the frozen boundary once you scroll right. The narrow wrapper
-// forces horizontal overflow so there's something to scroll.
+// rest scroll horizontally (the column analogue of the sticky header). A soft
+// shadow marks the frozen boundary once you scroll right. The wrapper forces
+// horizontal overflow so there's something to scroll, and is wide enough for
+// the frozen pair to take less than half of it: in a narrower table (a phone)
+// the frozen columns release and scroll with the rest.
 const wideColumns: ColumnDef<Person>[] = [
   { id: "name", header: "Name", accessor: "name", width: 10, sortable: true },
   { id: "role", header: "Role", accessor: "role", width: 8 },
@@ -743,7 +777,7 @@ const wideColumns: ColumnDef<Person>[] = [
 ];
 
 export const FrozenColumns: Story = () => (
-  <div style={{ width: 520 }}>
+  <div style={{ width: "min(47.5rem, 100%)" }}>
     <DataTable data={seed(60)} columns={wideColumns} height={360} frozenColumns={2} />
   </div>
 );

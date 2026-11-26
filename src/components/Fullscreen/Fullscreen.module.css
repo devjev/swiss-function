@@ -11,12 +11,21 @@
   display: grid;
   /* Clear of a notch and the home indicator (0 on a plain viewport). */
   padding: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
+  /* What overlays in this surface's corners move in by (the toggle below). */
+  --sf-fs-top: var(--sf-safe-top);
+  --sf-fs-right: var(--sf-safe-right);
+  --sf-fs-bottom: var(--sf-safe-bottom);
+  --sf-fs-left: var(--sf-safe-left);
   background-color: var(--sf-color-bg);
 }
 
-/* Absolutely placed, so the root's padding does not move it: a margin does. */
-.expanded .toggle {
-  margin: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
+/* The content is already inside the padding: a full-screen surface nested in
+   it starts from zero. */
+.expanded .content {
+  --sf-fs-top: 0px;
+  --sf-fs-right: 0px;
+  --sf-fs-bottom: 0px;
+  --sf-fs-left: 0px;
 }
 
 .expanded .content {
@@ -41,6 +50,11 @@
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   cursor: pointer;
+  /* Absolutely placed, so a surface's padding does not move it: a margin
+     does. A surface that fills the screen (Fullscreen, a chart frame, Graph,
+     Map) publishes the safe-area insets as --sf-fs-*; elsewhere they are 0. */
+  margin: var(--sf-fs-top, 0px) var(--sf-fs-right, 0px) var(--sf-fs-bottom, 0px)
+    var(--sf-fs-left, 0px);
 }
 
 @media (hover: hover) and (pointer: fine) {

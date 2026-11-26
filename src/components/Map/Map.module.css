@@ -40,6 +40,12 @@
   block-size: auto;
   border: none;
   border-radius: 0;
+  /* The canvas runs edge to edge under a notch; what sits in its corners
+     (Controls, Minimap, the fullscreen key) moves in by these. */
+  --sf-fs-top: var(--sf-safe-top);
+  --sf-fs-right: var(--sf-safe-right);
+  --sf-fs-bottom: var(--sf-safe-bottom);
+  --sf-fs-left: var(--sf-safe-left);
 }
 
 /* The surface MapLibre mounts its canvas into. Relative so overlays can be
@@ -91,6 +97,12 @@
 
 /* Keep MapLibre's own controls (attribution, zoom) on-token. Attribution is a
    license requirement — it stays visible; we only restyle it to fit. */
+.root :global(.maplibregl-ctrl-bottom-right) {
+  margin: 0 var(--sf-fs-right, 0px) var(--sf-fs-bottom, 0px) 0;
+}
+.root :global(.maplibregl-ctrl-bottom-left) {
+  margin: 0 0 var(--sf-fs-bottom, 0px) var(--sf-fs-left, 0px);
+}
 .root :global(.maplibregl-ctrl-attrib) {
   background: color-mix(in srgb, var(--sf-color-bg) 82%, transparent);
   color: var(--sf-color-fg-subtle);

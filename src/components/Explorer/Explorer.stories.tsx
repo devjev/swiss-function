@@ -243,6 +243,55 @@ export const DataGrid: Story = () => {
   );
 };
 
+/**
+ * `columnShrink`: what the columns do when they don't fit. Both trees hold the
+ * same four resizable columns in a 20rem container. `"squeeze"` shrinks every
+ * column toward its minimum before the tree scrolls, so the names show an
+ * ellipsis. `"hold"` keeps every column at its width and the tree scrolls
+ * sideways at once (the header follows); the dithered fade on the trailing edge
+ * says there is more that way. The default, `"auto"`, squeezes for a mouse and
+ * holds on a touch screen (the `--sf-table-column-hold` token).
+ */
+export const HoldOrSqueeze: Story = () => {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src", "src/components"]));
+  return (
+    <div style={{ display: "grid", gap: "calc(var(--sf-unit) * 2)" }}>
+      {(["squeeze", "hold"] as const).map((mode) => (
+        <div key={mode} style={{ display: "grid", gap: "calc(var(--sf-unit) / 2)" }}>
+          <p style={{ margin: 0, fontSize: "var(--sf-font-size-sm)" }}>columnShrink="{mode}"</p>
+          <div style={{ width: "min(20rem, 100%)" }}>
+            <Explorer
+              nodes={seed}
+              height={220}
+              resizableColumns
+              columnShrink={mode}
+              columns={[
+                { id: "name", header: "Name", width: 180 },
+                {
+                  id: "size",
+                  header: "Size",
+                  align: "end",
+                  width: 110,
+                  render: (n) => formatSize(n.meta?.size),
+                },
+                { id: "kind", header: "Kind", width: 120, render: (n) => n.meta?.kind ?? "" },
+                {
+                  id: "modified",
+                  header: "Modified",
+                  width: 140,
+                  render: (n) => n.meta?.modified ?? "",
+                },
+              ]}
+              expandedIds={expandedIds}
+              onExpandedChange={setExpandedIds}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const Editable: Story = () => {
   const [nodes, setNodes] = useState(() => cloneTree(seed));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

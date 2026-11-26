@@ -27,6 +27,7 @@ import {
   linearScale,
   maxLabelWidth,
   minMaxDownsample,
+  partEndpointLabels,
   resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
@@ -503,7 +504,10 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
       key: t.label,
     }));
     const keep = thinLabels(boxes, { previousKeys: prevXTickKeys.current });
-    const ticks = raw.filter((_, i) => keep[i]);
+    // Idle endpoints are parted in a plot narrower than its two labels.
+    const ticks = isTufte
+      ? partEndpointLabels(raw, boxes, keep, width, 6)
+      : raw.filter((_, i) => keep[i]);
     prevXTickKeys.current = new Set(ticks.map((t) => t.label));
     return ticks;
   }, [resolvedXDomain, width, isTufte, visibleRows, niceXTicks, measureMono]);

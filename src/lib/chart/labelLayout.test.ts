@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { LabelBox } from "./labelLayout";
-import { ellipsize, fitBandTicks, maxLabelWidth, thinLabels } from "./labelLayout";
+import {
+  ellipsize,
+  fitBandTicks,
+  maxLabelWidth,
+  partEndpointLabels,
+  partEndpoints,
+  thinLabels,
+} from "./labelLayout";
 
 /** Fake measurer: every glyph (including "…") is 7px wide. */
 const measure = (t: string) => t.length * 7;
@@ -201,5 +208,63 @@ describe("maxLabelWidth", () => {
   it("takes the widest label and honors custom pad/quant", () => {
     expect(maxLabelWidth(["a", "abcde"], measure)).toBe(40); // 35 + 4 = 39 → 40
     expect(maxLabelWidth(["abc"], measure, { padPx: 0, quantPx: 10 })).toBe(30); // 21 → 30
+  });
+});
+
+describe("partEndpoints", () => {
+  const box = (center: number, size = 16): LabelBox => ({ center, size });
+
+  it("leaves labels that clear each other alone", () => {
+    expect(partEndpoints(box(20), box(100), 200)).toEqual({ first: 0, last: 0 });
+  });
+
+  it("moves two colliding labels apart by the same amount", () => {
+    // 6px apart, 20px needed (16px labels and a 4px gap): 7px each.
+    expect(partEndpoints(box(100), box(106), 200)).toEqual({ first: -7, last: 7 });
+  });
+
+  it("keeps the pair inside the axis", () => {
+    const low = partEndpoints(box(2), box(8), 200);
+    expect(low).toEqual({ first: -2, last: 12 });
+    const high = partEndpoints(box(192), box(198), 200);
+    expect(high).toEqual({ first: -12, last: 2 });
+  });
+
+  it("reports an axis too short for two labels", () => {
+    expect(partEndpoints(box(4), box(10), 14)).toBeNull();
+  });
+});
+
+describe("partEndpointLabels", () => {
+  const box = (center: number, size = 16): LabelBox => ({ center, size });
+  const ticks: { label: string; labelOffset?: number }[] = [
+    { label: "a" },
+    { label: "b" },
+    { label: "c" },
+  ];
+
+  it("returns the kept ticks unchanged when the endpoints clear each other", () => {
+    const out = partEndpointLabels(ticks, [box(0), box(50), box(100)], [true, true, true], 100);
+    expect(out).toEqual(ticks);
+  });
+
+  it("parts colliding endpoints and drops what lay between", () => {
+    const out = partEndpointLabels(ticks, [box(50), box(53), box(56)], [true, false, true], 100);
+    expect(out).toEqual([
+      { label: "a", labelOffset: -7 },
+      { label: "c", labelOffset: 7 },
+    ]);
+    // The input is left alone.
+    expect(ticks[0]).toEqual({ label: "a" });
+  });
+
+  it("prints the last label alone on an axis too short for two", () => {
+    const out = partEndpointLabels(
+      ticks,
+      [box(0, 40), box(10, 40), box(20, 40)],
+      [true, false, true],
+      20,
+    );
+    expect(out).toEqual([{ label: "c" }]);
   });
 });

@@ -43,6 +43,7 @@ import {
   useAnnotationEditor,
   useChartSelection,
   useMeasuredPlot,
+  useScrub,
   useViewport,
   xToIndex,
 } from "../../lib/chart";
@@ -411,6 +412,9 @@ export const CandlestickChart = forwardRef<HTMLDivElement, CandlestickChartProps
       suspended: editor.toolArmed,
       formatValue: formatIndexValue,
     });
+    // A finger that rests on the plot scrubs the crosshair (the touch form of
+    // hover), unless a drawing tool or the zoom marquee owns the drag.
+    useScrub(plotRef, !editor.toolArmed && !viewport.marqueeArmed);
     const [d0, d1] = zoomable ? viewport.domain : extent;
 
     // Visible window + LOD: past ~4 bars per pixel-column budget, candles

@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Explorer } from "./Explorer";
-import { ExplorerHarness } from "./Explorer.harness";
+import { ColumnShrinkHarness, ExplorerHarness } from "./Explorer.harness";
 
 test("renders headers and root rows; folders show chevron, files don't", async ({ mount }) => {
   const c = await mount(<ExplorerHarness />);
@@ -301,6 +302,226 @@ test("filter funnel prunes to matches and keeps the ancestor path", async ({ mou
   await expect(c.locator('[data-row-id="src/index.ts"]')).toHaveCount(0);
 });
 
+// --- columnShrink: columns that hold their width ---------------------------
+
+/** The px widths of the header cells, in column order. */
+const headerWidths = (c: Locator) =>
+  c
+    .locator('[class*="headerCell"]')
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+/** Scroll geometry of the tree's viewport. */
+const scrollBox = (c: Locator) =>
+  c
+    .getByRole("treegrid")
+    .evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, left: el.scrollLeft }));
+const sideFade = (c: Locator) => c.locator('[class*="sideFade"]');
+/** Left edges of the header cells and of the first row's cells. */
+const columnEdges = (c: Locator) =>
+  c.evaluate((root) => {
+    const lefts = (els: Element[]) => els.map((el) => Math.round(el.getBoundingClientRect().left));
+    const row = root.querySelector("[data-row-id]");
+    return {
+      header: lefts([...root.querySelectorAll('[class*="headerCell"]')]),
+      body: lefts(row ? [...row.children] : []),
+    };
+  });
+
+test('columnShrink="hold" keeps every column at its preferred width and the tree scrolls', async ({
+  mount,
+}) => {
+  // 180 + 100 + 100 + 140 = 520px of columns in a 320px container.
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const widths = await headerWidths(c);
+  expect(widths.map(Math.round)).toEqual([180, 100, 100, 140]);
+  const box = await scrollBox(c);
+  expect(box.scroll).toBeGreaterThan(box.client);
+  expect(box.scroll).toBe(520);
+});
+
+test('columnShrink="squeeze" shrinks the columns to fit, as "auto" does for a mouse', async ({
+  mount,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} />);
+  const header = c.locator('[class*="headerRow"]');
+  const template = () => header.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  const auto = await template();
+  const widths = await headerWidths(c);
+  // Every column under its preferred width, and the four fit: no scroll.
+  [180, 100, 100, 140].forEach((preferred, i) => {
+    expect(widths[i]).toBeLessThan(preferred - 1);
+  });
+  const box = await scrollBox(c);
+  expect(box.scroll).toBe(box.client);
+
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="squeeze" />);
+  expect(await template()).toBe(auto);
+
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  await expect.poll(template).toBe("180px 100px 100px 140px");
+});
+
+test("the header stays over its columns when the tree scrolls sideways", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const before = await columnEdges(c);
+  expect(before.header).toEqual(before.body);
+  await c.getByRole("treegrid").evaluate((el) => {
+    el.scrollLeft = 150;
+  });
+  await page.waitForTimeout(50);
+  const after = await columnEdges(c);
+  expect(after.header).toEqual(after.body);
+  expect((before.header[0] ?? 0) - (after.header[0] ?? 0)).toBe(150);
+});
+
+test("a sideways scroll on the headings scrolls the tree with them", async ({ mount, page }) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const heading = c.locator('[class*="headerCell"]').first();
+  const box = await heading.boundingBox();
+  if (!box) throw new Error("no heading");
+  await page.mouse.move(box.x + 40, box.y + box.height / 2);
+  await page.mouse.wheel(120, 0);
+  await expect.poll(async () => (await scrollBox(c)).left).toBe(120);
+  const edges = await columnEdges(c);
+  expect(edges.header).toEqual(edges.body);
+});
+
+test("a tree that fits gives its header nothing to scroll", async ({ mount }) => {
+  const c = await mount(<ColumnShrinkHarness width={700} columnShrink="hold" />);
+  const header = c.locator('[class*="headerScroll"]');
+  const range = await header.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(range).toBe(0);
+  // The header's range is the viewport's, so the two cannot drift apart: also
+  // when they scroll (the last handle's overhang is cut at the row's edge).
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const ranges = () =>
+    c.locator("[data-explorer-root]").evaluate((root) => {
+      const hs = root.querySelector('[class*="headerScroll"]') as HTMLElement;
+      const vp = root.querySelector('[role="treegrid"]') as HTMLElement;
+      return [hs.scrollWidth - hs.clientWidth, vp.scrollWidth - vp.clientWidth];
+    });
+  // 520px of columns in a 318px scrollport, for the header and for the rows.
+  await expect.poll(ranges).toEqual([202, 202]);
+  await c.update(<ColumnShrinkHarness width={700} columnShrink="hold" />);
+  const box = await scrollBox(c);
+  expect(box.scroll).toBe(box.client);
+  await expect(sideFade(c)).toHaveCSS("display", "none");
+});
+
+test("a reorderable header that fits has nothing to scroll either", async ({ mount }) => {
+  // Drag-to-reorder mounts dnd-kit's own elements after the last header cell.
+  const c = await mount(<ExplorerHarness grid />);
+  const range = await c
+    .locator('[class*="headerScroll"]')
+    .evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(range).toBe(0);
+});
+
+test("the width readout shows whole under the header while a column is resized", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const handle = c.getByRole("separator").first();
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  const readout = c.locator("[data-width-readout]");
+  await expect(readout).toBeVisible();
+  // Inside the header scroller's box (which reaches below the row), so the
+  // scroller does not clip it, and the scroller did not gain a vertical scroll.
+  const fit = await c.locator('[class*="headerScroll"]').evaluate((el) => {
+    const chip = el.querySelector("[data-width-readout]") as HTMLElement;
+    const a = el.getBoundingClientRect();
+    const b = chip.getBoundingClientRect();
+    return { inside: b.bottom <= a.bottom + 0.5, scrollTop: el.scrollTop };
+  });
+  expect(fit.inside).toBe(true);
+  expect(fit.scrollTop).toBe(0);
+});
+
+test("the rows under the header's scroller still take a click", async ({ mount }) => {
+  // The scroller reaches 1.5 units below the header row, over the first rows.
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const first = c.locator('[data-row-id="src"]');
+  await first.click({ position: { x: 60, y: 4 } });
+  await expect(first).toHaveAttribute("data-focused", "true");
+});
+
+test('"auto" follows the --sf-table-column-hold token', async ({ mount }) => {
+  const c = await mount(<ColumnShrinkHarness width={320} tokenHold={1} />);
+  expect((await headerWidths(c)).map(Math.round)).toEqual([180, 100, 100, 140]);
+  await c.update(<ColumnShrinkHarness width={320} tokenHold={1} columnShrink="squeeze" />);
+  await expect.poll(async () => (await headerWidths(c))[0]).toBeLessThan(179);
+});
+
+test("a stretching tree column of a plain tree holds at its own width", async ({ mount }) => {
+  // Not resizable: a name column with no width (1fr) beside 340px of fixed ones.
+  const c = await mount(<ColumnShrinkHarness width={320} resizable={false} />);
+  const squeezed = await headerWidths(c);
+  expect(squeezed[0]).toBeLessThan(119);
+  await c.update(<ColumnShrinkHarness width={320} resizable={false} columnShrink="hold" />);
+  // The first column carries the indentation and the name: 200px.
+  await expect.poll(async () => Math.round((await headerWidths(c))[0] ?? 0)).toBe(200);
+  const box = await scrollBox(c);
+  expect(box.scroll).toBe(540);
+  // With room it still fills the slack.
+  await c.update(<ColumnShrinkHarness width={700} resizable={false} columnShrink="hold" />);
+  await expect.poll(async () => (await headerWidths(c))[0]).toBeGreaterThan(300);
+});
+
+test("the side fade shows where the columns hold, only while there is more to scroll", async ({
+  mount,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const fade = sideFade(c);
+  await expect(fade).toHaveCSS("display", "block");
+  await expect(fade).toHaveCSS("opacity", "1");
+  // Over the header and the rows, at the wrapper's trailing edge.
+  const edges = await c.locator("[data-explorer-root]").evaluate((root) => {
+    const f = root.querySelector('[class*="sideFade"]') as HTMLElement;
+    const w = root.getBoundingClientRect();
+    const r = f.getBoundingClientRect();
+    return {
+      right: w.right - root.clientLeft - r.right,
+      top: r.top - w.top - root.clientTop,
+      height: r.height - root.clientHeight,
+    };
+  });
+  expect(Math.abs(edges.right)).toBeLessThan(1);
+  expect(Math.abs(edges.top)).toBeLessThan(1);
+  expect(Math.abs(edges.height)).toBeLessThan(1);
+
+  const vp = c.getByRole("treegrid");
+  await vp.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth;
+  });
+  await expect(fade).toHaveCSS("display", "none");
+  await vp.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  await expect(fade).toHaveCSS("display", "block");
+});
+
+test("the side fade is off where the columns squeeze; an explicit edgeFade wins both ways", async ({
+  mount,
+}) => {
+  // 160px: the four columns at their minimums no longer fit, so the squeezed
+  // tree scrolls too, and still shows no fade by default.
+  const c = await mount(<ColumnShrinkHarness width={160} columnShrink="squeeze" />);
+  const box = await scrollBox(c);
+  expect(box.scroll).toBeGreaterThan(box.client);
+  await expect(sideFade(c)).toHaveCSS("opacity", "0");
+
+  await c.update(<ColumnShrinkHarness width={160} columnShrink="squeeze" edgeFade />);
+  await expect(sideFade(c)).toHaveCSS("opacity", "1");
+  await expect(sideFade(c)).toHaveCSS("display", "block");
+
+  await c.update(<ColumnShrinkHarness width={160} columnShrink="hold" edgeFade={false} />);
+  await expect(sideFade(c)).toHaveCount(0);
+});
+
 // --- Issue #28: spreadsheet grid lines ---------------------------------------
 
 test("gridLines draws per-cell right+bottom edges (spreadsheet look)", async ({ mount }) => {
@@ -432,6 +653,23 @@ test.describe("with a finger", () => {
     if (!box) throw new Error("row is not laid out");
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   };
+
+  test("the columns hold their width and the tree scrolls sideways, with the fade as the cue", async ({
+    mount,
+  }) => {
+    // No columnShrink: "auto" reads the token, 1 on a coarse pointer.
+    const c = await mount(<ColumnShrinkHarness width={320} />);
+    expect((await headerWidths(c)).map(Math.round)).toEqual([180, 100, 100, 140]);
+    const box = await scrollBox(c);
+    expect(box.scroll).toBeGreaterThan(box.client);
+    await expect(sideFade(c)).toHaveCSS("display", "block");
+    await expect(sideFade(c)).toHaveCSS("opacity", "1");
+
+    // "squeeze" keeps the columns fitting on touch.
+    await c.update(<ColumnShrinkHarness width={320} columnShrink="squeeze" />);
+    await expect.poll(async () => (await headerWidths(c))[0]).toBeLessThan(179);
+    await expect(sideFade(c)).toHaveCSS("opacity", "0");
+  });
 
   test("a draggable row still lets a finger scroll: it does not give up touch panning", async ({
     mount,

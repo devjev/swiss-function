@@ -10,7 +10,10 @@
   align-self: end;
   justify-self: end;
   z-index: 1;
-  margin: calc(var(--sf-unit) / 2);
+  margin: calc(var(--sf-unit) / 2 + var(--sf-fs-top, 0px))
+    calc(var(--sf-unit) / 2 + var(--sf-fs-right, 0px))
+    calc(var(--sf-unit) / 2 + var(--sf-fs-bottom, 0px))
+    calc(var(--sf-unit) / 2 + var(--sf-fs-left, 0px));
   padding: calc(var(--sf-unit) / 4);
   background: var(--sf-color-bg);
   border: 1px solid var(--sf-color-border);

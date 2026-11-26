@@ -20,6 +20,19 @@
   border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   overflow: hidden;
+  /* Whether the columns hold their width when they do not fit (1) or squeeze
+     toward their minimum first (0). An INTERNAL property: every shrinkable
+     track's minimum multiplies its preferred width by it (see
+     lib/columns/columnHold). The `columnShrink` prop sets it below; by default
+     it follows the token, which is 1 on a coarse pointer. On the wrapper,
+     because the header row and the rows both read it. */
+  --sf-column-hold: var(--sf-table-column-hold, 0);
+}
+.wrapper[data-column-shrink="squeeze"] {
+  --sf-column-hold: 0;
+}
+.wrapper[data-column-shrink="hold"] {
+  --sf-column-hold: 1;
 }
 .wrapper[data-cell-padding="xs"] {
   --sf-cell-pad-x: calc(var(--sf-unit) / 4);
@@ -60,14 +73,47 @@
   min-width: max-content;
 }
 
+/* The header's sideways scroller. The header row is a sibling of the scroll
+   viewport, so it scrolls in a container of its own whose position Explorer
+   mirrors with the viewport's: the headings stay over their columns, and a
+   swipe on a heading scrolls the tree. No scrollbar (the viewport shows the
+   one there is).
+
+   A scroll container clips both axes, and the width readout hangs under the
+   header during a resize. The container therefore reaches 1.5 units below the
+   row (padding, taken back by the margin so the layout is the row's height)
+   and lets pointer events through to the rows under that band; the row itself
+   takes them again. `flex: none`: a scroll container has no automatic minimum
+   height, and the header must not shrink when the wrapper's height is fixed. */
+.headerScroll {
+  flex: none;
+  position: relative;
+  z-index: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding-block-end: calc(var(--sf-unit) * 1.5);
+  margin-block-end: calc(var(--sf-unit) * -1.5);
+  pointer-events: none;
+}
+
 .headerRow {
   /* The amplitude of a curved header face (see DataTable); flat by default. */
   --sf-curve-scale: 0.6;
   display: grid;
+  /* As wide as its columns when they do not fit the wrapper, so its band and
+     rule run under every title. */
+  min-width: min-content;
+  /* The last column's resize handle straddles the row's trailing edge. Cut it
+     there (as the wrapper always did), or the overhang would give the header's
+     scroller a few pixels to scroll in a tree that fits. Sideways only: the
+     width readout hangs below the row. */
+  overflow-x: clip;
   position: sticky;
   top: 0;
   z-index: 1;
   background-color: var(--sf-color-bg-subtle);
+  pointer-events: auto;
 }
 
 /* The rule under the header: one ink line across every column, over the
@@ -311,6 +357,72 @@
     2px 2px;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
+}
+
+/* --- Side fade (dithered fade at the trailing scroll edge) ---
+   The cue that the tree scrolls sideways, for a touch screen whose scrollbars
+   stay hidden until a swipe. It lies over the wrapper's trailing edge, across
+   the header and the rows, kept off the viewport's scrollbars where they take
+   room (Explorer writes its height as --sf-explorer-fade-block and the
+   vertical scrollbar's width as --sf-explorer-bar-inline). It hangs from a
+   zero-height anchor at the top of the wrapper: the anchor is the positioned
+   box, so the wrapper stays unpositioned and paints as it always did. The
+   same dither as the bottom fade, turned a quarter.
+
+   Shown only while there is more to scroll that way (`data-more`, written by
+   Explorer from the scroll position). Its strength is the hold property, so by
+   default it is there where the columns hold and absent where they squeeze; an
+   explicit `edgeFade` (`data-on`) shows it wherever the tree scrolls sideways. */
+.fadeAnchor {
+  flex: none;
+  position: relative;
+  z-index: 2;
+  block-size: 0;
+  pointer-events: none;
+}
+.sideFade {
+  display: none;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: var(--sf-explorer-bar-inline, 0px);
+  inline-size: calc(var(--sf-unit) * 1.5);
+  block-size: var(--sf-explorer-fade-block, 0px);
+  pointer-events: none;
+  opacity: var(--sf-column-hold);
+  background-color: var(--sf-color-bg);
+  --sf-fade-to: to right;
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image:
+    linear-gradient(
+      var(--sf-fade-to),
+      transparent,
+      rgb(0 0 0 / var(--sf-datatable-fade-density, 1))
+    ),
+    var(--sf-dither);
+  mask-image:
+    linear-gradient(
+      var(--sf-fade-to),
+      transparent,
+      rgb(0 0 0 / var(--sf-datatable-fade-density, 1))
+    ),
+    var(--sf-dither);
+  -webkit-mask-size:
+    100% 100%,
+    2px 2px;
+  mask-size:
+    100% 100%,
+    2px 2px;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.sideFade:dir(rtl) {
+  --sf-fade-to: to left;
+}
+.sideFade[data-more] {
+  display: block;
+}
+.sideFade[data-on] {
+  opacity: 1;
 }
 
 /* --- Column fill (dither in the space right of fixed-width columns) --- */

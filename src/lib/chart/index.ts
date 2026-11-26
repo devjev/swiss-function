@@ -24,7 +24,14 @@ export type { ChartAxis, ChartFormat, ChartFormatProps } from "./chartFormat";
 export { resolveChartFormat } from "./chartFormat";
 export { lttb, minMaxDownsample, sliceRange } from "./downsample";
 export type { FittedBandTick, LabelBox } from "./labelLayout";
-export { ellipsize, fitBandTicks, maxLabelWidth, thinLabels } from "./labelLayout";
+export {
+  ellipsize,
+  fitBandTicks,
+  maxLabelWidth,
+  partEndpointLabels,
+  partEndpoints,
+  thinLabels,
+} from "./labelLayout";
 export type { AdaptiveTicks, NumericTick } from "./numericTicks";
 export {
   adaptiveTicks,
@@ -85,5 +92,6 @@ export {
 } from "./useChartScaffold";
 export type { PlotSize } from "./useMeasuredPlot";
 export { useMeasuredPlot } from "./useMeasuredPlot";
+export { useScrub } from "./useScrub";
 export type { Domain, UseViewportOptions, Viewport } from "./useViewport";
 export { clampDomain, useViewport, zoomDomain } from "./useViewport";

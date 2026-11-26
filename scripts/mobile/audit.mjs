@@ -4,7 +4,8 @@
 // hides:
 //
 //   overflow     stories whose page scrolls sideways
-//   clipped      controls cut off by an ancestor that clips without scrolling
+//   clipped      controls cut off by an ancestor that clips without scrolling,
+//                or by the screen edge with nothing to scroll them back
 //   collisions   text printed over other text
 //   squeezed     text blocks wrapped into a sliver (under 5em wide, 3+ lines)
 //   smallTargets controls whose hit area is under 24px on its short side
@@ -52,7 +53,8 @@ const measure = () => {
   const vw = window.innerWidth;
   const name = (el) => {
     for (let e = el; e && e !== document.body; e = e.parentElement) {
-      const c = typeof e.className === "string" ? e.className.split(/\s+/)[0] : "";
+      // An SVG element's `className` is an object: read the attribute.
+      const c = (e.getAttribute("class") ?? "").split(/\s+/)[0];
       const m = /^(.+)-module_([A-Za-z0-9]+)_/.exec(c ?? "");
       if (m) return `${m[1]}.${m[2]}`;
     }
@@ -74,6 +76,8 @@ const measure = () => {
     // Zero-size and visually hidden native inputs (a custom control paints
     // over them) are not targets.
     if (r.width <= 2 || r.height <= 2 || r.left >= vw || !visible(el) || el.disabled) continue;
+    // An inert subtree takes no tap and no focus: what it hides is not a control.
+    if (el.closest("[inert]")) continue;
     const cs = getComputedStyle(el);
     if (cs.pointerEvents === "none") continue;
     const textEntry =
@@ -107,18 +111,30 @@ const measure = () => {
       }
     }
     if (el.matches("button, a[href], input, select, textarea, [role='tab']")) {
+      let scrolls = false;
+      let cutBy = null;
       for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
         const acs = getComputedStyle(a);
-        if (/(auto|scroll)/.test(acs.overflowX)) break; // reachable by scrolling
+        if (/(auto|scroll)/.test(acs.overflowX)) {
+          scrolls = true; // reachable by scrolling
+          break;
+        }
         if (/(hidden|clip)/.test(acs.overflowX)) {
           const ar = a.getBoundingClientRect();
           const cut = Math.max(r.right - ar.right, ar.left - r.left);
           if (cut > 2) {
-            clipped.push({ el: name(el), by: name(a), cut: Math.round(cut) });
+            cutBy = { el: name(el), by: name(a), cut: Math.round(cut) };
             break;
           }
         }
       }
+      // A control that runs past the screen edge with nothing to scroll it
+      // back (an overlay wider than its frame) is cut by the viewport.
+      const past = Math.max(r.right - vw, -r.left);
+      if (!cutBy && !scrolls && past > 2) {
+        cutBy = { el: name(el), by: "viewport", cut: Math.round(past) };
+      }
+      if (cutBy) clipped.push(cutBy);
     }
   }
 
@@ -180,6 +196,11 @@ const measure = () => {
       if (h < Math.min(a.r.bottom - a.r.top, b.r.bottom - b.r.top) * 0.4) continue;
       // One sits on its own surface that does not hold the other: layering (a
       // sticky header, a chip over a grid), which is not a collision.
+      // A chart annotation's label is an overlay the consumer placed on the
+      // data, with a halo for a surface: over a mark's own label it is
+      // layering. Two annotation labels over each other still count.
+      const overlay = (t) => name(t.p) === "Annotations.label";
+      if (overlay(a) !== overlay(b)) continue;
       const sa = surface(a.p);
       const sb = surface(b.p);
       if ((sa && !sa.contains(b.p)) || (sb && !sb.contains(a.p))) continue;

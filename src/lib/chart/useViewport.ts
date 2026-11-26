@@ -22,6 +22,7 @@
 
 import type { KeyboardEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PANNING_ATTR, SCRUBBING_ATTR } from "./useScrub";
 
 export type Domain = [number, number];
 
@@ -283,10 +284,17 @@ export function useViewport({
       }
 
       if (!drag) return;
+      // A finger that rested took the crosshair (useScrub): it reads, it does
+      // not pan.
+      if (el.hasAttribute(SCRUBBING_ATTR)) {
+        if (!drag.panning) drag = null;
+        return;
+      }
       const delta = axisClient(e) - drag.startClient;
       if (!drag.panning) {
         if (Math.abs(delta) < PAN_THRESHOLD_PX) return;
         drag.panning = true;
+        el.setAttribute(PANNING_ATTR, "");
         el.setPointerCapture(e.pointerId);
       }
       const rect = el.getBoundingClientRect();
@@ -327,6 +335,7 @@ export function useViewport({
       }
       pointers.delete(e.pointerId);
       pinchDist = 0;
+      el.removeAttribute(PANNING_ATTR);
       if (drag?.panning) suppressClick = true;
       if (pointers.size === 0) drag = null;
     };

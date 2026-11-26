@@ -47,6 +47,12 @@
   block-size: auto;
   border: none;
   border-radius: 0;
+  /* The canvas runs edge to edge under a notch; what sits in its corners
+     (Controls, Minimap, the fullscreen key) moves in by these. */
+  --sf-fs-top: var(--sf-safe-top);
+  --sf-fs-right: var(--sf-safe-right);
+  --sf-fs-bottom: var(--sf-safe-bottom);
+  --sf-fs-left: var(--sf-safe-left);
 }
 
 /* The WebGL/canvas surface Sigma renders into. Position relative so future

@@ -593,6 +593,265 @@ test("custom WindowButton actions share the chrome, sit before fullscreen/close,
   await expect(page.locator("[data-dragging]")).toHaveCount(0);
 });
 
+// --- windowMinWidth: a vertical band wraps onto lines -------------------------
+
+/** Every title-bar button of the window lies inside the window's box. */
+async function expectChromeInside(page: import("@playwright/test").Page, windowId: string) {
+  const win = page.locator(`[data-window-id="${windowId}"]`);
+  const box = await win.boundingBox();
+  if (!box) throw new Error(`no box for ${windowId}`);
+  const buttons = win.locator("header button");
+  const count = await buttons.count();
+  expect(count).toBeGreaterThan(1);
+  for (let i = 0; i < count; i++) {
+    const b = await buttons.nth(i).boundingBox();
+    if (!b) throw new Error(`no box for button ${i} of ${windowId}`);
+    expect(b.x).toBeGreaterThanOrEqual(box.x - 0.5);
+    expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+    expect(b.y).toBeGreaterThanOrEqual(box.y - 0.5);
+    expect(b.y + b.height).toBeLessThanOrEqual(box.y + box.height + 0.5);
+  }
+}
+
+test("vertical, phone width: a band's windows wrap to full-width lines, chrome inside", async ({
+  mount,
+  page,
+}) => {
+  // 326px (a 390px phone less the page padding) holds one 240px window per
+  // line. Every chrome key is on: custom action, pop-out, split, fullscreen, ✕.
+  await mount(
+    <WindowArrayHarness
+      width={326}
+      height={500}
+      windowMinWidth={240}
+      withActions
+      popOutable
+      splittable
+    />,
+  );
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+  await expect(root).toHaveAttribute("data-stacked", "");
+  const band = await page.locator('div[data-column-id="col-1"]').boundingBox();
+  const w1a = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const w1b = await page.locator('[data-window-id="w1b"]').boundingBox();
+  const w2a = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!band || !w1a || !w1b || !w2a) throw new Error("missing bounding boxes");
+  // Each window takes the band's whole width (less its own gap of margin).
+  expect(band.width).toBeGreaterThan(300);
+  expect(Math.abs(w1a.width - (band.width - 10))).toBeLessThan(1);
+  expect(Math.abs(w1b.width - w1a.width)).toBeLessThan(1);
+  expect(w1a.width).toBeGreaterThanOrEqual(240);
+  // One under the other, in order, each line as tall as the band (220px),
+  // one gap apart; the band's backdrop spans both lines.
+  expect(Math.abs(w1b.x - w1a.x)).toBeLessThan(1);
+  expect(Math.round(w1a.height)).toBe(220);
+  expect(Math.round(w1b.height)).toBe(220);
+  expect(Math.round(w1b.y - (w1a.y + w1a.height))).toBe(10);
+  expect(Math.round(band.height)).toBe(450);
+  // The next band starts below the first one's last line.
+  expect(w2a.y).toBeGreaterThan(w1b.y + w1b.height - 1);
+  // One resize gutter per band, however many lines it has.
+  await expect(page.getByRole("separator")).toHaveCount(3);
+  for (const id of ["w1a", "w1b", "w2a", "w2b", "w3a", "w3b"]) {
+    await expectChromeInside(page, id);
+  }
+});
+
+test("vertical: windows that fit at windowMinWidth stay side by side", async ({ mount, page }) => {
+  // 600px under a 700px breakpoint is vertical, and holds two 240px windows.
+  await mount(
+    <WindowArrayHarness width={600} height={500} verticalBelow={700} windowMinWidth={240} />,
+  );
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+  await expect(root).not.toHaveAttribute("data-stacked", "");
+  const band = await page.locator('div[data-column-id="col-1"]').boundingBox();
+  const w1a = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const w1b = await page.locator('[data-window-id="w1b"]').boundingBox();
+  const w2a = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!band || !w1a || !w1b || !w2a) throw new Error("missing bounding boxes");
+  expect(Math.abs(w1b.y - w1a.y)).toBeLessThan(1);
+  expect(w1b.x).toBeGreaterThan(w1a.x + w1a.width - 1);
+  expect(w1a.width).toBeGreaterThanOrEqual(240);
+  expect(Math.abs(w1b.width - w1a.width)).toBeLessThan(1);
+  // The band is one line: 220px, and the next band follows after one gap.
+  expect(Math.round(band.height)).toBe(220);
+  expect(Math.round(w2a.y - (w1a.y + w1a.height))).toBe(10);
+  await expectChromeInside(page, "w1a");
+  await expectChromeInside(page, "w1b");
+});
+
+test("vertical: a short last line shares the band's width, and the keys keep their order", async ({
+  mount,
+  page,
+}) => {
+  // Three windows per band, two per line: 1A 1B on the first line, 1C alone
+  // on the second at the full width.
+  await mount(
+    <WindowArrayHarness
+      width={560}
+      height={300}
+      orientation="vertical"
+      windowsPerColumn={3}
+      windowMinWidth={240}
+    />,
+  );
+  const root = page.getByTestId("window-array");
+  const box = async (id: string) => {
+    const b = await page.locator(`[data-window-id="${id}"]`).boundingBox();
+    if (!b) throw new Error(`no box for ${id}`);
+    return b;
+  };
+  const [w1a, w1b, w1c] = [await box("w1a"), await box("w1b"), await box("w1c")];
+  expect(Math.abs(w1b.y - w1a.y)).toBeLessThan(1);
+  expect(w1b.x).toBeGreaterThan(w1a.x + w1a.width - 1);
+  expect(w1c.y).toBeGreaterThan(w1a.y + w1a.height - 1);
+  expect(Math.abs(w1c.x - w1a.x)).toBeLessThan(1);
+  expect(Math.abs(w1c.width - (w1b.x + w1b.width - w1a.x))).toBeLessThan(1);
+
+  // Left / Right still walk the band in order, across the line break, and
+  // the strip scrolls the wrapped line into view.
+  const scrollTop = () => root.evaluate((el) => (el.firstElementChild as HTMLElement).scrollTop);
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "Window 1B" })).toBeFocused();
+  expect(await scrollTop()).toBe(0);
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("button", { name: "Window 1C" })).toBeFocused();
+  await expect.poll(scrollTop).toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      const rootBox = await root.boundingBox();
+      const win = await box("w1c");
+      if (!rootBox) return false;
+      return win.y >= rootBox.y && win.y + win.height <= rootBox.y + rootBox.height;
+    })
+    .toBe(true);
+  // Up / Down still switch bands, the position in the band kept.
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("button", { name: "Window 2C" })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: "Window 1C" })).toBeFocused();
+  // Shift+Left reports the same move as on an unwrapped band.
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1c",
+      from: { columnId: "col-1", index: 2 },
+      to: { type: "cell", columnId: "col-1", index: 1 },
+    }),
+  );
+});
+
+test("vertical, one window per line: the band's gutter sets every line's height", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness width={326} height={500} windowMinWidth={240} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  const gutter = page.getByRole("separator").first();
+  await expect(gutter).toHaveAttribute("aria-valuenow", "220");
+  await gutter.focus();
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(gutter).toHaveAttribute("aria-valuenow", "244");
+  const w1a = await page.locator('[data-window-id="w1a"]').boundingBox();
+  const w1b = await page.locator('[data-window-id="w1b"]').boundingBox();
+  const w2a = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!w1a || !w1b || !w2a) throw new Error("missing bounding boxes");
+  expect(Math.round(w1a.height)).toBe(244);
+  expect(Math.round(w1b.height)).toBe(244);
+  // The other bands keep their own height.
+  expect(Math.round(w2a.height)).toBe(220);
+});
+
+test("vertical, one window per line: a drop on a window's lower half lands after it", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness width={326} height={700} windowMinWidth={240} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  const handle = page.getByRole("button", { name: "Window 1A" });
+  const target = page.locator('[data-window-id="w1b"]');
+  const hb = await handle.boundingBox();
+  const tb = await target.boundingBox();
+  if (!hb || !tb) throw new Error("missing bounding boxes");
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  // The left side of the lower half: the insertion side follows y here.
+  await page.mouse.move(tb.x + tb.width * 0.2, tb.y + tb.height * 0.8, { steps: 10 });
+  await expect(target).toHaveAttribute("data-drop-edge", "after");
+  // The indicator is a horizontal line on the window's bottom edge.
+  const line = await target.evaluate((el) => {
+    const s = getComputedStyle(el, "::after");
+    return { width: Number.parseFloat(s.width), height: Number.parseFloat(s.height) };
+  });
+  expect(line.height).toBe(2);
+  expect(line.width).toBeGreaterThan(200);
+  await page.mouse.up();
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 0 },
+      to: { type: "cell", columnId: "col-1", index: 1 },
+    }),
+  );
+});
+
+test("vertical: widening the container past windowMinWidth unwraps the bands", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <WindowArrayHarness
+      width={600}
+      narrowWidth={326}
+      height={500}
+      verticalBelow={700}
+      windowMinWidth={240}
+    />,
+  );
+  const root = page.getByTestId("window-array");
+  const sideBySide = async () => {
+    const a = await page.locator('[data-window-id="w1a"]').boundingBox();
+    const b = await page.locator('[data-window-id="w1b"]').boundingBox();
+    if (!a || !b) throw new Error("missing bounding boxes");
+    return Math.abs(a.y - b.y) < 1;
+  };
+  await expect(root).toHaveAttribute("data-orientation", "vertical");
+  expect(await sideBySide()).toBe(true);
+  await page.getByRole("button", { name: "Toggle width" }).click();
+  await expect(root).toHaveAttribute("data-stacked", "");
+  expect(await sideBySide()).toBe(false);
+  await page.getByRole("button", { name: "Toggle width" }).click();
+  await expect(root).not.toHaveAttribute("data-stacked", "");
+  expect(await sideBySide()).toBe(true);
+});
+
+test("vertical, one window per line: fullscreen fills the container and returns to its line", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness width={326} height={500} windowMinWidth={240} />);
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-stacked", "");
+  const win = page.locator('[data-window-id="w1b"]');
+  await win.scrollIntoViewIfNeeded();
+  const before = await win.boundingBox();
+  await win.getByRole("button", { name: "Enter fullscreen" }).click();
+  const rootBox = await root.boundingBox();
+  const fsBox = await win.boundingBox();
+  if (!rootBox || !fsBox || !before) throw new Error("missing bounding boxes");
+  expect(Math.abs(fsBox.width - rootBox.width)).toBeLessThan(4);
+  expect(Math.abs(fsBox.height - rootBox.height)).toBeLessThan(4);
+  await page.keyboard.press("Escape");
+  await expect(win.getByRole("button", { name: "Enter fullscreen" })).toBeVisible();
+  const after = await win.boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  expect(Math.abs(after.width - before.width)).toBeLessThan(1);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(1);
+});
+
 // --- Issue #31: vertical band sizing must not corrupt or overflow -----------
 
 test("collapse → resize band → expand retains the column widths (issue #31)", async ({

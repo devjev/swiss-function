@@ -3,8 +3,11 @@
    Orientation: `.root[data-orientation="vertical"]` (narrow container with
    orientation="auto", or forced) transposes the whole strip — it scrolls
    top-to-bottom, columns become full-width bands, their windows sit side by
-   side. Every vertical rule below is a per-axis override of its horizontal
-   counterpart; grid placements are inline (set by the component).
+   side. A band holds as many windows per line as fit at `windowMinWidth` and
+   wraps the rest onto further lines of the same band; with one window per
+   line the root also carries `data-stacked`. Every vertical rule below is a
+   per-axis override of its horizontal counterpart; grid placements are inline
+   (set by the component).
 
    LOAD-BEARING INVARIANT: `.root` must stay the ONLY positioned ancestor
    between a window and the component root. A fullscreen window is
@@ -110,7 +113,10 @@
 }
 /* Transposed: the strip grows downward (row tracks are the columns' px sizes)
    and fills the viewport's width; the half-gap padding moves to the inline
-   edges because window margins move to margin-inline. */
+   edges because window margins move to margin-inline. The component reads
+   this padding (one gap in total) and the strip's width to decide how many
+   windows fit on a line of a band. Two lines of one band are separated by a
+   spacer track of one gap, set in the inline row template. */
 .root[data-orientation="vertical"] .strip {
   block-size: auto;
   min-block-size: 100%;
@@ -302,18 +308,20 @@
   inset-block-end: 0;
 }
 /* Transposed drop indicator: the stack runs sideways, so the insertion line
-   is vertical, at the window's leading/trailing inline edge. */
-.root[data-orientation="vertical"] .window[data-drop-edge="before"]::before,
-.root[data-orientation="vertical"] .window[data-drop-edge="after"]::after {
+   is vertical, at the window's leading/trailing inline edge. With one window
+   per line (`data-stacked`) the band's windows are one under the other, and
+   the horizontal line above applies. */
+.root[data-orientation="vertical"]:not([data-stacked]) .window[data-drop-edge="before"]::before,
+.root[data-orientation="vertical"]:not([data-stacked]) .window[data-drop-edge="after"]::after {
   inset-inline: auto;
   inset-block: 0;
   block-size: auto;
   inline-size: 2px;
 }
-.root[data-orientation="vertical"] .window[data-drop-edge="before"]::before {
+.root[data-orientation="vertical"]:not([data-stacked]) .window[data-drop-edge="before"]::before {
   inset-inline-start: 0;
 }
-.root[data-orientation="vertical"] .window[data-drop-edge="after"]::after {
+.root[data-orientation="vertical"]:not([data-stacked]) .window[data-drop-edge="after"]::after {
   inset-inline-end: 0;
 }
 

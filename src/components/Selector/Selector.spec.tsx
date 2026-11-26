@@ -126,6 +126,40 @@ test("inline overflow: stays one row with an ellipsis, even when focused", async
   expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
 });
 
+test("inline overflow: chips past the cut are inert, the ones in view are not", async ({
+  mount,
+}) => {
+  const items = ["Amsterdam", "Berlin", "Geneva", "London", "Madrid", "Oslo", "Paris", "Tokyo"];
+  const c = await mount(
+    <SelectorHarness layout="inline" items={items} initial={items} style={{ maxWidth: "18rem" }} />,
+  );
+  await expect(c.locator('[class*="overflowEllipsis"]')).toBeVisible();
+  const chips = c.locator('[class*="inlineChips"] > *');
+  await expect(chips).toHaveCount(8);
+  // A remove key nobody can see takes no tap and no Tab stop.
+  await expect(chips.first()).not.toHaveAttribute("inert", "");
+  await expect(chips.last()).toHaveAttribute("inert", "");
+});
+
+test("compact: the count, Clear and the chevron are never cut in a narrow row", async ({
+  mount,
+}) => {
+  const items = ["Amsterdam", "Berlin", "Geneva"];
+  const c = await mount(
+    <div style={{ display: "flex", width: 80 }}>
+      <SelectorHarness layout="compact" items={items} initial={items} />
+    </div>,
+  );
+  const group = c.locator('[class*="compactGroup"]');
+  const groupBox = await group.boundingBox();
+  if (!groupBox) throw new Error("no layout");
+  for (const key of [c.getByRole("button", { name: "Clear all" }), c.getByText("3 items")]) {
+    const box = await key.boundingBox();
+    if (!box) throw new Error("no layout");
+    expect(box.x + box.width).toBeLessThanOrEqual(groupBox.x + groupBox.width + 0.5);
+  }
+});
+
 /* --- Virtualized option list (issue #10) --- */
 
 // "Item 000" … "Item 099": enough to overflow the ~15-row virtual window

@@ -58,6 +58,7 @@ export function WindowArrayHarness({
   apiHotkeys,
   orientation,
   verticalBelow,
+  windowMinWidth = 120,
   narrowWidth,
 }: {
   columnCount?: number;
@@ -77,6 +78,10 @@ export function WindowArrayHarness({
   apiHotkeys?: boolean;
   orientation?: "auto" | "horizontal" | "vertical";
   verticalBelow?: number;
+  /** Narrowest a window gets beside its neighbours in a vertical band. The
+   *  harness default is 120 (as its `columnMinWidth`), so a 360px container
+   *  still shows two windows side by side; pass 240 for the library default. */
+  windowMinWidth?: number;
   /** When set, a "Toggle width" button flips the container between `width`
    *  and this — for collapse→expand round-trip specs (issue #31). */
   narrowWidth?: number;
@@ -122,6 +127,7 @@ export function WindowArrayHarness({
         apiRef={api}
         orientation={orientation}
         verticalBelow={verticalBelow}
+        windowMinWidth={windowMinWidth}
         onActiveChange={setActiveId}
         onWindowMove={(move) => {
           setLastMove(move);

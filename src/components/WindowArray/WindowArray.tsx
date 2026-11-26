@@ -28,6 +28,7 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -59,10 +60,13 @@ import { PopOut, usePopOutWindow } from "../PopOut";
 import { RadioTable } from "../RadioTable";
 import type { DropSlot, NavDirection, StripModel, WindowMove } from "./layout";
 import {
+  bandLines,
+  bandTracks,
   clampWidth,
   collectElements,
   edgeWindow,
   findWindow,
+  lineSlot,
   moveByKey,
   neighbor,
   projectMove,
@@ -71,6 +75,7 @@ import {
   subrowCount,
   successor,
   transposeDir,
+  windowsPerLine,
 } from "./layout";
 import styles from "./WindowArray.module.css";
 
@@ -246,6 +251,12 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
   /** Container width (px) below which `orientation="auto"` goes vertical.
    *  Default `480`. */
   verticalBelow?: number;
+  /** Narrowest a window gets (px) beside its neighbours in a band of the
+   *  vertical orientation. A band holds as many windows per line as fit at
+   *  this width and wraps the rest onto further lines of the same band, each
+   *  line as tall as the band. No effect on the horizontal strip.
+   *  Default `240`. */
+  windowMinWidth?: number;
   /** Expect `WindowArray.Column` elements. */
   children?: ReactNode;
 }
@@ -279,6 +290,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     apiRef,
     orientation = "auto",
     verticalBelow = DEFAULT_VERTICAL_BELOW,
+    windowMinWidth = 240,
     className,
     style,
     children,
@@ -447,6 +459,42 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // dnd-kit listeners or the ResizeObserver on an orientation flip.
   const verticalRef = useRef(vertical);
   verticalRef.current = vertical;
+
+  // --- Windows per line of a vertical band ------------------------------------
+  // A band holds as many windows side by side as keep each one at least
+  // `windowMinWidth` wide; the rest wrap onto further lines of the same band
+  // (the math is in layout.ts). The strip's own box gives both numbers: its
+  // inline padding adds up to one gap, the same gap every window carries as
+  // inline margin, and the rest of its width is the room the windows share.
+  // Measured in a layout effect so a flip to vertical never paints the
+  // unwrapped band first; the observer follows later container resizes. A
+  // scrollbar that appears narrows the strip, which can only lower the count
+  // and lengthen the strip, so the measurement settles.
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [measuredPerLine, setMeasuredPerLine] = useState(Number.POSITIVE_INFINITY);
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!vertical || !strip) return;
+    const measure = () => {
+      const computed = getComputedStyle(strip);
+      const gapPx =
+        (Number.parseFloat(computed.paddingLeft) || 0) +
+        (Number.parseFloat(computed.paddingRight) || 0);
+      const next = windowsPerLine(strip.clientWidth - gapPx, windowMinWidth, gapPx);
+      setMeasuredPerLine((prev) => (prev === next ? prev : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, [vertical, windowMinWidth]);
+  // The horizontal strip never wraps.
+  const perLine = vertical ? measuredPerLine : Number.POSITIVE_INFINITY;
+  // One window per line: the band's windows are stacked, so a drop's insertion
+  // side follows the pointer's y, as on the horizontal strip.
+  const stacked = vertical && perLine === 1;
+  const stackedRef = useRef(stacked);
+  stackedRef.current = stacked;
 
   // --- Column resize (in-flow gutters, one shared drag instance) -----------
   // Two per-axis stores (issue #31): widths belong to the horizontal layout,
@@ -621,10 +669,12 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           const rect = e.over.rect;
           // Insertion side follows the stacking axis: pointer y against the
           // window's midline, or x when the stack runs sideways (vertical
-          // orientation). Read through the ref so this callback stays stable.
-          const before = verticalRef.current
-            ? activator.clientX + e.delta.x < rect.left + rect.width / 2
-            : activator.clientY + e.delta.y < rect.top + rect.height / 2;
+          // orientation, unless its bands wrap to one window per line). Read
+          // through the refs so this callback stays stable.
+          const before =
+            verticalRef.current && !stackedRef.current
+              ? activator.clientX + e.delta.x < rect.left + rect.width / 2
+              : activator.clientY + e.delta.y < rect.top + rect.height / 2;
           slot = {
             kind: "cell",
             columnId: data.columnId,
@@ -803,6 +853,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // `scroll-behavior`; with `snap` on, both edge positions are exactly the
   // CSS snap positions (start on backdrops, end on windows, gap padding).
   // Axis follows the orientation (and re-reveals on an orientation flip).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `perLine` is a trigger only. A vertical band that wraps or unwraps moves its lines, so the reveal runs again.
   useEffect(() => {
     if (resolvedActive == null) return;
     // A pop-out moved the active id but must not scroll the strip.
@@ -816,7 +867,18 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     const column = columnId ? columnRefs.current.get(columnId) : null;
     if (!viewport || !column) return;
     const viewportRect = viewport.getBoundingClientRect();
-    const columnRect = column.getBoundingClientRect();
+    // A vertical band can wrap onto several lines, each as tall as the band:
+    // reveal the active window's own line (the window fills its line track, so
+    // with one line this is the band's box). A fullscreen or split window is
+    // out of the grid; its band stands in for it.
+    const windowEl = vertical
+      ? handleRefs.current.get(resolvedActive)?.closest<HTMLElement>("[data-window-id]")
+      : null;
+    const inGrid =
+      windowEl != null &&
+      !windowEl.hasAttribute("data-fullscreen") &&
+      !windowEl.hasAttribute("data-split");
+    const columnRect = (inGrid ? windowEl : column).getBoundingClientRect();
     // The backdrop's previous sibling is always its leading gutter — measure
     // it so the gap stays in view at the aligned edge.
     const gapRect = column.previousElementSibling?.getBoundingClientRect();
@@ -836,7 +898,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     if (target == null) return;
     const clamped = Math.max(0, Math.min(scrollSize - client, target));
     viewport.scrollTo(vertical ? { top: clamped } : { left: clamped });
-  }, [resolvedActive, vertical]);
+  }, [resolvedActive, vertical, perLine]);
 
   // Wheel scrolling is left to the browser: a plain wheel scrolls the window
   // body under the pointer (the strip's `overflow-x: auto` still lets Shift+wheel
@@ -846,9 +908,9 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // --- Near-fit overflow absorption ------------------------------------------
   // When the columns' natural extent along the scroll axis exceeds the
   // viewport by no more than SQUEEZE_MAX px (an "exactly full" layout off by a
-  // rounding hair or a gap), the rendered size of the LAST column is reduced
-  // by the overflow so no scrollbar appears. State (widths, aria-valuenow) is
-  // untouched.
+  // rounding hair or a gap), the rendered size of the LAST column (the last
+  // line of the last band, when vertical) is reduced by the overflow so no
+  // scrollbar appears. State (widths, aria-valuenow) is untouched.
   const [squeeze, setSqueeze] = useState(0);
   const squeezeRef = useRef(0);
   squeezeRef.current = squeeze;
@@ -1013,19 +1075,23 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // window's fiber and its content state survives the move. The dithered
   // "desk" the windows sit on is the strip's ::before (see the CSS).
   // All placements are computed here (main axis = track, cross axis = full
-  // span or subrow range) and swap grid-column/grid-row when vertical.
-  const gutterPlacement = (index: number): CSSProperties =>
+  // span or subrow range) and swap grid-column/grid-row when vertical. The
+  // main-axis track numbers come from `bandTracks`: a vertical band that wraps
+  // takes one track per line plus a spacer track between two lines, and its
+  // backdrop spans them all.
+  const gutterPlacement = (track: number): CSSProperties =>
+    vertical ? { gridRow: track, gridColumn: "1 / -1" } : { gridColumn: track, gridRow: "1 / -1" };
+  const backPlacement = (band: { start: number; span: number }): CSSProperties =>
     vertical
-      ? { gridRow: index * 2 + 1, gridColumn: "1 / -1" }
-      : { gridColumn: index * 2 + 1, gridRow: "1 / -1" };
-  const backPlacement = (ci: number): CSSProperties =>
+      ? { gridRow: `${band.start} / span ${band.span}`, gridColumn: "1 / -1" }
+      : { gridColumn: `${band.start} / span ${band.span}`, gridRow: "1 / -1" };
+  const windowPlacement = (
+    mainTrack: number,
+    track: { start: number; span: number },
+  ): CSSProperties =>
     vertical
-      ? { gridRow: ci * 2 + 2, gridColumn: "1 / -1" }
-      : { gridColumn: ci * 2 + 2, gridRow: "1 / -1" };
-  const windowPlacement = (ci: number, track: { start: number; span: number }): CSSProperties =>
-    vertical
-      ? { gridRow: ci * 2 + 2, gridColumn: `${track.start} / span ${track.span}` }
-      : { gridColumn: ci * 2 + 2, gridRow: `${track.start} / span ${track.span}` };
+      ? { gridRow: mainTrack, gridColumn: `${track.start} / span ${track.span}` }
+      : { gridColumn: mainTrack, gridRow: `${track.start} / span ${track.span}` };
   // A column whose windows are all popped out collapses away entirely — no
   // track and no gutter — so the strip tightens instead of leaving a gap where
   // the column was. Columns keep their model index `mi` (for `WindowMove` /
@@ -1043,28 +1109,48 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // Popped-out windows have left the strip, so the remaining windows in a column
   // share its full height: subrow math and placement run on visible windows,
   // keyed by id, indexed by the column's visible position.
+  // A vertical band wraps its windows onto lines of at most `perLine` (see
+  // layout.ts); on the horizontal strip, and wherever a band's windows fit,
+  // every band is one line and the grid is the plain gutter/column alternation.
+  // The subrows are the LCM over every line's window count, so the windows of
+  // any line, a short last line included, share the cross axis evenly.
   const placementById = new Map<string, CSSProperties>();
-  const subrows = subrowCount(visibleColumns.map((c) => c.visible.length));
+  const lineCounts = visibleColumns.map((c) => bandLines(c.visible.length, perLine));
+  const tracks = bandTracks(lineCounts.map((lines) => lines.length));
+  const subrows = subrowCount(lineCounts.flat());
   visibleColumns.forEach(({ visible }, vci) => {
+    const first = tracks.bands[vci]?.start ?? vci * 2 + 2;
     visible.forEach((w, row) => {
-      placementById.set(w.id, windowPlacement(vci, rowTrack(row, visible.length, subrows)));
+      const slot = lineSlot(row, visible.length, perLine);
+      placementById.set(
+        w.id,
+        windowPlacement(first + slot.line * 2, rowTrack(slot.index, slot.count, subrows)),
+      );
     });
   });
   // Vertical band heights come from their own store (seeded from the width,
   // capped to the container — issue #31); widths stay untouched while
-  // collapsed so expanding back restores them.
-  const trackWidths = visibleColumns.map(({ col }) =>
-    vertical ? bandHeight(col.props) : columnWidth(col.props),
-  );
-  if (squeeze > 0 && trackWidths.length > 0) {
-    const last = trackWidths.length - 1;
-    trackWidths[last] = Math.max(0, (trackWidths[last] ?? 0) - squeeze);
+  // collapsed so expanding back restores them. Every line of a wrapped band
+  // has the band's height, with one gap between two lines (a spacer track:
+  // the windows carry no block margin when vertical).
+  const mainTracks: (number | null)[] = [null];
+  visibleColumns.forEach(({ col }, vci) => {
+    const size = vertical ? bandHeight(col.props) : columnWidth(col.props);
+    const lines = lineCounts[vci]?.length ?? 1;
+    for (let line = 0; line < lines; line++) {
+      if (line > 0) mainTracks.push(null);
+      mainTracks.push(size);
+    }
+    mainTracks.push(null);
+  });
+  if (squeeze > 0 && mainTracks.length > 1) {
+    // The last sized track sits just before the trailing gutter.
+    const last = mainTracks.length - 2;
+    mainTracks[last] = Math.max(0, (mainTracks[last] ?? 0) - squeeze);
   }
   // Vertical orientation transposes the templates: column tracks become row
   // tracks and the fractional subrows split the width instead of the height.
-  const mainTemplate = `${gapSize} ${trackWidths
-    .map((w) => `${w}px`)
-    .join(` ${gapSize} `)} ${gapSize}`;
+  const mainTemplate = mainTracks.map((w) => (w == null ? gapSize : `${w}px`)).join(" ");
   const crossTemplate = `repeat(${subrows}, minmax(0, 1fr))`;
   const stripStyle: CSSProperties | undefined = lastVisible
     ? vertical
@@ -1086,6 +1172,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         ...style,
       } as CSSProperties)}
       data-orientation={vertical ? "vertical" : "horizontal"}
+      data-stacked={stacked ? "" : undefined}
       data-has-fullscreen={resolvedFullscreen != null ? "" : undefined}
       data-has-split={resolvedSplit != null ? "" : undefined}
       data-snap={snap ? "" : undefined}
@@ -1098,9 +1185,14 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       {(() => {
         const strip = (
           <div ref={viewportRef} className={styles.viewport}>
-            <div className={styles.strip} style={stripStyle}>
+            <div ref={stripRef} className={styles.strip} style={stripStyle}>
               {visibleColumns.map(({ col, mi, visible }, vci) => {
                 const before = vci > 0 ? visibleColumns[vci - 1] : undefined;
+                const band = tracks.bands[vci] ?? {
+                  gutter: vci * 2 + 1,
+                  start: vci * 2 + 2,
+                  span: 1,
+                };
                 return (
                   <Fragment key={col.props.id}>
                     <GutterView
@@ -1108,7 +1200,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                       // grid slot is the visible position, so collapsed columns
                       // leave no gutter.
                       index={mi}
-                      placement={gutterPlacement(vci)}
+                      placement={gutterPlacement(band.gutter)}
                       vertical={vertical}
                       leftColumn={before ? before.col.props : null}
                       width={
@@ -1129,7 +1221,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     <ColumnBackdrop
                       col={col.props}
                       windowCount={visible.length}
-                      placement={backPlacement(vci)}
+                      placement={backPlacement(band)}
                       registerColumn={columnRefs.current}
                       regionId={regionId}
                     />
@@ -1139,7 +1231,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
               {lastVisible && (
                 <GutterView
                   index={columns.length}
-                  placement={gutterPlacement(visibleColumns.length)}
+                  placement={gutterPlacement(tracks.end)}
                   vertical={vertical}
                   leftColumn={lastVisible.col.props}
                   width={

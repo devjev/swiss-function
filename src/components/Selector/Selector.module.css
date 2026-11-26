@@ -124,6 +124,10 @@
 .root .inlineGroup,
 .root .compactGroup {
   flex-wrap: nowrap;
+}
+/* Only the inline group clips (its chips give way). The compact one has
+   nothing to give but its input, and never cuts its count, Clear or chevron. */
+.root .inlineGroup {
   overflow: hidden;
 }
 
@@ -161,6 +165,10 @@
 .compactRoot {
   inline-size: fit-content;
   max-inline-size: 100%;
+  /* Never narrower than the count, Clear and the chevron: a parent that is
+     short of room wraps or scrolls, it does not cut a key off. Only the
+     search input gives way (its percentage max makes it compressible). */
+  min-inline-size: min-content;
 }
 /* The group fills the root, so an explicitly-sized root fills rather than
    leaving the group at its content width in empty space (issue #69). */
@@ -170,6 +178,7 @@
 .root .compactInput {
   flex: 1 1 auto;
   min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
 /* Count badge — "N selected" ahead of the search input. Sans, never shrinks. */

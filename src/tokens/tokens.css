@@ -437,7 +437,7 @@
        stays untouched; override per subtree to retune. */
     --sf-minimap-label-size: 0.65rem;
 
-    /* Touch. Both are 0 for a mouse and take a value under
+    /* Touch. These are 0 for a mouse and take a value under
        `@media (pointer: coarse)` (the pointer block at the end of this file).
        --sf-hit-min is the side of the area a small control answers a finger
        on: the control keeps its size and an invisible pseudo-element grows
@@ -452,6 +452,16 @@
     --sf-hit-min: 0px;
     --sf-hit-tight: 0px;
     --sf-text-entry-min: 0px;
+
+    /* Whether the columns of a DataTable or an Explorer hold their width when
+       they do not fit the container: 0 for a mouse (they squeeze toward their
+       minimum before the table scrolls), 1 under `@media (pointer: coarse)`
+       (they keep their width and the table scrolls sideways, since a column
+       squeezed to its minimum on a phone shows an ellipsis in every cell). A
+       number, 0 or 1, multiplied into each track's minimum. The components'
+       `columnShrink` prop overrides it per instance; set it on an ancestor to
+       switch a region. */
+    --sf-table-column-hold: 0;
 
     /* The part of each screen edge a notch, a rounded corner or the home
        indicator covers. 0 unless the page opted into the whole screen with
@@ -626,7 +636,7 @@
      24px, so a control is 36px and copy is the size a phone reads at arm's
      length. `data-density="compact"` on the root keeps the compact metrics on
      touch. The first block follows the theme blocks' own selectors, because
-     the light theme block declares both tokens again on a nested
+     the light theme block declares the touch tokens again on a nested
      `data-theme="light"` element. The second sets the density on the root and
      on a `data-theme` element outside any density region, for the same
      reason; it sits before the density blocks and leaves out every element
@@ -638,6 +648,7 @@
       --sf-hit-min: 2.75rem;
       --sf-hit-tight: 1.5rem;
       --sf-text-entry-min: 1rem;
+      --sf-table-column-hold: 1;
     }
 
     :root:not([data-density]),

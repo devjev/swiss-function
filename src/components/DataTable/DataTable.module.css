@@ -18,10 +18,22 @@
      the header follows so labels and data stay proportionate. */
   --sf-cell-pad-x: calc(var(--sf-unit) / 2);
   --sf-cell-font: var(--sf-font-size-sm);
+  /* Whether the columns hold their width when they do not fit (1) or squeeze
+     toward their minimum first (0). An INTERNAL property: every track's
+     minimum in --sf-datatable-template multiplies its preferred width by it
+     (see lib/columns/columnHold). The `columnShrink` prop sets it below; by
+     default it follows the token, which is 1 on a coarse pointer. */
+  --sf-column-hold: var(--sf-table-column-hold, 0);
   border: 1px solid var(--sf-color-border-strong);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg);
   outline: none;
+}
+.viewport[data-column-shrink="squeeze"] {
+  --sf-column-hold: 0;
+}
+.viewport[data-column-shrink="hold"] {
+  --sf-column-hold: 1;
 }
 .viewport[data-cell-padding="xs"] {
   --sf-cell-pad-x: calc(var(--sf-unit) / 4);
@@ -112,6 +124,71 @@
     2px 2px;
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
+}
+
+/* Dithered fade at the trailing scroll edge: the cue that the table scrolls
+   sideways, for a touch screen whose scrollbars stay hidden until a swipe. A
+   grid item of the header block spanning every column, sticky at the
+   scrollport's trailing edge and as tall as the scrollport (DataTable writes
+   its height as --sf-datatable-port-block); the negative margin gives it no
+   height in the header's row. The same dither as the bottom fade, turned a
+   quarter.
+
+   Shown only while there is more to scroll that way (`data-more`, written by
+   DataTable from the scroll position). Its strength is the hold property, so
+   by default it is there where the columns hold and absent where they squeeze,
+   with no pointer test in JS; an explicit `edgeFade` (`data-on`) shows it
+   wherever the table scrolls sideways. Above the frozen header cells and under
+   the header's rule; the totals band stays above it, as it does above the
+   bottom fade. */
+.sideFade {
+  display: none;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
+  position: sticky;
+  inset-inline-end: 0;
+  z-index: 3;
+  inline-size: calc(var(--sf-unit) * 1.5);
+  block-size: var(--sf-datatable-port-block, 0px);
+  margin-block-end: calc(-1 * var(--sf-datatable-port-block, 0px));
+  pointer-events: none;
+  opacity: var(--sf-column-hold);
+  background-color: var(--sf-color-bg);
+  --sf-fade-to: to right;
+  --sf-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2'%3E%3Crect width='1' height='1' fill='%23000'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%23000'/%3E%3C/svg%3E");
+  -webkit-mask-image:
+    linear-gradient(
+      var(--sf-fade-to),
+      transparent,
+      rgb(0 0 0 / var(--sf-datatable-fade-density, 1))
+    ),
+    var(--sf-dither);
+  mask-image:
+    linear-gradient(
+      var(--sf-fade-to),
+      transparent,
+      rgb(0 0 0 / var(--sf-datatable-fade-density, 1))
+    ),
+    var(--sf-dither);
+  -webkit-mask-size:
+    100% 100%,
+    2px 2px;
+  mask-size:
+    100% 100%,
+    2px 2px;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.sideFade:dir(rtl) {
+  --sf-fade-to: to left;
+}
+.sideFade[data-more] {
+  display: block;
+}
+.sideFade[data-on] {
+  opacity: 1;
 }
 
 /* Header row sits at the top of the scroll container and stays put.
@@ -444,6 +521,14 @@
 .headerCell:last-child .lockedEdge::after,
 .headerCell:last-child .resizeHandle::after {
   inset-inline-end: 0;
+}
+/* The same for the handle's touch hit area (`hitArea.handle`, a `::before`
+   centred on the handle and wider than it on a coarse pointer): on the last
+   column it ends flush with the handle instead of reaching past the grid, so
+   a table that fits has nothing to scroll and shows no side fade. */
+.headerCell:last-child .resizeHandle::before {
+  inset-inline: auto 0;
+  translate: 0 -50%;
 }
 
 .headerCell[data-align="end"] {

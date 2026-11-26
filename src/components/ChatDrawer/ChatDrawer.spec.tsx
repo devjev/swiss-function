@@ -594,3 +594,23 @@ test("minimap reaches the panel's transcript", async ({ mount }) => {
     await c.getByTestId("chat-messages").evaluate((el) => getComputedStyle(el).scrollbarWidth),
   ).toBe("none");
 });
+
+test("fullscreen pads the panel by the safe-area insets (issue #110)", async ({ mount, page }) => {
+  // Emulation has no safe areas; the tokens that carry them are set by hand.
+  await page.addStyleTag({
+    content:
+      ":root { --sf-safe-top: 47px; --sf-safe-right: 0px; --sf-safe-bottom: 34px; --sf-safe-left: 0px; }",
+  });
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer defaultOpen title="Assistant" messages={messages} onSubmit={() => {}} expanded>
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  const exit = c.getByRole("button", { name: "Exit fullscreen" });
+  await expect(exit).toBeVisible();
+  const box = await exit.boundingBox();
+  // The header starts under the notch.
+  expect(box?.y ?? 0).toBeGreaterThanOrEqual(47);
+});

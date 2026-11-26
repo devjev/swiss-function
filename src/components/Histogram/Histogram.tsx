@@ -21,6 +21,7 @@ import {
   maxLabelWidth,
   niceDomain,
   niceTicks,
+  partEndpointLabels,
   resolveChartFormat,
   resolveTickFont,
   SelectionPopover,
@@ -557,7 +558,10 @@ export const Histogram = forwardRef<HTMLDivElement, HistogramProps>(function His
       key: t.label,
     }));
     const keep = thinLabels(boxes, { previousKeys: prevXKeys.current });
-    const ticks = raw.filter((_, i) => keep[i]);
+    // Idle endpoints are parted in a plot narrower than its two labels.
+    const ticks = isTufte
+      ? partEndpointLabels(raw, boxes, keep, plotSize.width, 6)
+      : raw.filter((_, i) => keep[i]);
     prevXKeys.current = new Set(ticks.map((t) => t.label));
     return { ticks, offsetLabel };
   }, [viewX, plotSize.width, isTufte, thresholds, valueFormat, format, measure]);

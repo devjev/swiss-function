@@ -34,6 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { type ColumnShrink, columnShrinkAttr } from "../../lib/columns/columnHold";
 import {
   cellLines,
   combineFloor,
@@ -70,7 +71,13 @@ import { TreeChevron } from "../../lib/TreeChevron";
 import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
-import { allFixed, buildColumnTemplate, frozenLeftOffsets, frozenTotalWidth } from "./columnWidths";
+import {
+  allFixed,
+  buildColumnTemplate,
+  frozenLeftOffsets,
+  frozenPinned,
+  frozenTotalWidth,
+} from "./columnWidths";
 import styles from "./DataTable.module.css";
 import { resolveEditActivation } from "./editActivation";
 import { CellEditor, formatEditDisplay } from "./editors";
@@ -237,8 +244,25 @@ export interface DataTableProps<T>
    *  scroll horizontally (the column analogue of the sticky header). Counts leaf
    *  columns in display order (the tree/chevron column included). Frozen columns
    *  keep a fixed width and never shrink. A column group is pinned only when its
-   *  whole span is inside the frozen region. Default `0` (off). */
+   *  whole span is inside the frozen region. Default `0` (off).
+   *
+   *  In a narrow table the frozen columns release: while their total width is
+   *  more than half the width of the scroll viewport they scroll with the rest
+   *  (pinned, they would leave the other columns less than half the table), and
+   *  they pin again when the table grows. The `rowNumbers` gutter stays pinned. */
   frozenColumns?: number;
+  /** What the columns do when they don't fit the table's width.
+   *  - `"squeeze"`: every column shrinks toward its minimum (`minWidth`, raised
+   *    to what its title needs), and the table scrolls sideways only when even
+   *    the minimums don't fit.
+   *  - `"hold"`: every column keeps its width and the table scrolls sideways as
+   *    soon as they don't fit. The last column still fills the slack when there
+   *    is room.
+   *  - `"auto"` (default): squeeze for a mouse, hold on a device whose primary
+   *    pointer is a finger, where a squeezed column shows an ellipsis in every
+   *    cell. Read from the `--sf-table-column-hold` token (0 or 1), so an
+   *    ancestor can set it for a region. */
+  columnShrink?: ColumnShrink;
   /** The face of the column-header keys (`lib/surface`): `"flat"` (default),
    *  `"concave"` (a slight scoop at 0.6 of the system amplitude), `"dome"` or
    *  `"dish"`. Set `--sf-curve-scale` on the table to retune the amplitude. */
@@ -246,12 +270,19 @@ export interface DataTableProps<T>
   /** Elastically snap scrolling to row and/or column edges (CSS `proximity`
    *  snap, so it only nudges when you release near a boundary). Default `"none"`. */
   scrollSnap?: "none" | "rows" | "columns" | "both";
-  /** Fade the rows nearest the bottom scroll edge with a dithered mask, hinting
-   *  there's more to scroll. The sticky header is never faded. `true` uses the
-   *  defaults; pass an object to tune it:
-   *   - `rows`: how many rows tall the fade is (default 2)
-   *   - `density`: peak dot opacity at the very bottom, 0–1 (default 1)
-   *  Default `false`. */
+  /** Dithered fades at the scroll edges, hinting there's more to scroll. Two
+   *  edges, with different defaults:
+   *   - The **bottom** edge fades the rows nearest it (the sticky header is
+   *     never faded). Off unless `edgeFade` is set.
+   *   - The **trailing** edge (the right one in a left-to-right page) fades the
+   *     columns cut by it, and only while there is more to scroll that way: it
+   *     goes once the last column is in view. By default it is on where the
+   *     columns hold their width (`columnShrink`: on a touch screen, whose
+   *     scrollbars stay hidden until a swipe) and off where they squeeze.
+   *
+   *  `true` turns both on, `false` both off. Pass an object to tune them:
+   *   - `rows`: how many rows tall the bottom fade is (default 2)
+   *   - `density`: peak dot opacity at the edge, 0 to 1 (default 1) */
   edgeFade?: boolean | { rows?: number; density?: number };
   /** Visually merge cells. Return e.g. `{ rowSpan: 3 }` at the top-left ("lead")
    *  cell of a region; the cells it covers are blanked and the internal borders
@@ -858,8 +889,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
     resizableColumns = true,
     frozenColumns = 0,
     headerSurface = "flat",
+    columnShrink = "auto",
     scrollSnap = "none",
-    edgeFade = false,
+    edgeFade,
     getCellSpan,
     getSubRows,
     treeColumn,
@@ -1160,17 +1192,49 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // separators aligned across the full content when scrolled horizontally.
   const headerRowRef = useRef<HTMLDivElement>(null);
   const [contentWidth, setContentWidth] = useState<number | null>(null);
+
+  // The side fade (see `edgeFade`): shown only while there is more to scroll
+  // toward the trailing edge, and as tall as the scrollport. Both follow the
+  // viewport's size and scroll position, and are written straight onto the
+  // fade element: a scroll or a resize never re-renders the grid, and nothing
+  // inherited changes on the viewport.
+  const sideFadeRef = useRef<HTMLDivElement>(null);
+  const syncSideFade = useCallback(() => {
+    const vp = containerRef.current;
+    const fade = sideFadeRef.current;
+    if (!vp || !fade) return;
+    // scrollLeft runs negative in a right-to-left table: the distance from
+    // the start either way.
+    const more = vp.scrollWidth - vp.clientWidth - Math.abs(vp.scrollLeft) > 1;
+    if (more !== (fade.dataset.more != null)) {
+      if (more) fade.dataset.more = "";
+      else delete fade.dataset.more;
+    }
+    const block = `${vp.clientHeight}px`;
+    if (fade.style.getPropertyValue("--sf-datatable-port-block") !== block) {
+      fade.style.setProperty("--sf-datatable-port-block", block);
+    }
+  }, []);
+  // Frozen columns release in a narrow table (see `frozenPinned`). The
+  // measurement needs the frozen count and the header cells, set up below; the
+  // observer reads the latest through a ref.
+  const measureFrozenRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     const vp = containerRef.current;
     const hr = headerRowRef.current;
     if (!vp || !hr) return;
-    const measure = () => setContentWidth(Math.round(hr.getBoundingClientRect().width));
+    const measure = () => {
+      setContentWidth(Math.round(hr.getBoundingClientRect().width));
+      measureFrozenRef.current();
+      syncSideFade();
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(vp);
     ro.observe(hr);
     return () => ro.disconnect();
-  }, []);
+  }, [syncSideFade]);
 
   // Row scroll-snap needs the snap origin (`scroll-padding-top`) to clear the
   // sticky header; otherwise row 1's `start` snap point lands behind it and
@@ -2161,36 +2225,74 @@ export function DataTable<T>(props: DataTableProps<T>) {
 
   // --- Frozen (pinned-left) columns ---
   // Clamp so at least one column still scrolls; counts leaf columns.
+  // `frozenCount` is how many leading tracks are fixed-width, whatever the
+  // table's width; `pinnedCount` (below) is how many of them are pinned now.
   const frozenCount = Math.max(0, Math.min(frozenColumns, visibleLeaves.length - 1));
+
+  // Release in a narrow table: while the frozen columns are wider than half
+  // the scroll viewport they scroll with the rest, and pin again when the
+  // viewport grows (`frozenPinned`). Their tracks stay fixed either way, so the
+  // measured width does not depend on the decision and the two cannot chase
+  // each other. Measured off the header cells in the viewport's observer, and
+  // again in a layout effect when a width, a floor or the count changes (so a
+  // release never paints a frame late).
+  const [frozenReleased, setFrozenReleased] = useState(false);
+  measureFrozenRef.current = () => {
+    const vp = containerRef.current;
+    let next = false;
+    if (vp && frozenCount > 0) {
+      let frozenPx = 0;
+      for (let i = 0; i < frozenCount; i++) {
+        const cell = headerCellRefs.current.get(visibleLeaves[i]?.id ?? "");
+        frozenPx += cell ? cell.getBoundingClientRect().width : 0;
+      }
+      next = !frozenPinned(frozenPx, vp.clientWidth);
+    }
+    setFrozenReleased((prev) => (prev === next ? prev : next));
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on what can change the frozen columns' width: their count and order, the overrides, the floors, the default width
+  useLayoutEffect(() => {
+    measureFrozenRef.current();
+  }, [frozenCount, visibleLeaves, columnWidths, headerFloors, defaultColumnWidth]);
+  const pinnedCount = frozenReleased ? 0 : frozenCount;
+
   // CSS `left` per frozen column + the region's total width, as calc() strings so
   // they track the consumer's --sf-unit without resolving px in JS. The gutter
   // (itself sticky at 0) pushes every frozen offset right by its width.
   const frozenLefts = useMemo(() => {
-    const lefts = frozenLeftOffsets(visibleLeaves, columnWidths, frozenCount, {
+    const lefts = frozenLeftOffsets(visibleLeaves, columnWidths, pinnedCount, {
       defaultWidth: defaultColumnWidth,
       floors: headerFloors,
     });
     if (!gutterWidth) return lefts;
     return lefts.map((left) => (left === "0px" ? gutterWidth : `calc(${gutterWidth} + ${left})`));
-  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth, headerFloors]);
+  }, [visibleLeaves, columnWidths, pinnedCount, defaultColumnWidth, gutterWidth, headerFloors]);
   const frozenWidth = useMemo(() => {
-    const width = frozenTotalWidth(visibleLeaves, columnWidths, frozenCount, {
+    const width = frozenTotalWidth(visibleLeaves, columnWidths, pinnedCount, {
       defaultWidth: defaultColumnWidth,
       floors: headerFloors,
     });
     if (!gutterWidth) return width;
     return width === "0px" ? gutterWidth : `calc(${gutterWidth} + ${width})`;
-  }, [visibleLeaves, columnWidths, frozenCount, defaultColumnWidth, gutterWidth, headerFloors]);
+  }, [visibleLeaves, columnWidths, pinnedCount, defaultColumnWidth, gutterWidth, headerFloors]);
   // Toggle a boundary shadow on the frozen edge once the body is scrolled right.
   // The gutter is a frozen edge of its own when no data columns are frozen.
+  // Tracked while columns are frozen even if they are released at the moment,
+  // so the shadow is right the instant they pin again.
   const [frozenScrolled, setFrozenScrolled] = useState(false);
+  const lastScrollLeft = useRef(0);
   const handleViewportScroll = useCallback(
     (e: UIEvent<HTMLDivElement>) => {
+      const left = e.currentTarget.scrollLeft;
+      // A vertical scroll changes neither the frozen shadow nor the side fade.
+      if (left === lastScrollLeft.current) return;
+      lastScrollLeft.current = left;
+      syncSideFade();
       if (frozenCount === 0 && !rowNumbers) return;
-      const next = e.currentTarget.scrollLeft > 0;
+      const next = left !== 0;
       setFrozenScrolled((prev) => (prev === next ? prev : next));
     },
-    [frozenCount, rowNumbers],
+    [frozenCount, rowNumbers, syncSideFade],
   );
 
   // --- Grid template (from visible leaves + runtime width overrides) ---
@@ -2369,8 +2471,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // memoized rows bail out and a step re-renders the header alone.
   const flatRowProps = {
     visibleLeaves,
-    frozenCount,
-    frozenLefts: frozenCount > 0 ? frozenLefts : null,
+    frozenCount: pinnedCount,
+    frozenLefts: pinnedCount > 0 ? frozenLefts : null,
     resizableColumns,
     mergeMap,
     editing,
@@ -2403,7 +2505,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const isEditing = editing?.cell.row === rowIndex && editing?.cell.col === colIndex;
     const align = resolveAlign(colDef);
     const isTreeCell = colIndex === treeColIdx;
-    const isFrozen = colIndex < frozenCount;
+    const isFrozen = colIndex < pinnedCount;
     // A column explicitly opted out of resizing (only meaningful when the table
     // is otherwise resizable) — gets a subtle "fixed width" hint.
     const isLocked = resizableColumns && colDef.resizable === false;
@@ -2468,7 +2570,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-tree-cell={isTreeCell || undefined}
         data-locked={isLocked || undefined}
         data-frozen={isFrozen || undefined}
-        data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
+        data-frozen-edge={(isFrozen && colIndex === pinnedCount - 1) || undefined}
         data-merge-right={mergeRight}
         data-merge-bottom={mergeBottom}
         data-wrap={(colDef.overflow ?? cellOverflow) === "wrap" || undefined}
@@ -2519,6 +2621,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
   const headerGroups = table.getHeaderGroups();
   // Empty when there's no data OR filters narrowed everything away.
   const showEmpty = totalRowCount === 0;
+
+  // The side fade is mounted unless `edgeFade` is `false`: whether it shows is
+  // the stylesheet's call (the hold property by default, on with an explicit
+  // `edgeFade`), so there is no pointer test here. Its state is synced when it
+  // mounts and when the content's width changes; the viewport's observer and
+  // its scroll handler cover the rest.
+  const sideFadeMounted = edgeFade !== false && !showEmpty;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-synced when the fade mounts and when the content's width changes
+  useLayoutEffect(() => {
+    syncSideFade();
+  }, [syncSideFade, sideFadeMounted, contentWidth]);
 
   // --- Column filters (filterableColumns) ---
   // Per-column filter kind + selectable values: number → range; select uses its
@@ -2726,8 +2839,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const firstLeafId = header.getLeafHeaders()[0]?.column.id;
     const leafStart =
       firstLeafId != null ? visibleLeaves.findIndex((c) => c.id === firstLeafId) : -1;
-    const isFrozen = leafStart >= 0 && leafStart + span <= frozenCount;
-    const isFrozenEdge = isFrozen && leafStart + span === frozenCount;
+    const isFrozen = leafStart >= 0 && leafStart + span <= pinnedCount;
+    const isFrozenEdge = isFrozen && leafStart + span === pinnedCount;
     const isGroupHeader = header.subHeaders.length > 0;
     const def = header.column.columnDef;
     const colMeta = (
@@ -2950,13 +3063,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
           <div
             aria-hidden="true"
             className={styles.rowNumberCell}
-            data-frozen-edge={frozenCount === 0 || undefined}
+            data-frozen-edge={pinnedCount === 0 || undefined}
           />
         )}
         {visibleLeaves.map((colDef, colIndex) => {
           const total = totalCells.get(colDef.id);
           const isLabel = total === undefined && colDef.id === totalsLabelId;
-          const isFrozen = colIndex < frozenCount;
+          const isFrozen = colIndex < pinnedCount;
           return (
             <div
               key={colDef.id}
@@ -2970,7 +3083,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               data-align={isLabel ? "start" : resolveAlign(colDef)}
               data-label={isLabel || undefined}
               data-frozen={isFrozen || undefined}
-              data-frozen-edge={(isFrozen && colIndex === frozenCount - 1) || undefined}
+              data-frozen-edge={(isFrozen && colIndex === pinnedCount - 1) || undefined}
               style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
               onPointerEnter={(e) => revealClipped(e.currentTarget)}
             >
@@ -3008,17 +3121,18 @@ export function DataTable<T>(props: DataTableProps<T>) {
             // every row's grid-template-columns,
             // so a resize step mutates one element instead of every row.
             "--sf-datatable-template": gridTemplateColumns,
-            ...(frozenCount > 0 || rowNumbers ? { scrollPaddingInlineStart: frozenWidth } : {}),
+            ...(pinnedCount > 0 || rowNumbers ? { scrollPaddingInlineStart: frozenWidth } : {}),
           } as CSSProperties
         }
         onKeyDown={handleKeyDown}
-        onScroll={frozenCount > 0 || rowNumbers ? handleViewportScroll : undefined}
+        onScroll={handleViewportScroll}
+        data-column-shrink={columnShrinkAttr(columnShrink)}
         data-snap-rows={scrollSnap === "rows" || scrollSnap === "both" ? "" : undefined}
         data-snap-cols={scrollSnap === "columns" || scrollSnap === "both" ? "" : undefined}
         data-column-fill={fillOn || undefined}
         data-fixed={(fixedColumns && !fillOn) || undefined}
         data-fill={fillActive || undefined}
-        data-frozen={frozenCount > 0 || undefined}
+        data-frozen={pinnedCount > 0 || undefined}
         data-frozen-scrolled={frozenScrolled || undefined}
         data-cell-padding={cellPadding === "md" ? undefined : cellPadding}
         data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
@@ -3080,7 +3194,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     aria-label="Select all cells"
                     className={styles.cornerCell}
                     style={{ gridColumn: 1, gridRow: `1 / span ${headerGroups.length}` }}
-                    data-frozen-edge={frozenCount === 0 || undefined}
+                    data-frozen-edge={pinnedCount === 0 || undefined}
                     onPointerDown={(e) => {
                       if (e.button === 0) selectAll();
                     }}
@@ -3110,6 +3224,24 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     })}
                   </div>
                 ))}
+                {/* Dithered fade at the trailing scroll edge (see `edgeFade`).
+                    It lives in the header block because that is the one box
+                    that is both as wide as the content and pinned to the top
+                    of the scrollport: sticky at the trailing edge, it spans
+                    the header and the rows from there. */}
+                {sideFadeMounted ? (
+                  <div
+                    ref={sideFadeRef}
+                    className={styles.sideFade}
+                    aria-hidden="true"
+                    data-on={edgeFade ? "" : undefined}
+                    style={
+                      typeof edgeFade === "object" && edgeFade.density != null
+                        ? ({ "--sf-datatable-fade-density": edgeFade.density } as CSSProperties)
+                        : undefined
+                    }
+                  />
+                ) : null}
               </div>
             );
             // The header's right-click menu (opt-in): one Root over the whole
@@ -3199,7 +3331,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                             rowIndex >= selection.range.start.row &&
                             rowIndex <= selection.range.end.row
                           }
-                          frozenEdge={frozenCount === 0}
+                          frozenEdge={pinnedCount === 0}
                           onPointerDown={rowNumberHandlers.onPointerDown}
                           onPointerEnter={rowNumberHandlers.onPointerEnter}
                         />
@@ -3265,7 +3397,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                           vr.index >= selection.range.start.row &&
                           vr.index <= selection.range.end.row
                         }
-                        frozenEdge={frozenCount === 0}
+                        frozenEdge={pinnedCount === 0}
                         onPointerDown={rowNumberHandlers.onPointerDown}
                         onPointerEnter={rowNumberHandlers.onPointerEnter}
                       />
@@ -3290,12 +3422,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
             className={styles.edgeFade}
             aria-hidden="true"
             style={
-              typeof edgeFade === "object"
-                ? ({
-                    "--sf-datatable-fade-rows": edgeFade.rows,
-                    "--sf-datatable-fade-density": edgeFade.density,
-                  } as CSSProperties)
-                : undefined
+              {
+                // As wide as the columns, so it stays under the rows when the
+                // table is scrolled sideways.
+                minWidth: contentWidth ?? undefined,
+                ...(typeof edgeFade === "object"
+                  ? {
+                      "--sf-datatable-fade-rows": edgeFade.rows,
+                      "--sf-datatable-fade-density": edgeFade.density,
+                    }
+                  : null),
+              } as CSSProperties
             }
           />
         ) : null}

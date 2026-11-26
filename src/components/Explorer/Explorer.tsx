@@ -21,6 +21,7 @@ import type {
   ReactNode,
   PointerEvent as ReactPointerEvent,
   TouchEvent as ReactTouchEvent,
+  UIEvent as ReactUIEvent,
   RefObject,
 } from "react";
 import {
@@ -33,6 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { columnShrinkAttr } from "../../lib/columns/columnHold";
 import {
   combineFloor,
   contentRunWidth,
@@ -74,6 +76,7 @@ import { Menu } from "../Menu";
 import type { DropZone, FlatRow } from "./dnd";
 import { computeDropZone, dropZoneEqual, findNode, flatten } from "./dnd";
 import styles from "./Explorer.module.css";
+import { buildGridTemplate, MIN_COL_PX } from "./gridTemplate";
 import { RenameField } from "./RenameField";
 import {
   collectKeptFolderIds,
@@ -87,10 +90,6 @@ import { isFolder } from "./types";
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
-/** Lower bound a column may be dragged to when `resizableColumns` is on (px). */
-const MIN_COL_PX = 48;
-/** Preferred width for a resizable column that declares no numeric `width`. */
-const DEFAULT_COL_PX = 120;
 /** Extra px added past the widest measured content on double-click auto-fit. */
 const AUTOFIT_SLACK_PX = 8;
 
@@ -149,55 +148,6 @@ function excludeRegionCollision(excludedRegionId: string): CollisionDetection {
     });
 }
 
-/** Build the `grid-template-columns` string shared by the header and every row.
- *  Without resizing it keeps Explorer's original semantics (number→px, string
- *  as-is, undefined→`1fr`). With resizing on it mirrors DataTable: every track
- *  is `minmax(min, preferred)` and the last stretches until the columns are
- *  fixed (`fixed`: every column carries a px override, the spreadsheet state
- *  after the first resize), or in fill mode (`columnFill`), where the last
- *  track keeps a fixed preferred width too, so the dither panel has slack to
- *  paint into instead of being crushed by a stretched last column. */
-function buildGridTemplate<M>(
-  columns: ExplorerColumn<M>[],
-  overrides: Record<string, number>,
-  resizable: boolean,
-  fill: boolean,
-  fixed: boolean,
-  floors: Record<string, number>,
-): string {
-  if (!resizable) {
-    // The measured header floor (issue #102) still holds without resizing: a
-    // fixed width is raised to it, and a stretching column never squeezes
-    // under it, so a container squeeze scrolls instead of clipping a title.
-    return columns
-      .map((c) => {
-        const floor = floors[c.id];
-        const ov = overrides[c.id];
-        const fixedPx = ov != null ? ov : typeof c.width === "number" ? c.width : undefined;
-        if (fixedPx != null)
-          return floor != null ? `${Math.max(fixedPx, floor)}px` : `${fixedPx}px`;
-        if (typeof c.width === "string") return c.width;
-        return `minmax(${floor ?? 0}px, 1fr)`;
-      })
-      .join(" ");
-  }
-  const lastIdx = columns.length - 1;
-  return columns
-    .map((c, i) => {
-      const min = `${combineFloor(c.minWidth ?? MIN_COL_PX, floors[c.id])}px`;
-      if (i === lastIdx && !fill && !fixed) return `minmax(${min}, 1fr)`;
-      const ov = overrides[c.id];
-      const preferred =
-        ov != null
-          ? `${ov}px`
-          : typeof c.width === "number"
-            ? `${c.width}px`
-            : (c.width ?? `${DEFAULT_COL_PX}px`);
-      return `minmax(${min}, ${preferred})`;
-    })
-    .join(" ");
-}
-
 // --- Main component --------------------------------------------------------
 
 export function Explorer<M = unknown>(props: ExplorerProps<M>) {
@@ -235,7 +185,8 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     icon,
     showHeader = true,
     empty = "No data",
-    edgeFade = false,
+    columnShrink = "auto",
+    edgeFade,
     gridLines = false,
     headerSurface = "flat",
     columnFill = false,
@@ -542,17 +493,122 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   // body to the header's width keeps every column aligned. Same mechanism as
   // DataTable's `contentWidth`.
   const [contentWidth, setContentWidth] = useState<number | null>(null);
+
+  // Sideways scroll. The header row is a sibling of the scroll viewport, in a
+  // scroll container of its own (`headerScroll`, no scrollbar), so the two
+  // scroll positions are mirrored: whichever the user scrolls drives the other
+  // (a swipe on the headings moves the rows, a swipe on the rows moves the
+  // headings). The driver holds a short lock while its scroll events keep
+  // coming, so the follower's own scroll events are not mirrored back. That
+  // matters where the two ranges differ (a classic vertical scrollbar narrows
+  // the viewport): a mirrored echo would pull the driver back from its end.
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const scrollDriver = useRef<{ el: HTMLElement; release: number } | null>(null);
+  useEffect(
+    () => () => {
+      if (scrollDriver.current) window.clearTimeout(scrollDriver.current.release);
+    },
+    [],
+  );
+  // The side fade (see `edgeFade`): shown only while there is more to scroll
+  // toward the trailing edge. Written straight to the fade element, so a
+  // scroll never re-renders the tree.
+  const sideFadeRef = useRef<HTMLDivElement>(null);
+  const syncSideFade = useCallback(() => {
+    const vp = viewportRef.current;
+    const fade = sideFadeRef.current;
+    if (!vp || !fade) return;
+    // scrollLeft runs negative in a right-to-left tree: the distance from the
+    // start either way.
+    const more = vp.scrollWidth - vp.clientWidth - Math.abs(vp.scrollLeft) > 1;
+    if (more !== (fade.dataset.more != null)) {
+      if (more) fade.dataset.more = "";
+      else delete fade.dataset.more;
+    }
+    // The fade lies over the wrapper's trailing edge, from its top (the
+    // header) to the foot of the rows: as tall as the wrapper, and kept off
+    // the viewport's scrollbars where they take room (none on a touch screen).
+    const root = fade.parentElement?.parentElement;
+    const inline = `${vp.offsetWidth - vp.clientWidth}px`;
+    const block = `${(root?.clientHeight ?? 0) - (vp.offsetHeight - vp.clientHeight)}px`;
+    if (fade.style.getPropertyValue("--sf-explorer-bar-inline") !== inline) {
+      fade.style.setProperty("--sf-explorer-bar-inline", inline);
+    }
+    if (fade.style.getPropertyValue("--sf-explorer-fade-block") !== block) {
+      fade.style.setProperty("--sf-explorer-fade-block", block);
+    }
+  }, []);
+  /** Make `el` the driver (or keep it one) until its scroll events stop. */
+  const holdDriver = useCallback((el: HTMLElement) => {
+    if (scrollDriver.current) window.clearTimeout(scrollDriver.current.release);
+    scrollDriver.current = {
+      el,
+      release: window.setTimeout(() => {
+        scrollDriver.current = null;
+      }, 150),
+    };
+  }, []);
+  /** Outside a scroll gesture (mount, a resize, a changed template): the
+   *  viewport's position is the one the header takes. */
+  const syncSidewaysScroll = useCallback(() => {
+    const vp = viewportRef.current;
+    const hs = headerScrollRef.current;
+    if (vp && hs && hs.scrollLeft !== vp.scrollLeft) {
+      holdDriver(vp);
+      hs.scrollLeft = vp.scrollLeft;
+    }
+    syncSideFade();
+  }, [syncSideFade, holdDriver]);
+  const mirrorScroll = useCallback(
+    (from: HTMLElement) => {
+      const vp = viewportRef.current;
+      const hs = headerScrollRef.current;
+      const to = from === vp ? hs : vp;
+      const driver = scrollDriver.current;
+      if (driver && driver.el !== from) return;
+      holdDriver(from);
+      if (to && to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
+      syncSideFade();
+    },
+    [syncSideFade, holdDriver],
+  );
+  const lastScrollLeft = useRef(0);
+  const handleViewportScroll = useCallback(
+    (e: ReactUIEvent<HTMLDivElement>) => {
+      // A vertical scroll moves neither the header nor the fade.
+      const left = e.currentTarget.scrollLeft;
+      if (left === lastScrollLeft.current) return;
+      lastScrollLeft.current = left;
+      mirrorScroll(e.currentTarget);
+    },
+    [mirrorScroll],
+  );
+  const handleHeaderScroll = useCallback(
+    (e: ReactUIEvent<HTMLDivElement>) => mirrorScroll(e.currentTarget),
+    [mirrorScroll],
+  );
+
   useEffect(() => {
     const vp = viewportRef.current;
     const hr = headerRowRef.current;
-    if (!vp || !hr) return;
-    const measure = () => setContentWidth(Math.round(hr.getBoundingClientRect().width));
+    if (!vp) return;
+    const measure = () => {
+      if (hr) setContentWidth(Math.round(hr.getBoundingClientRect().width));
+      syncSidewaysScroll();
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(vp);
-    ro.observe(hr);
+    if (hr) ro.observe(hr);
     return () => ro.disconnect();
-  }, []);
+  }, [syncSidewaysScroll]);
+  // Synced again when the fade mounts (the first rows, a changed `edgeFade`)
+  // and when the columns' total width changes.
+  const sideFadeMounted = edgeFade !== false && !showEmpty;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-synced when the fade mounts and when the columns' width changes
+  useLayoutEffect(() => {
+    syncSidewaysScroll();
+  }, [syncSidewaysScroll, sideFadeMounted, contentWidth, gridTemplate]);
   const virtualizer = useVirtualizer({
     count: flatRows.length,
     getScrollElement: () => viewportRef.current,
@@ -1261,39 +1317,43 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   );
 
   const header = showHeader ? (
-    <div
-      ref={headerRowRef}
-      className={styles.headerRow}
-      style={{ gridTemplateColumns: gridTemplate }}
-    >
-      {reorderableColumns ? (
-        shared ? (
-          // The provider owns the DndContext + overlay; render only the sortable.
-          <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
-            {headerCells}
-          </SortableContext>
-        ) : (
-          <DndContext
-            sensors={colSensors}
-            onDragStart={onColDragStart}
-            onDragEnd={onColDragEnd}
-            onDragCancel={() => setDraggingColId(null)}
-          >
+    // The header's own sideways scroller, mirrored with the viewport's (see
+    // mirrorScroll). Not focusable and not a landmark: it only carries the row.
+    <div ref={headerScrollRef} className={styles.headerScroll} onScroll={handleHeaderScroll}>
+      <div
+        ref={headerRowRef}
+        className={styles.headerRow}
+        style={{ gridTemplateColumns: gridTemplate }}
+      >
+        {reorderableColumns ? (
+          shared ? (
+            // The provider owns the DndContext + overlay; render only the sortable.
             <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
               {headerCells}
             </SortableContext>
-            <DragOverlay dropAnimation={null}>
-              {draggingColId ? (
-                <div className={styles.headerDragOverlay}>
-                  {orderedColumns.find((c) => c.id === draggingColId)?.header}
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )
-      ) : (
-        headerCells
-      )}
+          ) : (
+            <DndContext
+              sensors={colSensors}
+              onDragStart={onColDragStart}
+              onDragEnd={onColDragEnd}
+              onDragCancel={() => setDraggingColId(null)}
+            >
+              <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
+                {headerCells}
+              </SortableContext>
+              <DragOverlay dropAnimation={null}>
+                {draggingColId ? (
+                  <div className={styles.headerDragOverlay}>
+                    {orderedColumns.find((c) => c.id === draggingColId)?.header}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          )
+        ) : (
+          headerCells
+        )}
+      </div>
     </div>
   ) : null;
 
@@ -1302,6 +1362,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     <div
       ref={wrapperRef}
       className={cx(styles.wrapper, className)}
+      data-column-shrink={columnShrinkAttr(columnShrink)}
       data-fixed={(fixedColumns && !fillOn) || undefined}
       style={style as CSSProperties}
       data-explorer-root=""
@@ -1310,6 +1371,24 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
       data-cell-font={cellFontSize === "md" ? undefined : cellFontSize}
       {...rest}
     >
+      {/* Dithered fade at the trailing scroll edge (see `edgeFade`), over the
+          header and the rows. It hangs from a zero-height anchor at the top of
+          the wrapper, so the wrapper itself stays unpositioned. Mounted unless
+          `edgeFade` is `false`; whether it shows is the stylesheet's call. */}
+      {sideFadeMounted ? (
+        <div className={styles.fadeAnchor} aria-hidden="true">
+          <div
+            ref={sideFadeRef}
+            className={styles.sideFade}
+            data-on={edgeFade ? "" : undefined}
+            style={
+              typeof edgeFade === "object" && edgeFade.density != null
+                ? ({ "--sf-datatable-fade-density": edgeFade.density } as CSSProperties)
+                : undefined
+            }
+          />
+        </div>
+      ) : null}
       {header}
 
       {(() => {
@@ -1325,6 +1404,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
               onKeyDown={handleKeyDown}
               onContextMenu={handleViewportContextMenu}
               onClick={handleViewportClick}
+              onScroll={handleViewportScroll}
               {...longPress}
             >
               <ViewportDroppable
@@ -1423,6 +1503,9 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                   style={
                     {
                       "--sf-row-height": `${rowHeight}px`,
+                      // As wide as the columns, so it stays under the rows
+                      // when the tree is scrolled sideways.
+                      minWidth: contentWidth ?? undefined,
                       ...(typeof edgeFade === "object"
                         ? {
                             "--sf-datatable-fade-rows": edgeFade.rows,

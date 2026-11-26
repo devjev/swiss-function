@@ -31,7 +31,7 @@ const DAYS_PER_UNIT: Record<TickUnit, number> = {
  *   - day    (1 day/tick)     needs pxPerDay  <= ~200
  *   - hour   (1/24 day/tick)  applies above ~200 px/day
  */
-function pickUnit(pxPerDay: number, targetPx?: number): TickUnit {
+export function pickUnit(pxPerDay: number, targetPx?: number): TickUnit {
   if (targetPx != null) {
     const finestToCoarsest: TickUnit[] = ["hour", "day", "week", "month", "year"];
     for (const unit of finestToCoarsest) {
@@ -167,4 +167,52 @@ export function computeTicks(start: Date, end: Date, pxPerDay: number, targetPx?
     cur = nextTick(cur, unit);
   }
   return ticks;
+}
+
+/** Label strides per unit: when the labels of adjacent ticks would touch,
+ *  every k-th one is printed and the marks between stay. */
+const STRIDES: Record<TickUnit, readonly number[]> = {
+  hour: [1, 2, 3, 6, 12],
+  day: [1, 2, 7, 14],
+  week: [1, 2, 4],
+  month: [1, 3, 6],
+  year: [1, 2, 5, 10, 20, 50, 100],
+};
+
+/** The smallest stride at which labels `labelPx` wide, on ticks of `unit` at
+ *  `pxPerDay`, keep `gapPx` between them. The last step of the ladder when
+ *  none is wide enough. */
+export function labelStride(unit: TickUnit, pxPerDay: number, labelPx: number, gapPx = 8): number {
+  const pxPerTick = pxPerDay * DAYS_PER_UNIT[unit];
+  const ladder = STRIDES[unit];
+  for (const stride of ladder) {
+    if (stride * pxPerTick >= labelPx + gapPx) return stride;
+  }
+  return ladder[ladder.length - 1] ?? 1;
+}
+
+const MS_PER_DAY = 86_400_000;
+
+/** Whether the tick at `date` prints its label at `stride`. The phase is the
+ *  unit's own: hours count from midnight, months from January, years from 0,
+ *  seven and fourteen days fall on Mondays. It does not depend on where the
+ *  range starts, so the labels hold still while the range scrolls. */
+export function isLabelled(date: Date, unit: TickUnit, stride: number): boolean {
+  if (stride <= 1) return true;
+  // Whole local days since a Monday (1970-01-05), free of DST shifts.
+  const dayIndex = Math.round(
+    (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - 4 * MS_PER_DAY) / MS_PER_DAY,
+  );
+  switch (unit) {
+    case "hour":
+      return date.getHours() % stride === 0;
+    case "day":
+      return dayIndex % stride === 0;
+    case "week":
+      return Math.floor(dayIndex / 7) % stride === 0;
+    case "month":
+      return date.getMonth() % stride === 0;
+    case "year":
+      return date.getFullYear() % stride === 0;
+  }
 }

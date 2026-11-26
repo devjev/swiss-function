@@ -7,6 +7,7 @@ import {
   CellOverflowHarness,
   CollapsedGroupHarness,
   ColumnFitHarness,
+  ColumnShrinkHarness,
   DataTableHarness,
   EditorsHarness,
   FrozenHarness,
@@ -983,8 +984,10 @@ test("merge: an ungrouped leaf header is one key across the full header height",
   expect(empty).toBe(0);
 });
 
+// The two frozen columns are 16 units wide: pinned where that is half the
+// viewport or less (see the release tests below).
 test("frozen columns stay pinned while the rest scroll horizontally", async ({ mount, page }) => {
-  const c = await mount(<FrozenHarness width={360} frozenColumns={2} />);
+  const c = await mount(<FrozenHarness width={700} frozenColumns={2} />);
   const nameHeader = c.getByRole("columnheader", { name: "Name" });
   await expect(nameHeader).toHaveAttribute("data-frozen", "true");
   const firstCell = c.getByRole("gridcell").filter({ hasText: "Name 0" }).first();
@@ -1008,6 +1011,210 @@ test("frozen columns stay pinned while the rest scroll horizontally", async ({ m
 test("frozenColumns=0 leaves no frozen cells", async ({ mount }) => {
   const c = await mount(<FrozenHarness width={360} frozenColumns={0} />);
   await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+});
+
+test("frozen columns wider than half the viewport release, and pin again in a wide one", async ({
+  mount,
+  page,
+}) => {
+  // 16 units of frozen columns in a 360px table: more than half of it.
+  const c = await mount(<FrozenHarness width={360} frozenColumns={2} />);
+  const vp = c.getByRole("grid");
+  const nameHeader = c.getByRole("columnheader", { name: "Name" });
+  const firstCell = c.getByRole("gridcell").filter({ hasText: "Name 0" }).first();
+  await expect(nameHeader).not.toHaveAttribute("data-frozen", "true");
+  await expect(nameHeader).not.toHaveCSS("position", "sticky");
+  await expect(firstCell).not.toHaveCSS("position", "sticky");
+  await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+  // The tracks stay fixed: released columns keep their width.
+  expect((await nameHeader.boundingBox())?.width).toBeCloseTo(10 * U, 0);
+
+  // Released, they scroll with the rest.
+  const before = await nameHeader.boundingBox();
+  await vp.evaluate((el) => {
+    el.scrollLeft = 120;
+  });
+  await page.waitForTimeout(50);
+  const after = await nameHeader.boundingBox();
+  expect((before?.x ?? 0) - (after?.x ?? 0)).toBeCloseTo(120, 0);
+
+  // The viewport grows: 16 units are now under half of it, and they pin.
+  await c.update(<FrozenHarness width={700} frozenColumns={2} />);
+  await expect(nameHeader).toHaveAttribute("data-frozen", "true");
+  await expect(nameHeader).toHaveCSS("position", "sticky");
+  await expect(firstCell).toHaveCSS("position", "sticky");
+  const pinned = await nameHeader.boundingBox();
+  const gridBox = await vp.boundingBox();
+  // Pinned at the viewport's leading edge although the table is scrolled.
+  expect(await vp.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  expect((pinned?.x ?? 0) - (gridBox?.x ?? 0)).toBeLessThan(2);
+
+  // And release again when it narrows.
+  await c.update(<FrozenHarness width={360} frozenColumns={2} />);
+  await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+});
+
+test("the row-number gutter stays pinned while the frozen columns are released", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<FrozenHarness width={360} frozenColumns={2} rowNumbers />);
+  const vp = c.getByRole("grid");
+  await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+  const corner = c.getByRole("columnheader", { name: "Select all cells" });
+  const before = await corner.boundingBox();
+  await vp.evaluate((el) => {
+    el.scrollLeft = 120;
+  });
+  await page.waitForTimeout(50);
+  const after = await corner.boundingBox();
+  expect(Math.abs((after?.x ?? 0) - (before?.x ?? 0))).toBeLessThan(1);
+});
+
+// --- columnShrink: columns that hold their width ---------------------------
+
+/** The px widths of the header cells, in column order. */
+const headerWidths = (c: Locator) =>
+  c
+    .getByRole("columnheader")
+    .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+/** Scroll geometry of the grid's viewport. */
+const scrollBox = (grid: Locator) =>
+  grid.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth, left: el.scrollLeft }));
+const sideFade = (c: Locator) => c.locator('[class*="sideFade"]');
+
+test('columnShrink="hold" keeps every column at its preferred width and the table scrolls', async ({
+  mount,
+}) => {
+  // Six default-width columns (8 units each) in a 320px container.
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const widths = await headerWidths(c);
+  expect(widths).toHaveLength(6);
+  for (const w of widths) expect(w).toBeCloseTo(8 * U, 0);
+  const box = await scrollBox(c.getByRole("grid"));
+  expect(box.scroll).toBeGreaterThan(box.client);
+  expect(box.scroll).toBeCloseTo(6 * 8 * U, 0);
+});
+
+test('columnShrink="squeeze" shrinks the columns toward their minimum, as "auto" does for a mouse', async ({
+  mount,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} />);
+  const header = c.locator('[class*="headerBlock"]');
+  const template = () => header.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  const auto = await template();
+  const autoWidths = await headerWidths(c);
+  // Under their preferred 8 units, at or above the 3-unit minimum.
+  for (const w of autoWidths) {
+    expect(w).toBeLessThan(8 * U - 1);
+    expect(w).toBeGreaterThanOrEqual(3 * U - 0.5);
+  }
+
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="squeeze" />);
+  expect(await template()).toBe(auto);
+
+  // The same table, holding: the resolved tracks are the preferred widths.
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  await expect.poll(template).toBe(Array.from({ length: 6 }, () => `${8 * U}px`).join(" "));
+});
+
+test("with room to spare, held columns keep their width and the last one fills the slack", async ({
+  mount,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={1200} columnShrink="hold" />);
+  const widths = await headerWidths(c);
+  for (const w of widths.slice(0, 5)) expect(w).toBeCloseTo(8 * U, 0);
+  expect(widths[5]).toBeGreaterThan(8 * U + 1);
+  const box = await scrollBox(c.getByRole("grid"));
+  expect(box.scroll).toBe(box.client);
+  // Nothing more to scroll to: no fade.
+  await expect(sideFade(c)).toHaveCSS("display", "none");
+});
+
+test('"auto" follows the --sf-table-column-hold token', async ({ mount }) => {
+  const c = await mount(<ColumnShrinkHarness width={320} tokenHold={1} />);
+  for (const w of await headerWidths(c)) expect(w).toBeCloseTo(8 * U, 0);
+  // An explicit prop wins over the token.
+  await c.update(<ColumnShrinkHarness width={320} tokenHold={1} columnShrink="squeeze" />);
+  await expect.poll(async () => (await headerWidths(c))[0]).toBeLessThan(8 * U - 1);
+});
+
+test("a resize under hold keeps the dragged width", async ({ mount, page }) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const handle = c.getByRole("separator", { name: "Resize Name column" });
+  const box = await handle.boundingBox();
+  if (!box) throw new Error("no handle");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 60, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  const widths = await headerWidths(c);
+  // The dragged column took its new width; the others stayed at theirs.
+  expect(widths[0]).toBeCloseTo(8 * U - 60, 0);
+  for (const w of widths.slice(1)) expect(w).toBeCloseTo(8 * U, 0);
+});
+
+test("the side fade shows where the columns hold, only while there is more to scroll", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
+  const grid = c.getByRole("grid");
+  const fade = sideFade(c);
+  await expect(fade).toHaveCSS("display", "block");
+  await expect(fade).toHaveCSS("opacity", "1");
+  // At the viewport's trailing edge, as tall as the scrollport.
+  const edges = await grid.evaluate((el) => {
+    const f = el.querySelector('[class*="sideFade"]') as HTMLElement;
+    const g = el.getBoundingClientRect();
+    const r = f.getBoundingClientRect();
+    return {
+      right: g.right - el.clientLeft - r.right,
+      top: r.top - g.top - el.clientTop,
+      height: r.height - el.clientHeight,
+    };
+  });
+  expect(Math.abs(edges.right)).toBeLessThan(1);
+  expect(Math.abs(edges.top)).toBeLessThan(1);
+  expect(Math.abs(edges.height)).toBeLessThan(1);
+
+  // It rides the edge while the table scrolls, and goes at the end.
+  await grid.evaluate((el) => {
+    el.scrollLeft = 200;
+  });
+  await page.waitForTimeout(50);
+  await expect(fade).toHaveCSS("display", "block");
+  const mid = await grid.evaluate((el) => {
+    const f = el.querySelector('[class*="sideFade"]') as HTMLElement;
+    return el.getBoundingClientRect().right - el.clientLeft - f.getBoundingClientRect().right;
+  });
+  expect(Math.abs(mid)).toBeLessThan(1);
+  await grid.evaluate((el) => {
+    el.scrollLeft = el.scrollWidth;
+  });
+  await expect(fade).toHaveCSS("display", "none");
+  await grid.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  await expect(fade).toHaveCSS("display", "block");
+});
+
+test("the side fade is off where the columns squeeze; an explicit edgeFade wins both ways", async ({
+  mount,
+}) => {
+  // Squeezed to their minimums the six columns still overflow 320px, so there
+  // is more to scroll, and still no fade by default.
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="squeeze" />);
+  const box = await scrollBox(c.getByRole("grid"));
+  expect(box.scroll).toBeGreaterThan(box.client);
+  await expect(sideFade(c)).toHaveCSS("opacity", "0");
+
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="squeeze" edgeFade />);
+  await expect(sideFade(c)).toHaveCSS("opacity", "1");
+  await expect(sideFade(c)).toHaveCSS("display", "block");
+
+  await c.update(<ColumnShrinkHarness width={320} columnShrink="hold" edgeFade={false} />);
+  await expect(sideFade(c)).toHaveCount(0);
 });
 
 // --- Sorting (flat mode renders body rows from computeRowOrder) ---
@@ -2479,6 +2686,48 @@ test.describe("with a finger", () => {
     await expect(editor).toBeVisible();
     // At the text-entry floor, so iOS does not zoom the page on focus.
     expect(await editor.evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
+  });
+
+  test("the columns hold their width and the table scrolls sideways, with the fade as the cue", async ({
+    mount,
+  }) => {
+    // No columnShrink: "auto" reads the token, 1 on a coarse pointer.
+    const c = await mount(<ColumnShrinkHarness width={320} />);
+    const grid = c.getByRole("grid");
+    const unit = await grid.evaluate((el) => {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:absolute;visibility:hidden;width:var(--sf-unit)";
+      el.appendChild(probe);
+      const px = probe.getBoundingClientRect().width;
+      probe.remove();
+      return px;
+    });
+    for (const w of await headerWidths(c)) expect(w).toBeCloseTo(8 * unit, 0);
+    const box = await scrollBox(grid);
+    expect(box.scroll).toBeCloseTo(6 * 8 * unit, 0);
+    expect(box.scroll).toBeGreaterThan(box.client);
+    await expect(sideFade(c)).toHaveCSS("display", "block");
+    await expect(sideFade(c)).toHaveCSS("opacity", "1");
+
+    // "squeeze" keeps today's behaviour on touch.
+    await c.update(<ColumnShrinkHarness width={320} columnShrink="squeeze" />);
+    await expect.poll(async () => (await headerWidths(c))[0]).toBeLessThan(8 * unit - 1);
+    await expect(sideFade(c)).toHaveCSS("opacity", "0");
+  });
+
+  test("a table that fits has nothing to scroll and shows no fade", async ({ mount }) => {
+    const c = await mount(
+      <DataTable
+        data={[{ a: 1, b: 2 }]}
+        columns={[
+          { id: "a", header: "A", accessor: "a", width: 4 },
+          { id: "b", header: "B", accessor: "b", width: 4 },
+        ]}
+      />,
+    );
+    const box = await scrollBox(c.getByRole("grid"));
+    expect(box.scroll).toBe(box.client);
+    await expect(sideFade(c)).toHaveCSS("display", "none");
   });
 
   test("a reorderable heading does not give up touch panning", async ({ mount }) => {

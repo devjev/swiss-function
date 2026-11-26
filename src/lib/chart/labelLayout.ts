@@ -73,6 +73,63 @@ export function thinLabels(
 }
 
 /**
+ * Part the two endpoint labels of an axis when they would print over each
+ * other (a flat series under a shared domain puts its minimum and maximum a
+ * few px apart). Returns the px to move each label along the axis, away from
+ * the other; the tick marks stay where the data is. The pair is kept inside
+ * the axis, and `null` means the axis is too short for both: print one.
+ */
+export function partEndpoints(
+  first: LabelBox,
+  last: LabelBox,
+  axisLength: number,
+  gapPx = 4,
+): { first: number; last: number } | null {
+  const need = (first.size + last.size) / 2 + gapPx;
+  const short = need - (last.center - first.center);
+  if (short <= 0) return { first: 0, last: 0 };
+  let lo = first.center - short / 2;
+  let hi = last.center + short / 2;
+  if (lo < 0) {
+    hi -= lo;
+    lo = 0;
+  }
+  if (hi > axisLength) {
+    lo -= hi - axisLength;
+    hi = axisLength;
+  }
+  if (lo < 0) return null;
+  return { first: lo - first.center, last: hi - last.center };
+}
+
+/**
+ * The ticks an idle axis prints, with its two endpoint labels parted when
+ * they collide (`partEndpoints`). `keep` is the result of `thinLabels`. On an
+ * axis too short for both labels the last one (the maximum) is printed alone.
+ * Returns new tick objects; the input is not changed.
+ */
+export function partEndpointLabels<T extends { labelOffset?: number }>(
+  ticks: readonly T[],
+  boxes: readonly LabelBox[],
+  keep: readonly boolean[],
+  axisLength: number,
+  gapPx = 4,
+): T[] {
+  const last = ticks.length - 1;
+  const lo = boxes[0];
+  const hi = boxes[last];
+  if (last < 1 || !lo || !hi || !keep[0] || !keep[last]) return ticks.filter((_, i) => keep[i]);
+  const parted = partEndpoints(lo, hi, axisLength, gapPx);
+  if (!parted) return ticks.filter((_, i) => i !== 0 && keep[i]);
+  if (parted.first === 0 && parted.last === 0) return ticks.filter((_, i) => keep[i]);
+  // Nothing fits between two labels that touch.
+  return [
+    { ...(ticks[0] as T), labelOffset: parted.first },
+    { ...(ticks[last] as T), labelOffset: parted.last },
+  ];
+}
+
+/**
  * Fit `text` into `maxPx`: unchanged when it already fits, otherwise the
  * longest prefix + "…" that fits, otherwise "" when even one glyph plus the
  * ellipsis is too wide. Assumes `measure` grows with prefix length (binary

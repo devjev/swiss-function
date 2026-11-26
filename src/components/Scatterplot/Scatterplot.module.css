@@ -263,7 +263,15 @@ g[data-activatable] .point {
   z-index: var(--sf-z-modal);
   block-size: auto;
   background: var(--sf-color-bg);
-  padding: var(--sf-unit);
+  /* One unit, plus the notch and the home indicator (0 on a plain viewport).
+     The fullscreen key is absolutely placed, so it takes the same insets
+     through --sf-fs-* (Fullscreen.module.css). */
+  padding: calc(var(--sf-unit) + var(--sf-safe-top)) calc(var(--sf-unit) + var(--sf-safe-right))
+    calc(var(--sf-unit) + var(--sf-safe-bottom)) calc(var(--sf-unit) + var(--sf-safe-left));
+  --sf-fs-top: var(--sf-safe-top);
+  --sf-fs-right: var(--sf-safe-right);
+  --sf-fs-bottom: var(--sf-safe-bottom);
+  --sf-fs-left: var(--sf-safe-left);
 }
 
 /* An armed draw tool: crosshair instead of the pan grab-hand. */

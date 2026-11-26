@@ -256,3 +256,69 @@ export function rowTrack(
   const to = Math.max(from + 1, Math.round(((index + 1) * subrows) / count));
   return { start: from + 1, span: Math.min(to, subrows) - from };
 }
+
+// --- Vertical bands: wrapping onto lines --------------------------------------
+// In the vertical orientation a column is a full-width band and its windows
+// sit side by side. A band holds only as many windows per line as keep each
+// one at least `windowMinWidth` wide; the rest wrap onto further lines of the
+// same band, in order. The horizontal strip never wraps (`perLine` is
+// Infinity there), so every function below returns the single-line layout.
+
+/** Windows per line of a vertical band: as many as keep each window at least
+ *  `minWidth` wide, and at least one. `available` is the band's inner width
+ *  (px) and `gap` the inline margin every window carries, so one window needs
+ *  `minWidth + gap` of it. Infinity (no wrapping) without a positive minimum
+ *  or a measured width. */
+export function windowsPerLine(available: number, minWidth: number, gap = 0): number {
+  const cell = minWidth + Math.max(0, gap);
+  if (!(minWidth > 0) || !Number.isFinite(cell) || !Number.isFinite(available)) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.max(1, Math.floor(available / cell));
+}
+
+/** Window count on each line of a band of `count` windows wrapped at
+ *  `perLine`: full lines hold `perLine`, the last line holds the remainder
+ *  (and its windows share the line's width evenly). A band that fits is one
+ *  line, and so is an empty band. */
+export function bandLines(count: number, perLine: number): number[] {
+  if (!(perLine >= 1) || count <= perLine) return [Math.max(0, count)];
+  const per = Math.floor(perLine);
+  const lines: number[] = [];
+  for (let left = count; left > 0; left -= per) lines.push(Math.min(per, left));
+  return lines;
+}
+
+/** Where window `index` of a band of `count` sits once wrapped at `perLine`:
+ *  its 0-based line, its position on that line, and the line's window count
+ *  (the `index` and `count` to hand to `rowTrack`). */
+export function lineSlot(
+  index: number,
+  count: number,
+  perLine: number,
+): { line: number; index: number; count: number } {
+  if (!(perLine >= 1) || count <= perLine) return { line: 0, index, count };
+  const per = Math.floor(perLine);
+  const line = Math.floor(index / per);
+  return { line, index: index - line * per, count: Math.min(per, count - line * per) };
+}
+
+/** Main-axis grid tracks of the strip (1-based) for bands of the given line
+ *  counts. Each band is a leading gutter track followed by its line tracks,
+ *  with a spacer track between two lines of the same band, so line `l` of a
+ *  band sits on track `start + 2 * l` and the band spans `span` tracks. `end`
+ *  is the trailing gutter after the last band. With one line per band this is
+ *  the plain alternation: gutter `2i + 1`, band `2i + 2`. */
+export function bandTracks(lines: number[]): {
+  bands: { gutter: number; start: number; span: number }[];
+  end: number;
+} {
+  let track = 1;
+  const bands = lines.map((count) => {
+    const n = Math.max(1, Math.floor(count));
+    const band = { gutter: track, start: track + 1, span: 2 * n - 1 };
+    track += 2 * n;
+    return band;
+  });
+  return { bands, end: track };
+}

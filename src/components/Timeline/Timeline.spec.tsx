@@ -542,3 +542,29 @@ test("valueLabel renders a tag above each range handle", async ({ mount }) => {
   await expect(c.getByText("2026-03-01")).toBeVisible();
   await expect(c.getByText("2026-08-01")).toBeVisible();
 });
+
+test("tick labels thin out instead of printing over each other (issue #110)", async ({ mount }) => {
+  // Ten hours across a phone's width: about 32px per hourly tick for a label
+  // about 40px wide.
+  const c = await mount(
+    <div style={{ width: 326 }}>
+      <Timeline start={new Date("2026-06-04T08:00:00")} end={new Date("2026-06-04T18:00:00")}>
+        <Timeline.Event date={new Date("2026-06-04T09:30:00")}>Stand-up</Timeline.Event>
+      </Timeline>
+    </div>,
+  );
+  const ticks = c.locator("[data-tick]");
+  await expect(ticks).toHaveCount(11);
+  // Every mark stays; every second label is printed, counted from midnight.
+  const labels = await ticks.locator("span:last-child:not([aria-hidden])").allTextContents();
+  expect(labels).toEqual(["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"]);
+});
+
+test("tick labels all print when they have room", async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 900 }}>
+      <Timeline start={new Date("2026-06-04T08:00:00")} end={new Date("2026-06-04T18:00:00")} />
+    </div>,
+  );
+  await expect(c.locator("[data-tick] span:last-child:not([aria-hidden])")).toHaveCount(11);
+});

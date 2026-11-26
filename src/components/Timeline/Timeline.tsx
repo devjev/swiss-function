@@ -21,7 +21,7 @@ import { cx } from "../../lib/cx";
 import { hitArea } from "../../lib/hitArea";
 import { assignLanes, type LaneInput } from "./lanes";
 import styles from "./Timeline.module.css";
-import { computeTicks } from "./ticks";
+import { computeTicks, isLabelled, labelStride, pickUnit } from "./ticks";
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -177,6 +177,22 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
   // The consumer's tick formatter, when there is one (issue #97). Without it
   // the calendar ladder keeps its own labels.
   const format = useMemo(() => resolveChartFormat({ tickFormat }), [tickFormat]);
+
+  // Tick labels are measured: where adjacent ones would touch (a day of
+  // hourly ticks on a phone), every k-th label is printed and the marks stay.
+  const tickFont = resolveTickFont(viewportRef.current);
+  const tickLabels = useMemo(
+    () => ticks.map((tick) => format.timeTick(tick.date.getTime(), tick.label, "x")),
+    [ticks, format],
+  );
+  const tickUnit = pickUnit(layoutPxPerDay, tickSpacing);
+  const tickStride = useMemo(() => {
+    const measureTick = getTextMeasurer(tickFont);
+    let widest = 0;
+    // A major label is semibold; the measurer reads the regular weight.
+    for (const label of tickLabels) widest = Math.max(widest, measureTick(label) * 1.06);
+    return labelStride(tickUnit, layoutPxPerDay, widest);
+  }, [tickLabels, tickFont, tickUnit, layoutPxPerDay]);
 
   // Now-line as a fraction of the total range, or null if out of range / disabled.
   const now = new Date();
@@ -458,7 +474,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
 
           {/* Tick marks + labels — positioned with percentages so the layout
               scales with whatever width the track ends up at. */}
-          {ticks.map((tick) => {
+          {ticks.map((tick, tickIndex) => {
             const pct =
               totalDays > 0
                 ? ((tick.date.getTime() - start.getTime()) / MS_DAY / totalDays) * 100
@@ -472,9 +488,9 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 data-tick-major={tick.major || undefined}
               >
                 <span className={styles.tickMark} aria-hidden="true" />
-                <span className={styles.tickLabel}>
-                  {format.timeTick(tick.date.getTime(), tick.label, "x")}
-                </span>
+                {isLabelled(tick.date, tickUnit, tickStride) ? (
+                  <span className={styles.tickLabel}>{tickLabels[tickIndex]}</span>
+                ) : null}
               </div>
             );
           })}

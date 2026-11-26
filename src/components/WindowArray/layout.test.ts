@@ -2,11 +2,14 @@ import { createElement, Fragment } from "react";
 import { describe, expect, it } from "vitest";
 import type { StripModel } from "./layout";
 import {
+  bandLines,
+  bandTracks,
   clampWidth,
   collectElements,
   duplicateIds,
   edgeWindow,
   findWindow,
+  lineSlot,
   moveByKey,
   neighbor,
   projectMove,
@@ -15,6 +18,7 @@ import {
   subrowCount,
   successor,
   transposeDir,
+  windowsPerLine,
 } from "./layout";
 
 // [ col-a: [a1, a2] | col-b: [b1] | col-c: [c1, c2, c3] ]
@@ -306,5 +310,168 @@ describe("subrowCount / rowTrack", () => {
       }
       expect(total).toBe(subrows);
     }
+  });
+});
+
+describe("windowsPerLine", () => {
+  it("fits as many windows as keep each one at least the minimum wide", () => {
+    expect(windowsPerLine(588, 240)).toBe(2);
+    expect(windowsPerLine(720, 240)).toBe(3);
+    expect(windowsPerLine(719, 240)).toBe(2);
+  });
+
+  it("counts the gap every window carries as margin", () => {
+    // 500px holds two 240px windows only when they need no margin.
+    expect(windowsPerLine(500, 240, 0)).toBe(2);
+    expect(windowsPerLine(500, 240, 10)).toBe(2);
+    expect(windowsPerLine(499, 240, 10)).toBe(1);
+    // A phone: 326px container, 1px borders, a 12px gap.
+    expect(windowsPerLine(312, 240, 12)).toBe(1);
+  });
+
+  it("never drops under one window per line", () => {
+    expect(windowsPerLine(100, 240, 12)).toBe(1);
+    expect(windowsPerLine(0, 240)).toBe(1);
+    expect(windowsPerLine(-20, 240)).toBe(1);
+  });
+
+  it("does not wrap without a positive minimum or a measured width", () => {
+    expect(windowsPerLine(300, 0)).toBe(Number.POSITIVE_INFINITY);
+    expect(windowsPerLine(300, -1)).toBe(Number.POSITIVE_INFINITY);
+    expect(windowsPerLine(Number.NaN, 240)).toBe(Number.POSITIVE_INFINITY);
+    expect(windowsPerLine(300, Number.NaN)).toBe(Number.POSITIVE_INFINITY);
+  });
+});
+
+describe("bandLines", () => {
+  it("keeps a band that fits on one line", () => {
+    expect(bandLines(1, 1)).toEqual([1]);
+    expect(bandLines(2, 2)).toEqual([2]);
+    expect(bandLines(3, 5)).toEqual([3]);
+    expect(bandLines(4, Number.POSITIVE_INFINITY)).toEqual([4]);
+  });
+
+  it("wraps the rest onto further lines, the last one holding the remainder", () => {
+    expect(bandLines(5, 1)).toEqual([1, 1, 1, 1, 1]);
+    expect(bandLines(5, 2)).toEqual([2, 2, 1]);
+    expect(bandLines(4, 2)).toEqual([2, 2]);
+    expect(bandLines(7, 3)).toEqual([3, 3, 1]);
+  });
+
+  it("uses min(n, perLine) cells and ceil(n / perLine) lines", () => {
+    for (let count = 1; count <= 12; count++) {
+      for (let perLine = 1; perLine <= 6; perLine++) {
+        const lines = bandLines(count, perLine);
+        expect(lines.length).toBe(Math.ceil(count / perLine));
+        expect(Math.max(...lines)).toBe(Math.min(count, perLine));
+        expect(lines.reduce((sum, n) => sum + n, 0)).toBe(count);
+      }
+    }
+  });
+
+  it("gives an empty band one empty line, and ignores a count per line under one", () => {
+    expect(bandLines(0, 2)).toEqual([0]);
+    expect(bandLines(3, 0)).toEqual([3]);
+    expect(bandLines(3, Number.NaN)).toEqual([3]);
+  });
+});
+
+describe("lineSlot", () => {
+  it("is the stack position itself while the band fits", () => {
+    expect(lineSlot(0, 3, 3)).toEqual({ line: 0, index: 0, count: 3 });
+    expect(lineSlot(2, 3, Number.POSITIVE_INFINITY)).toEqual({ line: 0, index: 2, count: 3 });
+  });
+
+  it("walks the lines in order, the last line sharing its width among fewer windows", () => {
+    expect([0, 1, 2, 3, 4].map((i) => lineSlot(i, 5, 2))).toEqual([
+      { line: 0, index: 0, count: 2 },
+      { line: 0, index: 1, count: 2 },
+      { line: 1, index: 0, count: 2 },
+      { line: 1, index: 1, count: 2 },
+      { line: 2, index: 0, count: 1 },
+    ]);
+  });
+
+  it("puts every window on a line of its own at one per line", () => {
+    expect([0, 1, 2].map((i) => lineSlot(i, 3, 1))).toEqual([
+      { line: 0, index: 0, count: 1 },
+      { line: 1, index: 0, count: 1 },
+      { line: 2, index: 0, count: 1 },
+    ]);
+  });
+
+  it("agrees with bandLines on every line's window count", () => {
+    for (let count = 1; count <= 12; count++) {
+      for (let perLine = 1; perLine <= 6; perLine++) {
+        const lines = bandLines(count, perLine);
+        const seen = lines.map(() => 0);
+        for (let i = 0; i < count; i++) {
+          const slot = lineSlot(i, count, perLine);
+          expect(slot.count).toBe(lines[slot.line]);
+          expect(slot.index).toBe(seen[slot.line]);
+          seen[slot.line] = (seen[slot.line] ?? 0) + 1;
+        }
+        expect(seen).toEqual(lines);
+      }
+    }
+  });
+});
+
+describe("bandTracks", () => {
+  it("is the plain gutter / band alternation at one line per band", () => {
+    expect(bandTracks([1, 1, 1])).toEqual({
+      bands: [
+        { gutter: 1, start: 2, span: 1 },
+        { gutter: 3, start: 4, span: 1 },
+        { gutter: 5, start: 6, span: 1 },
+      ],
+      end: 7,
+    });
+  });
+
+  it("gives a wrapped band a track per line and a spacer track between two lines", () => {
+    // Band 1: lines on tracks 2, 4, 6 (spacers 3 and 5). Band 2 follows its
+    // gutter on 7.
+    expect(bandTracks([3, 1, 2])).toEqual({
+      bands: [
+        { gutter: 1, start: 2, span: 5 },
+        { gutter: 7, start: 8, span: 1 },
+        { gutter: 9, start: 10, span: 3 },
+      ],
+      end: 13,
+    });
+  });
+
+  it("has only the leading gutter for an empty strip, and treats no lines as one", () => {
+    expect(bandTracks([])).toEqual({ bands: [], end: 1 });
+    expect(bandTracks([0])).toEqual({ bands: [{ gutter: 1, start: 2, span: 1 }], end: 3 });
+  });
+});
+
+describe("wrapped bands on the subrow grid", () => {
+  it("shares each line's width evenly, a short last line included", () => {
+    // Five windows at two per line: lines of 2, 2 and 1 over 2 subrows.
+    const lines = bandLines(5, 2);
+    const subrows = subrowCount(lines);
+    expect(subrows).toBe(2);
+    const placed = [0, 1, 2, 3, 4].map((i) => {
+      const slot = lineSlot(i, 5, 2);
+      return { line: slot.line, ...rowTrack(slot.index, slot.count, subrows) };
+    });
+    expect(placed).toEqual([
+      { line: 0, start: 1, span: 1 },
+      { line: 0, start: 2, span: 1 },
+      { line: 1, start: 1, span: 1 },
+      { line: 1, start: 2, span: 1 },
+      { line: 2, start: 1, span: 2 },
+    ]);
+  });
+
+  it("matches the unwrapped grid when every band fits", () => {
+    const counts = [2, 1, 3];
+    const lines = counts.map((count) => bandLines(count, 3));
+    expect(lines.flat()).toEqual(counts);
+    expect(subrowCount(lines.flat())).toBe(subrowCount(counts));
+    expect(bandTracks(lines.map((l) => l.length))).toEqual(bandTracks([1, 1, 1]));
   });
 });

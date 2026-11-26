@@ -1,12 +1,18 @@
+import { holdMin } from "../../lib/columns/columnHold";
+
 /** Column-width plumbing for resizable DataTable columns.
  *
- * At rest each track is `minmax(minWidth, preferred)`, so when the columns'
- * preferred widths don't fit the container they shrink toward their minimums
- * (no scroll); only when even the minimums don't fit does the table scroll
- * horizontally. The last column's preferred is `1fr`, so when there's slack it
- * fills the container.
+ * At rest each track is `minmax(min, preferred)`. The last column's preferred
+ * is `1fr`, so when there's slack it fills the container.
  *   - `preferred` = a runtime px override, the column def's `width`, or a default.
  *   - `minWidth` = the column def's `minWidth` or the global `COLUMN_MIN_UNITS`.
+ *   - `min` = `max(minWidth, preferred * hold)`, where `hold` is the private
+ *     custom property the table sets from `columnShrink` (see
+ *     `lib/columns/columnHold`). At 0 the minimum is `minWidth`: when the
+ *     preferred widths don't fit the container the columns shrink toward their
+ *     minimums, and the table scrolls only when even those don't fit. At 1 the
+ *     minimum is the preferred width: the columns keep it and the table
+ *     scrolls as soon as they don't fit.
  *
  * A measured header floor (`floors`, issue #102) raises a track's minimum
  * above its declared one: a column is never narrower than its header needs,
@@ -70,12 +76,22 @@ function preferredExpr(
       : `calc(var(--sf-unit) * ${defaultWidth})`;
 }
 
-/** The declared minimum as a CSS length, raised to the measured floor when one
- *  is known: `max()` so the token still tracks the consumer's `--sf-unit`. */
-function minExpr(col: TemplateLeaf, floors: Record<string, number> | undefined): string {
+/** A shrinkable track's minimum as a CSS length: the declared minimum, raised
+ *  to the measured floor when one is known, and to the preferred width where
+ *  the columns hold (`holdMin`). `max()` so the unit token still tracks the
+ *  consumer's `--sf-unit`. */
+function minExpr(
+  col: TemplateLeaf,
+  overrides: Record<string, number>,
+  defaultWidth: number,
+  floors: Record<string, number> | undefined,
+): string {
   const declared = `calc(var(--sf-unit) * ${col.minWidth ?? COLUMN_MIN_UNITS})`;
   const floor = floors?.[col.id];
-  return floor != null ? `max(${declared}, ${floor}px)` : declared;
+  return holdMin(
+    floor != null ? [declared, `${floor}px`] : [declared],
+    preferredExpr(col, overrides, defaultWidth),
+  );
 }
 
 /** A fixed (frozen) track: the preferred width, raised to the floor. Shared
@@ -103,8 +119,10 @@ export function allFixed(
 
 /** Build the `grid-template-columns` string shared by the header and every body
  *  row. Every track is `minmax(min, preferred)`; by default the last column's
- *  preferred is `1fr` so it fills any slack (see `stretchLast`). The first
- *  `frozenCount` tracks are emitted as fixed widths so they don't shrink. */
+ *  preferred is `1fr` so it fills any slack (see `stretchLast`), and where the
+ *  columns hold its minimum is the width it would have as any other column.
+ *  The first `frozenCount` tracks are emitted as fixed widths so they don't
+ *  shrink. */
 export function buildColumnTemplate(
   leaves: TemplateLeaf[],
   overrides: Record<string, number>,
@@ -119,7 +137,7 @@ export function buildColumnTemplate(
     .map((col, i) => {
       // Frozen tracks are fixed (never shrink) so their offsets are predictable.
       if (i < frozenCount) return fixedExpr(col, overrides, defaultWidth, floors);
-      const min = minExpr(col, floors);
+      const min = minExpr(col, overrides, defaultWidth, floors);
       if (i === lastIdx && stretchLast) return `minmax(${min}, 1fr)`;
       return `minmax(${min}, ${preferredExpr(col, overrides, defaultWidth)})`;
     })
@@ -159,4 +177,14 @@ export function frozenTotalWidth(
     .slice(0, n)
     .map((c) => fixedExpr(c, overrides, defaultWidth, options?.floors));
   return `calc(${exprs.join(" + ")})`;
+}
+
+/** Whether frozen columns stay pinned. They release (scroll with the rest)
+ *  while their total width is more than half the scroll viewport: pinned, they
+ *  would leave the scrolling columns less than half of a narrow table. Both
+ *  arguments are px; the frozen width counts the data columns, without the
+ *  row-number gutter. A viewport with no measured width keeps them pinned. */
+export function frozenPinned(frozenWidth: number, viewportWidth: number): boolean {
+  if (!(viewportWidth > 0)) return true;
+  return frozenWidth <= viewportWidth / 2;
 }

@@ -674,7 +674,7 @@ export function MegachatDemo({
         onOpenChange={setOpen}
         title="Assistant"
         menu={
-          <MenuBar.Root transparent>
+          <MenuBar.Root transparent collapse="items">
             <MenuBar.Menu>
               <MenuBar.Trigger>Conversation</MenuBar.Trigger>
               <MenuBar.Content>

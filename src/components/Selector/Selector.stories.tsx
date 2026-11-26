@@ -60,7 +60,7 @@ export const Inline: Story = () => {
 export const Compact: Story = () => {
   const [value, setValue] = useState<string[]>(["Paris", "Tokyo", "Oslo"]);
   return (
-    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
       <Selector
         layout="compact"
         items={cities}
