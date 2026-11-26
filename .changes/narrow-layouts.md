@@ -1,4 +1,0 @@
----
-bump: minor
----
-Narrow containers: `SplitPane` (and `ChatDrawer`) lay the panel over the main pane under `overlayAt` (20 units by default, `false` to keep pushing) instead of squeezing the main pane to a sliver; a tap beside the panel or Escape closes it. `Dialog.Popup` takes `fullscreen` (`true` or `"narrow"`, the default for a draggable or resizable popup) and a sized popup no longer exceeds the viewport, which put the close key off screen on a phone. `Grid minColumnWidth` gives as many equal columns as fit, down to one. `Stat` shrinks its figure to the card instead of cutting it with an ellipsis (`useFitText`). A `split` `Prose` stacks its outline above the body. `Picker` keeps its clear and open keys on the value's row in a narrow cell, the `Graph` toolbar stays inside a narrow surface, a `Minimap` rail never takes more than two fifths of its row, and the options of a `Chat` choices block grow with wrapped text instead of running into each other.

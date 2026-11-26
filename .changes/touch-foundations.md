@@ -1,4 +1,0 @@
----
-bump: minor
----
-Touch: the library now adapts to a device whose primary pointer is a finger (`@media (pointer: coarse)`), with nothing to switch on. The root takes the comfortable density unless it carries a `data-density` (set `data-density="compact"` to keep the dense metrics on a phone); every text field is at least 16px, under which iOS zooms the page on focus (`--sf-text-entry-min`); small controls answer on a 44px hit area while keeping their size (`--sf-hit-min`, `--sf-hit-tight`, and the `hitArea` classes at `/lib/hit-area` for an app's own controls); hover styles apply only to a hovering pointer, so a tap no longer leaves a stuck highlight; `Dialog` and `Drawer` size to the dynamic viewport, and the surfaces that reach a screen edge pad themselves by the new `--sf-safe-*` tokens. New hooks: `useCoarsePointer`, `useMediaQuery`. `@base-ui/react` moves to `^1.9.0`, which carries its iOS scroll, focus and keyboard fixes.
