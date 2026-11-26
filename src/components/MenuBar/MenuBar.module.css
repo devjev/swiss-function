@@ -30,10 +30,15 @@
 }
 /* The active title (hovered or open) inverts: primary behind, the background
    colour as the text, so it reads on any surface the bar is set into. */
-.trigger:hover,
 .trigger[data-popup-open] {
   background-color: var(--sf-color-primary);
   color: var(--sf-color-bg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover {
+    background-color: var(--sf-color-primary);
+    color: var(--sf-color-bg);
+  }
 }
 .trigger:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -205,8 +210,10 @@
 .barTriggerEnd {
   margin-inline-start: auto;
 }
-.barTrigger:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .barTrigger:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .barTrigger:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

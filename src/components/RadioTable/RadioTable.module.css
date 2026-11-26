@@ -44,8 +44,10 @@
   border-block-start: 1px solid var(--sf-color-border-subtle);
 }
 
-.option:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .option:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 /* Selected row: a faint primary tint (quieter than an accent bar, matches the

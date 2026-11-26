@@ -16,10 +16,12 @@ import {
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useFullscreen } from "../../lib/useFullscreen";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
 import { Collapse, Expand, ExternalLink, X } from "../Icon";
@@ -63,6 +65,9 @@ interface PopupContextValue {
   onHandlePointerDown?: (event: ReactPointerEvent) => void;
   /** Whether the popup is currently maximized to the viewport. */
   expanded: boolean;
+  /** The popup fills the viewport because of its `fullscreen` prop, so there
+   *  is nothing for `Dialog.Maximize` to toggle. */
+  forcedFullscreen: boolean;
   /** Toggle the popup's fullscreen state. */
   toggleFullscreen: () => void;
   /** Whether the dialog's content is showing in a separate browser window. */
@@ -83,6 +88,13 @@ interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
   /** Initial height in px. Sets the size up front (the default is content-driven,
    *  capped at the viewport). A later resize takes over from here. */
   defaultHeight?: number;
+  /** Fill the viewport instead of floating over it: `true` always, `"narrow"`
+   *  only while the viewport is narrower than 30rem (a phone), where a floating
+   *  window has no room to be dragged or resized. Edge to edge, clear of the
+   *  notch and the home indicator; `Dialog.Maximize` hides while it applies.
+   *  Default `"narrow"` for a `draggable` or `resizable` popup, `false`
+   *  otherwise. */
+  fullscreen?: boolean | "narrow";
   /** Controlled popped-out state: the dialog's content shows alone in a
    *  separate browser window (a `PopOut` popup) while the dialog stays open
    *  as a small placeholder, so the modal focus trap keeps trapping here and
@@ -106,6 +118,13 @@ interface PopupProps extends ComponentPropsWithoutRef<typeof BaseDialog.Popup> {
 /** Smallest a resizable popup may be dragged to, in px. */
 const MIN_W = 240;
 const MIN_H = 120;
+/** A sized popup never exceeds the viewport less an 8px margin a side, the
+ *  same bound the resize gestures keep: a `defaultWidth` wider than a phone
+ *  would otherwise put the title bar's keys off screen. */
+const VIEWPORT_MAX_W = "calc(100dvw - 16px)";
+const VIEWPORT_MAX_H = "calc(100dvh - 16px)";
+/** Below this viewport width a `fullscreen="narrow"` popup fills the screen. */
+const NARROW_VIEWPORT = "(max-width: 30rem)";
 
 const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   {
@@ -114,6 +133,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     resizable,
     defaultWidth,
     defaultHeight,
+    fullscreen = draggable || resizable ? "narrow" : false,
     poppedOut: poppedProp,
     defaultPoppedOut = false,
     onPoppedOutChange,
@@ -130,7 +150,12 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   // Maximize-to-viewport. While expanded the popup ignores the drag offset and
   // manual size (the `.fullscreen` class takes over); exiting restores both,
   // since they're kept in state and merely not applied while expanded.
-  const { expanded, toggle } = useFullscreen();
+  const { expanded: maximized, toggle } = useFullscreen();
+  // The `fullscreen` prop fills the viewport without the user's toggle: always,
+  // or on a phone-width viewport. Everything below reads the sum of the two.
+  const narrowViewport = useMediaQuery(NARROW_VIEWPORT);
+  const forcedFullscreen = fullscreen === true || (fullscreen === "narrow" && narrowViewport);
+  const expanded = maximized || forcedFullscreen;
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   // `size` is the resize-tracked size; seeded from defaultWidth/Height so the
   // popup can open at a chosen size. Either axis may be unset (content-driven).
@@ -268,8 +293,8 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   const sizeStyle: CSSProperties | undefined =
     size && !expanded && !popped
       ? {
-          ...(size.w != null && { width: `${size.w}px`, maxWidth: "none" }),
-          ...(size.h != null && { height: `${size.h}px`, maxHeight: "none" }),
+          ...(size.w != null && { width: `${size.w}px`, maxWidth: VIEWPORT_MAX_W }),
+          ...(size.h != null && { height: `${size.h}px`, maxHeight: VIEWPORT_MAX_H }),
         }
       : undefined;
 
@@ -280,7 +305,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
   // remembers the popup's rect so the browser window opens over it.
   const togglePopOut = useCallback(() => {
     if (!popped) {
-      if (expanded) toggle();
+      if (maximized) toggle();
       const el = popupRef.current;
       if (el) {
         const r = el.getBoundingClientRect();
@@ -293,18 +318,19 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
       }
     }
     setPopped(!popped);
-  }, [popped, expanded, toggle, setPopped]);
+  }, [popped, maximized, toggle, setPopped]);
 
   const ctx: PopupContextValue = useMemo(
     () => ({
       // Dragging is meaningless once maximized or popped — drop the starter.
       onHandlePointerDown: draggable && !expanded && !popped ? onHandlePointerDown : undefined,
       expanded,
+      forcedFullscreen,
       toggleFullscreen: toggle,
       popped,
       togglePopOut,
     }),
-    [draggable, expanded, onHandlePointerDown, toggle, popped, togglePopOut],
+    [draggable, expanded, forcedFullscreen, onHandlePointerDown, toggle, popped, togglePopOut],
   );
 
   // Cross-portal stacking (issue #82): seed the modal band so a floater opened
@@ -360,43 +386,43 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
           <div
             aria-hidden="true"
             data-edge="n"
-            className={styles.resizeN}
+            className={`${styles.resizeN} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="s"
-            className={styles.resizeS}
+            className={`${styles.resizeS} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="e"
-            className={styles.resizeE}
+            className={`${styles.resizeE} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="w"
-            className={styles.resizeW}
+            className={`${styles.resizeW} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="ne"
-            className={styles.resizeNE}
+            className={`${styles.resizeNE} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="nw"
-            className={styles.resizeNW}
+            className={`${styles.resizeNW} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           <div
             aria-hidden="true"
             data-edge="sw"
-            className={styles.resizeSW}
+            className={`${styles.resizeSW} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
           />
           {/* biome-ignore lint/a11y/useSemanticElements: a focusable, draggable resize grip is not an <hr> */}
@@ -408,7 +434,7 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
             aria-valuemin={MIN_W}
             tabIndex={0}
             data-edge="se"
-            className={styles.resizeSE}
+            className={`${styles.resizeSE} ${hitArea.handle}`}
             onPointerDown={onResizeDown}
             onKeyDown={resizeByKey}
           />
@@ -461,8 +487,9 @@ const Maximize = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"
   function DialogMaximize({ className, onClick, onPointerDown, ...rest }, ref) {
     const ctx = useContext(PopupContext);
     const expanded = ctx?.expanded ?? false;
-    // Maximizing a placeholder is meaningless while the content is popped out.
-    if (ctx?.popped) return null;
+    // Maximizing a placeholder is meaningless while the content is popped out,
+    // and there is nothing to toggle while the `fullscreen` prop fills the screen.
+    if (ctx?.popped || ctx?.forcedFullscreen) return null;
     return (
       <button
         type="button"
@@ -470,7 +497,7 @@ const Maximize = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"button"
         aria-pressed={expanded}
         {...rest}
         ref={ref}
-        className={cx(styles.iconButton, className)}
+        className={cx(styles.iconButton, hitArea.block, className)}
         onClick={(event) => {
           onClick?.(event);
           ctx?.toggleFullscreen();
@@ -506,7 +533,7 @@ const PopOutButton = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<"but
         aria-pressed={popped}
         {...rest}
         ref={ref}
-        className={cx(styles.iconButton, className)}
+        className={cx(styles.iconButton, hitArea.block, className)}
         onClick={(event) => {
           onClick?.(event);
           ctx?.togglePopOut();
@@ -534,7 +561,7 @@ const CloseButton = forwardRef<
       aria-label="Close"
       {...rest}
       ref={ref}
-      className={mergeClassName(styles.iconButton, className)}
+      className={mergeClassName(`${styles.iconButton} ${hitArea.block}`, className)}
       onPointerDown={(event) => {
         event.stopPropagation();
         onPointerDown?.(event);

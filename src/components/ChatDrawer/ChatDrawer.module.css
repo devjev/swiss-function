@@ -148,8 +148,10 @@
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.viewTab:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .viewTab:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .viewTab:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -174,8 +176,10 @@
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.iconButton:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .iconButton:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -279,10 +283,14 @@
   background-color: var(--sf-color-border-subtle);
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.edgeHandle:hover::after,
 .edgeHandle:focus-visible::after,
 .centerBody[data-dragging] .edgeHandle::after {
   background-color: var(--sf-color-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .edgeHandle:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 .edgeHandle:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

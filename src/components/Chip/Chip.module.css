@@ -122,14 +122,18 @@
     background-color var(--sf-duration-fast) var(--sf-ease-out),
     border-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.root[data-interactive]:hover:not([data-disabled]) {
-  background-color: color-mix(in srgb, var(--chip-accent) 12%, var(--sf-color-bg));
+@media (hover: hover) and (pointer: fine) {
+  .root[data-interactive]:hover:not([data-disabled]) {
+    background-color: color-mix(in srgb, var(--chip-accent) 12%, var(--sf-color-bg));
+  }
 }
 /* A solid chip steps its fill toward the text colour: darker in the light
    theme, lighter in the dark one, as the hover tokens do. */
-.root[data-variant="solid"][data-interactive]:hover:not([data-disabled]) {
-  background-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
-  border-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
+@media (hover: hover) and (pointer: fine) {
+  .root[data-variant="solid"][data-interactive]:hover:not([data-disabled]) {
+    background-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
+    border-color: color-mix(in srgb, var(--chip-fill) 82%, var(--sf-color-fg));
+  }
 }
 .root[data-interactive]:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -162,12 +166,14 @@
     opacity var(--sf-duration-fast) var(--sf-ease-out),
     background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.remove:hover {
-  opacity: 1;
-  background-color: color-mix(in srgb, var(--chip-accent) 24%, transparent);
-}
-.root[data-variant="solid"] .remove:hover {
-  background-color: color-mix(in srgb, currentColor 24%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .remove:hover {
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--chip-accent) 24%, transparent);
+  }
+  .root[data-variant="solid"] .remove:hover {
+    background-color: color-mix(in srgb, currentColor 24%, transparent);
+  }
 }
 .remove:focus-visible {
   opacity: 1;

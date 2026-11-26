@@ -18,6 +18,12 @@
    Button base `.root` (equal class specificity otherwise). */
 button.choice {
   inline-size: 100%;
+  /* A row is one control high until its text wraps (a narrow chat), then it
+     grows with it: a fixed height let the lines of one option run into the
+     next. */
+  block-size: auto;
+  min-block-size: var(--btn-h);
+  white-space: normal;
   justify-content: flex-start;
   gap: calc(var(--sf-unit) / 2);
   font-family: var(--sf-font-mono);
@@ -26,8 +32,10 @@ button.choice {
   color: var(--sf-color-fg);
 }
 
-button.choice:hover {
-  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
+@media (hover: hover) and (pointer: fine) {
+  button.choice:hover {
+    background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
+  }
 }
 
 button.choiceSelected {
@@ -40,9 +48,14 @@ button.choiceSelected {
   color: transparent;
 }
 
-button.choice:hover .caret,
 button.choice:focus-visible .caret {
   color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.choice:hover .caret {
+    color: var(--sf-color-primary);
+  }
 }
 
 /* Multi-select checkbox marker. */

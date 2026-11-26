@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import { forwardRef, useContext, useRef } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
@@ -121,6 +122,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         solid ? styles.solid : face,
         tight && styles.tight,
         round && styles.round,
+        // The round solid key draws its bevel ring on the root's `::after`,
+        // which the hit area would take; it is a large key in any case.
+        !round && hitArea.block,
         className,
       )}
     >

@@ -1,6 +1,7 @@
 import type { HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { X } from "../Icon";
 import styles from "./Chip.module.css";
@@ -109,7 +110,7 @@ export const Chip = forwardRef<HTMLSpanElement, ChipProps>(function Chip(
       {onRemove ? (
         <button
           type="button"
-          className={styles.remove}
+          className={`${styles.remove} ${hitArea.block}`}
           onClick={handleRemove}
           disabled={disabled}
           aria-label={removeLabel}

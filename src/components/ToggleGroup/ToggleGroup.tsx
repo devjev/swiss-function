@@ -3,6 +3,7 @@ import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { createContext, forwardRef, useContext } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { ButtonSize } from "../Button";
@@ -64,7 +65,7 @@ const Item = forwardRef<HTMLButtonElement, ToggleGroupItemProps>(function Toggle
       {...rest}
       ref={ref}
       className={mergeClassName(
-        cx(styles.item, sizeClass[groupSize], surfaceClass[surface]),
+        cx(styles.item, sizeClass[groupSize], surfaceClass[surface], hitArea.block),
         className,
       )}
     />

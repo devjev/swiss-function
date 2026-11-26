@@ -4,5 +4,6 @@ export type {
   CalendarProps,
   CalendarView,
   CalendarViewProps,
+  CalendarWeekDays,
 } from "./Calendar";
 export { Calendar } from "./Calendar";

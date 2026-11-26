@@ -296,3 +296,42 @@ test("Maximize hides and resize grips are gone while popped out", async ({ mount
   await expect(page.getByTestId("maximize")).toBeVisible();
   await expect(dialog.locator("[data-edge]")).toHaveCount(8);
 });
+
+// --- A phone-width viewport -------------------------------------------------
+
+test.describe("in a phone-width viewport", () => {
+  test.use({ viewport: { width: 390, height: 700 } });
+
+  test("a windowed dialog fills the screen and drops its maximize key", async ({ mount, page }) => {
+    await mount(<DialogWindowHarness draggable resizable defaultWidth={520} defaultHeight={320} />);
+    const popup = page.getByTestId("popup");
+    await expect(popup).toBeVisible();
+    const box = await popup.boundingBox();
+    expect(box).toEqual({ x: 0, y: 0, width: 390, height: 700 });
+    // Nothing to maximize, nothing to resize; the close key is on screen.
+    await expect(page.getByTestId("maximize")).toHaveCount(0);
+    await expect(page.getByRole("separator")).toHaveCount(0);
+    const close = await page.getByTestId("close-icon").boundingBox();
+    expect(close && close.x + close.width).toBeLessThanOrEqual(390);
+  });
+
+  test("with fullscreen off, a default size wider than the viewport is held inside it", async ({
+    mount,
+    page,
+  }) => {
+    await mount(
+      <DialogWindowHarness
+        draggable
+        resizable
+        defaultWidth={520}
+        defaultHeight={320}
+        fullscreen={false}
+      />,
+    );
+    const box = await page.getByTestId("popup").boundingBox();
+    // 8px a side, the bound the resize gestures keep.
+    expect(box?.x).toBe(8);
+    expect(box?.width).toBe(374);
+    await expect(page.getByTestId("maximize")).toBeVisible();
+  });
+});

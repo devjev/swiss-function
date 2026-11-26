@@ -9,18 +9,10 @@
  *  shared context instead (see src/lib/dnd). */
 
 import type { Active, DragEndEvent } from "@dnd-kit/core";
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -28,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useId } from "react";
 import { cx } from "../../lib/cx";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { Glyph } from "../../lib/icons";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { MoreVertical } from "../Icon";
@@ -61,10 +54,7 @@ export default function SortableRows({
 }: SortableRowsProps) {
   const shared = useSfDnd();
   const regionId = useId();
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useSfSensors({ keyboard: true });
   // Namespace the row ids by region. Row ids were positional (`"0"`, `"1"`, …),
   // which collide across two TableInputs under one `SfDndProvider` (a single
   // dnd-kit context, ids must be globally unique) — dnd-kit would resolve a drag

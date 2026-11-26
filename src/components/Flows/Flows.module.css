@@ -123,9 +123,13 @@
   outline: none;
   transition: filter var(--sf-duration-fast) var(--sf-ease-out);
 }
-.segment:hover,
 .segment:focus-visible {
   filter: brightness(1.1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .segment:hover {
+    filter: brightness(1.1);
+  }
 }
 .segment:focus-visible {
   stroke: var(--sf-color-focus-ring);

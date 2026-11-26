@@ -19,16 +19,7 @@ import type {
   DragStartEvent,
   SensorDescriptor,
 } from "@dnd-kit/core";
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { closestCenter, DndContext, DragOverlay } from "@dnd-kit/core";
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
   regionIdOf,
@@ -37,6 +28,7 @@ import {
   type SfDndRegion,
   type SfDndRegistry,
 } from "./context";
+import { useSfSensors } from "./sensors";
 
 export interface SfDndProviderProps {
   children: ReactNode;
@@ -97,10 +89,7 @@ export function SfDndProvider({
     [],
   );
 
-  const defaultSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const defaultSensors = useSfSensors({ keyboard: true });
   const sensors = sensorsProp ?? defaultSensors;
 
   // The active region's strategy for its own drags; closestCenter for a foreign

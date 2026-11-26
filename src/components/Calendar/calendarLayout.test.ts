@@ -3,11 +3,18 @@ import {
   type CalendarEvent,
   dayEventCount,
   eventOccursOnDay,
+  fitWeekDays,
+  GUTTER_UNITS,
   HOUR_UNITS,
   lastDay,
   layoutDay,
   layoutWeekRow,
+  SHORT_WEEK_COLUMN_UNITS,
+  stepWeekWindow,
   timedEnd,
+  WEEK_COLUMN_UNITS,
+  weekWindow,
+  weekWindowStart,
 } from "./calendarLayout";
 
 /** A timed event on 2026-03-10 from `h1:00` to `h2:00`. */
@@ -215,5 +222,141 @@ describe("layoutWeekRow: multi-day lanes", () => {
     const out = layoutWeekRow([allDay("short", 12), allDay("long", 9, 15)], rowStart);
     expect(pick(out, "long").lane).toBe(0);
     expect(pick(out, "short").lane).toBe(1);
+  });
+});
+
+describe("fitWeekDays: day columns for a width", () => {
+  const seven = GUTTER_UNITS + 7 * WEEK_COLUMN_UNITS;
+  const three = GUTTER_UNITS + 3 * SHORT_WEEK_COLUMN_UNITS;
+
+  it("shows the week when every column keeps its floor", () => {
+    expect(fitWeekDays(seven)).toBe(7);
+    expect(fitWeekDays(64)).toBe(7);
+  });
+
+  it("drops to three days just under that, and to one under the three-day floor", () => {
+    expect(fitWeekDays(seven - 0.01)).toBe(3);
+    expect(fitWeekDays(three)).toBe(3);
+    expect(fitWeekDays(three - 0.01)).toBe(1);
+    expect(fitWeekDays(0)).toBe(1);
+  });
+
+  it("follows the density: the same pixels are fewer units at the larger unit", () => {
+    // A 1280px desktop frame at the compact 20px unit, and a tablet upright
+    // (768px) and three phones at the touch density's 24px unit.
+    expect(fitWeekDays(1280 / 20)).toBe(7);
+    expect(fitWeekDays(768 / 24)).toBe(3);
+    expect(fitWeekDays(390 / 24)).toBe(3);
+    expect(fitWeekDays(360 / 24)).toBe(3);
+    expect(fitWeekDays(320 / 24)).toBe(1);
+  });
+});
+
+describe("weekWindow: the days on screen", () => {
+  // Wednesday 2026-03-11, in the ISO week Mon 9 .. Sun 15.
+  const focused = new Date(2026, 2, 11, 15, 30);
+  const dates = (days: Date[]) => days.map((d) => d.getDate());
+
+  it("seven days are the ISO week that holds the focused date", () => {
+    expect(weekWindowStart(focused, 7)).toEqual(new Date(2026, 2, 9));
+    expect(dates(weekWindow(focused, 7))).toEqual([9, 10, 11, 12, 13, 14, 15]);
+  });
+
+  it("three days and one day start at the focused date, at midnight", () => {
+    expect(weekWindowStart(focused, 3)).toEqual(new Date(2026, 2, 11));
+    expect(dates(weekWindow(focused, 3))).toEqual([11, 12, 13]);
+    expect(weekWindow(focused, 1)).toEqual([new Date(2026, 2, 11)]);
+  });
+
+  it("runs across a month end", () => {
+    expect(dates(weekWindow(new Date(2026, 2, 30), 3))).toEqual([30, 31, 1]);
+  });
+
+  it("steps by the days on screen, so windows meet without a gap or a repeat", () => {
+    for (const days of [7, 3, 1] as const) {
+      const next = stepWeekWindow(focused, days, 1);
+      const here = weekWindow(focused, days);
+      const there = weekWindow(next, days);
+      const last = here[here.length - 1] as Date;
+      expect(there[0]).toEqual(new Date(2026, 2, last.getDate() + 1));
+      // And back again.
+      expect(weekWindow(stepWeekWindow(next, days, -1), days)).toEqual(here);
+    }
+  });
+
+  it("a step keeps the time of day of the focused date", () => {
+    expect(stepWeekWindow(focused, 3, 1)).toEqual(new Date(2026, 2, 14, 15, 30));
+    expect(stepWeekWindow(focused, 1, -1)).toEqual(new Date(2026, 2, 10, 15, 30));
+  });
+});
+
+describe("a sliced week: the strip and the hour grid over three days or one", () => {
+  // Wed 11 .. Fri 13.
+  const start = new Date(2026, 2, 11);
+
+  it("clips a week-long bar to the three columns and flags both ends", () => {
+    const out = layoutWeekRow([allDay("oncall", 9, 15)], start, 3);
+    expect(out[0]).toMatchObject({
+      startCol: 0,
+      endCol: 2,
+      continuesBefore: true,
+      continuesAfter: true,
+    });
+  });
+
+  it("flags only the clipped end, and leaves out events outside the window", () => {
+    const out = layoutWeekRow(
+      [allDay("conf", 10, 12), allDay("ship", 13), allDay("past", 9, 10), allDay("later", 14)],
+      start,
+      3,
+    );
+    expect(out.map((b) => b.event.id).sort()).toEqual(["conf", "ship"]);
+    expect(pick(out, "conf")).toMatchObject({
+      startCol: 0,
+      endCol: 1,
+      continuesBefore: true,
+      continuesAfter: false,
+    });
+    expect(pick(out, "ship")).toMatchObject({
+      startCol: 2,
+      endCol: 2,
+      continuesBefore: false,
+      continuesAfter: false,
+    });
+    // Disjoint in the window: they share the top lane.
+    expect(pick(out, "conf").lane).toBe(0);
+    expect(pick(out, "ship").lane).toBe(0);
+  });
+
+  it("one day: every bar is one column, in a lane of its own", () => {
+    const out = layoutWeekRow([allDay("oncall", 9, 15), allDay("conf", 10, 12)], start, 1);
+    expect(out.map((b) => [b.startCol, b.endCol])).toEqual([
+      [0, 0],
+      [0, 0],
+    ]);
+    expect(new Set(out.map((b) => b.lane))).toEqual(new Set([0, 1]));
+    expect(out.every((b) => b.continuesBefore && b.continuesAfter)).toBe(true);
+  });
+
+  it("the hour grid of each day in the window keeps its overlap columns", () => {
+    const on = (id: string, d: number, h1: number, m1: number, h2: number, m2: number) => ({
+      id,
+      title: id,
+      start: new Date(2026, 2, d, h1, m1),
+      end: new Date(2026, 2, d, h2, m2),
+    });
+    const events: CalendarEvent[] = [
+      on("planning", 11, 10, 0, 11, 30),
+      on("sync", 11, 10, 30, 12, 0),
+      on("interview", 12, 11, 0, 12, 0),
+      on("monday", 9, 9, 0, 10, 0),
+    ];
+    const [wed, thu, fri] = weekWindow(start, 3).map((day) => layoutDay(events, day));
+    expect(wed?.map((b) => [b.event.id, b.column, b.columns])).toEqual([
+      ["planning", 0, 2],
+      ["sync", 1, 2],
+    ]);
+    expect(thu?.map((b) => [b.event.id, b.column, b.columns])).toEqual([["interview", 0, 1]]);
+    expect(fri).toEqual([]);
   });
 });

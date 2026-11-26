@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
 import { formatNumber } from "../../lib/format";
 import { Glyph } from "../../lib/icons";
+import { useFitText } from "../../lib/useFitText";
 import type { BoxElevation } from "../Box";
 import { ArrowDown, ArrowUp, Minus } from "../Icon";
 import styles from "./Stat.module.css";
@@ -151,6 +152,9 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
   ref,
 ) {
   const renderedValue = typeof value === "number" ? formatValue(value, decimals, valueUnit) : value;
+  // A figure is never cut: in a narrow card it shrinks to the width it has,
+  // down to two fifths (a 1.5-unit figure is then still body-copy size).
+  const valueRef = useFitText<HTMLDivElement>(0.4);
   const hasDelta = delta != null && Number.isFinite(delta);
   const verdict = hasDelta ? deltaVerdict(delta, goodDirection) : null;
   const arrow = !hasDelta ? null : delta > 0 ? "trendUp" : delta < 0 ? "trendDown" : "trendFlat";
@@ -180,7 +184,9 @@ const StatRoot = forwardRef<HTMLDivElement, StatProps>(function Stat(
           <span className={styles.label}>{label}</span>
         </div>
       ) : null}
-      <div className={styles.value}>{renderedValue}</div>
+      <div ref={valueRef} className={styles.value}>
+        {renderedValue}
+      </div>
       {(hasDelta || caption) && (
         <div className={styles.footer}>
           {hasDelta && arrow && (

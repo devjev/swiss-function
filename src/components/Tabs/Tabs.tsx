@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
 import type { ControlSurface } from "../../lib/surface";
@@ -41,7 +42,7 @@ const Tab = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof BaseTa
         {...rest}
         ref={ref}
         className={mergeClassName(
-          cx(styles.tab, surfaceClass[useContext(SurfaceContext)]),
+          cx(styles.tab, surfaceClass[useContext(SurfaceContext)], hitArea.block),
           className,
         )}
       >
@@ -205,7 +206,7 @@ const OverflowList = forwardRef<HTMLDivElement, Omit<TabsListProps, "overflow">>
           {folding && foldedIdx.length > 0 && (
             <Menu.Root>
               <Menu.Trigger
-                className={cx(styles.tab, styles.trigger, surfaceClass[surface])}
+                className={cx(styles.tab, styles.trigger, surfaceClass[surface], hitArea.block)}
                 aria-label={menuLabel}
               >
                 <Glyph slot="moreHorizontal" fallback={MoreHorizontal} size="16px" />

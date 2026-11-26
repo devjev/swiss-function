@@ -1,6 +1,7 @@
 import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useCollapse } from "../../lib/useCollapse";
@@ -424,7 +425,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       aria-valuemin={minChatWidth}
       aria-valuemax={maxChatWidth}
       tabIndex={0}
-      className={styles.edgeHandle}
+      className={`${styles.edgeHandle} ${hitArea.handle}`}
       onPointerDown={(edge === "left" ? leftEdgeDrag : rightEdgeDrag).onPointerDown}
       onKeyDown={onEdgeKey(edge)}
     />

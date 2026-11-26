@@ -3,6 +3,7 @@ import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { BoxElevation } from "../Box";
 import styles from "./Radio.module.css";
 
@@ -28,7 +29,7 @@ export const Radio = forwardRef<HTMLButtonElement, RadioProps>(function Radio(
       {...rest}
       ref={ref}
       data-elevation={elevation}
-      className={mergeClassName(styles.root, className)}
+      className={mergeClassName(`${styles.root} ${hitArea.both}`, className)}
     >
       <BaseRadio.Indicator className={styles.indicator} />
     </BaseRadio.Root>

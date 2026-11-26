@@ -16,7 +16,7 @@
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  font-size: max(var(--sf-font-size-md), var(--sf-text-entry-min));
   line-height: var(--sf-line-height-tight);
   /* DOS-style chunky caret. `caret-shape: block` is CSS UI L4 — supported
      in Chromium 130+, Safari 17.4+. In older browsers it falls back to a
@@ -86,7 +86,7 @@
 .sizeSm {
   block-size: var(--sf-unit);
   padding-inline: calc(var(--sf-unit) / 3);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 
 .sizeLg {

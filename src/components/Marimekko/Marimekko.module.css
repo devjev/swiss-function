@@ -140,9 +140,14 @@
   cursor: pointer;
 }
 
-.segment:hover,
 .segment:focus-visible {
   filter: brightness(1.08);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .segment:hover {
+    filter: brightness(1.08);
+  }
 }
 
 .segment:focus-visible {

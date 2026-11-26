@@ -39,16 +39,20 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.trigger:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .trigger[data-panel-open] {
   background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
 }
 
-.trigger[data-panel-open]:hover {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+@media (hover: hover) and (pointer: fine) {
+  .trigger[data-panel-open]:hover {
+    background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+  }
 }
 
 .trigger:focus-visible {

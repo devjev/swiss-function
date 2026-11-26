@@ -14,11 +14,17 @@
     opacity var(--sf-duration-fast) var(--sf-ease-out),
     color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.button:hover,
 .button:focus-visible {
   opacity: 1;
   color: var(--sf-color-fg);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .button:hover {
+    opacity: 1;
+    color: var(--sf-color-fg);
+    outline: none;
+  }
 }
 /* Active filter: solid funnel in the accent colour. The CSS `fill` overrides the
    glyph's `fill="none"` presentation attribute, so the funnel reads as filled

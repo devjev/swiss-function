@@ -1,14 +1,16 @@
 /** Pure event-layout math for `Calendar`. No React, no DOM. Local-time Dates
- *  throughout (see `lib/date`). Two hard problems live here and are unit-tested
+ *  throughout (see `lib/date`). Three problems live here and are unit-tested
  *  directly:
  *   - `layoutDay`: overlapping TIMED events packed into side-by-side columns
  *     within a day (the week view's hour grid).
  *   - `layoutWeekRow`: events (single- or multi-day) packed into stacked lanes
- *     across a week's 7 day columns, as spanning bars (the month grid and the
+ *     across a row of day columns, as spanning bars (the month grid and the
  *     week view's all-day strip).
+ *   - `fitWeekDays` / `weekWindow`: how many day columns the week view shows
+ *     in a given width, and which days they are.
  */
 
-import { addDays, isSameDay, startOfDay } from "../../lib/date";
+import { addDays, isSameDay, startOfDay, startOfISOWeek } from "../../lib/date";
 
 /** Semantic fill for an event; maps to the shared tone tokens. Neutral is the
  *  resting default. Use a tone when the colour MEANS a status. */
@@ -49,6 +51,9 @@ const DEFAULT_EVENT_MINUTES = 30;
 const DAY_MS = 86_400_000;
 /** An hour row's height in units: `--cal-hour-h` in Calendar.module.css. */
 export const HOUR_UNITS = 1.75;
+
+/** The time gutter's width in units: `--cal-gutter` in Calendar.module.css. */
+export const GUTTER_UNITS = 2.5;
 
 /** A height in units as a fraction of the day. */
 const unitsOfDay = (units: number) => units / (24 * HOUR_UNITS);
@@ -238,4 +243,46 @@ export function layoutWeekRow(events: CalendarEvent[], rowStart: Date, columns =
     out.push({ ...b, lane });
   }
   return out;
+}
+
+// --- The week view's day window --------------------------------------------
+
+/** How many day columns the week view shows: the ISO week, three days or one. */
+export type WeekDayCount = 7 | 3 | 1;
+
+/** The narrowest day column, in units, the week view accepts with all seven
+ *  days: room for an event's full time ("09:00-09:15") inside its block. */
+export const WEEK_COLUMN_UNITS = 5;
+/** The same floor for the three-day form. A unit less: a phone held upright
+ *  (360px and up at the touch density) still shows three days, and a block
+ *  that wide holds the start time and a short title. */
+export const SHORT_WEEK_COLUMN_UNITS = 4;
+
+/** The most days (7, 3 or 1) whose columns keep their floor in a calendar
+ *  `widthUnits` wide. The width is the calendar's own, in units, so the
+ *  answer follows the container and the density, never the viewport. */
+export function fitWeekDays(widthUnits: number): WeekDayCount {
+  const room = widthUnits - GUTTER_UNITS;
+  if (room >= 7 * WEEK_COLUMN_UNITS) return 7;
+  if (room >= 3 * SHORT_WEEK_COLUMN_UNITS) return 3;
+  return 1;
+}
+
+/** The first day the week view shows. Seven days are the ISO week (Monday to
+ *  Sunday) that holds `focused`; three days or one start at `focused`. */
+export function weekWindowStart(focused: Date, days: WeekDayCount): Date {
+  return days === 7 ? startOfISOWeek(focused) : startOfDay(focused);
+}
+
+/** The days the week view shows, in order. */
+export function weekWindow(focused: Date, days: WeekDayCount): Date[] {
+  const start = weekWindowStart(focused, days);
+  return Array.from({ length: days }, (_, i) => addDays(start, i));
+}
+
+/** The focused date one window earlier (`dir` -1) or later (`dir` 1): a step
+ *  of as many days as are on screen, so consecutive windows meet without a
+ *  gap or a repeated day. */
+export function stepWeekWindow(focused: Date, days: WeekDayCount, dir: -1 | 1): Date {
+  return addDays(focused, dir * days);
 }

@@ -13,6 +13,19 @@ import { defineConfig, devices } from "@playwright/test";
 
 const BASE_URL = process.env.LADLE_URL ?? "http://localhost:61000";
 
+// The phone projects double the run, so they are opt-in: `VRT_PHONE=1 npm run
+// vrt` adds every story at 390 x 844 with touch emulation (a coarse pointer,
+// so the touch tokens and the automatic comfortable density apply), in both
+// themes. Their baselines sit beside the desktop ones under their own project
+// name. The measured half of the phone gate is `npm run mobile`.
+const PHONE = {
+  browserName: "chromium" as const,
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 1,
+  isMobile: true,
+  hasTouch: true,
+};
+
 export default defineConfig({
   testDir: "vrt",
   testMatch: "**/*.vrt.ts",
@@ -53,8 +66,8 @@ export default defineConfig({
     stdout: "ignore",
     stderr: "pipe",
   },
-  // One project per theme; the project name is the `data-theme` value the
-  // story is rendered under (see stories.vrt.ts).
+  // One project per theme; the last segment of the project name is the
+  // `data-theme` value the story is rendered under (see stories.vrt.ts).
   projects: [
     {
       name: "light",
@@ -64,5 +77,11 @@ export default defineConfig({
       name: "dark",
       use: { ...devices["Desktop Chrome"], colorScheme: "dark" },
     },
+    ...(process.env.VRT_PHONE
+      ? [
+          { name: "phone-light", use: { ...PHONE, colorScheme: "light" as const } },
+          { name: "phone-dark", use: { ...PHONE, colorScheme: "dark" as const } },
+        ]
+      : []),
   ],
 });

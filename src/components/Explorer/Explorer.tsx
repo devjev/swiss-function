@@ -7,12 +7,9 @@ import type {
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
   rectIntersection,
   useDraggable,
   useDroppable,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -23,6 +20,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
+  TouchEvent as ReactTouchEvent,
   RefObject,
 } from "react";
 import {
@@ -55,6 +53,7 @@ import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
 import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { useDitheredFill } from "../../lib/effects";
 import {
   ColumnFilter,
@@ -63,10 +62,12 @@ import {
 } from "../../lib/filter/ColumnFilter";
 import { checklistTest, rangeTest } from "../../lib/filter/predicates";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
+import { useLongPress } from "../../lib/useLongPress";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { File, Folder } from "../Icon";
 import { Menu } from "../Menu";
@@ -797,9 +798,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   };
 
   // --- Column reorder DnD (own context; tree column excluded) ---------------
-  const colSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
+  const colSensors = useSfSensors();
   const nonTreeIds = useMemo(() => orderedColumns.slice(1).map((c) => c.id), [orderedColumns]);
   // Sortable ids are namespaced per instance; the real column id travels in
   // the item data (read back below and in the overlay).
@@ -884,18 +883,45 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     onEditingChange?.(row.node.id);
   }, []);
 
-  const handleRowContextMenu = useCallback((e: MouseEvent, row: FlatRow<M>) => {
+  /** Open the context menu at a point: on a row (which it selects, as a right
+   *  click does) or, with no id, on the empty part of the tree. */
+  const openMenuAt = useCallback((x: number, y: number, id: string | null) => {
     const { editable, selectedIds, onSelectionChange } = latest.current;
     if (!editable) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (!selectedIds.has(row.node.id)) {
-      onSelectionChange?.(new Set([row.node.id]));
-      setAnchorId(row.node.id);
+    if (id != null) {
+      if (!selectedIds.has(id)) {
+        onSelectionChange?.(new Set([id]));
+        setAnchorId(id);
+      }
+      setFocusedId(id);
     }
-    setFocusedId(row.node.id);
-    setCtx({ x: e.clientX, y: e.clientY, targetId: row.node.id });
+    setCtx({ x, y, targetId: id });
   }, []);
+
+  const handleRowContextMenu = useCallback(
+    (e: MouseEvent, row: FlatRow<M>) => {
+      if (!latest.current.editable) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openMenuAt(e.clientX, e.clientY, row.node.id);
+    },
+    [openMenuAt],
+  );
+
+  // A long press with a finger opens the same menu: iOS Safari fires no
+  // `contextmenu` event. One capture-phase set on the viewport covers every
+  // row; the pressed element says which one.
+  const longPress = useLongPress(
+    (point, target) => {
+      if (target.closest("input, textarea")) return; // a rename field keeps its own press
+      openMenuAt(
+        point.x,
+        point.y,
+        target.closest("[data-row-id]")?.getAttribute("data-row-id") ?? null,
+      );
+    },
+    { enabled: editable },
+  );
 
   const handleRenameCommit = useCallback((id: string, name: string) => {
     const { onRename, onEditingChange } = latest.current;
@@ -997,7 +1023,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   };
 
   // --- Row DnD ------------------------------------------------------------
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSfSensors();
 
   const dropZoneFromEvent = (e: DragMoveEvent | DragEndEvent): DropZone | null => {
     if (!draggingId) return null;
@@ -1197,7 +1223,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             tabIndex={0}
             data-column-id={col.id}
             data-at-floor={handleAtFloor || undefined}
-            className={styles.resizeHandle}
+            className={`${styles.resizeHandle} ${hitArea.handle}`}
             onPointerDown={(e: ReactPointerEvent) => {
               e.stopPropagation();
               onColumnResizeDown(e);
@@ -1299,6 +1325,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
               onKeyDown={handleKeyDown}
               onContextMenu={handleViewportContextMenu}
               onClick={handleViewportClick}
+              {...longPress}
             >
               <ViewportDroppable
                 regionId={treeRegionId}
@@ -1543,6 +1570,11 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
   const dndPointerDown = draggableHook.listeners?.onPointerDown as
     | ((e: ReactPointerEvent<HTMLDivElement>) => void)
     | undefined;
+  // A finger starts a drag through the touch sensor's own activator (after a
+  // rest, so a swipe over the rows still scrolls the tree).
+  const dndTouchStart = draggableHook.listeners?.onTouchStart as
+    | ((e: ReactTouchEvent<HTMLDivElement>) => void)
+    | undefined;
 
   const rowStyle: CSSProperties = {
     top: `${top}px`,
@@ -1576,6 +1608,7 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
         if (draggable && !isEditing) dndPointerDown?.(e);
         onRowPointerDown(e, row);
       }}
+      onTouchStart={draggable && !isEditing ? dndTouchStart : undefined}
       onDoubleClick={() => onRowDoubleClick(row)}
       onContextMenu={(e) => onRowContextMenu(e, row)}
     >

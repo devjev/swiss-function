@@ -4,20 +4,13 @@
 // wraps it (see src/lib/dnd).
 
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import {
-  closestCorners,
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useDroppable,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { closestCorners, DndContext, DragOverlay, useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import { useContext, useId, useMemo, useRef, useState } from "react";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { BulletContent } from "./BulletContent";
 import { parseBlock } from "./blocks";
@@ -37,7 +30,7 @@ export default function OutlinerKanban({ columns }: { columns: Bullet[] | undefi
   const actions = useContext(ActionsContext);
   const shared = useSfDnd();
   const regionId = useId();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSfSensors();
   const [dragged, setDragged] = useState<BulletId | null>(null);
   const live = useRef(columns ?? []);
   live.current = columns ?? [];

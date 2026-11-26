@@ -273,9 +273,11 @@
 
 /* Reorderable leaf header (reorderableColumns): grabbable; @dnd-kit drives the
    transform that slides neighbours aside, so animate the snap-back transition. */
+/* No `touch-action: none`: a finger still scrolls the table sideways over a
+   heading, and picks one up by resting on it (the touch sensor's delay). */
 .headerDraggable {
   cursor: grab;
-  touch-action: none;
+  -webkit-touch-callout: none;
 }
 .headerDraggable:active {
   cursor: grabbing;
@@ -330,11 +332,16 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.headerCell:hover .resizeHandle::after,
-.resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after,
 .resizeHandle:focus-visible::after {
   background-color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .headerCell:hover .resizeHandle::after,
+  .resizeHandle:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 
 .resizeHandle:focus-visible {
@@ -408,8 +415,10 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.headerCell[data-locked]:hover .lockedEdge::after {
-  background-color: var(--sf-color-muted);
+@media (hover: hover) and (pointer: fine) {
+  .headerCell[data-locked]:hover .lockedEdge::after {
+    background-color: var(--sf-color-muted);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -448,8 +457,10 @@
   cursor: pointer;
 }
 
-.headerCell[data-sortable]:hover {
-  --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 4%);
+@media (hover: hover) and (pointer: fine) {
+  .headerCell[data-sortable]:hover {
+    --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 4%);
+  }
 }
 
 /* The sorted column's key is held down (and a sortable key goes down while
@@ -808,8 +819,10 @@
   block-size: calc(var(--sf-unit) / 4);
   cursor: pointer;
 }
-.selectZone:hover {
-  background-color: color-mix(in srgb, var(--sf-color-primary) 45%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .selectZone:hover {
+    background-color: color-mix(in srgb, var(--sf-color-primary) 45%, transparent);
+  }
 }
 
 /* A fully selected column tints its header, mirroring the gutter's row tint. */
@@ -989,15 +1002,16 @@
   /* Match the cell's text size (see `.cell`) so entering edit mode doesn't grow
      the row. The editors default to `--sf-font-size-md` (16px); the body cell is
      `sm` (14px). DigitInputMicro's input inherits this; DatePicker's `.input`
-     sets its own size, normalized below. */
-  font-size: var(--sf-font-size-sm);
+     sets its own size, normalized below. On touch the text-entry floor wins
+     (16px, under which iOS zooms the page on focus); the row holds it. */
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 
 /* Editors whose inner native input carries an explicit `font-size` (DatePicker's
    `.input`, at `md` by default) — pin them to the cell size too. */
 .cell .editor input,
 .cell .editor textarea {
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 
 /* Controls that carry their frame on an inner wrapper — DatePicker's `.field`

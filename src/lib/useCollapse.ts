@@ -24,7 +24,7 @@ const DEFAULT_COLLAPSE_AT = 32;
 // *inside* the observed element, so it inherits the consumer's --sf-unit. We
 // can't parse getComputedStyle(el)['--sf-unit'] — that returns the raw token
 // ("1.5rem"), not px.
-function resolveThresholdPx(el: HTMLElement, collapseAt: number | string): number {
+export function resolveThresholdPx(el: HTMLElement, collapseAt: number | string): number {
   const css = typeof collapseAt === "number" ? `calc(var(--sf-unit) * ${collapseAt})` : collapseAt;
   const probe = document.createElement("div");
   probe.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;width:${css};`;

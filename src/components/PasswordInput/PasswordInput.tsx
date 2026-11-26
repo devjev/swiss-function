@@ -6,6 +6,7 @@
 import type { ReactNode } from "react";
 import { forwardRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Input, type InputProps } from "../Input";
 import styles from "./PasswordInput.module.css";
 
@@ -45,7 +46,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         />
         <button
           type="button"
-          className={styles.toggle}
+          className={`${styles.toggle} ${hitArea.block}`}
           onClick={() => setRevealed((v) => !v)}
           aria-pressed={revealed}
           aria-label={revealed ? "Hide password" : "Show password"}

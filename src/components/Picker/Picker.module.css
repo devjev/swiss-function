@@ -19,6 +19,13 @@
 .root .group {
   inline-size: 100%;
   min-inline-size: 0;
+  /* One value, so one row: the group Combobox shares with the multi-select
+     wraps, which in a narrow cell dropped the clear and open keys under the
+     value. The input gives up its own floor instead and the text clips. */
+  flex-wrap: nowrap;
+}
+.root .group input {
+  min-inline-size: 0;
 }
 
 .empty {

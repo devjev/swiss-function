@@ -96,11 +96,16 @@
 .value {
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--stat-value-size);
+  /* One line, shrunk to the card's width when it would not fit (`useFitText`
+     sets --sf-fit, down to two fifths): a cut figure is a different figure. The
+     line height stays, so the card keeps its rhythm. The ellipsis is the
+     last resort under that floor. */
+  font-size: calc(var(--stat-value-size) * var(--sf-fit, 1));
   line-height: var(--stat-value-line);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--sf-color-fg);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }

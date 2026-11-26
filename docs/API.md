@@ -130,6 +130,10 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
   portal to `<body>` take the root's density, so set it on the root for a
   whole app. Components that need px (DataTable, Explorer, TableInput rows)
   measure the unit once at mount: set the density before they mount.
+- Touch is automatic; see the Touch section below. On a device whose primary
+  pointer is a finger the root takes the comfortable density (unless it
+  carries a `data-density`), text fields are at least 16px and small controls
+  answer on a 44px hit area.
 - "u" means one `--sf-unit`. e.g. `0.25u` = `calc(var(--sf-unit) / 4)`.
 - Styling is overridden through `--sf-*` custom properties, never by branching in
   JS. Dark mode is `[data-theme="dark"]` on any ancestor.
@@ -196,6 +200,72 @@ Explorer · Field · FieldLayout · Fullscreen · Graph · Grid · Heatmap · In
 MenuBar · NonIdealState · Outliner · Pane · Picker · PointCloud · Popover · Prose · Radio ·
 Reflow · Scatterplot · Selector · Skeleton · Spinner · StreamingTerminalText ·
 Surface · Switch · Tabs · TextEdit · TextEditInline · Timeline · ToggleGroup · WindowArray
+
+---
+
+## Touch
+
+What the library does on a device whose primary pointer is a finger
+(`@media (pointer: coarse)`), and the pieces an app can use for its own
+controls. Nothing here needs switching on.
+
+| Token | Mouse | Finger | Notes |
+| --- | --- | --- | --- |
+| `--sf-hit-min` | `0px` | `2.75rem` (44px) | The side of the area a small control answers on. The control keeps its size; an invisible pseudo-element carries the area (`lib/hitArea`). |
+| `--sf-hit-tight` | `0px` | `1.5rem` (24px) | The same for a control that sits against others, and the least a drag handle is wide. The WCAG 2.5.8 minimum. |
+| `--sf-text-entry-min` | `0px` | `1rem` (16px) | The floor of every text field's font size. iOS zooms the page when a field under 16px takes focus. |
+| `--sf-safe-top` / `-right` / `-bottom` / `-left` | `env(safe-area-inset-*)` | same | The part of each screen edge a notch or the home indicator covers. 0 unless the page's viewport meta has `viewport-fit=cover`. `Drawer`, a maximized `Dialog` and `Fullscreen` pad themselves by them. |
+
+The density follows too: with a coarse pointer the root is 16px on a 24px unit
+(the `comfortable` values) unless it carries `data-density`. Set
+`data-density="compact"` on the root to keep the dense metrics on a phone; the
+three touch tokens still apply. Set a token on any ancestor to override it
+(`--sf-hit-min: 2.75rem` on a kiosk whose touch screen reports a mouse, `0px`
+to switch the expansion off).
+
+**Hit areas**, `import { hitArea } from "@tarassov-ch/swiss-function/lib/hit-area"`.
+Class names that grow a control's hit area without changing its size. Add one
+to an element that does not clip its overflow:
+
+| Class | For | Area |
+| --- | --- | --- |
+| `hitArea.both` | A control with room around it (a checkbox, a switch) | `--sf-hit-min` on both axes |
+| `hitArea.block` | A control in a row of siblings (a button, a tab) | `--sf-hit-min` high, `--sf-hit-tight` wide |
+| `hitArea.inline` | A control in a column of siblings (a tree chevron, a row grip) | `--sf-hit-min` wide, `--sf-hit-tight` high |
+| `hitArea.tight` | Neighbours on both axes (a key inside a heading) | `--sf-hit-tight` both ways |
+| `hitArea.handle` | A splitter or resize edge (uses `::before`) | `--sf-hit-tight` across |
+| `hitArea.thumb` | A slider thumb (uses `::before`) | `--sf-hit-min` both ways |
+
+The first four use the element's `::after`, the last two its `::before`; the
+one used must be free. An area that grows into a sibling takes that sibling's
+taps, which is what the variants are for.
+
+**Hooks** (each also has a subpath: `lib/use-media-query`, `lib/use-long-press`,
+`lib/use-fit-text`):
+
+| Export | Notes |
+| --- | --- |
+| `useCoarsePointer()` | `true` where the primary pointer is a finger. For behaviour with no CSS form (a toolbar that stands in for keyboard chords). Sizes belong to the tokens. |
+| `useMediaQuery(query)` | Whether a media query matches, live; `false` on the server. For what follows the viewport or the device. Container width takes `useCollapse`. |
+| `useLongPress(onLongPress, { delay, tolerance, enabled })` | A long press with a finger (500ms, 8px of wander): the touch form of a right click, for a component that opens its own menu from `onContextMenu` (iOS Safari fires no `contextmenu` event). Returns capture-phase pointer handlers to spread on a container; the callback gets the point and the pressed element. |
+| `useFitText(minScale = 0.5)` | A ref for one line of text that must not be cut: sets `--sf-fit` on the element (1, or the ratio that makes it fit, never under `minScale`). Apply it as `font-size: calc(<size> * var(--sf-fit, 1))` with `white-space: nowrap`. `Stat` uses it for its value. |
+| `useSfSensors({ keyboard })` | The drag sensors of every widget (`lib/dnd`): see SfDndProvider. |
+
+**What changes for a finger** in the components: hover styles are off (every
+`:hover` rule is inside `@media (hover: hover) and (pointer: fine)`); a
+draggable row or heading still scrolls under a swipe and is picked up by a
+finger that rests 250ms; `Explorer` and the `DataTable` heading menu open on a
+long press; a `DataTable` cell opens its editor on a second tap; `SplitPane`
+and `ChatDrawer` overlay their panel in a narrow container; a windowed
+`Dialog` fills a phone's screen; `Calendar` shows as many days as fit;
+`Outliner` shows a toolbar for the structure commands above the on-screen
+keyboard.
+
+**Checking it**: `npm run mobile` renders every story at 390 x 844 with touch
+emulation and counts page overflow, clipped controls, colliding text, hit
+areas under 24px and text fields under 16px against
+`perf/mobile-baseline.json`. `VRT_PHONE=1 npm run vrt` adds the same viewport
+to the pixel gate.
 
 ---
 
@@ -431,7 +501,9 @@ events out in side-by-side columns and pins all-day / multi-day events in a stri
 above the 24-hour grid; multi-day events span as bars (month view and the strip)
 with continuation markers at week boundaries. Display + click only (v1): no drag
 or in-place authoring; wire `onEventClick` / `onDateClick`. Focused date and view
-are each controlled or uncontrolled. Renders a `<div role="group">`; extends
+are each controlled or uncontrolled. It adapts to its own width: the week view
+shows seven days, three or one, and the toolbar wraps (see Narrow containers).
+Renders a `<div role="group">`; extends
 `HTMLAttributes<HTMLDivElement>` (minus `onChange` / `defaultValue`). The parent
 must give it a height (the week view scrolls its hour grid inside it).
 
@@ -444,9 +516,9 @@ colour, wins over `tone`). All dates are local-time.
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `events` | `CalendarEvent[]` | n/a | The scheduled items. |
-| `value` | `Date` | uncontrolled | Focused date: which month / week / year is shown. |
+| `value` | `Date` | uncontrolled | Focused date: which month / week / year is shown. In the week view's three-day and one-day forms it is the first day shown. |
 | `defaultValue` | `Date` | today | Uncontrolled focused date. |
-| `onNavigate` | `(date: Date) => void` | n/a | Fires when prev / next / today or a drill-down moves the focus. |
+| `onNavigate` | `(date: Date) => void` | n/a | Fires when prev / next / today or a drill-down moves the focus. In the week view prev / next move it by the number of days shown (7, 3 or 1). |
 | `view` | `"month" \| "week" \| "year"` | uncontrolled | Active view. |
 | `defaultView` | `"month" \| "week" \| "year"` | `"month"` | Uncontrolled view. |
 | `onViewChange` | `(view) => void` | n/a | Fires when the view switches. |
@@ -454,6 +526,7 @@ colour, wins over `tone`). All dates are local-time.
 | `onDateClick` | `(date: Date) => void` | n/a | Click on an empty day cell (month/year) or hour slot (week); the create-here hook. |
 | `renderEvent` | `(event, ctx: { view }) => ReactNode` | title (+ time in week) | Custom event body. |
 | `showWeekNumbers` | `boolean` | `false` | ISO week-number column (month/week). |
+| `weekDays` | `"auto" \| 7 \| 3 \| 1` | `"auto"` | Day columns in the week view. `"auto"` shows as many as fit the calendar's own width (see Narrow containers); a number fixes the count at any width. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 24)` | Component height; the week view scrolls inside it. |
 | `now` | `Date` | `new Date()` | Overrides the reference "now": its day is highlighted as today and it places the week view's now-line. Pass a fixed value to make the today marker deterministic (snapshot / visual tests). |
 
@@ -470,6 +543,48 @@ colour, wins over `tone`). All dates are local-time.
   height={640}
 />
 ```
+
+### Narrow containers
+
+The calendar reads its **own width** (a `ResizeObserver` on its root, measured
+in `--sf-unit`), never the viewport, so it takes the same forms in a side
+panel as on a phone, and at either density.
+
+- **Week view.** With `weekDays="auto"` it shows the ISO week (Monday to
+  Sunday) while each day column gets 5 units, three days while each gets 4,
+  and one day under that. Beside the 2.5-unit time gutter that is 37.5 units
+  for seven days (750px at the compact density, 900px at the touch one) and
+  14.5 units for three (290px / 348px): a phone 360px wide or more shows
+  three days, a 320px one shows one. Three days and one day start at the
+  focused date; prev / next step by the days shown, so consecutive windows
+  meet; the title names the range on screen (`11-13 Mar 2026`,
+  `11 Mar 2026`) and the prev / next keys are named for the step
+  (`Next 3 days`, `Next day`). The all-day strip is cut to the window with
+  its continuation markers, and overlap columns and the now-line work per
+  day as in the full week. The root carries `data-week-days="7" | "3" | "1"`
+  in the week view. A server render shows seven days; in the browser the
+  count is measured before the first paint.
+- **Day headings.** The weekday name and the day number sit side by side
+  where the column holds both and stack (name over number) where it does not;
+  under about 2.75em the name becomes its initial. This matters with a fixed
+  `weekDays={7}` in a narrow container, which works down to a one-unit column.
+- **Event blocks** show what they have room for, each part whole or not at
+  all: the end time goes first, then the start time, then the title, which
+  leaves a block that is its coloured outline alone. A one-line block (an event
+  under about 90 minutes) gives the line to the title when the two do not fit,
+  since the block's place in the grid already gives the hour.
+- **Toolbar.** The view switcher moves to a second line (and the title to its
+  own) when the parts do not fit on one; nothing is clipped down to 200px,
+  the width of the switcher itself at the touch density.
+- **Month view.** Weekday headings fall back to initials. An event bar shows
+  its title when it has room for about four characters and no label under
+  that (a one-day bar in a phone's grid); the bar stays a button with the
+  event's title as its name. `+4 more` shortens to `+4` and keeps one line. A
+  week with more events than its share of the height grows and the grid
+  scrolls.
+
+Event bars and the `+N` key grow their touch hit area to 24px
+(`--sf-hit-tight`) under a coarse pointer.
 
 Note: `Calendar` is also the name of an `Icon` glyph. In the package barrel the
 component wins the bare name; import the glyph as `Calendar` from
@@ -942,7 +1057,7 @@ Virtualized, spreadsheet-style data grid (`DataTable<T>`). Extends `HTMLAttribut
 | `data` | `T[]` | n/a | Rows. |
 | `columns` | `ColumnDef<T>[]` | n/a | Column tree (leaves + groups). |
 | `editable` | `boolean` | `false` | Click-to-edit + paste-to-update. Per-column via `edit`. An editable column with no custom `cell` renders its resting display the way its editor shows the value (boolean → `True`/`False`, select → the option's label, number → decimals + unit, date → ISO), so activating a cell doesn't jump the text. |
-| `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter; `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
+| `editOn` | `"single" \| "double"` | `"double"` | How editing starts on an editable cell. `"double"` = double-click / F2 / Enter, and with a finger a second tap on the active cell (the first tap selects it); `"single"` also opens on a single click. Override per column (`LeafColumnDef.editOn`) or per cell (`getEditActivation`). |
 | `getEditActivation` | `(ctx: { rowIndex; columnId; row }) => "single" \| "double" \| undefined` | n/a | Per-cell override for the edit trigger (wins over column + table). Return `undefined` to fall through. |
 | `onCellChange` | `(changes: CellChange[]) => void` | n/a | Edit/paste committed; consumer updates `data`. |
 | `copyWithHeaders` | `boolean` | `true` | Prepend the selected columns' header names as the first row when copying cells (Cmd/Ctrl+C), so a paste into a spreadsheet/doc is self-labelling. Set `false` for a values-only copy (e.g. pasting straight back into editable cells). A non-string (`ReactNode`) header copies as the column `id`. |
@@ -1209,6 +1324,7 @@ your own button), `CloseButton` (pre-styled icon ✕).
 | `resizable` | `Popup` | `boolean` | n/a | Resize from any edge or corner; the opposite edge stays anchored. Arrow keys adjust the focused (SE) grip, Escape exits. |
 | `defaultWidth` | `Popup` | `number` | n/a | Initial width in px (else content-driven, capped at 32rem). A resize takes over. |
 | `defaultHeight` | `Popup` | `number` | n/a | Initial height in px (else content-driven, capped at viewport). A resize takes over. |
+| `fullscreen` | `Popup` | `boolean \| "narrow"` | `"narrow"` when `draggable` or `resizable`, else `false` | Fill the viewport instead of floating: always, or only while the viewport is under 30rem wide (a phone). Edge to edge, padded by the safe-area tokens; drag and resize are off and `Maximize` renders nothing while it applies. |
 | `poppedOut` / `defaultPoppedOut` / `onPoppedOutChange` | `Popup` | `boolean` | `false` | The content shows in a separate browser window (via `PopOut`) while the dialog stays open as a placeholder. Toggle from `Dialog.PopOut` (a user gesture) or popup blockers refuse the window. |
 | `popOutTitle` | `Popup` | `string` | `"Dialog"` | The popup window's `document.title` while popped out. |
 | `popOutPip` | `Popup` | `boolean` | `false` | Prefer a chromeless Picture-in-Picture window (no address bar) for the popped-out content where supported (Chromium). See PopOut `pip`. |
@@ -1220,6 +1336,11 @@ and resize are suspended, and the geometry restores on toggle-off. `Maximize` /
 `PopOut` / `CloseButton` swallow pointer-down, so placing them in a draggable
 `Handle` never starts a drag. Fullscreen state is internal and resets each time
 the dialog reopens.
+
+A sized popup never exceeds the viewport less 8px a side (`defaultWidth={520}`
+on a 390px screen gives 374px), the bound the resize gestures keep. Heights
+follow the dynamic viewport (`dvh`), so the popup stays clear of a phone's
+toolbars.
 
 `PopOut` moves the dialog's content into a separate browser window (see the
 PopOut section) placed over the dialog's on-screen spot; the dialog stays open
@@ -1441,7 +1562,7 @@ Sorting reorders each folder's children in place (hierarchy preserved, like Find
 | `onExpandedChange` | `(ids: Set<string>) => void` | n/a | Chevron click or Left/Right arrow. |
 | `editingId` | `string \| null` | `null` | Controlled edit mode (one row at a time). |
 | `onEditingChange` | `(id: string \| null) => void` | n/a | Double-click or F2/Enter. |
-| `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. Row drag is disabled while a `sort` is active (the visual order is the sort's, not the tree's). |
+| `editable` | `boolean` | `false` | Enable context menu, DnD, rename, add, delete. Row drag is disabled while a `sort` is active (the visual order is the sort's, not the tree's). With a finger: a swipe scrolls the tree over any row, a finger that rests 250ms and then moves drags the row, and a long press (500ms) opens the context menu, on a row or on the empty part of the tree. |
 | `onRename` | `(id, newName) => void` | n/a | Rename committed. |
 | `onAdd` | `(parentId: string \| null, kind: "file" \| "folder") => void` | n/a | From context menu (null = root). |
 | `onMove` | `(id, newParentId, beforeId?) => void` | n/a | Drag drop; `beforeId` for order, null = append. Append-to-root requires dropping inside the tree below the last row; releasing the drag outside the widget cancels. |
@@ -1680,6 +1801,7 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `columns` | `number \| string \| (number \| string)[]` | n/a | `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw template; `array` → joined tracks. |
+| `minColumnWidth` | `number \| string` | n/a | As many equal columns as fit, none narrower than this (`number` → `--sf-unit` multiples), down to one column in a container narrower than it: `repeat(auto-fit, minmax(min(100%, W), 1fr))`. Reflows with the container, no breakpoint. Ignored when `columns` is set; `resizable` does not apply to such columns. |
 | `rows` | `number \| string \| (number \| string)[]` | n/a | Same shape, for rows. |
 | `areas` | `string[]` | n/a | `grid-template-areas` row strings. |
 | `gap` / `columnGap` / `rowGap` | `number \| string` | n/a | `number` → `--sf-unit` multiples; `string` → raw CSS. |
@@ -1877,7 +1999,7 @@ A consistent, tree-shakeable icon set matched to the library's aesthetic (issue 
 
 Plus any `SVGProps` (e.g. `color`, `className`) spread to the `<svg>`.
 
-Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `Circle`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`), window chrome (`Expand`, `Collapse`, `Split`, `PopIn`), viewport controls (`ZoomIn`, `ZoomOut`, `Fit`, `Connect`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
+Bundled icons (`createIcon` builds more): chevrons (`ChevronUp/Down/Left/Right`, `ChevronsUpDown`), arrows (`ArrowUp/Down/Left/Right`), actions (`Check`, `X`, `Plus`, `Minus`, `Search`, `Trash`, `Pencil`, `Copy`, `Download`, `Upload`, `ExternalLink`, `Hamburger`, `MoreHorizontal`, `MoreVertical`, `Filter`, `Sliders`, `Refresh`), status (`Info`, `Warning`, `Circle`, `CircleCheck`, `CircleX`), files (`File`, `Folder`), visibility/security (`Eye`, `EyeOff`, `Lock`), time/people (`Calendar`, `Clock`, `User`, `Star`), theme (`Sun`, `Moon`), window chrome (`Expand`, `Collapse`, `Split`, `PopIn`), viewport controls (`ZoomIn`, `ZoomOut`, `Fit`, `Connect`), outline commands (`Indent`, `Outdent`, `Undo`, `Redo`, `Task`, `KeyboardHide`). `createIcon(displayName, pathContent)` builds a new tree-shakeable icon in the same posture. (The hamburger glyph is `Hamburger`, not `Menu`, to avoid colliding with the `Menu` component.)
 
 ### Pluggable icons
 
@@ -1894,7 +2016,7 @@ The mechanism is a React context, `IconProvider`, that maps **slots** (semantic 
 | `SF_ICON_SLOTS` / `IconSlot` | const / type | The slot vocabulary and its union type. |
 | `IconOverrides` / `IconRenderer` / `IconRenderProps` | types | The override-map, renderer, and render-prop types. |
 
-Slots: `chevronUp/Down/Left/Right`, `close`, `expand`, `collapse`, `split`, `popOut`, `popIn`, `zoomIn`, `zoomOut`, `fit`, `reset`, `connect`, `add`, `delete`, `search`, `check`, `menu`, `moreHorizontal`, `moreVertical`, `eye`, `eyeOff`, `lock`, `folder`, `file`, `eyedropper`, `fail`, `pending` (the run state of a step in a fan-out; `check` marks the done one). `SF_ICON_SLOTS` is **append-only**: adding a slot is additive (override maps are `Partial`, and each call site ships a fallback), so only renaming or removing one is a breaking change.
+Slots: `chevronUp/Down/Left/Right`, `close`, `expand`, `collapse`, `split`, `popOut`, `popIn`, `zoomIn`, `zoomOut`, `fit`, `reset`, `connect`, `add`, `delete`, `search`, `check`, `menu`, `moreHorizontal`, `moreVertical`, `eye`, `eyeOff`, `lock`, `folder`, `file`, `eyedropper`, `fail`, `pending` (the run state of a step in a fan-out; `check` marks the done one), and the keys of the Outliner's touch toolbar: `indent`, `outdent`, `arrowUp`, `arrowDown`, `task`, `undo`, `redo`, `keyboardHide`. `SF_ICON_SLOTS` is **append-only**: adding a slot is additive (override maps are `Partial`, and each call site ships a fallback), so only renaming or removing one is a breaking change.
 
 Swap the whole set, or a single slot (unmapped slots stay bespoke):
 
@@ -2681,6 +2803,7 @@ block is a `treeitem` with `aria-level`, `aria-posinset` and `aria-setsize`.
 | `reorderable` | `boolean` | `true` | Drag a block (or the selected blocks) by its bullet. Off in read-only mode. Loads dnd-kit on demand; joins an `SfDndProvider`. |
 | `virtualized` | `boolean` | `false` | Render only the rows on screen. The outline then scrolls inside itself: give it, or its parent, a height. |
 | `frame` | `boolean` | `true` | The border, background and padding around the outline. |
+| `toolbar` | `boolean \| "auto"` | `"auto"` | The touch toolbar (below): the structure commands as keys above the on-screen keyboard while a block is edited. `"auto"` shows it where the primary pointer is a finger (`(pointer: coarse)`), `true` on any device, `false` never. Never in read-only mode. |
 | `apiRef` | `Ref<OutlinerHandle>` | n/a | Imperative controls, below. |
 
 **Two levels of focus.** In a block's text the keys edit. Escape steps out to
@@ -2712,6 +2835,47 @@ it, so Tab passes through; the outline never holds the keyboard.
 | Mod+Shift+. | Quote: `> ` before every line, or off again. |
 | Mod+. / Mod+, | Zoom into the block / zoom out one level. Also Alt+→ / Alt+←, except in a block's text on a Mac, where those move the caret by a word. Also on a selected block. |
 | Escape | Leaves the text; the block stays selected. |
+
+**Touch toolbar.** An on-screen keyboard has no Tab, no Alt and no Escape, so
+on a touch device the structure commands are keys on a bar (`role="toolbar"`,
+named "Outline commands") that shows while a block is being edited. Each key
+runs the command its chord runs, on the block that holds the caret:
+
+| Key | Does | Chord |
+| --- | --- | --- |
+| Outdent | Moves the block one level out. | Shift+Tab |
+| Indent | Puts the block under the sibling before it. | Tab |
+| Move up / Move down | Moves the block among its siblings, and past the first / last into the neighbouring parent. | Alt+Shift+↑ / ↓ |
+| Toggle task | No marker, open (`[ ] `), done (`[x] `). | Mod+Enter |
+| Undo / Redo | One step of the outline's history, text and structure alike. | Mod+Z / Mod+Shift+Z |
+| Done | Leaves the text; the block stays selected. The focus leaves the textarea, which puts the on-screen keyboard away. | Escape |
+
+A key whose command would change nothing is disabled (`aria-disabled`): Outdent
+at the top level (and on a child of the zoomed block, which may not leave it),
+Indent on a first sibling, a move at the outline's edge, Undo and Redo with no
+step to take. A press on a key does not take the focus, so the caret and the
+keyboard stay. The keys are glyphs with an `aria-label` each, through the icon
+slots `outdent`, `indent`, `arrowUp`, `arrowDown`, `task`, `undo`, `redo` and
+`keyboardHide`; they are not tab stops, since a hardware keyboard has the
+chords.
+
+The bar is `position: fixed` along the bottom edge of the visual viewport:
+`window.visualViewport` reports the part of the page the keyboard leaves
+visible, and the bar's `bottom` is `innerHeight - (offsetTop + height)`,
+followed on the viewport's `resize` and `scroll` events (0, the bottom of the
+window, without that API). With no keyboard under it the bar carries
+`data-docked` and adds `--sf-safe-bottom` below its keys. It is two units tall
+with its top rule (48px at the touch density; never under `--sf-hit-min`), and
+a key is two units wide where there is room and narrows to `--sf-hit-min`
+before the row scrolls sideways: seven command keys and Done fit from 360px
+up, and at 320px the command keys scroll under a Done key that stays in place.
+The bar renders through the portal container (it follows the outline into a
+`PopOut` window) and stacks in the overlay band, above a `Dialog`, `Drawer` or
+expanded `Fullscreen` the outline sits in. While it shows, the outline ends
+with room for the bar and the keyboard (the root has `data-toolbar`), and the
+caret's line is scrolled clear of the bar when the block, its place or its text
+changes. An embedded block is an outline of its own: the one with the caret
+shows the bar, never both.
 
 **Block selection.** A selected block includes its children. Shift+↑ / Shift+↓
 extend the selection block by block (stepping over the children of a block that
@@ -3205,7 +3369,7 @@ Virtualized Markdown document with an auto-generated heading outline and scroll-
 | `source` | `string` | n/a | Markdown to parse (ignored if `blocks` given). |
 | `blocks` | `ProseBlock[]` | n/a | Pre-parsed blocks; bypass the parser. |
 | `measured` | `boolean` | `true` | Cap block width to `--sf-measure`. |
-| `split` | `boolean` | `false` | 2-column grid (outline + body). |
+| `split` | `boolean` | `false` | 2-column grid (outline + body). In a container under 28 units wide the outline stacks above the body as a short scrolling block (`data-stacked` on the root). |
 
 **Elements / Parts:** `Prose.Root` (context provider), `Prose.Outline`
 (`ariaLabel`, default "Document outline"), `Prose.Body` (`estimateBlockSize`
@@ -3612,6 +3776,7 @@ A resizable split layout: a `SplitPane.Main` region and a collapsible `SplitPane
 | `defaultSize` | `number \| string` | `320` | Initial size when uncontrolled: px, or a percentage of the container (`"30%"`), which the panel keeps as the container resizes. Remembered across open/close. |
 | `minSize` / `maxSize` | `number` | `200` / n/a | px clamps. `maxSize` is also capped to the container minus `minMainSize`, and so is a px panel in a container that has shrunk below it (it comes back when there is room again). |
 | `minMainSize` | `number` | `96` | The least the main pane keeps, in px. |
+| `overlayAt` | `number \| string \| false` | `20` | Below this container extent along the split (`number` → `--sf-unit` multiples: 400px compact, 480px comfortable) the panel lies over the main pane instead of pushing it. `false` pushes at every width. |
 | `onSizeChange` | `(px: number, fraction: number) => void` | n/a | Fired when a resize settles or a keyboard step lands, with the size in px and as a fraction of the container (persist the fraction to restore a percentage size). |
 
 The divider is `role="separator"` with `aria-orientation` + `aria-valuenow/min/max`, focusable, and resizes with the arrow keys. The collapse/expand animates `inline-size`/`block-size` (instant under `prefers-reduced-motion`; no transition while dragging).
@@ -3626,6 +3791,15 @@ const [open, setOpen] = useState(true);
   </SplitPane>
 </div>
 ```
+
+**Overlay.** In a container narrower than `overlayAt` there is no room for two
+panes, so the main pane keeps the whole container and the panel lies over it
+from its edge, as a drawer does, up to a 48px strip of the main pane. A tap on
+that strip, or Escape with focus inside the split, closes the panel through
+`onOpenChange`. There is no divider and no resizing while overlaid;
+`useSplitPane().overlay` and `data-overlay` on the root report the state (show
+a close key in the panel when it is set). `ChatDrawer` is built on SplitPane
+and behaves the same way.
 
 ## Stack
 
@@ -3694,7 +3868,7 @@ non-finite `delta` renders no indicator.
 | Prop (`Stat`) | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `label` | `ReactNode` | n/a | The metric name (rendered as a compact label). The label row (icon and label) renders only when one of them is given; the rows sit on the unit grid (label 1u, figure 1.5u at `sm`/`md`, footer 1u, sparkline 1.5u, half-unit gaps), so a Stat is a whole number of units at every size. |
-| `value` | `number \| ReactNode` | n/a | The figure. A `number` is Swiss-formatted (`1'284'500`); a `ReactNode` is rendered as-is. Tabular mono either way. |
+| `value` | `number \| ReactNode` | n/a | The figure. A `number` is Swiss-formatted (`1'284'500`); a `ReactNode` is rendered as-is. Tabular mono either way. One line, never cut: in a card too narrow for it the figure shrinks to fit, down to two fifths of its size, while the line height (and so the card's height) stays. |
 | `decimals` | `number` | n/a | Fixed decimal places for a numeric `value`. |
 | `valueUnit` | `string` | n/a | Unit appended to a numeric `value` (e.g. `"CHF"`), after a no-break space. |
 | `delta` | `number` | n/a | Signed change vs the previous period (non-finite → no indicator). |
@@ -4256,9 +4430,22 @@ To drag a host element into a widget, make it a dnd-kit `useDraggable` **inside*
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
 | `children` | `ReactNode` | n/a | The subtree; library widgets in it join this context. |
-| `sensors` | `SensorDescriptor[]` | pointer (4px) + keyboard | Override the sensor set for the whole context. Per-widget sensor differences collapse to this union. |
+| `sensors` | `SensorDescriptor[]` | `useSfSensors({ keyboard: true })` | Override the sensor set for the whole context. Per-widget sensor differences collapse to this union. |
 | `onDragStart` / `onDragMove` / `onDragOver` / `onDragEnd` / `onDragCancel` | dnd-kit event handlers | n/a | Fire for drags claimed by no region (the host's own sortables). |
 | `renderOverlay` | `(activeId: string) => ReactNode` | n/a | `DragOverlay` content for a dragged foreign item; region drags use the region's own overlay. |
+
+**Sensors.** Every widget, and the provider by default, takes its sensors from
+`useSfSensors({ keyboard })` (also exported here), so a drag starts the same
+way everywhere: a mouse or a pen after 4px of travel; a finger after resting
+250ms within 8px (moving sooner scrolls the page, as anywhere else), or as a
+mouse does on a dedicated handle, which is any element with
+`touch-action: none` between the press and the draggable (a grip, a title
+bar); with `keyboard`,
+Space and the arrows on a focused grip. A draggable that calls
+`listeners.onPointerDown` by hand must call `listeners.onTouchStart` as well.
+The touch sensor keeps one non-passive `touchmove` listener on the window
+while a drag context is mounted. The constants are exported as
+`DRAG_DISTANCE`, `TOUCH_DRAG_DELAY` and `TOUCH_DRAG_TOLERANCE`.
 
 Also exported: `useSfDnd()` (returns the registry or `null`), `useSfDndRegion(registry, region)` (the register-for-lifetime helper widgets use), `SF_REGION_KEY` / `regionIdOf` (the `data` stamp and its reader), and `routeDragEnd` (the pure routing decision).
 

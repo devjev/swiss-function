@@ -148,9 +148,14 @@
   fill: var(--sf-color-primary-fg);
 }
 
-.bar:hover,
 .bar:focus-visible {
   filter: brightness(1.1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bar:hover {
+    filter: brightness(1.1);
+  }
 }
 
 .bar:focus-visible {

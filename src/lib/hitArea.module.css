@@ -1,0 +1,54 @@
+/* Touch hit areas. A small control keeps its size and an invisible
+   pseudo-element grows the area it answers a finger on, up to the touch
+   tokens: --sf-hit-min (44px under `@media (pointer: coarse)`) and
+   --sf-hit-tight (24px there). Both are 0 for a mouse, where the
+   pseudo-element is exactly the control's own box and changes nothing.
+
+   The host must not clip its overflow and its `::after` must be free; the
+   class positions a static host (`position: relative`, at zero specificity). The
+   four variants say which neighbours the control has, because an area that
+   grows into a sibling takes that sibling's taps.
+
+   `.hitBefore` is the same area on `::before`, for a host whose `::after`
+   draws something: a splitter with its rule, a slider thumb with its grip. */
+/* Zero specificity, so a host that is positioned some other way keeps it. */
+:where(.hit, .hitBefore) {
+  position: relative;
+}
+
+.hit::after,
+.hitBefore::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: max(100%, var(--sf-hit-inline, 0px));
+  block-size: max(100%, var(--sf-hit-block, 0px));
+  translate: -50% -50%;
+}
+
+/* A control with room on every side: a checkbox, a radio, a switch. */
+.both {
+  --sf-hit-inline: var(--sf-hit-min);
+  --sf-hit-block: var(--sf-hit-min);
+}
+
+/* A control in a row of siblings (a button, a toggle item, a tab, a key in a
+   title bar): the full height, and only the tight width. */
+.block {
+  --sf-hit-inline: var(--sf-hit-tight);
+  --sf-hit-block: var(--sf-hit-min);
+}
+
+/* A control in a column of siblings (a tree chevron, a row grip): the full
+   width, and only the tight height, so it stays inside its own row. */
+.inline {
+  --sf-hit-inline: var(--sf-hit-min);
+  --sf-hit-block: var(--sf-hit-tight);
+}
+
+/* A control with neighbours on both axes (an outline bullet beside its text,
+   a filter key inside a column heading). */
+.tight {
+  --sf-hit-inline: var(--sf-hit-tight);
+  --sf-hit-block: var(--sf-hit-tight);
+}

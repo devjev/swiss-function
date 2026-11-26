@@ -2,6 +2,7 @@ import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
@@ -29,7 +30,7 @@ export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(function Switch
       ref={ref}
       style={curveStyle(curve, style)}
       data-elevation={elevation}
-      className={mergeClassName(styles.root, className)}
+      className={mergeClassName(`${styles.root} ${hitArea.both}`, className)}
     >
       <BaseSwitch.Thumb className={cx(styles.thumb, surfaceClass[surface])} />
     </BaseSwitch.Root>

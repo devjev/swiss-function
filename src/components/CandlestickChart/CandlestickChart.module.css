@@ -134,9 +134,14 @@
   fill: transparent;
 }
 
-.candle:hover .body,
 .candle:focus-visible .body {
   filter: brightness(1.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .candle:hover .body {
+    filter: brightness(1.12);
+  }
 }
 
 .candle:focus-visible .hit {
@@ -192,8 +197,10 @@
   cursor: pointer;
 }
 
-.resetButton:hover {
-  border-color: var(--sf-color-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    border-color: var(--sf-color-border-strong);
+  }
 }
 
 .resetButton:focus-visible {
@@ -251,7 +258,7 @@
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
   outline: none;
 }
 

@@ -35,15 +35,19 @@
   block-size: 100%;
   inline-size: var(--sf-drawer-size, calc(var(--sf-unit) * 18));
   max-inline-size: 100vw;
+  /* Clear of a notch and the home indicator (0 on a plain viewport). */
+  padding-block: var(--sf-safe-top) var(--sf-safe-bottom);
 }
 .popup[data-swipe-direction="left"] {
   inset-inline-start: 0;
+  padding-inline-start: var(--sf-safe-left);
   border-inline-end: 1px solid var(--sf-color-border-strong);
   box-shadow: var(--sf-elevation-3);
   transform: translateX(var(--drawer-swipe-movement-x, 0px));
 }
 .popup[data-swipe-direction="right"] {
   inset-inline-end: 0;
+  padding-inline-end: var(--sf-safe-right);
   border-inline-start: 1px solid var(--sf-color-border-strong);
   box-shadow: var(--sf-elevation-3);
   transform: translateX(var(--drawer-swipe-movement-x, 0px));
@@ -63,7 +67,9 @@
   inset-block-end: 0;
   inline-size: 100%;
   block-size: var(--sf-drawer-size, calc(var(--sf-unit) * 16));
-  max-block-size: 100vh;
+  max-block-size: 100dvh;
+  padding-block-end: var(--sf-safe-bottom);
+  padding-inline: var(--sf-safe-left) var(--sf-safe-right);
   border-block-start: 1px solid var(--sf-color-border-strong);
   box-shadow: var(--sf-elevation-3);
   transform: translateY(var(--drawer-swipe-movement-y, 0px));

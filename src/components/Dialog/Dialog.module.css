@@ -40,7 +40,8 @@
   transform: translate(calc(-50% + var(--sf-dialog-x, 0px)), calc(-50% + var(--sf-dialog-y, 0px)));
   max-width: 32rem;
   width: calc(100% - 2rem);
-  max-height: calc(100vh - 2rem);
+  /* The dynamic viewport: what a phone shows between its toolbars. */
+  max-height: calc(100dvh - 2rem);
   overflow: auto;
   /* A vertical stack of its parts, so a `Stack fill` (or any flex:1 child) can
      absorb the remaining height and lock a field to the lower edge as the popup
@@ -81,6 +82,12 @@
   max-height: none;
   transform: none;
   border-radius: 0;
+  /* It reaches every screen edge: keep the content clear of a notch and the
+     home indicator. The safe-area tokens are 0 on a plain viewport. */
+  padding-block: max(var(--sf-space-6), var(--sf-safe-top))
+    max(var(--sf-space-6), var(--sf-safe-bottom));
+  padding-inline: max(var(--sf-space-6), var(--sf-safe-left))
+    max(var(--sf-space-6), var(--sf-safe-right));
 }
 
 /* Title bar: lay the title and the window-chrome actions out in a row. Used as
@@ -121,8 +128,10 @@
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.iconButton:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 /* Popped-out: the dialog stays open as a small placeholder (the modal focus
    trap keeps trapping here) while the content shows in a separate browser

@@ -2459,3 +2459,40 @@ test("the funnel's slack is not part of the floor (issue #102 regression)", asyn
   const fits = await c.getByRole("grid").evaluate((el) => el.scrollWidth <= el.clientWidth);
   expect(fits).toBe(true);
 });
+
+// --- Touch --------------------------------------------------------------------
+
+test.describe("with a finger", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 700 } });
+
+  test("the first tap selects a cell, a second tap on it opens the editor", async ({
+    mount,
+    page,
+  }) => {
+    const component = await mount(<EditorsHarness />);
+    const cell = component.getByRole("gridcell").first();
+    await cell.tap();
+    await expect(cell).toHaveAttribute("data-active", "true");
+    await expect(page.locator('[role="gridcell"] textarea')).toHaveCount(0);
+    await cell.tap();
+    const editor = page.locator('[role="gridcell"] textarea');
+    await expect(editor).toBeVisible();
+    // At the text-entry floor, so iOS does not zoom the page on focus.
+    expect(await editor.evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
+  });
+
+  test("a reorderable heading does not give up touch panning", async ({ mount }) => {
+    const component = await mount(
+      <DataTable
+        data={[{ a: 1, b: 2 }]}
+        columns={[
+          { id: "a", header: "A", accessor: "a" },
+          { id: "b", header: "B", accessor: "b" },
+        ]}
+        reorderableColumns
+      />,
+    );
+    const heading = component.getByRole("columnheader", { name: "A" });
+    expect(await heading.evaluate((el) => getComputedStyle(el).touchAction)).toBe("auto");
+  });
+});

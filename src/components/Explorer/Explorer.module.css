@@ -164,8 +164,10 @@
   cursor: pointer;
 }
 
-.headerCell[data-sortable]:hover {
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+@media (hover: hover) and (pointer: fine) {
+  .headerCell[data-sortable]:hover {
+    --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 4%);
+  }
 }
 
 .sortArrow {
@@ -176,9 +178,11 @@
 }
 
 /* --- Column reorder (drag grip + lifted cell + overlay) --- */
+/* No `touch-action: none`: a finger still scrolls the grid sideways over a
+   heading, and picks one up by resting on it (the touch sensor's delay). */
 .headerDraggable {
   cursor: grab;
-  touch-action: none;
+  -webkit-touch-callout: none;
 }
 
 .headerDraggable:active {
@@ -230,11 +234,16 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.headerCell:hover .resizeHandle::after,
-.resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after,
 .resizeHandle:focus-visible::after {
   background-color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .headerCell:hover .resizeHandle::after,
+  .resizeHandle:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 
 .resizeHandle:focus-visible {
@@ -349,14 +358,17 @@
   outline: none;
 }
 
-/* Only rows that can start a drag give up touch scrolling; read-only trees
-   keep native touch panning. */
-.row[data-draggable] {
-  touch-action: none;
+/* A finger scrolls the tree over any row; a row that can be dragged is picked
+   up by a resting finger (the touch sensor's delay), and a long press opens
+   the context menu. Neither should raise the system's own long-press callout. */
+.row {
+  -webkit-touch-callout: none;
 }
 
-.row:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .row[data-selected="true"] {
@@ -479,6 +491,8 @@
 .renameInput {
   flex: 1;
   min-width: 0;
+  /* The row's size, but never under the text-entry floor on touch. */
+  font-size: max(1em, var(--sf-text-entry-min));
   block-size: calc(var(--sf-unit) * 4 / 3 - 4px);
 }
 

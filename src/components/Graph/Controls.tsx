@@ -115,23 +115,27 @@ export const GraphControlsBar = forwardRef<HTMLDivElement, GraphControlsProps>(
                   .filter((l): l is (typeof LAYOUTS)[number] => l !== undefined);
           if (offered.length === 0) return null;
           return (
-            <ToggleGroup
-              size="sm"
-              aria-label="Layout"
-              value={[layout]}
-              onValueChange={(value) => {
-                const next = (value as LayoutKind[])[0];
-                // ToggleGroup is single-select here; ignore an empty toggle-off
-                // so the active layout always stays selected.
-                if (next) setLayout(next);
-              }}
-            >
-              {offered.map(({ value, label }) => (
-                <ToggleGroup.Item key={value} value={value}>
-                  {label}
-                </ToggleGroup.Item>
-              ))}
-            </ToggleGroup>
+            // The row of layouts scrolls sideways inside the toolbar when the
+            // graph is narrower than its keys (a phone).
+            <div className={styles.layouts}>
+              <ToggleGroup
+                size="sm"
+                aria-label="Layout"
+                value={[layout]}
+                onValueChange={(value) => {
+                  const next = (value as LayoutKind[])[0];
+                  // ToggleGroup is single-select here; ignore an empty toggle-off
+                  // so the active layout always stays selected.
+                  if (next) setLayout(next);
+                }}
+              >
+                {offered.map(({ value, label }) => (
+                  <ToggleGroup.Item key={value} value={value}>
+                    {label}
+                  </ToggleGroup.Item>
+                ))}
+              </ToggleGroup>
+            </div>
           );
         })()}
       </div>

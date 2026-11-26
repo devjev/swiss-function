@@ -63,7 +63,7 @@
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  font-size: max(var(--sf-font-size-md), var(--sf-text-entry-min));
   line-height: var(--sf-line-height-tight);
   /* Same slot as Input: the groove recipe (flush; `elevation` adds a cast). */
   box-shadow: var(--sf-groove);
@@ -200,7 +200,7 @@
 .sizeSm .cell {
   inline-size: calc(var(--sf-unit) * 2 / 3);
   block-size: var(--sf-unit);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 .sizeSm .sep,
 .sizeSm .unit {

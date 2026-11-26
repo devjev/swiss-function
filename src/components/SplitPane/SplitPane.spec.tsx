@@ -92,7 +92,15 @@ test("a px panel is clamped to a container that shrinks below it, and comes back
 }) => {
   const c = await mount(
     <div data-testid="wrap" style={{ inlineSize: 700, blockSize: 300 }}>
-      <SplitPane defaultOpen side="right" defaultSize={320} minSize={100} minMainSize={96}>
+      <SplitPane
+        defaultOpen
+        side="right"
+        defaultSize={320}
+        minSize={100}
+        minMainSize={96}
+        // The push clamp is under test; without this a 300px container overlays.
+        overlayAt={false}
+      >
         <SplitPane.Main>
           <div>main</div>
         </SplitPane.Main>
@@ -153,4 +161,60 @@ test("a controlled size follows the pointer during a drag and reports px and fra
   // Released: back to the controlled 200 until the owner applies the report.
   await expect.poll(async () => Math.round((await panel.boundingBox())?.width ?? 0)).toBe(200);
   expect(reports).toEqual([[300, 0.38]]);
+});
+
+// --- Overlay: a container too narrow for two panes ---------------------------
+
+const narrow = (props: { overlayAt?: number | false } = {}) => (
+  <div style={{ inlineSize: 360, blockSize: 300 }}>
+    <SplitPane defaultOpen side="right" defaultSize={300} {...props}>
+      <SplitPane.Main data-testid="main">
+        <div>main</div>
+      </SplitPane.Main>
+      <SplitPane.Panel data-testid="panel">
+        <button type="button">in panel</button>
+      </SplitPane.Panel>
+    </SplitPane>
+  </div>
+);
+
+test("under overlayAt the panel lies over the main pane, which keeps the container", async ({
+  mount,
+}) => {
+  const c = await mount(narrow());
+  // No divider, and the main pane is the full 360px with the panel on top.
+  await expect(c.getByRole("separator")).toHaveCount(0);
+  const main = await c.getByTestId("main").boundingBox();
+  const panel = await c.getByTestId("panel").boundingBox();
+  expect(main?.width).toBe(360);
+  expect(panel?.width).toBe(300);
+  // Flush with the container's far edge, a strip of the main pane left to tap.
+  expect(panel && main && panel.x + panel.width).toBe(main && main.x + main.width);
+  expect(await c.getByTestId("panel").evaluate((el) => getComputedStyle(el).position)).toBe(
+    "absolute",
+  );
+});
+
+test("a tap on the strip beside an overlaid panel closes it", async ({ mount, page }) => {
+  const c = await mount(narrow());
+  const main = await c.getByTestId("main").boundingBox();
+  if (!main) throw new Error("no main pane");
+  await page.mouse.click(main.x + 20, main.y + 150);
+  await page.waitForTimeout(320);
+  expect((await c.getByTestId("panel").boundingBox())?.width ?? 0).toBeLessThan(2);
+});
+
+test("Escape inside an overlaid panel closes it", async ({ mount, page }) => {
+  const c = await mount(narrow());
+  await c.getByRole("button", { name: "in panel" }).focus();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(320);
+  expect((await c.getByTestId("panel").boundingBox())?.width ?? 0).toBeLessThan(2);
+});
+
+test("overlayAt={false} keeps pushing at every width", async ({ mount }) => {
+  const c = await mount(narrow({ overlayAt: false }));
+  await expect(c.getByRole("separator")).toBeVisible();
+  const main = await c.getByTestId("main").boundingBox();
+  expect(main?.width).toBeLessThan(120);
 });

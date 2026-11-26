@@ -6,24 +6,17 @@
 // wraps it (see src/lib/dnd).
 
 import type { Active, DragEndEvent } from "@dnd-kit/core";
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useId } from "react";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import type { ContextBlock } from "./ContextEditor";
 
@@ -59,10 +52,7 @@ export default function ContextEditorRows({
 }: ContextEditorRowsProps) {
   const shared = useSfDnd();
   const regionId = useId();
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useSfSensors({ keyboard: true });
   // Namespace the dnd ids per region: under one `SfDndProvider` every widget
   // shares a single dnd-kit context, so two ContextEditors both holding a block
   // with the same id (e.g. "system") would resolve a drag to the wrong widget.

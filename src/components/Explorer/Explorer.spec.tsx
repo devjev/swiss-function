@@ -412,3 +412,71 @@ test("the handle takes the splitter keys and shows the readout (issue #102 parit
   await page.mouse.up();
   await expect(root).not.toHaveAttribute("data-resizing");
 });
+
+// --- Touch --------------------------------------------------------------------
+
+test.describe("with a finger", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 700 } });
+
+  /** Raw touch events through CDP: Playwright's `tap` cannot hold or move. */
+  const finger = async (page: import("@playwright/test").Page) => {
+    const cdp = await page.context().newCDPSession(page);
+    return (type: "touchStart" | "touchMove" | "touchEnd", point?: { x: number; y: number }) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: point ? [{ x: point.x, y: point.y, id: 1 }] : [],
+      });
+  };
+  const centre = async (row: import("@playwright/test").Locator) => {
+    const box = await row.boundingBox();
+    if (!box) throw new Error("row is not laid out");
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+
+  test("a draggable row still lets a finger scroll: it does not give up touch panning", async ({
+    mount,
+  }) => {
+    const c = await mount(<ExplorerHarness editable />);
+    const row = c.locator('[data-row-id="README.md"]');
+    await expect(row).toHaveAttribute("data-draggable", "true");
+    expect(await row.evaluate((el) => getComputedStyle(el).touchAction)).toBe("auto");
+  });
+
+  test("a long press opens the context menu (iOS fires no contextmenu event)", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(<ExplorerHarness editable />);
+    const touch = await finger(page);
+    await touch("touchStart", await centre(c.locator('[data-row-id="README.md"]')));
+    await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+    await touch("touchEnd");
+  });
+
+  test("a finger that rests, then moves, drags the row; one that moves at once does not", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(<ExplorerHarness editable />);
+    const touch = await finger(page);
+    const from = await centre(c.locator('[data-row-id="README.md"]'));
+    const to = await centre(c.locator('[data-row-id="src"]'));
+
+    // At once: a swipe, which belongs to scrolling. Nothing is picked up.
+    await touch("touchStart", from);
+    await touch("touchMove", { x: from.x, y: from.y - 30 });
+    await expect(c.locator("[data-dragging]")).toHaveCount(0);
+    await touch("touchEnd");
+
+    // Rested past the touch sensor's delay: the row follows the finger.
+    await touch("touchStart", from);
+    await page.waitForTimeout(320);
+    for (let step = 1; step <= 6; step++) {
+      await touch("touchMove", { x: to.x, y: from.y + ((to.y - from.y) * step) / 6 });
+      await page.waitForTimeout(20);
+    }
+    await expect(c.locator("[data-dragging]")).toHaveCount(1);
+    await touch("touchEnd");
+    await expect(c.getByTestId("last-op")).toContainText("move:README.md");
+  });
+});

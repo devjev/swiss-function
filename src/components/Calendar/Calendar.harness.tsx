@@ -28,12 +28,27 @@ const STANDUP: CalendarEvent = {
   end: at(11, 9, 15),
 };
 
+/** Six more events on Wed 11, so the month grid has a "+N more" key. */
+const BUSY_DAY: CalendarEvent[] = Array.from({ length: 6 }, (_, i) => ({
+  id: `busy-${i}`,
+  title: `Review ${i + 1}`,
+  start: at(11, 13 + i, 0),
+  end: at(11, 13 + i, 30),
+}));
+
 export function CalendarHarness({
   events: given = HARNESS_EVENTS,
   shortEvent = false,
+  busyDay = false,
+  width = 960,
   ...props
-}: Partial<CalendarProps> & { shortEvent?: boolean }) {
-  const events = shortEvent ? [...given, STANDUP] : given;
+}: Partial<CalendarProps> & {
+  shortEvent?: boolean;
+  busyDay?: boolean;
+  /** The frame's width in px: the calendar reads it, not the viewport. */
+  width?: number;
+}) {
+  const events = [...given, ...(shortEvent ? [STANDUP] : []), ...(busyDay ? BUSY_DAY : [])];
   const [lastEvent, setLastEvent] = useState("");
   const [lastDate, setLastDate] = useState("");
   const [lastView, setLastView] = useState("");
@@ -41,7 +56,7 @@ export function CalendarHarness({
   const [clicks, setClicks] = useState(0);
 
   return (
-    <div style={{ height: 620, width: 960 }}>
+    <div style={{ height: 620, width }}>
       <Calendar
         events={events}
         defaultValue={FOCUS}

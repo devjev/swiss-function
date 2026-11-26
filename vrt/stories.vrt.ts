@@ -13,7 +13,8 @@ const stories: string[] = JSON.parse(readFileSync(join(here, "stories.json"), "u
 test.describe("visual regression", () => {
   for (const id of stories) {
     test(id, async ({ page }, testInfo) => {
-      const theme = testInfo.project.name; // "light" | "dark"
+      // "light" | "dark", or the same after "phone-" in the phone projects.
+      const theme = testInfo.project.name.replace(/^phone-/, "");
       await page.emulateMedia({ reducedMotion: "reduce" });
       // `mode=preview` renders the isolated story (no Ladle chrome); `theme`
       // drives the library's data-theme via the Ladle Provider.

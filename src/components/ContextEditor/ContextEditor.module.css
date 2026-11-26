@@ -118,8 +118,10 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.modelTrigger:hover {
-  background-color: var(--sf-color-input-bg);
+@media (hover: hover) and (pointer: fine) {
+  .modelTrigger:hover {
+    background-color: var(--sf-color-input-bg);
+  }
 }
 
 .modelTrigger:focus-visible {
@@ -171,8 +173,10 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.overflowBtn:hover {
-  background-color: var(--sf-color-input-bg);
+@media (hover: hover) and (pointer: fine) {
+  .overflowBtn:hover {
+    background-color: var(--sf-color-input-bg);
+  }
 }
 
 .overflowBtn:focus-visible {
@@ -322,8 +326,10 @@
   touch-action: none;
 }
 
-.gripButton:hover {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .gripButton:hover {
+    opacity: 1;
+  }
 }
 
 .gripButton:active {

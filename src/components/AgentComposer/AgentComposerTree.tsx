@@ -7,11 +7,12 @@
 // cross-parent drop is ignored (reorderSiblings returns identity).
 
 import type { Active, CollisionDetection, DragEndEvent } from "@dnd-kit/core";
-import { closestCenter, DndContext, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { closestCenter, DndContext } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { type ReactNode, useId } from "react";
 import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { prefersReducedMotion } from "../../lib/prefersReducedMotion";
 import { type AgentComposerAgent, type AgentComposerNode, siblingIds } from "./composer";
 import { type NodeCtx, renderNode } from "./renderNode";
@@ -50,7 +51,7 @@ export default function AgentComposerTree({
 }: AgentComposerTreeProps) {
   const shared = useSfDnd();
   const regionId = useId();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSfSensors();
 
   // Namespace the dnd ids per region: under one `SfDndProvider` every widget
   // shares a single dnd-kit context, so two composers holding the same node id

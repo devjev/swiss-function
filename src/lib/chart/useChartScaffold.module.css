@@ -52,7 +52,7 @@
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
   outline: none;
 }
 

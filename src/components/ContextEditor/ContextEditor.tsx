@@ -1,6 +1,7 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef, lazy, Suspense, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { useCollapse } from "../../lib/useCollapse";
 import { ChevronDown, MoreHorizontal } from "../Icon";
@@ -393,7 +394,7 @@ export const ContextEditor = forwardRef<HTMLDivElement, ContextEditorProps>(func
                 onReorder={setBlocks}
                 onExternalDrop={onExternalDrop}
                 rowClassName={cx(styles.row, styles.rowLive)}
-                handleClassName={styles.gripButton}
+                handleClassName={`${styles.gripButton} ${hitArea.inline}`}
                 hovered={hovered}
                 onHover={setHovered}
                 renderCells={cells}

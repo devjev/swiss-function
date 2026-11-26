@@ -75,6 +75,15 @@ export const SF_ICON_SLOTS = [
   "trendUp",
   "trendDown",
   "trendFlat",
+  // Outliner touch toolbar: structure, history, and the key that leaves the text
+  "indent",
+  "outdent",
+  "arrowUp",
+  "arrowDown",
+  "task",
+  "undo",
+  "redo",
+  "keyboardHide",
 ] as const;
 
 /** One of the library's overridable icon slots. */

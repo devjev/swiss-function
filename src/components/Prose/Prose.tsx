@@ -2,6 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CSSProperties, HTMLAttributes, MutableRefObject, ReactNode, RefObject } from "react";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { useCollapse } from "../../lib/useCollapse";
 import { Markdown } from "../Markdown";
 import { type ProseBlock, parseBlocks } from "./blocks";
 import styles from "./Prose.module.css";
@@ -22,6 +23,10 @@ interface ProseContextValue {
 }
 
 const ProseContext = createContext<ProseContextValue | null>(null);
+
+/** Below this container width (in units) a `split` root stacks the outline
+ *  over the body: 16rem of outline leaves the text too little beside it. */
+const SPLIT_MIN = 28;
 
 function useProse(component: string): ProseContextValue {
   const ctx = useContext(ProseContext);
@@ -85,9 +90,19 @@ function Root({
     [blocks, headings, indexById, activeHeadingId, measured],
   );
 
+  // The split's two columns need room: in a narrow container the outline
+  // moves above the body (a short, scrolling block) instead of leaving the
+  // text a sliver beside it.
+  const { ref: collapseRef, collapsed } = useCollapse<HTMLDivElement>({ collapseAt: SPLIT_MIN });
+
   return (
     <ProseContext.Provider value={ctx}>
-      <div {...rest} className={cx(styles.root, split && styles.split, className)}>
+      <div
+        {...rest}
+        ref={split ? collapseRef : undefined}
+        className={cx(styles.root, split && styles.split, className)}
+        data-stacked={(split && collapsed) || undefined}
+      >
         {children}
       </div>
     </ProseContext.Provider>

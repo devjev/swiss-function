@@ -24,7 +24,9 @@ const uiTheme = EditorView.theme({
   "&": {
     color: "var(--sf-color-code-fg)",
     backgroundColor: "var(--sf-color-code-bg)",
-    fontSize: "var(--sf-font-size-md)",
+    // Never under the text-entry floor: iOS zooms the page when an editable
+    // under 16px takes focus (--sf-text-entry-min is 0 for a mouse).
+    fontSize: "max(var(--sf-font-size-md), var(--sf-text-entry-min))",
   },
   ".cm-content": {
     fontFamily: "var(--sf-font-mono)",

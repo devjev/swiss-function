@@ -9,6 +9,7 @@ import type {
 } from "react";
 import { lazy, memo, Suspense, useMemo, useRef, useState } from "react";
 import type ReactMarkdown from "react-markdown";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { Checkbox } from "../Checkbox";
@@ -297,7 +298,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
       ) : onBulletClick || onBulletPointerDown ? (
         <button
           type="button"
-          className={styles.bullet}
+          className={`${styles.bullet} ${hitArea.tight}`}
           data-bullet-handle=""
           data-number={numbered ? "" : undefined}
           data-collapsed={(hasChildren && bullet.collapsed) || undefined}
@@ -357,7 +358,7 @@ export const OutlinerBullet = memo(function OutlinerBullet(props: OutlinerBullet
                 {task === "cancelled" ? (
                   <button
                     type="button"
-                    className={styles.cancelled}
+                    className={`${styles.cancelled} ${hitArea.tight}`}
                     // The outline is one tab stop; Mod+Enter is the key for this.
                     tabIndex={-1}
                     disabled={readOnly}

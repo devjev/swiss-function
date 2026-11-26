@@ -42,6 +42,44 @@
   }
 }
 
+/* Overlay (a container under `overlayAt`): the main pane keeps the whole
+   container and the panel lies over it from its edge, as a drawer does. The
+   scrim covers the strip of the main pane that still shows. */
+.root[data-overlay] {
+  position: relative;
+}
+.root[data-overlay] .panel {
+  position: absolute;
+  z-index: 2;
+  box-shadow: var(--sf-elevation-3);
+}
+.root[data-overlay][data-side="left"] .panel {
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-end: 1px solid var(--sf-color-border-strong);
+}
+.root[data-overlay][data-side="right"] .panel {
+  inset-block: 0;
+  inset-inline-end: 0;
+  border-inline-start: 1px solid var(--sf-color-border-strong);
+}
+.root[data-overlay][data-side="top"] .panel {
+  inset-inline: 0;
+  inset-block-start: 0;
+  border-block-end: 1px solid var(--sf-color-border-strong);
+}
+.root[data-overlay][data-side="bottom"] .panel {
+  inset-inline: 0;
+  inset-block-end: 0;
+  border-block-start: 1px solid var(--sf-color-border-strong);
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: color-mix(in srgb, var(--sf-color-fg) 12%, transparent);
+}
+
 /* Divider — a thin hairline with a wider hit area; highlights primary on
    hover / focus / drag. */
 .divider {
@@ -87,10 +125,15 @@
   transform: translateY(-50%);
 }
 
-.divider:hover::after,
 .divider:focus-visible::after,
 .root[data-dragging] .divider::after {
   background-color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .divider:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 .divider:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

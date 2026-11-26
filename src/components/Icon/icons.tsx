@@ -36,6 +36,36 @@ export const ArrowRight = /* @__PURE__ */ createIcon(
   <path d="M3 8h10M9 4l4 4-4 4" />,
 );
 
+// --- Outline structure and history (the Outliner's touch toolbar) -----------
+// Three text lines with a chevron in the margin: the middle line is the one
+// that moves in or out.
+export const Indent = /* @__PURE__ */ createIcon(
+  "Indent",
+  <path d="M3 3.5h10M8.5 8H13M3 12.5h10M3 6l2.5 2L3 10" />,
+);
+export const Outdent = /* @__PURE__ */ createIcon(
+  "Outdent",
+  <path d="M3 3.5h10M8.5 8H13M3 12.5h10M5.5 6 3 8l2.5 2" />,
+);
+export const Undo = /* @__PURE__ */ createIcon(
+  "Undo",
+  <path d="M6 3 3 6l3 3M3 6h6.5a3.5 3.5 0 0 1 0 7H7" />,
+);
+export const Redo = /* @__PURE__ */ createIcon(
+  "Redo",
+  <path d="M10 3l3 3-3 3M13 6H6.5a3.5 3.5 0 0 0 0 7H9" />,
+);
+// A ticked box: a block as a task.
+export const Task = /* @__PURE__ */ createIcon(
+  "Task",
+  <path d="M2.5 2.5h11v11h-11zM5 8l2 2.5L11 5.5" />,
+);
+// A keyboard over a chevron that points down: put the on-screen keyboard away.
+export const KeyboardHide = /* @__PURE__ */ createIcon(
+  "KeyboardHide",
+  <path d="M1.5 2.5h13v7h-13zM4.5 5h.01M8 5h.01M11.5 5h.01M5.5 7.25h5M6 12.5l2 2 2-2" />,
+);
+
 // --- Core actions -----------------------------------------------------------
 export const Check = /* @__PURE__ */ createIcon("Check", <path d="M3 8.5 6.5 12 13 4.5" />);
 export const X = /* @__PURE__ */ createIcon("X", <path d="M4 4l8 8M12 4l-8 8" />);

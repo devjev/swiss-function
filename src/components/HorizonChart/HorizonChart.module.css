@@ -201,8 +201,10 @@
   cursor: pointer;
 }
 
-.resetButton:hover {
-  border-color: var(--sf-color-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    border-color: var(--sf-color-border-strong);
+  }
 }
 
 .resetButton:focus-visible {

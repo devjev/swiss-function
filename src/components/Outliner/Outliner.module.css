@@ -5,6 +5,9 @@
   grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
   font-family: var(--sf-font-sans);
+  /* The inherited size, but never under the text-entry floor on touch. Set
+     here and not on the textarea, so a block reads the same shown and edited. */
+  font-size: max(1em, var(--sf-text-entry-min));
   color: var(--sf-color-fg);
   /* Container chrome: the same surface treatment as Menu / Combobox /
      DataTable, so the outliner reads as a contained component. */
@@ -85,9 +88,11 @@
   white-space: nowrap;
 }
 
-.crumb:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+@media (hover: hover) and (pointer: fine) {
+  .crumb:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 .crumb:focus-visible {
@@ -215,10 +220,23 @@
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.row:hover > .fold,
 .row[data-active] > .fold,
 .fold:focus-within {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover > .fold {
+    opacity: 1;
+  }
+}
+
+/* Without a hovering pointer nothing would bring the arrow out before a
+   block is entered, so it shows on every row that has one. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .fold {
+    opacity: 1;
+  }
 }
 
 .bullet {
@@ -265,9 +283,11 @@
 }
 
 /* A bullet that can be clicked or dragged answers the pointer. */
-.bullet[data-bullet-handle]:hover > .dot {
-  box-shadow: 0 0 0 round(calc(var(--sf-unit) / 6), 1px)
-    color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .bullet[data-bullet-handle]:hover > .dot {
+    box-shadow: 0 0 0 round(calc(var(--sf-unit) / 6), 1px)
+      color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+  }
 }
 
 /* An ordered block's number is its bullet. It is set as the text is: the
@@ -314,11 +334,18 @@
   border-radius: var(--sf-radius-default);
 }
 
-.bullet[data-number][data-collapsed] .figure,
-.bullet[data-number][data-bullet-handle]:hover .figure {
+.bullet[data-number][data-collapsed] .figure {
   background-color: color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
   box-shadow: 0 0 0 round(calc(var(--sf-unit) / 10), 1px)
     color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bullet[data-number][data-bullet-handle]:hover .figure {
+    background-color: color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+    box-shadow: 0 0 0 round(calc(var(--sf-unit) / 10), 1px)
+      color-mix(in srgb, var(--sf-color-fg) 22%, transparent);
+  }
 }
 
 .placeholder {
@@ -352,14 +379,27 @@
   transition: opacity var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.row:hover .copyRefButton,
 .copyRefButton:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-.copyRefButton:hover {
-  background-color: var(--sf-color-bg-subtle);
+/* Without a hovering pointer the key shows on the block in use. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .row[data-active] .copyRefButton {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .copyRefButton {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .copyRefButton:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .copyRefButton[data-copied] {
@@ -594,7 +634,9 @@
   border-radius: var(--sf-radius-default);
   box-shadow: var(--sf-elevation-1);
   cursor: grab;
-  touch-action: none;
+  /* No `touch-action: none`: a swipe over the cards still scrolls the board,
+     and a finger that rests picks a card up (the touch sensor's delay). */
+  -webkit-touch-callout: none;
 }
 
 .card[data-dragging] {
@@ -664,9 +706,14 @@
   opacity: 0;
 }
 
-.image:hover > .imageGrip::after,
 .image[data-resizing] > .imageGrip::after {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .image:hover > .imageGrip::after {
+    opacity: 1;
+  }
 }
 
 /* A block type the app registered: its own content, in the block's column. */
@@ -888,4 +935,136 @@
    leading its mono metrics fall off the sans strut and the row gains a pixel. */
 .content :global(:not(pre) > code) {
   line-height: 1;
+}
+
+/* --- Touch toolbar ---------------------------------------------------------
+   The structure commands an on-screen keyboard has no keys for, as a bar
+   along the bottom edge of the visible page. It is rendered outside the root
+   (a portal), fixed to the window; the component raises `inset-block-end`
+   by the height the keyboard covers, so the bar sits directly above it. */
+.toolbar {
+  /* The bar's height, its top rule included: two units, and never under the
+     touch hit area. */
+  --sf-outliner-toolbar: max(calc(var(--sf-unit) * 2), calc(var(--sf-hit-min) + 1px));
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--sf-z-overlay);
+  box-sizing: border-box;
+  display: grid;
+  /* The command keys, which scroll sideways when they do not fit, then the
+     key that leaves the text, always in reach. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* Clear of a notch or a rounded corner in landscape. */
+  padding-inline: var(--sf-safe-left) var(--sf-safe-right);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  border-block-start: 1px solid var(--sf-color-border-strong);
+  font-family: var(--sf-font-sans);
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* On the bottom edge of the window (no keyboard under it), the bar clears
+   the home indicator. Above the keyboard there is nothing to clear. */
+.toolbar[data-docked] {
+  padding-block-end: var(--sf-safe-bottom);
+}
+
+.toolbarKeys {
+  display: grid;
+  grid-auto-flow: column;
+  /* A key is two units wide where there is room, and gives up width down to
+     the hit area (a control height for a mouse) before the row scrolls. */
+  grid-auto-columns: minmax(
+    max(var(--sf-hit-min), calc(var(--sf-unit) * 1.5)),
+    calc(var(--sf-unit) * 2)
+  );
+  justify-content: start;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+
+.toolbarKeys::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbarKey {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: calc(var(--sf-outliner-toolbar) - 1px);
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  color: inherit;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  cursor: pointer;
+  /* No double-tap zoom: a second tap on Undo is a second undo. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
+}
+
+/* The first key of a group: a hairline sets it off from the group before. */
+.toolbarKey[data-lead] {
+  border-inline-start: 1px solid var(--sf-color-border-subtle);
+}
+
+/* The key that leaves the text does not scroll with the others. */
+.toolbarDone {
+  inline-size: max(var(--sf-hit-min), calc(var(--sf-unit) * 2));
+  border-inline-start: 1px solid var(--sf-color-border-strong);
+}
+
+/* Pressed: the key sinks into the bar. */
+.toolbarKey:active:not([aria-disabled="true"]) {
+  background-color: var(--sf-color-bg-subtle);
+  box-shadow: var(--sf-groove);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .toolbarKey:hover:not([aria-disabled="true"]) {
+    background-color: var(--sf-color-bg-subtle);
+  }
+}
+
+/* A command that would do nothing now (outdent at the top level, undo with
+   no step to take back). The glyph dims; the key keeps its place. */
+.toolbarKey[aria-disabled="true"] {
+  cursor: default;
+}
+
+.toolbarKey[aria-disabled="true"] > svg {
+  opacity: 0.4;
+}
+
+.toolbarKey:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, -2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbarKey {
+    transition: none;
+  }
+}
+
+/* While the bar shows, the outline ends with room for it and for what is
+   under it: the on-screen keyboard (--sf-outliner-keyboard, its height in px,
+   set by the component) or the home indicator. The last block can then be
+   scrolled clear of the bar, in a page as in an outline that scrolls inside
+   itself. */
+.root[data-toolbar] > .tree::after {
+  content: "";
+  display: block;
+  block-size: calc(
+    max(calc(var(--sf-unit) * 2), calc(var(--sf-hit-min) + 1px)) +
+    max(var(--sf-safe-bottom), var(--sf-outliner-keyboard, 0px))
+  );
 }

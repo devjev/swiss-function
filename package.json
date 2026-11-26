@@ -423,9 +423,25 @@
       "types": "./dist/components/VerticalForm/index.d.ts",
       "import": "./dist/components/VerticalForm/index.js"
     },
+    "./lib/hit-area": {
+      "types": "./dist/lib/hitArea.d.ts",
+      "import": "./dist/lib/hitArea.js"
+    },
     "./lib/use-collapse": {
       "types": "./dist/lib/useCollapse.d.ts",
       "import": "./dist/lib/useCollapse.js"
+    },
+    "./lib/use-fit-text": {
+      "types": "./dist/lib/useFitText.d.ts",
+      "import": "./dist/lib/useFitText.js"
+    },
+    "./lib/use-long-press": {
+      "types": "./dist/lib/useLongPress.d.ts",
+      "import": "./dist/lib/useLongPress.js"
+    },
+    "./lib/use-media-query": {
+      "types": "./dist/lib/useMediaQuery.d.ts",
+      "import": "./dist/lib/useMediaQuery.js"
     },
     "./lib/use-overflow": {
       "types": "./dist/lib/useOverflow.d.ts",
@@ -444,6 +460,8 @@
     "bench": "vitest bench --run",
     "perf": "node scripts/perf/run.mjs",
     "perf:update": "node scripts/perf/run.mjs --update",
+    "mobile": "node scripts/mobile/audit.mjs",
+    "mobile:update": "node scripts/mobile/audit.mjs --update",
     "size": "node scripts/perf/size.mjs",
     "size:update": "node scripts/perf/size.mjs --update",
     "vrt": "playwright test -c playwright-vrt.config.ts",
@@ -470,7 +488,7 @@
     "@fontsource/jetbrains-mono": "^5.2.8"
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
+    "@base-ui/react": "^1.9.0",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
     "@codemirror/language": "^6.12.4",

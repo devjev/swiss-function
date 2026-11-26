@@ -9,7 +9,14 @@
   inset: 0;
   z-index: var(--sf-z-modal);
   display: grid;
+  /* Clear of a notch and the home indicator (0 on a plain viewport). */
+  padding: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
   background-color: var(--sf-color-bg);
+}
+
+/* Absolutely placed, so the root's padding does not move it: a margin does. */
+.expanded .toggle {
+  margin: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
 }
 
 .expanded .content {
@@ -36,8 +43,10 @@
   cursor: pointer;
 }
 
-.toggle:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .toggle:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .toggle:focus-visible {

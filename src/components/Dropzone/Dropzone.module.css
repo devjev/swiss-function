@@ -27,8 +27,10 @@
     background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.zone:hover:not(:disabled) {
-  border-color: var(--sf-color-primary);
+@media (hover: hover) and (pointer: fine) {
+  .zone:hover:not(:disabled) {
+    border-color: var(--sf-color-primary);
+  }
 }
 
 .zone:focus-visible {
@@ -133,11 +135,18 @@
   cursor: pointer;
 }
 
-.remove:hover,
 .remove:focus-visible {
   color: var(--sf-color-fg);
   background-color: var(--sf-color-bg-subtle);
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .remove:hover {
+    color: var(--sf-color-fg);
+    background-color: var(--sf-color-bg-subtle);
+    outline: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -368,8 +368,7 @@
    groove. Hover stays neutral too. Flush with the chat's frame, the field keeps
    only its top border (the rule under the messages); its sides and bottom would
    double the chat's own. */
-.inputRow .input,
-.inputRow .input:hover:not(:disabled) {
+.inputRow .input {
   /* Room for the prompt sign (one character and a space) at the start. */
   padding-inline-start: calc(var(--sf-unit) / 2 + 2ch);
   /* Room for the send key at the field's end: a quarter unit of inset, the
@@ -384,6 +383,24 @@
   max-block-size: calc(var(--sf-unit) * 8);
   /* The slot: the groove recipe, as Input. */
   box-shadow: var(--sf-groove);
+}
+@media (hover: hover) and (pointer: fine) {
+  .inputRow .input:hover:not(:disabled) {
+    /* Room for the prompt sign (one character and a space) at the start. */
+    padding-inline-start: calc(var(--sf-unit) / 2 + 2ch);
+    /* Room for the send key at the field's end: a quarter unit of inset, the
+     one-unit key, a quarter unit of gutter. */
+    padding-inline-end: calc(var(--sf-unit) * 1.5);
+    border-color: var(--sf-chat-input-border);
+    border-inline: 0;
+    border-block-end: 0;
+    border-radius: 0;
+    resize: none;
+    min-block-size: calc(var(--sf-unit) * 1.5);
+    max-block-size: calc(var(--sf-unit) * 8);
+    /* The slot: the groove recipe, as Input. */
+    box-shadow: var(--sf-groove);
+  }
 }
 /* Focus shows as the caret and the prompt sign. The field spans the chat's
    whole width, so a ring here would redraw the frame's lower edge in the

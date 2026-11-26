@@ -1,6 +1,6 @@
 import type { Story } from "@ladle/react";
 import { useState } from "react";
-import { Calendar, type CalendarEvent, type CalendarView } from "./Calendar";
+import { Calendar, type CalendarEvent, type CalendarView, type CalendarWeekDays } from "./Calendar";
 
 // A fixed anchor so the stories render identically every run: Wednesday
 // 2026-03-11, in the ISO week Mon 2026-03-09 .. Sun 2026-03-15. `NOW` fixes the
@@ -62,7 +62,8 @@ export default { title: "Calendar" };
 export const Playground: Story<{
   defaultView: CalendarView;
   showWeekNumbers: boolean;
-}> = ({ defaultView, showWeekNumbers }) => {
+  weekDays: "auto" | "7" | "3" | "1";
+}> = ({ defaultView, showWeekNumbers, weekDays }) => {
   const [last, setLast] = useState("(click a day, hour slot, or event)");
   return (
     <div style={{ height: 640, maxWidth: 1000 }}>
@@ -72,6 +73,7 @@ export const Playground: Story<{
         now={NOW}
         defaultView={defaultView}
         showWeekNumbers={showWeekNumbers}
+        weekDays={weekDays === "auto" ? "auto" : (Number(weekDays) as CalendarWeekDays)}
         onEventClick={(e) => setLast(`event: ${e.title}`)}
         onDateClick={(d) => setLast(`date: ${d.toLocaleString()}`)}
         onViewChange={(v) => setLast(`view: ${v}`)}
@@ -89,9 +91,10 @@ export const Playground: Story<{
     </div>
   );
 };
-Playground.args = { defaultView: "month", showWeekNumbers: false };
+Playground.args = { defaultView: "month", showWeekNumbers: false, weekDays: "auto" };
 Playground.argTypes = {
   defaultView: { options: ["month", "week", "year"], control: { type: "inline-radio" } },
+  weekDays: { options: ["auto", "7", "3", "1"], control: { type: "inline-radio" } },
 };
 
 export const Month: Story = () =>
@@ -126,3 +129,34 @@ export const Controlled: Story = () => {
     />,
   );
 };
+
+// --- Narrow containers -------------------------------------------------------
+// The calendar reads its own width, so a narrow frame shows the phone forms on
+// a desktop too. `maxWidth`, so the frame also shrinks with a phone's page.
+// Uncontrolled: prev / next step through the days.
+
+const narrow = (maxWidth: number, children: React.ReactNode) => (
+  <div style={{ height: 640, maxWidth }}>{children}</div>
+);
+
+/** A phone held upright: the week view shows three days from the focused
+ *  date, prev / next step by three, and the toolbar takes two rows. */
+export const NarrowWeek: Story = () =>
+  narrow(390, <Calendar events={EVENTS} defaultValue={FOCUS} now={NOW} defaultView="week" />);
+
+/** Narrower still (a side panel): one day. */
+export const NarrowDay: Story = () =>
+  narrow(280, <Calendar events={EVENTS} defaultValue={FOCUS} now={NOW} defaultView="week" />);
+
+/** The month grid in the same frame: weekday names, one-day bars without a
+ *  label, and "+N" for the events that do not fit. */
+export const NarrowMonth: Story = () =>
+  narrow(390, <Calendar events={EVENTS} defaultValue={FOCUS} now={NOW} defaultView="month" />);
+
+/** `weekDays={7}` keeps the whole week in a narrow frame: the day number goes
+ *  under the weekday name, and a block shows what it has room for. */
+export const NarrowSevenDays: Story = () =>
+  narrow(
+    390,
+    <Calendar events={EVENTS} defaultValue={FOCUS} now={NOW} defaultView="week" weekDays={7} />,
+  );

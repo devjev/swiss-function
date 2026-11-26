@@ -145,9 +145,14 @@
   cursor: pointer;
 }
 
-.bar:hover,
 .bar:focus-visible {
   filter: brightness(1.1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bar:hover {
+    filter: brightness(1.1);
+  }
 }
 
 .bar:focus-visible {
@@ -267,8 +272,10 @@
   cursor: pointer;
 }
 
-.resetButton:hover {
-  border-color: var(--sf-color-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    border-color: var(--sf-color-border-strong);
+  }
 }
 
 .resetButton:focus-visible {

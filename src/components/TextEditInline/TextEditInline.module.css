@@ -40,7 +40,7 @@
   color: var(--sf-color-fg);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--tei-fs);
+  font-size: max(var(--tei-fs), var(--sf-text-entry-min));
   line-height: var(--tei-lh);
   /* At rest the field is a slot like Input (the groove recipe), so it sits in
      a row of other slots at the same depth; expanded, the editor lifts off. */

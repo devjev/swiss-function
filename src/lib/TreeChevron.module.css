@@ -26,9 +26,11 @@
   block-size: calc(var(--sf-chevron-size, calc(var(--sf-unit) * 0.75)) * 0.72);
 }
 
-.chevron:hover {
-  background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
-  color: var(--sf-color-fg);
+@media (hover: hover) and (pointer: fine) {
+  .chevron:hover {
+    background-color: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-fg) 6%);
+    color: var(--sf-color-fg);
+  }
 }
 
 .chevron:focus-visible {

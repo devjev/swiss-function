@@ -69,8 +69,10 @@
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.spaceBtn:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .spaceBtn:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .spaceBtn:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -154,8 +156,10 @@
 button.swatch {
   cursor: pointer;
 }
-button.swatch:hover {
-  border-color: var(--sf-color-fg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  button.swatch:hover {
+    border-color: var(--sf-color-fg-subtle);
+  }
 }
 button.swatch:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

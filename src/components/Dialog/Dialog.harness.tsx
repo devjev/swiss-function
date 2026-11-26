@@ -9,6 +9,7 @@ export function DialogWindowHarness({
   defaultWidth,
   defaultHeight,
   popOut,
+  fullscreen,
 }: {
   draggable?: boolean;
   resizable?: boolean;
@@ -16,6 +17,7 @@ export function DialogWindowHarness({
   defaultHeight?: number;
   /** Renders a `Dialog.PopOut` chrome button. */
   popOut?: boolean;
+  fullscreen?: boolean | "narrow";
 }) {
   return (
     <Dialog.Root defaultOpen>
@@ -27,6 +29,7 @@ export function DialogWindowHarness({
           resizable={resizable}
           defaultWidth={defaultWidth}
           defaultHeight={defaultHeight}
+          fullscreen={fullscreen}
           popOutTitle="CT dialog"
           data-testid="popup"
         >

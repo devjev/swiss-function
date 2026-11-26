@@ -50,6 +50,16 @@ perf:
 perf-update:
     npm run perf:update
 
+# Phone audit: every story at 390px with touch, against a running Ladle
+# (just dev): page overflow, clipped controls, colliding text, hit areas
+# under 24px, text fields under 16px. Fails above perf/mobile-baseline.json
+mobile:
+    npm run mobile
+
+# Rewrite the phone-audit baseline from this run
+mobile-update:
+    npm run mobile:update
+
 # Measure per-entry bundle sizes of dist (build first)
 size:
     npm run size

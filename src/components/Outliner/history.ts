@@ -44,6 +44,15 @@ export class History<U> {
     this.typing = null;
   }
 
+  /** Whether there is a step to undo, and one to redo. */
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
   /** Step back: returns the state to restore, given the current one. */
   undo(current: HistoryState<U>): HistoryState<U> | null {
     const state = this.undoStack.pop();

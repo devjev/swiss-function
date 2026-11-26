@@ -23,6 +23,7 @@ import {
   startOfPeriod,
   yearPageStart,
 } from "../../lib/date";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
@@ -645,7 +646,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
         {clearable && selected && !disabled ? (
           <button
             type="button"
-            className={styles.clear}
+            className={`${styles.clear} ${hitArea.block}`}
             aria-label="Clear date"
             onClick={() => commit(null)}
           >
@@ -659,7 +660,7 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
             through the input's focus handler and reopen the calendar. */}
         <button
           type="button"
-          className={styles.trigger}
+          className={`${styles.trigger} ${hitArea.block}`}
           tabIndex={-1}
           disabled={disabled}
           aria-label={open ? "Hide calendar" : "Show calendar"}

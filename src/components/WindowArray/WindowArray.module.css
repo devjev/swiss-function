@@ -187,11 +187,15 @@
   block-size: 2px;
   transform: translateY(-50%);
 }
-.gutter[data-resizable]:hover::after,
 .gutter[data-resizable]:focus-visible::after,
 .gutter[data-dragging]::after,
 .gutter[data-drop-active]::after {
   background-color: var(--sf-color-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .gutter[data-resizable]:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 .root[data-has-fullscreen] .gutter,
 .root[data-has-split] .gutter {
@@ -389,8 +393,10 @@
   cursor: pointer;
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.iconButton:hover {
-  background-color: var(--sf-color-bg);
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover {
+    background-color: var(--sf-color-bg);
+  }
 }
 .iconButton:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -509,8 +515,10 @@
   opacity: 1;
   pointer-events: auto;
 }
-.pager:hover:not(:disabled) {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .pager:hover:not(:disabled) {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .pager:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
@@ -533,7 +541,7 @@
 }
 
 /* No hover pointer to approach an edge with: the paddles stay visible. */
-@media (hover: none) {
+@media not ((hover: hover) and (pointer: fine)) {
   .pager {
     opacity: 1;
     pointer-events: auto;

@@ -31,6 +31,7 @@ import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
+import { useCoarsePointer } from "../../lib/useMediaQuery";
 import { ChevronRight } from "../Icon";
 import { Markdown } from "../Markdown";
 import { Popover } from "../Popover";
@@ -82,8 +83,10 @@ import {
 import styles from "./Outliner.module.css";
 import { OutlinerBullet } from "./OutlinerBullet";
 import type { BulletPointerDown } from "./OutlinerDrag";
+import { OutlinerToolbar, scrollUpBy } from "./OutlinerToolbar";
 import { DueChip } from "./OutlinerWidgets";
 import { blockSelection, extendSelection } from "./selection";
+import { type OutlinerCommand, structureMoves } from "./toolbar";
 import {
   deleteBullet,
   deleteSubtree,
@@ -252,11 +255,13 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       reorderable = true,
       virtualized = false,
       frame = true,
+      toolbar = "auto",
       apiRef,
       "aria-label": ariaLabel,
       "aria-labelledby": ariaLabelledBy,
       className,
       onKeyDown,
+      onFocus,
       onBlur,
       onCopy,
       onCut,
@@ -281,6 +286,10 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
     const [rootState, setRootState] = useState<BulletId | null>(defaultRoot);
     /** The rows being dragged by a bullet, with their children. */
     const [dragging, setDragging] = useState<ReadonlySet<BulletId> | null>(null);
+    /** The caret is in this outline's own text, and not in an embedded block's
+     *  (an outline of its own inside this one, which leaves this one holding
+     *  the block it was editing). */
+    const [ownCaret, setOwnCaret] = useState(false);
 
     // --- Zoom: everything below edits `value`, the view. Unzoomed it is the
     // whole tree; zoomed, a tree of one block (see zoom.ts) ---
@@ -360,6 +369,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
 
     const rootRef = useRef<HTMLDivElement>(null);
     const treeRef = useRef<HTMLDivElement>(null);
+    /** The touch toolbar's bar, which sits outside the root (a portal). */
+    const toolbarRef = useRef<HTMLDivElement>(null);
     const rowRefs = useRef(new Map<BulletId, HTMLDivElement>());
     const editorRefs = useRef(new Map<BulletId, HTMLTextAreaElement>());
     const pendingCaret = useRef<Caret | null>(null);
@@ -925,6 +936,88 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       [commit],
     );
 
+    // --- Structure commands in a block's text: the chords and the touch
+    // toolbar's keys run the same function ---
+    /** A tree change on the block being edited that keeps the caret where it is. */
+    const changeInPlace = useCallback(
+      (id: BulletId, next: OutlinerValue) => {
+        const textarea = editorRefs.current.get(id);
+        if (!textarea || !commit(next)) return;
+        pendingCaret.current = { id, start: textarea.selectionStart, end: textarea.selectionEnd };
+        rerender();
+      },
+      [commit],
+    );
+
+    const runCommand = useCallback(
+      (id: BulletId, command: OutlinerCommand) => {
+        const textarea = editorRefs.current.get(id);
+        if (!textarea) return;
+        const tree = latest.current.value;
+        switch (command) {
+          case "outdent":
+            changeInPlace(id, outdent(tree, id));
+            return;
+          case "indent":
+            changeInPlace(id, indent(tree, id));
+            return;
+          case "moveUp":
+            changeInPlace(id, moveUp(tree, id));
+            return;
+          case "moveDown":
+            changeInPlace(id, moveDown(tree, id));
+            return;
+          case "task": {
+            // No task, open, done.
+            const text = cycleTask(textarea.value);
+            const shift = text.length - textarea.value.length;
+            applyEdit(id, {
+              text,
+              start: Math.max(0, textarea.selectionStart + shift),
+              end: Math.max(0, textarea.selectionEnd + shift),
+            });
+            return;
+          }
+          case "undo":
+          case "redo":
+            // One history for text and structure: the textarea's own undo would
+            // know nothing of a split or a merge.
+            travel(command);
+            return;
+          case "done":
+            // Leave the text; the block stays selected.
+            select(id);
+            return;
+        }
+      },
+      [changeInPlace, applyEdit, travel, select],
+    );
+
+    /** A key of the touch toolbar: the command, on the block being edited. */
+    const handleToolbarCommand = useCallback(
+      (command: OutlinerCommand) => {
+        const { editingId: id, dragging: dragged } = latest.current;
+        const textarea = id ? editorRefs.current.get(id) : undefined;
+        if (!id || !textarea || dragged) return;
+        // A press on a key leaves the focus in the text. A key activated some
+        // other way (a screen reader) may have taken it: the text has it back
+        // before the command runs, so the on-screen keyboard stays.
+        if (command !== "done" && textarea.ownerDocument.activeElement !== textarea) {
+          textarea.focus({ preventScroll: true });
+        }
+        // What the key handler notes before a chord: the end of a run of
+        // Arrow Up / Down, and the caret an undo of this change returns to.
+        goalX.current = null;
+        caretBefore.current = {
+          id,
+          start: textarea.selectionStart,
+          end: textarea.selectionEnd,
+        };
+        runCommand(id, command);
+      },
+      [runCommand],
+    );
+
     // --- Keys in a block's text ---
     const handleEditorKeyDown = useCallback(
       (id: BulletId, e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -968,14 +1061,6 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           }
         }
 
-        /** Apply a tree change that keeps the caret where it is. */
-        const inPlace = (next: OutlinerValue) => {
-          e.preventDefault();
-          if (!commit(next)) return;
-          pendingCaret.current = { id, start, end };
-          rerender();
-        };
-
         const zoom = latest.current.zoomable ? zoomKey(e, true) : null;
         if (zoom) {
           e.preventDefault();
@@ -1010,10 +1095,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         if (mod && !e.altKey) {
           const key = e.key.toLowerCase();
           if (key === "z" || key === "y") {
-            // One history for text and structure: the textarea's own undo would
-            // know nothing of a split or a merge.
             e.preventDefault();
-            travel(key === "y" || e.shiftKey ? "redo" : "undo");
+            runCommand(id, key === "y" || e.shiftKey ? "redo" : "undo");
             return;
           }
           // Formatting chords: bold, italic, link, strikethrough, highlight.
@@ -1037,13 +1120,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           if (e.key === "Enter" && !e.shiftKey) {
             // Mod+Enter: no task, open, done.
             e.preventDefault();
-            const text = cycleTask(textarea.value);
-            const shift = text.length - textarea.value.length;
-            applyEdit(id, {
-              text,
-              start: Math.max(0, start + shift),
-              end: Math.max(0, end + shift),
-            });
+            runCommand(id, "task");
             return;
           }
           if (key === "a" && start === 0 && end === length) {
@@ -1061,7 +1138,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         switch (e.key) {
           case "Escape": {
             e.preventDefault();
-            select(id);
+            runCommand(id, "done");
             return;
           }
           case "Enter": {
@@ -1102,7 +1179,8 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
               applyEdit(id, codeTab(textarea.value, start, end), true);
               return;
             }
-            inPlace(e.shiftKey ? outdent(tree, id) : indent(tree, id));
+            e.preventDefault();
+            runCommand(id, e.shiftKey ? "outdent" : "indent");
             return;
           }
           case "Backspace": {
@@ -1147,15 +1225,17 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
           case "ArrowDown": {
             const up = e.key === "ArrowUp";
             if (e.shiftKey && (mod || e.altKey)) {
-              inPlace(up ? moveUp(tree, id) : moveDown(tree, id));
+              e.preventDefault();
+              runCommand(id, up ? "moveUp" : "moveDown");
               return;
             }
             if (mod && !e.altKey) {
               // The zoomed block always shows its children.
               const self = findBullet(tree, id)?.bullet;
+              e.preventDefault();
               if (self?.children?.length && id !== latest.current.rootId) {
-                inPlace(setCollapsed(tree, id, up));
-              } else e.preventDefault();
+                changeInPlace(id, setCollapsed(tree, id, up));
+              }
               return;
             }
             if (e.altKey) return;
@@ -1209,13 +1289,14 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         commit,
         editAt,
         select,
-        travel,
         history,
         applyEdit,
         acceptCompletion,
         closeCompletion,
         zoomTo,
         zoomOut,
+        runCommand,
+        changeInPlace,
       ],
     );
 
@@ -1511,18 +1592,30 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
       if (commit(pasted)) select(last.id, first.id);
     };
 
+    // --- Which outline has the caret: this one, or an embedded block in it ---
+    const handleFocus = (e: FocusEvent<HTMLDivElement>) => {
+      onFocus?.(e);
+      // A key of the touch toolbar that took the focus: the caret is where it was.
+      const target: Element = e.target;
+      if (toolbarRef.current?.contains(target)) return;
+      setOwnCaret(editingId !== null && target === editorRefs.current.get(editingId));
+    };
+
     // --- Focus leaving the outline drops the selection and the caret ---
     const handleBlur = (e: FocusEvent<HTMLDivElement>) => {
       onBlur?.(e);
       const root = rootRef.current;
       if (!root) return;
-      const next = e.relatedTarget as Node | null;
-      if (next && root.contains(next)) return;
+      // The touch toolbar belongs to the outline, though its bar is outside
+      // the root.
+      const inside = (node: Node | null) =>
+        node !== null && (root.contains(node) || toolbarRef.current?.contains(node) === true);
+      if (inside(e.relatedTarget as Node | null)) return;
       // The textarea of a block being left unmounts before the next one takes
       // the focus, so look again once that has happened.
       const doc = root.ownerDocument;
       (doc.defaultView ?? window).requestAnimationFrame(() => {
-        if (root.contains(doc.activeElement)) return;
+        if (inside(doc.activeElement)) return;
         select(null);
       });
     };
@@ -1717,6 +1810,7 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
             blockTypes={blockTypes}
             commands={commandsOn}
             onUpload={onUpload}
+            toolbar={toolbar}
             aria-label="Embedded block"
           />
         </EmbedChainContext>
@@ -1759,6 +1853,70 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         redo: () => travel("redo"),
       }),
       [select, editAt, reveal, travel, history],
+    );
+
+    // --- Touch toolbar: the structure commands as keys above the on-screen
+    // keyboard, while a block is being edited (never in read-only mode, where
+    // no block is) ---
+    const coarse = useCoarsePointer();
+    const toolbarOn = toolbar === true || (toolbar === "auto" && coarse);
+    // Only the outline that has the caret shows the bar, so an embedded block
+    // and the outline around it never show two.
+    const toolbarBlock = toolbarOn && ownCaret ? editingId : null;
+    const toolbarAt = toolbarBlock ? visible.get(toolbarBlock) : undefined;
+    const canUndo = history.canUndo;
+    const canRedo = history.canRedo;
+    const toolbarDisabled = useMemo(() => {
+      const off = new Set<OutlinerCommand>();
+      if (toolbarAt === undefined) return off;
+      const moves = structureMoves(flat, toolbarAt, zoomed !== null);
+      if (!moves.outdent) off.add("outdent");
+      if (!moves.indent) off.add("indent");
+      if (!moves.moveUp) off.add("moveUp");
+      if (!moves.moveDown) off.add("moveDown");
+      if (!canUndo) off.add("undo");
+      if (!canRedo) off.add("redo");
+      return off;
+    }, [flat, toolbarAt, zoomed, canUndo, canRedo]);
+
+    /** Keep the caret's line above the bar. The bar covers the bottom of the
+     *  visible page, where the browser's own scrolling puts a line it brings
+     *  into view. */
+    const clearToolbar = useCallback(() => {
+      const id = latest.current.editingId;
+      const bar = toolbarRef.current;
+      const row = id ? rowRefs.current.get(id) : undefined;
+      if (!bar || !row) return;
+      const top = bar.getBoundingClientRect().top;
+      const rowEnd = row.getBoundingClientRect().bottom;
+      if (rowEnd <= top) return;
+      // The row reaches under the bar. In a block of several lines the caret
+      // may be on one that still shows, so that line is the one measured.
+      const textarea = id ? editorRefs.current.get(id) : undefined;
+      const lineEnd = textarea
+        ? caretRect(textarea, textarea.selectionEnd).bottom +
+          (rowEnd - textarea.getBoundingClientRect().bottom)
+        : rowEnd;
+      scrollUpBy(row, Math.min(rowEnd, lineEnd) - top);
+    }, []);
+    // When the block, its place or its text changes (a keystroke can add a
+    // line), and not on every render: a page the user scrolled away from the
+    // block stays where they put it. It comes after the effect that places the
+    // caret and scrolls its row into view.
+    const toolbarText = toolbarAt === undefined ? undefined : flat[toolbarAt]?.bullet.content;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: the place and the text are what it runs on
+    useLayoutEffect(() => {
+      if (toolbarBlock) clearToolbar();
+    }, [toolbarBlock, toolbarAt, toolbarText, clearToolbar]);
+    /** The bar took its place above the keyboard. The outline ends with room
+     *  for both (see the style sheet), so its last block can be scrolled clear
+     *  of them without waiting for the browser to pan the page. */
+    const placeToolbar = useCallback(
+      (inset: number) => {
+        rootRef.current?.style.setProperty("--sf-outliner-keyboard", `${inset}px`);
+        clearToolbar();
+      },
+      [clearToolbar],
     );
 
     const canDrag = reorderable && !readOnly;
@@ -1824,7 +1982,9 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
         data-outliner=""
         data-frameless={!frame || undefined}
         data-virtualized={virtualized || undefined}
+        data-toolbar={toolbarBlock ? "" : undefined}
         onKeyDown={handleRootKeyDown}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         onCopy={handleCopy}
         onCut={handleCut}
@@ -1925,6 +2085,15 @@ export const Outliner = forwardRef<HTMLDivElement, OutlinerProps>(
               overlayClassName={styles.dragLabel}
             />
           </Suspense>
+        )}
+        {toolbarBlock && (
+          <OutlinerToolbar
+            barRef={toolbarRef}
+            container={rootRef.current?.ownerDocument.body ?? null}
+            disabled={toolbarDisabled}
+            onCommand={handleToolbarCommand}
+            onPlaced={placeToolbar}
+          />
         )}
         {completion && completionAnchor && (
           <Popover.Root

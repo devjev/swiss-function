@@ -1,5 +1,6 @@
 import type { MouseEvent, ReactElement } from "react";
 import { ChevronDown, ChevronRight } from "../components/Icon";
+import { hitArea } from "./hitArea";
 import { Glyph } from "./icons";
 import styles from "./TreeChevron.module.css";
 
@@ -32,7 +33,7 @@ export function TreeChevron({
   return (
     <button
       type="button"
-      className={styles.chevron}
+      className={`${styles.chevron} ${hitArea.inline}`}
       onClick={handleClick}
       onPointerDown={(e) => e.stopPropagation()}
       aria-label={ariaLabel ?? (expanded ? "Collapse" : "Expand")}

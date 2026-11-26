@@ -221,10 +221,12 @@
   text-decoration: none;
 }
 
-.rendered :is(a, [data-link]):hover {
-  color: var(--_link-hover-color);
-  text-decoration-color: var(--_link-hover-rule);
-  text-decoration-thickness: var(--_link-hover-thickness);
+@media (hover: hover) and (pointer: fine) {
+  .rendered :is(a, [data-link]):hover {
+    color: var(--_link-hover-color);
+    text-decoration-color: var(--_link-hover-rule);
+    text-decoration-thickness: var(--_link-hover-thickness);
+  }
 }
 
 .rendered :is(a, [data-link]):focus-visible {
@@ -271,8 +273,10 @@
   scrollbar-width: var(--sf-scrollbar-width);
   scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
 }
-.rendered pre:hover {
-  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+@media (hover: hover) and (pointer: fine) {
+  .rendered pre:hover {
+    scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+  }
 }
 .rendered pre code {
   /* A block of its own: as an inline box its mono metrics would sit off the

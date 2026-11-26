@@ -51,11 +51,18 @@ button.row {
   color: var(--sf-color-fg);
 }
 
-button.row:hover {
-  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
+@media (hover: hover) and (pointer: fine) {
+  button.row:hover {
+    background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
+  }
 }
 
-button.row:hover .label,
 button.row:focus-visible .label {
   color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.row:hover .label {
+    color: var(--sf-color-primary);
+  }
 }

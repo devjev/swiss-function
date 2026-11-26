@@ -171,9 +171,11 @@
 .handle:active {
   cursor: grabbing;
 }
-.handle:hover {
-  color: var(--sf-color-fg);
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .handle:hover {
+    color: var(--sf-color-fg);
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .handle:focus-visible {
   outline: var(--sf-focus-ring-width) solid var(--sf-color-primary);

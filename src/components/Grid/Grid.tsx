@@ -2,6 +2,7 @@ import { useRender } from "@base-ui/react/use-render";
 import type { CSSProperties, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import styles from "./Grid.module.css";
 
@@ -133,6 +134,13 @@ function axisTemplate(
 export interface GridProps extends Omit<HTMLAttributes<HTMLElement>, "children"> {
   /** `number` → `repeat(N, minmax(0, 1fr))`; `string` → raw value; `array` → joined (numbers become `Nfr`). */
   columns?: TrackList;
+  /** As many equal columns as fit, none narrower than this, down to a single
+   *  column in a container narrower than it: the grid reflows on a phone with
+   *  no breakpoint (`repeat(auto-fit, minmax(min(100%, W), 1fr))`). A number
+   *  is `--sf-unit` multiples, a string any CSS length. Ignored when `columns`
+   *  is set; such a grid has no fixed track boundaries, so `resizable` does
+   *  not apply to its columns. */
+  minColumnWidth?: number | string;
   /** Same shape as `columns`. */
   rows?: TrackList;
   /** Each entry is one row of `grid-template-areas`; serialized as quoted lines. */
@@ -191,11 +199,21 @@ function buildTrackList(value: TrackList): string {
   return value.map((v) => (typeof v === "number" ? `${v}fr` : v)).join(" ");
 }
 
+/** The template of `minColumnWidth`: columns of at least that width, as many
+ *  as fit, sharing the row. `min(100%, W)` lets the last column standing take
+ *  a container narrower than W instead of overflowing it. */
+export function autoFitColumns(minColumnWidth: number | string): string {
+  return `repeat(auto-fit, minmax(min(100%, ${toUnit(minColumnWidth)}), 1fr))`;
+}
+
 function buildGridStyle(props: GridProps): CSSProperties {
   const style: CSSProperties = {
     display: props.inline ? "inline-grid" : "grid",
   };
   if (props.columns !== undefined) style.gridTemplateColumns = buildTrackList(props.columns);
+  else if (props.minColumnWidth !== undefined) {
+    style.gridTemplateColumns = autoFitColumns(props.minColumnWidth);
+  }
   if (props.rows !== undefined) style.gridTemplateRows = buildTrackList(props.rows);
   if (props.areas !== undefined) {
     style.gridTemplateAreas = props.areas.map((row) => `"${row}"`).join(" ");
@@ -237,6 +255,7 @@ function buildItemStyle(props: GridItemProps): CSSProperties {
 const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
   const {
     columns,
+    minColumnWidth,
     rows,
     areas,
     gap,
@@ -461,6 +480,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
 
   const computedStyle = buildGridStyle({
     columns,
+    minColumnWidth,
     rows,
     areas,
     gap,
@@ -504,7 +524,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
                 tabIndex={0}
                 data-axis="col"
                 data-index={i}
-                className={styles.gutterCol}
+                className={`${styles.gutterCol} ${hitArea.handle}`}
                 style={{ left: `${offset}px` }}
                 onPointerDown={onGutterDown}
                 onDoubleClick={() => resetGutter("col", i)}
@@ -526,7 +546,7 @@ const GridRoot = forwardRef<HTMLElement, GridProps>(function Grid(props, ref) {
                 tabIndex={0}
                 data-axis="row"
                 data-index={i}
-                className={styles.gutterRow}
+                className={`${styles.gutterRow} ${hitArea.handle}`}
                 style={{ top: `${offset}px` }}
                 onPointerDown={onGutterDown}
                 onDoubleClick={() => resetGutter("row", i)}

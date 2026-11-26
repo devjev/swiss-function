@@ -48,8 +48,10 @@
   cursor: pointer;
 }
 
-.result:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .result:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .resultText,
@@ -139,8 +141,10 @@
   text-decoration: none;
 }
 
-.preview:hover {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .preview:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .previewText {

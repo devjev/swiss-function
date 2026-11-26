@@ -11,7 +11,7 @@
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  font-size: max(var(--sf-font-size-md), var(--sf-text-entry-min));
   line-height: var(--sf-line-height-tight);
   /* DOS-style chunky caret in primary. */
   caret-shape: block;
@@ -31,7 +31,7 @@
 .input[data-size="sm"] {
   block-size: var(--sf-unit);
   padding-inline: calc(var(--sf-unit) / 3);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 .input[data-size="lg"] {
   block-size: calc(var(--sf-unit) * 2);
@@ -74,8 +74,10 @@
   color: var(--sf-color-muted);
 }
 
-.input:hover:not(:disabled) {
-  border-color: var(--sf-color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .input:hover:not(:disabled) {
+    border-color: var(--sf-color-primary-hover);
+  }
 }
 
 .input:focus-visible {
@@ -141,9 +143,13 @@
    commits, so it takes the same shade plus an accent rule down its leading
    edge: the stronger of the two however they overlap, and told apart by a mark
    rather than by a second shade a hair darker than the first. */
-.item:hover,
 .item[data-highlighted] {
   background-color: var(--sf-color-bg-subtle);
+}
+@media (hover: hover) and (pointer: fine) {
+  .item:hover {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .item[data-highlighted] {
@@ -216,7 +222,7 @@
   font-size: var(--sf-font-size-sm);
 }
 .inputGroup[data-size="sm"] .input {
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 .inputGroup[data-size="lg"] {
   min-block-size: calc(var(--sf-unit) * 2);
@@ -227,8 +233,10 @@
   font-size: var(--sf-font-size-lg);
 }
 
-.inputGroup:hover {
-  border-color: var(--sf-color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .inputGroup:hover {
+    border-color: var(--sf-color-primary-hover);
+  }
 }
 
 .inputGroup:focus-within {
@@ -250,10 +258,16 @@
   outline: none;
 }
 
-.inputGroup .input:hover:not(:disabled),
 .inputGroup .input:focus-visible {
   border: none;
   outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .inputGroup .input:hover:not(:disabled) {
+    border: none;
+    outline: none;
+  }
 }
 
 .chips {
@@ -301,9 +315,14 @@
   transition: color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.chipRemove:hover,
 .chipRemove:focus-visible {
   color: var(--sf-color-fg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chipRemove:hover {
+    color: var(--sf-color-fg);
+  }
 }
 
 .chipRemove:focus-visible {
@@ -324,9 +343,14 @@
   transition: color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.clear:hover,
 .clear:focus-visible {
   color: var(--sf-color-fg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .clear:hover {
+    color: var(--sf-color-fg);
+  }
 }
 
 .clear:focus-visible {

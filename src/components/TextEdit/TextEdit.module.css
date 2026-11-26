@@ -14,7 +14,7 @@
   box-shadow: var(--sf-groove);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  font-size: max(var(--sf-font-size-md), var(--sf-text-entry-min));
   /* line-height = --sf-leading-base so multi-line text lands on the unit baseline grid. */
   line-height: var(--sf-leading-base);
   caret-shape: block;
@@ -39,8 +39,10 @@
   color: var(--sf-color-muted);
 }
 
-.root:hover:not(:disabled) {
-  border-color: var(--sf-color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .root:hover:not(:disabled) {
+    border-color: var(--sf-color-primary-hover);
+  }
 }
 
 .root:focus {

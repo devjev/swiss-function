@@ -11,6 +11,8 @@ import {
   useState,
 } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
+import { resolveThresholdPx } from "../../lib/useCollapse";
 import { type DragDelta, usePointerDrag } from "../../lib/usePointerDrag";
 import styles from "./SplitPane.module.css";
 
@@ -25,6 +27,12 @@ export type SplitSize = number | string;
 const MIN_MAIN = 96;
 /** Keyboard resize step (px). */
 const KEY_STEP = 24;
+/** Default `overlayAt`, in units: a container narrower than this (400px at the
+ *  compact density, 480px at the comfortable one) has no room for two panes. */
+const DEFAULT_OVERLAY_AT = 20;
+/** The strip of the main pane an overlaid panel leaves showing (px): what is
+ *  left to see of the page underneath, and to tap to close the panel. */
+const OVERLAY_GAP = 48;
 
 interface ParsedSize {
   px?: number;
@@ -49,6 +57,9 @@ interface SplitContextValue {
   open: boolean;
   /** The panel's resolved size in px. */
   size: number;
+  /** The container is too narrow for two panes: the panel lies over the main
+   *  pane instead of pushing it aside (see `overlayAt`). */
+  overlay: boolean;
   /** Set the open state (honors controlled/uncontrolled). For a close button
    *  inside the panel, read it via `useSplitPane()`. */
   setOpen: (open: boolean) => void;
@@ -120,6 +131,14 @@ export interface SplitPaneProps extends Omit<HTMLAttributes<HTMLDivElement>, "on
   /** The least the main pane keeps, in px; the panel can never take more than
    *  the container minus this. Default 96. */
   minMainSize?: number;
+  /** Below this container extent (along the split) the panel stops pushing
+   *  the main pane aside and lies over it: the main pane keeps the whole
+   *  container, the panel covers it up to a strip at the far edge, and a tap
+   *  on that strip or Escape closes the panel (through `onOpenChange`). No
+   *  divider and no resizing while overlaid. A number is `--sf-unit`
+   *  multiples, a string any CSS length; `false` keeps pushing at every
+   *  width. Default 20 units: a phone in portrait. */
+  overlayAt?: number | string | false;
   /** Fired with the new size when a resize settles or a keyboard step lands:
    *  the px, and the same as a fraction of the container (persist that one to
    *  restore a percentage size). */
@@ -140,7 +159,9 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
     minSize = 200,
     maxSize,
     minMainSize = MIN_MAIN,
+    overlayAt = DEFAULT_OVERLAY_AT,
     onSizeChange,
+    onKeyDown,
     className,
     children,
     ...rest
@@ -174,12 +195,28 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
   const [containerPx, setContainerPx] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
+  // Whether the container is under `overlayAt`. The threshold is resolved to
+  // px by a probe inside the container (so it follows the density there) and
+  // cached until the prop changes.
+  const [overlay, setOverlay] = useState(false);
+  const thresholdCache = useRef<{ key: number | string; px: number } | null>(null);
   const measure = useCallback(
     (el: HTMLDivElement) => {
       const next = verticalAxis ? el.clientHeight : el.clientWidth;
       setContainerPx((prev) => (Math.abs(prev - next) < 0.5 ? prev : next));
+      if (overlayAt === false) {
+        setOverlay(false);
+        return;
+      }
+      let cache = thresholdCache.current;
+      if (!cache || cache.key !== overlayAt) {
+        cache = { key: overlayAt, px: resolveThresholdPx(el, overlayAt) };
+        thresholdCache.current = cache;
+      }
+      // A container not laid out yet (0) is not a narrow one.
+      setOverlay(next > 0 && next < cache.px);
     },
-    [verticalAxis],
+    [verticalAxis, overlayAt],
   );
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {
@@ -205,10 +242,13 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
       let max = maxSize ?? Number.POSITIVE_INFINITY;
       const el = containerRef.current;
       const extent = containerPx || (el ? (verticalAxis ? el.clientHeight : el.clientWidth) : 0);
-      if (extent > 0) max = Math.min(max, extent - minMainSize);
-      return Math.max(minSize, Math.min(max, raw));
+      // Overlaid, the panel may cover the main pane up to the strip left to
+      // tap, and that bound also caps the minimum (a 200px floor in a 180px
+      // container would overflow it).
+      if (extent > 0) max = Math.min(max, extent - (overlay ? OVERLAY_GAP : minMainSize));
+      return Math.max(Math.min(minSize, Math.max(max, 0)), Math.min(max, raw));
     },
-    [containerPx, verticalAxis, minSize, maxSize, minMainSize],
+    [containerPx, verticalAxis, minSize, maxSize, minMainSize, overlay],
   );
 
   const resolvedPx =
@@ -290,7 +330,7 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
 
   const orientation = verticalAxis ? "horizontal" : "vertical";
   const divider =
-    resizable && open ? (
+    resizable && open && !overlay ? (
       // biome-ignore lint/a11y/useSemanticElements: ARIA splitter pattern — a focusable, draggable resize separator; <hr> can't be interactive.
       <div
         role="separator"
@@ -300,7 +340,7 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
         aria-valuemin={minSize}
         aria-valuemax={maxSize}
         tabIndex={0}
-        className={styles.divider}
+        className={`${styles.divider} ${hitArea.handle}`}
         onPointerDown={onPointerDown}
         onKeyDown={onDividerKey}
       />
@@ -308,16 +348,25 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
 
   // Render order so the panel sits on the chosen edge (panel-first for the
   // leading edges: left and top).
+  // Overlaid and open, a scrim covers the strip of the main pane that still
+  // shows; a tap on it closes the panel. It is a pointer affordance (Escape is
+  // the keyboard's), so it stays out of the tab order and the accessibility tree.
+  const scrim =
+    overlay && open ? (
+      <div className={styles.scrim} aria-hidden="true" onClick={() => setOpen(false)} />
+    ) : null;
   const ordered =
     side === "left" || side === "top" ? (
       <>
         {panelEl}
         {divider}
         {mainEl}
+        {scrim}
       </>
     ) : (
       <>
         {mainEl}
+        {scrim}
         {divider}
         {panelEl}
       </>
@@ -325,16 +374,28 @@ export const SplitPaneRoot = forwardRef<HTMLDivElement, SplitPaneProps>(function
 
   // Stable context identity: without the memo every parent-driven re-render
   // hands consumers a fresh object and re-renders them all.
-  const splitCtx = useMemo(() => ({ side, open, size, setOpen }), [side, open, size, setOpen]);
+  const splitCtx = useMemo(
+    () => ({ side, open, size, overlay, setOpen }),
+    [side, open, size, overlay, setOpen],
+  );
 
   return (
     <SplitContext.Provider value={splitCtx}>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the handler catches Escape bubbling from the panel's content; the root itself takes no focus. */}
       <div
         {...rest}
         ref={setRefs}
         className={cx(styles.root, className)}
         data-side={side}
         data-dragging={dragging || undefined}
+        data-overlay={overlay || undefined}
+        onKeyDown={(e) => {
+          onKeyDown?.(e);
+          if (overlay && open && e.key === "Escape" && !e.defaultPrevented) {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
       >
         {ordered}
       </div>

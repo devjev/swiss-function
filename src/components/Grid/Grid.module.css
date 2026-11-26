@@ -70,13 +70,18 @@
   transform: translateY(-50%);
 }
 
-.gutterCol:hover::after,
-.gutterRow:hover::after,
 .gutterCol[data-dragging]::after,
 .gutterRow[data-dragging]::after,
 .gutterCol:focus-visible::after,
 .gutterRow:focus-visible::after {
   background-color: var(--sf-color-primary);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gutterCol:hover::after,
+  .gutterRow:hover::after {
+    background-color: var(--sf-color-primary);
+  }
 }
 
 .gutterCol:focus-visible,

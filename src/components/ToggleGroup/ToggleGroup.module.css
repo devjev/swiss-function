@@ -66,8 +66,10 @@
     box-shadow var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.item:hover:not([data-disabled]):not([data-pressed]) {
-  --sf-cap: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .item:hover:not([data-disabled]):not([data-pressed]) {
+    --sf-cap: var(--sf-color-bg-subtle);
+  }
 }
 
 .item:focus-visible {
@@ -90,8 +92,10 @@
   border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
 
-.item[data-pressed]:hover:not([data-disabled]) {
-  --sf-cap: var(--sf-color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .item[data-pressed]:hover:not([data-disabled]) {
+    --sf-cap: var(--sf-color-primary-hover);
+  }
 }
 
 .item[data-disabled] {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { addDays, isSameDay, startOfDay, startOfISOWeek } from "../../lib/date";
+import { isSameDay, startOfDay } from "../../lib/date";
+import { hitArea } from "../../lib/hitArea";
 import { Pane } from "../Pane";
 import type { CalendarViewProps } from "./Calendar";
 import styles from "./Calendar.module.css";
@@ -15,11 +16,11 @@ import {
   type TimedBlock,
   TWO_LINE_BLOCK,
   timedEnd,
-  weekdayLabels,
+  weekWindow,
 } from "./calendarLayout";
+import { Weekday } from "./Weekday";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
-const WEEKDAYS = weekdayLabels("short");
 
 const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
 const hhmm = (d: Date) =>
@@ -35,7 +36,9 @@ function eventVars(event: CalendarEvent): React.CSSProperties | undefined {
 }
 
 /** The week view: an all-day strip pinned above a scrollable 24-hour grid, with
- *  overlapping timed events split into side-by-side columns. */
+ *  overlapping timed events split into side-by-side columns. It shows
+ *  `weekDays` day columns: the ISO week, or three days or one from the
+ *  focused date. */
 export function WeekView({
   focused,
   today,
@@ -44,18 +47,20 @@ export function WeekView({
   onEventClick,
   onDateClick,
   renderEvent,
+  weekDays,
 }: CalendarViewProps) {
-  const weekStart = startOfISOWeek(focused);
-  const days = HOURS.slice(0, 7).map((i) => addDays(weekStart, i));
+  const days = weekWindow(focused, weekDays);
+  const weekStart = days[0] ?? startOfDay(focused);
   const stripEvents = events.filter(isStripEvent);
   const gridEvents = events.filter((e) => !isStripEvent(e));
-  const stripBars = layoutWeekRow(stripEvents, weekStart, 7);
+  const stripBars = layoutWeekRow(stripEvents, weekStart, weekDays);
 
   // Open on the working day: scroll the hour grid to ~07:00 on mount and when
-  // the week changes, so timed events aren't hidden below the midnight fold.
+  // the days on screen change, so timed events aren't hidden below the
+  // midnight fold.
   const bodyRef = useRef<HTMLDivElement>(null);
-  const weekKey = weekStart.getTime();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: weekKey is the re-run trigger, not an input; the effect resets the scroll each time the week changes, it doesn't read it.
+  const weekKey = `${weekStart.getTime()}/${weekDays}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: weekKey is the re-run trigger, not an input; the effect resets the scroll each time the days on screen change, it doesn't read it.
   useEffect(() => {
     const el = bodyRef.current;
     // Half a unit above the 07:00 line, so its label, which sits across the
@@ -87,7 +92,7 @@ export function WeekView({
   }, []);
 
   return (
-    <Pane className={styles.week}>
+    <Pane className={styles.week} style={{ "--cal-days": weekDays } as React.CSSProperties}>
       <Pane.Header
         className={styles.weekHead}
         style={scrollbar > 0 ? { paddingInlineEnd: scrollbar } : undefined}
@@ -104,7 +109,8 @@ export function WeekView({
                 data-today={isToday || undefined}
                 data-weekend={dow === 0 || dow === 6 || undefined}
               >
-                <span className={styles.weekDayName}>{WEEKDAYS[(day.getDay() + 6) % 7]}</span>
+                <Weekday index={(dow + 6) % 7} className={styles.weekDayName} />
+                <span className={styles.weekDayBreak} aria-hidden="true" />
                 <span className={styles.weekDayNum}>{day.getDate()}</span>
               </div>
             );
@@ -204,7 +210,7 @@ function StripBar({
   return (
     <button
       type="button"
-      className={styles.bar}
+      className={cx(styles.bar, hitArea.tight)}
       data-tone={event.tone ?? "primary"}
       data-continues-before={bar.continuesBefore || undefined}
       data-continues-after={bar.continuesAfter || undefined}

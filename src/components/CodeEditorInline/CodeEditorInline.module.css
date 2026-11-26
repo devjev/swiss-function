@@ -54,7 +54,7 @@
    the line vertically centred. */
 .root :global(.cm-content) {
   padding-block: var(--cei-py);
-  font-size: var(--cei-fs);
+  font-size: max(var(--cei-fs), var(--sf-text-entry-min));
 }
 
 /* No active-line highlight: on a short expression it's just noise, and on the

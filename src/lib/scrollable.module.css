@@ -17,6 +17,8 @@
    region hover rather than thumb hover, and appears instantly rather than fading
    (scrollbar-color can't be transitioned) — both are the only standard-property
    behavior available. On macOS the native overlay gives the genuine fade-in. */
-.scrollable:hover {
-  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+@media (hover: hover) and (pointer: fine) {
+  .scrollable:hover {
+    scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+  }
 }

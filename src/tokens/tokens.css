@@ -437,6 +437,33 @@
        stays untouched; override per subtree to retune. */
     --sf-minimap-label-size: 0.65rem;
 
+    /* Touch. Both are 0 for a mouse and take a value under
+       `@media (pointer: coarse)` (the pointer block at the end of this file).
+       --sf-hit-min is the side of the area a small control answers a finger
+       on: the control keeps its size and an invisible pseudo-element grows
+       its hit area to this (`lib/hitArea`). A drag handle is at least half of
+       it wide. --sf-text-entry-min is the floor of the font size in every
+       text field: iOS zooms the page when a field under 16px takes focus.
+       --sf-hit-tight is the same for a control that sits against others (a
+       key inside a field, a bullet beside its text) and the floor of a drag
+       handle's width: 24px, the WCAG 2.5.8 minimum.
+       Set any of them on an ancestor: `--sf-hit-min: 2.75rem` on a kiosk with
+       a mouse-type touch screen, `0px` to switch the expansion off. */
+    --sf-hit-min: 0px;
+    --sf-hit-tight: 0px;
+    --sf-text-entry-min: 0px;
+
+    /* The part of each screen edge a notch, a rounded corner or the home
+       indicator covers. 0 unless the page opted into the whole screen with
+       `<meta name="viewport" content="..., viewport-fit=cover">`. The
+       surfaces that reach a screen edge (Drawer, a maximized Dialog,
+       Fullscreen) pad themselves by these; use them for an app's own bottom
+       bar: `padding-block-end: var(--sf-safe-bottom)`. */
+    --sf-safe-top: env(safe-area-inset-top, 0px);
+    --sf-safe-right: env(safe-area-inset-right, 0px);
+    --sf-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --sf-safe-left: env(safe-area-inset-left, 0px);
+
     /* Z-indices */
     --sf-z-dropdown: 1000;
     --sf-z-overlay: 1100;
@@ -592,6 +619,35 @@
       calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 1px rgb(0 0 0 / 0.4);
     --sf-engrave: calc(var(--sf-light-x) * -1px) calc(var(--sf-light-y) * -1px) 0
       rgb(255 255 255 / 0.05);
+  }
+
+  /* Pointer. A device whose primary pointer is a finger gets the touch
+     tokens, and the comfortable density unless the page chose one: 16px on
+     24px, so a control is 36px and copy is the size a phone reads at arm's
+     length. `data-density="compact"` on the root keeps the compact metrics on
+     touch. The first block follows the theme blocks' own selectors, because
+     the light theme block declares both tokens again on a nested
+     `data-theme="light"` element. The second sets the density on the root and
+     on a `data-theme` element outside any density region, for the same
+     reason; it sits before the density blocks and leaves out every element
+     that carries or sits inside a `data-density`, so an explicit density
+     always wins. */
+  @media (pointer: coarse) {
+    :root,
+    [data-theme] {
+      --sf-hit-min: 2.75rem;
+      --sf-hit-tight: 1.5rem;
+      --sf-text-entry-min: 1rem;
+    }
+
+    :root:not([data-density]),
+    :root:not([data-density]) [data-theme]:not([data-density], [data-density] *) {
+      --sf-font-size-base: 1rem;
+      --sf-leading-base: 1.5rem;
+      --sf-font-size-sm: 0.875rem;
+      --sf-font-size-lg: 1.125rem;
+      --sf-table-row-height: calc(var(--sf-unit) * 1.5);
+    }
   }
 
   /* Density. Four tokens set it: the copy size, its leading (the unit) and

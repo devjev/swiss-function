@@ -1,13 +1,16 @@
 import { cx } from "../../lib/cx";
 import { isoWeek, isSameDay, monthGrid } from "../../lib/date";
+import { hitArea } from "../../lib/hitArea";
 import type { CalendarViewProps } from "./Calendar";
 import styles from "./Calendar.module.css";
-import { type CalendarEvent, layoutWeekRow, type RowBar, weekdayLabels } from "./calendarLayout";
+import { type CalendarEvent, layoutWeekRow, type RowBar } from "./calendarLayout";
+import { Weekday } from "./Weekday";
 
 /** Lanes drawn per week row before events collapse into a "+N more" chip. */
 const MAX_LANES = 3;
 
-const WEEKDAYS = weekdayLabels("short");
+/** Monday-first weekday indexes: the heading row. */
+const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6];
 
 function eventVars(event: CalendarEvent): React.CSSProperties | undefined {
   return event.color ? ({ "--cal-event-color": event.color } as React.CSSProperties) : undefined;
@@ -32,9 +35,9 @@ export function MonthView({
     <div className={cx(styles.month, showWeekNumbers && styles.withWeekNum)}>
       <div className={styles.monthHead}>
         {showWeekNumbers && <div className={styles.weekNumHead} aria-hidden="true" />}
-        {WEEKDAYS.map((label, i) => (
-          <div key={label} className={styles.weekdayHead} data-weekend={i >= 5 || undefined}>
-            {label}
+        {WEEKDAY_INDEXES.map((i) => (
+          <div key={i} className={styles.weekdayHead} data-weekend={i >= 5 || undefined}>
+            <Weekday index={i} />
           </div>
         ))}
       </div>
@@ -91,18 +94,26 @@ export function MonthView({
                 const n = hiddenPerCol(col);
                 if (n === 0) return null;
                 return (
-                  <button
+                  // The slot is the day's column, and the size container the
+                  // key reads: it drops its word where the column is narrow.
+                  <div
                     key={`more-${cell.date.getTime()}`}
-                    type="button"
-                    className={styles.more}
+                    className={styles.moreSlot}
                     style={{
                       gridColumn: col + 1 + (showWeekNumbers ? 1 : 0),
                       gridRow: MAX_LANES + 2,
                     }}
-                    onClick={() => onDrillDown?.(cell.date, "week")}
                   >
-                    +{n} more
-                  </button>
+                    <button
+                      type="button"
+                      className={cx(styles.more, hitArea.tight)}
+                      aria-label={`+${n} more`}
+                      onClick={() => onDrillDown?.(cell.date, "week")}
+                    >
+                      +{n}
+                      <span className={styles.moreWord}> more</span>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -128,7 +139,7 @@ function MonthBar({
   return (
     <button
       type="button"
-      className={styles.bar}
+      className={cx(styles.bar, hitArea.tight)}
       data-tone={event.tone ?? "primary"}
       data-continues-before={bar.continuesBefore || undefined}
       data-continues-after={bar.continuesAfter || undefined}

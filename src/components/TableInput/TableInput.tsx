@@ -12,6 +12,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import type { HTMLAttributes, ReactNode } from "react";
 import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { DEFAULT_UNIT_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
 import { Button } from "../Button";
@@ -448,7 +449,7 @@ export function TableInput<T = Record<string, unknown>>({
                 onReorder={onChange as (rows: unknown[]) => void}
                 onExternalDrop={onExternalDrop}
                 rowClassName={styles.row}
-                handleClassName={styles.handle}
+                handleClassName={`${styles.handle} ${hitArea.inline}`}
               >
                 {(row, rowIndex, handle) => (
                   <RowCells row={row as T} rowIndex={rowIndex} lead={handle} {...rowProps} />

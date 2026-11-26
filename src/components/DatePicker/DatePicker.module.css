@@ -74,14 +74,14 @@
   color: inherit;
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  font-size: max(var(--sf-font-size-md), var(--sf-text-entry-min));
   line-height: var(--sf-line-height-tight);
   caret-shape: block;
   caret-color: var(--sf-color-primary);
 }
 
 .field[data-size="sm"] .input {
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
 }
 .field[data-size="lg"] .input {
   font-size: var(--sf-font-size-lg);
@@ -216,8 +216,10 @@
   cursor: pointer;
 }
 
-.nav:hover {
-  border-color: var(--sf-color-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .nav:hover {
+    border-color: var(--sf-color-border-strong);
+  }
 }
 
 .nav:focus-visible {
@@ -277,8 +279,10 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.day:hover:not(:disabled) {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .day:hover:not(:disabled) {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .day:focus-visible {
@@ -327,9 +331,11 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.weekRow:not([data-disabled]):hover > td,
-.weekRow:not([data-disabled]):hover > th {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .weekRow:not([data-disabled]):hover > td,
+  .weekRow:not([data-disabled]):hover > th {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .weekRow[data-candidate] > td,
@@ -432,8 +438,10 @@
   transition: background-color var(--sf-duration-fast) var(--sf-ease-out);
 }
 
-.periodCell:hover:not(:disabled) {
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .periodCell:hover:not(:disabled) {
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 
 .periodCell:focus-visible {
@@ -500,9 +508,14 @@
   text-underline-offset: 3px;
 }
 
-.crumb:hover,
 .crumb:focus-visible {
   text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crumb:hover {
+    text-decoration: underline;
+  }
 }
 
 .crumb:focus-visible {

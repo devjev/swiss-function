@@ -195,6 +195,12 @@ export interface OutlinerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    *  drops them (and the padding) when the outline sits inside a framed
    *  region or on a page of its own. */
   frame?: boolean;
+  /** The touch toolbar: the structure commands an on-screen keyboard has no
+   *  keys for (outdent, indent, move up, move down, task, undo, redo, and a key
+   *  that leaves the text), as a bar above the keyboard while a block is being
+   *  edited. `"auto"` (default) shows it on a device whose primary pointer is
+   *  a finger, `true` on any device, `false` never. Never in read-only mode. */
+  toolbar?: boolean | "auto";
   /** Imperative controls: focus, select, edit, read the selection, undo. */
   apiRef?: Ref<OutlinerHandle>;
 }

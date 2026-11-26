@@ -13,3 +13,10 @@ export {
   useSfDndRegion,
 } from "./context";
 export { SfDndProvider, type SfDndProviderProps } from "./SfDndProvider";
+export {
+  DRAG_DISTANCE,
+  type SfSensorOptions,
+  TOUCH_DRAG_DELAY,
+  TOUCH_DRAG_TOLERANCE,
+  useSfSensors,
+} from "./sensors";

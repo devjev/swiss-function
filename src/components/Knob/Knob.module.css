@@ -240,11 +240,13 @@
 .root[data-dragging] .body {
   box-shadow: var(--sf-elevation-1);
 }
-.dial:hover .body {
-  box-shadow: var(--sf-elevation-3);
-}
-.root[data-dragging] .dial:hover .body {
-  box-shadow: var(--sf-elevation-1);
+@media (hover: hover) and (pointer: fine) {
+  .dial:hover .body {
+    box-shadow: var(--sf-elevation-3);
+  }
+  .root[data-dragging] .dial:hover .body {
+    box-shadow: var(--sf-elevation-1);
+  }
 }
 
 /* Depth override matrix on the cast (default is elevation-2 on .body). */
@@ -336,10 +338,14 @@
 .root[data-value-label="hover"] .readout {
   opacity: 0;
 }
-.root[data-value-label="hover"]:hover .readout,
 .root[data-value-label="hover"][data-dragging] .readout,
 .root[data-value-label="hover"]:has(input:focus) .readout {
   opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .root[data-value-label="hover"]:hover .readout {
+    opacity: 1;
+  }
 }
 
 /* Disabled: dim the whole control, hold the cast at rest, no grab cursor. */
@@ -349,8 +355,10 @@
 .root[data-disabled] .dial {
   cursor: not-allowed;
 }
-.root[data-disabled] .dial:hover .body {
-  box-shadow: var(--sf-elevation-2);
+@media (hover: hover) and (pointer: fine) {
+  .root[data-disabled] .dial:hover .body {
+    box-shadow: var(--sf-elevation-2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

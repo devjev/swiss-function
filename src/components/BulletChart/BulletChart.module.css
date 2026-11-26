@@ -300,9 +300,13 @@
 .hit[data-activatable] {
   cursor: pointer;
 }
-.row:hover .measure,
 .row:has(.hit:focus-visible) .measure {
   filter: brightness(1.1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .row:hover .measure {
+    filter: brightness(1.1);
+  }
 }
 .row:has(.hit:focus-visible) .measure {
   stroke: var(--sf-color-focus-ring);

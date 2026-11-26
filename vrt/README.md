@@ -34,6 +34,20 @@ npm run vrt:list    # refresh stories.json after adding/removing stories
 `vrt` exits non-zero on any diff beyond the budget (`maxDiffPixels`), writing
 `<name>-diff.png` next to the actual under `test-results/` for inspection.
 
+## Phone projects
+
+`VRT_PHONE=1 npm run vrt` (and `VRT_PHONE=1 npm run vrt:update` to seed them)
+adds two projects, `phone-light` and `phone-dark`: every story at 390 x 844
+with touch emulation. The page then reports a coarse pointer, so the touch
+tokens and the automatic comfortable density apply, as on a real phone. They
+are opt-in because they double the run. Their baselines are named
+`<story>-phone-<theme>.png`.
+
+Pixels show that a layout changed; they do not say whether it is usable. The
+measured half is `npm run mobile` (`scripts/mobile/audit.mjs`): page overflow,
+clipped controls, colliding text, hit areas under 24px and text fields under
+16px, counted per story against `perf/mobile-baseline.json`.
+
 ## Tuning & non-determinism
 
 Some `<canvas>` / WebGL stories don't render the same frame twice: `Graph`

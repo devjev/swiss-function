@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { redistribute, splitTracks, tokenizeTemplate } from "./Grid";
+import { autoFitColumns, redistribute, splitTracks, tokenizeTemplate } from "./Grid";
+
+describe("autoFitColumns", () => {
+  it("reads a number as unit multiples and keeps the last column inside a narrow container", () => {
+    expect(autoFitColumns(10)).toBe(
+      "repeat(auto-fit, minmax(min(100%, calc(var(--sf-unit) * 10)), 1fr))",
+    );
+  });
+
+  it("passes a CSS length through", () => {
+    expect(autoFitColumns("16rem")).toBe("repeat(auto-fit, minmax(min(100%, 16rem), 1fr))");
+  });
+});
 
 describe("splitTracks", () => {
   it("splits simple space-separated tracks", () => {

@@ -6,6 +6,7 @@ import { Filter } from "../../components/Icon";
 import { Input } from "../../components/Input";
 import { Popover } from "../../components/Popover";
 import { cx } from "../cx";
+import { hitArea } from "../hitArea";
 import { Glyph } from "../icons";
 import { DEFAULT_UNIT_PX, useCssPx, useRemeasureOnSizeChange } from "../useCssPx";
 import styles from "./ColumnFilter.module.css";
@@ -194,7 +195,7 @@ export function ColumnFilter({ label, kind, options, value, active, onChange }: 
     <Popover.Root open={open} onOpenChange={setOpen}>
       {/* Stop the funnel from toggling header sort or starting a column reorder. */}
       <Popover.Trigger
-        className={cx(styles.button, active && styles.buttonActive)}
+        className={cx(styles.button, active && styles.buttonActive, hitArea.tight)}
         aria-label={`Filter ${label}`}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}

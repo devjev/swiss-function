@@ -57,8 +57,10 @@
   scrollbar-width: var(--sf-scrollbar-width);
   scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
 }
-.root :global(.cm-scroller):hover {
-  scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+@media (hover: hover) and (pointer: fine) {
+  .root :global(.cm-scroller):hover {
+    scrollbar-color: var(--sf-scrollbar-thumb-hover) var(--sf-scrollbar-track);
+  }
 }
 
 /* The container already carries focus affordance (border + ring); drop

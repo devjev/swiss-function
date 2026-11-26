@@ -14,18 +14,11 @@
 // pointer is (`dropTarget`).
 
 import type { DragStartEvent } from "@dnd-kit/core";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  pointerWithin,
-  useDraggable,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, pointerWithin, useDraggable } from "@dnd-kit/core";
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import { measureCssLength } from "../../lib/useCssPx";
 import { type DropTarget, dropTarget } from "./drag";
 import { subtreeEnd } from "./selection";
@@ -79,7 +72,7 @@ export default function OutlinerDrag(props: OutlinerDragProps) {
   const { mounted, getRow, bind, indicatorClassName, overlayClassName } = props;
   const shared = useSfDnd();
   const regionId = useId();
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSfSensors();
   const live = useRef(props);
   live.current = props;
   const session = useRef<Session | null>(null);

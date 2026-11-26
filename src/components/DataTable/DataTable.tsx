@@ -5,10 +5,7 @@ import {
   DragOverlay,
   type DragStartEvent,
   type Over,
-  PointerSensor,
   rectIntersection,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import {
@@ -61,10 +58,12 @@ import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
 import { useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
 import type { EffectName } from "../../lib/effects";
 import { useDitheredFill } from "../../lib/effects";
 import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
 import { useColumnFilters } from "../../lib/filter/useColumnFilters";
+import { hitArea } from "../../lib/hitArea";
 import type { ControlSurface } from "../../lib/surface";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
@@ -611,6 +610,21 @@ interface DataTableRowProps<T> {
 /** The row-number gutter cell: 1-based display index, sticky left, whole-row
  *  selection on click / Shift+click / drag (Excel's row header). Shared by the
  *  flat and tree row paths. */
+// A finger has no double click and no key to type with before an editor is
+// open, so on touch a tap on the cell that is already active opens its editor
+// (the first tap selects it, as a click does). `noteTouch` runs on pointerdown,
+// while the render still knows whether the cell was active before this press;
+// the click that follows takes the note. One press at a time, so one slot.
+let tappedActiveCell: string | null = null;
+function noteTouch(pointerType: string, active: boolean, row: number, col: number) {
+  tappedActiveCell = pointerType === "touch" && active ? `${row}:${col}` : null;
+}
+function takeSecondTap(row: number, col: number): boolean {
+  const hit = tappedActiveCell === `${row}:${col}`;
+  tappedActiveCell = null;
+  return hit;
+}
+
 function RowNumberCell({
   displayIndex,
   selected,
@@ -752,7 +766,10 @@ function DataTableRowInner<T>({
             style={
               isFrozen && frozenLefts ? { left: frozenLefts[colIndex], ...bg.style } : bg.style
             }
-            onPointerDown={(e) => onCellPointerDown(cell, { shiftKey: e.shiftKey })}
+            onPointerDown={(e) => {
+              noteTouch(e.pointerType, active, displayIndex, colIndex);
+              onCellPointerDown(cell, { shiftKey: e.shiftKey });
+            }}
             onPointerEnter={(e) => {
               onCellPointerEnter(cell);
               revealClipped(e.currentTarget);
@@ -763,7 +780,10 @@ function DataTableRowInner<T>({
               // trip this; modifier clicks are selection gestures.
               if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
               if (isEditing || !isColumnEditable(colIndex)) return;
-              if (resolveActivation(dataIdx, colDef.id, original, colDef.editOn) === "single") {
+              if (
+                takeSecondTap(displayIndex, colIndex) ||
+                resolveActivation(dataIdx, colDef.id, original, colDef.editOn) === "single"
+              ) {
                 startEdit(cell);
               }
             }}
@@ -2456,7 +2476,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
         className={styles.cell}
         {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
         style={isFrozen ? { left: frozenLefts[colIndex], ...bg.style } : bg.style}
-        onPointerDown={(e) => handleCellPointerDown(cell, { shiftKey: e.shiftKey })}
+        onPointerDown={(e) => {
+          noteTouch(e.pointerType, active, rowIndex, colIndex);
+          handleCellPointerDown(cell, { shiftKey: e.shiftKey });
+        }}
         onPointerEnter={(e) => {
           handleCellPointerEnter(cell);
           revealClipped(e.currentTarget);
@@ -2465,8 +2488,9 @@ export function DataTable<T>(props: DataTableProps<T>) {
           if (e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
           if (isEditing || !isColumnEditable(colIndex)) return;
           if (
+            takeSecondTap(rowIndex, colIndex) ||
             resolveActivation(sourceIndex(row), colDef.id, row.original as T, colDef.editOn) ===
-            "single"
+              "single"
           ) {
             startEdit(cell);
           }
@@ -2569,10 +2593,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
   // Parents from the EFFECTIVE tree, so a collapsed group's placeholder leaf has
   // a parent entry and reorders as one unit under the same-parent guard below.
   const leafParents = useMemo(() => leafParentMap(effectiveColumns), [effectiveColumns]);
-  const reorderSensors = useSensors(
-    // 4px threshold so a plain click still sorts and the resize handle still resizes.
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
+  // A threshold before a press becomes a drag, so a plain click still sorts
+  // and the resize handle still resizes; a finger must rest first (it may be
+  // scrolling the table sideways).
+  const reorderSensors = useSfSensors();
   const [draggingColId, setDraggingColId] = useState<string | null>(null);
   const draggingLeaf = draggingColId
     ? visibleLeaves.find((l) => l.id === draggingColId)
@@ -2878,7 +2902,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
             data-column-id={header.column.id}
             // At the floor the cursor says "only wider" (see .resizeHandle[data-at-floor]).
             data-at-floor={handleAtFloor || undefined}
-            className={styles.resizeHandle}
+            className={`${styles.resizeHandle} ${hitArea.handle}`}
             // Stop the drag/reorder + sort from firing when grabbing the resizer.
             onPointerDown={(e) => {
               e.stopPropagation();

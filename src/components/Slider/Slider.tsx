@@ -2,6 +2,7 @@ import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
 import type { BoxElevation } from "../Box";
@@ -173,8 +174,12 @@ export const Slider = forwardRef<HTMLDivElement, SliderProps>(function Slider(
           <BaseSlider.Indicator className={styles.indicator} />
         </BaseSlider.Track>
         {Array.from({ length: thumbCount }, (_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set
-          <BaseSlider.Thumb key={i} index={i} className={cx(styles.thumb, surfaceClass[surface])}>
+          <BaseSlider.Thumb
+            // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set
+            key={i}
+            index={i}
+            className={cx(styles.thumb, surfaceClass[surface], hitArea.thumb)}
+          >
             {valueLabel !== "off" && (
               <BaseSlider.Value className={styles.bubble}>
                 {(formatted, values) => {

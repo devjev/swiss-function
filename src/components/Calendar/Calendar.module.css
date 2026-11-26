@@ -6,8 +6,24 @@
   /* Holds the "all-day" label on one line at either density. */
   --cal-gutter: calc(var(--sf-unit) * 2.5);
   --cal-weeknum: calc(var(--sf-unit) * 1.5);
+  /* The narrow forms below switch on a width, and a width that follows the
+     density is a unit multiple, which a container query's condition cannot
+     hold (no var() there). So each switch is a step written as arithmetic:
+     `clamp(a, (width - threshold) * 999, b)` is `a` under the threshold and
+     `b` over it, and `max(0px, (width - threshold) * 9999)` as a max size
+     collapses a part that has no room. `100cqi` is the nearest size
+     container's width, `100%` the containing block's. */
+  /* The room a weekday's short name ("Wed") needs, in its own em. */
+  --cal-dow-min: 2.75em;
+  /* The least an event's title is worth showing: four or five characters. */
+  --cal-label-min: 3em;
 
+  position: relative;
   display: grid;
+  /* `minmax(0, 1fr)`: an implicit column would be as wide as the widest
+     content (the toolbar on one line), and the views would follow it out of
+     a narrow root. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   min-block-size: 0;
   block-size: 100%;
@@ -18,24 +34,51 @@
   overflow: hidden;
 }
 
+/* One `--sf-unit` wide and hidden: useWeekDayFit reads the root's width
+   against it, so the week view's day count follows the density. */
+.unitProbe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: var(--sf-unit);
+  block-size: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* --- Toolbar --------------------------------------------------------------- */
 
+/* A flex row, because it wraps by content: the keys, the title and the view
+   switcher share one line while they fit, and the switcher (then the title)
+   moves to a line of its own in a narrow calendar. Grid tracks cannot wrap.
+   Under 20 units the side padding and the gap between the parts halve. Lines
+   are a unit apart: two lines make a toolbar four units tall, and the touch
+   hit areas of one line's keys (44px on a 24px key) stay clear of the next. */
 .toolbar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  --cal-toolbar-gap: clamp(
+    calc(var(--sf-unit) / 2),
+    calc((100% - var(--sf-unit) * 20) * 999),
+    var(--sf-unit)
+  );
+
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sf-unit);
-  padding: calc(var(--sf-unit) / 2) var(--sf-unit);
+  gap: var(--sf-unit) var(--cal-toolbar-gap);
+  padding: calc(var(--sf-unit) / 2) var(--cal-toolbar-gap);
   border-block-end: 1px solid var(--sf-color-border-strong);
 }
 
 .nav {
+  flex: none;
   display: flex;
   gap: calc(var(--sf-unit) / 4);
   align-items: center;
 }
 
 .title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   margin: 0;
   font-size: var(--sf-font-size-md);
   font-weight: 600;
@@ -43,6 +86,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* At the end of its line, on the first line or alone on the second. */
+.switcher {
+  flex: none;
+  margin-inline-start: auto;
 }
 
 .viewport {
@@ -68,7 +117,15 @@
   font-size: var(--sf-font-size-sm);
   text-align: start;
   cursor: pointer;
+}
+.block {
   overflow: hidden;
+}
+/* A bar does not clip: its label clips itself, and its touch hit area
+   (lib/hitArea) reaches a pixel past it into the lane's margins. It is a
+   size container so the label can tell how much room it has. */
+.bar {
+  container-type: inline-size;
 }
 
 .bar[data-tone="success"],
@@ -124,17 +181,40 @@
 }
 
 .weekdayHead {
-  padding: calc(var(--sf-unit) / 2);
+  display: flex;
+  justify-content: center;
+  padding: calc(var(--sf-unit) / 2) calc(var(--sf-unit) / 4);
   font-size: var(--sf-font-size-sm);
   font-weight: 600;
   color: var(--sf-color-fg);
-  text-align: center;
+  /* The weekday name reads this cell's width (see .dowShort). */
+  container-type: inline-size;
+}
+
+/* A weekday name in a column heading (Weekday.tsx): the short name where the
+   cell holds it, its initial where it does not. The other one keeps no
+   width, and the short name stays in the accessibility tree. */
+.dowShort,
+.dowInitial {
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.dowShort {
+  max-inline-size: max(0px, calc((100cqi - var(--cal-dow-min)) * 9999));
+}
+.dowInitial {
+  max-inline-size: max(0px, calc((var(--cal-dow-min) - 100cqi) * 9999));
 }
 .monthBody {
   display: grid;
   /* Rows share the height evenly, but a busy week grows past its share and the
-     body scrolls rather than spilling into the next week. */
-  grid-template-rows: repeat(6, minmax(calc(var(--sf-unit) * 3.25), auto));
+     body scrolls rather than spilling into the next week. The floor of a
+     track is what its week holds, and never under the week's own 3.25 units
+     (.weekRow): under `minmax(3.25 units, auto)` a busy week in a short body
+     (a phone, under a two-line toolbar) kept the fixed floor and its
+     "+N more" line printed over the next week. */
+  grid-template-rows: repeat(6, minmax(min-content, auto));
   min-block-size: 0;
   overflow-y: auto;
 }
@@ -143,7 +223,12 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: var(--cal-date-band) repeat(3, auto) minmax(0, 1fr);
+  /* The date band, three lanes of bars, then the "+N more" line, which also
+     takes the row's spare height. Its floor is `min-content`, not 0: a
+     flexible track counts for nothing when the row is measured for its
+     smallest height, and the line would not be part of the week's floor. */
+  grid-template-rows: var(--cal-date-band) repeat(3, auto) minmax(min-content, 1fr);
+  min-block-size: calc(var(--sf-unit) * 3.25);
   border-block-end: 1px solid var(--sf-color-border-subtle);
 }
 .withWeekNum .weekRow {
@@ -182,8 +267,10 @@
 .dayCell[data-weekend] {
   background: var(--sf-color-bg-subtle);
 }
-.dayCell:hover {
-  background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .dayCell:hover {
+    background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+  }
 }
 
 .dayNum {
@@ -227,11 +314,16 @@
   border-end-end-radius: 0;
 }
 
+/* A label with room for a few characters shows, with an ellipsis if it is
+   longer. Under that (a one-day bar in a phone's month grid) the bar shows
+   no label: its coloured rule and outline still mark the event, and "S…"
+   told nothing. */
 .barLabel {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-inline-size: 0;
+  max-inline-size: max(0px, calc((100cqi - var(--cal-label-min)) * 9999));
   flex: 1;
 }
 .barArrow {
@@ -240,21 +332,47 @@
   font-weight: 700;
 }
 
-.more {
+/* The day column under the bars, where the "+N more" key sits. It is the
+   size container the key reads and takes no clicks itself: the day cell
+   under it stays clickable around the key. */
+.moreSlot {
   z-index: 1;
   align-self: start;
-  justify-self: start;
-  margin-inline: calc(var(--sf-unit) / 4);
-  padding: 0 calc(var(--sf-unit) / 2);
+  display: grid;
+  justify-items: start;
+  min-inline-size: 0;
+  container-type: inline-size;
+  pointer-events: none;
+}
+/* One line always. Where the column cannot hold "+4 more" the word goes and
+   "+4" stays; under three units the key also gives up its margin and half
+   of its padding. */
+.more {
+  --cal-more-room: calc((100cqi - var(--sf-unit) * 3) * 999);
+
+  display: flex;
+  align-items: baseline;
+  margin-inline: clamp(0px, var(--cal-more-room), calc(var(--sf-unit) / 4));
+  padding: 0 clamp(calc(var(--sf-unit) / 4), var(--cal-more-room), calc(var(--sf-unit) / 2));
   border: none;
   background: transparent;
   color: var(--sf-color-fg);
   font-size: var(--sf-font-size-sm);
+  white-space: nowrap;
   cursor: pointer;
+  pointer-events: auto;
 }
-.more:hover {
-  color: var(--sf-color-fg);
-  text-decoration: underline;
+/* "+12 more" is about 4.5em; the key's padding and margins are 1.5 units. */
+.moreWord {
+  overflow: hidden;
+  white-space: pre;
+  max-inline-size: max(0px, calc((100cqi - 4.5em - var(--sf-unit) * 1.5) * 9999));
+}
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    color: var(--sf-color-fg);
+    text-decoration: underline;
+  }
 }
 
 /* --- Week view ------------------------------------------------------------- */
@@ -268,22 +386,35 @@
   border-block-end: 1px solid var(--sf-color-border-strong);
 }
 
+/* `--cal-days` is the number of day columns (7, 3 or 1), set by WeekView. */
 .weekHeadRow {
   display: grid;
-  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days, 7), minmax(0, 1fr));
 }
 
 .timeGutterHead {
   border-inline-end: 1px solid var(--sf-color-border-subtle);
 }
 
+/* A day heading: the weekday name and the day number, side by side with half
+   a unit between them where the cell is wide enough for the widest pair (a
+   name and today's boxed number), the number under the name where it is not.
+   Every cell of a row has the same width, so they all take the same form.
+   The parts wrap as well, so a longer name in another locale goes onto two
+   lines before it prints over the number. */
 .weekDayHead {
+  /* The content width that holds the pair on one line. */
+  --cal-head-stack: calc(var(--sf-unit) * 3.75);
+
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: center;
-  gap: calc(var(--sf-unit) / 2);
-  padding: calc(var(--sf-unit) / 2);
+  /* The side padding goes under 2.5 units, where the cell needs every pixel. */
+  padding: calc(var(--sf-unit) / 2)
+    clamp(0px, calc((100% - var(--sf-unit) * 2.5) * 999), calc(var(--sf-unit) / 4));
   border-inline-start: 1px solid var(--sf-color-border-subtle);
+  container-type: inline-size;
 }
 .weekDayHead[data-weekend] {
   background: var(--sf-color-bg-subtle);
@@ -294,23 +425,47 @@
   font-weight: 600;
   color: var(--sf-color-fg);
 }
+/* Between the name and the number: no width in the wide form, a whole line
+   (which pushes the number onto the next one) in the narrow form. */
+.weekDayBreak {
+  flex: 0 0 clamp(0px, calc((var(--cal-head-stack) - 100cqi) * 999), 100%);
+  align-self: flex-start;
+  block-size: 0;
+}
 .weekDayNum {
+  margin-inline-start: clamp(
+    0px,
+    calc((100cqi - var(--cal-head-stack)) * 999),
+    calc(var(--sf-unit) / 2)
+  );
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-md);
+  /* The small size in a column under 1.5 units, where two digits at the
+     regular size are wider than the cell. */
+  font-size: clamp(
+    var(--sf-font-size-sm),
+    calc((100cqi - var(--sf-unit) * 1.5) * 999),
+    var(--sf-font-size-md)
+  );
   color: var(--sf-color-fg);
 }
+/* Today's box keeps half a unit each side of its digits while the cell holds
+   that, and an eighth where it does not. */
 .weekDayHead[data-today] .weekDayNum {
   background: var(--sf-color-primary);
   color: var(--sf-color-bg);
   border-radius: var(--sf-radius-default);
-  padding-inline: calc(var(--sf-unit) / 2);
+  padding-inline: clamp(
+    calc(var(--sf-unit) / 8),
+    calc((100cqi - 2ch - var(--sf-unit)) * 999),
+    calc(var(--sf-unit) / 2)
+  );
   font-weight: 700;
 }
 
 .allDayStrip {
   display: grid;
-  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days, 7), minmax(0, 1fr));
   grid-template-rows: repeat(var(--cal-strip-lanes, 1), var(--cal-bar-h));
   gap: 1px 0;
   padding-block: 1px;
@@ -347,7 +502,7 @@
 
 .hourGrid {
   display: grid;
-  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+  grid-template-columns: var(--cal-gutter) repeat(var(--cal-days, 7), minmax(0, 1fr));
 }
 
 .timeGutter {
@@ -391,8 +546,10 @@
   cursor: pointer;
   padding: 0;
 }
-.hourSlot:hover {
-  background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .hourSlot:hover {
+    background: color-mix(in oklab, var(--sf-color-primary) 8%, transparent);
+  }
 }
 
 .block {
@@ -403,25 +560,47 @@
   gap: 1px;
   padding: calc(var(--sf-unit) / 4) calc(var(--sf-unit) / 2);
   min-block-size: 0;
-  /* The time drops its end where the block is too narrow (see .blockEnd). */
+  /* The parts read the room they have: the time drops its end, then goes,
+     then the title goes (see .blockEnd, .blockTime, .blockTitle). */
   container-type: inline-size;
 }
 /* One line: the time, then the title in what room is left. The shortest
-   block is one unit; its line fits inside the 1px borders. */
+   block is one unit; its line fits inside the 1px borders. The half unit
+   between the two is the time's own (.blockTime::after), so it goes with
+   the time. */
 .blockTiny {
   flex-direction: row;
   align-items: baseline;
-  gap: calc(var(--sf-unit) / 2);
+  gap: 0;
   padding-block: 0;
   line-height: calc(var(--sf-unit) - 2px);
 }
+/* The start time shows whole or not at all: a block narrower than "09:00"
+   (two events side by side in a phone's day column) printed "09:0". Without
+   it the title moves up, and the block's place in the grid still gives the
+   hour. */
 .blockTime {
+  --cal-time-room: calc(100cqi - 5ch);
+
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   flex: none;
   white-space: nowrap;
+  overflow: hidden;
+  max-inline-size: max(0px, calc(var(--cal-time-room) * 9999));
+  max-block-size: max(0px, calc(var(--cal-time-room) * 9999));
+}
+/* On one line the time shares the room with the title, and yields when the
+   title would be left with less than a few characters. */
+.blockTiny .blockTime {
+  --cal-time-room: calc(100cqi - 5ch - var(--sf-unit) / 2 - var(--cal-label-min));
+}
+.blockTiny .blockTime::after {
+  content: "";
+  display: inline-block;
+  inline-size: calc(var(--sf-unit) / 2);
 }
 /* A side-by-side column too narrow for "09:00-09:15" shows "09:00": the
    end wrapped onto a second line, or was cut off. The query measures the
@@ -439,12 +618,17 @@
 .blockTiny .blockEnd {
   display: none;
 }
+/* In a block too narrow for the time the title takes the block's side
+   padding back, all but an eighth of a unit, and under a few characters of
+   room it goes too: the block is then its coloured outline alone. */
 .blockTitle {
   font-size: var(--sf-font-size-sm);
   color: var(--sf-color-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-inline: clamp(calc(var(--sf-unit) * -0.375), calc((100cqi - 2.75em) * 999), 0px);
+  max-inline-size: max(0px, calc((100cqi + var(--sf-unit) * 0.75 - var(--cal-label-min)) * 9999));
 }
 
 .nowLine {
@@ -494,8 +678,10 @@
   color: var(--sf-color-fg);
   cursor: pointer;
 }
-.miniTitle:hover {
-  color: var(--sf-color-primary);
+@media (hover: hover) and (pointer: fine) {
+  .miniTitle:hover {
+    color: var(--sf-color-primary);
+  }
 }
 
 /* `minmax(0, 1fr)`, not `1fr`: a plain fr track keeps a min-content floor,
@@ -532,8 +718,10 @@
   cursor: pointer;
   border-radius: var(--sf-radius-default);
 }
-.miniDay:hover {
-  background: color-mix(in oklab, var(--sf-color-primary) 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .miniDay:hover {
+    background: color-mix(in oklab, var(--sf-color-primary) 10%, transparent);
+  }
 }
 .miniDayNum {
   font-family: var(--sf-font-mono);

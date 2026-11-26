@@ -32,8 +32,10 @@
   cursor: pointer;
   transition: color var(--sf-duration-fast) var(--sf-ease-out);
 }
-.close:hover {
-  color: var(--sf-color-fg);
+@media (hover: hover) and (pointer: fine) {
+  .close:hover {
+    color: var(--sf-color-fg);
+  }
 }
 .close:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

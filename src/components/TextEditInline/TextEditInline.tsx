@@ -121,7 +121,11 @@ export const TextEditInline = forwardRef<HTMLTextAreaElement, TextEditInlineProp
         className={cx(styles.root, sizeClass[size], className)}
         style={style}
         data-expanded={expanded || undefined}
-        onPointerEnter={() => setHovered(true)}
+        // A mouse only: a finger has no hover, and a tap focuses the field,
+        // which expands it.
+        onPointerEnter={(e) => {
+          if (e.pointerType === "mouse") setHovered(true);
+        }}
         onPointerLeave={() => setHovered(false)}
       >
         <textarea

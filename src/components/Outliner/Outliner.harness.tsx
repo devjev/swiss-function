@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { SfDndProvider } from "../../lib/dnd";
+import { Dialog } from "../Dialog";
 import { Outliner } from "./Outliner";
 import { flatVisible } from "./tree";
 import type { BulletId, OutlinerCompletionRequest, OutlinerHandle, OutlinerValue } from "./types";
@@ -29,6 +30,8 @@ interface HarnessProps {
   shared?: boolean;
   /** Take pasted and dropped files: each gets the URL `upload:<name>`. */
   withUpload?: boolean;
+  /** The touch toolbar: `true` shows it with a mouse as well. */
+  toolbar?: boolean | "auto";
   /** What the `api-edit` and `api-select` buttons act on. */
   apiTarget?: BulletId;
   apiOffset?: number;
@@ -73,6 +76,7 @@ export function OutlinerHarness({
   tall,
   shared,
   withUpload,
+  toolbar,
   apiTarget = "",
   apiOffset,
 }: HarnessProps) {
@@ -109,6 +113,7 @@ export function OutlinerHarness({
       frame={frame}
       virtualized={rows !== undefined}
       onUpload={withUpload ? (files) => files.map((file) => `upload:${file.name}`) : undefined}
+      toolbar={toolbar}
       apiRef={api}
     />
   );
@@ -154,5 +159,28 @@ export function OutlinerHarness({
       </pre>
       <output data-testid="changes">{changes}</output>
     </div>
+  );
+}
+
+/** An outline with its touch toolbar forced on, in a modal dialog: the bar is
+ *  outside the dialog's popup, and a press on it must not count as one outside
+ *  the dialog. */
+export function OutlinerDialogHarness({ initial }: { initial: OutlinerValue }) {
+  const [value, setValue] = useState<OutlinerValue>(initial);
+  return (
+    <Dialog.Root defaultOpen>
+      <Dialog.Portal>
+        <Dialog.Backdrop />
+        <Dialog.Popup>
+          <Dialog.Title>Notes</Dialog.Title>
+          <Outliner value={value} onChange={setValue} toolbar />
+          <pre data-testid="tree">
+            {flatVisible(value)
+              .map((f) => `${f.depth} ${f.id}:${f.bullet.content}`)
+              .join("\n")}
+          </pre>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

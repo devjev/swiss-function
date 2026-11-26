@@ -32,6 +32,30 @@ export const AutoFlow: Story = () => (
   </Grid>
 );
 
+/** `minColumnWidth`: as many equal columns as fit, none narrower than 8
+ *  units, down to one column. Drag the frame's corner to watch it reflow; a
+ *  phone gets one column with no breakpoint. */
+export const AutoFitColumns: Story = () => (
+  <div
+    style={{
+      resize: "horizontal",
+      overflow: "auto",
+      inlineSize: "min(100%, 40rem)",
+      minInlineSize: "10rem",
+      padding: "var(--sf-unit)",
+      border: "1px solid var(--sf-color-border-strong)",
+    }}
+  >
+    <Grid minColumnWidth={8} gap={1}>
+      <Card>AUM</Card>
+      <Card>Net flows</Card>
+      <Card>Performance</Card>
+      <Card>Fees</Card>
+      <Card>Clients</Card>
+    </Grid>
+  </div>
+);
+
 export const Stack: Story = () => (
   <Grid gap={1}>
     <Card>First</Card>

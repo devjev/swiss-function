@@ -9,12 +9,9 @@ import {
   closestCenter,
   DndContext,
   DragOverlay,
-  PointerSensor,
   pointerWithin,
   useDraggable,
   useDroppable,
-  useSensor,
-  useSensors,
 } from "@dnd-kit/core";
 import type {
   ComponentPropsWithoutRef,
@@ -37,6 +34,8 @@ import {
 } from "react";
 import { cx } from "../../lib/cx";
 import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
+import { useSfSensors } from "../../lib/dnd/sensors";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
@@ -596,7 +595,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropSlot, setDropSlot] = useState<DropSlot | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSfSensors();
   const collisionDetection: CollisionDetection = useCallback((args) => {
     const within = pointerWithin(args);
     return within.length > 0 ? within : closestCenter(args);
@@ -1451,7 +1450,7 @@ function GutterView({
       <div
         ref={setNodeRef}
         aria-hidden="true"
-        className={styles.gutter}
+        className={`${styles.gutter} ${hitArea.handle}`}
         style={placement}
         data-drop-active={dropActive ? "" : undefined}
       />
@@ -1469,7 +1468,7 @@ function GutterView({
       aria-valuenow={Math.round(width)}
       aria-valuemin={minWidth}
       tabIndex={0}
-      className={styles.gutter}
+      className={`${styles.gutter} ${hitArea.handle}`}
       style={placement}
       data-resizable=""
       data-resize-for={leftColumn.id}
@@ -1604,7 +1603,7 @@ function WindowView({
           type="button"
           aria-label={popped ? "Bring the window back" : "Open in a separate window"}
           aria-pressed={popped}
-          className={styles.iconButton}
+          className={`${styles.iconButton} ${hitArea.block}`}
           onClick={() => {
             if (!popped) measurePopRect();
             onPopOutChange(!popped);
@@ -1622,7 +1621,7 @@ function WindowView({
           type="button"
           aria-label={split != null ? "Exit split view" : "Split view"}
           aria-pressed={split != null}
-          className={styles.iconButton}
+          className={`${styles.iconButton} ${hitArea.block}`}
           onClick={onSplitButton}
         >
           <Glyph slot="split" fallback={Split} size={CHROME_ICON_SIZE} />
@@ -1633,7 +1632,7 @@ function WindowView({
           type="button"
           aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
           aria-pressed={fullscreen}
-          className={styles.iconButton}
+          className={`${styles.iconButton} ${hitArea.block}`}
           onClick={onToggleFullscreen}
         >
           {fullscreen ? (
@@ -1644,7 +1643,12 @@ function WindowView({
         </button>
       )}
       {onClose && (
-        <button type="button" aria-label="Close" className={styles.iconButton} onClick={onClose}>
+        <button
+          type="button"
+          aria-label="Close"
+          className={`${styles.iconButton} ${hitArea.block}`}
+          onClick={onClose}
+        >
           <Glyph slot="close" fallback={X} size={CHROME_ICON_SIZE} />
         </button>
       )}
@@ -1748,7 +1752,7 @@ function PopOutMaximizeButton() {
       type="button"
       aria-label={popWindow.maximized ? "Restore window size" : "Maximize window"}
       aria-pressed={popWindow.maximized}
-      className={styles.iconButton}
+      className={`${styles.iconButton} ${hitArea.block}`}
       onClick={popWindow.toggleMaximize}
     >
       {popWindow.maximized ? (
@@ -1776,7 +1780,7 @@ const WindowButton = forwardRef<HTMLButtonElement, WindowArrayWindowButtonProps>
         {...rest}
         ref={ref}
         type={type ?? "button"}
-        className={cx(styles.iconButton, className)}
+        className={cx(styles.iconButton, hitArea.block, className)}
       />
     );
   },

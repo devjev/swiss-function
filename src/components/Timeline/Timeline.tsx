@@ -18,6 +18,7 @@ import {
   useMeasuredPlot,
 } from "../../lib/chart";
 import { cx } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { assignLanes, type LaneInput } from "./lanes";
 import styles from "./Timeline.module.css";
 import { computeTicks } from "./ticks";
@@ -517,7 +518,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 aria-hidden="true"
               />
               <div
-                className={styles.rangeHandle}
+                className={`${styles.rangeHandle} ${hitArea.handle}`}
                 data-bound="start"
                 style={{ left: `${rangeStartPct}%` }}
                 role="slider"
@@ -536,7 +537,7 @@ const Root = forwardRef<HTMLDivElement, TimelineProps>(function TimelineRoot(
                 <span className={styles.playheadGrabber} />
               </div>
               <div
-                className={styles.rangeHandle}
+                className={`${styles.rangeHandle} ${hitArea.handle}`}
                 data-bound="end"
                 style={{ left: `${rangeEndPct}%` }}
                 role="slider"

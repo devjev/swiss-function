@@ -1,25 +1,28 @@
 import type { HTMLAttributes, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { forwardRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import {
-  addDays,
-  addMonthsClamped,
-  addWeeks,
-  addYearsClamped,
-  startOfDay,
-  startOfISOWeek,
-} from "../../lib/date";
+import { addMonthsClamped, addYearsClamped, startOfDay } from "../../lib/date";
 import { Glyph } from "../../lib/icons";
 import { Button } from "../Button";
 import { ChevronLeft, ChevronRight } from "../Icon";
 import { ToggleGroup } from "../ToggleGroup";
 import styles from "./Calendar.module.css";
-import type { CalendarEvent, CalendarView } from "./calendarLayout";
+import {
+  type CalendarEvent,
+  type CalendarView,
+  stepWeekWindow,
+  type WeekDayCount,
+  weekWindow,
+} from "./calendarLayout";
 import { MonthView } from "./MonthView";
+import { useWeekDayFit } from "./useWeekDayFit";
 import { WeekView } from "./WeekView";
 import { YearView } from "./YearView";
 
 export type { CalendarEvent, CalendarEventTone, CalendarView } from "./calendarLayout";
+
+/** How many day columns the week view shows: as many as fit, or a fixed count. */
+export type CalendarWeekDays = "auto" | 7 | 3 | 1;
 
 /** Everything the three view components need from the root. */
 export interface CalendarViewProps {
@@ -32,6 +35,8 @@ export interface CalendarViewProps {
   onDateClick?: (date: Date) => void;
   renderEvent?: (event: CalendarEvent, ctx: { view: CalendarView }) => ReactNode;
   showWeekNumbers: boolean;
+  /** The day columns the week view shows (the resolved `weekDays`). */
+  weekDays: 7 | 3 | 1;
   /** Switch to a narrower view focused on `date` (day cell → week / month). */
   onDrillDown?: (date: Date, view: CalendarView) => void;
 }
@@ -61,6 +66,11 @@ export interface CalendarProps
   renderEvent?: (event: CalendarEvent, ctx: { view: CalendarView }) => ReactNode;
   /** Show the ISO week-number column (month/week views). Default `false`. */
   showWeekNumbers?: boolean;
+  /** How many day columns the week view shows. `"auto"` (default) follows the
+   *  calendar's own width: the ISO week when each column gets about five units,
+   *  else three days, else one. `7`, `3` or `1` fixes the count. Three days and
+   *  one day start at the focused date, and prev / next step by that many days. */
+  weekDays?: CalendarWeekDays;
   /** Component height. The week view scrolls its hour grid inside this. Default
    *  `calc(var(--sf-unit) * 24)`. */
   height?: number | string;
@@ -73,25 +83,31 @@ export interface CalendarProps
 const VIEW_LABEL: Record<CalendarView, string> = { month: "Month", week: "Week", year: "Year" };
 const VIEWS: CalendarView[] = ["month", "week", "year"];
 
+/** What one press of prev / next moves by, for the buttons' names. */
+const STEP_LABEL: Record<WeekDayCount, string> = { 7: "week", 3: "3 days", 1: "day" };
+
 /** The header title for the current view + focused date. */
-function titleFor(focused: Date, view: CalendarView): string {
+function titleFor(focused: Date, view: CalendarView, weekDays: WeekDayCount): string {
   if (view === "year") return String(focused.getFullYear());
   if (view === "month") {
     return focused.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   }
-  // Week: the Monday-to-Sunday range, built day-first (ISO) rather than trusting
-  // the locale's day/month field order.
-  const mon = startOfISOWeek(focused);
-  const sun = addDays(mon, 6);
+  // Week: the range of the days on screen (Monday to Sunday, three days, or
+  // one), built day-first (ISO) rather than trusting the locale's day/month
+  // field order.
+  const days = weekWindow(focused, weekDays);
+  const first = days[0] ?? focused;
+  const last = days[days.length - 1] ?? first;
   const short = (d: Date) => d.toLocaleDateString(undefined, { month: "short" });
-  const y = sun.getFullYear();
-  if (mon.getMonth() === sun.getMonth() && mon.getFullYear() === y) {
-    return `${mon.getDate()}-${sun.getDate()} ${short(sun)} ${y}`;
+  const y = last.getFullYear();
+  if (days.length === 1) return `${last.getDate()} ${short(last)} ${y}`;
+  if (first.getMonth() === last.getMonth() && first.getFullYear() === y) {
+    return `${first.getDate()}-${last.getDate()} ${short(last)} ${y}`;
   }
-  if (mon.getFullYear() === y) {
-    return `${mon.getDate()} ${short(mon)} - ${sun.getDate()} ${short(sun)} ${y}`;
+  if (first.getFullYear() === y) {
+    return `${first.getDate()} ${short(first)} - ${last.getDate()} ${short(last)} ${y}`;
   }
-  return `${mon.getDate()} ${short(mon)} ${mon.getFullYear()} - ${sun.getDate()} ${short(sun)} ${y}`;
+  return `${first.getDate()} ${short(first)} ${first.getFullYear()} - ${last.getDate()} ${short(last)} ${y}`;
 }
 
 /**
@@ -100,7 +116,9 @@ function titleFor(focused: Date, view: CalendarView): string {
  * the `DatePicker` (that picks a value into a field); this is a surface for
  * reading and clicking into a schedule. Events carry an optional time (`allDay`
  * for whole-day items); the week view lays overlapping timed events out in
- * side-by-side columns and multi-day events span as bars. Renders a
+ * side-by-side columns and multi-day events span as bars. It adapts to its own
+ * width: the week view shows seven days, three or one (`weekDays`), and the
+ * toolbar wraps onto a second row. Renders a
  * `<div role="group">`; extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
  * Weeks start on Monday (ISO 8601), matching `DatePicker`.
  */
@@ -117,6 +135,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     onDateClick,
     renderEvent,
     showWeekNumbers = false,
+    weekDays = "auto",
     height,
     now,
     className,
@@ -141,6 +160,11 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
   const nowRef = now ?? new Date();
   const today = startOfDay(nowRef);
 
+  // The week view's day columns: the count that fits the calendar's own
+  // width, unless the consumer fixed one.
+  const fit = useWeekDayFit();
+  const visibleDays: WeekDayCount = weekDays === "auto" ? fit.days : weekDays;
+
   const navigate = (next: Date) => {
     if (!focusedControlled) setFocusedUncontrolled(next);
     onNavigate?.(next);
@@ -152,9 +176,11 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
 
   const step = (dir: -1 | 1) => {
     if (currentView === "month") navigate(addMonthsClamped(focused, dir));
-    else if (currentView === "week") navigate(addWeeks(focused, dir));
+    else if (currentView === "week") navigate(stepWeekWindow(focused, visibleDays, dir));
     else navigate(addYearsClamped(focused, dir));
   };
+
+  const stepLabel = currentView === "week" ? STEP_LABEL[visibleDays] : currentView;
 
   const drillDown = (date: Date, toView: CalendarView) => {
     navigate(startOfDay(date));
@@ -170,6 +196,7 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
     onDateClick,
     renderEvent,
     showWeekNumbers,
+    weekDays: visibleDays,
     onDrillDown: drillDown,
   };
 
@@ -188,14 +215,16 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
       className={cx(styles.root, className)}
       style={rootStyle}
       data-view={currentView}
+      data-week-days={currentView === "week" ? visibleDays : undefined}
     >
+      <div ref={fit.probeRef} className={styles.unitProbe} aria-hidden="true" />
       <div className={styles.toolbar}>
         <div className={styles.nav}>
           <Button
             variant="ghost"
             size="sm"
             tight
-            aria-label={`Previous ${currentView}`}
+            aria-label={`Previous ${stepLabel}`}
             onClick={() => step(-1)}
           >
             <Glyph slot="chevronLeft" fallback={ChevronLeft} />
@@ -207,17 +236,18 @@ export const Calendar = forwardRef<HTMLDivElement, CalendarProps>(function Calen
             variant="ghost"
             size="sm"
             tight
-            aria-label={`Next ${currentView}`}
+            aria-label={`Next ${stepLabel}`}
             onClick={() => step(1)}
           >
             <Glyph slot="chevronRight" fallback={ChevronRight} />
           </Button>
         </div>
         <h2 className={styles.title} aria-live="polite">
-          {titleFor(focused, currentView)}
+          {titleFor(focused, currentView, visibleDays)}
         </h2>
         <ToggleGroup
           size="sm"
+          className={styles.switcher}
           value={[currentView]}
           onValueChange={(v) => {
             const next = v[0] as CalendarView | undefined;

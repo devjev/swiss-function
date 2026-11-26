@@ -189,6 +189,60 @@ export const Frameless: Story = () => {
   );
 };
 
+const TRIP: OutlinerValue = [
+  {
+    id: "t1",
+    content: "Packing",
+    children: [
+      { id: "t1.1", content: "[x] Passport" },
+      { id: "t1.2", content: "[ ] Charger and adapter" },
+      { id: "t1.3", content: "[ ] Rain jacket" },
+    ],
+  },
+  {
+    id: "t2",
+    content: "Monday",
+    children: [
+      { id: "t2.1", content: "Train to Bern, 08:02" },
+      { id: "t2.2", content: "Workshop, room 4" },
+      { id: "t2.3", content: "Dinner with the team" },
+    ],
+  },
+  {
+    id: "t3",
+    content: "Tuesday",
+    children: [
+      { id: "t3.1", content: "Review the notes from Monday" },
+      { id: "t3.2", content: "Site visit" },
+      { id: "t3.3", content: "Train back, 17:28" },
+    ],
+  },
+  { id: "t4", content: "Expenses", children: [{ id: "t4.1", content: "Keep the receipts" }] },
+  { id: "t5", content: "Open questions" },
+  { id: "t6", content: "Who books the room for the follow-up?" },
+  { id: "t7", content: "Send the summary by Friday" },
+  { id: "t8", content: "Ask about the second workshop" },
+  { id: "t9", content: "Return the adapter" },
+  { id: "t10", content: "The last block of the outline" },
+];
+
+/** The touch toolbar, forced on (`toolbar`), so it shows with a mouse too. By
+ *  default (`"auto"`) it shows only where the primary pointer is a finger.
+ *  Enter a block: the bar docks to the bottom edge of the window, above the
+ *  on-screen keyboard when there is one. */
+export const TouchToolbar: Story = () => {
+  const [value, setValue] = useState<OutlinerValue>(TRIP);
+  return (
+    <div style={frame}>
+      <Note>
+        Enter a block. The keys along the bottom edge outdent, indent, move the block up and down,
+        make it a task, undo and redo; the last one leaves the text.
+      </Note>
+      <Outliner value={value} onChange={setValue} toolbar frame={false} aria-label="Trip" />
+    </div>
+  );
+};
+
 /** 5000 blocks in a box: only the rows on screen are rendered. The buttons
  *  drive the outline through `apiRef`. */
 export const Virtualized: Story = () => {

@@ -2,6 +2,7 @@ import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { cx, mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import type { BoxElevation } from "../Box";
 import styles from "./Checkbox.module.css";
 
@@ -19,7 +20,7 @@ export const Checkbox = forwardRef<HTMLButtonElement, CheckboxProps>(function Ch
       {...rest}
       ref={ref}
       data-elevation={elevation}
-      className={mergeClassName(styles.root, className)}
+      className={mergeClassName(`${styles.root} ${hitArea.both}`, className)}
     >
       <BaseCheckbox.Indicator className={styles.indicator} keepMounted>
         <svg className={cx(styles.icon, styles.iconCheck)} viewBox="0 0 12 12" aria-hidden="true">

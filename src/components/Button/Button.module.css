@@ -121,8 +121,10 @@
   color: var(--sf-color-primary-fg);
   border-color: color-mix(in srgb, var(--sf-color-primary), black 12%);
 }
-.variantPrimary:hover:not([data-disabled]) {
-  --btn-cap: var(--sf-color-primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .variantPrimary:hover:not([data-disabled]) {
+    --btn-cap: var(--sf-color-primary-hover);
+  }
 }
 
 .variantSecondary {
@@ -131,8 +133,10 @@
   color: var(--sf-color-fg);
   border-color: var(--sf-color-border);
 }
-.variantSecondary:hover:not([data-disabled]) {
-  --btn-cap: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .variantSecondary:hover:not([data-disabled]) {
+    --btn-cap: var(--sf-color-bg-subtle);
+  }
 }
 
 .variantGhost {
@@ -143,8 +147,10 @@
      forces the flat surface). The hover bg alone communicates interactivity. */
   box-shadow: none;
 }
-.variantGhost:hover:not([data-disabled]) {
-  --btn-cap: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .variantGhost:hover:not([data-disabled]) {
+    --btn-cap: var(--sf-color-bg-subtle);
+  }
 }
 .variantGhost:active:not([data-disabled]) {
   box-shadow: none;
@@ -158,8 +164,10 @@
   color: var(--sf-color-danger-fg);
   border-color: color-mix(in srgb, var(--sf-color-danger), black 12%);
 }
-.variantDanger:hover:not([data-disabled]) {
-  --btn-cap: var(--sf-color-danger-hover);
+@media (hover: hover) and (pointer: fine) {
+  .variantDanger:hover:not([data-disabled]) {
+    --btn-cap: var(--sf-color-danger-hover);
+  }
 }
 
 /* Sizes — block-size always lands on a clean unit multiple (1, 1.5, 2). The

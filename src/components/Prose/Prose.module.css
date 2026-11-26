@@ -13,6 +13,17 @@
   min-block-size: 0;
 }
 
+/* A narrow container: one column, the outline a short scrolling block above
+   the body (`data-stacked`, set from the measured container width). */
+.root.split[data-stacked] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.root.split[data-stacked] .outline {
+  max-block-size: calc(var(--sf-unit) * 6);
+  border-block-end: 1px solid var(--sf-color-border-subtle);
+}
+
 /* --- Outline --- */
 .outline {
   composes: scrollable from "../../lib/scrollable.module.css";
@@ -53,9 +64,11 @@
   overflow: hidden;
   white-space: nowrap;
 }
-.outlineLink:hover {
-  color: var(--sf-color-fg);
-  background-color: var(--sf-color-bg-subtle);
+@media (hover: hover) and (pointer: fine) {
+  .outlineLink:hover {
+    color: var(--sf-color-fg);
+    background-color: var(--sf-color-bg-subtle);
+  }
 }
 .outlineLink:focus-visible {
   outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);

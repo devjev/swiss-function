@@ -143,8 +143,10 @@
   background-color: color-mix(in srgb, var(--sf-color-border), var(--sf-color-fg) 12%);
 }
 
-.thumb:hover {
-  box-shadow: var(--sf-edge), var(--sf-elevation-3);
+@media (hover: hover) and (pointer: fine) {
+  .thumb:hover {
+    box-shadow: var(--sf-edge), var(--sf-elevation-3);
+  }
 }
 
 /* The pressed thumb travels: the same face, one step lower and 1px down.
@@ -211,10 +213,15 @@
 
 /* Reveal only the active thumb's bubble (`:has(input:focus)` marks the one thumb
    being dragged or keyboard-driven; `data-dragging` is global to all thumbs). */
-.thumb:hover .bubble,
 .thumb:has(input:focus) .bubble {
   opacity: 1;
   translate: -50% 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .thumb:hover .bubble {
+    opacity: 1;
+    translate: -50% 0;
+  }
 }
 .root[data-value-label="always"] .bubble {
   opacity: 1;
@@ -306,10 +313,14 @@
   inset-inline-start: calc(100% + calc(var(--sf-unit) / 4));
   translate: 2px -50%;
 }
-.root[data-orientation="vertical"] .thumb:hover .bubble,
 .root[data-orientation="vertical"] .thumb:has(input:focus) .bubble,
 .root[data-orientation="vertical"][data-value-label="always"] .bubble {
   translate: 0 -50%;
+}
+@media (hover: hover) and (pointer: fine) {
+  .root[data-orientation="vertical"] .thumb:hover .bubble {
+    translate: 0 -50%;
+  }
 }
 .root[data-orientation="vertical"] .ticks {
   inline-size: calc(var(--sf-unit) * 0.75);

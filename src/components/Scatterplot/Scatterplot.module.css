@@ -135,12 +135,20 @@
   outline: none;
 }
 
-.point:hover,
 .point:focus-visible {
   /* Hover/focus: grow the circle slightly so the hovered datum reads as
      the topmost interactive element. r is an SVG attribute, but Safari/Chrome
      both animate it via CSS transitions on modern engines. */
   r: 6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .point:hover {
+    /* Hover/focus: grow the circle slightly so the hovered datum reads as
+     the topmost interactive element. r is an SVG attribute, but Safari/Chrome
+     both animate it via CSS transitions on modern engines. */
+    r: 6;
+  }
 }
 
 .point:focus-visible {
@@ -211,8 +219,10 @@ g[data-activatable] .point {
   cursor: pointer;
 }
 
-.resetButton:hover {
-  border-color: var(--sf-color-border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .resetButton:hover {
+    border-color: var(--sf-color-border-strong);
+  }
 }
 
 .resetButton:focus-visible {
@@ -277,7 +287,7 @@ g[data-activatable] .point {
   border-radius: var(--sf-radius-default);
   font-family: var(--sf-font-mono);
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
+  font-size: max(var(--sf-font-size-sm), var(--sf-text-entry-min));
   outline: none;
 }
 

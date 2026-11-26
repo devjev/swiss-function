@@ -176,8 +176,10 @@
 /* Hover hint: the bottom lip cracks toward the viewer, the way a thumb would
    start the flip. Positive rotation brings the bottom edge closer, so it
    projects slightly larger — the lid reads as lifting, never shrinking. */
-.root:not([data-open]):not([data-disabled]) .guard:hover .lid {
-  rotate: x 8deg;
+@media (hover: hover) and (pointer: fine) {
+  .root:not([data-open]):not([data-disabled]) .guard:hover .lid {
+    rotate: x 8deg;
+  }
 }
 
 /* Open: up and over the top hinge toward the viewer, past vertical, resting
@@ -496,8 +498,10 @@
       opacity var(--sf-duration-fast) var(--sf-ease-out),
       visibility 0s;
   }
-  .root:not([data-open]):not([data-disabled]) .guard:hover .lid {
-    rotate: none;
+  @media (hover: hover) and (pointer: fine) {
+    .root:not([data-open]):not([data-disabled]) .guard:hover .lid {
+      rotate: none;
+    }
   }
   .root[data-open] .lid {
     rotate: none;

@@ -2,6 +2,7 @@ import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
+import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
@@ -109,7 +110,7 @@ const ChipRemove = forwardRef<
     <BaseCombobox.ChipRemove
       {...rest}
       ref={ref}
-      className={mergeClassName(styles.chipRemove, className)}
+      className={mergeClassName(`${styles.chipRemove} ${hitArea.tight}`, className)}
     />
   );
 });
@@ -118,7 +119,11 @@ const ChipRemove = forwardRef<
 const Clear = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof BaseCombobox.Clear>>(
   function ComboboxClear({ className, ...rest }, ref) {
     return (
-      <BaseCombobox.Clear {...rest} ref={ref} className={mergeClassName(styles.clear, className)} />
+      <BaseCombobox.Clear
+        {...rest}
+        ref={ref}
+        className={mergeClassName(`${styles.clear} ${hitArea.block}`, className)}
+      />
     );
   },
 );
@@ -133,7 +138,11 @@ const Trigger = forwardRef<
   ComponentPropsWithoutRef<typeof BaseCombobox.Trigger>
 >(function ComboboxTrigger({ className, children, ...rest }, ref) {
   return (
-    <BaseCombobox.Trigger {...rest} ref={ref} className={mergeClassName(styles.trigger, className)}>
+    <BaseCombobox.Trigger
+      {...rest}
+      ref={ref}
+      className={mergeClassName(`${styles.trigger} ${hitArea.block}`, className)}
+    >
       {children ?? <Glyph slot="chevronDown" fallback={ChevronDown} size="0.85em" />}
     </BaseCombobox.Trigger>
   );

@@ -77,8 +77,10 @@
 }
 
 /* Hover: the tab behind lifts a shade toward the sheet. */
-.tab:hover:not([aria-selected="true"]) {
-  --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-bg) 60%);
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover:not([aria-selected="true"]) {
+    --sf-cap: color-mix(in srgb, var(--sf-color-bg-subtle), var(--sf-color-bg) 60%);
+  }
 }
 
 /* Base UI marks the active tab with aria-selected (the older data-selected
@@ -162,8 +164,10 @@
 .trigger {
   color: var(--sf-color-muted);
 }
-.trigger:hover {
-  color: var(--sf-color-fg);
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover {
+    color: var(--sf-color-fg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
