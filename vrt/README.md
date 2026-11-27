@@ -34,6 +34,10 @@ npm run vrt:list    # refresh stories.json after adding/removing stories
 `vrt` exits non-zero on any diff beyond the budget (`maxDiffPixels`), writing
 `<name>-diff.png` next to the actual under `test-results/` for inspection.
 
+The page's clock is pinned to one date (`page.clock.setFixedTime` in
+`stories.vrt.ts`), so a story that reads it (the Timeline "now" line) renders
+the same on any day. Timers and animations keep running; only `Date` is fixed.
+
 ## Phone projects
 
 `VRT_PHONE=1 npm run vrt` (and `VRT_PHONE=1 npm run vrt:update` to seed them)

@@ -28,6 +28,39 @@ const MANY: HorizonSeries[] = Array.from({ length: 20 }, (_, r) => ({
   data: Array.from({ length: 30 }, (_, i) => ({ x: day(i), y: Math.sin((i + r) / 4) })),
 }));
 
+/** The plot's box once the layout has settled. The chart lays out twice on
+ *  mount: the plot is measured, then the gutter for the last tick label is
+ *  taken out of it, so for a frame the plot is wider than it ends up. A
+ *  position read in that frame names a different day afterwards, and a second
+ *  click there moves a pin instead of removing it. Waits until the box has
+ *  held for a few frames. */
+async function plotBox(
+  page: import("@playwright/test").Page,
+  c: import("@playwright/test").Locator,
+) {
+  const svg = c.locator("svg");
+  await svg.waitFor();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let last = "";
+        let held = 0;
+        const tick = () => {
+          const b = document.querySelector('svg[role="img"]')?.getBoundingClientRect();
+          const now = b ? `${b.x},${b.y},${b.width},${b.height}` : "";
+          held = now !== "" && now === last ? held + 1 : 0;
+          last = now;
+          if (held >= 4) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  const box = await svg.boundingBox();
+  if (!box) throw new Error("no svg box");
+  return box;
+}
+
 test("renders one focusable row per series, band paths and the label column", async ({ mount }) => {
   const c = await mount(
     <div style={{ width: 480 }}>
@@ -72,8 +105,7 @@ test("past 16 rows the tooltip lists only the row under the pointer", async ({ m
       <HorizonChart series={MANY} rowHeight={20} />
     </div>,
   );
-  const box = await c.locator("svg").boundingBox();
-  if (!box) throw new Error("no svg box");
+  const box = await plotBox(page, c);
   await page.mouse.move(box.x + 100, box.y + 70);
   const tip = page.getByRole("tooltip");
   await expect(tip).toContainText("Row 4");
@@ -86,14 +118,15 @@ test("clicking a row activates its datum and pins a selection; a second click un
   page,
 }) => {
   const c = await mount(<ActivatableHorizon series={ROWS} rowHeight={30} selectable />);
-  const box = await c.locator("svg").boundingBox();
-  if (!box) throw new Error("no svg box");
+  let box = await plotBox(page, c);
   await page.mouse.move(box.x + box.width / 2, box.y + 75);
   await page.mouse.click(box.x + box.width / 2, box.y + 75);
   await expect(c.getByTestId("activated")).toHaveText(/^Gamma:0\.5$/);
   await expect(c.getByTestId("selection")).toHaveText(/^Gamma:0\.5$/);
   await expect(c.locator("circle")).toHaveCount(1);
   await expect(page.getByRole("dialog")).toContainText("Gamma");
+  // The same point again: a click one day to the side would move the pin.
+  box = await plotBox(page, c);
   await page.mouse.click(box.x + box.width / 2, box.y + 75);
   await expect(c.getByTestId("selection")).toHaveText("");
 });
@@ -237,4 +270,44 @@ test("with controls on, the first row starts below the toolbar", async ({ mount 
     "height",
     String(120 + 2 * U),
   );
+});
+
+test("a click with no hover reading before it still activates the row under it", async ({
+  mount,
+  page,
+}) => {
+  // No pointer move reaches the plot before the click: the row and the value
+  // come from the click's own position, as they do for a tap.
+  const c = await mount(<ActivatableHorizon series={ROWS} rowHeight={30} selectable />);
+  const svg = c.locator("svg");
+  const clickRow = async () => {
+    const box = await plotBox(page, c);
+    await svg.dispatchEvent("click", {
+      clientX: box.x + box.width / 2,
+      clientY: box.y + 75,
+      bubbles: true,
+    });
+  };
+  await clickRow();
+  await expect(c.getByTestId("selection")).toHaveText(/^Gamma:0\.5$/);
+  await clickRow();
+  await expect(c.getByTestId("selection")).toHaveText("");
+});
+
+test.describe("touch", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 700 } });
+
+  test("a tap pins the row under the finger, and a second tap unpins it", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(<ActivatableHorizon series={ROWS} rowHeight={30} selectable />);
+    let box = await plotBox(page, c);
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + 75);
+    await expect(c.getByTestId("selection")).toHaveText(/^Gamma:0\.5$/);
+    await expect(page.getByRole("dialog")).toContainText("Gamma");
+    box = await plotBox(page, c);
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + 75);
+    await expect(c.getByTestId("selection")).toHaveText("");
+  });
 });

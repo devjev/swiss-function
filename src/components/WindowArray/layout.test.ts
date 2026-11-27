@@ -121,6 +121,74 @@ describe("neighbor", () => {
     expect(neighbor(empty, "a1", "down")).toBeNull();
     expect(neighbor(model, "nope", "down")).toBeNull();
   });
+
+  it("steps over a column that has no windows", () => {
+    const gap: StripModel = {
+      columns: [
+        { id: "col-a", windowIds: ["a1"] },
+        { id: "col-b", windowIds: [] },
+        { id: "col-c", windowIds: ["c1"] },
+      ],
+    };
+    expect(neighbor(gap, "a1", "right")).toBe("c1");
+    expect(neighbor(gap, "c1", "left")).toBe("a1");
+    expect(neighbor(gap, "c1", "right")).toBeNull();
+  });
+});
+
+// A vertical band wraps its windows onto lines. In model terms left / right
+// are then the keys that leave a line (Up / Down on screen).
+describe("neighbor on a wrapped band", () => {
+  // Two per line:  w1 w2      One per line:  w1
+  //                w3 w4                     w2 ...
+  //                w5
+  //                x1 x2
+  //                x3
+  const bands: StripModel = {
+    columns: [
+      { id: "col-w", windowIds: ["w1", "w2", "w3", "w4", "w5"] },
+      { id: "col-x", windowIds: ["x1", "x2", "x3"] },
+    ],
+  };
+
+  it("goes one line down or up, the position on the line kept", () => {
+    expect(neighbor(bands, "w1", "right", 2)).toBe("w3");
+    expect(neighbor(bands, "w2", "right", 2)).toBe("w4");
+    expect(neighbor(bands, "w4", "left", 2)).toBe("w2");
+    // A short last line clamps the position.
+    expect(neighbor(bands, "w4", "right", 2)).toBe("w5");
+    expect(neighbor(bands, "w5", "left", 2)).toBe("w3");
+  });
+
+  it("leaves the band from its last line to the next band's first line", () => {
+    expect(neighbor(bands, "w5", "right", 2)).toBe("x1");
+    expect(neighbor(bands, "x3", "right", 2)).toBeNull();
+  });
+
+  it("leaves the band from its first line to the previous band's last line", () => {
+    expect(neighbor(bands, "x1", "left", 2)).toBe("w5");
+    expect(neighbor(bands, "x2", "left", 2)).toBe("w5");
+    expect(neighbor(bands, "w1", "left", 2)).toBeNull();
+  });
+
+  it("with one window per line walks every window in order", () => {
+    const order = ["w1", "w2", "w3", "w4", "w5", "x1", "x2", "x3"];
+    for (let i = 0; i < order.length; i++) {
+      expect(neighbor(bands, order[i] ?? "", "right", 1)).toBe(order[i + 1] ?? null);
+      expect(neighbor(bands, order[i] ?? "", "left", 1)).toBe(order[i - 1] ?? null);
+    }
+  });
+
+  it("still walks the band in order along a line and across the break", () => {
+    expect(neighbor(bands, "w2", "down", 2)).toBe("w3");
+    expect(neighbor(bands, "w3", "up", 2)).toBe("w2");
+  });
+
+  it("is the unwrapped step where the band fits on one line", () => {
+    expect(neighbor(bands, "w3", "right", 5)).toBe("x3");
+    expect(neighbor(bands, "w5", "right", 5)).toBe("x3");
+    expect(neighbor(bands, "x1", "left", 5)).toBe("w1");
+  });
 });
 
 describe("projectMove", () => {
@@ -208,6 +276,128 @@ describe("moveByKey", () => {
     expect(moveByKey(model, "b1", "left")).toEqual(
       expect.objectContaining({ to: { type: "cell", columnId: "col-a", index: 0 } }),
     );
+  });
+});
+
+describe("moveByKey on a wrapped band", () => {
+  const bands: StripModel = {
+    columns: [
+      { id: "col-w", windowIds: ["w1", "w2", "w3", "w4", "w5"] },
+      { id: "col-x", windowIds: ["x1", "x2", "x3"] },
+    ],
+  };
+  const to = (move: ReturnType<typeof moveByKey>) => move?.to ?? null;
+
+  it("moves one line down or up inside the band", () => {
+    // w1 w2 / w3 w4 / w5: w1 goes under w3's place, [w2 w3 / w1 w4 / w5].
+    expect(to(moveByKey(bands, "w1", "right", 2))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 2,
+    });
+    expect(to(moveByKey(bands, "w4", "left", 2))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 1,
+    });
+    // Onto the short last line: the end of the band.
+    expect(to(moveByKey(bands, "w4", "right", 2))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 4,
+    });
+  });
+
+  it("leaves the band from its last line into the next band's first line", () => {
+    expect(to(moveByKey(bands, "w5", "right", 2))).toEqual({
+      type: "cell",
+      columnId: "col-x",
+      index: 0,
+    });
+    // From the last band: a new band at the end.
+    expect(to(moveByKey(bands, "x3", "right", 2))).toEqual({ type: "column", index: 2 });
+  });
+
+  it("leaves the band from its first line into the previous band's last line", () => {
+    // x2 is second on its line; w5 is alone on the last line, so x2 follows it.
+    expect(to(moveByKey(bands, "x2", "left", 2))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 5,
+    });
+    expect(to(moveByKey(bands, "x1", "left", 2))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 4,
+    });
+    expect(to(moveByKey(bands, "w2", "left", 2))).toEqual({ type: "column", index: 0 });
+  });
+
+  it("with one window per line moves a window one place at a time", () => {
+    expect(to(moveByKey(bands, "w1", "right", 1))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 1,
+    });
+    // Across two bands the window changes places with its neighbour too: the
+    // last of a band goes under the first window of the band below, and the
+    // first of a band goes above the last window of the band above.
+    expect(to(moveByKey(bands, "w5", "right", 1))).toEqual({
+      type: "cell",
+      columnId: "col-x",
+      index: 1,
+    });
+    expect(to(moveByKey(bands, "x1", "left", 1))).toEqual({
+      type: "cell",
+      columnId: "col-w",
+      index: 4,
+    });
+  });
+});
+
+describe("moveByKey with windows popped out", () => {
+  // p1 and p2 are in the consumer's array and not on the strip.
+  const full: StripModel = {
+    columns: [
+      { id: "col-a", windowIds: ["a1", "p1", "a2", "a3"] },
+      { id: "col-b", windowIds: ["p2", "b1"] },
+    ],
+  };
+  const visible: StripModel = {
+    columns: [
+      { id: "col-a", windowIds: ["a1", "a2", "a3"] },
+      { id: "col-b", windowIds: ["b1"] },
+    ],
+  };
+  const to = (move: ReturnType<typeof moveByKey>) => move?.to ?? null;
+
+  it("steps past a popped window in one move", () => {
+    // a1 goes below a2, the next window on screen: [p1, a2, a1, a3].
+    expect(to(moveByKey(full, "a1", "down", Number.POSITIVE_INFINITY, visible))).toEqual({
+      type: "cell",
+      columnId: "col-a",
+      index: 2,
+    });
+    expect(to(moveByKey(full, "a2", "up", Number.POSITIVE_INFINITY, visible))).toEqual({
+      type: "cell",
+      columnId: "col-a",
+      index: 0,
+    });
+  });
+
+  it("counts the position in the target column among the windows on screen", () => {
+    // a1 is first on screen in its column, so it lands before b1: [p2, a1, b1].
+    expect(to(moveByKey(full, "a1", "right", Number.POSITIVE_INFINITY, visible))).toEqual({
+      type: "cell",
+      columnId: "col-b",
+      index: 1,
+    });
+    // a2 is second on screen, so it lands after b1.
+    expect(to(moveByKey(full, "a2", "right", Number.POSITIVE_INFINITY, visible))).toEqual({
+      type: "cell",
+      columnId: "col-b",
+      index: 2,
+    });
   });
 });
 

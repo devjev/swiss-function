@@ -710,8 +710,8 @@ test("vertical: a short last line shares the band's width, and the keys keep the
   expect(Math.abs(w1c.x - w1a.x)).toBeLessThan(1);
   expect(Math.abs(w1c.width - (w1b.x + w1b.width - w1a.x))).toBeLessThan(1);
 
-  // Left / Right still walk the band in order, across the line break, and
-  // the strip scrolls the wrapped line into view.
+  // Left / Right walk the band in order, across the line break, and the
+  // strip scrolls the wrapped line into view.
   const scrollTop = () => root.evaluate((el) => (el.firstElementChild as HTMLElement).scrollTop);
   await page.getByRole("button", { name: "Window 1A" }).click();
   await page.keyboard.press("ArrowRight");
@@ -728,10 +728,18 @@ test("vertical: a short last line shares the band's width, and the keys keep the
       return win.y >= rootBox.y && win.y + win.height <= rootBox.y + rootBox.height;
     })
     .toBe(true);
-  // Up / Down still switch bands, the position in the band kept.
+  // Up / Down step one line: out of the band's last line into the next
+  // band's first, and back into the last line of the band above.
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("button", { name: "Window 2C" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Window 2A" })).toBeFocused();
   await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: "Window 1C" })).toBeFocused();
+  // Inside the band they reach the window above or below, the place on the
+  // line kept (and clamped on the short line).
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("button", { name: "Window 1C" })).toBeFocused();
   // Shift+Left reports the same move as on an unwrapped band.
   await page.keyboard.press("Shift+ArrowLeft");
@@ -850,6 +858,381 @@ test("vertical, one window per line: fullscreen fills the container and returns 
   if (!after) throw new Error("missing bounding box");
   expect(Math.abs(after.width - before.width)).toBeLessThan(1);
   expect(Math.abs(after.height - before.height)).toBeLessThan(1);
+});
+
+// --- A wrapped band: keys, paddles, split view, pop-out, snap ---------------
+// 326px holds one 240px window per line: w1a, w1b (band 1), w2a, w2b (band 2),
+// w3a, w3b (band 3), one under the other, 220px lines 10px apart.
+
+const STACKED = { width: 326, height: 500, windowMinWidth: 240 } as const;
+const STACK_ORDER = ["w1a", "w1b", "w2a", "w2b", "w3a", "w3b"];
+
+function stripViewport(page: import("@playwright/test").Page) {
+  return page.getByTestId("window-array").locator("> div").first();
+}
+
+/** The window's box relative to the strip's visible area. */
+async function inViewport(page: import("@playwright/test").Page, id: string) {
+  const view = await stripViewport(page).boundingBox();
+  const win = await page.locator(`[data-window-id="${id}"]`).boundingBox();
+  if (!view || !win) throw new Error(`missing box for ${id}`);
+  return { top: win.y - view.y, bottom: view.y + view.height - (win.y + win.height) };
+}
+
+test("vertical, one window per line: Up and Down walk every window in order", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  for (const id of STACK_ORDER.slice(1)) {
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("active-id")).toHaveText(id);
+    // Each one is scrolled into view whole.
+    await expect
+      .poll(async () => {
+        const at = await inViewport(page, id);
+        return at.top >= 0 && at.bottom >= 0;
+      })
+      .toBe(true);
+  }
+  // The end of the strip: nothing further down.
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByTestId("active-id")).toHaveText("w3b");
+  for (const id of STACK_ORDER.slice(0, -1).reverse()) {
+    await page.keyboard.press("ArrowUp");
+    await expect(page.getByTestId("active-id")).toHaveText(id);
+  }
+  await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+});
+
+test("vertical, one window per line: Shift+Down and Shift+Up change places with the neighbour, across bands", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} height={900} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  const order = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("[data-window-id]")]
+        .sort((a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y)
+        .map((el) => el.dataset.windowId),
+    );
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  // Inside the band: one place down.
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect.poll(order).toEqual(["w1b", "w1a", "w2a", "w2b", "w3a", "w3b"]);
+  await expect(page.getByRole("button", { name: "Window 1A" })).toBeFocused();
+  // Out of the band: under the first window of the band below.
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 1 },
+      to: { type: "cell", columnId: "col-2", index: 1 },
+    }),
+  );
+  await expect.poll(order).toEqual(["w1b", "w2a", "w1a", "w2b", "w3a", "w3b"]);
+  // And back: above the last window of the band above.
+  await page.keyboard.press("Shift+ArrowUp");
+  await page.keyboard.press("Shift+ArrowUp");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-2", index: 0 },
+      to: { type: "cell", columnId: "col-1", index: 0 },
+    }),
+  );
+  await expect.poll(order).toEqual(STACK_ORDER);
+});
+
+test("vertical, one window per line: the paddles step one window at a time", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} controls />);
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-stacked", "");
+  const prev = page.getByRole("button", { name: "Previous column" });
+  const next = page.getByRole("button", { name: "Next column" });
+  // The paddles sit at the top and the bottom edge, centred.
+  const rootBox = await root.boundingBox();
+  const prevBox = await prev.boundingBox();
+  const nextBox = await next.boundingBox();
+  if (!rootBox || !prevBox || !nextBox) throw new Error("missing bounding boxes");
+  const centre = rootBox.x + rootBox.width / 2;
+  expect(Math.abs(prevBox.x + prevBox.width / 2 - centre)).toBeLessThan(1);
+  expect(Math.abs(nextBox.x + nextBox.width / 2 - centre)).toBeLessThan(1);
+  expect(prevBox.y - rootBox.y).toBeLessThan(12);
+  expect(rootBox.y + rootBox.height - (nextBox.y + nextBox.height)).toBeLessThan(12);
+  // Next from nothing starts at the first window, then every window in turn.
+  await page.mouse.move(centre, rootBox.y + rootBox.height - 10);
+  for (const id of STACK_ORDER) {
+    await next.click();
+    await expect(page.getByTestId("active-id")).toHaveText(id);
+    await expect
+      .poll(async () => {
+        const at = await inViewport(page, id);
+        return at.top >= 0 && at.bottom >= 0;
+      })
+      .toBe(true);
+  }
+  await expect(next).toBeDisabled();
+  await page.mouse.move(centre, rootBox.y + 10);
+  for (const id of STACK_ORDER.slice(0, -1).reverse()) {
+    await prev.click();
+    await expect(page.getByTestId("active-id")).toHaveText(id);
+  }
+  await expect(prev).toBeDisabled();
+});
+
+test("vertical, one window per line: apiRef.switchColumn steps one line", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} apiHotkeys />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  await page.getByLabel("Note for Window 1A").click();
+  await page.keyboard.press("Alt+ArrowDown");
+  await expect(page.getByTestId("active-id")).toHaveText("w1b");
+  await page.keyboard.press("Alt+ArrowDown");
+  await expect(page.getByTestId("active-id")).toHaveText("w2a");
+  await page.keyboard.press("Alt+ArrowUp");
+  await expect(page.getByTestId("active-id")).toHaveText("w1b");
+});
+
+test("vertical, one window per line: split view fills the two halves and returns to the lines", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} splittable popOutable withActions />);
+  const root = page.getByTestId("window-array");
+  await expect(root).toHaveAttribute("data-stacked", "");
+  const viewport = stripViewport(page);
+  await viewport.evaluate((el) => el.scrollTo({ top: 300, behavior: "instant" }));
+  const before = await page.locator('[data-window-id="w2a"]').boundingBox();
+  await page.locator('[data-window-id="w2a"]').getByRole("button", { name: "Split view" }).click();
+  await page.getByRole("radio", { name: "Window 3B" }).click();
+  await page.getByRole("button", { name: "Split", exact: true }).click();
+  await expect(page.getByTestId("split-ids")).toHaveText('["w2a","w3b"]');
+  const rootBox = await root.boundingBox();
+  const top = await page.locator('[data-split="1"]').boundingBox();
+  const bottom = await page.locator('[data-split="2"]').boundingBox();
+  if (!rootBox || !top || !bottom || !before) throw new Error("missing bounding boxes");
+  // Top and bottom halves over the whole container, meeting at a hairline.
+  expect(Math.abs(top.width - (rootBox.width - 2))).toBeLessThan(1);
+  expect(Math.abs(bottom.width - top.width)).toBeLessThan(1);
+  expect(Math.abs(top.y - (rootBox.y + 1))).toBeLessThan(1);
+  expect(Math.abs(bottom.y + bottom.height - (rootBox.y + rootBox.height - 1))).toBeLessThan(1);
+  expect(Math.abs(top.y + top.height - bottom.y)).toBeLessThanOrEqual(1);
+  await expectChromeInside(page, "w2a");
+  await expectChromeInside(page, "w3b");
+  // The strip behind neither scrolls nor moves.
+  expect(await viewport.evaluate((el) => getComputedStyle(el).overflowY)).toBe("hidden");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-split]")).toHaveCount(0);
+  expect(await viewport.evaluate((el) => el.scrollTop)).toBe(300);
+  const after = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!after) throw new Error("missing bounding box");
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1);
+  expect(Math.abs(after.height - before.height)).toBeLessThan(1);
+});
+
+test("vertical, one window per line: a popped window frees its line and comes back to it", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<WindowArrayHarness {...STACKED} popOutable />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  const viewport = stripViewport(page);
+  const band = page.locator('div[data-column-id="col-1"]');
+  const scrollHeight = () => viewport.evaluate((el) => el.scrollHeight);
+  const full = await scrollHeight();
+  expect(Math.round((await band.boundingBox())?.height ?? 0)).toBe(450);
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c
+      .locator('[data-window-id="w1a"]')
+      .getByRole("button", { name: "Open in a separate window" })
+      .click(),
+  ]);
+  await expect(popup.getByText("Body of Window 1A")).toBeVisible();
+  // The band is one line shorter and its other window takes the first line.
+  await expect(c.locator('[data-window-id="w1a"]')).toHaveCount(0);
+  await expect.poll(scrollHeight).toBe(full - 230);
+  expect(Math.round((await band.boundingBox())?.height ?? 0)).toBe(220);
+  await expect(page.getByTestId("active-id")).toHaveText("w1b");
+  expect((await inViewport(page, "w1b")).top).toBeLessThan(12);
+  // Keys and moves pass the popped window by.
+  await page.getByRole("button", { name: "Window 1B" }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByTestId("active-id")).toHaveText("w2a");
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByTestId("active-id")).toHaveText("w1b");
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByTestId("active-id")).toHaveText("w1b");
+  // Back: its line returns, above w1b, and the strip shows it.
+  await popup.getByRole("button", { name: "Bring the window back" }).click();
+  await expect(c.locator('[data-window-id="w1a"]')).toHaveCount(1);
+  await expect.poll(scrollHeight).toBe(full);
+  await expect(page.getByTestId("active-id")).toHaveText("w1a");
+  const a = await c.locator('[data-window-id="w1a"]').boundingBox();
+  const b = await c.locator('[data-window-id="w1b"]').boundingBox();
+  if (!a || !b) throw new Error("missing bounding boxes");
+  expect(Math.round(b.y - (a.y + a.height))).toBe(10);
+});
+
+test("vertical, one window per line: snap gives every line a start and an end position", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness {...STACKED} snap />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  const viewport = stripViewport(page);
+  expect(await viewport.evaluate((el) => getComputedStyle(el).scrollSnapType)).toBe("block");
+  const settle = async (top: number) => {
+    await viewport.evaluate((el, t) => el.scrollTo({ top: t, behavior: "instant" }), top);
+    await page.waitForTimeout(200);
+    return viewport.evaluate((el) => Math.round(el.scrollTop));
+  };
+  // Lines are 230px apart from y = 10; the visible area is 498px tall.
+  // Start positions: a line's top less one gap. The second line of band 1
+  // (230) and of band 2 (690) have one, as the bands' first lines do (460).
+  expect(await settle(236)).toBe(230);
+  expect(await settle(455)).toBe(460);
+  expect(await settle(684)).toBe(690);
+  // End positions: a line's bottom plus one gap at the bottom edge.
+  expect(await settle(206)).toBe(202);
+});
+
+test("vertical: a focus move to a line as tall as the container keeps its title bar in view", async ({
+  mount,
+  page,
+}) => {
+  // Bands of 480px are capped to the 298px container: every line fills it.
+  await mount(<WindowArrayHarness {...STACKED} height={300} columnWidth={480} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  for (const id of ["w1b", "w2a", "w2b"]) {
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId("active-id")).toHaveText(id);
+    // The window fills the visible area exactly: nothing cut at either end.
+    await expect
+      .poll(async () => {
+        const at = await inViewport(page, id);
+        return Math.abs(at.top) < 1 && Math.abs(at.bottom) < 1;
+      })
+      .toBe(true);
+  }
+  await page.keyboard.press("ArrowUp");
+  await expect
+    .poll(async () => {
+      const at = await inViewport(page, "w2a");
+      return Math.abs(at.top) < 1 && Math.abs(at.bottom) < 1;
+    })
+    .toBe(true);
+});
+
+test("the paddles pass over a popped-out window and a column that is all popped out", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(
+    <WindowArrayHarness popOutable controls columnCount={3} windowsPerColumn={1} />,
+  );
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup"),
+    c
+      .locator('[data-window-id="w2a"]')
+      .getByRole("button", { name: "Open in a separate window" })
+      .click(),
+  ]);
+  await expect(popup.getByText("Body of Window 2A")).toBeVisible();
+  const box = await page.getByTestId("window-array").boundingBox();
+  if (!box) throw new Error("missing bounding box");
+  const next = page.getByRole("button", { name: "Next column" });
+  await page.getByRole("button", { name: "Window 1A" }).click();
+  await page.mouse.move(box.x + box.width - 10, box.y + box.height / 2);
+  await next.click();
+  await expect(page.getByTestId("active-id")).toHaveText("w3a");
+  await expect(next).toBeDisabled();
+  // Arrow keys cross the gap as well.
+  await page.getByRole("button", { name: "Window 3A" }).focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByTestId("active-id")).toHaveText("w1a");
+  await popup.close();
+});
+
+// --- A column with no windows ------------------------------------------------
+
+test("a column with no windows keeps its track and takes a dropped window", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness columnCount={2} emptyColumn width={760} />);
+  const empty = page.locator('div[data-column-id="col-empty"]');
+  await expect(empty).toHaveAttribute("data-empty", "");
+  const track = await empty.boundingBox();
+  const last = await page.locator('div[data-column-id="col-2"]').boundingBox();
+  if (!track || !last) throw new Error("missing bounding boxes");
+  // Its own 220px track, one gutter after the last column with windows.
+  expect(Math.round(track.width)).toBe(220);
+  expect(Math.round(track.x - (last.x + last.width))).toBe(10);
+  expect(track.height).toBeGreaterThan(300);
+  // Drag a title bar over it: the column shows as the drop target.
+  const hb = await page.getByRole("button", { name: "Window 1A" }).boundingBox();
+  if (!hb) throw new Error("missing bounding box");
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width / 2, track.y + track.height / 2, { steps: 10 });
+  await expect(empty).toHaveAttribute("data-drop-active", "");
+  expect(await empty.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
+  await page.mouse.up();
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 0 },
+      to: { type: "cell", columnId: "col-empty", index: 0 },
+    }),
+  );
+  await expect(page.locator('[data-window-id="w1a"]')).toHaveAttribute(
+    "data-column-id",
+    "col-empty",
+  );
+  await expect(empty).not.toHaveAttribute("data-empty", "");
+  await expect(empty).not.toHaveAttribute("data-drop-active", "");
+});
+
+test("a column with no windows: arrows stop before it, Shift+Right moves a window into it", async ({
+  mount,
+  page,
+}) => {
+  await mount(<WindowArrayHarness columnCount={2} emptyColumn width={760} />);
+  await page.getByRole("button", { name: "Window 2A" }).click();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByTestId("active-id")).toHaveText("w2a");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w2a",
+      from: { columnId: "col-2", index: 0 },
+      to: { type: "cell", columnId: "col-empty", index: 0 },
+    }),
+  );
+  await expect(page.getByRole("button", { name: "Window 2A" })).toBeFocused();
+});
+
+test("vertical: a column with no windows is a full-width band", async ({ mount, page }) => {
+  await mount(<WindowArrayHarness columnCount={1} emptyColumn width={326} height={600} />);
+  await expect(page.getByTestId("window-array")).toHaveAttribute("data-orientation", "vertical");
+  const empty = await page.locator('div[data-column-id="col-empty"]').boundingBox();
+  const band = await page.locator('div[data-column-id="col-1"]').boundingBox();
+  if (!empty || !band) throw new Error("missing bounding boxes");
+  expect(Math.round(empty.height)).toBe(220);
+  expect(empty.y).toBeGreaterThan(band.y + band.height);
+  expect(empty.width).toBeGreaterThan(290);
 });
 
 // --- Issue #31: vertical band sizing must not corrupt or overflow -----------

@@ -98,21 +98,48 @@ export function findWindow(model: StripModel, id: string): { col: number; row: n
   return null;
 }
 
-/** Adjacent window for arrow navigation. Up/down stay in the column; left/right
- *  land in the neighbouring column at the same row, clamped to its stack. */
-export function neighbor(model: StripModel, id: string, dir: NavDirection): string | null {
+/** Index of the first window on line `line` of a band wrapped at `perLine`.
+ *  Line 0 starts at 0 whatever `perLine` is (an unwrapped band has an
+ *  infinite `perLine`). */
+function lineStart(line: number, perLine: number): number {
+  return line <= 0 ? 0 : line * Math.floor(perLine);
+}
+
+/** Adjacent window for arrow navigation, in model terms. Up/down walk the
+ *  column's stack in order. Left/right leave the stack: to the neighbouring
+ *  column that has windows, at the same position, clamped. In a vertical band
+ *  wrapped at `perLine` the stack runs over several lines, so left/right step
+ *  to the same position on the previous / next line first and leave the
+ *  column only from its first / last line, landing on the neighbour's last /
+ *  first line: the step is always to the window above or below on screen. */
+export function neighbor(
+  model: StripModel,
+  id: string,
+  dir: NavDirection,
+  perLine: number = Number.POSITIVE_INFINITY,
+): string | null {
   const pos = findWindow(model, id);
   if (!pos) return null;
   const col = model.columns[pos.col];
   if (!col) return null;
-  if (dir === "up") return pos.row > 0 ? (col.windowIds[pos.row - 1] ?? null) : null;
-  if (dir === "down") {
-    return pos.row < col.windowIds.length - 1 ? (col.windowIds[pos.row + 1] ?? null) : null;
+  const ids = col.windowIds;
+  if (dir === "up") return pos.row > 0 ? (ids[pos.row - 1] ?? null) : null;
+  if (dir === "down") return pos.row < ids.length - 1 ? (ids[pos.row + 1] ?? null) : null;
+  const step = dir === "left" ? -1 : 1;
+  const slot = lineSlot(pos.row, ids.length, perLine);
+  const lines = bandLines(ids.length, perLine);
+  const onLine = (windowIds: string[], counts: number[], line: number): string | null =>
+    windowIds[lineStart(line, perLine) + Math.min(slot.index, (counts[line] ?? 1) - 1)] ?? null;
+  const nextLine = slot.line + step;
+  if (nextLine >= 0 && nextLine < lines.length) return onLine(ids, lines, nextLine);
+  // A column without windows has no cell on the strip: step over it.
+  for (let c = pos.col + step; c >= 0 && c < model.columns.length; c += step) {
+    const target = model.columns[c]?.windowIds ?? [];
+    if (target.length === 0) continue;
+    const counts = bandLines(target.length, perLine);
+    return onLine(target, counts, step > 0 ? 0 : counts.length - 1);
   }
-  const targetCol = dir === "left" ? pos.col - 1 : pos.col + 1;
-  const target = model.columns[targetCol];
-  if (!target || target.windowIds.length === 0) return null;
-  return target.windowIds[clamp(pos.row, 0, target.windowIds.length - 1)] ?? null;
+  return null;
 }
 
 /** First/last window of the strip (Home/End). */
@@ -169,25 +196,66 @@ export function projectMove(
   return { windowId, from, to: { type: "column", index } };
 }
 
-/** Keyboard move (Shift+Arrow): the raw slot for "one step in this direction",
- *  projected through `projectMove` so edges and no-ops resolve identically to
- *  pointer drops. At the strip's ends left/right break out into a new column. */
-export function moveByKey(model: StripModel, id: string, dir: NavDirection): WindowMove | null {
+/** Keyboard move (Shift+Arrow), in model terms: the raw slot for "one step in
+ *  this direction", projected through `projectMove` so edges and no-ops
+ *  resolve identically to pointer drops. Up/down swap the window with its
+ *  neighbour in the stack. Left/right move it to the adjacent column at the
+ *  same position, and break out into a new column at the strip's ends. In a
+ *  vertical band wrapped at `perLine`, left/right move the window one line up
+ *  or down inside its band first, and it leaves the band only from the first
+ *  or the last line, into the neighbour's last or first line. Every step
+ *  changes what is on screen.
+ *
+ *  `visible` is the strip as laid out, without the windows that are popped
+ *  out (same columns as `model`). A step is counted among the windows on
+ *  screen and reported in `model`'s indices, so a move never spends a key
+ *  press on a window that is not there. */
+export function moveByKey(
+  model: StripModel,
+  id: string,
+  dir: NavDirection,
+  perLine: number = Number.POSITIVE_INFINITY,
+  visible: StripModel = model,
+): WindowMove | null {
   const pos = findWindow(model, id);
   if (!pos) return null;
   const col = model.columns[pos.col];
   if (!col) return null;
+  const shown = (columnId: string, all: string[]): string[] => {
+    const ids = visible.columns.find((c) => c.id === columnId)?.windowIds;
+    return ids ? ids.filter((w) => all.includes(w)) : all;
+  };
+  // The moving window's place among its column's windows on screen.
+  const own = shown(col.id, col.windowIds);
+  const stack = own.includes(id) ? own : col.windowIds;
+  const row = stack.indexOf(id);
+  /** Put the window at position `k` among the other windows on screen in
+   *  `target`: before the one now at `k`, or after the last of them. */
+  const toCell = (target: StripModel["columns"][number], k: number): WindowMove | null => {
+    const others = shown(target.id, target.windowIds).filter((w) => w !== id);
+    const before = others[k];
+    const last = others[others.length - 1];
+    const index =
+      before != null
+        ? target.windowIds.indexOf(before)
+        : last != null
+          ? target.windowIds.indexOf(last) + 1
+          : target.windowIds.length;
+    return projectMove(model, id, { kind: "cell", columnId: target.id, index });
+  };
 
-  if (dir === "up") {
-    if (pos.row === 0) return null;
-    return projectMove(model, id, { kind: "cell", columnId: col.id, index: pos.row - 1 });
+  if (dir === "up") return row === 0 ? null : toCell(col, row - 1);
+  if (dir === "down") return row >= stack.length - 1 ? null : toCell(col, row + 1);
+
+  const step = dir === "left" ? -1 : 1;
+  const slot = lineSlot(row, stack.length, perLine);
+  const lines = bandLines(stack.length, perLine).length;
+  if (lines > 1 && slot.line + step >= 0 && slot.line + step < lines) {
+    // One line up or down inside the band, the position on the line kept.
+    const per = Math.floor(perLine);
+    return toCell(col, Math.min(row + step * per, stack.length - 1));
   }
-  if (dir === "down") {
-    if (pos.row >= col.windowIds.length - 1) return null;
-    return projectMove(model, id, { kind: "cell", columnId: col.id, index: pos.row + 2 });
-  }
-  const targetCol = dir === "left" ? pos.col - 1 : pos.col + 1;
-  const target = model.columns[targetCol];
+  const target = model.columns[pos.col + step];
   if (!target) {
     // Off the end of the strip: split out into a new column.
     return projectMove(model, id, {
@@ -195,11 +263,14 @@ export function moveByKey(model: StripModel, id: string, dir: NavDirection): Win
       index: dir === "left" ? 0 : model.columns.length,
     });
   }
-  return projectMove(model, id, {
-    kind: "cell",
-    columnId: target.id,
-    index: clamp(pos.row, 0, target.windowIds.length),
-  });
+  const others = shown(target.id, target.windowIds);
+  const counts = bandLines(others.length, perLine);
+  const from = step > 0 ? 0 : lineStart(counts.length - 1, perLine);
+  // With one window per line, the top of the band below is the place the
+  // window already has on screen: it goes under that band's first window, as
+  // it goes above the last window of the band above.
+  const past = step > 0 && Math.floor(perLine) === 1 ? 1 : 0;
+  return toCell(target, Math.min(from + slot.index + past, others.length));
 }
 
 /** Focus successor when a window disappears: next in its column, else previous,

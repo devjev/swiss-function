@@ -748,20 +748,23 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
         event.preventDefault();
         // The model stays column-major in both orientations; in the vertical
         // (transposed) layout a visual arrow maps to the axis-swapped model
-        // direction, so navigation and Shift+move follow what's on screen.
+        // direction, so navigation and Shift+move follow what's on screen. A
+        // band that wraps is walked line by line (`perLine`): Up/Down reach
+        // the window above or below before they leave the band.
         const dir = vertical ? transposeDir(visualDir) : visualDir;
         if (event.shiftKey) {
           if (!onWindowMove) return;
           // Moves report full-array indices (the consumer's array still holds
-          // any popped window), so Shift+move runs against the full model.
-          const move = moveByKey(modelRef.current, id, dir);
+          // any popped window); the step itself is counted among the windows
+          // on the strip.
+          const move = moveByKey(modelRef.current, id, dir, perLine, visibleModelRef.current);
           if (move) {
             pendingFocusRef.current = id;
             onWindowMove(move);
           }
         } else {
           // Arrow navigation skips popped windows (no handle to land on).
-          const next = neighbor(visibleModelRef.current, id, dir);
+          const next = neighbor(visibleModelRef.current, id, dir, perLine);
           if (next) {
             setActive(next);
             focusHandle(next);
@@ -789,6 +792,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       resolvedSplit,
       setSplit,
       vertical,
+      perLine,
     ],
   );
 
@@ -890,8 +894,13 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     const client = vertical ? viewport.clientHeight : viewport.clientWidth;
     const scrollSize = vertical ? viewport.scrollHeight : viewport.scrollWidth;
     const position = vertical ? viewport.scrollTop : viewport.scrollLeft;
-    const startAligned = lead - gapPx;
-    const endAligned = lead + size + gapPx - client;
+    // The gutter stays in view at the aligned edge while there is room for one
+    // on both sides. A column or line too large for that gives its gaps up
+    // first, and one larger than the viewport shows its leading edge: the
+    // title bar is never the part that is cut.
+    const pad = Math.max(0, Math.min(gapPx, (client - size) / 2));
+    const startAligned = lead - pad;
+    const endAligned = Math.min(lead + size + pad - client, startAligned);
     let target: number | null = null;
     if (position > startAligned) target = startAligned;
     else if (position < endAligned) target = endAligned;
@@ -942,10 +951,13 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   // --- Column switching (paddle controls + Alt+Arrow hotkeys) ---------------
   // With no active window, "next" starts at the strip's first window and
   // "previous" at its last; otherwise the neighbouring column, row clamped.
+  // In a vertical band that wraps, the step is one line of the band, so a
+  // paddle never passes over a window. Runs on the visible model: a popped
+  // window has no cell to land on.
   const switchTarget = (dir: "left" | "right"): string | null =>
     resolvedActive == null
-      ? edgeWindow(model, dir === "left" ? "last" : "first")
-      : neighbor(model, resolvedActive, dir);
+      ? edgeWindow(visibleModel, dir === "left" ? "last" : "first")
+      : neighbor(visibleModel, resolvedActive, dir, perLine);
 
   const switchColumn = (dir: "left" | "right", focus: boolean) => {
     const next = switchTarget(dir);
@@ -960,7 +972,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   useImperativeHandle(apiRef, () => ({
     switchColumn: (direction) => switchColumn(direction === "prev" ? "left" : "right", true),
     focusActive: () => {
-      const target = resolvedActive ?? edgeWindow(model, "first");
+      const target = resolvedActive ?? edgeWindow(visibleModel, "first");
       if (target) focusHandle(target);
     },
   }));
@@ -1094,16 +1106,17 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       : { gridColumn: mainTrack, gridRow: `${track.start} / span ${track.span}` };
   // A column whose windows are all popped out collapses away entirely — no
   // track and no gutter — so the strip tightens instead of leaving a gap where
-  // the column was. Columns keep their model index `mi` (for `WindowMove` /
-  // new-column drop targets, which stay in full-array terms) but are laid out
-  // by their visible index `vci`.
+  // the column was. A column the consumer rendered without windows is another
+  // matter: it keeps its track, as the place to drop a window. Columns keep
+  // their model index `mi` (for `WindowMove` / new-column drop targets, which
+  // stay in full-array terms) but are laid out by their visible index `vci`.
   const visibleColumns = columns
     .map((col, mi) => ({
       col,
       mi,
       visible: col.windows.filter((w) => !resolvedPopped.includes(w.id)),
     }))
-    .filter((c) => c.visible.length > 0);
+    .filter((c) => c.visible.length > 0 || c.col.windows.length === 0);
   const lastVisible =
     visibleColumns.length > 0 ? visibleColumns[visibleColumns.length - 1] : undefined;
   // Popped-out windows have left the strip, so the remaining windows in a column
@@ -1221,10 +1234,28 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                     <ColumnBackdrop
                       col={col.props}
                       windowCount={visible.length}
+                      dropActive={
+                        visible.length === 0 &&
+                        dropSlot?.kind === "cell" &&
+                        dropSlot.columnId === col.props.id
+                      }
                       placement={backPlacement(band)}
                       registerColumn={columnRefs.current}
                       regionId={regionId}
                     />
+                    {/* Snap edges for the further lines of a wrapped band: the
+                        backdrop gives the band one start edge, at its first
+                        line. */}
+                    {snap &&
+                      (lineCounts[vci] ?? []).slice(1).map((_, i) => (
+                        <div
+                          // biome-ignore lint/suspicious/noArrayIndexKey: a line has no identity but its place in the band.
+                          key={`line-${i + 1}`}
+                          aria-hidden="true"
+                          className={styles.lineBack}
+                          style={gutterPlacement(band.start + (i + 1) * 2)}
+                        />
+                      ))}
                   </Fragment>
                 );
               })}
@@ -1369,7 +1400,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           <button
             type="button"
             aria-label="Previous column"
-            className={styles.pager}
+            className={`${styles.pager} ${hitArea.both}`}
             data-side="start"
             data-visible={nearEdges.start ? "" : undefined}
             disabled={switchTarget("left") == null}
@@ -1384,7 +1415,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
           <button
             type="button"
             aria-label="Next column"
-            className={styles.pager}
+            className={`${styles.pager} ${hitArea.both}`}
             data-side="end"
             data-visible={nearEdges.end ? "" : undefined}
             disabled={switchTarget("right") == null}
@@ -1444,6 +1475,8 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
 interface ColumnBackdropProps {
   col: WindowArrayColumnProps;
   windowCount: number;
+  /** A dragged window is over this empty column and would land in it. */
+  dropActive: boolean;
   placement: CSSProperties;
   registerColumn: Map<string, HTMLDivElement>;
   /** The shared-dnd region id, stamped on this column's drop data. */
@@ -1458,6 +1491,7 @@ interface ColumnBackdropProps {
 function ColumnBackdrop({
   col,
   windowCount,
+  dropActive,
   placement,
   registerColumn,
   regionId,
@@ -1491,6 +1525,8 @@ function ColumnBackdrop({
         else registerColumn.delete(id);
       }}
       data-column-id={id}
+      data-empty={windowCount === 0 ? "" : undefined}
+      data-drop-active={dropActive ? "" : undefined}
       className={cx(styles.columnBack, className)}
       style={{ ...placement, ...style }}
     />

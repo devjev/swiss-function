@@ -573,10 +573,33 @@
   );
 }
 
-/* Group parent header — slightly heavier background; chevron sits at the end. */
+/* Group parent header: a slightly heavier background, the title and its
+   chevron centred over the span. */
 .headerCellGroup {
-  justify-content: space-between;
   --sf-cap: color-mix(in srgb, var(--sf-hdr-base), var(--sf-color-fg) 3%);
+}
+
+/* A group's title and chevron, one item. A group can be wider than the table
+   shows (always on a phone, where the columns hold their width), and a title
+   centred in it would then sit off screen under a band that reads as empty.
+   Sticky on both inline edges, the item keeps to the visible part of its
+   group while the table scrolls sideways, and stops at the edge of the frozen
+   columns. Where the whole group is in view the insets do nothing and the
+   title is centred as before. */
+.groupTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--sf-unit) / 4);
+  min-inline-size: 0;
+  position: sticky;
+  inset-inline: calc(var(--sf-frozen-inline, 0px) + var(--sf-cell-pad-x)) var(--sf-cell-pad-x);
+}
+/* The item gives way as a bare title would; inside it the chevron holds. */
+.headerCell > .groupTitle {
+  flex-shrink: 1;
+}
+.groupTitle > :not(.headerLabel) {
+  flex-shrink: 0;
 }
 
 /* Body wrapper — either plain flow (paginated) or relative + spacer (virtualized) */
@@ -829,7 +852,13 @@
 }
 
 /* The trailing edge of the frozen region gains a soft shadow once the body is
-   scrolled, signalling the boundary (theme-aware via color-mix). */
+   scrolled, signalling the boundary (theme-aware via color-mix). The frozen
+   cells stick to the inline start (an inline `inset-inline-start` per cell),
+   so in a right-to-left table they pin on the right and the shadow falls to
+   the left: the sign below turns its offset. */
+.viewport:dir(rtl) {
+  --sf-inline-sign: -1;
+}
 .viewport[data-frozen-scrolled] .cell[data-frozen-edge],
 .viewport[data-frozen-scrolled] .headerCell[data-frozen-edge],
 .viewport[data-frozen-scrolled] .rowNumberCell[data-frozen-edge],
@@ -837,8 +866,8 @@
   box-shadow:
     var(--sf-cell-edge-r),
     var(--sf-cell-edge-b),
-    calc(var(--sf-unit) / 4) 0 calc(var(--sf-unit) / 3) calc(var(--sf-unit) / -4)
-    color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
+    calc(var(--sf-unit) / 4 * var(--sf-inline-sign, 1)) 0 calc(var(--sf-unit) / 3)
+    calc(var(--sf-unit) / -4) color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
 }
 
 /* --- Excel row/column selection (rowNumbers gutter + header select zones) --
@@ -849,7 +878,7 @@
   --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
   --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -879,7 +908,7 @@
   --sf-cell-edge-r: inset -1px 0 0 var(--sf-color-border-subtle);
   --sf-cell-edge-b: inset 0 -1px 0 var(--sf-color-border-subtle);
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 2;
   block-size: calc(var(--sf-unit) * 1.5);
   background-color: var(--sf-color-bg-subtle);
@@ -1292,8 +1321,8 @@
     var(--sf-hdr-shade),
     var(--sf-cell-edge-r),
     var(--sf-cell-edge-data),
-    calc(var(--sf-unit) / 4) 0 calc(var(--sf-unit) / 3) calc(var(--sf-unit) / -4)
-    color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
+    calc(var(--sf-unit) / 4 * var(--sf-inline-sign, 1)) 0 calc(var(--sf-unit) / 3)
+    calc(var(--sf-unit) / -4) color-mix(in srgb, transparent, var(--sf-color-fg) 18%);
 }
 
 /* Fill / fixed-column modes, mirroring `.headerBlock` and `.body`: hold the

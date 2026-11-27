@@ -207,17 +207,20 @@ export function ColumnShrinkHarness({
   edgeFade,
   tokenHold,
   resizable = true,
+  dir,
 }: {
   width?: number;
   columnShrink?: "auto" | "squeeze" | "hold";
   edgeFade?: boolean;
   tokenHold?: 0 | 1;
+  dir?: "ltr" | "rtl";
   /** Off: the plain tree, a stretching name column beside fixed ones. */
   resizable?: boolean;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(["src"]));
   return (
     <div
+      dir={dir}
       style={
         {
           width,

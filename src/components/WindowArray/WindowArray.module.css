@@ -64,6 +64,15 @@
 .root[data-snap] .window {
   scroll-snap-align: end;
 }
+/* A vertical band that wraps has one backdrop over all its lines, so only its
+   first line would get a start edge. Each further line carries one of these
+   (rendered with `snap` only): an empty item on the line's own track. */
+.lineBack {
+  min-inline-size: 0;
+  min-block-size: 0;
+  pointer-events: none;
+  scroll-snap-align: start;
+}
 /* Same snap policy along the block axis when vertical. Must precede the
    data-interacting suspension below — equal specificity, order decides. */
 .root[data-snap][data-orientation="vertical"] .viewport {
@@ -133,6 +142,22 @@
 .columnBack {
   min-inline-size: 0;
   min-block-size: 0;
+}
+/* A column with no windows is a place to drop one. It takes the windows' gap
+   as margin, so its outline sits where a window's border would, and while a
+   dragged window is over it the drop-target tint and outline show. */
+.columnBack[data-empty] {
+  margin-block: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
+  border-radius: var(--sf-radius-default);
+}
+.root[data-orientation="vertical"] .columnBack[data-empty] {
+  margin-block: 0;
+  margin-inline: calc(var(--sf-wa-gap, calc(var(--sf-unit) / 2)) / 2);
+}
+.columnBack[data-drop-active] {
+  background-color: color-mix(in srgb, var(--sf-color-primary), transparent 88%);
+  outline: 2px solid var(--sf-color-primary);
+  outline-offset: -2px;
 }
 
 /* The "desk" the windows sit on: the whole strip background carries the same

@@ -205,10 +205,12 @@ export function FrozenHarness({
   width = 360,
   frozenColumns = 2,
   rowNumbers,
+  dir,
 }: {
   width?: number;
   frozenColumns?: number;
   rowNumbers?: boolean;
+  dir?: "ltr" | "rtl";
 }) {
   const columns: ColumnDef<Row>[] = [
     { id: "name", header: "Name", accessor: "name", width: 10 },
@@ -227,7 +229,7 @@ export function FrozenHarness({
     active: i % 2 === 0,
   }));
   return (
-    <div style={{ width }}>
+    <div style={{ width }} dir={dir}>
       <DataTable<Row>
         data={data}
         columns={columns}
@@ -322,9 +324,18 @@ type AddrRow = { name: string; street: string; city: string; zip: string; age: n
 export function GroupsHarness({
   defaultCollapsed,
   reorderableColumns,
+  width,
+  columnShrink,
+  frozenColumns,
+  dir,
 }: {
   defaultCollapsed?: boolean;
   reorderableColumns?: boolean;
+  /** A frame of this width (px) around the table; none by default. */
+  width?: number;
+  columnShrink?: "auto" | "squeeze" | "hold";
+  frozenColumns?: number;
+  dir?: "ltr" | "rtl";
 }) {
   const data: AddrRow[] = [
     { name: "Alice", street: "12 Main", city: "NYC", zip: "10001", age: 30 },
@@ -344,13 +355,21 @@ export function GroupsHarness({
     },
     { id: "age", header: "Age", accessor: "age", align: "end" },
   ];
-  return (
+  const table = (
     <DataTable<AddrRow>
       data={data}
       columns={columns}
       height={300}
       reorderableColumns={reorderableColumns}
+      columnShrink={columnShrink}
+      frozenColumns={frozenColumns}
     />
+  );
+  if (width == null && dir == null) return table;
+  return (
+    <div style={{ width }} dir={dir}>
+      {table}
+    </div>
   );
 }
 
@@ -802,11 +821,13 @@ export function ColumnShrinkHarness({
   columnShrink,
   edgeFade,
   tokenHold,
+  dir,
 }: {
   width?: number;
   columnShrink?: DataTableProps<Row>["columnShrink"];
   edgeFade?: DataTableProps<Row>["edgeFade"];
   tokenHold?: 0 | 1;
+  dir?: "ltr" | "rtl";
 }) {
   const columns: ColumnDef<Row>[] = [
     { id: "name", header: "Name", accessor: "name" },
@@ -824,6 +845,7 @@ export function ColumnShrinkHarness({
   }));
   return (
     <div
+      dir={dir}
       style={
         {
           width,

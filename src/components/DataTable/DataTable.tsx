@@ -795,7 +795,9 @@ function DataTableRowInner<T>({
             data-hash={(colDef.overflow ?? cellOverflow) === "hash" || undefined}
             className={styles.cell}
             style={
-              isFrozen && frozenLefts ? { left: frozenLefts[colIndex], ...bg.style } : bg.style
+              isFrozen && frozenLefts
+                ? { insetInlineStart: frozenLefts[colIndex], ...bg.style }
+                : bg.style
             }
             onPointerDown={(e) => {
               noteTouch(e.pointerType, active, displayIndex, colIndex);
@@ -2577,7 +2579,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         data-hash={(colDef.overflow ?? cellOverflow) === "hash" || undefined}
         className={styles.cell}
         {...(bg["data-bg"] != null ? { "data-bg": "" } : {})}
-        style={isFrozen ? { left: frozenLefts[colIndex], ...bg.style } : bg.style}
+        style={isFrozen ? { insetInlineStart: frozenLefts[colIndex], ...bg.style } : bg.style}
         onPointerDown={(e) => {
           noteTouch(e.pointerType, active, rowIndex, colIndex);
           handleCellPointerDown(cell, { shiftKey: e.shiftKey });
@@ -2910,7 +2912,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 ? `${leafStart + 1 + (rowNumbers ? 1 : 0)} / span ${span}`
                 : `span ${span}`,
             gridRow: `${place.row + 1} / span ${place.rowSpan}`,
-            ...(isFrozen ? { left: frozenLefts[leafStart] } : {}),
+            ...(isFrozen ? { insetInlineStart: frozenLefts[leafStart] } : {}),
             ...(headerColor != null ? { "--sf-header-color": headerColor } : {}),
             ...(lines > 1 ? { "--sf-header-lines": lines } : {}),
             ...dnd?.style,
@@ -2941,9 +2943,25 @@ export function DataTable<T>(props: DataTableProps<T>) {
       >
         {!header.isPlaceholder && (
           <>
-            <span className={styles.headerLabel} data-lines={lines > 1 ? lines : undefined}>
-              {flexRender(def.header, header.getContext())}
-            </span>
+            {isGroupHeader ? (
+              // A group's title and its chevron are one item that stays in
+              // the visible part of the group while the table is scrolled
+              // sideways (see .groupTitle).
+              <span className={styles.groupTitle}>
+                <span className={styles.headerLabel} data-lines={lines > 1 ? lines : undefined}>
+                  {flexRender(def.header, header.getContext())}
+                </span>
+                <TreeChevron
+                  expanded
+                  onToggle={() => toggleGroup(header.column.id)}
+                  ariaLabel="Collapse group"
+                />
+              </span>
+            ) : (
+              <span className={styles.headerLabel} data-lines={lines > 1 ? lines : undefined}>
+                {flexRender(def.header, header.getContext())}
+              </span>
+            )}
             {/* A sortable column carries its arrow's space at rest too (a
                 hidden glyph from CSS), so sorting never moves a column edge
                 and the floor does not jump with it (issue #102). */}
@@ -2960,11 +2978,11 @@ export function DataTable<T>(props: DataTableProps<T>) {
             {canSort && !sortDir && (
               <span aria-hidden="true" className={styles.sortArrow} data-reserved="" />
             )}
-            {(isGroupHeader || collapsedGroupId) && (
+            {!isGroupHeader && collapsedGroupId && (
               <TreeChevron
-                expanded={isGroupHeader}
-                onToggle={() => toggleGroup(collapsedGroupId ?? header.column.id)}
-                ariaLabel={isGroupHeader ? "Collapse group" : "Expand group"}
+                expanded={false}
+                onToggle={() => toggleGroup(collapsedGroupId)}
+                ariaLabel="Expand group"
               />
             )}
             {fmeta ? (
@@ -3084,7 +3102,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
               data-label={isLabel || undefined}
               data-frozen={isFrozen || undefined}
               data-frozen-edge={(isFrozen && colIndex === pinnedCount - 1) || undefined}
-              style={isFrozen ? { left: frozenLefts[colIndex] } : undefined}
+              style={isFrozen ? { insetInlineStart: frozenLefts[colIndex] } : undefined}
               onPointerEnter={(e) => revealClipped(e.currentTarget)}
             >
               <span className={styles.cellBody}>
@@ -3121,7 +3139,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
             // every row's grid-template-columns,
             // so a resize step mutates one element instead of every row.
             "--sf-datatable-template": gridTemplateColumns,
-            ...(pinnedCount > 0 || rowNumbers ? { scrollPaddingInlineStart: frozenWidth } : {}),
+            ...(pinnedCount > 0 || rowNumbers
+              ? {
+                  scrollPaddingInlineStart: frozenWidth,
+                  // How far the frozen region reaches in: a group title that
+                  // stays in view stops at its edge (see .groupTitle).
+                  "--sf-frozen-inline": frozenWidth,
+                }
+              : {}),
           } as CSSProperties
         }
         onKeyDown={handleKeyDown}

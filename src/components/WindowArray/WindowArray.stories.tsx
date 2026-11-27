@@ -168,19 +168,22 @@ export const ManyColumns: Story = () => (
  *  so at this width each window takes a line of its own, in order. Drag the
  *  container's resize corner across the breakpoint to watch it flip: arrows,
  *  Shift+moves, gutter resizing, paddles, and Alt+hotkeys all follow the
- *  layout axis. */
+ *  layout axis. On the wrapped band Up / Down and the paddles step one line,
+ *  snap settles on every line, and split view and pop-out work as on the
+ *  horizontal strip. */
 export const NarrowVertical: Story = () => (
   <div
     style={{
       inlineSize: 360,
       minInlineSize: 240,
-      maxInlineSize: 880,
+      // Never wider than the page: on a phone the frame is the screen's width.
+      maxInlineSize: "min(880px, 100%)",
       resize: "horizontal",
       overflow: "auto",
       padding: "0 0 var(--sf-space-2) 0",
     }}
   >
-    <Demo height={520} snap controls hotkeys />
+    <Demo height={520} snap controls hotkeys splittable popOutable />
   </div>
 );
 

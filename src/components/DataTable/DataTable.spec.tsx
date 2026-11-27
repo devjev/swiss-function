@@ -2667,6 +2667,245 @@ test("the funnel's slack is not part of the floor (issue #102 regression)", asyn
   expect(fits).toBe(true);
 });
 
+// --- A group title in a table that scrolls sideways --------------------------
+
+/** Where a group's title item (title and chevron) sits: its edges, the group
+ *  cell's, and the scrollport's, in px from the scrollport's left edge. */
+const groupTitle = (c: Locator, name: RegExp) =>
+  c
+    .getByRole("columnheader", { name })
+    .first()
+    .evaluate((cell) => {
+      const grid = cell.closest('[role="grid"]') as HTMLElement;
+      const g = grid.getBoundingClientRect();
+      const left = g.left + grid.clientLeft;
+      const title = cell.querySelector('[class*="groupTitle"]') as HTMLElement;
+      const t = title.getBoundingClientRect();
+      const b = cell.getBoundingClientRect();
+      return {
+        title: { left: t.left - left, right: t.right - left },
+        cell: { left: b.left - left, right: b.right - left },
+        view: grid.clientWidth,
+      };
+    });
+
+test("groups: the title is centred over its group where the whole group is in view", async ({
+  mount,
+}) => {
+  const c = await mount(<GroupsHarness width={900} />);
+  const at = await groupTitle(c, /Address/);
+  expect(at.cell.left).toBeGreaterThanOrEqual(0);
+  expect(at.cell.right).toBeLessThanOrEqual(at.view + 1);
+  const centre = (at.title.left + at.title.right) / 2;
+  expect(Math.abs(centre - (at.cell.left + at.cell.right) / 2)).toBeLessThan(1);
+});
+
+test("groups: a title keeps to the visible part of a group wider than the table shows", async ({
+  mount,
+  page,
+}) => {
+  // Five 8-unit columns held in 320px: the Address group runs off the right.
+  const c = await mount(<GroupsHarness width={320} columnShrink="hold" />);
+  const grid = c.getByRole("grid");
+  const rest = await groupTitle(c, /Address/);
+  expect(rest.cell.right).toBeGreaterThan(rest.view);
+  // The whole item (title and chevron) is on screen, inside its group.
+  expect(rest.title.left).toBeGreaterThanOrEqual(rest.cell.left);
+  expect(rest.title.right).toBeLessThanOrEqual(rest.view);
+  await expect(c.getByRole("button", { name: "Collapse group" })).toBeInViewport({ ratio: 1 });
+  // Scrolled until the group starts off the left: the item stops at the left.
+  await grid.evaluate((el) => {
+    el.scrollLeft = 300;
+  });
+  await page.waitForTimeout(50);
+  const mid = await groupTitle(c, /Address/);
+  expect(mid.cell.left).toBeLessThan(0);
+  expect(mid.title.left).toBeGreaterThanOrEqual(0);
+  expect(mid.title.right).toBeLessThanOrEqual(Math.min(mid.view, mid.cell.right));
+  // The group's need still counts the title and its chevron: collapsing works
+  // from the kept-in-view chevron.
+  await c.getByRole("button", { name: "Collapse group" }).click();
+  await expect(c.getByRole("columnheader", { name: "Street" })).toHaveCount(0);
+});
+
+test("groups: a title that stays in view stops at the frozen columns", async ({ mount, page }) => {
+  // One frozen 8-unit column in 400px (under half, so it stays pinned).
+  const c = await mount(<GroupsHarness width={400} columnShrink="hold" frozenColumns={1} />);
+  const grid = c.getByRole("grid");
+  await expect(c.getByRole("columnheader", { name: "Name" })).toHaveAttribute(
+    "data-frozen",
+    "true",
+  );
+  await grid.evaluate((el) => {
+    el.scrollLeft = 250;
+  });
+  await page.waitForTimeout(50);
+  const at = await groupTitle(c, /Address/);
+  const frozenEnd = await c.getByRole("columnheader", { name: "Name" }).evaluate((el) => {
+    const grid = el.closest('[role="grid"]') as HTMLElement;
+    return el.getBoundingClientRect().right - grid.getBoundingClientRect().left - grid.clientLeft;
+  });
+  expect(at.cell.left).toBeLessThan(frozenEnd);
+  expect(at.title.left).toBeGreaterThanOrEqual(frozenEnd);
+});
+
+test("groups: the title item does not change what the group needs", async ({ mount }) => {
+  // The measured need is padding + title + gap + chevron: the cell at
+  // max-content is exactly that wide.
+  const c = await mount(<GroupsHarness width={900} />);
+  const need = await c
+    .getByRole("columnheader", { name: /Address/ })
+    .first()
+    .evaluate((cell) => {
+      const el = cell as HTMLElement;
+      const laid = el.style.inlineSize;
+      el.style.inlineSize = "max-content";
+      const natural = el.getBoundingClientRect().width;
+      el.style.inlineSize = laid;
+      const cs = getComputedStyle(el);
+      const item = el.querySelector('[class*="groupTitle"]') as HTMLElement;
+      const label = item.querySelector('[class*="headerLabel"]') as HTMLElement;
+      const chevron = item.querySelector("button") as HTMLElement;
+      return {
+        natural,
+        parts:
+          Number.parseFloat(cs.paddingInlineStart) +
+          Number.parseFloat(cs.paddingInlineEnd) +
+          label.getBoundingClientRect().width +
+          Number.parseFloat(getComputedStyle(item).columnGap) +
+          chevron.getBoundingClientRect().width,
+      };
+    });
+  expect(Math.abs(need.natural - need.parts)).toBeLessThan(1);
+});
+
+// --- Right to left -------------------------------------------------------------
+// The columns run from the right, a sideways scroll runs to the left
+// (scrollLeft goes negative), and "trailing" is the left edge.
+
+test("rtl: held columns scroll to the left, with the side fade on the left edge", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" dir="rtl" />);
+  const grid = c.getByRole("grid");
+  const widths = await headerWidths(c);
+  for (const w of widths) expect(w).toBeCloseTo(8 * U, 0);
+  // The first column starts at the right edge.
+  const first = await c.getByRole("columnheader", { name: "Name" }).evaluate((el) => {
+    const g = (el.closest('[role="grid"]') as HTMLElement).getBoundingClientRect();
+    return g.right - el.getBoundingClientRect().right;
+  });
+  expect(Math.abs(first)).toBeLessThan(2);
+  const fade = sideFade(c);
+  await expect(fade).toHaveCSS("display", "block");
+  await expect(fade).toHaveCSS("opacity", "1");
+  const fadeLeft = () =>
+    grid.evaluate((el) => {
+      const f = el.querySelector('[class*="sideFade"]') as HTMLElement;
+      return f.getBoundingClientRect().left - el.getBoundingClientRect().left - el.clientLeft;
+    });
+  expect(Math.abs(await fadeLeft())).toBeLessThan(1);
+  await grid.evaluate((el) => {
+    el.scrollLeft = -200;
+  });
+  await page.waitForTimeout(50);
+  await expect(fade).toHaveCSS("display", "block");
+  expect(Math.abs(await fadeLeft())).toBeLessThan(1);
+  // At the far (left) end there is nothing more: the fade goes.
+  await grid.evaluate((el) => {
+    el.scrollLeft = -el.scrollWidth;
+  });
+  await expect(fade).toHaveCSS("display", "none");
+  await grid.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  await expect(fade).toHaveCSS("display", "block");
+});
+
+test("rtl: a table that fits has nothing to scroll and no side fade", async ({ mount }) => {
+  const c = await mount(<ColumnShrinkHarness width={1200} columnShrink="hold" dir="rtl" />);
+  const box = await scrollBox(c.getByRole("grid"));
+  expect(box.scroll).toBeLessThanOrEqual(box.client);
+  await expect(sideFade(c)).toHaveCSS("display", "none");
+});
+
+test("rtl: frozen columns stay pinned on the right while the rest scroll", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<FrozenHarness width={700} frozenColumns={2} dir="rtl" />);
+  const grid = c.getByRole("grid");
+  const fromRight = (name: string) =>
+    c
+      .getByRole("columnheader", { name })
+      .first()
+      .evaluate((el) => {
+        const g = el.closest('[role="grid"]') as HTMLElement;
+        return (
+          g.getBoundingClientRect().right -
+          (g.offsetWidth - g.clientWidth - g.clientLeft) -
+          el.getBoundingClientRect().right
+        );
+      });
+  await expect(c.getByRole("columnheader", { name: "Name" })).toHaveAttribute(
+    "data-frozen",
+    "true",
+  );
+  const name0 = await fromRight("Name");
+  const age0 = await fromRight("Age");
+  const col0 = await fromRight("Col 0");
+  expect(Math.abs(name0)).toBeLessThan(1);
+  expect(age0).toBeCloseTo(10 * U, 0);
+  await grid.evaluate((el) => {
+    el.scrollLeft = -200;
+  });
+  await page.waitForTimeout(50);
+  expect(await grid.evaluate((el) => el.scrollLeft)).toBe(-200);
+  expect(await fromRight("Name")).toBeCloseTo(name0, 0);
+  expect(await fromRight("Age")).toBeCloseTo(age0, 0);
+  expect(await fromRight("Col 0")).toBeCloseTo(col0 - 200, 0);
+  // The body cells pin with their headings, and the edge shadow falls left.
+  const firstCell = c.getByRole("gridcell").first();
+  const cellRight = await firstCell.evaluate((el) => {
+    const g = el.closest('[role="grid"]') as HTMLElement;
+    return (
+      g.getBoundingClientRect().right -
+      (g.offsetWidth - g.clientWidth - g.clientLeft) -
+      el.getBoundingClientRect().right
+    );
+  });
+  expect(Math.abs(cellRight)).toBeLessThan(1);
+  const sign = await grid.evaluate((el) =>
+    getComputedStyle(el).getPropertyValue("--sf-inline-sign"),
+  );
+  expect(sign.trim()).toBe("-1");
+});
+
+test("rtl: frozen columns wider than half the table release", async ({ mount }) => {
+  const c = await mount(<FrozenHarness width={360} frozenColumns={2} dir="rtl" />);
+  await expect(c.getByRole("grid")).toBeVisible();
+  await expect(c.locator('[data-frozen="true"]')).toHaveCount(0);
+});
+
+test("rtl: a group title keeps to the visible part of its group", async ({ mount, page }) => {
+  const c = await mount(<GroupsHarness width={320} columnShrink="hold" dir="rtl" />);
+  const grid = c.getByRole("grid");
+  const rest = await groupTitle(c, /Address/);
+  // The group runs off the left edge; the item is on screen, inside it.
+  expect(rest.cell.left).toBeLessThan(0);
+  expect(rest.title.left).toBeGreaterThanOrEqual(0);
+  expect(rest.title.right).toBeLessThanOrEqual(rest.cell.right);
+  await grid.evaluate((el) => {
+    el.scrollLeft = -300;
+  });
+  await page.waitForTimeout(50);
+  const mid = await groupTitle(c, /Address/);
+  expect(mid.cell.right).toBeGreaterThan(mid.view);
+  expect(mid.title.right).toBeLessThanOrEqual(mid.view);
+  expect(mid.title.left).toBeGreaterThanOrEqual(Math.max(0, mid.cell.left));
+});
+
 // --- Touch --------------------------------------------------------------------
 
 test.describe("with a finger", () => {

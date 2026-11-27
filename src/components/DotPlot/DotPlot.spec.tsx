@@ -161,23 +161,37 @@ test("many rows: the plot grows so no row drops under one unit", async ({ mount 
 test("rows spread over the plot by default; rowHeight fixes the pitch instead", async ({
   mount,
 }) => {
+  // The plot and its first row band, read in one go. The chart lays out
+  // twice on mount (the plot is measured, then the gutters come out of it), so
+  // the assertions poll: two reads on either side of that pass disagree.
+  const sizes = (c: Awaited<ReturnType<typeof mount>>) =>
+    c.evaluate((root) => {
+      const svg = root.querySelector("svg[role='img']");
+      const band = root.querySelector('rect[class*="rowBand"]');
+      return {
+        svg: svg?.getBoundingClientRect().height ?? 0,
+        band: band?.getBoundingClientRect().height ?? -1,
+      };
+    });
   const spread = await mount(<DotPlotHarness categories={CATEGORIES} series={ONE} height={240} />);
-  const svg = await spread.locator("svg[role='img']").boundingBox();
-  const bands = spread.locator('rect[class*="rowBand"]');
-  const first = await bands.nth(0).boundingBox();
-  if (!svg || !first) throw new Error("missing boxes");
   // Four rows share the whole plot: each band is a quarter of the svg.
-  expect(Math.abs(first.height - svg.height / 4)).toBeLessThanOrEqual(1);
+  await expect
+    .poll(async () => {
+      const at = await sizes(spread);
+      return at.svg > 0 && Math.abs(at.band - at.svg / 4) <= 1;
+    })
+    .toBe(true);
   await spread.unmount();
 
   const compact = await mount(
     <DotPlotHarness categories={CATEGORIES} series={ONE} height={240} rowHeight={18} />,
   );
-  const compactSvg = await compact.locator("svg[role='img']").boundingBox();
-  const compactBand = await compact.locator('rect[class*="rowBand"]').nth(0).boundingBox();
-  if (!compactSvg || !compactBand) throw new Error("missing boxes");
-  expect(Math.abs(compactSvg.height - 4 * 18)).toBeLessThanOrEqual(1);
-  expect(Math.abs(compactBand.height - 18)).toBeLessThanOrEqual(1);
+  await expect
+    .poll(async () => {
+      const at = await sizes(compact);
+      return Math.abs(at.svg - 4 * 18) <= 1 && Math.abs(at.band - 18) <= 1;
+    })
+    .toBe(true);
 });
 
 test("vertical orientation puts the categories along the bottom", async ({ mount }) => {

@@ -2,6 +2,7 @@ import type {
   CSSProperties,
   HTMLAttributes,
   KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
 } from "react";
@@ -562,24 +563,34 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
     [rows],
   );
 
-  const handlePointerMove = useCallback(
-    (e: ReactPointerEvent<SVGSVGElement>) => {
+  /** The reading under a pointer position on the plot: the row, every row's
+   *  value at that x, and where the active point sits. */
+  const readPointer = useCallback(
+    (svg: SVGSVGElement, clientX: number, clientY: number) => {
       const plotEl = plotRef.current;
-      if (!plotEl || width <= 0 || rows.length === 0) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const localX = e.clientX - rect.left;
-      const localY = e.clientY - rect.top;
+      if (!plotEl || width <= 0 || rows.length === 0) return null;
+      const rect = svg.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
       const rowIndex = Math.min(
         rows.length - 1,
         Math.max(0, Math.floor((localY - topInset) / rowH)),
       );
       const read = readAt(xInvert(localX), rowIndex);
-      if (!read) return;
+      if (!read) return null;
       const px = xScale(toNumber(read.active.x));
       const cy = topInset + rowIndex * rowH + rowH / 2;
-      setHover({ ...read, rowIndex, px, rect: anchorRectFromPoint(plotEl, px, cy) });
+      return { ...read, rowIndex, px, rect: anchorRectFromPoint(plotEl, px, cy) };
     },
     [plotRef, width, rows.length, rowH, topInset, readAt, xInvert, xScale],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: ReactPointerEvent<SVGSVGElement>) => {
+      const read = readPointer(e.currentTarget, e.clientX, e.clientY);
+      if (read) setHover(read);
+    },
+    [readPointer],
   );
   const handlePointerLeave = useCallback(() => setHover(null), []);
 
@@ -595,10 +606,17 @@ export const HorizonChart = forwardRef<HTMLDivElement, HorizonChartProps>(functi
   );
   const activatable = !!onPointActivate || selectable;
 
-  const handleClick = useCallback(() => {
-    if (!activatable || !hover) return;
-    activate(hover.active);
-  }, [activatable, hover, activate]);
+  // The click reads its own position. A hover reading may not exist (a tap
+  // sends no pointer move, and the pointer leaves the plot when the finger
+  // lifts) or may belong to an earlier render.
+  const handleClick = useCallback(
+    (e: ReactMouseEvent<SVGSVGElement>) => {
+      if (!activatable) return;
+      const read = readPointer(e.currentTarget, e.clientX, e.clientY);
+      if (read) activate(read.active);
+    },
+    [activatable, readPointer, activate],
+  );
 
   const handleRowKeyDown = useCallback(
     (e: ReactKeyboardEvent<SVGGElement>, row: number) => {

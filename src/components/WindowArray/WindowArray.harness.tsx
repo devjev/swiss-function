@@ -60,6 +60,7 @@ export function WindowArrayHarness({
   verticalBelow,
   windowMinWidth = 120,
   narrowWidth,
+  emptyColumn,
 }: {
   columnCount?: number;
   windowsPerColumn?: number;
@@ -85,8 +86,13 @@ export function WindowArrayHarness({
   /** When set, a "Toggle width" button flips the container between `width`
    *  and this — for collapse→expand round-trip specs (issue #31). */
   narrowWidth?: number;
+  /** Adds a last column, `col-empty`, with no windows: a place to drop one. */
+  emptyColumn?: boolean;
 }) {
-  const [columns, setColumns] = useState(() => makeColumns(columnCount, windowsPerColumn));
+  const [columns, setColumns] = useState(() => [
+    ...makeColumns(columnCount, windowsPerColumn),
+    ...(emptyColumn ? [{ id: "col-empty", windows: [] }] : []),
+  ]);
   const [lastMove, setLastMove] = useState<WindowMove | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [splitIds, setSplitIds] = useState<[string, string] | null>(null);

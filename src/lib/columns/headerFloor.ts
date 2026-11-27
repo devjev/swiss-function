@@ -118,28 +118,38 @@ export function measureHeaderNeed(
   // read inside one task, so nothing is painted at this width.
   const laid = cell.style.inlineSize;
   cell.style.inlineSize = "max-content";
-  const cs = getComputedStyle(cell);
+  const fixed = fixedInlineSize(cell, label);
+  const labelRun = contentInlineSize(label);
+  cell.style.inlineSize = laid;
+  const labelNeed = lines > 1 ? narrowestLabelWidth(label, lines) : labelRun;
+  return Math.ceil(fixed + labelNeed);
+}
+
+/** Everything on the title's line but the title: `box`'s padding, the gaps
+ *  between its in-flow children and the width of every child other than
+ *  `label`. A child that holds the label (a group's title and chevron, kept
+ *  together so they can stay in view) is opened and counted the same way. */
+function fixedInlineSize(box: HTMLElement, label: HTMLElement): number {
+  const cs = getComputedStyle(box);
   const padding =
     (Number.parseFloat(cs.paddingInlineStart) || 0) + (Number.parseFloat(cs.paddingInlineEnd) || 0);
   const gap = Number.parseFloat(cs.columnGap) || 0;
   let chrome = 0;
   let inFlow = 0;
-  for (const child of Array.from(cell.children) as HTMLElement[]) {
-    if (getComputedStyle(child).position === "absolute") continue;
+  for (const child of Array.from(box.children) as HTMLElement[]) {
+    const ccs = getComputedStyle(child);
+    if (ccs.position === "absolute") continue;
     inFlow += 1;
     if (child === label) continue;
     // A flex item's margins are part of its footprint on the line.
-    const ccs = getComputedStyle(child);
-    chrome +=
-      child.getBoundingClientRect().width +
+    const margins =
       (Number.parseFloat(ccs.marginInlineStart) || 0) +
       (Number.parseFloat(ccs.marginInlineEnd) || 0);
+    chrome += child.contains(label)
+      ? fixedInlineSize(child, label) + margins
+      : child.getBoundingClientRect().width + margins;
   }
-  const labelRun = contentInlineSize(label);
-  cell.style.inlineSize = laid;
-  const labelNeed = lines > 1 ? narrowestLabelWidth(label, lines) : labelRun;
-  const gaps = Math.max(0, inFlow - 1) * gap;
-  return Math.ceil(padding + chrome + gaps + labelNeed);
+  return padding + chrome + Math.max(0, inFlow - 1) * gap;
 }
 
 /** The narrowest width that holds `label` in `lines` lines: a hidden clone

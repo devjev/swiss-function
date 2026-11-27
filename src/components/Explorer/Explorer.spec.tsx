@@ -376,6 +376,44 @@ test("the header stays over its columns when the tree scrolls sideways", async (
   expect((before.header[0] ?? 0) - (after.header[0] ?? 0)).toBe(150);
 });
 
+test("rtl: the header stays over its columns, and the fade is on the left edge", async ({
+  mount,
+  page,
+}) => {
+  const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" dir="rtl" />);
+  const tree = c.getByRole("treegrid");
+  const before = await columnEdges(c);
+  expect(before.header).toEqual(before.body);
+  // The first column starts at the right edge.
+  const first = await c.evaluate((root) => {
+    const tree = root.querySelector('[role="treegrid"]') as HTMLElement;
+    const cell = root.querySelector('[class*="headerCell"]') as HTMLElement;
+    return tree.getBoundingClientRect().right - cell.getBoundingClientRect().right;
+  });
+  expect(Math.abs(first)).toBeLessThan(3);
+  const fade = sideFade(c);
+  await expect(fade).toHaveCSS("opacity", "1");
+  const fadeLeft = await c.evaluate((root) => {
+    const f = root.querySelector('[class*="sideFade"]') as HTMLElement;
+    const t = root.querySelector('[role="treegrid"]') as HTMLElement;
+    return f.getBoundingClientRect().left - t.getBoundingClientRect().left;
+  });
+  expect(Math.abs(fadeLeft)).toBeLessThan(3);
+  // A right-to-left scroller counts down from 0.
+  await tree.evaluate((el) => {
+    el.scrollLeft = -150;
+  });
+  await page.waitForTimeout(50);
+  const after = await columnEdges(c);
+  expect(after.header).toEqual(after.body);
+  expect((after.header[0] ?? 0) - (before.header[0] ?? 0)).toBe(150);
+  // At the far end nothing is left to scroll: the fade goes.
+  await tree.evaluate((el) => {
+    el.scrollLeft = -el.scrollWidth;
+  });
+  await expect(fade).toHaveCSS("display", "none");
+});
+
 test("a sideways scroll on the headings scrolls the tree with them", async ({ mount, page }) => {
   const c = await mount(<ColumnShrinkHarness width={320} columnShrink="hold" />);
   const heading = c.locator('[class*="headerCell"]').first();
