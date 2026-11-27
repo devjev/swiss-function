@@ -500,7 +500,12 @@
    block. z-index 1 keeps them under a fullscreen window (z-index 2).
    Invisible at rest — each fades in while the pointer is near its edge
    (root-tracked `data-visible`) or while keyboard-focused; hidden paddles
-   drop pointer-events so they never occlude the edge of the strip. */
+   drop pointer-events so they never occlude the edge of the strip.
+   A finger never brings them up: the component tracks the edges for a
+   pointer that can hover only, so on a touch screen the paddles stay out of
+   the way (in the vertical orientation the top one would sit on the first
+   window's title bar) and a swipe scrolls the strip. A keyboard still
+   reaches them there, by focus. */
 .pager {
   position: absolute;
   inset-block-start: 50%;
@@ -571,17 +576,6 @@
   gap: calc(var(--sf-unit) / 2);
   justify-content: flex-end;
   margin-block-start: var(--sf-unit);
-}
-
-/* No hover pointer to approach an edge with: the paddles stay visible. */
-@media not ((hover: hover) and (pointer: fine)) {
-  .pager {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .pager:disabled {
-    opacity: 0.4;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

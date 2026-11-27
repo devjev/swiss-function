@@ -236,8 +236,9 @@ export interface WindowArrayProps extends HTMLAttributes<HTMLElement> {
    *  resizing so gestures aren't fought). Default `false`. */
   snap?: boolean;
   /** Floating prev/next paddles at the inline edges that switch the active
-   *  window to the neighbouring column. Each fades in while the pointer is
-   *  near its edge (always visible on hoverless devices). Default `false`. */
+   *  window to the neighbouring column. Each fades in while a mouse pointer
+   *  is near its edge or while it has keyboard focus. A finger never brings
+   *  them up: on a touch screen a swipe scrolls the strip. Default `false`. */
   controls?: boolean;
   /** Imperative handle for column switching / focus, so a consumer's central
    *  hotkey system can drive the strip (issue #32). WindowArray binds no global
@@ -977,14 +978,15 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
     },
   }));
 
-  // Paddles rest invisible and fade in while the pointer is near their edge
-  // (CSS keeps them always-on where hover doesn't exist). Tracked on the root
-  // so any pointer position inside the array counts — not just hovering the
-  // button's own box.
+  // Paddles rest invisible and fade in while the pointer is near their edge.
+  // Tracked on the root so any pointer position inside the array counts — not
+  // just hovering the button's own box. Only a pointer that can hover brings
+  // them up: a finger near an edge is a swipe or a tap on a window, and on a
+  // touch screen the paddles stay hidden (a keyboard still focuses them).
   const [nearEdges, setNearEdges] = useState({ start: false, end: false });
   const handleRootPointerMove = (event: React.PointerEvent<HTMLElement>) => {
     onPointerMoveProp?.(event);
-    if (!controls) return;
+    if (!controls || event.pointerType === "touch") return;
     const rect = event.currentTarget.getBoundingClientRect();
     // Proximity along the scroll axis: inline edges, or block edges when the
     // strip is vertical (paddles sit at the top/bottom there).

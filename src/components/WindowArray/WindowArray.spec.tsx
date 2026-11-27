@@ -1739,3 +1739,46 @@ test("the split picker excludes popped-out windows", async ({ mount, page }) => 
   await popup.getByRole("button", { name: "Bring the window back" }).click();
   await expect(w1a.getByText("Body of Window 1A")).toBeVisible();
 });
+
+// --- Touch ---------------------------------------------------------------------
+
+test.describe("with a finger", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 700 } });
+
+  test("the paddles stay hidden: a touch near an edge does not bring them up", async ({
+    mount,
+    page,
+  }) => {
+    await mount(<WindowArrayHarness width={326} height={500} windowMinWidth={240} controls />);
+    const root = page.getByTestId("window-array");
+    await expect(root).toHaveAttribute("data-stacked", "");
+    const prev = page.getByRole("button", { name: "Previous column" });
+    const next = page.getByRole("button", { name: "Next column" });
+    await expect(prev).toHaveCSS("opacity", "0");
+    await expect(next).toHaveCSS("opacity", "0");
+    await expect(next).toHaveCSS("pointer-events", "none");
+    // A finger that travels along the bottom edge, where the next paddle is.
+    const box = await root.boundingBox();
+    if (!box) throw new Error("missing bounding box");
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number, y: number) =>
+      cdp.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y }],
+      });
+    const y = box.y + box.height - 20;
+    await touch("touchStart", box.x + 60, y);
+    await touch("touchMove", box.x + 90, y);
+    await touch("touchMove", box.x + 120, y);
+    await expect(next).not.toHaveAttribute("data-visible", "");
+    await expect(next).toHaveCSS("opacity", "0");
+    await touch("touchEnd", 0, 0);
+    // A tap where the paddle is goes to the window under it.
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + 20);
+    await expect(page.getByTestId("active-id")).toHaveText("w1a");
+    // The strip still scrolls, and a keyboard still reaches a paddle.
+    await next.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("active-id")).toHaveText("w1b");
+  });
+});

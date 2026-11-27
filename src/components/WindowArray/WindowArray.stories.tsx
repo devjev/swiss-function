@@ -168,7 +168,8 @@ export const ManyColumns: Story = () => (
  *  so at this width each window takes a line of its own, in order. Drag the
  *  container's resize corner across the breakpoint to watch it flip: arrows,
  *  Shift+moves, gutter resizing, paddles, and Alt+hotkeys all follow the
- *  layout axis. On the wrapped band Up / Down and the paddles step one line,
+ *  layout axis (the paddles are for a mouse: on a touch screen they stay
+ *  hidden). On the wrapped band Up / Down and the paddles step one line,
  *  snap settles on every line, and split view and pop-out work as on the
  *  horizontal strip. */
 export const NarrowVertical: Story = () => (
