@@ -6,6 +6,16 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.6.1 — 2026-11-27
+
+### Patch
+
+- DataTable: a group title stays in view. The title and its chevron keep to the visible part of their group while the table scrolls sideways, stopping at the frozen columns, so a group wider than the table (the usual case on a phone) no longer shows an empty band with its title off screen.
+- DataTable: frozen columns pin at the inline start, so they stay in place in a right-to-left table (they used a physical left offset and scrolled away), with the edge shadow on the correct side.
+- HorizonChart: a tap pins the row under the finger. The click took its row from the last hover reading, which a tap never produces, so selection and `onPointActivate` did nothing on touch.
+- WindowArray: a column rendered with no windows keeps its track as a drop target again, with a tint and an outline while a dragged window is over it. Since the pop-out work it was not rendered at all, so nothing could be dropped into it.
+- WindowArray on a wrapped band (a phone, a narrow pane): Up/Down, Shift+Up/Down, the paddles and `apiRef.switchColumn` step one line at a time and reach every window, where they used to jump from band to band. `snap` settles on either edge of every line. The paddles and the arrow keys pass over popped-out windows, and a Shift+move no longer spends a key press on one. A focus move onto a column or line as large as the visible area keeps its title bar in view. The paddles take a 44px hit area on touch.
+
 ## v3.6.0 — 2026-11-26
 
 ### Minor
