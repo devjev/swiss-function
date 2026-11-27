@@ -6,6 +6,12 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v3.6.2 — 2026-11-27
+
+### Patch
+
+- WindowArray: the `controls` paddles stay hidden on touch. They used to be always visible there, and in the vertical orientation the top one sat on the first window's title bar; a swipe scrolls the strip and a tap activates a window. A mouse pointer near an edge and keyboard focus bring them up as before.
+
 ## v3.6.1 — 2026-11-27
 
 ### Patch
