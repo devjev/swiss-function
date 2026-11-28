@@ -1,5 +1,7 @@
+/* A terminal's selection list: the question on its own line, one option per
+   line under it, everything on the transcript's grid. */
 .prompt {
-  margin: 0 0 var(--sf-unit);
+  margin: 0;
   color: var(--sf-color-fg);
 }
 
@@ -13,71 +15,107 @@
   flex-direction: column;
 }
 
-/* Each option is a Button; override its sans/elevation/centering for a flat,
-   full-width, left-aligned monospace row. Element-qualified so it beats the
-   Button base `.root` (equal class specificity otherwise). */
-button.choice {
+/* An option is one line of the list (more when its text wraps in a narrow
+   chat): a marker cell, the label, a `# comment`. A button with no chrome. */
+.choice {
+  display: flex;
+  align-items: baseline;
+  gap: 1ch;
   inline-size: 100%;
-  /* A row is one control high until its text wraps (a narrow chat), then it
-     grows with it: a fixed height let the lines of one option run into the
-     next. */
-  block-size: auto;
-  min-block-size: var(--btn-h);
-  white-space: normal;
-  justify-content: flex-start;
-  gap: calc(var(--sf-unit) / 2);
-  font-family: var(--sf-font-mono);
+  min-block-size: var(--sf-unit);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size-adjust: var(--sf-font-mono-adjust);
-  text-align: start;
   color: var(--sf-color-fg);
+  text-align: start;
+  cursor: pointer;
+}
+.choice:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 0px);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  button.choice:hover {
-    background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
-  }
+.label {
+  min-inline-size: 0;
+  color: var(--sf-color-fg);
+  overflow-wrap: anywhere;
 }
 
-button.choiceSelected {
-  background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 82%);
+.comment {
+  min-inline-size: 0;
+  color: var(--sf-color-fg);
+  overflow-wrap: anywhere;
 }
 
-/* Caret: hidden (kept for alignment) until the row is hovered/focused, then it
-   points in primary. */
+/* The arrow: kept in its cell for alignment, shown on the option under the
+   pointer or the focus, which also takes the accent, as a terminal marks the
+   selected row. A press shows it too, for a finger. */
 .caret {
+  flex: none;
   color: transparent;
 }
-
-button.choice:focus-visible .caret {
+.choice:focus-visible .caret,
+.choice:active .caret {
   color: var(--sf-color-primary);
 }
-
+.choice:focus-visible .label,
+.choice:active .label {
+  color: var(--sf-color-primary);
+}
 @media (hover: hover) and (pointer: fine) {
-  button.choice:hover .caret {
+  .choice:hover .caret,
+  .choice:hover .label {
     color: var(--sf-color-primary);
   }
 }
 
-/* Multi-select checkbox marker. */
+/* Multi-select marker. */
 .box {
+  flex: none;
   color: var(--sf-color-muted);
   white-space: pre;
 }
-
 .boxOn {
   color: var(--sf-color-primary);
 }
-
-.label {
-  color: var(--sf-color-fg);
+.choiceSelected .label {
+  font-weight: var(--sf-font-weight-bold);
 }
 
-.comment {
-  color: var(--sf-color-fg);
-}
-
-button.confirm {
-  margin-block-start: var(--sf-unit);
-  font-family: var(--sf-font-mono);
+/* The confirm key, set as a terminal sets a key in a line: `[Confirm]`, one
+   line under the list. */
+.confirm {
+  position: relative;
+  margin: var(--sf-unit) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-fg);
+  cursor: pointer;
+}
+.confirmLabel {
+  font-weight: var(--sf-font-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.confirm:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .confirm:hover:not(:disabled) .confirmLabel {
+    color: var(--sf-color-primary);
+  }
+}
+.confirm:active:not(:disabled) .confirmLabel {
+  color: var(--sf-color-primary);
 }

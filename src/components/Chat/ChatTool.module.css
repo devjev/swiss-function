@@ -1,0 +1,169 @@
+/* A tool call: a neutral band, the call on its first line. Inside a Chat the
+   band bleeds over the transcript's inline padding (`--sf-chat-pad`), so the
+   colour runs edge to edge and the text keeps the transcript's column. */
+.root {
+  margin-inline: calc(var(--sf-chat-pad, 0px) * -1);
+  padding: calc(var(--sf-unit) / 2) var(--sf-chat-pad, calc(var(--sf-unit) / 2));
+  background-color: var(--sf-chat-block-bg, var(--sf-color-bg-subtle));
+  /* A tool call is code: the chat's code face. */
+  font-family: var(--sf-chat-font-code, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg);
+}
+
+/* A failure: the library's status mark, a 3px leading rule in the danger
+   colour, drawn inside the band so the text column does not move. */
+.root[data-status="error"] {
+  box-shadow: inset 3px 0 0 var(--sf-color-danger);
+}
+.root[data-status="error"]:dir(rtl) {
+  box-shadow: inset -3px 0 0 var(--sf-color-danger);
+}
+
+.call {
+  overflow-wrap: anywhere;
+}
+
+.name {
+  font-weight: var(--sf-font-weight-bold);
+}
+
+.spinner {
+  margin-inline-end: 1ch;
+  color: var(--sf-color-primary);
+}
+
+/* The output: a log, set a step under the call line. */
+.output {
+  margin: 0;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-fg-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The marker line for the lines left out. A button, so it takes focus and a
+   press; it reads as a line of the log. */
+.more {
+  display: block;
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-muted);
+  text-align: start;
+  cursor: pointer;
+}
+.more:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 0px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .more:hover {
+    color: var(--sf-color-fg);
+  }
+}
+.more:active {
+  color: var(--sf-color-fg);
+}
+
+/* The key is a keyboard's; a finger presses the line. */
+@media not ((hover: hover) and (pointer: fine)) {
+  .keyHint {
+    display: none;
+  }
+}
+
+.error {
+  color: var(--sf-color-danger);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  color: var(--sf-color-muted);
+}
+
+/* --- The log view (a chat with `variant="log"`) ----------------------------
+   No band: the call on one line, its status at the end (the mark and the
+   note), the output folded to one line under an elbow, two cells in. */
+.log {
+  font-family: var(--sf-chat-font-code, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg);
+}
+
+.logCall {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 2ch;
+  align-items: start;
+}
+
+/* One line of the grid, the mark and the note centred in it, so they sit on
+   the call's first line whatever the mark is (a glyph, the spinner). */
+.logStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+  block-size: var(--sf-unit);
+  white-space: nowrap;
+}
+.logStatus .spinner {
+  margin-inline-end: 0;
+}
+
+/* A finished call is not coloured: the check says it. Only a failure takes
+   the danger tone. */
+.logMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1ch;
+}
+.logMark[data-mark="error"] {
+  color: var(--sf-color-danger);
+}
+
+.logOutput {
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr) auto;
+  column-gap: 0;
+  padding-inline-start: 2ch;
+}
+
+.elbow {
+  color: var(--sf-color-muted);
+}
+
+.logLines {
+  margin: 0;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-fg-subtle);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Folded: one line, cut at the edge. */
+.logLines[data-folded] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.logOutput .more {
+  inline-size: auto;
+  padding-inline-start: 2ch;
+  white-space: nowrap;
+}
+
+.logBody {
+  padding-inline-start: 4ch;
+}

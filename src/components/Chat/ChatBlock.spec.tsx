@@ -14,11 +14,29 @@ const frameOf = (el: HTMLElement) => {
   };
 };
 
-test("framed is the TUI panel: hairline border, surface, monospace, a plain title bar", async ({
+test("the default is a band: a surface with no border, monospace, a bracketed label", async ({
   mount,
 }) => {
   const c = await mount(
     <ChatBlock title="status">
+      <span>body</span>
+    </ChatBlock>,
+  );
+  const f = await c.evaluate(frameOf);
+  expect(f.border).toBe("0px");
+  expect(f.bg).not.toBe("rgba(0, 0, 0, 0)");
+  expect(f.font).toContain("monospace");
+  expect(f.marker).toBe("none");
+  await expect(c).toHaveAttribute("data-variant", "band");
+  // The label as a terminal prints a block's kind.
+  await expect(c.getByText("[status]")).toBeVisible();
+});
+
+test("framed is the ruled panel: hairline border, surface, monospace, a plain title bar", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <ChatBlock variant="framed" title="status">
       <span>body</span>
     </ChatBlock>,
   );

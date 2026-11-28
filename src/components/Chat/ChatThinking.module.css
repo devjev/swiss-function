@@ -1,26 +1,26 @@
-/* No frame — the thinking block reads as quiet, de-emphasized text (70%), not a
-   panel. (Other chat blocks keep the ChatBlock box; this one opts out.) */
+/* No band: the thinking block is a quiet line of the transcript, set a step
+   under the reply (the subtle ink, and italic as a terminal sets a model's
+   thinking). */
 .root {
-  font-family: var(--sf-font-mono);
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-fg);
-  opacity: 0.7;
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg-subtle);
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: calc(var(--sf-unit) / 3);
+  gap: 1ch;
   inline-size: 100%;
   margin: 0;
   padding: 0;
   background: none;
   border: none;
-  font-family: var(--sf-font-mono);
+  font: inherit;
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
-  color: var(--sf-color-fg);
+  color: inherit;
   text-align: start;
   cursor: pointer;
 }
@@ -40,26 +40,20 @@
 .chevron[data-open] {
   transform: rotate(90deg);
 }
-/* No fan-out yet: keep the chevron's space so the row doesn't jump when one
-   appears. */
-.chevronPlaceholder {
-  visibility: hidden;
-}
-
 .text {
-  color: var(--sf-color-fg);
+  font-style: italic;
 }
 
 .glyph {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 1em;
+  inline-size: 1ch;
   white-space: pre;
 }
 /* Done is not a colour: the check says it. Only a failure takes one. */
 .done {
-  color: var(--sf-color-fg);
+  color: inherit;
 }
 .error {
   color: var(--sf-color-danger);
@@ -82,7 +76,7 @@
 /* The header/fan-out gap lives on an inner element so it's clipped away (not a
    residual) when `.body` collapses to 0. */
 .bodyInner {
-  padding-block-start: var(--sf-unit);
+  padding-block-start: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

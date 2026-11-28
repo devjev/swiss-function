@@ -44,6 +44,7 @@ export * from "./components/Form";
 export * from "./components/Fullscreen";
 export * from "./components/Graph";
 export * from "./components/Grid";
+export * from "./components/GridOverlay";
 export * from "./components/Heatmap";
 export * from "./components/Histogram";
 export * from "./components/HorizonChart";

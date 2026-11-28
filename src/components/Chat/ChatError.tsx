@@ -1,20 +1,19 @@
-/** ChatError — the in-chat error "micro-element" (issue #77): a compact
- *  NonIdealState block with the `glitch` effect as its fill, showing a short
- *  error message and an optional Retry. Rendered by Chat for a `ChatErrorPart`.
- */
+/** ChatError: a backend error in the transcript, as a terminal prints one. One
+ *  line, `Error: message`, in the danger colour behind the library's status
+ *  mark (a 3px leading rule), the request id under it, and a retry key.
+ *  Rendered by Chat for a `ChatErrorPart`. */
 
 import type { ReactNode } from "react";
 import { cx } from "../../lib/cx";
-import { Button } from "../Button";
-import { NonIdealState } from "../NonIdealState";
+import { hitArea } from "../../lib/hitArea";
 import styles from "./ChatError.module.css";
 
 export interface ChatErrorProps {
   /** Human-readable error message (the app parses its backend payload). */
   message: ReactNode;
-  /** Optional request id / detail, shown small under the message. */
+  /** Optional request id / detail, shown under the message. */
   requestId?: string;
-  /** Show a Retry affordance. */
+  /** Show a Retry key. */
   retryable?: boolean;
   /** Fired when Retry is pressed. */
   onRetry?: () => void;
@@ -23,23 +22,14 @@ export interface ChatErrorProps {
 
 export function ChatError({ message, requestId, retryable, onRetry, className }: ChatErrorProps) {
   return (
-    <NonIdealState
-      variant="error"
-      effect="glitch"
-      className={cx(styles.root, className)}
-      width="100%"
-      density={0.28}
-      opacity={0.4}
-      cellSize={5}
-      title={<span className={styles.message}>{message}</span>}
-      description={requestId ? <span className={styles.requestId}>{requestId}</span> : undefined}
-      action={
-        retryable ? (
-          <Button size="sm" variant="secondary" onClick={onRetry}>
-            Retry
-          </Button>
-        ) : undefined
-      }
-    />
+    <div className={cx(styles.root, className)} role="alert">
+      <div className={styles.message}>Error: {message}</div>
+      {requestId ? <div className={styles.requestId}>{requestId}</div> : null}
+      {retryable ? (
+        <button type="button" className={cx(styles.retry, hitArea.block)} onClick={onRetry}>
+          [<span className={styles.retryLabel}>Retry</span>]
+        </button>
+      ) : null}
+    </div>
   );
 }

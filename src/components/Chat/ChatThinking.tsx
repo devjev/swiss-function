@@ -96,19 +96,16 @@ export function ChatThinking({
           aria-expanded={open}
           aria-label={open ? "Collapse steps" : "Expand steps"}
         >
+          {indicator}
+          <span className={styles.text}>{headerText}</span>
+          {/* After the text, so the line starts in the transcript's column
+              whether or not there is a fan-out to open. */}
           <span className={styles.chevron} data-open={open || undefined} aria-hidden="true">
             ▸
           </span>
-          {indicator}
-          <span className={styles.text}>{headerText}</span>
         </button>
       ) : (
         <div className={styles.header} data-static="">
-          {/* Reserve the chevron's box so adding a fan-out later doesn't shift
-              the row sideways. */}
-          <span className={cx(styles.chevron, styles.chevronPlaceholder)} aria-hidden="true">
-            ▸
-          </span>
           {indicator}
           <span className={styles.text}>{headerText}</span>
         </div>

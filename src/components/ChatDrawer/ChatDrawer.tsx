@@ -3,6 +3,7 @@ import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "../../lib/cx";
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
+import { useVisibleInsets } from "../../lib/keyboard";
 import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useCollapse } from "../../lib/useCollapse";
 import { useFullscreen } from "../../lib/useFullscreen";
@@ -99,7 +100,8 @@ export interface ChatDrawerProps {
   marginMinWidth?: number;
 
   /** Padding around the chat — the gutter the thinking effect fills.
-   *  `number` → multiples of `--sf-unit` (default `1`); `string` → raw CSS. */
+   *  `number` → multiples of `--sf-unit` (default `1`, and `0` for the log
+   *  variant); `string` → raw CSS. */
   padding?: number | string;
 
   /** While true, an animated effect blooms from the centre behind the chat. */
@@ -135,15 +137,40 @@ export interface ChatDrawerProps {
   renderPart?: (part: ChatPart, ctx: { message: ChatMessage }) => ReactNode;
   /** Placeholder text for the built-in chat input. Default "Ask anything…". */
   placeholder?: string;
-  /** Caption for the built-in chat's submit button. Default "Send". */
+  /** How the built-in chat sets its transcript (see `Chat`'s `variant`).
+   *  `"log"` also fills the panel: no gutter around the chat (`padding` 0 by
+   *  default) and no frame on it, the header kept apart by a rule. The thinking
+   *  effect then has no gutter to show in; the chat's working indicator says
+   *  it. */
+  variant?: ChatProps["variant"];
+  /** Draw the built-in chat's border (see `Chat`'s `frame`). */
+  frame?: ChatProps["frame"];
+  /** The built-in chat's faces (see `Chat`'s `fonts`). */
+  fonts?: ChatProps["fonts"];
+  /** Whether the built-in chat's send key shows (`"auto"`: on touch only). */
+  sendKey?: ChatProps["sendKey"];
+  /** The built-in chat's send key: its accessible name. Default "Send". */
   sendLabel?: string;
-  /** Visual variant of the built-in chat's submit button. Default "secondary". */
+  /** Visual variant of the built-in chat's send key. Default "ghost". */
   sendVariant?: ButtonVariant;
-  /** Override the built-in chat input's border colour (any CSS colour). */
+  /** Colour of the built-in chat's editor rules (any CSS colour). */
   borderColor?: string;
-  /** How each voice shows up in the built-in chat (`plain` / `box` / `tape` /
-   *  `squircle`, one value or one per role). See `Chat`'s `messageStyle`. */
-  messageStyle?: ChatProps["messageStyle"];
+  /** A start banner at the top of the built-in chat's transcript. */
+  header?: ChatProps["header"];
+  /** Status lines under the built-in chat's editor. */
+  footer?: ChatProps["footer"];
+  /** The host's own content docked above / under the built-in chat's editor. */
+  aboveEditor?: ChatProps["aboveEditor"];
+  belowEditor?: ChatProps["belowEditor"];
+  /** The built-in chat's working indicator (a spinner and a message in the
+   *  editor's top rule). Defaults to `thinking`. */
+  working?: ChatProps["working"];
+  /** Called on Escape while the built-in chat is working. */
+  onInterrupt?: ChatProps["onInterrupt"];
+  /** Entries for the built-in chat's completion list (`/`, `@`, `#`). */
+  completions?: ChatProps["completions"];
+  /** A question in the built-in chat's editor slot (see `useChatPrompt`). */
+  prompt?: ChatProps["prompt"];
   /** Give the transcript a `Minimap` rail instead of its scrollbar (the user's
    *  messages as labels down the side); the object form tunes its side and
    *  width. Forwarded to `Chat`; a panel is where a long conversation is
@@ -286,7 +313,7 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     margins,
     marginMinWidth = 160,
     marginGap = 1,
-    padding = 1,
+    padding: paddingProp,
     thinking = false,
     onThinkingStart,
     onThinkingEnd,
@@ -301,10 +328,21 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     onError,
     renderPart,
     placeholder,
+    variant,
+    frame,
+    fonts,
+    sendKey,
     sendLabel,
     sendVariant,
     borderColor,
-    messageStyle,
+    header,
+    footer,
+    aboveEditor,
+    belowEditor,
+    working,
+    onInterrupt,
+    completions,
+    prompt,
     minimap,
     reveal,
     disabled,
@@ -482,7 +520,20 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     </div>
   );
 
-  const contentStyle: CSSProperties = { padding: toPadding(padding) };
+  const padding = paddingProp ?? (variant === "log" ? 0 : 1);
+  // While an on-screen keyboard is open, the panel pads its content by what
+  // the keyboard covers at its bottom and what the browser panned out at its
+  // top (to show the focused field): the header stays in view and the editor
+  // sits on the keyboard. A phone lays the keyboard over the page instead of
+  // shrinking it, so without this the editor sat under it and the header slid
+  // off the top. The panel's own box is unchanged, so this does not feed back.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const keyboard = useVisibleInsets(panelRef, open);
+  const contentStyle: CSSProperties = {
+    padding: toPadding(padding),
+    paddingBlockStart: `calc(${toPadding(padding)} + ${keyboard.top}px)`,
+    paddingBlockEnd: `calc(${toPadding(padding)} + ${keyboard.bottom}px)`,
+  };
 
   const viewPanels =
     views && views.length > 0
@@ -503,10 +554,21 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
       onError={onError}
       renderPart={renderPart}
       placeholder={placeholder}
+      variant={variant}
+      frame={frame}
+      fonts={fonts}
+      sendKey={sendKey}
       sendLabel={sendLabel}
       sendVariant={sendVariant}
       borderColor={borderColor}
-      messageStyle={messageStyle}
+      header={header}
+      footer={footer}
+      aboveEditor={aboveEditor}
+      belowEditor={belowEditor}
+      working={working ?? thinking}
+      onInterrupt={onInterrupt}
+      completions={completions}
+      prompt={prompt}
       minimap={minimap}
       reveal={reveal}
       disabled={disabled ?? thinking}
@@ -528,6 +590,11 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     // Override SplitPane's inline size so the fullscreen overlay (inset:0) fills
     // the viewport. SplitPane spreads our style after its own, so this wins.
     ...(expanded && { inlineSize: "auto", blockSize: "auto" }),
+    // And its place: in a narrow container SplitPane lays the panel over the
+    // main pane with `position: absolute` from a more specific rule than the
+    // fullscreen class, which kept full screen inside the container on a phone,
+    // the one place it matters most.
+    ...(expanded && { position: "fixed", inset: 0 }),
     ...(expanded && layer.zIndex != null && { zIndex: layer.zIndex }),
   } as CSSProperties;
 
@@ -546,7 +613,10 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     >
       <SplitPane.Main>{children}</SplitPane.Main>
       <SplitPane.Panel
+        ref={panelRef}
         className={cx(styles.panel, expanded && styles.fullscreen)}
+        data-variant={variant}
+        data-keyboard={keyboard.open || undefined}
         style={panelStyle}
       >
         {/* Static full-pane wash — a faint flat tint of the effect colour that's

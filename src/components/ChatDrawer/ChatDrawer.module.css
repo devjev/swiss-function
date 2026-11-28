@@ -202,6 +202,11 @@
   box-sizing: border-box;
   padding: var(--sf-safe-top) var(--sf-safe-right) var(--sf-safe-bottom) var(--sf-safe-left);
 }
+/* With the keyboard up the home indicator is under it: the content's own
+   padding already lifts the editor onto the keyboard. */
+.fullscreen[data-keyboard] {
+  padding-block-end: 0;
+}
 
 .chatWrap {
   flex: 1 1 auto;
@@ -324,4 +329,25 @@
 /* Lift the chat off the animated background. */
 .chat {
   box-shadow: var(--sf-elevation-2);
+}
+
+/* --- The log variant --------------------------------------------------------
+   The chat fills the panel: no gutter (the content's padding is 0), no frame
+   and no cast on the chat. The header keeps the chat's inline padding, so its
+   title lines up with the transcript, and a rule in the frame tone below it
+   (the underline of the panel's title bar). */
+.panel[data-variant="log"] .content {
+  gap: 0;
+}
+.panel[data-variant="log"] .header {
+  box-sizing: border-box;
+  /* Two units with the rule inside them, so the transcript starts on the
+     grid. */
+  block-size: calc(var(--sf-unit) * 2);
+  flex: none;
+  padding-inline: calc(var(--sf-unit) / 2);
+  border-block-end: 1px solid var(--sf-color-border-strong);
+}
+.panel[data-variant="log"] .chat {
+  box-shadow: none;
 }

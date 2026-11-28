@@ -158,7 +158,7 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
   exported from `/button` and the barrel. The stylesheet also carries a `bowl`
   class (composed by a component, not offered as a `surface` value): the dish
   hollowed on both axes, for a face too big for one ramp to read as anything but
-  a wash, which is what a `Chat` squircle message wears.
+  a wash.
   A ramp is for a cap of one or two units: Kbd, LaunchButton, Switch, Knob and
   DigitInput carry one by default, while Button, ToggleGroup, WindowArray title
   bars and the DataTable / Explorer headers are `"flat"` by default and take a
@@ -638,7 +638,29 @@ candle and its index). Extends `HTMLAttributes<HTMLDivElement>`.
 
 `import { Chat } from "@tarassov-ch/swiss-function/chat"`
 
-Conversational UI with message history, auto-scroll, and streaming. Auto-focuses the input when `disabled` flips to false. Extends `HTMLAttributes<HTMLDivElement>`.
+A conversation window structured as a terminal agent's (after the pi coding agent): one monospace column on the unit grid, full-width entries one line apart, and under them a dock that does not scroll, holding the editor between two rules and the status lines. Auto-focuses the input when `disabled` flips to false. Extends `HTMLAttributes<HTMLDivElement>`.
+
+```
+ agent v1.7.0                                   header (scrolls away)
+ esc interrupt · ctrl+o expand
+
+ Fix the off-by-one in the date test            user: a band, edge to edge
+
+ I'll run the tests first.                      assistant: on the page
+
+ $ npm test                                     tool: a neutral band
+ ... (6 earlier lines, ctrl+o to expand)
+  Tests  1 failed | 41 passed (42)
+ Took 2.9s
+                                                aboveEditor
+── ⠹ Working (esc to interrupt) ─────────────   rule, with the working indicator
+> /mo                                           editor (or a prompt in its place)
+─────────────────────────────────────────────   rule
+→ model    # Pick the model                     completion list (while a trigger is typed)
+                                                belowEditor
+~/src/app (main)                                footer
+↑14k ↓206 $0.076                model • high
+```
 
 | Prop | Type | Default | Notes |
 | --- | --- | --- | --- |
@@ -647,69 +669,240 @@ Conversational UI with message history, auto-scroll, and streaming. Auto-focuses
 | `renderPart` | `(part, ctx) => ReactNode` | n/a | Render a custom (non-built-in) part by `type`. Return null to skip. |
 | `onAction` | `(action: ChatAction) => void` | n/a | Fired when a user interacts with a choices / tree / custom block. |
 | `onError` | `(error: ChatErrorContext) => void` | n/a | Fired **once** when an error part appears in the transcript (a notification hook: log / toast / auto-retry). `ChatErrorContext` is `{ messageId, partId?, message, requestId? }`. A `retryable` error's Retry reports separately through `onAction` (`type: "error", value: "retry"`). |
-| `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. The field starts with a prompt sign (`>`, hidden from assistive technology) that marks the line as editable: ink at rest, the accent while the field has focus. The field has no focus ring; the caret and the sign show focus. |
-| `sendLabel` | `string` | `"Send"` | Caption for the submit button. The send control is a one-unit square key inside the field's end (an up arrow); the label is its accessible name. |
-| `sendVariant` | `ButtonVariant` | `"ghost"` | Submit button variant. A ghost by default (the up arrow alone, a tint on hover); `"secondary"` frames the key, `"primary"` fills it with the accent. |
-| `borderColor` | `string` | `var(--sf-color-border)` | Colour of the rule above the input field (its one border). Neutral by default; pass e.g. `var(--sf-color-primary)` for the accented look. |
-| `messageStyle` | `ChatMessageStyle \| { user?, assistant? }` | `{ user: "tape", assistant: "plain" }` | How each voice shows up: `plain` (no surface, the text on the page), `box` (a raised box: the edge bands over an elevation-2 cast, the 2px system radius), `tape` (a strip of label-maker tape, a run of the primary colour with the letters embossed in the page colour, monospace and bold, the letterforms belonging to the tape rather than to the role) or `squircle` (the same key with a superellipse round-over and a lightly scooped face, the `bowl` ramp at 0.3 of the system amplitude). One value styles both roles; an object styles them apart. The role keeps its place either way: the user's turn is right-aligned and capped at 75% of the column, the assistant's runs across it. The surface sits on the user's run (so the tape follows its lines and a box hugs its text) and on the assistant's whole block. Each message carries its resolved value as `data-style`. |
-| `minimap` | `boolean \| { side?: "left" \| "right"; width?: number }` | `false` | Replace the transcript's scrollbar with a [`Minimap`](#minimap) rail: every user message becomes a clickable label down the side (the questions are what you navigate a conversation by) over a span of its own height **in the accent**, the colour its message is spoken in down in the transcript, every assistant reply a neutral dithered block the height of the reply, each band taking half the space to the next one and never shrinking below half a unit (so a three-turn conversation reads as a few bricks at the top of the rail rather than as slabs stretched down it, and the rail fills as the conversation does) (the 2u the transcript leaves between turns is real, but left out of the rail it becomes a third of it in dead air), and the viewport band shows the part of the conversation on screen. Clicking a label jumps that question to the top; the view stops following the bottom, as any scroll does, and the jump-to-latest key brings it back. The rail owns the scroll element, so the transcript's `role="log"`, its label and its follow-the-bottom behaviour move onto it. The object form tunes the rail: `side` (right by default) and `width` in `--sf-unit` multiples. Without a `width` the rail reads **`--sf-chat-minimap-width`**, which defaults to 5u, wider than the `--sf-minimap-width` token (4u), because these labels are sentences rather than field names; set that variable on any ancestor to retune every rail in an app, and pass `width` to override it on one chat. The rail is **loaded on demand**, so a chat that never asks for one carries none of it (the transcript stands in, scrollbar hidden, until the chunk lands). Worth it on a long or wide conversation; a short exchange has nothing to navigate. |
+| `variant` | `"terminal" \| "log"` | `"terminal"` | How the transcript is set. `"terminal"`: entries one blank line apart, the user's turn and every tool call a band. `"log"`: a dense log for a panel; see **The log view** below. |
+| `fonts` | `{ text?, user?, code? }` | monospace throughout | The chat's faces, as CSS `font-family` values: `text` for the replies and the chrome (status lines, lists, prompts), `user` for the user's text and the editor (the text face when unset), `code` for code, inline code and tool calls (monospace when unset). Each unset face reads its variable, `--sf-chat-font`, `--sf-chat-font-user` and `--sf-chat-font-code`, so an app sets them once on an ancestor and the prop wins for one chat. Any face is sized to the system's x-height (`--sf-font-mono-adjust`), and a line mixing the text face with code stays one unit tall. The tree guides (`├─ │`) stay monospace whatever is chosen: they only line up in a fixed-width face. |
+| `frame` | `boolean` | `true`, `false` for the log | The chat's border. The log view is meant to fill a panel edge to edge, so it has none unless asked. |
+| `header` | `ReactNode` | n/a | A start banner at the top of the transcript: a title, the keys, what is loaded. It scrolls away with the transcript, as a terminal's first lines do. |
+| `footer` | `ChatStatusLine[]` | n/a | Status lines under the editor, each `{ left?, right? }`: the left side gives way with an ellipsis, the right side stays whole (a path and a session on the left, the model on the right). Set in the muted tone, since it is metadata. Put a figure that must not be cut on the right. |
+| `aboveEditor` / `belowEditor` | `ReactNode` | n/a | The host's own content docked above and under the editor (a queue of waiting messages, a plan, a progress line). Neither scrolls with the transcript. |
+| `working` | `boolean \| string` | `false` | The working indicator, set into the editor's top rule: a spinner and a message (`true` prints "Working", a string prints itself). The rule is one line whether or not a run is on, so starting and ending one moves nothing. |
+| `onInterrupt` | `() => void` | n/a | Called on Escape while `working`, with the focus anywhere in the chat. The message then carries `(esc to interrupt)`. The press is consumed, so a host's own Escape (a `ChatDrawer` leaving full screen) does not fire with it. |
+| `completions` | `(request: ChatCompletionRequest) => ChatCompletion[] \| Promise<ChatCompletion[]>` | n/a | Entries for the completion list under the editor, asked for while a trigger is typed. See **Completion** below. Without it no list opens. |
+| `prompt` | `ChatPrompt \| null` | n/a | A question in the editor's place: a list to pick from, yes or no, a line of text, or the host's own content. See **Prompts** below; `useChatPrompt` asks from code and awaits the answer. |
+| `placeholder` | `string` | `"Ask anything…"` | Input placeholder text. The field starts with a prompt sign (`>`, hidden from assistive technology) that marks the line as editable: ink at rest, the accent while the field has focus. The field has no box and no focus ring; the caret and the sign show focus. |
+| `enterSends` | `"auto" \| boolean` | `"auto"` | Whether Enter sends. `"auto"`: with a mouse and a keyboard it does (Shift+Enter breaks the line; the soft keyboard's Return reads "send"), and where the primary pointer is a finger Return breaks the line and the send key sends, as in a messaging app, since a soft keyboard has no Shift+Enter. Ctrl+Enter (Cmd+Enter) sends either way, for a hardware keyboard on a tablet. |
+| `sendKey` | `"auto" \| boolean` | `"auto"` | Whether the send key shows. `"auto"`: only where the primary pointer is a finger (`pointer: coarse`), since a keyboard submits with Enter; the field keeps room for the key there. `true` on any device, `false` never. |
+| `sendLabel` | `string` | `"Send"` | The send key's accessible name. The key is a one-unit square on the field's last line (an up arrow). |
+| `sendVariant` | `ButtonVariant` | `"ghost"` | Send key variant. A ghost by default (the up arrow alone); `"secondary"` frames the key, `"primary"` fills it with the accent. |
+| `borderColor` | `string` | `var(--sf-color-border)` | Colour of the editor's two rules. Neutral by default; a host can use it as a status signal, as a terminal agent colours its editor by mode. |
+| `minimap` | `boolean \| { side?: "left" \| "right"; width?: number }` | `false` | Replace the transcript's scrollbar with a [`Minimap`](#minimap) rail: every user message becomes a clickable label down the side (the questions are what you navigate a conversation by) over a span of its own height **in the accent**, every assistant reply a neutral dithered block the height of the reply, each band taking half the space to the next one and never shrinking below half a unit (so a three-turn conversation reads as a few bricks at the top of the rail, and the rail fills as the conversation does), and the viewport band shows the part of the conversation on screen. Clicking a label jumps that question to the top; the view stops following the bottom, as any scroll does, and the jump-to-latest label brings it back. The rail owns the scroll element, so the transcript's `role="log"`, its label and its follow-the-bottom behaviour move onto it. The object form tunes the rail: `side` (right by default) and `width` in `--sf-unit` multiples. Without a `width` the rail reads **`--sf-chat-minimap-width`**, which defaults to 5u, wider than the `--sf-minimap-width` token (4u), because these labels are sentences rather than field names; set that variable on any ancestor to retune every rail in an app, and pass `width` to override it on one chat. The rail is **loaded on demand**, so a chat that never asks for one carries none of it (the transcript stands in, scrollbar hidden, until the chunk lands). Worth it on a long or wide conversation; a short exchange has nothing to navigate. |
 | `height` | `number \| string` | `calc(var(--sf-unit) * 20)` | Container height. |
-| `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). |
+| `disabled` | `boolean` | n/a | Blocks submit (e.g. while streaming). The field stays editable. |
 | `reveal` | `false \| { mode?: "dramatic" \| "stream"; charIntervalMs?: number; tailLength?: number }` | n/a | How streaming assistant text is revealed. Omit for the default terminal reveal (dramatic, per-character). An object is forwarded to `StreamingTerminalText`: for a **live token stream**, pass `{ mode: "stream" }` so the text tracks the arriving tokens (only the shade tail shimmers) instead of lagging behind a fast source and then bursting at the end. `false` skips the reveal: streaming text renders as plain `Markdown`, landing exactly as tokens arrive (no shimmer). |
+
+**Entries.** Every entry runs the full width of the column and starts at its
+start edge, whoever speaks; there are no bubbles, no right-aligned voice and no
+role labels. The user's turn is a band in a tint of the accent, half a unit of
+padding above and below (a one-line turn is two units). The assistant's text
+sits on the page, rendered by [`Markdown`](#markdown) in its `"terminal"`
+reading: one size, structure told by weight and by the source's own marks.
+Blocks that carry state (a tool call, a custom block) are neutral bands. A band
+bleeds over the transcript's inline padding, so its colour runs edge to edge
+while its text keeps the column. One blank line (one unit) separates entries
+and the parts of a reply.
+
+These custom properties retune the voices; each is read with its default as the
+fallback, so set them on any ancestor: `--sf-chat-font`, `--sf-chat-font-user`
+and `--sf-chat-font-code` (the faces, see `fonts`), `--sf-chat-user-fg` (the
+user's text in the log view, the accent), `--sf-chat-user-bg` (the user's band,
+10% of the accent over the page), `--sf-chat-block-bg` (tool and custom bands,
+`--sf-color-bg-subtle`).
+
+**The log view.** `variant="log"` spends no line on spacing: no blank line
+between entries or between the parts of a reply, and no bands. The user's line
+starts with the editor's `>` sign and is set in the accent, so the two voices
+read apart with no band (the sign is hidden from assistive technology, left out
+of a copy and of the minimap's labels; `--sf-chat-user-fg` sets the colour), its
+wrapped lines under the text; a reply is indented two cells, under the text of the question.
+A tool call is one line: the call, then its status at the line's end (the
+spinner while running, the check when done, the fail mark in the danger colour
+on a failure, then the `note`). Its output folds to one line under an elbow,
+`└ last line +11 lines` (the first line for `truncate: "head"`), and a press on
+`+11 lines` or Ctrl+O opens it in place; a failure prints `└ Error: …` in the
+danger colour. A `ChatBlock` band loses its surface and padding and keeps its
+`[title]`. Code in a reply shows as code: highlighted, one cell in, without the
+fence lines, and with a blank line after it even where it ends the text, so the
+next block or question does not run into it (the view sets
+`--sf-prose-code-fence: none`, `--sf-prose-code-indent: 1ch` and
+`--sf-prose-code-after: var(--sf-unit)`). Paragraphs inside a
+reply keep their blank line, which is the reply's own structure. The chat has no frame by default (`frame` brings it back), and
+its inline padding stays half a unit, so text keeps clear of the edge of
+whatever holds it. The editor, the rules, the footer, completion and prompts
+are the same in both views.
+
+```
+> Why did the nightly build fail?
+  Checking the last run.
+  $ ci logs nightly --last                  ✓ Took 1.2s
+    └ zone.test.ts › reads the zone    +6 lines · ctrl+o
+  read test/date.test.ts:1-40                        ✓
+  Three tests read the machine's time zone.
+> Pin the zone in the fixture.
+  edit test/setup.ts                                 ⠹
+── ⠹ Working ──────────────────────────────────────────
+> █
+```
+
+**Keys.** Enter submits and Shift+Enter breaks the line. In an empty field Up
+and Down walk the user's earlier messages, as a shell's history does; a draft,
+or a recalled message that has been edited, keeps the arrows for its caret.
+Ctrl+O opens every tool block's output, and shuts them all on the next press.
+Escape interrupts a run (`onInterrupt`). The component binds these on its own
+root; it listens to nothing outside itself. An open completion list or prompt
+takes Escape first: one press closes it, the next interrupts.
+
+**Completion.** While the caret is in a trigger the chat asks `completions`
+for entries and lists them under the editor's closing rule, as a terminal
+prints them: one entry per line in three columns (the cursor mark `→`, the
+label, the `# description`), the whole line in the accent where the cursor is,
+five lines at a time with the position (`(6/7)`) when there are more. A chat
+narrower than 40 characters drops the descriptions. The triggers:
+
+- `/` as the first character of the input: a command (a command is the whole
+  message, so `/` elsewhere is text).
+- `@` or `#` at the start of any word: a file, a person, a tag.
+
+`ChatCompletionRequest` is `{ trigger: "/" | "@" | "#", query }`, where `query`
+is what has been typed after the trigger up to the caret. Return the entries
+now or as a promise (a file search); a late answer to an earlier query is
+dropped, and an empty list shows nothing. `ChatCompletion` is the Outliner's
+entry shape with one field more:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `label` | `string` | Shown in the list. |
+| `description` | `string` | Shown beside the label as `# description`. |
+| `insert` | `string` | Written after the trigger in place of the query (and of the rest of the word the caret is in); `label` when omitted. A space follows. |
+| `partial` | `boolean` | One step of a longer value (a directory on the way to a file): no space follows, and the list asks again for what comes after it. |
+| `onSelect` | `() => void` | An entry that acts instead of writing (`/clear`, `/model`): the trigger and the query are taken out of the input (`insert`, when given, goes in their place) and this is called. It can open a prompt. |
+
+The arrows move the cursor (and wrap), Enter or Tab takes the entry, Escape
+closes the list for that trigger (it opens again at the next one). The focus
+stays in the field throughout: the list is a `listbox` read through the
+field's `aria-activedescendant`. A press or a tap on an entry takes it. Taking
+an entry does not send; the next Enter does. While the list is open the arrows
+are its own, so they do not walk the history.
+
+**Prompts.** `prompt` puts a question in the editor's place, between its two
+rules, as a terminal agent replaces its editor with a dialog. The draft in the
+editor is kept, and the editor (with the focus) comes back when the prompt is
+gone. The working indicator stays in the top rule. `ChatPrompt` is a union;
+every kind takes `id?` (a new id starts the prompt afresh), `title?` (bold, on
+the first line), `message?` (lines under it) and `onCancel?`:
+
+| `type` | Fields | Answer |
+| --- | --- | --- |
+| `"select"` | `options: ChatChoice[]`, `rows?` (10) | `onAnswer(id)`. One option per line in the completion list's columns, `→` and the accent on the cursor; the focus is the cursor. The arrows wrap, Page Up and Down and Home and End jump. A longer list scrolls with the cursor and shows its position. |
+| `"confirm"` | `yesLabel?` ("Yes"), `noLabel?` ("No"), `defaultAnswer?` (`false`) | `onAnswer(yes)`. The cursor starts on No, so an Enter meant for the field, pressed as the prompt appears, does not confirm. Escape answers no when there is no `onCancel`. |
+| `"input"` | `placeholder?`, `defaultValue?` | `onAnswer(text)` on Enter: one line, set like the editor with its `>` sign. |
+| `"custom"` | `content: ReactNode` | The host's own content in the editor's place (a picker, a short form); it answers through its own callbacks. |
+
+Escape calls `onCancel` and is consumed, so it does not also interrupt the run.
+A prompt with `onCancel` also shows a `[Cancel]` key (a finger has no Escape);
+a confirm does not, its No is the cancel. Under the controls a line of key
+hints (`↑↓ choose · enter accept · esc cancel`) shows for a keyboard and is
+hidden on touch. Every part is a whole number of lines: the title, a blank
+line, the controls, a blank line, the keys.
+
+The panel is loaded on demand, as the minimap rail is, so a chat that never
+asks carries none of it; `useChatPrompt` fetches it when it mounts, so the first
+question shows at once. The dock takes the height it needs, and once the
+transcript is down to three lines the dock scrolls instead (a long list in a
+short chat stays reachable, the focused option scrolled into view).
+
+**`useChatPrompt()`** asks from code, as an agent's tool does, and resolves
+with the answer:
+
+```tsx
+const ui = useChatPrompt();
+<Chat prompt={ui.prompt} … />
+
+const id = await ui.select("Pick the model", models);          // string | undefined
+const yes = await ui.confirm("Delete the branch?", { message }); // boolean
+const name = await ui.input("Name this session", { defaultValue }); // string | undefined
+const picked = await ui.custom<Model>((close) => <Picker … onChange={close} />);
+ui.cancel(); // withdraw the open question
+```
+
+Cancelling resolves `undefined` (a confirm: `false`). A new question withdraws
+the open one (it resolves as cancelled), and so does unmounting.
+
+**On a phone.** The chat behaves as a messaging app does with an on-screen
+keyboard:
+
+- **It raises no keyboard on its own.** With a finger the editor takes the focus only when tapped: not on mount, not when `disabled` clears at the end of a run, not on the jump-to-latest label, and after a prompt only if the prompt was typed into. With a mouse it still takes the focus at those moments.
+- **A tap anywhere on the editor block** (its rules, the space beside the sign) puts the caret in the field, which is one line tall.
+- **Return breaks the line, the send key sends** (`enterSends`), and sending keeps the focus in the field, so the keyboard stays up for the next turn.
+- **`[stop]`** stands in the working rule where a keyboard has Escape (with `onInterrupt`).
+- **The status lines step aside** while the keyboard is up for the chat's field (the root carries `data-keyboard`), so the transcript keeps the room; they come back with the keyboard down.
+- **A scroll that reaches the transcript's top or end stops there** (`overscroll-behavior: contain`), so it does not bounce the page or pull it to refresh.
+
+A phone lays its keyboard over the page instead of shrinking it (iOS, and Chrome on Android unless the page opts into `interactive-widget=resizes-content`), and pans the page to show a focused field. A `ChatDrawer` fits its panel to the visible part while a keyboard is open. A chat page of the host's own does the same with `useVisibleInsets` from `@tarassov-ch/swiss-function/lib/keyboard`: pad the element that fills the screen by the insets it returns.
+
+```tsx
+import { useVisibleInsets } from "@tarassov-ch/swiss-function/lib/keyboard";
+
+function ChatPage() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { top, bottom } = useVisibleInsets(ref);
+  return (
+    <div ref={ref} style={{ position: "fixed", inset: 0, paddingTop: top, paddingBottom: bottom }}>
+      <Chat height="100%" … />
+    </div>
+  );
+}
+```
+
+`useKeyboardOpen()` from the same entry says whether an on-screen keyboard is open; `keyboardOpen` and `hiddenInsets` are the pure forms.
 
 **Following the bottom.** The transcript holds its bottom edge as the bottom
 moves, which happens for two reasons: the reply grows as it streams, and the
-composer grows under it (`field-sizing: content`, up to 8u) and takes height from
-the transcript. A `ResizeObserver` over both the message list and the scroll
-viewport catches each, so typing a long question never pushes the reply you are
-answering out of sight.
+editor grows under it (`field-sizing: content`, up to 8 lines) and takes height
+from the transcript. A `ResizeObserver` over both the message list and the
+scroll viewport catches each, so typing a long question never pushes the reply
+you are answering out of sight.
 
 Following stops the moment the view moves away from the bottom, whatever moved it
 (wheel, trackpad, scrollbar, keyboard) and however small the move, so it never
-pulls against you while you read back. A round key then appears over the
-transcript's bottom edge; it takes the accent (`data-behind`) once something has
-arrived below the fold, and pressing it returns to the bottom and resumes
-following. Scrolling back to the bottom by hand resumes it too, with no key
-press. Submitting also resumes it, so your own turn is always followed. The key
-sits inside the scroll container, so a wheel over it scrolls the transcript.
+pulls against you while you read back. A reverse-video label (`↓ latest`) then
+appears on the transcript's last line; it takes the accent (`data-behind`) once
+something has arrived below the fold, and pressing it returns to the bottom and
+resumes following. Scrolling back to the bottom by hand resumes it too, with no
+key press. Submitting also resumes it, so your own turn is always followed. The
+label sits inside the scroll container, so a wheel over it scrolls the
+transcript.
 
 **Keyboard and assistive tech.** The transcript is a focusable `role="log"`
-region named "Conversation": the composer holds focus the rest of the time, so
+region named "Conversation": the editor holds focus the rest of the time, so
 without `tabindex` there would be no way to page back through the history
 (WCAG 2.1.1). A message still arriving carries `aria-busy`, so a screen reader
-waits for the whole reply rather than announcing each tick of the reveal.
+waits for the whole reply rather than announcing each tick of the reveal. The
+working indicator is a `role="status"`.
 
 A `display: none` ancestor destroys a scroll offset, so the transcript restores
 the position it was left at when it comes back (switching away from a
 [ChatDrawer](#chatdrawer) view and back).
 
-The squircle is a real superellipse (`|x|^4 + |y|^4 = 1`, which is what
-`corner-shape: squircle` draws) in every engine. Where the property exists
-(Chromium 139+) the element cuts its own corners and a `display: none` backing
-element costs nothing. Where it does not (Safari, Firefox) that backing element
-draws the same curve: a mask of four corner cells plus two bars shapes three
-stacked layers, the hairline, the chamfer and the dished face, and their parent
-carries the cast as `--sf-elevation-2-drop`, because a mask cuts a box-shadow
-away with the corners and neither a border nor an inset band can follow a mask.
-The message box itself is unchanged on both paths, so the padding and the
-vertical grid match. One difference remains: in dark mode the fallback's face is
-a few levels darker, since `--sf-elevation-2` lifts a dark surface with an inset
-film that cannot be cast.
-
 ### Rich (non-text) responses
 
 An assistant message can carry ordered **`parts`** instead of (or as well as) a single markdown `content` string. When `parts` is present it takes precedence; while streaming, only the trailing `text` part animates.
 
-Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hairline-framed panels (`ChatBlock`), box-drawing tree guides, caret/`[x]` selection markers.
-
 `ChatPart` is a union:
 
 - `{ type: "text"; text }`: markdown (streams when it's the active block).
-- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }`: a terminal choice menu built on `Button` (monospace). Single-select shows a `›` caret on the hovered/focused row and submits on click; multi-select toggles `[x]`/`[ ]` and submits via Confirm. `ChatChoice` is `{ id, label, description?, value? }`, where `description` renders as a dim `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
-- `{ type: "tree"; roots: ChatTreeNode[]; partId? }`: a decision / orchestration tree rendered as a terminal directory tree (ASCII `├─ └─ │` guides). `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node mark: a live `Spinner` while `running`, and otherwise a glyph from the icon set through the `check` / `fail` / `pending` slots, so an `IconProvider` can swap them for another set. A finished step is not coloured (the mark says it); only a failure takes the danger tone. Node click → `onAction({ type: "tree", value: nodeId })`.
-- `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }`: an assistant "working on it" block, rendered as quiet de-emphasized text (70% opacity, no frame): a spinner header ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. **Omit `steps` for a bare thinking indicator** (just the spinner + label, no fan-out). Auto-expanded while running, auto-collapsed when `done`; click the header to toggle. Drive it by updating the message over time (like `isStreaming`). Node click → `onAction({ type: "thinking", value: nodeId })`.
-- `{ type: "error"; message; requestId?; retryable?; partId? }`: a backend error (e.g. an overloaded/timeout response) shown as a small `NonIdealState`-style block with the `glitch` effect fill, the danger-toned `message`, an optional mono `requestId`, and a **Retry** when `retryable`. The app parses its raw payload into a clean `message`/`requestId` (Chat is display-only). `onError` fires once when it appears; Retry → `onAction({ type: "error", value: "retry" })`.
-- `{ type: string; partId?; [key]: unknown }`: any custom micro-UI; rendered by `renderPart`. Wrap it in **`ChatBlock`** (`import { ChatBlock } from "@tarassov-ch/swiss-function/chat"`; props `{ title?, variant?, children }`) to match the built-in TUI frame. `variant="plain"` drops the frame, the surface, the padding and the letterforms, leaving a block box and the part's own markup, for a custom micro-UI that should look like itself; the `title`, if given, then renders as one dim line with no marker and no rule, and omitting it leaves no label at all.
+- `{ type: "tool"; name; args?; status?: "running" | "done" | "error"; output?; truncate?: "tail" | "head"; lines?; note?; error?; defaultExpanded?; partId? }`: a tool call, as a terminal agent prints one. A neutral band with the call on its first line (`name` bold: `read`, `grep`, `$` for a shell command; then `args`), the text `output` under it, and a closing `note` (`Took 2.9s`). A long output is cut while collapsed: `truncate: "tail"` (default) keeps the last `lines` (5), `"head"` the first (10), and a marker line says how many are left out (`... (37 earlier lines, ctrl+o to expand)`). A press on the marker opens that block; Ctrl+O opens them all. `running` shows the spinner. A finished call takes no colour; `error` takes the library's status mark, a 3px leading rule in the danger colour, with `error` printed as `Error: …`. Drive it by updating the message over time.
+- `{ type: "table"; columns: ChatTableColumn[]; rows: Record<string, unknown>[]; caption?; partId? }`: a table of the host's data, drawn as a terminal draws one: monospace, one line per row, a rule around every cell, the heading bold. It is a real `<table>` (it selects, copies and reads as one). `ChatTableColumn` is `{ key, label?, align?, format? }`. A number prints in Swiss format (`1'284'500`) and its column ends when every value in it is a number; `format(value, row)` prints a value yourself, `align` overrides the side. A table wider than the transcript scrolls inside itself (it is then a focusable `role="region"` named by the caption), so no figure is cut. For sorting, selection or thousands of rows render a `DataTable` or a `TableWidget` from `renderPart` instead.
+- `{ type: "choices"; prompt?; options: ChatChoice[]; multiple?; partId? }`: a terminal selection list in a band: the question on a line (`? Pick one:`), one option per line. Single-select marks the hovered or focused row with `→` and the accent and submits on a press; multi-select toggles `[x]`/`[ ]` and submits via a `[Confirm]` key. `ChatChoice` is `{ id, label, description?, value? }`, where `description` renders as a `# comment`. Selection → `onAction({ type: "choices", value })` (`value` is the choice id, or `string[]` when `multiple`).
+- `{ type: "tree"; roots: ChatTreeNode[]; partId? }`: a decision / orchestration tree rendered as a terminal directory tree (`├─ └─ │` guides) in a band. `ChatTreeNode` is `{ id, label, children?, status? }`, where `status` (`"pending" | "running" | "done" | "error"`, = `ChatStepStatus`) shows a per-node mark: a live `Spinner` while `running`, and otherwise a glyph from the icon set through the `check` / `fail` / `pending` slots, so an `IconProvider` can swap them for another set. A finished step is not coloured (the mark says it); only a failure takes the danger tone. Node click → `onAction({ type: "tree", value: nodeId })`.
+- `{ type: "thinking"; status: "running" | "done" | "error"; label?; steps?: ChatTreeNode[]; summary?; defaultExpanded?; partId? }`: an assistant "working on it" line, set a step under the reply (the subtle ink, italic, no band): a spinner and a label ("Thinking…") that **expands into the orchestration fan-out** (`steps`, a status tree) and collapses to `summary` (default `Ran N steps`) when `done`. **Omit `steps` for a bare thinking indicator.** Auto-expanded while running, auto-collapsed when `done`; press the line to toggle. Node click → `onAction({ type: "thinking", value: nodeId })`.
+- `{ type: "error"; message; requestId?; retryable?; partId? }`: a backend error (e.g. an overloaded/timeout response) as a terminal prints one: `Error: message` in the danger colour behind a 3px danger rule, the `requestId` under it, and a `[Retry]` key when `retryable`. A `role="alert"`. The app parses its raw payload into a clean `message`/`requestId` (Chat is display-only). `onError` fires once when it appears; Retry → `onAction({ type: "error", value: "retry" })`.
+- `{ type: string; partId?; [key]: unknown }`: any custom element of the host's; rendered by `renderPart`. It sits in the transcript's column, so a `Widget`, a chart or a `DataTable` needs no wrapper. Wrap it in **`ChatBlock`** to give it a shell.
+
+**Exports for a host's own parts** (`import { ChatBlock, ChatTable, ChatTool } from "@tarassov-ch/swiss-function/chat"`):
+
+- `ChatBlock` (`{ title?, variant?, children }`): `variant="band"` (default) is the terminal's block, a full-width neutral band with half a unit of padding and the title printed as `[title]`; `"framed"` is a ruled panel with a title bar; `"plain"` brings no surface, padding or letterforms, leaving a block box and the part's own markup (the `title`, if given, is then one plain line). Each carries its value as `data-variant`.
+- `ChatTable` (`{ columns, rows, caption? }`): the table of the `table` part, for a part that adds something around it.
+- `ChatTool` (`{ name, args?, status?, output?, truncate?, lines?, note?, error?, defaultExpanded?, children? }`): the block of the `tool` part; `children` is a body of the host's own under the output (a diff, a table). Inside a `Chat` it follows Ctrl+O.
 
 `onAction` receives `{ messageId, partId?, type, value }`. `Chat` stays headless: the app decides what an interaction does (e.g. append the picked option as the next user turn and stream a reply).
 
@@ -718,15 +911,15 @@ Built-in blocks render with a hard **terminal (TUI) aesthetic**: monospace, hair
   messages={[{
     id: "a1", role: "assistant",
     parts: [
-      { type: "text", text: "Pick a template:" },
-      { type: "choices", partId: "tpl", options: [
-        { id: "react", label: "React app", description: "Vite + TS" },
-        { id: "node", label: "Node service" },
-      ] },
+      { type: "tool", name: "$", args: "npm test", output: log, note: "Took 2.9s" },
+      { type: "text", text: "All green. The slowest suites:" },
+      { type: "table", columns: [{ key: "suite" }, { key: "ms", label: "Time" }], rows },
     ],
   }]}
   onSubmit={handleSubmit}
-  onAction={(a) => append(a.value)}
+  working={busy}
+  onInterrupt={abort}
+  footer={[{ left: "~/src/app (main)", right: "model • high" }]}
 />
 ```
 
@@ -758,7 +951,9 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `margins` | `{ left?: ReactNode; right?: ReactNode }` | n/a | App-owned content for the centered mode's side margins (parked widgets, notes). Each side renders in the gutter beside the column and takes whatever width the column leaves (it can never squeeze the column; overflow is clipped). When the margins get narrower than `marginMinWidth`, their content hides but stays mounted (state survives) and reappears with room. Ignored without `centered`; with `chatAlign` left or right only the margin on the free side renders. A margin is a plain slot: for drag-to-park, make your chat widgets draggable and put your own drop target in the slot (see the CenteredMargins story; the Megachat story packs a wide margin as a masonry). |
 | `marginMinWidth` | `number` | `160` | Hide the margin content when a margin is narrower than this (px). |
 | `marginGap` | `number \| string` | `1` | The gutter between margin content and the chat column: `number` → `--sf-unit` multiples, `string` → raw CSS. A margin's outer side is always flush with the panel edge. Only with `centered`. |
-| `padding` | `number \| string` | `1` | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
+| `padding` | `number \| string` | `1`, `0` for the log | Gutter around the chat (the visible effect frame). `number` → `--sf-unit` multiples. |
+| `variant` | `"terminal" \| "log"` | `"terminal"` | The built-in chat's view (see Chat → The log view). `"log"` also fills the panel: no gutter (`padding` 0 by default), no frame and no cast on the chat, and a rule under the header, which takes two units and the chat's inline padding so its title lines up with the transcript. The thinking effect then has no gutter to show in; the chat's working indicator says it. |
+| `frame` | `boolean` | per `variant` | The built-in chat's border (see Chat's `frame`). |
 | `thinking` | `boolean` | `false` | While true, the effect blooms behind the chat. |
 | `onThinkingStart` / `onThinkingEnd` | `() => void` | n/a | Fired on the `thinking` false↔true transitions. |
 | `effect` | `EffectName` | `"ripple"` | Background effect (any `NonIdealState` effect). |
@@ -766,14 +961,17 @@ The panel **header acts as an icon bar**: it always carries the fullscreen toggl
 | `speed` | `number` | `1` | Effect animation speed multiplier. |
 | `cellSize` | `number` | `7` | Grain of the effect: shade-block size in px (square). Smaller = finer dither. |
 | `wash` | `string \| false` | n/a | The always-on panel tint behind the chat. A CSS colour overrides it; `false` disables it. Default: a faint 7% wash of `color`. |
-| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `placeholder` / `sendLabel` / `sendVariant` / `borderColor` / `messageStyle` / `minimap` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. `minimap` gives the panel's transcript the rail instead of its scrollbar (a panel is where a long conversation is usually read). `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
+| `working` | `boolean \| string` | `thinking` | The built-in chat's working indicator (a spinner and a message in the editor's top rule). Follows `thinking` unless set. |
+| `messages` / `onSubmit` / `onAction` / `onError` / `renderPart` / `header` / `footer` / `aboveEditor` / `belowEditor` / `onInterrupt` / `completions` / `prompt` / `fonts` / `placeholder` / `enterSends` / `sendKey` / `sendLabel` / `sendVariant` / `borderColor` / `minimap` / `reveal` | n/a | n/a | Passed through to the built-in `Chat`. With `onInterrupt`, Escape in the chat interrupts the run and does not leave full screen on the same press. `minimap` gives the panel's transcript the rail instead of its scrollbar (a panel is where a long conversation is usually read). `messages`/`onSubmit` are required **only** in default mode (no `views`). `reveal` tunes the streaming-text reveal (`{ mode: "stream" }` for a live token stream, `false` for plain Markdown). In `views` mode you render your own `Chat`, so pass `reveal` there directly. |
 | `disabled` | `boolean` | `thinking` | Disables the input; defaults to locking while thinking. |
 | `menu` | `ReactNode` | n/a | A bar between the title (and view tabs) and the actions, taking the room in between: a transparent `MenuBar` with a `Search`, a toolbar. The slot clips: give a `MenuBar` here `collapse="items"` so it folds into its overflow key in a narrow panel (the slot keeps room for that key; the title gives way first). |
 | `actions` | `ReactNode` | n/a | Extra icon buttons in the header, before the fullscreen/close pair. Works in both modes. |
 | `views` | `ChatDrawerView[]` | n/a | Multi-view mode: one header icon per view; the body shows the active one. `ChatDrawerView` = `{ id: string; icon: ReactNode; label: string; content: ReactNode }`. |
 | `activeView` / `defaultActiveView` / `onActiveViewChange` | n/a | first view | Active view id (controlled / uncontrolled / change callback). |
 
-The container must have a height (e.g. `100vh`) so the split fills it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
+The container must have a height (e.g. `100dvh`) so the split fills it.
+
+**On a phone** the panel lies over the app (`overlayAt`), and full screen fills the window. While an on-screen keyboard is open the panel pads its content by what the keyboard covers at its bottom and what the browser panned out at its top, so the header stays in view and the editor sits on the keyboard (the panel carries `data-keyboard`); in full screen the home indicator's padding goes while the keyboard covers it. The bloom is a `clip-path` circle growing from the centre; under `prefers-reduced-motion` it appears without the grow transition.
 
 ```tsx
 const [open, setOpen] = useState(true);
@@ -1854,6 +2052,39 @@ CSS-Grid layout wrapper with unit-scaled templates/gaps and optional draggable t
 **Elements / Parts:** `Grid.Item` occupies cells via `area`, `col`/`row`, or
 `colSpan`/`rowSpan`.
 
+## GridOverlay
+
+`import { GridOverlay } from "@tarassov-ch/swiss-function/grid-overlay"`
+
+A development overlay that draws the unit grid over a region and names its cells, so a person and an agent can point at the same place: "the title belongs at 3:2", "the panel runs 5:1-12:16". Extends `HTMLAttributes<HTMLDivElement>`.
+
+**Names.** A cell is one unit square (`--sf-unit`, so it follows the density: 20px compact, 24px comfortable). Rows and columns count from 1 at the top left of the covered region, row first: `3:2` is the third row, second column. A range is two cells joined by a hyphen, `3:2-5:10`, from the top-left cell to the bottom-right cell, both included. The region is the overlay's positioned container (give it `position: relative`), or the viewport with `fixed`.
+
+**Layers.** A hairline at every cell edge, stronger every `major` cells; `row:col` at every major crossing; and a line in the accent at the body text's baseline in every unit line. The baseline is measured from the region's own face at the body size and leading, so it is where text sits, not an estimate. The cell under the pointer is outlined and named beside it. The layers are backgrounds, so they cost nothing however large the region; only the labels in view are rendered.
+
+**Picking.** The overlay takes no pointer events, so the app works under it. The panel (bottom right) holds the layer toggles, the cell size (1, 2 or 4 units) and **Pick**: in pick mode a press names a cell and a drag a range, the name is copied to the clipboard and passed to `onPick`, and it stays outlined with its size in rows and columns. While picking, presses do not reach the app; Escape leaves pick mode.
+
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `cell` | `number` | `1` | The cell size in units, to start with. |
+| `major` | `number` | `5` | Cells between the stronger, labelled lines. |
+| `layers` | `{ baseline?, cells?, labels? }` | all `true` | The layers shown to start with. |
+| `fixed` | `boolean` | `false` | Cover the viewport instead of the positioned container. |
+| `panel` | `boolean` | `true` | Show the panel. |
+| `marks` | `string[]` | n/a | Places to outline by name (`"3:2"`, `"3:2-5:10"`), labelled with their names: how an agent shows what it means. A name that does not parse is skipped. |
+| `onPick` | `(pick: GridPick) => void` | n/a | `{ range, text }` for a picked cell or range. |
+
+The naming helpers are exported for tools of the host's own: `cellAt(x, y, size)`, `rangeOf(a, b)`, `formatCell`, `formatRange`, `parseRange(text)`, `rangeSize`, `rangeBox(range, size)`.
+
+**In the story server.** `?grid` on any story shows the overlay over the story, its top left 1:1 (`?grid=2` for 2u cells); `&mark=3:2-5:10,7:1` outlines places; Alt+Shift+G toggles it. The parameters work with `&mode=preview`, so a screenshot can show the same names a person reads.
+
+```tsx
+<div style={{ position: "relative" }}>
+  <App />
+  {import.meta.env.DEV ? <GridOverlay fixed onPick={(p) => console.info(p.text)} /> : null}
+</div>
+```
+
 ## Heatmap
 
 `import { Heatmap } from "@tarassov-ch/swiss-function/heatmap"`
@@ -2390,6 +2621,28 @@ Rendered Markdown (react-markdown + GFM) with optional double-click edit mode an
 | `remarkPlugins` | `ReactMarkdown["remarkPlugins"]` | n/a | Further remark plugins, run after remark-gfm: a syntax extension that needs the parsed tree (the Outliner's highlights use it). Pass a stable array (module scope or a memo); a new array re-parses on every render. |
 | `inline` | `boolean` | `false` | `<span>` wrappers, flattened paragraphs; editing unsupported. |
 | `measured` | `boolean` | `false` | Cap prose to `--sf-measure`. `<Prose>` sets this. |
+| `variant` | `"prose" \| "terminal"` | `"prose"` | The reading. `"prose"` is the document: the sans face, sized headings, boxed code. `"terminal"` is markdown as a terminal renders it, which `Chat` uses for a reply: one size on the unit grid, monospace by default (`--sf-prose-font` sets the text face and `--sf-prose-code-font` the code face; Chat sets both from its `fonts`) with one blank line between blocks; h1 bold and underlined, h2 bold, deeper headings keep their `###`; inline code in the accent with no box; a fenced block keeps its fences (the language after the opening one, from `data-lang` on the `pre`; `--sf-prose-code-fence: none` on any ancestor drops them), takes two cells of indent (`--sf-prose-code-indent`) and no box, is followed by the paragraph spacing (`--sf-prose-code-after` sets it, and also keeps it where the block ends the text), and its code is highlighted when the fence names a language this reading knows (see below); `-` bullets; a quote behind a 1px rule, italic; a rule as one line with a stroke through it; tables ruled around every cell, one line per row, scrolling inside themselves when wider than the text. The last block carries no trailing margin. |
+
+### Code in the terminal reading
+
+A fenced block whose language the terminal reading knows is highlighted as
+CodeEditor's default `primary` theme sets code: keywords in the one accent
+(`--sf-color-code-accent`), the names of functions and types bold, strings
+italic, comments and punctuation a step back (`--sf-color-code-comment`,
+`--sf-color-code-punctuation`). A `diff` (or `patch`) marks added lines in the
+success colour, removed lines in the danger colour and its headers muted. The
+text is unchanged, so a copy is the code as written.
+
+The highlighter is small and reads surface rules (comments, strings, keywords,
+a name before `(`, capitalised and built-in type names); it parses no grammar,
+so it is for reading code in a reply, and a `CodeEditor` with the host's
+language is the place to edit it. It knows JavaScript and TypeScript, Rust, Go,
+the C family (C, C++, C#, Java, Kotlin, Scala, Swift, Dart, PHP, Zig), Python,
+Ruby, shell, SQL (any case), JSON, YAML and TOML, and CSS, under the fence names
+models write (`ts`, `tsx`, `py`, `sh`, `bash`, `psql`, `yml`, …). A fence with no
+language, or one it does not know (`text`, `console`), stays plain: that is
+usually output, where a guess would colour the wrong things. A block the
+streaming reveal is still writing stays plain until its text has landed.
 
 ### Text links
 
@@ -3963,6 +4216,7 @@ Reveals text character-by-character with a shade-block tail (terminal typewriter
 | `charIntervalMs` | `number` | `64` | Ms per tick. |
 | `shadeRamp` | `string[]` | `["▒", "▓"]` | Shade glyphs, far → near. |
 | `spacePlaceholder` | `string` | `" "` | Glyph filling spaces in the tail. |
+| `variant` | `"prose" \| "terminal"` | `"prose"` | The markdown reading, forwarded to [`Markdown`](#markdown). |
 
 ## Surface
 

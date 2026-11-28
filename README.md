@@ -132,6 +132,34 @@ Compound components (`Dialog`, `Field`, `Menu`, `Tabs`, and others) expose
 Base UI's compound API as object namespaces, for example `Dialog.Root`,
 `Dialog.Trigger`, `Dialog.Popup`.
 
+## A guide for your coding agents
+
+The package ships a guide for the coding agents that build your UI (Claude
+Code, Cursor, Codex, any agent with tool use): the components and when to reach
+for each, the conventions (tokens, the unit grid, touch), and the
+anti-patterns. Write it into your project:
+
+```bash
+npx swiss-function guide --link
+```
+
+This writes `SWISS-FUNCTION.md` and adds a line to your `AGENTS.md` (an
+`@SWISS-FUNCTION.md` import to a `CLAUDE.md` of its own) that tells the agent to
+read it. Its links point at the full prop reference and the design notes inside
+the installed package. Run it again after upgrading; it overwrites only a file
+it wrote itself.
+
+| Option | Effect |
+| --- | --- |
+| `--out <file>` | Write it elsewhere (default `SWISS-FUNCTION.md`); the links follow. |
+| `--link` | Reference it from `AGENTS.md` and `CLAUDE.md` in the current directory, once. |
+| `--force` | Overwrite a file the command did not write. |
+| `--stdout` | Print it instead of writing it. |
+
+Without the package installed in the project, run it as
+`npx @tarassov-ch/swiss-function guide`; its links then point where the package
+will be once installed.
+
 ## Documentation
 
 - **[AGENTS.md](./AGENTS.md)**: component catalogue, conventions, and a

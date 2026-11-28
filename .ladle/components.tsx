@@ -1,4 +1,6 @@
 import type { GlobalProvider } from "@ladle/react";
+import { useEffect, useState } from "react";
+import { GridOverlay } from "../src/components/GridOverlay";
 import "../src/tokens/tokens.css";
 import "../src/tokens/reset.css";
 import "../src/tokens/fonts.css";
@@ -18,6 +20,27 @@ export const Provider: GlobalProvider = ({ children, globalState }) => {
       ? new URLSearchParams(window.location.search).get("density")
       : null;
   const doc = storyDocs[globalState.story];
+  // The unit grid over the story (GridOverlay): `?grid` turns it on (`?grid=2`
+  // for 2u cells), `&mark=3:2-5:10,7:1` outlines places by name, and
+  // Alt+Shift+G toggles it. The story's top left is 1:1.
+  const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const gridParam = params?.get("grid") ?? null;
+  const [grid, setGrid] = useState(gridParam != null);
+  const gridCell = Math.max(1, Number(gridParam) || 1);
+  const marks = (params?.get("mark") ?? "")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.shiftKey && e.code === "KeyG") {
+        e.preventDefault();
+        setGrid((on) => !on);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <div
       data-theme={theme}
@@ -45,7 +68,10 @@ export const Provider: GlobalProvider = ({ children, globalState }) => {
           {doc}
         </p>
       ) : null}
-      {children}
+      <div style={{ position: "relative" }}>
+        {children}
+        {grid ? <GridOverlay cell={gridCell} marks={marks} /> : null}
+      </div>
     </div>
   );
 };

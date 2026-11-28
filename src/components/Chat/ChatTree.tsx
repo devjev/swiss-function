@@ -2,7 +2,6 @@ import type { HTMLAttributes } from "react";
 import { forwardRef } from "react";
 import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
-import { Button } from "../Button";
 import { Check, Circle, X } from "../Icon";
 import { Spinner } from "../Spinner";
 import { ChatBlock } from "./ChatBlock";
@@ -27,8 +26,9 @@ export interface ChatTreeProps extends Omit<HTMLAttributes<HTMLDivElement>, "onS
   roots: ChatTreeNode[];
   /** Fired with the clicked node's id. */
   onSelect?: (id: string) => void;
-  /** Title-bar label; pass `null` to render bare rows without the ChatBlock frame
-   *  (e.g. when nested inside another block). Default `"tree"`. */
+  /** The band's label (`[title]`). Omit it for a band with no label; pass
+   *  `null` to render bare rows with no band at all (e.g. when nested inside
+   *  another block). */
   title?: string | null;
 }
 
@@ -80,25 +80,23 @@ function StepStatusGlyph({ status }: { status?: ChatStepStatus }) {
 
 /** A decision / orchestration tree rendered as a terminal directory tree. */
 export const ChatTree = forwardRef<HTMLDivElement, ChatTreeProps>(function ChatTree(
-  { roots, onSelect, title = "tree", className, ...rest },
+  { roots, onSelect, title, className, ...rest },
   ref,
 ) {
   const rows = buildRows(roots);
   const body = (
     <div className={styles.rows}>
       {rows.map((row) => (
-        <Button
+        <button
           key={row.id}
           type="button"
-          variant="ghost"
-          size="sm"
           className={styles.row}
           onClick={() => onSelect?.(row.id)}
         >
           <span className={styles.guide}>{row.prefix}</span>
           <StepStatusGlyph status={row.status} />
           <span className={styles.label}>{row.label}</span>
-        </Button>
+        </button>
       ))}
     </div>
   );
@@ -111,7 +109,7 @@ export const ChatTree = forwardRef<HTMLDivElement, ChatTreeProps>(function ChatT
     );
   }
   return (
-    <ChatBlock ref={ref} {...rest} title={title} className={className}>
+    <ChatBlock ref={ref} {...rest} title={title ?? undefined} className={className}>
       {body}
     </ChatBlock>
   );

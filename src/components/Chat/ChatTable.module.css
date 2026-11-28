@@ -1,0 +1,54 @@
+/* The scroller: a table wider than the transcript scrolls here, so no figure
+   is cut and the transcript itself never scrolls sideways. */
+.root {
+  composes: scrollable from "../../lib/scrollable.module.css";
+  max-inline-size: 100%;
+  overflow-x: auto;
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  color: var(--sf-color-fg);
+}
+.root:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+
+/* Ruled like box drawing: a line around every cell. Each row is one line of
+   the grid, its rule taken out of the line, so n rows are n units and one
+   pixel (the top rule). */
+.table {
+  inline-size: auto;
+  border-collapse: collapse;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-variant-numeric: tabular-nums;
+}
+
+.caption {
+  caption-side: top;
+  padding: 0;
+  line-height: var(--sf-leading-base);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.table :where(th, td) {
+  padding: 0 1ch;
+  border: 1px solid var(--sf-color-border);
+  line-height: calc(var(--sf-leading-base) - 1px);
+  text-align: start;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.table th {
+  font-weight: var(--sf-font-weight-bold);
+}
+
+.table :where(th, td)[data-align="end"] {
+  text-align: end;
+}
+.table :where(th, td)[data-align="center"] {
+  text-align: center;
+}

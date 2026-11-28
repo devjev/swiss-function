@@ -4,13 +4,20 @@
 }
 
 /* Dim box-drawing guides; whitespace preserved for column alignment. */
+/* The guides only line up in a fixed-width face, so they keep the monospace
+   whatever face the chat's text takes. */
 .guide {
+  flex: none;
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
   color: var(--sf-color-muted);
   white-space: pre;
 }
 
 .label {
-  color: var(--sf-color-fg);
+  min-inline-size: 0;
+  color: inherit;
+  overflow-wrap: anywhere;
 }
 
 /* Per-node status indicator (orchestration fan-out). */
@@ -19,10 +26,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   /* One cell for every state, so a row does not shift as a step advances from
      the spinner to its mark. */
-  inline-size: 1em;
-  margin-inline-end: calc(var(--sf-unit) / 3);
+  inline-size: 1ch;
+  margin-inline-end: 1ch;
+  align-self: center;
   white-space: pre;
 }
 .statusRunning {
@@ -33,36 +42,41 @@
    error, the exception, takes a colour. */
 .pending,
 .done {
-  color: var(--sf-color-fg);
+  color: inherit;
 }
 .error {
   color: var(--sf-color-danger);
 }
 
-/* Each node is a flat, full-width, left-aligned monospace Button row. Element-
-   qualified to beat the Button base `.root`. */
-button.row {
+/* Each node is one line of the tree: a button with no chrome, on the
+   transcript's grid. */
+.row {
+  display: flex;
+  align-items: baseline;
   inline-size: 100%;
-  justify-content: flex-start;
-  gap: 0;
-  font-family: var(--sf-font-mono);
+  min-block-size: var(--sf-unit);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size-adjust: var(--sf-font-mono-adjust);
+  color: inherit;
   text-align: start;
-  color: var(--sf-color-fg);
+  cursor: pointer;
+}
+.row:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 0px);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  button.row:hover {
-    background-color: color-mix(in srgb, var(--sf-color-primary), var(--sf-color-bg-subtle) 88%);
-  }
-}
-
-button.row:focus-visible .label {
+.row:focus-visible .label,
+.row:active .label {
   color: var(--sf-color-primary);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  button.row:hover .label {
+  .row:hover .label {
     color: var(--sf-color-primary);
   }
 }

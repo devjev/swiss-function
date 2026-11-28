@@ -27,6 +27,7 @@ const componentNames = [
   "Fullscreen",
   "Graph",
   "Grid",
+  "GridOverlay",
   "Heatmap",
   "Icon",
   "Input",

@@ -343,3 +343,200 @@
 .measured .rendered :where(pre, table, figure, hr) {
   max-inline-size: var(--sf-measure-wide);
 }
+
+/* --- The terminal reading (`variant="terminal"`) --------------------------
+   Markdown as a terminal renders it: one monospace size on the unit grid, a
+   blank line between blocks, structure told by weight, an underline and the
+   source's own marks instead of by size and boxes. Every rule carries the
+   variant class, so it outranks the prose rule for the same tag whatever order
+   the two land in. */
+/* The faces: `--sf-prose-font` for the text, `--sf-prose-code-font` for code
+   (Chat sets both from its own), monospace by default. Both are sized to the
+   system's x-height. */
+.terminal {
+  --sf-prose-paragraph-spacing: var(--sf-unit);
+  --sf-prose-heading-spacing: var(--sf-unit);
+  --sf-prose-heading-trail: var(--sf-unit);
+  --sf-prose-list-item-spacing: 0px;
+  --sf-prose-code-wrap: pre-wrap;
+  font-family: var(--sf-prose-font, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+}
+
+/* The last block ends the text; the host spaces what follows. */
+.terminal .rendered > :last-child {
+  margin-block-end: 0;
+}
+
+.terminal .rendered :where(h1, h2, h3, h4, h5, h6) {
+  font-size: inherit;
+  font-weight: var(--sf-font-weight-bold);
+  line-height: var(--sf-leading-base);
+}
+.terminal .rendered :where(h1, h2, h3, h4, h5, h6):first-child {
+  margin-block-start: 0;
+}
+.terminal .rendered h1 {
+  margin-block-start: var(--sf-prose-heading-spacing);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.terminal .rendered h1:first-child {
+  margin-block-start: 0;
+}
+/* From the third level down a heading keeps its marks, as the terminal has no
+   smaller size to step to. */
+.terminal .rendered h3::before {
+  content: "### ";
+}
+.terminal .rendered h4::before {
+  content: "#### ";
+}
+.terminal .rendered h5::before {
+  content: "##### ";
+}
+.terminal .rendered h6::before {
+  content: "###### ";
+}
+
+/* Lists: the source's dash as the marker, two cells of indent per level. */
+.terminal .rendered ul {
+  padding-inline-start: 2ch;
+  list-style-type: "- ";
+}
+.terminal .rendered ol {
+  padding-inline-start: 4ch;
+}
+.terminal .rendered li::marker {
+  color: var(--sf-color-primary);
+}
+.terminal .rendered ul:has(> li > input[type="checkbox"]) {
+  list-style-type: none;
+  padding-inline-start: 0;
+}
+
+/* Inline code: the accent, no box. */
+.terminal .rendered :where(code):not(pre code) {
+  font-family: var(--sf-prose-code-font, var(--sf-font-mono));
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  font-size: inherit;
+  /* Its own face may have other metrics than the text around it: a line
+     height of 1 keeps its box inside the line, so the line stays one unit. */
+  line-height: 1;
+  color: var(--sf-color-primary);
+}
+
+/* A fenced block keeps its fences and takes two cells of indent; no box.
+   `--sf-prose-code-indent` sets the indent; `--sf-prose-code-after` sets the
+   space after the block, also when it ends the text (by default a block that
+   ends the text has none, like any last block). */
+.terminal .rendered pre {
+  margin-block-end: var(--sf-prose-code-after, var(--sf-prose-paragraph-spacing));
+  padding: 0 0 0 var(--sf-prose-code-indent, 2ch);
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.terminal .rendered > pre:last-child {
+  margin-block-end: var(--sf-prose-code-after, 0);
+}
+.terminal .rendered pre::before,
+.terminal .rendered pre::after {
+  display: block;
+  margin-inline-start: calc(var(--sf-prose-code-indent, 2ch) * -1);
+  font-family: var(--sf-prose-code-font, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: inherit;
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-muted);
+  white-space: pre;
+  content: "```";
+}
+.terminal .rendered pre::before {
+  content: "```" attr(data-lang);
+}
+/* `--sf-prose-code-fence: none` drops the fence lines (Chat's log view sets
+   it); the code keeps its indent. */
+.terminal .rendered pre::before,
+.terminal .rendered pre::after {
+  display: var(--sf-prose-code-fence, block);
+}
+.terminal .rendered pre code {
+  font-family: var(--sf-prose-code-font, var(--sf-font-mono));
+  font-size: inherit;
+}
+
+/* Highlighted code, as CodeEditor's default `primary` theme sets it: the one
+   accent on keywords, names bold, strings italic, comments and punctuation a
+   step back. A diff marks its lines in the status colours, which is what they
+   mean. */
+.terminal .rendered pre [data-token="keyword"] {
+  color: var(--sf-color-code-accent);
+}
+.terminal .rendered pre [data-token="definition"] {
+  font-weight: var(--sf-font-weight-bold);
+}
+.terminal .rendered pre [data-token="string"] {
+  font-style: italic;
+}
+.terminal .rendered pre [data-token="comment"] {
+  color: var(--sf-color-code-comment);
+  font-style: italic;
+}
+.terminal .rendered pre [data-token="punctuation"] {
+  color: var(--sf-color-code-punctuation);
+}
+.terminal .rendered pre [data-token="added"] {
+  color: var(--sf-color-success);
+}
+.terminal .rendered pre [data-token="removed"] {
+  color: var(--sf-color-danger);
+}
+.terminal .rendered pre [data-token="meta"] {
+  color: var(--sf-color-muted);
+}
+
+.terminal .rendered blockquote {
+  padding: 0 0 0 calc(2ch - 1px);
+  border-inline-start: 1px solid var(--sf-color-border);
+  font-style: italic;
+}
+
+/* A rule is a line of its own, the stroke through its middle. */
+.terminal .rendered hr {
+  block-size: var(--sf-unit);
+  margin: 0 0 var(--sf-prose-paragraph-spacing);
+  border: 0;
+  background:
+    linear-gradient(var(--sf-color-border), var(--sf-color-border)) center / 100% 1px no-repeat;
+}
+
+/* Tables: ruled like box drawing. Every cell is one line; its rule comes out
+   of the line, so n rows are n units and one pixel. A table wider than the
+   text scrolls inside itself (a block box holding the table's rows), so the
+   column around it never scrolls sideways and no cell is cut at its edge. */
+.terminal .rendered table {
+  display: block;
+  max-inline-size: 100%;
+  inline-size: max-content;
+  overflow-x: auto;
+  margin-block-end: calc(var(--sf-prose-paragraph-spacing) - 1px);
+  font-size: inherit;
+  scrollbar-width: var(--sf-scrollbar-width);
+  scrollbar-color: var(--sf-scrollbar-thumb) var(--sf-scrollbar-track);
+}
+.terminal .rendered :where(th, td) {
+  padding: 0 1ch;
+  border-color: var(--sf-color-border);
+  line-height: calc(var(--sf-leading-base) - 1px);
+  vertical-align: top;
+}
+.terminal .rendered th {
+  background: none;
+  font-weight: var(--sf-font-weight-bold);
+}

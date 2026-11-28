@@ -1,12 +1,42 @@
-/* Terminal-style framed panel. Monospace, hairline frame, faint surface, sharp
-   corners — the shared shell for TUI chat blocks. */
+/* The band: a terminal's block. A full-width run of the block colour with half
+   a unit of padding and no border; inside a Chat it bleeds over the
+   transcript's inline padding (`--sf-chat-pad`, 0 outside a chat), so the
+   colour runs edge to edge while the text keeps the transcript's column. */
+.band {
+  margin-inline: calc(var(--sf-chat-pad, 0px) * -1);
+  padding: calc(var(--sf-unit) / 2) var(--sf-chat-pad, calc(var(--sf-unit) / 2));
+  background-color: var(--sf-chat-block-bg, var(--sf-color-bg-subtle));
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg);
+}
+
+/* In a chat's log view: no surface, no padding, no bleed. */
+.band[data-log] {
+  margin-inline: 0;
+  padding: 0;
+  background-color: transparent;
+}
+
+/* The band's label, as a terminal prints a block's kind: `[status]`, bold, on
+   a line of its own. */
+.bandTitle {
+  display: block;
+  font-weight: var(--sf-font-weight-bold);
+  color: var(--sf-color-primary);
+  user-select: none;
+}
+
+/* The framed panel. Monospace, hairline frame, faint surface, sharp corners. */
 .root {
   border: 1px solid var(--sf-color-border);
   border-radius: var(--sf-radius-default);
   background-color: var(--sf-color-bg-subtle);
-  font-family: var(--sf-font-mono);
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
+  font-size: var(--sf-font-size-md);
   color: var(--sf-color-fg);
   overflow: hidden;
 }
@@ -45,9 +75,9 @@
 .plainTitle {
   display: block;
   margin-block-end: calc(var(--sf-unit) / 2);
-  font-family: var(--sf-font-mono);
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
   font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
+  font-size: var(--sf-font-size-md);
   color: var(--sf-color-fg);
   user-select: none;
 }

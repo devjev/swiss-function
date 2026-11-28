@@ -1,0 +1,213 @@
+/* The overlay covers its positioned container (or the viewport, fixed) above
+   everything, floaters included, and takes no pointer events outside pick
+   mode: the app works under it. */
+.root {
+  --go-line: color-mix(in oklch, var(--sf-color-fg) 10%, transparent);
+  --go-major-line: color-mix(in oklch, var(--sf-color-fg) 28%, transparent);
+  --go-base: color-mix(in oklch, var(--sf-color-primary) 55%, transparent);
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--sf-z-tooltip, 1400) + 100);
+  overflow: hidden;
+  pointer-events: none;
+}
+.root[data-fixed] {
+  position: fixed;
+}
+
+/* The baseline probe: a line of body text, invisible, whose zero-size mark
+   sits on the baseline. */
+.probe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  visibility: hidden;
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  white-space: nowrap;
+}
+.probeMark {
+  display: inline-block;
+  inline-size: 0;
+  block-size: 0;
+}
+
+/* Cell edges every cell, stronger every major. Backgrounds, so the lines cost
+   nothing however large the region. */
+.cells {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--go-major-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--go-major-line) 1px, transparent 1px),
+    linear-gradient(to right, var(--go-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--go-line) 1px, transparent 1px);
+  background-size:
+    var(--go-major) var(--go-major),
+    var(--go-major) var(--go-major),
+    var(--go-cell) var(--go-cell),
+    var(--go-cell) var(--go-cell);
+}
+
+/* Where body text sits in every unit line, in the accent. */
+.baselines {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    to bottom,
+    transparent var(--go-baseline),
+    var(--go-base) var(--go-baseline),
+    var(--go-base) calc(var(--go-baseline) + 1px),
+    transparent calc(var(--go-baseline) + 1px)
+  );
+  background-size: 100% var(--sf-unit);
+}
+
+.labels {
+  position: absolute;
+  inset: 0;
+}
+
+/* A name at a major crossing: small, set off the lines by a hair and a wash
+   of the page colour, so it reads over content. */
+.label,
+.chip,
+.markLabel {
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  line-height: 1;
+  white-space: nowrap;
+}
+.label {
+  position: absolute;
+  translate: 2px 2px;
+  padding: 1px 2px;
+  background-color: color-mix(in oklch, var(--sf-color-bg) 80%, transparent);
+  color: var(--sf-color-fg);
+}
+
+/* The cell under the pointer, and its name beside the pointer. */
+.hover {
+  position: absolute;
+  outline: 1px dashed var(--sf-color-fg);
+  outline-offset: -1px;
+}
+.chip {
+  position: absolute;
+  padding: 2px 4px;
+  border: 1px solid var(--sf-color-border-strong);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+}
+.chip[data-flip-x] {
+  translate: -100% 0;
+}
+.chip[data-flip-y] {
+  translate: 0 -100%;
+}
+.chip[data-flip-x][data-flip-y] {
+  translate: -100% -100%;
+}
+
+/* A named place (a mark, the last pick): outlined in the accent, a tint over
+   it, its name in its top-left corner. */
+.mark,
+.pick {
+  position: absolute;
+  outline: 2px solid var(--sf-color-primary);
+  outline-offset: -1px;
+  background-color: color-mix(in oklch, var(--sf-color-primary) 10%, transparent);
+}
+.markLabel {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  padding: 2px 4px;
+  background-color: var(--sf-color-primary);
+  color: var(--sf-color-primary-fg);
+}
+
+/* Pick mode: a layer over the region takes the presses and drags, so none of
+   them reaches the app. A dedicated surface, so it may hold the touch. */
+.capture {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The panel: the layers, the cell size, Pick, and the last name picked. */
+/* A fieldset: its own margin and min-content floor cleared. */
+.panel {
+  position: fixed;
+  margin: 0;
+  inset-block-end: var(--sf-unit);
+  inset-inline-end: var(--sf-unit);
+  display: grid;
+  min-inline-size: calc(var(--sf-unit) * 12);
+  max-inline-size: calc(100% - var(--sf-unit) * 2);
+  padding: calc(var(--sf-unit) / 4 - 1px) calc(var(--sf-unit) / 2);
+  border: 1px solid var(--sf-color-border-strong);
+  background-color: var(--sf-color-bg);
+  color: var(--sf-color-fg);
+  font-family: var(--sf-font-mono);
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-sm);
+  line-height: var(--sf-leading-base);
+  pointer-events: auto;
+}
+
+.panelLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 2ch;
+  white-space: nowrap;
+}
+
+.panelCell {
+  font-weight: var(--sf-font-weight-bold);
+}
+
+.panelKeys {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1ch;
+}
+
+.key {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-fg);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.key:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+.key[aria-pressed="true"] {
+  color: var(--sf-color-primary);
+}
+.pickKey {
+  font-weight: var(--sf-font-weight-bold);
+}
+@media (hover: hover) and (pointer: fine) {
+  .key:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+.key:active {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.copied {
+  color: var(--sf-color-primary);
+}

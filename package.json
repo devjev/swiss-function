@@ -11,9 +11,14 @@
   ],
   "files": [
     "dist",
+    "bin/swiss-function.mjs",
+    "bin/guide.mjs",
     "README.md",
     "LICENSE"
   ],
+  "bin": {
+    "swiss-function": "./bin/swiss-function.mjs"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -146,6 +151,10 @@
     "./grid": {
       "types": "./dist/components/Grid/index.d.ts",
       "import": "./dist/components/Grid/index.js"
+    },
+    "./grid-overlay": {
+      "types": "./dist/components/GridOverlay/index.d.ts",
+      "import": "./dist/components/GridOverlay/index.js"
     },
     "./heatmap": {
       "types": "./dist/components/Heatmap/index.d.ts",
@@ -427,6 +436,10 @@
       "types": "./dist/lib/hitArea.d.ts",
       "import": "./dist/lib/hitArea.js"
     },
+    "./lib/keyboard": {
+      "types": "./dist/lib/keyboard.d.ts",
+      "import": "./dist/lib/keyboard.js"
+    },
     "./lib/use-collapse": {
       "types": "./dist/lib/useCollapse.d.ts",
       "import": "./dist/lib/useCollapse.js"
@@ -451,7 +464,7 @@
   },
   "scripts": {
     "dev": "ladle serve",
-    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs && node scripts/tokens/build.mjs",
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && vite build && node scripts/postbuild.mjs && node scripts/tokens/build.mjs && node scripts/guide/build.mjs",
     "build:stories": "ladle build",
     "build-storybook": "ladle build -o storybook-static",
     "test": "vitest run",

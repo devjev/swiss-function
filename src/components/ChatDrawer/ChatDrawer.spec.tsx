@@ -614,3 +614,176 @@ test("fullscreen pads the panel by the safe-area insets (issue #110)", async ({ 
   // The header starts under the notch.
   expect(box?.y ?? 0).toBeGreaterThanOrEqual(47);
 });
+
+test("thinking shows the chat's working indicator; Escape interrupts and keeps full screen", async ({
+  mount,
+  page,
+}) => {
+  let interrupts = 0;
+  let reported: boolean | null = null;
+  await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        defaultExpanded
+        thinking
+        messages={messages}
+        onSubmit={() => {}}
+        onInterrupt={() => interrupts++}
+        onExpandedChange={(next) => {
+          reported = next;
+        }}
+        footer={[{ left: "~/app", right: "model" }]}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  // `working` defaults to `thinking`, and the footer reaches the chat.
+  await expect(page.locator("form").getByRole("status")).toContainText("Working");
+  await expect(page.getByText("model", { exact: true })).toBeVisible();
+  // One Escape is one action: it interrupts the run and leaves full screen on.
+  await page.locator("textarea").press("Escape");
+  expect(interrupts).toBe(1);
+  expect(reported).toBe(null);
+  await expect(page.getByRole("button", { name: "Exit fullscreen" })).toBeVisible();
+});
+
+test('variant="log": the chat fills the panel with no gutter and no frame, the header ruled', async ({
+  mount,
+}) => {
+  const c = await mount(
+    <div style={{ inlineSize: 800, blockSize: 400 }}>
+      <ChatDrawer
+        defaultOpen
+        variant="log"
+        title="Assistant"
+        messages={messages}
+        onSubmit={() => {}}
+      >
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  const fit = await c.evaluate((root) => {
+    const chat = root.querySelector('[data-variant="log"][data-frame]') as HTMLElement;
+    const panel = chat.closest('[data-variant="log"]:not([data-frame])') as HTMLElement;
+    const header = panel.querySelector("h2")?.parentElement as HTMLElement;
+    const c = chat.getBoundingClientRect();
+    const p = panel.getBoundingClientRect();
+    const h = header.getBoundingClientRect();
+    return {
+      sides: [Math.round(c.left - p.left), Math.round(p.right - c.right)],
+      bottom: Math.round(p.bottom - c.bottom),
+      underHeader: Math.round(c.top - h.bottom),
+      border: getComputedStyle(chat).borderTopWidth,
+      shadow: getComputedStyle(chat).boxShadow,
+      rule: getComputedStyle(header).borderBottomWidth,
+      headerHeight: Math.round(h.height),
+    };
+  });
+  expect(fit.sides).toEqual([0, 0]);
+  expect(fit.bottom).toBe(0);
+  expect(fit.underHeader).toBe(0);
+  expect(fit.border).toBe("0px");
+  expect(fit.shadow).toBe("none");
+  expect(fit.rule).toBe("1px");
+  expect(fit.headerHeight).toBe(2 * U);
+});
+
+test.describe("on a phone", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("with the keyboard up, the panel keeps its header in view and its editor on the keyboard", async ({
+    mount,
+    page,
+  }) => {
+    await mount(
+      <div style={{ inlineSize: "100vw", blockSize: "100dvh" }}>
+        <ChatDrawer
+          defaultOpen
+          defaultExpanded
+          title="Assistant"
+          messages={messages}
+          onSubmit={() => {}}
+        >
+          <div>app content</div>
+        </ChatDrawer>
+      </div>,
+    );
+    const field = page.locator("textarea");
+    await field.tap();
+    // A 300px keyboard, then the page panned 100px to show the field, as iOS
+    // does: the visual viewport reports both.
+    const keyboard = 300;
+    await page.evaluate((px) => {
+      const viewport = window.visualViewport;
+      if (!viewport) throw new Error("no visualViewport");
+      const full = document.documentElement.clientHeight;
+      Object.defineProperty(viewport, "height", { configurable: true, get: () => full - px });
+      viewport.dispatchEvent(new Event("resize"));
+    }, keyboard);
+    const place = () =>
+      page.evaluate(() => {
+        const vv = window.visualViewport as VisualViewport;
+        const header = document.querySelector("h2") as HTMLElement;
+        const editor = document.querySelector("textarea") as HTMLElement;
+        return {
+          visibleTop: vv.offsetTop,
+          visibleBottom: vv.offsetTop + vv.height,
+          headerTop: header.getBoundingClientRect().top,
+          editorBottom: editor.getBoundingClientRect().bottom,
+        };
+      });
+    await expect.poll(async () => (await place()).editorBottom).toBeLessThanOrEqual(844 - keyboard);
+    const up = await place();
+    expect(up.headerTop).toBeGreaterThanOrEqual(up.visibleTop);
+    // Within a unit of the keyboard: the editor sits on it, not halfway up.
+    expect(up.visibleBottom - up.editorBottom).toBeLessThan(2 * 24);
+
+    await page.evaluate(() => {
+      const viewport = window.visualViewport as VisualViewport;
+      Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => 100 });
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    await expect.poll(async () => (await place()).headerTop).toBeGreaterThanOrEqual(100);
+    const panned = await place();
+    expect(panned.editorBottom).toBeLessThanOrEqual(panned.visibleBottom);
+
+    // The keyboard goes down: the panel is whole again.
+    await page.evaluate(() => {
+      const viewport = window.visualViewport as VisualViewport;
+      Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => 0 });
+      Object.defineProperty(viewport, "height", {
+        configurable: true,
+        get: () => document.documentElement.clientHeight,
+      });
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    await expect.poll(async () => (await place()).editorBottom).toBeGreaterThan(844 - 100);
+  });
+});
+
+test("full screen fills the window in a narrow container, where the panel overlays", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const c = await mount(
+    <div style={{ inlineSize: 300, blockSize: 400 }}>
+      <ChatDrawer defaultOpen title="Assistant" messages={messages} onSubmit={() => {}}>
+        <div>app content</div>
+      </ChatDrawer>
+    </div>,
+  );
+  await c.getByRole("button", { name: "Enter fullscreen" }).click();
+  const box = await page.getByRole("button", { name: "Exit fullscreen" }).evaluate((el) => {
+    let panel = el as HTMLElement;
+    while (panel.parentElement && getComputedStyle(panel).position !== "fixed") {
+      panel = panel.parentElement;
+    }
+    const r = panel.getBoundingClientRect();
+    return [r.left, r.top, r.width, r.height].map(Math.round);
+  });
+  expect(box).toEqual([0, 0, 390, 844]);
+});

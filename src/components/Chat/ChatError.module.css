@@ -1,22 +1,52 @@
-/* ChatError: the NonIdealState provides the bordered block + glitch fill; this
-   only tunes the in-chat message typography. */
-
+/* An error line: page colour, the status mark (a 3px leading rule in the
+   danger colour) and the message in the danger colour at full strength. No
+   tint and no box. */
 .root {
-  /* A micro-element: override NonIdealState's tall min-block-size floor so it
-     sizes to its content (message + id + retry) with a small floor. */
-  min-block-size: calc(var(--sf-unit) * 5);
-  min-inline-size: 0;
+  padding-inline-start: calc(1ch + 3px);
+  border-inline-start: 3px solid var(--sf-color-danger);
+  font-family: var(--sf-chat-font, var(--sf-font-mono));
+  font-size-adjust: var(--sf-font-mono-adjust);
+  font-size: var(--sf-font-size-md);
+  line-height: var(--sf-leading-base);
+  color: var(--sf-color-fg);
 }
 
 .message {
-  font-size: var(--sf-font-size-sm);
-  font-weight: var(--sf-font-weight-medium);
   color: var(--sf-color-danger);
+  overflow-wrap: anywhere;
 }
 
 .requestId {
-  font-family: var(--sf-font-mono);
-  font-size-adjust: var(--sf-font-mono-adjust);
-  font-size: var(--sf-font-size-sm);
   color: var(--sf-color-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The retry key, set as a terminal sets a key in a line: `[Retry]`. */
+.retry {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size-adjust: var(--sf-font-mono-adjust);
+  color: var(--sf-color-fg);
+  cursor: pointer;
+}
+.retryLabel {
+  font-weight: var(--sf-font-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.retry:focus-visible {
+  outline: var(--sf-focus-ring-width, 2px) solid var(--sf-color-focus-ring);
+  outline-offset: var(--sf-focus-ring-offset, 1px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .retry:hover .retryLabel {
+    color: var(--sf-color-primary);
+  }
+}
+.retry:active .retryLabel {
+  color: var(--sf-color-primary);
 }

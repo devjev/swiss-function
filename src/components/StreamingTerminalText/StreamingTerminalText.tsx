@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import { cx } from "../../lib/cx";
-import { Markdown } from "../Markdown";
+import { Markdown, type MarkdownVariant } from "../Markdown";
 import styles from "./StreamingTerminalText.module.css";
 
 const WS = /\s/;
@@ -94,6 +94,8 @@ export interface StreamingTerminalTextProps extends HTMLAttributes<HTMLDivElemen
   shadeRamp?: string[];
   /** Glyph used to fill spaces inside the developing tail. */
   spacePlaceholder?: string;
+  /** The markdown reading, forwarded to `Markdown` (`"prose"` by default). */
+  variant?: MarkdownVariant;
 }
 
 function computePositions(s: string): number[] {
@@ -116,6 +118,7 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
       charIntervalMs = 64,
       shadeRamp = ["▒", "▓"],
       spacePlaceholder = " ",
+      variant,
       className,
       ...rest
     },
@@ -238,7 +241,7 @@ export const StreamingTerminalText = forwardRef<HTMLDivElement, StreamingTermina
 
     return (
       <div ref={ref} {...rest} className={cx(styles.root, className)} data-testid="streaming-text">
-        <Markdown value={renderedSource} components={SHADE_COMPONENTS} />
+        <Markdown value={renderedSource} components={SHADE_COMPONENTS} variant={variant} />
       </div>
     );
   },

@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import { forwardRef, useState } from "react";
 import { cx } from "../../lib/cx";
-import { Button } from "../Button";
+import { hitArea } from "../../lib/hitArea";
 import { ChatBlock } from "./ChatBlock";
 import styles from "./ChatChoices.module.css";
 
@@ -25,9 +25,10 @@ export interface ChatChoicesProps extends Omit<HTMLAttributes<HTMLDivElement>, "
   onSelect: (value: string | string[]) => void;
 }
 
-/** In-chat choice menu, styled as a terminal selection list: a caret (`›`)
- *  points at the focused option (single-select), or `[x]`/`[ ]` toggles
- *  accumulate for multi-select. Built on the `Button` component (monospace). */
+/** In-chat choice menu, set as a terminal's selection list: one option per
+ *  line, an arrow (`→`) and the accent on the focused or hovered one
+ *  (single-select), or `[x]`/`[ ]` toggles for multi-select with a `[Confirm]`
+ *  key under them. */
 export const ChatChoices = forwardRef<HTMLDivElement, ChatChoicesProps>(function ChatChoices(
   { prompt, options, multiple = false, onSelect, className, ...rest },
   ref,
@@ -48,7 +49,7 @@ export const ChatChoices = forwardRef<HTMLDivElement, ChatChoicesProps>(function
   };
 
   return (
-    <ChatBlock ref={ref} {...rest} title="select" className={className}>
+    <ChatBlock ref={ref} {...rest} className={className}>
       {prompt ? (
         <p className={styles.prompt}>
           <span className={styles.sigil}>?</span> {prompt}
@@ -58,11 +59,9 @@ export const ChatChoices = forwardRef<HTMLDivElement, ChatChoicesProps>(function
         {options.map((opt) => {
           const selected = picked.has(opt.id);
           return (
-            <Button
+            <button
               key={opt.id}
               type="button"
-              variant="ghost"
-              size="sm"
               className={cx(styles.choice, selected && styles.choiceSelected)}
               aria-pressed={multiple ? selected : undefined}
               onClick={() => toggle(opt.id)}
@@ -72,25 +71,23 @@ export const ChatChoices = forwardRef<HTMLDivElement, ChatChoicesProps>(function
                   {selected ? "[x]" : "[ ]"}
                 </span>
               ) : (
-                <span className={styles.caret}>›</span>
+                <span className={styles.caret}>→</span>
               )}
               <span className={styles.label}>{opt.label}</span>
               {opt.description ? <span className={styles.comment}># {opt.description}</span> : null}
-            </Button>
+            </button>
           );
         })}
       </div>
       {multiple ? (
-        <Button
+        <button
           type="button"
-          variant="primary"
-          size="sm"
-          className={styles.confirm}
+          className={cx(styles.confirm, hitArea.block)}
           disabled={picked.size === 0}
           onClick={() => onSelect([...picked])}
         >
-          Confirm
-        </Button>
+          [<span className={styles.confirmLabel}>Confirm</span>]
+        </button>
       ) : null}
     </ChatBlock>
   );

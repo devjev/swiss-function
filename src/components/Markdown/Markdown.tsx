@@ -1,5 +1,14 @@
-import type { ComponentProps, HTMLAttributes, KeyboardEvent } from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentProps, HTMLAttributes, KeyboardEvent, ReactNode } from "react";
+import {
+  Children,
+  isValidElement,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cx } from "../../lib/cx";
@@ -15,6 +24,90 @@ type ReactMarkdownComponents = ComponentProps<typeof ReactMarkdown>["components"
 // Chat keystroke from re-parsing a whole transcript of static messages.
 const MemoizedReactMarkdown = memo(ReactMarkdown);
 const REMARK_PLUGINS = [remarkGfm];
+
+/** How the rendered markdown reads. `"prose"` is the document reading: the sans
+ *  face, sized headings, boxed code. `"terminal"` is the reading of a terminal
+ *  that renders markdown: one monospace size, headings told apart by weight, an
+ *  underline and their `###`, fences kept around code with no box, `-` bullets,
+ *  and tables ruled like box drawing. */
+export type MarkdownVariant = "prose" | "terminal";
+
+/** A fenced block in the terminal reading: the `pre` carries the fence's
+ *  language (`data-lang`), which the stylesheet prints after the opening
+ *  fence. */
+function TerminalPre({
+  node: _node,
+  children,
+  ...rest
+}: ComponentProps<"pre"> & { node?: unknown; children?: ReactNode }) {
+  const first = Children.toArray(children)[0];
+  const code = isValidElement<{ className?: string; children?: ReactNode }>(first)
+    ? first.props
+    : null;
+  const cls = code?.className ?? "";
+  const lang = /language-(\S+)/.exec(cls)?.[1] ?? "";
+  const text = typeof code?.children === "string" ? code.children : null;
+  // The highlighter is fetched by the first block that names a language and
+  // shared after that; until it lands the block shows its plain code.
+  const [hl, setHl] = useState<Highlighter | null>(highlighter);
+  const wants = text != null && lang !== "";
+  useEffect(() => {
+    if (!wants || hl) return;
+    let live = true;
+    void loadHighlighter().then((module) => {
+      if (live) setHl(module);
+    });
+    return () => {
+      live = false;
+    };
+  }, [wants, hl]);
+  // A known language is highlighted. A block the streaming reveal is still
+  // writing (shade glyphs at its tail) is left to the reveal's own styling
+  // until its text has landed.
+  if (hl && text != null && hl.knowsLanguage(lang) && !STREAMING_TAIL.test(text)) {
+    return (
+      <pre {...rest} data-lang={lang}>
+        <code className={cls}>
+          {hl.highlightCode(text.replace(/\n$/, ""), lang).map((token, i) =>
+            token.kind ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: tokens are positional and re-made with the text.
+              <span key={i} data-token={token.kind}>
+                {token.text}
+              </span>
+            ) : (
+              token.text
+            ),
+          )}
+        </code>
+      </pre>
+    );
+  }
+  return (
+    <pre {...rest} data-lang={lang}>
+      {children}
+    </pre>
+  );
+}
+
+/** The shade glyphs `StreamingTerminalText` puts at the tail of text it is
+ *  still revealing. */
+const STREAMING_TAIL = /[▒▓█]/;
+
+/** The code highlighter, loaded on demand: only the terminal reading's fenced
+ *  blocks use it, so the prose reading (Prose, the Outliner) carries none of
+ *  it. */
+type Highlighter = typeof import("./highlight");
+let highlighter: Highlighter | null = null;
+let loadingHighlighter: Promise<Highlighter> | null = null;
+function loadHighlighter(): Promise<Highlighter> {
+  loadingHighlighter ??= import("./highlight").then((module) => {
+    highlighter = module;
+    return module;
+  });
+  return loadingHighlighter;
+}
+
+const TERMINAL_COMPONENTS: ReactMarkdownComponents = { pre: TerminalPre };
 
 export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Markdown source. */
@@ -49,6 +142,9 @@ export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, "onC
    *  code, tables, and figures spill to `--sf-measure-wide`. Off by
    *  default so existing call sites are unchanged. `<Prose>` sets it on. */
   measured?: boolean;
+  /** `"prose"` (default) or `"terminal"`: one monospace size on the unit grid,
+   *  as a terminal renders markdown. `Chat` uses it for a reply. */
+  variant?: MarkdownVariant;
 }
 
 export function Markdown(props: MarkdownProps) {
@@ -64,11 +160,18 @@ export function Markdown(props: MarkdownProps) {
     remarkPlugins,
     inline = false,
     measured = false,
+    variant = "prose",
     className,
     ...rest
   } = props;
 
-  const rootClass = cx(styles.root, measured && styles.measured, className);
+  const terminal = variant === "terminal";
+  const rootClass = cx(
+    styles.root,
+    measured && styles.measured,
+    terminal && styles.terminal,
+    className,
+  );
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -113,9 +216,12 @@ export function Markdown(props: MarkdownProps) {
   // Memoized (and placed before the `editing` early return — hook order) so
   // the renderer's props stay referentially stable across re-renders.
   const effectiveComponents: ReactMarkdownComponents = useMemo(
-    () =>
-      inline ? { p: ({ children }) => <>{children}</>, ...(components ?? {}) } : (components ?? {}),
-    [inline, components],
+    () => ({
+      ...(terminal ? TERMINAL_COMPONENTS : null),
+      ...(inline ? { p: ({ children }: { children?: ReactNode }) => <>{children}</> } : null),
+      ...(components ?? {}),
+    }),
+    [inline, components, terminal],
   );
   const source = useMemo(() => (preprocess ? preprocess(value) : value), [preprocess, value]);
   const plugins = useMemo(

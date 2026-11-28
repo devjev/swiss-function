@@ -169,3 +169,155 @@ test("hover thickens the rule; Tab shows the focus ring (#109)", async ({ mount,
     .evaluate((a) => getComputedStyle(a).outlineStyle);
   expect(outline).toBe("solid");
 });
+
+test('variant="terminal": one monospace size, marks kept, tables ruled, the last block flush', async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Markdown
+      variant="terminal"
+      value={
+        "# Title\n\n## Section\n\n#### Deep\n\nText `code`.\n\n| a | b |\n| --- | ---: |\n| 1 | 2 |\n\n```js\nlet a;\n```"
+      }
+    />,
+  );
+  const m = await c.evaluate((el) => {
+    const cs = (sel: string, pseudo?: string) =>
+      getComputedStyle(el.querySelector(sel) as Element, pseudo);
+    const px = (v: string) => Number.parseFloat(v);
+    return {
+      sizes: ["h1", "h2", "h4", "p", "td", "pre code"].map((s) => cs(s).fontSize),
+      families: ["h1", "p", "td"].map((s) => cs(s).fontFamily.includes("monospace")),
+      h4: cs("h4", "::before").content,
+      h2: cs("h2", "::before").content,
+      cellRule: cs("td").borderTopWidth,
+      headBg: cs("th").backgroundColor,
+      rowHeight: (el.querySelector("tbody tr") as HTMLElement).getBoundingClientRect().height,
+      unit: px(cs("p").lineHeight),
+      lang: (el.querySelector("pre") as HTMLElement).dataset.lang,
+      lastMargin: cs("pre").marginBottom,
+      // A paragraph is one line of the grid, with one blank line after it.
+      pHeight: (el.querySelector("p") as HTMLElement).getBoundingClientRect().height,
+      pGap: px(cs("p").marginBottom),
+    };
+  });
+  expect(new Set(m.sizes).size).toBe(1);
+  expect(m.families).toEqual([true, true, true]);
+  expect(m.h4).toBe('"#### "');
+  expect(m.h2).toBe("none");
+  expect(m.cellRule).toBe("1px");
+  expect(m.headBg).toBe("rgba(0, 0, 0, 0)");
+  expect(m.rowHeight).toBeCloseTo(m.unit, 0);
+  expect(m.lang).toBe("js");
+  expect(m.lastMargin).toBe("0px");
+  expect(m.pHeight).toBeCloseTo(m.unit, 0);
+  expect(m.pGap).toBeCloseTo(m.unit, 0);
+});
+
+test('variant="prose" (the default) is unchanged: sized headings, boxed code', async ({
+  mount,
+}) => {
+  const c = await mount(<Markdown value={"# Title\n\nText `code`.\n\n```js\nlet a;\n```"} />);
+  const m = await c.evaluate((el) => {
+    const cs = (sel: string) => getComputedStyle(el.querySelector(sel) as Element);
+    return {
+      bigger: Number.parseFloat(cs("h1").fontSize) > Number.parseFloat(cs("p").fontSize),
+      preBorder: cs("pre").borderTopWidth,
+      fence: getComputedStyle(el.querySelector("pre") as Element, "::before").content,
+      lang: (el.querySelector("pre") as HTMLElement).dataset.lang,
+    };
+  });
+  expect(m).toEqual({ bigger: true, preBorder: "1px", fence: "none", lang: undefined });
+});
+
+test('variant="terminal": a table wider than the text scrolls inside itself', async ({ mount }) => {
+  const c = await mount(
+    <div style={{ width: 200 }}>
+      <Markdown
+        variant="terminal"
+        value={"| a long heading | another heading | a third |\n| --- | --- | --- |\n| 1 | 2 | 3 |"}
+      />
+    </div>,
+  );
+  const fit = await c.evaluate((el) => {
+    const table = el.querySelector("table") as HTMLElement;
+    return {
+      inside: table.getBoundingClientRect().width <= 200.5,
+      scrolls: table.scrollWidth > table.clientWidth,
+      outer: el.scrollWidth <= el.clientWidth,
+    };
+  });
+  expect(fit).toEqual({ inside: true, scrolls: true, outer: true });
+});
+
+test('variant="terminal" highlights a known language as the editor\'s primary theme does', async ({
+  mount,
+}) => {
+  const c = await mount(
+    <Markdown
+      variant="terminal"
+      value={
+        '```ts\nexport function f(x: string) {\n  return "s"; // note\n}\n```\n\n```\nplain output\n```'
+      }
+    />,
+  );
+  // The highlighter loads on demand: plain code first, then highlighted.
+  await expect(c.locator('[data-token="keyword"]').first()).toBeVisible();
+  const m = await c.evaluate((el) => {
+    const [ts, plain] = [...el.querySelectorAll("pre")] as HTMLElement[];
+    const tok = (kind: string) => ts?.querySelector(`[data-token="${kind}"]`) as HTMLElement;
+    const probe = document.createElement("span");
+    probe.style.color = "var(--sf-color-code-accent)";
+    el.append(probe);
+    const accent = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      text: ts?.textContent,
+      keyword: getComputedStyle(tok("keyword")).color === accent,
+      definitionWeight: Number(getComputedStyle(tok("definition")).fontWeight),
+      stringStyle: getComputedStyle(tok("string")).fontStyle,
+      comment: tok("comment").textContent,
+      plainTokens: plain?.querySelectorAll("[data-token]").length,
+      fence: getComputedStyle(ts as Element, "::before").display,
+    };
+  });
+  // The code reads exactly as written; only its look changes.
+  expect(m.text).toBe('export function f(x: string) {\n  return "s"; // note\n}');
+  expect(m.keyword).toBe(true);
+  expect(m.definitionWeight).toBeGreaterThanOrEqual(600);
+  expect(m.stringStyle).toBe("italic");
+  expect(m.comment).toBe("// note");
+  // A fence with no language stays plain.
+  expect(m.plainTokens).toBe(0);
+  // The terminal reading keeps its fences unless the token says otherwise.
+  expect(m.fence).toBe("block");
+});
+
+test("--sf-prose-code-fence: none drops the fence lines and keeps the code's indent", async ({
+  mount,
+}) => {
+  const c = await mount(
+    <div style={{ "--sf-prose-code-fence": "none" } as React.CSSProperties}>
+      <Markdown variant="terminal" value={"Before.\n\n```js\nlet a = 1;\n```"} />
+    </div>,
+  );
+  const m = await c.evaluate((el) => {
+    const pre = el.querySelector("pre") as HTMLElement;
+    const p = el.querySelector("p") as HTMLElement;
+    const line = Number.parseFloat(getComputedStyle(pre).lineHeight);
+    return {
+      before: getComputedStyle(pre, "::before").display,
+      after: getComputedStyle(pre, "::after").display,
+      lines: Math.round(pre.getBoundingClientRect().height / line),
+      indented:
+        (pre.querySelector("code") as HTMLElement).getBoundingClientRect().left >
+        p.getBoundingClientRect().left,
+    };
+  });
+  expect(m).toEqual({ before: "none", after: "none", lines: 1, indented: true });
+});
+
+test("the prose reading does not highlight", async ({ mount }) => {
+  const c = await mount(<Markdown value={"```ts\nconst a = 1;\n```"} />);
+  expect(await c.locator("[data-token]").count()).toBe(0);
+});

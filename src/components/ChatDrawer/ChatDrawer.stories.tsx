@@ -100,6 +100,74 @@ function Demo({ side, cellSize }: { side?: "left" | "right" | "bottom"; cellSize
 /** A resizable chat panel that pushes the app content aside. */
 export const Default: Story = () => <Demo side="right" />;
 
+const LOG_MESSAGES: ChatMessage[] = [
+  { id: "u1", role: "user", content: "Why did the nightly build fail?" },
+  {
+    id: "a1",
+    role: "assistant",
+    parts: [
+      { type: "text", text: "Checking the last run." },
+      {
+        type: "tool",
+        name: "$",
+        args: "ci logs nightly --last",
+        output: [
+          "fetch   ok",
+          "install ok",
+          "build   ok",
+          "test    3 failed",
+          "  date.test.ts › formats a local date",
+          "  date.test.ts › parses an ISO week",
+          "  zone.test.ts › reads the zone",
+        ].join("\n"),
+        note: "Took 1.2s",
+      },
+      { type: "tool", name: "read", args: "test/date.test.ts:1-40" },
+      {
+        type: "text",
+        text: "Three tests read the machine's time zone. The runner moved to UTC on Monday.",
+      },
+    ],
+  },
+  { id: "u2", role: "user", content: "Pin the zone in the fixture." },
+  {
+    id: "a2",
+    role: "assistant",
+    parts: [{ type: "tool", name: "edit", args: "test/setup.ts", status: "running" }],
+  },
+];
+
+/** The log view in the panel (`variant="log"`): the chat fills the panel with
+ *  no gutter and no frame, and its transcript is the dense log. The header
+ *  keeps the chat's inline padding and a rule under it. */
+export const Log: Story = () => {
+  const [open, setOpen] = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>(LOG_MESSAGES);
+  return (
+    <div style={{ blockSize: 520, border: "1px solid var(--sf-color-border-strong)" }}>
+      <ChatDrawer
+        variant="log"
+        open={open}
+        onOpenChange={setOpen}
+        title="Assistant"
+        defaultSize={420}
+        minSize={300}
+        maxSize={640}
+        working
+        messages={messages}
+        onSubmit={(text) =>
+          setMessages((prev) => [...prev, { id: String(Date.now()), role: "user", content: text }])
+        }
+        footer={[{ left: "~/ci (main)", right: "model-medium" }]}
+      >
+        <div style={{ padding: "var(--sf-unit)" }}>
+          <Button onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Open"} assistant</Button>
+        </div>
+      </ChatDrawer>
+    </div>
+  );
+};
+
 /** Coarser thinking-effect grain: `cellSize` sets the shade-block size in px
  *  (default 7); send a message to compare the chunkier dither. */
 export const CoarseGrain: Story = () => <Demo side="right" cellSize={14} />;
