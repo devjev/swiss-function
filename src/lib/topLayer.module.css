@@ -1,0 +1,34 @@
+/* A portal in the top layer (lib/topLayer.ts). The browser draws a popover as
+   a fixed box centred in the viewport, fit to its content, with a border,
+   padding, a scrollbar and the system colours. A portal is only a container:
+   a zero-size box at the top left of the viewport, which lets its floaters
+   overflow it and places an absolutely positioned one exactly where it sat at
+   the body. `:where` keeps the specificity at 0, and the rule applies only
+   while the portal is in the top layer. */
+:where(.portal:popover-open) {
+  position: fixed;
+  inset: 0 auto auto 0;
+  inline-size: 0;
+  block-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: none;
+  color: inherit;
+}
+
+/* An element lifted where it stands (the Outliner's keyboard bar): the
+   browser's popover look is taken back, and the element's own rules, all more
+   specific than this one, draw it. */
+:where(.lifted:popover-open) {
+  inset: auto;
+  inline-size: auto;
+  block-size: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: none;
+  color: inherit;
+}

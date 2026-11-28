@@ -193,6 +193,30 @@ Few's rules in the drawing: the measure is a thin bar centred in the band, the t
 - Many compound components are thin wrappers over Base UI (`@base-ui/react`);
   their parts forward props to the underlying primitive; see the Base UI docs
   for the full surface.
+- Overlays stack in the browser's top layer, in the order they open. Every
+  overlay's portal (Dialog, Drawer, Popover, Menu and ContextMenu, the MenuBar
+  dropdowns, the Picker, Selector and Combobox lists, the DatePicker calendar)
+  and the Outliner's keyboard bar enter the top layer as they mount
+  (`popover="manual"` and `showPopover()`), so the one opened last is on top:
+  a menu in a dialog, a dialog opened from a popover, a second dialog over the
+  first. No z-index decides between them, and a page element at any z-index
+  sits under them. A portal in the top layer is a zero-size box at the top left
+  of the viewport and draws nothing; its floaters are placed as at the body.
+  Dismissal, focus and scroll lock stay Base UI's. The `--sf-z-*` scale
+  (`-dropdown` 1000 to `-tooltip` 1400) orders what is not in the top layer: the
+  full-screen forms of Fullscreen, the charts, Graph, Map and ChatDrawer, and
+  every overlay in a browser without the Popover API (Firefox before 125,
+  Safari before 17), where the portals stack by a z-index from 1401 up, in the
+  order they opened.
+
+  An element of the app's own that must show above an open overlay (a toast, a
+  global progress bar) enters the top layer after it, since a z-index cannot
+  reach it:
+
+  ```ts
+  toast.setAttribute("popover", "manual");
+  toast.showPopover(); // again, after hidePopover(), to come back on top
+  ```
 
 **Components (A to Z):** BarChart · Box · BridgeChart · Button ·
 ButtonGroup · Chat · Checkbox · CodeEditor · DataTable · DatePicker · Dialog · DigitInput · DigitInputMicro · Dropzone ·

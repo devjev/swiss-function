@@ -1,10 +1,11 @@
 import type { Ref, SyntheticEvent } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cx } from "../../lib/cx";
 import { Glyph, type IconRenderer, type IconSlot } from "../../lib/icons";
+import { mergeRefs } from "../../lib/mergeRefs";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { liftPortal, topLayerLiftedClass } from "../../lib/topLayer";
 import { ArrowDown, ArrowUp, Indent, KeyboardHide, Outdent, Redo, Task, Undo } from "../Icon";
 import styles from "./Outliner.module.css";
 import { keyboardInset, type OutlinerCommand } from "./toolbar";
@@ -111,8 +112,9 @@ export function OutlinerToolbar({
   const provided = usePortalContainer();
   const target = provided ?? container;
   const inset = useKeyboardInset(target?.ownerDocument.defaultView ?? null);
-  // Above a Dialog, a Drawer or an expanded Fullscreen the outline sits in.
-  const layer = useStackLayer(Z_LAYER.overlay, false);
+  // The bar enters the top layer as it mounts (issue #83): above a Dialog or a
+  // Drawer the outline sits in, which are in the top layer themselves.
+  const ref = useMemo(() => mergeRefs<HTMLDivElement>(barRef, liftPortal), [barRef]);
 
   const placed = useRef(onPlaced);
   placed.current = onPlaced;
@@ -149,14 +151,14 @@ export function OutlinerToolbar({
 
   return createPortal(
     <div
-      ref={barRef}
+      ref={ref}
       role="toolbar"
       aria-label="Outline commands"
-      className={styles.toolbar}
+      className={cx(styles.toolbar, topLayerLiftedClass)}
       data-outliner-toolbar=""
       // Over the bottom edge of the window, the bar clears the home indicator.
       data-docked={inset === 0 || undefined}
-      style={{ insetBlockEnd: inset, zIndex: layer.zIndex }}
+      style={{ insetBlockEnd: inset }}
       onPointerDown={keepFocus}
       onMouseDown={keepFocus}
     >

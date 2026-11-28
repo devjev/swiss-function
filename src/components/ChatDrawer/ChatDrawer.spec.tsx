@@ -445,21 +445,14 @@ test("a MenuBar dropdown in the header of the maximized panel paints above it", 
   await page.getByRole("menuitem", { name: "Conversation" }).click();
   const item = page.getByRole("menuitem", { name: "Rename" });
   await expect(item).toBeVisible();
-  // The popup must beat the fullscreen panel's modal band, and be the element
-  // under the pointer (not the panel covering it).
+  // The popup is in the top layer, above the full-screen panel, and it is the
+  // element under the pointer (the panel does not cover it).
   const stacked = await item.evaluate((el) => {
-    const panel = document.querySelector('[class*="fullscreen"]');
-    const panelZ = panel ? Number.parseInt(getComputedStyle(panel).zIndex, 10) : 0;
-    let popupZ = 0;
-    for (let node: Element | null = el; node; node = node.parentElement) {
-      const z = Number.parseInt(getComputedStyle(node).zIndex, 10);
-      if (Number.isFinite(z)) popupZ = Math.max(popupZ, z);
-    }
     const r = el.getBoundingClientRect();
     const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return { above: popupZ > panelZ, hitInside: !!hit && el.contains(hit) };
+    return { topLayer: !!el.closest(":popover-open"), hitInside: !!hit && el.contains(hit) };
   });
-  expect(stacked).toEqual({ above: true, hitInside: true });
+  expect(stacked).toEqual({ topLayer: true, hitInside: true });
   await item.hover();
   await expect(item).toHaveCSS("background-color", /.+/);
 });

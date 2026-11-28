@@ -4,7 +4,6 @@ import { cx } from "../../lib/cx";
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { useVisibleInsets } from "../../lib/keyboard";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
 import { useCollapse } from "../../lib/useCollapse";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { type DragDelta, usePointerDrag } from "../../lib/usePointerDrag";
@@ -575,13 +574,6 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     />
   );
 
-  // Cross-portal stacking (issue #82): while expanded the panel is a modal-band
-  // overlay, so seed the band then (a MenuBar dropdown, a Picker or a Popover
-  // opened inside it climbs above the panel instead of painting under it) and
-  // climb above a host overlay when nested; at rest the panel pushes content
-  // aside and is no overlay at all.
-  const layer = useStackLayer(Z_LAYER.modal, true);
-
   // `--cd-effect-color` tints the default wash; `--cd-wash` (set only when the
   // consumer customizes it) overrides the whole wash colour, or disables it.
   const panelStyle = {
@@ -595,7 +587,6 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
     // fullscreen class, which kept full screen inside the container on a phone,
     // the one place it matters most.
     ...(expanded && { position: "fixed", inset: 0 }),
-    ...(expanded && layer.zIndex != null && { zIndex: layer.zIndex }),
   } as CSSProperties;
 
   return (
@@ -635,37 +626,35 @@ export const ChatDrawer = forwardRef<HTMLDivElement, ChatDrawerProps>(function C
           ) : null}
         </div>
         <div className={styles.content} style={contentStyle}>
-          <StackingProvider ceiling={expanded ? layer.ceiling : 0}>
-            {views && views.length > 0 ? (
-              <Tabs.Root
-                className={styles.views}
-                value={activeView}
-                defaultValue={defaultActiveView ?? views[0]?.id}
-                onValueChange={(value) => onActiveViewChange?.(value as string)}
-              >
-                <PanelHeader
-                  title={title}
-                  views={views}
-                  menu={menu}
-                  actions={actions}
-                  expanded={expanded}
-                  onToggleFullscreen={toggle}
-                />
-                {centered ? centeredBody(viewPanels) : viewPanels}
-              </Tabs.Root>
-            ) : (
-              <>
-                <PanelHeader
-                  title={title}
-                  menu={menu}
-                  actions={actions}
-                  expanded={expanded}
-                  onToggleFullscreen={toggle}
-                />
-                {centered ? centeredBody(chat) : <div className={styles.chatWrap}>{chat}</div>}
-              </>
-            )}
-          </StackingProvider>
+          {views && views.length > 0 ? (
+            <Tabs.Root
+              className={styles.views}
+              value={activeView}
+              defaultValue={defaultActiveView ?? views[0]?.id}
+              onValueChange={(value) => onActiveViewChange?.(value as string)}
+            >
+              <PanelHeader
+                title={title}
+                views={views}
+                menu={menu}
+                actions={actions}
+                expanded={expanded}
+                onToggleFullscreen={toggle}
+              />
+              {centered ? centeredBody(viewPanels) : viewPanels}
+            </Tabs.Root>
+          ) : (
+            <>
+              <PanelHeader
+                title={title}
+                menu={menu}
+                actions={actions}
+                expanded={expanded}
+                onToggleFullscreen={toggle}
+              />
+              {centered ? centeredBody(chat) : <div className={styles.chatWrap}>{chat}</div>}
+            </>
+          )}
         </div>
         {/* Recess overlay — casts the inset shadow over the whole panel. */}
         <div className={styles.recess} aria-hidden="true" />

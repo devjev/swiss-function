@@ -474,7 +474,10 @@
     --sf-safe-bottom: env(safe-area-inset-bottom, 0px);
     --sf-safe-left: env(safe-area-inset-left, 0px);
 
-    /* Z-indices */
+    /* Z-indices. Open overlays stack in the browser's top layer, in the order
+       they opened (lib/topLayer); this scale orders what is not in it (the
+       full-screen forms) and every overlay in a browser without the Popover
+       API, where portals stack from just above --sf-z-tooltip. */
     --sf-z-dropdown: 1000;
     --sf-z-overlay: 1100;
     --sf-z-modal: 1200;

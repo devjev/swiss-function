@@ -413,16 +413,21 @@ These are not suggestions.
   rings, or `--sf-focus-ring-width: 0` to disable them where a container
   already communicates focus (an active window frame, a focused pane).
   Never suppress a ring by out-specificity-ing component CSS.
-- **Stacking**: floaters carry the `--sf-z-*` scale (`-dropdown` 1000 …
-  `-tooltip` 1400), but a floater opened from *inside* an overlay (a
-  Picker/Selector/Combobox or MenuBar dropdown, a DatePicker calendar,
-  Menu/ContextMenu, Popover, or the Graph right-click menu, inside a
-  `Dialog`, `Drawer`, `Popover`, or expanded `Fullscreen`/`Graph`) lifts
-  above that overlay automatically: the overlay publishes its z-index
-  through a React context that crosses the body portal, and the floater
-  paints just above it (issue #82). You do **not** need app-side z-index
-  overrides for library floaters inside library overlays; if you carried
-  any, drop them.
+- **Stacking**: overlays stack in the browser's top layer, in the order
+  they open (issue #83). Every overlay's portal (Dialog, Drawer, Popover,
+  Menu/ContextMenu, MenuBar dropdowns, Picker/Selector/Combobox lists, the
+  DatePicker calendar) and the Outliner's keyboard bar enter it as they
+  mount, so the one opened last is on top: a menu in a dialog, a dialog
+  opened from a popover, a second dialog over the first. You do **not**
+  need app-side z-index overrides for library overlays; if you carried any,
+  drop them. A page element at any z-index sits under an open overlay: an
+  app's own toast that must show above a dialog enters the top layer after
+  it (`popover="manual"`, then `showPopover()`). The `--sf-z-*` scale
+  (`-dropdown` 1000 … `-tooltip` 1400) orders what is not in the top layer
+  (the full-screen forms, and every overlay where the browser has no Popover
+  API). A new component that renders a Base UI `Portal` passes
+  `useTopLayerPortalRef(ref)` and `topLayerPortalClass` from `lib/topLayer`
+  to it, as the Dialog and Menu wrappers do.
 
 ### Touch
 

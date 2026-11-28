@@ -26,7 +26,7 @@ import {
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import type { BoxElevation } from "../Box";
 import { ChevronDown, X } from "../Icon";
 import styles from "./DatePicker.module.css";
@@ -160,11 +160,10 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
   },
   ref,
 ) {
-  // Cross-portal stacking (issue #82): the calendar climbs above a Dialog/
-  // Popover it opens inside; inert at the page root (keeps the CSS default).
-  const { zIndex: stackZIndex, ceiling: stackCeiling } = useStackLayer(Z_LAYER.dropdown, false);
-  // Portal into the popped-out window's body when inside a PopOut (issue #84).
+  // Portal into the popped-out window's body when inside a PopOut (issue #84);
+  // the portal enters the top layer as it mounts (issue #83).
   const portalContainer = usePortalContainer();
+  const portalRef = useTopLayerPortalRef<HTMLDivElement>(undefined);
   const [today] = useState(() => startOfDay(new Date()));
   const [internal, setInternal] = useState<Date | null>(defaultValue ?? null);
   const isControlled = value !== undefined;
@@ -706,122 +705,350 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
         }}
         modal={false}
       >
-        <BasePopover.Portal container={portalContainer ?? undefined}>
-          <StackingProvider ceiling={stackCeiling}>
-            <BasePopover.Positioner
-              anchor={rootRef}
-              sideOffset={4}
-              align="start"
-              className={styles.positioner}
-              style={stackZIndex != null ? { zIndex: stackZIndex } : undefined}
+        <BasePopover.Portal
+          ref={portalRef}
+          container={portalContainer ?? undefined}
+          className={topLayerPortalClass}
+        >
+          <BasePopover.Positioner
+            anchor={rootRef}
+            sideOffset={4}
+            align="start"
+            className={styles.positioner}
+          >
+            <BasePopover.Popup
+              ref={popupRef}
+              className={styles.popup}
+              data-path={pathMode || undefined}
+              initialFocus={false}
+              finalFocus={false}
             >
-              <BasePopover.Popup
-                ref={popupRef}
-                className={styles.popup}
-                data-path={pathMode || undefined}
-                initialFocus={false}
-                finalFocus={false}
-              >
-                {pathMode ? (
-                  <>
-                    {/* The trail: where the path is, and a way back up it. The
+              {pathMode ? (
+                <>
+                  {/* The trail: where the path is, and a way back up it. The
                         paddles step the context (the year over a month, the
                         month over a day, a page of years at the top). */}
-                    <div className={styles.header}>
-                      <button
-                        type="button"
-                        className={styles.nav}
-                        aria-label={`Previous ${paddleLabel}`}
-                        onClick={() => stepPaddle(-1)}
-                      >
-                        ‹
-                      </button>
-                      <div className={styles.trail}>
-                        {stepTrail.map((crumb, i) => (
-                          <Fragment key={crumb.key}>
-                            {i > 0 ? (
-                              <span aria-hidden="true" className={styles.trailSeparator}>
-                                ›
-                              </span>
-                            ) : null}
-                            {crumb.index != null ? (
-                              <button
-                                type="button"
-                                className={styles.crumb}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => setStepIndex(crumb.index as number)}
-                              >
-                                {crumb.label}
-                              </button>
-                            ) : (
-                              <span className={styles.crumbStatic}>{crumb.label}</span>
-                            )}
-                          </Fragment>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.nav}
-                        aria-label={`Next ${paddleLabel}`}
-                        onClick={() => stepPaddle(1)}
-                      >
-                        ›
-                      </button>
+                  <div className={styles.header}>
+                    <button
+                      type="button"
+                      className={styles.nav}
+                      aria-label={`Previous ${paddleLabel}`}
+                      onClick={() => stepPaddle(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div className={styles.trail}>
+                      {stepTrail.map((crumb, i) => (
+                        <Fragment key={crumb.key}>
+                          {i > 0 ? (
+                            <span aria-hidden="true" className={styles.trailSeparator}>
+                              ›
+                            </span>
+                          ) : null}
+                          {crumb.index != null ? (
+                            <button
+                              type="button"
+                              className={styles.crumb}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => setStepIndex(crumb.index as number)}
+                            >
+                              {crumb.label}
+                            </button>
+                          ) : (
+                            <span className={styles.crumbStatic}>{crumb.label}</span>
+                          )}
+                        </Fragment>
+                      ))}
                     </div>
+                    <button
+                      type="button"
+                      className={styles.nav}
+                      aria-label={`Next ${paddleLabel}`}
+                      onClick={() => stepPaddle(1)}
+                    >
+                      ›
+                    </button>
+                  </div>
 
-                    {stepLevel === "day" ? (
-                      /* The day step is the calendar's own grid: a week's seven
+                  {stepLevel === "day" ? (
+                    /* The day step is the calendar's own grid: a week's seven
                          days in one row, or the month the step sits in. */
-                      <table
-                        id={gridId}
-                        ref={(el) => {
-                          gridRef.current = el;
-                        }}
-                        aria-label="Pick a day"
-                        className={styles.calendar}
-                        onKeyDown={handleStepKeyDown}
-                      >
-                        <thead>
-                          <tr>
-                            {weekdays.map((w) => (
-                              <th key={w} scope="col" className={styles.weekdayLabel}>
-                                {w}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stepDayRows.map((row) => (
-                            <tr key={formatISODate(row[0]?.date ?? focusDate)}>
-                              {row.map(({ date, inMonth }) => {
-                                const iso = formatISODate(date);
-                                if (!inMonth) {
-                                  return (
-                                    <td key={iso} className={styles.dayStatic} data-outside="">
-                                      {date.getDate()}
-                                    </td>
-                                  );
-                                }
-                                const isSel = selected ? isSameDay(date, selected) : false;
+                    <table
+                      id={gridId}
+                      ref={(el) => {
+                        gridRef.current = el;
+                      }}
+                      aria-label="Pick a day"
+                      className={styles.calendar}
+                      onKeyDown={handleStepKeyDown}
+                    >
+                      <thead>
+                        <tr>
+                          {weekdays.map((w) => (
+                            <th key={w} scope="col" className={styles.weekdayLabel}>
+                              {w}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stepDayRows.map((row) => (
+                          <tr key={formatISODate(row[0]?.date ?? focusDate)}>
+                            {row.map(({ date, inMonth }) => {
+                              const iso = formatISODate(date);
+                              if (!inMonth) {
                                 return (
-                                  <td key={iso}>
+                                  <td key={iso} className={styles.dayStatic} data-outside="">
+                                    {date.getDate()}
+                                  </td>
+                                );
+                              }
+                              const isSel = selected ? isSameDay(date, selected) : false;
+                              return (
+                                <td key={iso}>
+                                  <button
+                                    type="button"
+                                    className={styles.day}
+                                    tabIndex={
+                                      stepOptions[stepFocusIndex] &&
+                                      isSameDay(date, stepOptions[stepFocusIndex] as Date)
+                                        ? 0
+                                        : -1
+                                    }
+                                    disabled={isLevelDisabled(date, "day")}
+                                    aria-label={iso}
+                                    aria-pressed={isSel}
+                                    data-step={iso}
+                                    data-selected={isSel || undefined}
+                                    data-today={isSameDay(date, today) || undefined}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => pickStep(date)}
+                                  >
+                                    {date.getDate()}
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div
+                      id={gridId}
+                      ref={(el) => {
+                        gridRef.current = el;
+                      }}
+                      role="listbox"
+                      aria-label={`Pick a ${stepLevel}`}
+                      className={cx(styles.periodGrid, stepLevel === "week" && styles.stepScroll)}
+                      data-cols={stepCols}
+                      onKeyDown={handleStepKeyDown}
+                    >
+                      {stepOptions.map((d, i) => {
+                        const isSel = selected ? isSamePeriod(d, selected, stepLevel) : false;
+                        return (
+                          <button
+                            key={formatISODate(d)}
+                            type="button"
+                            role="option"
+                            className={styles.periodCell}
+                            tabIndex={i === stepFocusIndex ? 0 : -1}
+                            disabled={isLevelDisabled(d, stepLevel)}
+                            aria-selected={isSel}
+                            aria-label={optionAriaLabel(d, stepLevel)}
+                            data-step={formatISODate(d)}
+                            data-selected={isSel || undefined}
+                            data-today={isSamePeriod(d, today, stepLevel) || undefined}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => pickStep(d)}
+                          >
+                            {optionLabel(d, stepLevel)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* What the step is asking for, announced as it changes. */}
+                  <div className={styles.echo} aria-live="polite">
+                    {`Pick a ${stepLevel}`}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.header}>
+                    <button
+                      type="button"
+                      className={styles.nav}
+                      aria-label={`Previous ${navUnit}`}
+                      onClick={() => navBy(-1)}
+                    >
+                      ‹
+                    </button>
+                    <div className={styles.monthLabel}>{headerLabel}</div>
+                    <button
+                      type="button"
+                      className={styles.nav}
+                      aria-label={`Next ${navUnit}`}
+                      onClick={() => navBy(1)}
+                    >
+                      ›
+                    </button>
+                  </div>
+
+                  {listboxGrid ? (
+                    /* Month/year precision: a flat single-select grid of 12
+                   periods — listbox/option semantics, roving tabindex. */
+                    <div
+                      id={gridId}
+                      ref={(el) => {
+                        gridRef.current = el;
+                      }}
+                      role="listbox"
+                      aria-label={`Calendar, ${headerLabel}`}
+                      className={styles.periodGrid}
+                      onKeyDown={handleGridKeyDown}
+                    >
+                      {periodCells.map((date) => {
+                        const isSel = selected ? isSamePeriod(date, selected, precision) : false;
+                        const key =
+                          precision === "month"
+                            ? formatISOMonth(date.getFullYear(), date.getMonth())
+                            : formatISOYear(date.getFullYear());
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            role="option"
+                            className={styles.periodCell}
+                            tabIndex={isSamePeriod(date, focusDate, precision) ? 0 : -1}
+                            disabled={isPeriodDisabled(date)}
+                            aria-selected={isSel}
+                            aria-label={
+                              precision === "month"
+                                ? date.toLocaleDateString(undefined, {
+                                    month: "long",
+                                    year: "numeric",
+                                  })
+                                : key
+                            }
+                            data-month={precision === "month" ? key : undefined}
+                            data-year={precision === "year" ? key : undefined}
+                            data-selected={isSel || undefined}
+                            data-today={isSamePeriod(date, today, precision) || undefined}
+                            data-candidate={isCandidatePeriod(date) || undefined}
+                            onClick={() => commit(date)}
+                          >
+                            {precision === "month"
+                              ? date.toLocaleDateString(undefined, { month: "short" })
+                              : key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* A real <table> — a month IS tabular data, and the native
+                   row/columnheader/gridcell semantics come free. Roving
+                   tabindex: exactly one day (or week) button is tabbable. */
+                    <table
+                      id={gridId}
+                      ref={(el) => {
+                        gridRef.current = el;
+                      }}
+                      aria-label={`Calendar, ${monthLabel}`}
+                      className={styles.calendar}
+                      onKeyDown={handleGridKeyDown}
+                    >
+                      <thead>
+                        <tr>
+                          {weekColumn ? <th className={styles.weekdayLabel} /> : null}
+                          {weekdays.map((w) => (
+                            <th key={w} scope="col" className={styles.weekdayLabel}>
+                              {w}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => {
+                          const first = row[0];
+                          if (!first) return null;
+                          if (precision === "week") {
+                            // Rows start on Monday, so the first cell IS the week.
+                            const monday = first.date;
+                            const weekDisabled = isPeriodDisabled(monday);
+                            const isSel = selected ? isSamePeriod(monday, selected, "week") : false;
+                            return (
+                              <tr
+                                key={formatISODate(monday)}
+                                className={styles.weekRow}
+                                data-selected={isSel || undefined}
+                                data-candidate={isCandidatePeriod(monday) || undefined}
+                                data-disabled={weekDisabled || undefined}
+                                onClick={weekDisabled ? undefined : () => commit(monday)}
+                              >
+                                <th scope="row" className={styles.weekNumber}>
+                                  <button
+                                    type="button"
+                                    className={styles.weekButton}
+                                    tabIndex={isSamePeriod(monday, focusDate, "week") ? 0 : -1}
+                                    disabled={weekDisabled}
+                                    aria-label={`Week ${isoWeek(monday)}, ${isoWeekYear(monday)}`}
+                                    aria-pressed={isSel}
+                                    data-week={formatISOWeek(monday)}
+                                  >
+                                    {isoWeek(monday)}
+                                  </button>
+                                </th>
+                                {row.map(({ date, inMonth }) => (
+                                  <td
+                                    key={formatISODate(date)}
+                                    className={styles.dayStatic}
+                                    data-outside={!inMonth || undefined}
+                                    data-today={isSameDay(date, today) || undefined}
+                                  >
+                                    {date.getDate()}
+                                  </td>
+                                ))}
+                              </tr>
+                            );
+                          }
+                          return (
+                            <tr key={formatISODate(first.date)}>
+                              {weekColumn ? (
+                                <th
+                                  scope="row"
+                                  aria-label={`Week ${isoWeek(first.date)}`}
+                                  className={styles.weekNumber}
+                                >
+                                  {isoWeek(first.date)}
+                                </th>
+                              ) : null}
+                              {row.map(({ date, inMonth }) => {
+                                const isoDay = formatISODate(date);
+                                const isSelected = selected ? isSameDay(date, selected) : false;
+                                const isFocus = isSameDay(date, focusDate);
+                                const dayDisabled = isPeriodDisabled(date);
+                                const candidate =
+                                  parsed?.dayPrefix != null &&
+                                  inMonth &&
+                                  String(date.getDate()).startsWith(parsed.dayPrefix);
+                                return (
+                                  <td key={isoDay}>
                                     <button
                                       type="button"
                                       className={styles.day}
-                                      tabIndex={
-                                        stepOptions[stepFocusIndex] &&
-                                        isSameDay(date, stepOptions[stepFocusIndex] as Date)
-                                          ? 0
-                                          : -1
-                                      }
-                                      disabled={isLevelDisabled(date, "day")}
-                                      aria-label={iso}
-                                      aria-pressed={isSel}
-                                      data-step={iso}
-                                      data-selected={isSel || undefined}
+                                      tabIndex={isFocus ? 0 : -1}
+                                      disabled={dayDisabled}
+                                      aria-label={isoDay}
+                                      aria-pressed={isSelected}
+                                      data-iso={isoDay}
+                                      data-selected={isSelected || undefined}
+                                      data-outside={!inMonth || undefined}
                                       data-today={isSameDay(date, today) || undefined}
-                                      onMouseDown={(e) => e.preventDefault()}
-                                      onClick={() => pickStep(date)}
+                                      data-candidate={candidate || undefined}
+                                      onClick={() => commit(date)}
                                     >
                                       {date.getDate()}
                                     </button>
@@ -829,250 +1056,21 @@ export const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(function D
                                 );
                               })}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <div
-                        id={gridId}
-                        ref={(el) => {
-                          gridRef.current = el;
-                        }}
-                        role="listbox"
-                        aria-label={`Pick a ${stepLevel}`}
-                        className={cx(styles.periodGrid, stepLevel === "week" && styles.stepScroll)}
-                        data-cols={stepCols}
-                        onKeyDown={handleStepKeyDown}
-                      >
-                        {stepOptions.map((d, i) => {
-                          const isSel = selected ? isSamePeriod(d, selected, stepLevel) : false;
-                          return (
-                            <button
-                              key={formatISODate(d)}
-                              type="button"
-                              role="option"
-                              className={styles.periodCell}
-                              tabIndex={i === stepFocusIndex ? 0 : -1}
-                              disabled={isLevelDisabled(d, stepLevel)}
-                              aria-selected={isSel}
-                              aria-label={optionAriaLabel(d, stepLevel)}
-                              data-step={formatISODate(d)}
-                              data-selected={isSel || undefined}
-                              data-today={isSamePeriod(d, today, stepLevel) || undefined}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => pickStep(d)}
-                            >
-                              {optionLabel(d, stepLevel)}
-                            </button>
                           );
                         })}
-                      </div>
-                    )}
+                      </tbody>
+                    </table>
+                  )}
 
-                    {/* What the step is asking for, announced as it changes. */}
-                    <div className={styles.echo} aria-live="polite">
-                      {`Pick a ${stepLevel}`}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className={styles.header}>
-                      <button
-                        type="button"
-                        className={styles.nav}
-                        aria-label={`Previous ${navUnit}`}
-                        onClick={() => navBy(-1)}
-                      >
-                        ‹
-                      </button>
-                      <div className={styles.monthLabel}>{headerLabel}</div>
-                      <button
-                        type="button"
-                        className={styles.nav}
-                        aria-label={`Next ${navUnit}`}
-                        onClick={() => navBy(1)}
-                      >
-                        ›
-                      </button>
-                    </div>
-
-                    {listboxGrid ? (
-                      /* Month/year precision: a flat single-select grid of 12
-                   periods — listbox/option semantics, roving tabindex. */
-                      <div
-                        id={gridId}
-                        ref={(el) => {
-                          gridRef.current = el;
-                        }}
-                        role="listbox"
-                        aria-label={`Calendar, ${headerLabel}`}
-                        className={styles.periodGrid}
-                        onKeyDown={handleGridKeyDown}
-                      >
-                        {periodCells.map((date) => {
-                          const isSel = selected ? isSamePeriod(date, selected, precision) : false;
-                          const key =
-                            precision === "month"
-                              ? formatISOMonth(date.getFullYear(), date.getMonth())
-                              : formatISOYear(date.getFullYear());
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              role="option"
-                              className={styles.periodCell}
-                              tabIndex={isSamePeriod(date, focusDate, precision) ? 0 : -1}
-                              disabled={isPeriodDisabled(date)}
-                              aria-selected={isSel}
-                              aria-label={
-                                precision === "month"
-                                  ? date.toLocaleDateString(undefined, {
-                                      month: "long",
-                                      year: "numeric",
-                                    })
-                                  : key
-                              }
-                              data-month={precision === "month" ? key : undefined}
-                              data-year={precision === "year" ? key : undefined}
-                              data-selected={isSel || undefined}
-                              data-today={isSamePeriod(date, today, precision) || undefined}
-                              data-candidate={isCandidatePeriod(date) || undefined}
-                              onClick={() => commit(date)}
-                            >
-                              {precision === "month"
-                                ? date.toLocaleDateString(undefined, { month: "short" })
-                                : key}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      /* A real <table> — a month IS tabular data, and the native
-                   row/columnheader/gridcell semantics come free. Roving
-                   tabindex: exactly one day (or week) button is tabbable. */
-                      <table
-                        id={gridId}
-                        ref={(el) => {
-                          gridRef.current = el;
-                        }}
-                        aria-label={`Calendar, ${monthLabel}`}
-                        className={styles.calendar}
-                        onKeyDown={handleGridKeyDown}
-                      >
-                        <thead>
-                          <tr>
-                            {weekColumn ? <th className={styles.weekdayLabel} /> : null}
-                            {weekdays.map((w) => (
-                              <th key={w} scope="col" className={styles.weekdayLabel}>
-                                {w}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rows.map((row) => {
-                            const first = row[0];
-                            if (!first) return null;
-                            if (precision === "week") {
-                              // Rows start on Monday, so the first cell IS the week.
-                              const monday = first.date;
-                              const weekDisabled = isPeriodDisabled(monday);
-                              const isSel = selected
-                                ? isSamePeriod(monday, selected, "week")
-                                : false;
-                              return (
-                                <tr
-                                  key={formatISODate(monday)}
-                                  className={styles.weekRow}
-                                  data-selected={isSel || undefined}
-                                  data-candidate={isCandidatePeriod(monday) || undefined}
-                                  data-disabled={weekDisabled || undefined}
-                                  onClick={weekDisabled ? undefined : () => commit(monday)}
-                                >
-                                  <th scope="row" className={styles.weekNumber}>
-                                    <button
-                                      type="button"
-                                      className={styles.weekButton}
-                                      tabIndex={isSamePeriod(monday, focusDate, "week") ? 0 : -1}
-                                      disabled={weekDisabled}
-                                      aria-label={`Week ${isoWeek(monday)}, ${isoWeekYear(monday)}`}
-                                      aria-pressed={isSel}
-                                      data-week={formatISOWeek(monday)}
-                                    >
-                                      {isoWeek(monday)}
-                                    </button>
-                                  </th>
-                                  {row.map(({ date, inMonth }) => (
-                                    <td
-                                      key={formatISODate(date)}
-                                      className={styles.dayStatic}
-                                      data-outside={!inMonth || undefined}
-                                      data-today={isSameDay(date, today) || undefined}
-                                    >
-                                      {date.getDate()}
-                                    </td>
-                                  ))}
-                                </tr>
-                              );
-                            }
-                            return (
-                              <tr key={formatISODate(first.date)}>
-                                {weekColumn ? (
-                                  <th
-                                    scope="row"
-                                    aria-label={`Week ${isoWeek(first.date)}`}
-                                    className={styles.weekNumber}
-                                  >
-                                    {isoWeek(first.date)}
-                                  </th>
-                                ) : null}
-                                {row.map(({ date, inMonth }) => {
-                                  const isoDay = formatISODate(date);
-                                  const isSelected = selected ? isSameDay(date, selected) : false;
-                                  const isFocus = isSameDay(date, focusDate);
-                                  const dayDisabled = isPeriodDisabled(date);
-                                  const candidate =
-                                    parsed?.dayPrefix != null &&
-                                    inMonth &&
-                                    String(date.getDate()).startsWith(parsed.dayPrefix);
-                                  return (
-                                    <td key={isoDay}>
-                                      <button
-                                        type="button"
-                                        className={styles.day}
-                                        tabIndex={isFocus ? 0 : -1}
-                                        disabled={dayDisabled}
-                                        aria-label={isoDay}
-                                        aria-pressed={isSelected}
-                                        data-iso={isoDay}
-                                        data-selected={isSelected || undefined}
-                                        data-outside={!inMonth || undefined}
-                                        data-today={isSameDay(date, today) || undefined}
-                                        data-candidate={candidate || undefined}
-                                        onClick={() => commit(date)}
-                                      >
-                                        {date.getDate()}
-                                      </button>
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    )}
-
-                    {/* Parse echo — what Enter will commit. Fixed height so the popup
+                  {/* Parse echo — what Enter will commit. Fixed height so the popup
                   doesn't jump while typing. */}
-                    <div className={styles.echo} aria-live="polite">
-                      {echo}
-                    </div>
-                  </>
-                )}
-              </BasePopover.Popup>
-            </BasePopover.Positioner>
-          </StackingProvider>
+                  <div className={styles.echo} aria-live="polite">
+                    {echo}
+                  </div>
+                </>
+              )}
+            </BasePopover.Popup>
+          </BasePopover.Positioner>
         </BasePopover.Portal>
       </BasePopover.Root>
     </div>

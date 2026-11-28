@@ -5,7 +5,7 @@ import { mergeClassName } from "../../lib/cx";
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import { ChevronDown } from "../Icon";
 import styles from "./Combobox.module.css";
 
@@ -13,12 +13,20 @@ const Root = BaseCombobox.Root;
 const Empty = BaseCombobox.Empty;
 
 // Portal into the popped-out window's body when inside a PopOut (issue #84);
-// `undefined` at the app root keeps Base UI's default (the document body).
+// `undefined` at the app root keeps Base UI's default (the document body). The
+// portal enters the browser's top layer as it mounts (lib/topLayer, issue #83),
+// so the overlay opened last is on top.
 const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseCombobox.Portal>>(
-  function ComboboxPortal({ container, ...rest }, ref) {
+  function ComboboxPortal({ container, className, ...rest }, ref) {
     const fallback = usePortalContainer();
+    const layerRef = useTopLayerPortalRef(ref);
     return (
-      <BaseCombobox.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />
+      <BaseCombobox.Portal
+        {...rest}
+        ref={layerRef}
+        container={container ?? fallback ?? undefined}
+        className={mergeClassName(topLayerPortalClass, className)}
+      />
     );
   },
 );
@@ -47,25 +55,19 @@ const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<typeof BaseC
 );
 
 // The positioner establishes the popup's stacking context (Base UI applies a
-// `transform`), so its own z-index — not the popup's — is what stacks against
-// page content like a DataTable's sticky header. Carry the dropdown z-index
-// here so the popup reliably paints above such content (fixes issue #2).
+// `transform`). Where the browser has no top layer, its z-index
+// (`--sf-z-dropdown`) is what stacks against page content like a DataTable's
+// sticky header (issue #2).
 const Positioner = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof BaseCombobox.Positioner>
->(function ComboboxPositioner({ className, style, ...rest }, ref) {
-  // Cross-portal stacking (issue #82): a dropdown opened inside a Dialog/Popover
-  // must paint above it. At the page root this is inert (keeps the CSS default).
-  const { zIndex, ceiling } = useStackLayer(Z_LAYER.dropdown, false);
+>(function ComboboxPositioner({ className, ...rest }, ref) {
   return (
-    <StackingProvider ceiling={ceiling}>
-      <BaseCombobox.Positioner
-        {...rest}
-        ref={ref}
-        style={zIndex != null ? { ...style, zIndex } : style}
-        className={mergeClassName(styles.positioner, className)}
-      />
-    </StackingProvider>
+    <BaseCombobox.Positioner
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.positioner, className)}
+    />
   );
 });
 

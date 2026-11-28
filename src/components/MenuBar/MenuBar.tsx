@@ -6,7 +6,7 @@ import { cx, mergeClassName } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { mergeRefs } from "../../lib/mergeRefs";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import { useCollapse } from "../../lib/useCollapse";
 import { useOverflow } from "../../lib/useOverflow";
 import { Box } from "../Box";
@@ -295,32 +295,27 @@ const Content = forwardRef<HTMLDivElement, MenuBarContentProps>(function MenuBar
   const position = useContext(PositionContext);
   // Bar at top → menus open down (side="bottom"); bar at bottom → open up.
   const side = position === "bottom" ? "top" : "bottom";
-  // Cross-portal stacking (issue #82): a MenuBar dropdown opened while the bar
-  // sits inside a Dialog/Drawer climbs above it; inert at the page root.
-  const { zIndex, ceiling } = useStackLayer(Z_LAYER.dropdown, false);
-  // Portal into the popped-out window's body when inside a PopOut (issue #84).
+  // Portal into the popped-out window's body when inside a PopOut (issue #84);
+  // the portal enters the top layer as it mounts (issue #83).
   const portalContainer = usePortalContainer();
+  const portalRef = useTopLayerPortalRef<HTMLDivElement>(undefined);
   return (
-    <BaseMenu.Portal container={portalContainer ?? undefined}>
-      <StackingProvider ceiling={ceiling}>
-        <BaseMenu.Positioner
-          className={styles.positioner}
-          side={side}
-          sideOffset={4}
-          align="start"
-          style={zIndex != null ? { zIndex } : undefined}
+    <BaseMenu.Portal
+      ref={portalRef}
+      container={portalContainer ?? undefined}
+      className={topLayerPortalClass}
+    >
+      <BaseMenu.Positioner className={styles.positioner} side={side} sideOffset={4} align="start">
+        <BaseMenu.Popup
+          {...rest}
+          ref={ref}
+          className={mergeClassName(styles.popup, className)}
+          render={<Box elevation={3} padding={0.25} />}
+          finalFocus={finalFocus ?? (returnFocus ? undefined : false)}
         >
-          <BaseMenu.Popup
-            {...rest}
-            ref={ref}
-            className={mergeClassName(styles.popup, className)}
-            render={<Box elevation={3} padding={0.25} />}
-            finalFocus={finalFocus ?? (returnFocus ? undefined : false)}
-          >
-            <InMenuContext.Provider value={true}>{children}</InMenuContext.Provider>
-          </BaseMenu.Popup>
-        </BaseMenu.Positioner>
-      </StackingProvider>
+          <InMenuContext.Provider value={true}>{children}</InMenuContext.Provider>
+        </BaseMenu.Popup>
+      </BaseMenu.Positioner>
     </BaseMenu.Portal>
   );
 });

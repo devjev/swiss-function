@@ -3,7 +3,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import { Box } from "../Box";
 import styles from "./Popover.module.css";
 
@@ -13,39 +13,38 @@ const Arrow = BasePopover.Arrow;
 const Close = BasePopover.Close;
 
 // Portal into the popped-out window's body when inside a PopOut (issue #84);
-// `undefined` at the app root keeps Base UI's default (the document body).
+// `undefined` at the app root keeps Base UI's default (the document body). The
+// portal enters the browser's top layer as it mounts (lib/topLayer, issue #83),
+// so the overlay opened last is on top.
 const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BasePopover.Portal>>(
-  function PopoverPortal({ container, ...rest }, ref) {
+  function PopoverPortal({ container, className, ...rest }, ref) {
     const fallback = usePortalContainer();
+    const layerRef = useTopLayerPortalRef(ref);
     return (
-      <BasePopover.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />
+      <BasePopover.Portal
+        {...rest}
+        ref={layerRef}
+        container={container ?? fallback ?? undefined}
+        className={mergeClassName(topLayerPortalClass, className)}
+      />
     );
   },
 );
 
 // Base UI positions the popup with an inline `transform`, which creates a
-// stacking context — so the popup's own `z-index` is trapped inside it and inert
-// at the page root. The tier must live on the positioner to win against
-// positioned page content (e.g. a DataTable sticky header). Same fix as the
-// Menu/Combobox positioners.
+// stacking context, so the popup's own `z-index` is trapped inside it. Where the
+// browser has no top layer, the positioner's z-index (`--sf-z-popover`) orders
+// it against positioned page content (e.g. a DataTable sticky header).
 const Positioner = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof BasePopover.Positioner>
->(function PopoverPositioner({ className, style, ...rest }, ref) {
-  // Cross-portal stacking (issue #82): a Popover is a *seed* — it holds
-  // arbitrary content, so it establishes its band as the ceiling for anything
-  // opened inside it (a Picker/DatePicker in a Popover clears the Popover even
-  // at the page root), and climbs above a Dialog/Drawer when opened within one.
-  const { zIndex, ceiling } = useStackLayer(Z_LAYER.popover, true);
+>(function PopoverPositioner({ className, ...rest }, ref) {
   return (
-    <StackingProvider ceiling={ceiling}>
-      <BasePopover.Positioner
-        {...rest}
-        ref={ref}
-        style={zIndex != null ? { ...style, zIndex } : style}
-        className={mergeClassName(styles.positioner, className)}
-      />
-    </StackingProvider>
+    <BasePopover.Positioner
+      {...rest}
+      ref={ref}
+      className={mergeClassName(styles.positioner, className)}
+    />
   );
 });
 

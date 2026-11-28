@@ -3,7 +3,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
 import { mergeClassName } from "../../lib/cx";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import styles from "./Drawer.module.css";
 
 export type DrawerSide = "left" | "right" | "bottom";
@@ -27,11 +27,21 @@ const Trigger = BaseDrawer.Trigger;
 const Close = BaseDrawer.Close;
 
 // Portal into the popped-out window's body when inside a PopOut (issue #84);
-// `undefined` at the app root keeps Base UI's default (the document body).
+// `undefined` at the app root keeps Base UI's default (the document body). The
+// portal enters the browser's top layer as it mounts (lib/topLayer, issue #83),
+// so the overlay opened last is on top.
 const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDrawer.Portal>>(
-  function DrawerPortal({ container, ...rest }, ref) {
+  function DrawerPortal({ container, className, ...rest }, ref) {
     const fallback = usePortalContainer();
-    return <BaseDrawer.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />;
+    const layerRef = useTopLayerPortalRef(ref);
+    return (
+      <BaseDrawer.Portal
+        {...rest}
+        ref={layerRef}
+        container={container ?? fallback ?? undefined}
+        className={mergeClassName(topLayerPortalClass, className)}
+      />
+    );
   },
 );
 
@@ -48,20 +58,9 @@ const Backdrop = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof Base
 );
 
 const Popup = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDrawer.Popup>>(
-  function DrawerPopup({ className, style, ...rest }, ref) {
-    // Cross-portal stacking (issue #82): seed the modal band so a floater opened
-    // inside the drawer paints above it, and climb when the drawer is itself
-    // opened inside another overlay.
-    const { zIndex, ceiling } = useStackLayer(Z_LAYER.modal, true);
+  function DrawerPopup({ className, ...rest }, ref) {
     return (
-      <StackingProvider ceiling={ceiling}>
-        <BaseDrawer.Popup
-          {...rest}
-          ref={ref}
-          style={zIndex != null ? { ...style, zIndex } : style}
-          className={mergeClassName(styles.popup, className)}
-        />
-      </StackingProvider>
+      <BaseDrawer.Popup {...rest} ref={ref} className={mergeClassName(styles.popup, className)} />
     );
   },
 );

@@ -19,7 +19,7 @@ import { cx, mergeClassName } from "../../lib/cx";
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import { usePortalContainer } from "../../lib/portalContainer";
-import { StackingProvider, useStackLayer, Z_LAYER } from "../../lib/stacking";
+import { topLayerPortalClass, useTopLayerPortalRef } from "../../lib/topLayer";
 import { useFullscreen } from "../../lib/useFullscreen";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { usePointerDrag } from "../../lib/usePointerDrag";
@@ -34,11 +34,21 @@ const Trigger = BaseDialog.Trigger;
 const Close = BaseDialog.Close;
 
 // Portal into the popped-out window's body when inside a PopOut (issue #84);
-// `undefined` at the app root keeps Base UI's default (the document body).
+// `undefined` at the app root keeps Base UI's default (the document body). The
+// portal enters the browser's top layer as it mounts (lib/topLayer, issue #83),
+// so the overlay opened last is on top.
 const Portal = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof BaseDialog.Portal>>(
-  function DialogPortal({ container, ...rest }, ref) {
+  function DialogPortal({ container, className, ...rest }, ref) {
     const fallback = usePortalContainer();
-    return <BaseDialog.Portal ref={ref} container={container ?? fallback ?? undefined} {...rest} />;
+    const layerRef = useTopLayerPortalRef(ref);
+    return (
+      <BaseDialog.Portal
+        {...rest}
+        ref={layerRef}
+        container={container ?? fallback ?? undefined}
+        className={mergeClassName(topLayerPortalClass, className)}
+      />
+    );
   },
 );
 
@@ -333,10 +343,6 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
     [draggable, expanded, forcedFullscreen, onHandlePointerDown, toggle, popped, togglePopOut],
   );
 
-  // Cross-portal stacking (issue #82): seed the modal band so a floater opened
-  // inside the dialog paints above it, and climb when nested in another overlay.
-  const { zIndex, ceiling } = useStackLayer(Z_LAYER.modal, true);
-
   return (
     <BaseDialog.Popup
       {...rest}
@@ -346,39 +352,37 @@ const Popup = forwardRef<HTMLDivElement, PopupProps>(function DialogPopup(
         className,
       )}
       data-popped={popped ? "" : undefined}
-      style={{ ...dragStyle, ...sizeStyle, ...style, ...(zIndex != null && { zIndex }) }}
+      style={{ ...dragStyle, ...sizeStyle, ...style }}
     >
-      <StackingProvider ceiling={ceiling}>
-        <PopupContext.Provider value={ctx}>
-          {popped &&
-            (popOutPlaceholder ?? (
-              <div className={styles.popped}>
-                <p className={styles.poppedText}>This dialog is open in a separate window.</p>
-                <div className={styles.poppedActions}>
-                  <Button variant="secondary" size="sm" onClick={() => setPopped(false)}>
-                    Bring back
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => popWinRef.current?.focus()}>
-                    Show window
-                  </Button>
-                </div>
+      <PopupContext.Provider value={ctx}>
+        {popped &&
+          (popOutPlaceholder ?? (
+            <div className={styles.popped}>
+              <p className={styles.poppedText}>This dialog is open in a separate window.</p>
+              <div className={styles.poppedActions}>
+                <Button variant="secondary" size="sm" onClick={() => setPopped(false)}>
+                  Bring back
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => popWinRef.current?.focus()}>
+                  Show window
+                </Button>
               </div>
-            ))}
-          <PopOutWindow
-            open={popped}
-            onOpenChange={(next) => {
-              if (next !== popped) setPopped(next);
-            }}
-            title={popOutTitle}
-            rect={popRectRef.current}
-            pip={popOutPip}
-            windowRef={popWinRef}
-            className={styles.poppedSurface}
-          >
-            {children}
-          </PopOutWindow>
-        </PopupContext.Provider>
-      </StackingProvider>
+            </div>
+          ))}
+        <PopOutWindow
+          open={popped}
+          onOpenChange={(next) => {
+            if (next !== popped) setPopped(next);
+          }}
+          title={popOutTitle}
+          rect={popRectRef.current}
+          pip={popOutPip}
+          windowRef={popWinRef}
+          className={styles.poppedSurface}
+        >
+          {children}
+        </PopOutWindow>
+      </PopupContext.Provider>
       {resizable && !expanded && !popped && (
         <>
           {/* Edges first, then corners — corners must come later in the DOM so

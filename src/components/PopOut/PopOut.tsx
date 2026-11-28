@@ -26,7 +26,6 @@ import {
 import { cx } from "../../lib/cx";
 import { Glyph } from "../../lib/icons";
 import { PortalContainerProvider } from "../../lib/portalContainer";
-import { StackingProvider } from "../../lib/stacking";
 import { Collapse, Expand } from "../Icon";
 import styles from "./PopOut.module.css";
 
@@ -337,33 +336,30 @@ export const PopOut = forwardRef<HTMLDivElement, PopOutProps>(function PopOut(
     toggleMaximize,
   };
   return createPortal(
-    // A popped window is a fresh document and a fresh stacking root; do not
-    // inherit an opener overlay's ceiling. Publish the popup body so library
-    // floaters opened inside portal into this window, not the opener's.
-    <StackingProvider ceiling={0}>
-      <PortalContainerProvider container={childWin.document.body}>
-        <PopOutWindowContext.Provider value={windowState}>
-          <div ref={ref} className={cx(styles.root, className)} {...rest}>
-            {children}
-            {maximizable && isPip ? (
-              <button
-                type="button"
-                className={styles.maximize}
-                aria-label={maximized ? "Restore window size" : "Maximize window"}
-                aria-pressed={maximized}
-                onClick={toggleMaximize}
-              >
-                {maximized ? (
-                  <Glyph slot="collapse" fallback={Collapse} size="14px" />
-                ) : (
-                  <Glyph slot="expand" fallback={Expand} size="14px" />
-                )}
-              </button>
-            ) : null}
-          </div>
-        </PopOutWindowContext.Provider>
-      </PortalContainerProvider>
-    </StackingProvider>,
+    // Publish the popup body so library floaters opened inside portal into this
+    // window, not the opener's.
+    <PortalContainerProvider container={childWin.document.body}>
+      <PopOutWindowContext.Provider value={windowState}>
+        <div ref={ref} className={cx(styles.root, className)} {...rest}>
+          {children}
+          {maximizable && isPip ? (
+            <button
+              type="button"
+              className={styles.maximize}
+              aria-label={maximized ? "Restore window size" : "Maximize window"}
+              aria-pressed={maximized}
+              onClick={toggleMaximize}
+            >
+              {maximized ? (
+                <Glyph slot="collapse" fallback={Collapse} size="14px" />
+              ) : (
+                <Glyph slot="expand" fallback={Expand} size="14px" />
+              )}
+            </button>
+          ) : null}
+        </div>
+      </PopOutWindowContext.Provider>
+    </PortalContainerProvider>,
     childWin.document.body,
   );
 });
