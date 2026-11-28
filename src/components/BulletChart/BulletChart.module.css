@@ -16,6 +16,8 @@
    by `size`; `--bullet-accent` the measure's colour per row (a tone). */
 
 .root {
+  /* Positioned so the fullscreen key pins to the chart's corner. */
+  position: relative;
   --bullet-row: calc(var(--sf-unit) * 1.5);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

@@ -11,8 +11,12 @@
   padding: calc(var(--sf-unit) / 2);
 }
 
-/* Maximized to the viewport. block-size:auto so inset:0 sets the height. */
-.expanded {
+/* Maximized to the viewport. block-size:auto so inset:0 sets the height.
+   The class is doubled so it outranks a chart's own `.root` (its height, its
+   position) whatever order the two stylesheets load in: with one class each,
+   the chart's sheet loads later and kept full screen a strip of the chart's
+   own height at the top of the screen. */
+.expanded.expanded {
   position: fixed;
   inset: 0;
   z-index: var(--sf-z-modal);

@@ -1,6 +1,8 @@
 /* Same grid skeleton as Scatterplot / BarChart. */
 
 .root {
+  /* Positioned so the fullscreen key pins to the chart's corner. */
+  position: relative;
   display: grid;
   grid-template-columns: auto auto 1fr;
   grid-template-rows: 1fr auto auto;
