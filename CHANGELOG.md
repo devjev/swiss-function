@@ -6,6 +6,16 @@ project predates the changeset flow. From **v1.16.0** on, entries are generated
 from the changesets in [`.changes/`](.changes/README.md) by `just release`. The
 parenthesised tag on each heading is the semver bump.
 
+## v4.1.0 — 2026-11-28
+
+### Minor
+
+- Overlays stack in the browser's top layer, in the order they open. Every overlay's portal (Dialog, Drawer, Popover, Menu and ContextMenu, the MenuBar dropdowns, the Picker, Selector and Combobox lists, the DatePicker calendar) and the Outliner's keyboard bar enter the top layer as they mount (`popover="manual"`), so the one opened last is on top. Fixed: a Dialog opened from an open Popover painted under the Popover (the scale put popovers above dialogs whatever the order). A page element at any z-index now sits under an open overlay; an app's own element that must show above one (a toast) enters the top layer after it, with `popover="manual"` and `showPopover()` (see docs/API.md, Conventions). Dismissal, focus and scroll lock are unchanged. In a browser without the Popover API (Firefox before 125, Safari before 17) the portals stack by a z-index above the `--sf-z-*` scale in the same order. The React context that lifted a floater above its overlay (issue #82) is gone. Closes #83.
+
+### Patch
+
+- DataTable, Explorer and WindowArray load dnd-kit only when a drag feature is on, as TableInput, ContextEditor, AgentComposer and Outliner already did: `reorderableColumns` for DataTable; `editable` or `reorderableColumns` for Explorer, and any Explorer under an `SfDndProvider`; `onWindowMove` for WindowArray, and any WindowArray under a provider. Their entries no longer import dnd-kit, so a consumer that turns none of these on no longer bundles it. The drag code renders beside each widget's elements and wraps none of them, so nothing remounts when it arrives: a focused header control keeps its focus, and a window's content keeps its state. Until it has loaded, in the first moments after mount, a drag does not start yet; an Explorer row takes `data-draggable` and a WindowArray title bar `data-movable` once one can. Header cells take dnd-kit's pointer, mouse and touch activators and, under a provider too, no longer its keyboard one, as AGENTS.md describes them. Closes #93.
+
 ## v4.0.0 — 2026-11-28
 
 ### Major
