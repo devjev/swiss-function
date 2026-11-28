@@ -2,7 +2,10 @@
    can't be defined in the spec file). */
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { useId, useState } from "react";
+import { type ColumnDef, DataTable } from "../../components/DataTable";
+import { Explorer, type ExplorerColumn, type ExplorerNode } from "../../components/Explorer";
 import { TableInput, type TableInputColumn } from "../../components/TableInput";
+import { WindowArray } from "../../components/WindowArray";
 import { SF_REGION_KEY, SfDndProvider, useSfDnd, useSfDndRegion } from "./index";
 
 interface Row {
@@ -142,6 +145,96 @@ export function TwoTableHarness() {
           <output data-testid="order-b">{rowsB.map((r) => r.name).join("|")}</output>
           <output data-testid="b-external">{bExternal}</output>
         </div>
+      </div>
+    </SfDndProvider>
+  );
+}
+
+// --- The widgets that load dnd-kit lazily (issue #93), inside a provider ------
+
+const TREE: ExplorerNode[] = [
+  { id: "docs", name: "docs", children: [{ id: "guide", name: "guide.md" }] },
+  { id: "readme", name: "README.md" },
+  { id: "license", name: "LICENSE" },
+];
+const TREE_COLUMNS: ExplorerColumn[] = [{ id: "name", header: "Name" }];
+type TableRow = { name: string; size: number };
+const TABLE_DATA: TableRow[] = [
+  { name: "a", size: 1 },
+  { name: "b", size: 2 },
+];
+const TABLE_COLUMNS: ColumnDef<TableRow>[] = [
+  { id: "name", header: "Name", accessor: "name" },
+  { id: "size", header: "Size", accessor: "size" },
+];
+
+/** A host chip, an editable Explorer, a reorderable DataTable and a movable
+ *  WindowArray under one provider, each reporting what reached it. */
+export function SharedWidgetsHarness() {
+  const [treeDrop, setTreeDrop] = useState("none");
+  const [move, setMove] = useState("none");
+  const [tableDrop, setTableDrop] = useState("none");
+  const [order, setOrder] = useState(["name", "size"]);
+  const [windowDrop, setWindowDrop] = useState("none");
+  const [windowMove, setWindowMove] = useState("none");
+  return (
+    <SfDndProvider>
+      <div style={{ display: "grid", gap: 24, width: 900 }}>
+        <div>
+          <HostChip />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "300px 400px", gap: 40 }}>
+          <div data-testid="tree" style={{ height: 160 }}>
+            <Explorer
+              nodes={TREE}
+              columns={TREE_COLUMNS}
+              editable
+              expandedIds={new Set(["docs"])}
+              onMove={(id, parentId) => setMove(`${id}->${parentId ?? "root"}`)}
+              onExternalDrop={({ active, overNode }) =>
+                setTreeDrop(`${String(active.id)}@${overNode?.id ?? "none"}`)
+              }
+            />
+          </div>
+          <div data-testid="table">
+            <DataTable
+              data={TABLE_DATA}
+              columns={TABLE_COLUMNS}
+              reorderableColumns
+              columnOrder={order}
+              onColumnOrderChange={setOrder}
+              onExternalDrop={({ active, overColumnId }) =>
+                setTableDrop(`${String(active.id)}@${overColumnId ?? "none"}`)
+              }
+            />
+          </div>
+        </div>
+        <div style={{ inlineSize: 600, blockSize: 200 }}>
+          <WindowArray
+            aria-label="Shared strip"
+            onWindowMove={(m) => setWindowMove(`${m.windowId}->${JSON.stringify(m.to)}`)}
+            onExternalDrop={({ active, over }) =>
+              setWindowDrop(`${String(active.id)}@${JSON.stringify(over)}`)
+            }
+          >
+            <WindowArray.Column id="c1" defaultWidth={220}>
+              <WindowArray.Window id="w1" title="One">
+                <p>one</p>
+              </WindowArray.Window>
+            </WindowArray.Column>
+            <WindowArray.Column id="c2" defaultWidth={220}>
+              <WindowArray.Window id="w2" title="Two">
+                <p>two</p>
+              </WindowArray.Window>
+            </WindowArray.Column>
+          </WindowArray>
+        </div>
+        <output data-testid="tree-drop">{treeDrop}</output>
+        <output data-testid="tree-move">{move}</output>
+        <output data-testid="table-drop">{tableDrop}</output>
+        <output data-testid="table-order">{order.join("|")}</output>
+        <output data-testid="window-drop">{windowDrop}</output>
+        <output data-testid="window-move">{windowMove}</output>
       </div>
     </SfDndProvider>
   );

@@ -1,16 +1,16 @@
 {
   "meta": {
-    "date": "2026-11-28T12:17:51.332Z"
+    "date": "2026-11-28T12:49:55.116Z"
   },
-  "totalGzip": 2575220,
+  "totalGzip": 2571323,
   "entries": {
     ".": {
-      "files": 416,
-      "jsRaw": 1938057,
-      "jsGzip": 568248,
+      "files": 418,
+      "jsRaw": 1939202,
+      "jsGzip": 568678,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 568248,
+      "gzip": 568678,
       "externals": [
         "@base-ui/react/accordion",
         "@base-ui/react/checkbox",
@@ -42,7 +42,6 @@
         "@codemirror/view",
         "@dnd-kit/core",
         "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@lezer/highlight",
         "@replit/codemirror-vim",
         "@tanstack/react-table",
@@ -163,11 +162,11 @@
     },
     "./lib/dnd": {
       "files": 4,
-      "jsRaw": 8736,
-      "jsGzip": 2904,
+      "jsRaw": 8804,
+      "jsGzip": 2868,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 2904,
+      "gzip": 2868,
       "externals": ["@dnd-kit/core", "@dnd-kit/sortable", "react", "react/jsx-runtime"]
     },
     "./button": {
@@ -376,20 +375,17 @@
     },
     "./explorer": {
       "files": 59,
-      "jsRaw": 139853,
-      "jsGzip": 45664,
+      "jsRaw": 138182,
+      "jsGzip": 45118,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 45664,
+      "gzip": 45118,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/input",
         "@base-ui/react/menu",
         "@base-ui/react/popover",
         "@base-ui/react/use-render",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@tanstack/react-virtual",
         "react",
         "react/jsx-runtime"
@@ -701,12 +697,12 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./widget": {
-      "files": 138,
-      "jsRaw": 461832,
-      "jsGzip": 136944,
+      "files": 137,
+      "jsRaw": 458909,
+      "jsGzip": 135910,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 136944,
+      "gzip": 135910,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -718,9 +714,6 @@
         "@base-ui/react/toggle",
         "@base-ui/react/toggle-group",
         "@base-ui/react/use-render",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@tanstack/react-table",
         "@tanstack/react-virtual",
         "react",
@@ -729,18 +722,16 @@
       ]
     },
     "./window-array": {
-      "files": 35,
-      "jsRaw": 128331,
-      "jsGzip": 37072,
+      "files": 36,
+      "jsRaw": 128982,
+      "jsGzip": 37281,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 37072,
+      "gzip": 37281,
       "externals": [
         "@base-ui/react/dialog",
         "@base-ui/react/radio",
         "@base-ui/react/radio-group",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
         "react",
         "react-dom",
         "react/jsx-runtime"
@@ -819,11 +810,11 @@
     },
     "./notebook": {
       "files": 100,
-      "jsRaw": 337047,
-      "jsGzip": 100622,
+      "jsRaw": 334389,
+      "jsGzip": 99770,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 100622,
+      "gzip": 99770,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -836,9 +827,6 @@
         "@codemirror/search",
         "@codemirror/state",
         "@codemirror/view",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@lezer/highlight",
         "@replit/codemirror-vim",
         "@tanstack/react-table",
@@ -869,12 +857,12 @@
       ]
     },
     "./outliner-blocks": {
-      "files": 97,
-      "jsRaw": 356377,
-      "jsGzip": 105478,
+      "files": 96,
+      "jsRaw": 353454,
+      "jsGzip": 104444,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 105478,
+      "gzip": 104444,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
@@ -887,9 +875,6 @@
         "@codemirror/search",
         "@codemirror/state",
         "@codemirror/view",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@lezer/highlight",
         "@replit/codemirror-vim",
         "@tanstack/react-table",
@@ -1079,21 +1064,18 @@
       "externals": ["react", "react/jsx-runtime"]
     },
     "./data-table": {
-      "files": 83,
-      "jsRaw": 287411,
-      "jsGzip": 83583,
+      "files": 82,
+      "jsRaw": 284488,
+      "jsGzip": 82549,
       "cssRaw": 0,
       "cssGzip": 0,
-      "gzip": 83583,
+      "gzip": 82549,
       "externals": [
         "@base-ui/react/checkbox",
         "@base-ui/react/combobox",
         "@base-ui/react/input",
         "@base-ui/react/popover",
         "@base-ui/react/use-render",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
         "@tanstack/react-table",
         "@tanstack/react-virtual",
         "react",

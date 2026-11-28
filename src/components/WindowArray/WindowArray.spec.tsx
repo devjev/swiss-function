@@ -16,6 +16,104 @@ async function dragMouse(
   await page.mouse.up();
 }
 
+/** dnd-kit arrives after mount (issue #93): wait for the drag layer, which
+ *  marks the title bars it can move. */
+async function dragReady(page: import("@playwright/test").Page) {
+  await expect(page.locator("header[data-movable]").first()).toBeAttached();
+}
+
+/** Hold the requests for a lazily loaded chunk until `release` is called, to
+ *  see the component while its module loads. */
+async function holdChunk(page: import("@playwright/test").Page, chunk: RegExp) {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = () => {};
+  const asked = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route(chunk, async (route) => {
+    requested();
+    await released;
+    await route.continue();
+  });
+  return { asked, release };
+}
+
+const DRAG_LAYER = /\/WindowArrayDnd-[\w-]+\.js$/;
+
+test("the strip renders while the drag layer loads, keeps its windows when it arrives, and moves a window after", async ({
+  mount,
+  page,
+}) => {
+  const chunk = await holdChunk(page, DRAG_LAYER);
+  await mount(<WindowArrayHarness />);
+  await chunk.asked;
+  // While dnd-kit loads: every window and its content, nothing to drag yet.
+  await expect(page.locator("section[data-window-id]")).toHaveCount(6);
+  await expect(page.getByText("Body of Window 1A")).toBeVisible();
+  await expect(page.locator("header[data-movable]")).toHaveCount(0);
+  // The keyboard moves need no dnd-kit.
+  const handle = page.getByRole("button", { name: "Window 1A" });
+  await handle.focus();
+  await page.keyboard.press("Shift+ArrowDown");
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 0 },
+      to: { type: "cell", columnId: "col-1", index: 1 },
+    }),
+  );
+  const win = page.locator('[data-window-id="w1a"]');
+  await win.evaluate((el) => el.setAttribute("data-probe", ""));
+
+  chunk.release();
+  await dragReady(page);
+  // The same element: the layer wraps nothing, so no window remounted.
+  await expect(win).toHaveAttribute("data-probe", "");
+  await expect(handle).toBeFocused();
+
+  const hb = await handle.boundingBox();
+  const tb = await page.locator('[data-window-id="w2a"]').boundingBox();
+  if (!hb || !tb) throw new Error("missing bounding boxes");
+  await dragMouse(
+    page,
+    { x: hb.x + hb.width / 2, y: hb.y + hb.height / 2 },
+    { x: tb.x + tb.width / 2, y: tb.y + tb.height * 0.8 },
+  );
+  await expect(page.getByTestId("last-move")).toHaveText(
+    JSON.stringify({
+      windowId: "w1a",
+      from: { columnId: "col-1", index: 1 },
+      to: { type: "cell", columnId: "col-2", index: 1 },
+    }),
+  );
+});
+
+test("a strip that cannot drag never loads the drag layer", async ({ mount, page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (DRAG_LAYER.test(request.url())) requests.push(request.url());
+  });
+  await mount(
+    <div style={{ inlineSize: 500, blockSize: 300 }}>
+      <WindowArray aria-label="Static">
+        <WindowArray.Column id="a" defaultWidth={220}>
+          <WindowArray.Window id="one" title="One">
+            <p>body</p>
+          </WindowArray.Window>
+        </WindowArray.Column>
+      </WindowArray>
+    </div>,
+  );
+  await expect(page.getByRole("group", { name: "One" })).toBeVisible();
+  // Give a stray import time to show up.
+  await page.waitForTimeout(200);
+  expect(requests).toEqual([]);
+  await expect(page.locator("header[data-movable]")).toHaveCount(0);
+});
+
 test("renders labelled window groups; ✕ only appears with onClose", async ({ mount, page }) => {
   await mount(
     <div style={{ inlineSize: 500, blockSize: 300 }}>
@@ -183,6 +281,7 @@ test("dragging a title bar onto another window's lower half moves it there", asy
   page,
 }) => {
   await mount(<WindowArrayHarness />);
+  await dragReady(page);
   const handle = page.getByRole("button", { name: "Window 1A" });
   const target = page.locator('[data-window-id="w2a"]');
   const hb = await handle.boundingBox();
@@ -210,6 +309,7 @@ test("dropping a title bar on a gutter breaks the window out into a new column",
   page,
 }) => {
   await mount(<WindowArrayHarness />);
+  await dragReady(page);
   const handle = page.getByRole("button", { name: "Window 1A" });
   // First separator = the gutter between columns 1 and 2 (gap index 1).
   const gutter = page.getByRole("separator").first();
@@ -236,6 +336,7 @@ test("dropping a title bar on a gutter breaks the window out into a new column",
 
 test("dragging from the window body does not start a move", async ({ mount, page }) => {
   await mount(<WindowArrayHarness />);
+  await dragReady(page);
   const body = page.getByText("Body of Window 1A");
   const target = page.locator('[data-window-id="w2a"]');
   const bb = await body.boundingBox();
@@ -583,6 +684,7 @@ test("custom WindowButton actions share the chrome, sit before fullscreen/close,
 
   // Dragging from the action never starts a window move (the actions row
   // swallows pointer-down).
+  await dragReady(page);
   const pb = await pin.boundingBox();
   if (!pb) throw new Error("missing bounding box");
   await page.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2);
@@ -779,6 +881,7 @@ test("vertical, one window per line: a drop on a window's lower half lands after
 }) => {
   await mount(<WindowArrayHarness width={326} height={700} windowMinWidth={240} />);
   await expect(page.getByTestId("window-array")).toHaveAttribute("data-stacked", "");
+  await dragReady(page);
   const handle = page.getByRole("button", { name: "Window 1A" });
   const target = page.locator('[data-window-id="w1b"]');
   const hb = await handle.boundingBox();
@@ -1182,6 +1285,7 @@ test("a column with no windows keeps its track and takes a dropped window", asyn
   expect(Math.round(track.x - (last.x + last.width))).toBe(10);
   expect(track.height).toBeGreaterThan(300);
   // Drag a title bar over it: the column shows as the drop target.
+  await dragReady(page);
   const hb = await page.getByRole("button", { name: "Window 1A" }).boundingBox();
   if (!hb) throw new Error("missing bounding box");
   await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
@@ -1603,6 +1707,7 @@ test("the after drop line renders on the last visible window when the one below 
   // w2a is column 2's only visible window now. Dragging onto its lower half
   // targets the slot after it (full-array index 1, before the popped w2b);
   // the indicator must render even though w2a is not the full-array last row.
+  await dragReady(page);
   const handle = page.getByRole("button", { name: "Window 1A" });
   const target = page.locator('[data-window-id="w2a"]');
   const hb = await handle.boundingBox();

@@ -1,18 +1,4 @@
-import type {
-  Active,
-  CollisionDetection,
-  DragEndEvent,
-  DragMoveEvent,
-  DragStartEvent,
-} from "@dnd-kit/core";
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
+import type { Active, DragEndEvent, DragMoveEvent, DragStartEvent } from "@dnd-kit/core";
 import type {
   ComponentPropsWithoutRef,
   CSSProperties,
@@ -34,12 +20,13 @@ import {
   useState,
 } from "react";
 import { cx } from "../../lib/cx";
-import { SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
-import { useSfSensors } from "../../lib/dnd/sensors";
+import { useSfDnd } from "../../lib/dnd/context";
+import { DragNodes } from "../../lib/dnd/nodes";
 import { hitArea } from "../../lib/hitArea";
 import { Glyph } from "../../lib/icons";
 import type { ControlSurface } from "../../lib/surface";
 import { curveStyle, surfaceClass } from "../../lib/surface";
+import { useLazyModule } from "../../lib/useLazyModule";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { Button } from "../Button";
 import { Dialog } from "../Dialog";
@@ -78,6 +65,17 @@ import {
   windowsPerLine,
 } from "./layout";
 import styles from "./WindowArray.module.css";
+import type { WindowArrayDndTarget } from "./WindowArrayDnd";
+
+/** Load the drag layer (dnd-kit with it); see WindowArrayDnd.tsx. */
+const loadWindowArrayDnd = () => import("./WindowArrayDnd");
+
+/** The keys the strip's elements carry in the drag layer's node registry. */
+const dragKey = {
+  window: (id: string) => `win:${id}`,
+  gap: (index: number) => `gap:${index}`,
+  column: (id: string) => `col:${id}`,
+};
 
 export type { WindowMove } from "./layout";
 
@@ -643,12 +641,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const regionId = useId();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropSlot, setDropSlot] = useState<DropSlot | null>(null);
-
-  const sensors = useSfSensors();
-  const collisionDetection: CollisionDetection = useCallback((args) => {
-    const within = pointerWithin(args);
-    return within.length > 0 ? within : closestCenter(args);
-  }, []);
+  // dnd-kit arrives with the first strip that can drag (`onWindowMove`) or
+  // take a host drop (a provider): issue #93. The strip renders the same
+  // either way; the layer (WindowArrayDnd) binds to the elements it reports.
+  const dnd = useLazyModule(loadWindowArrayDnd, onWindowMove != null || shared != null);
+  const [dragNodes] = useState(() => new DragNodes());
 
   const computeDrop = useCallback(
     (e: DragMoveEvent | DragEndEvent, dragging: string): DropSlot | null => {
@@ -1031,37 +1028,29 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
   const allWindowsRef = useRef(allWindows);
   allWindowsRef.current = allWindows;
 
-  useSfDndRegion(shared, {
-    id: regionId,
-    collisionDetection,
-    onDragStart,
-    onDragMove,
-    onDragEnd,
-    onDragCancel,
-    onExternalDrop: ({ active, over }) => {
-      // Pick the public fields explicitly: the raw drop data also carries the
-      // internal region-routing key, which must not leak into the payload.
-      // Include each key only when present, so a consumer discriminating the
-      // documented union by key presence ("gapIndex" in over) keeps working.
-      const data = over?.data.current as
-        | { columnId?: string; row?: number | null; gapIndex?: number }
-        | undefined;
-      onExternalDrop?.({
-        active,
-        over: data
-          ? {
-              ...(data.columnId !== undefined ? { columnId: data.columnId } : null),
-              ...(data.row !== undefined ? { row: data.row } : null),
-              ...(data.gapIndex !== undefined ? { gapIndex: data.gapIndex } : null),
-            }
-          : null,
-      });
-    },
-    renderOverlay: (activeId) => {
-      const w = allWindowsRef.current.find((x) => x.id === activeId);
-      return w ? <div className={styles.dragGhost}>{w.title}</div> : null;
-    },
-  });
+  const onStripExternalDrop = ({ active, over }: DragEndEvent) => {
+    // Pick the public fields explicitly: the raw drop data also carries the
+    // internal region-routing key, which must not leak into the payload.
+    // Include each key only when present, so a consumer discriminating the
+    // documented union by key presence ("gapIndex" in over) keeps working.
+    const data = over?.data.current as
+      | { columnId?: string; row?: number | null; gapIndex?: number }
+      | undefined;
+    onExternalDrop?.({
+      active,
+      over: data
+        ? {
+            ...(data.columnId !== undefined ? { columnId: data.columnId } : null),
+            ...(data.row !== undefined ? { row: data.row } : null),
+            ...(data.gapIndex !== undefined ? { gapIndex: data.gapIndex } : null),
+          }
+        : null,
+    });
+  };
+  const renderWindowOverlay = (activeId: string): ReactNode => {
+    const w = allWindowsRef.current.find((x) => x.id === activeId);
+    return w ? <div className={styles.dragGhost}>{w.title}</div> : null;
+  };
 
   // --- Split view -------------------------------------------------------------
   // With fewer than two windows there is nothing to pick, so no button.
@@ -1173,6 +1162,38 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
       : { gridTemplateColumns: mainTemplate, gridTemplateRows: crossTemplate }
     : undefined;
 
+  /** The drag layer's targets, in the order the strip renders them: each
+   *  visible column's gutter and backdrop, the trailing gutter, the windows. */
+  const dragTargets = (): WindowArrayDndTarget[] => {
+    const targets: WindowArrayDndTarget[] = [];
+    for (const { col, mi, visible } of visibleColumns) {
+      targets.push({ kind: "gap", key: dragKey.gap(mi), index: mi });
+      targets.push({
+        kind: "column",
+        key: dragKey.column(col.props.id),
+        columnId: col.props.id,
+        empty: visible.length === 0,
+      });
+    }
+    if (lastVisible) {
+      targets.push({ kind: "gap", key: dragKey.gap(columns.length), index: columns.length });
+    }
+    const anyOverlay = resolvedFullscreen != null || resolvedSplit != null;
+    for (const col of columns) {
+      col.windows.forEach((win, row) => {
+        targets.push({
+          kind: "window",
+          key: dragKey.window(win.id),
+          id: win.id,
+          columnId: col.props.id,
+          row,
+          draggable: (win.movable ?? true) && onWindowMove != null && !anyOverlay,
+        });
+      });
+    }
+    return targets;
+  };
+
   return (
     // A <section> with a consumer-supplied aria-label is a named region
     // landmark — document the label in API.md rather than defaulting one.
@@ -1231,7 +1252,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                       onPointerDown={onGutterPointerDown}
                       onKeyDown={resizeByKey}
                       onReset={resetWidth}
-                      regionId={regionId}
+                      dragNodes={dragNodes}
                     />
                     <ColumnBackdrop
                       col={col.props}
@@ -1243,7 +1264,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                       }
                       placement={backPlacement(band)}
                       registerColumn={columnRefs.current}
-                      regionId={regionId}
+                      dragNodes={dragNodes}
                     />
                     {/* Snap edges for the further lines of a wrapped band: the
                         backdrop gives the band one start edge, at its first
@@ -1278,7 +1299,7 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                   onPointerDown={onGutterPointerDown}
                   onKeyDown={resizeByKey}
                   onReset={resetWidth}
-                  regionId={regionId}
+                  dragNodes={dragNodes}
                 />
               )}
               {/* One flat keyed list for every window on the strip — the single
@@ -1294,11 +1315,11 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
                 return col.windows.map((win, row) => (
                   <WindowView
                     key={win.id}
-                    regionId={regionId}
+                    dragNodes={dragNodes}
+                    dragReady={dnd != null}
                     win={win}
                     surface={surface}
                     columnId={col.props.id}
-                    row={row}
                     placement={placementById.get(win.id)}
                     active={resolvedActive === win.id}
                     fullscreen={resolvedFullscreen === win.id}
@@ -1378,23 +1399,31 @@ const Root = forwardRef<HTMLElement, WindowArrayProps>(function WindowArray(
             </div>
           </div>
         );
-        // Under a shared provider, render only the strip: the provider owns the
-        // single DndContext and DragOverlay for the whole subtree.
-        if (shared) return strip;
+        // The drag layer follows the strip and wraps none of it, so no window
+        // remounts when it arrives (under a shared provider it adds no
+        // DndContext of its own).
         return (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={collisionDetection}
-            onDragStart={onDragStart}
-            onDragMove={onDragMove}
-            onDragEnd={onDragEnd}
-            onDragCancel={onDragCancel}
-          >
+          <>
             {strip}
-            <DragOverlay dropAnimation={null}>
-              {draggingProps ? <div className={styles.dragGhost}>{draggingProps.title}</div> : null}
-            </DragOverlay>
-          </DndContext>
+            {dnd ? (
+              <dnd.WindowArrayDnd
+                regionId={regionId}
+                targets={dragTargets()}
+                nodes={dragNodes}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
+                onDragEnd={onDragEnd}
+                onDragCancel={onDragCancel}
+                onExternalDrop={onStripExternalDrop}
+                renderOverlay={renderWindowOverlay}
+                overlay={
+                  draggingProps ? (
+                    <div className={styles.dragGhost}>{draggingProps.title}</div>
+                  ) : null
+                }
+              />
+            ) : null}
+          </>
         );
       })()}
       {controls && resolvedFullscreen == null && resolvedSplit == null && columns.length > 0 && (
@@ -1481,8 +1510,8 @@ interface ColumnBackdropProps {
   dropActive: boolean;
   placement: CSSProperties;
   registerColumn: Map<string, HTMLDivElement>;
-  /** The shared-dnd region id, stamped on this column's drop data. */
-  regionId: string;
+  /** Where the backdrop reports its element to the drag layer. */
+  dragNodes: DragNodes;
 }
 
 /** Invisible grid item spanning a column's full track under its windows. It
@@ -1496,7 +1525,7 @@ function ColumnBackdrop({
   dropActive,
   placement,
   registerColumn,
-  regionId,
+  dragNodes,
 }: ColumnBackdropProps) {
   const {
     id,
@@ -1510,19 +1539,12 @@ function ColumnBackdrop({
     children: _children,
     ...rest
   } = col;
-  const { setNodeRef } = useDroppable({
-    // Region-prefixed: dnd-kit's droppable registry is id-keyed, so two
-    // WindowArrays under one SfDndProvider would clobber each other's
-    // droppables on bare ids. Routing reads the data, never parses the id.
-    id: `${regionId}:col-${id}`,
-    data: { [SF_REGION_KEY]: regionId, columnId: id, row: null },
-    disabled: windowCount > 0,
-  });
   return (
     <div
       {...rest}
       ref={(el) => {
-        setNodeRef(el);
+        // The drag layer's droppable for an empty column binds to it.
+        dragNodes.attach(dragKey.column(id), el);
         if (el) registerColumn.set(id, el);
         else registerColumn.delete(id);
       }}
@@ -1550,8 +1572,8 @@ interface GutterViewProps {
   onPointerDown: (event: React.PointerEvent) => void;
   onKeyDown: (col: WindowArrayColumnProps, event: ReactKeyboardEvent<HTMLDivElement>) => void;
   onReset: (col: WindowArrayColumnProps) => void;
-  /** The shared-dnd region id, stamped on this gap's drop data. */
-  regionId: string;
+  /** Where the gutter reports its element to the drag layer. */
+  dragNodes: DragNodes;
 }
 
 function GutterView({
@@ -1566,14 +1588,13 @@ function GutterView({
   onPointerDown,
   onKeyDown,
   onReset,
-  regionId,
+  dragNodes,
 }: GutterViewProps) {
-  const { setNodeRef } = useDroppable({
-    // Region-prefixed so two WindowArrays under one provider can't clobber
-    // each other's gap droppables (routing reads the data, not the id).
-    id: `${regionId}:gap-${index}`,
-    data: { [SF_REGION_KEY]: regionId, gapIndex: index },
-  });
+  // The drag layer's droppable for this gap binds to the gutter.
+  const setNodeRef = useCallback(
+    (el: HTMLDivElement | null) => dragNodes.attach(dragKey.gap(index), el),
+    [dragNodes, index],
+  );
   const resizable = leftColumn != null && (leftColumn.resizable ?? true);
   if (!resizable) {
     return (
@@ -1615,9 +1636,11 @@ interface WindowViewProps {
   win: WindowArrayWindowProps;
   surface: ControlSurface;
   columnId: string;
-  row: number;
-  /** The shared-dnd region id, stamped on this window's drag/drop data. */
-  regionId: string;
+  /** Where the window reports its element to the drag layer and its handle
+   *  finds the activator listeners. */
+  dragNodes: DragNodes;
+  /** The drag layer has loaded (a move by drag can start). */
+  dragReady: boolean;
   /** Grid placement among the column's *visible* windows; absent while popped
    *  (a popped window renders only its browser-window portal, not a cell). */
   placement: CSSProperties | undefined;
@@ -1650,8 +1673,8 @@ function WindowView({
   win,
   surface,
   columnId,
-  row,
-  regionId,
+  dragNodes,
+  dragReady,
   placement,
   active,
   fullscreen,
@@ -1685,18 +1708,12 @@ function WindowView({
     ...rest
   } = win;
   const titleId = useId();
-  const dragEnabled = moveEnabled && !anyOverlay;
-  const { setNodeRef: setDragRef, listeners } = useDraggable({
-    id,
-    disabled: !dragEnabled,
-    data: { [SF_REGION_KEY]: regionId },
-  });
-  const { setNodeRef: setDropRef } = useDroppable({
-    // Region-prefixed so two WindowArrays under one provider can't clobber
-    // each other's window droppables (routing reads the data, not the id).
-    id: `${regionId}:win-${id}`,
-    data: { [SF_REGION_KEY]: regionId, columnId, row },
-  });
+  // A drag can start once the layer has loaded; until then, and whenever
+  // dragging is off, the handle forwards to no listener.
+  const dragEnabled = moveEnabled && !anyOverlay && dragReady;
+  const dragNodeKey = dragKey.window(id);
+  const forwardToDrag = (eventName: string) => (event: unknown) =>
+    dragNodes.dispatch(dragNodeKey, eventName, event);
   const sectionRef = useRef<HTMLElement | null>(null);
   // The popup opens roughly over the window it came from: the rect is
   // measured in the pop-out button's click (before the state flip commits),
@@ -1824,8 +1841,8 @@ function WindowView({
     <section
       {...rest}
       ref={(el) => {
-        setDragRef(el);
-        setDropRef(el);
+        // The drag layer's draggable and droppable for this window bind to it.
+        dragNodes.attach(dragNodeKey, el);
         sectionRef.current = el;
       }}
       role="group"
@@ -1847,9 +1864,13 @@ function WindowView({
       >
         {/* The handle button is the window's single roving Tab stop: its text
             is the accessible name, arrows navigate, Shift+arrows move, and the
-            dnd-kit pointer listeners make it the drag grip. */}
+            dnd-kit pointer listeners (from the drag layer) make it the drag
+            grip. */}
         <button
-          {...listeners}
+          // dnd-kit's pointer, mouse and touch sensors start from these.
+          onPointerDown={dragEnabled ? forwardToDrag("onPointerDown") : undefined}
+          onMouseDown={dragEnabled ? forwardToDrag("onMouseDown") : undefined}
+          onTouchStart={dragEnabled ? forwardToDrag("onTouchStart") : undefined}
           type="button"
           id={titleId}
           ref={(el) => {

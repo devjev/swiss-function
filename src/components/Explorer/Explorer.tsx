@@ -1,17 +1,4 @@
-import type {
-  CollisionDetection,
-  DragEndEvent,
-  DragMoveEvent,
-  DragStartEvent,
-} from "@dnd-kit/core";
-import {
-  DndContext,
-  DragOverlay,
-  rectIntersection,
-  useDraggable,
-  useDroppable,
-} from "@dnd-kit/core";
-import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
+import type { DragEndEvent, DragMoveEvent, DragStartEvent } from "@dnd-kit/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   CSSProperties,
@@ -20,9 +7,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
   PointerEvent as ReactPointerEvent,
-  TouchEvent as ReactTouchEvent,
   UIEvent as ReactUIEvent,
-  RefObject,
 } from "react";
 import {
   memo,
@@ -41,6 +26,7 @@ import {
   measureCssLength,
   measureHeaderNeed,
 } from "../../lib/columns/headerFloor";
+import { loadColumnReorder } from "../../lib/columns/loadColumnReorder";
 import {
   COLUMN_MAX_PX,
   describeColumnWidth,
@@ -48,14 +34,13 @@ import {
   KEY_RESIZE_STEP_PAGE_PX,
   KEY_RESIZE_STEP_PX,
 } from "../../lib/columns/resizeBoundary";
-import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
-import { regionIdOf, SF_REGION_KEY, useSfDnd, useSfDndRegion } from "../../lib/dnd";
-import { useSfSensors } from "../../lib/dnd/sensors";
+import { regionIdOf, useSfDnd } from "../../lib/dnd/context";
+import { arrayMove, DragNodes } from "../../lib/dnd/nodes";
 import { useDitheredFill } from "../../lib/effects";
 import {
   ColumnFilter,
@@ -69,6 +54,7 @@ import { Glyph } from "../../lib/icons";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
+import { useLazyModule } from "../../lib/useLazyModule";
 import { useLongPress } from "../../lib/useLongPress";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { File, Folder } from "../Icon";
@@ -76,6 +62,7 @@ import { Menu } from "../Menu";
 import type { DropZone, FlatRow } from "./dnd";
 import { computeDropZone, dropZoneEqual, findNode, flatten } from "./dnd";
 import styles from "./Explorer.module.css";
+import type { ExplorerDndRow } from "./ExplorerDnd";
 import { buildGridTemplate, MIN_COL_PX } from "./gridTemplate";
 import { RenameField } from "./RenameField";
 import {
@@ -133,20 +120,8 @@ function unwrapDndId(dndId: string, regionId: string): string {
   return dndId.startsWith(`${regionId}:`) ? dndId.slice(regionId.length + 1) : dndId;
 }
 
-/** Collision detection for one of this widget's two regions (columns / tree):
- *  drop the sibling region's droppables before intersecting, so a header drag
- *  never resolves over a tree row (and vice versa). Droppables of other
- *  widgets and of the host stay in, which is what makes cross-widget drag-out
- *  and host drops keep working. */
-function excludeRegionCollision(excludedRegionId: string): CollisionDetection {
-  return (args) =>
-    rectIntersection({
-      ...args,
-      droppableContainers: args.droppableContainers.filter(
-        (c) => c.data.current?.[SF_REGION_KEY] !== excludedRegionId,
-      ),
-    });
-}
+/** Load the row drag layer (dnd-kit with it); see ExplorerDnd.tsx. */
+const loadExplorerDnd = () => import("./ExplorerDnd");
 
 // --- Main component --------------------------------------------------------
 
@@ -211,6 +186,16 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const shared = useSfDnd();
   const colRegionId = useId();
   const treeRegionId = useId();
+  // dnd-kit arrives with the first drag feature that is on (issue #93): the
+  // header layer with `reorderableColumns`; the row layer with `editable`, or
+  // under a provider, where the rows take drops from the host. Until a layer
+  // has loaded, its part renders without the drag wiring.
+  const columnReorder = useLazyModule(loadColumnReorder, reorderableColumns);
+  const treeDnd = useLazyModule(loadExplorerDnd, editable || shared != null);
+  // Rows and headers report their elements here; the layers bind dnd-kit to
+  // them. One registry each, so a node id never meets a header key.
+  const [dragNodes] = useState(() => new DragNodes());
+  const [headerNodes] = useState(() => new DragNodes());
 
   // --- Column state (widths / order), controlled or internal ----------------
   const { columnWidths, setColumnWidths } = useColumnWidths({
@@ -853,8 +838,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     else setSort(null);
   };
 
-  // --- Column reorder DnD (own context; tree column excluded) ---------------
-  const colSensors = useSfSensors();
+  // --- Column reorder DnD (tree column excluded) -----------------------------
   const nonTreeIds = useMemo(() => orderedColumns.slice(1).map((c) => c.id), [orderedColumns]);
   // Sortable ids are namespaced per instance; the real column id travels in
   // the item data (read back below and in the overlay).
@@ -1078,9 +1062,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     }
   };
 
-  // --- Row DnD ------------------------------------------------------------
-  const sensors = useSfSensors();
-
+  // --- Row DnD (the handlers; the wiring is in ExplorerDnd) -----------------
   const dropZoneFromEvent = (e: DragMoveEvent | DragEndEvent): DropZone | null => {
     if (!draggingId) return null;
     // Released over nothing (or another widget's droppable): cancel, never
@@ -1154,48 +1136,29 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
   const flatRowsRef = useRef(flatRows);
   flatRowsRef.current = flatRows;
 
-  // Each region's collision detection ignores the sibling region's droppables,
-  // so the two regions of one instance never cross-talk (a header drag can't
-  // resolve over a tree row, a row drag can't land on a header).
-  const colCollision = useMemo(() => excludeRegionCollision(treeRegionId), [treeRegionId]);
-  const treeCollision = useMemo(() => excludeRegionCollision(colRegionId), [colRegionId]);
-
-  // Column region: header ghost overlay.
-  useSfDndRegion(reorderableColumns ? shared : null, {
-    id: colRegionId,
-    collisionDetection: colCollision,
-    onDragStart: onColDragStart,
-    onDragEnd: onColDragEnd,
-    onDragCancel: () => setDraggingColId(null),
-    renderOverlay: (activeId) => {
-      const colId = unwrapDndId(activeId, colRegionId);
-      const header = orderedColumnsRef.current.find((c) => c.id === colId)?.header;
-      return header ? <div className={styles.headerDragOverlay}>{header}</div> : null;
-    },
-  });
+  // Column region: header ghost overlay. (Each layer's collision detection
+  // ignores the other region's droppables, so the two never cross-talk.)
+  const onColDragCancel = () => setDraggingColId(null);
+  const renderColumnOverlay = (activeId: string): ReactNode => {
+    const colId = unwrapDndId(activeId, colRegionId);
+    const header = orderedColumnsRef.current.find((c) => c.id === colId)?.header;
+    return header ? <div className={styles.headerDragOverlay}>{header}</div> : null;
+  };
 
   // Tree region: node drag/reorder plus host-item drops onto a row.
-  useSfDndRegion(shared, {
-    id: treeRegionId,
-    collisionDetection: treeCollision,
-    onDragStart,
-    onDragMove,
-    onDragEnd,
-    onDragCancel,
-    onExternalDrop: (e) => {
-      // Guard against this instance's own header drags resolving here.
-      if (regionIdOf(e.active) === colRegionId) return;
-      const rowIndex = (e.over?.data.current as { rowIndex?: number } | undefined)?.rowIndex;
-      const overNode = rowIndex != null ? (flatRowsRef.current[rowIndex]?.node ?? null) : null;
-      onExternalDrop?.({ active: e.active, overNode });
-    },
-    renderOverlay: (activeId) => (
-      <DragOverlayContent
-        name={findNode(nodesRef.current, unwrapDndId(activeId, treeRegionId))?.name ?? ""}
-        height={rowHeight}
-      />
-    ),
-  });
+  const onTreeExternalDrop = (e: DragEndEvent) => {
+    // Guard against this instance's own header drags resolving here.
+    if (regionIdOf(e.active) === colRegionId) return;
+    const rowIndex = (e.over?.data.current as { rowIndex?: number } | undefined)?.rowIndex;
+    const overNode = rowIndex != null ? (flatRowsRef.current[rowIndex]?.node ?? null) : null;
+    onExternalDrop?.({ active: e.active, overNode });
+  };
+  const renderTreeOverlay = (activeId: string): ReactNode => (
+    <DragOverlayContent
+      name={findNode(nodesRef.current, unwrapDndId(activeId, treeRegionId))?.name ?? ""}
+      height={rowHeight}
+    />
+  );
 
   // --- Context menu derived ----------------------------------------------
   const ctxTargetRow = ctx?.targetId != null ? flatRows[indexById.get(ctx.targetId) ?? -1] : null;
@@ -1207,7 +1170,14 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     : null;
 
   // --- Header cell rendering ------------------------------------------------
-  const renderHeaderCell = (col: ExplorerColumn<M>, index: number, dnd?: HeaderDnd): ReactNode => {
+  const renderHeaderCell = (col: ExplorerColumn<M>, index: number): ReactNode => {
+    // Every column but the tree column reorders; its sortable id names it in
+    // the reorder layer, and it drags once the layer is in.
+    const dragKey = reorderableColumns && index > 0 ? `${colRegionId}:${col.id}` : null;
+    const draggable = dragKey != null && columnReorder != null;
+    const forwardToDrag = (eventName: string) => (event: unknown) => {
+      if (dragKey != null) headerNodes.dispatch(dragKey, eventName, event);
+    };
     const isSorted = sort?.columnId === col.id;
     const meta = filterableColumns ? filterMeta.get(col.id) : undefined;
     const filterValue = columnFilters.find((f) => f.id === col.id)?.value;
@@ -1217,26 +1187,29 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     const handleMin = Math.round(columnFloorPx(col));
     const handleAtFloor = widthOverride != null && Math.round(widthOverride) <= handleMin;
     return (
-      // Headers are pointer-drag-only (Enter/Space belongs to sorting), so only
-      // dnd listeners are spread (on the label), never dnd.attributes.
+      // Headers are pointer-drag-only (Enter/Space belongs to sorting), so the
+      // label forwards the pointer activators only, and no dnd attributes.
+      // While a header is dragged, the reorder layer writes dnd-kit's
+      // transform to the cell, whose React style never sets one.
       <div
         key={col.id}
-        ref={dnd?.ref}
+        ref={dragKey != null ? (el) => headerNodes.attach(dragKey, el) : undefined}
         className={cx(
           styles.headerCell,
           surfaceClass[headerSurface],
-          dnd?.dragging && styles.headerDragging,
+          draggable && draggingColId === col.id && styles.headerDragging,
         )}
         data-align={col.align ?? "start"}
         data-surface={headerSurface}
         data-sortable={col.sortable || undefined}
         data-sorted={(col.sortable && isSorted) || undefined}
-        style={dnd?.style}
         onClick={col.sortable ? () => cycleSort(col.id) : undefined}
       >
         <span
-          className={cx(styles.headerLabel, dnd && styles.headerDraggable)}
-          {...(dnd?.listeners ?? {})}
+          className={cx(styles.headerLabel, draggable && styles.headerDraggable)}
+          onPointerDown={draggable ? forwardToDrag("onPointerDown") : undefined}
+          onMouseDown={draggable ? forwardToDrag("onMouseDown") : undefined}
+          onTouchStart={draggable ? forwardToDrag("onTouchStart") : undefined}
         >
           {col.header}
         </span>
@@ -1302,19 +1275,7 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
     );
   };
 
-  const headerCells = orderedColumns.map((col, i) =>
-    reorderableColumns && i > 0 ? (
-      <SortableHeaderCell
-        key={col.id}
-        id={`${colRegionId}:${col.id}`}
-        regionId={shared ? colRegionId : undefined}
-        data={{ columnId: col.id }}
-        render={(dnd) => renderHeaderCell(col, i, dnd)}
-      />
-    ) : (
-      renderHeaderCell(col, i)
-    ),
-  );
+  const headerCells = orderedColumns.map((col, i) => renderHeaderCell(col, i));
 
   const header = showHeader ? (
     // The header's own sideways scroller, mirrored with the viewport's (see
@@ -1325,37 +1286,49 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
         className={styles.headerRow}
         style={{ gridTemplateColumns: gridTemplate }}
       >
-        {reorderableColumns ? (
-          shared ? (
-            // The provider owns the DndContext + overlay; render only the sortable.
-            <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
-              {headerCells}
-            </SortableContext>
-          ) : (
-            <DndContext
-              sensors={colSensors}
-              onDragStart={onColDragStart}
-              onDragEnd={onColDragEnd}
-              onDragCancel={() => setDraggingColId(null)}
-            >
-              <SortableContext items={nonTreeDndIds} strategy={horizontalListSortingStrategy}>
-                {headerCells}
-              </SortableContext>
-              <DragOverlay dropAnimation={null}>
-                {draggingColId ? (
-                  <div className={styles.headerDragOverlay}>
-                    {orderedColumns.find((c) => c.id === draggingColId)?.header}
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )
-        ) : (
-          headerCells
-        )}
+        {headerCells}
+        {/* The reorder layer follows the cells and wraps none of them, so no
+            header remounts when it arrives. dnd-kit's own elements land
+            after the last header cell, as they did when it wrapped them. */}
+        {columnReorder ? (
+          <columnReorder.ColumnReorder
+            regionId={colRegionId}
+            items={nonTreeDndIds}
+            headers={orderedColumns.slice(1).map((c) => ({
+              id: `${colRegionId}:${c.id}`,
+              columnId: c.id,
+            }))}
+            nodes={headerNodes}
+            excludeRegionId={treeRegionId}
+            onDragStart={onColDragStart}
+            onDragEnd={onColDragEnd}
+            onDragCancel={onColDragCancel}
+            renderOverlay={renderColumnOverlay}
+            overlay={
+              draggingColId ? (
+                <div className={styles.headerDragOverlay}>
+                  {orderedColumns.find((c) => c.id === draggingColId)?.header}
+                </div>
+              ) : null
+            }
+          />
+        ) : null}
       </div>
     </div>
   ) : null;
+
+  // --- Row drag layer input ----------------------------------------------
+  // A row drags once the layer is in, while the tree is editable and unsorted.
+  const rowsDraggable = editable && !sort && treeDnd != null;
+  // The visible rows, for the layer to register as draggables and droppables.
+  const dndRows: ExplorerDndRow[] = treeDnd
+    ? virtualizer.getVirtualItems().flatMap((vRow) => {
+        const row = flatRows[vRow.index];
+        if (!row) return [];
+        const id = row.node.id;
+        return [{ id, rowIndex: vRow.index, draggable: editable && !sort && editingId !== id }];
+      })
+    : [];
 
   // --- Render -------------------------------------------------------------
   return (
@@ -1407,11 +1380,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
               onScroll={handleViewportScroll}
               {...longPress}
             >
-              <ViewportDroppable
-                regionId={treeRegionId}
-                viewportRef={viewportRef}
-                disabled={draggingId == null}
-              />
               {showEmpty ? (
                 <div className={styles.empty}>{empty}</div>
               ) : (
@@ -1466,7 +1434,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                       <MemoExplorerRow<M>
                         key={id}
                         row={row}
-                        rowIndex={vRow.index}
                         top={vRow.start}
                         rowHeight={rowHeight}
                         columns={orderedColumns}
@@ -1480,9 +1447,10 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
                         dropBefore={dropBefore}
                         dropAfterLast={dropAfterLast}
                         // While sorted, a reorder can't be applied (beforeId
-                        // would come from the sorted order), so no drag starts.
-                        draggable={editable && !sort}
-                        regionId={treeRegionId}
+                        // would come from the sorted order), so no drag starts;
+                        // nor before the drag layer has loaded.
+                        draggable={rowsDraggable}
+                        dragNodes={dragNodes}
                         icon={icon}
                         onChevronToggle={toggleExpand}
                         onRowPointerDown={handleRowPointerDown}
@@ -1543,27 +1511,37 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
             ) : null}
           </>
         );
-        // Under a shared provider, render only the body: the provider owns the
-        // single DndContext and DragOverlay for the whole subtree.
-        if (shared) return body;
+        // The row drag layer follows the body and wraps none of it, so the
+        // rows keep their state when it arrives (under a shared provider it
+        // adds no DndContext of its own).
         return (
-          <DndContext
-            sensors={sensors}
-            onDragStart={onDragStart}
-            onDragMove={onDragMove}
-            onDragEnd={onDragEnd}
-            onDragCancel={onDragCancel}
-          >
+          <>
             {body}
-            <DragOverlay dropAnimation={null}>
-              {draggingId ? (
-                <DragOverlayContent
-                  name={findNode(nodes, draggingId)?.name ?? ""}
-                  height={rowHeight}
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+            {treeDnd ? (
+              <treeDnd.ExplorerDnd
+                treeRegionId={treeRegionId}
+                colRegionId={colRegionId}
+                rows={dndRows}
+                nodes={dragNodes}
+                viewportRef={viewportRef}
+                viewportDroppable={draggingId != null}
+                onDragStart={onDragStart}
+                onDragMove={onDragMove}
+                onDragEnd={onDragEnd}
+                onDragCancel={onDragCancel}
+                onExternalDrop={onTreeExternalDrop}
+                renderOverlay={renderTreeOverlay}
+                overlay={
+                  draggingId ? (
+                    <DragOverlayContent
+                      name={findNode(nodes, draggingId)?.name ?? ""}
+                      height={rowHeight}
+                    />
+                  ) : null
+                }
+              />
+            ) : null}
+          </>
         );
       })()}
     </div>
@@ -1574,7 +1552,6 @@ export function Explorer<M = unknown>(props: ExplorerProps<M>) {
 
 interface ExplorerRowProps<M> {
   row: FlatRow<M>;
-  rowIndex: number;
   top: number;
   rowHeight: number;
   columns: ExplorerColumn<M>[];
@@ -1588,8 +1565,9 @@ interface ExplorerRowProps<M> {
   dropBefore: boolean;
   dropAfterLast: boolean;
   draggable: boolean;
-  /** Shared-dnd tree region id, stamped on this row's drag/drop data. */
-  regionId: string;
+  /** Where the row reports its element to the drag layer and finds its
+   *  activator listeners. */
+  dragNodes: DragNodes;
   icon?: (node: ExplorerNode<M>) => ReactNode;
   onChevronToggle: (id: string) => void;
   onRowPointerDown: (e: MouseEvent, row: FlatRow<M>) => void;
@@ -1602,7 +1580,6 @@ interface ExplorerRowProps<M> {
 function ExplorerRow<M>(props: ExplorerRowProps<M>) {
   const {
     row,
-    rowIndex,
     top,
     rowHeight,
     columns,
@@ -1616,7 +1593,7 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
     dropBefore,
     dropAfterLast,
     draggable,
-    regionId,
+    dragNodes,
     icon,
     onChevronToggle,
     onRowPointerDown,
@@ -1629,35 +1606,13 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
   const id = row.node.id;
   const folder = isFolder(row.node);
 
-  // Dnd ids are namespaced per region so two Explorer instances under one
-  // `SfDndProvider` can't collide; the real node id travels in the data.
-  const draggableHook = useDraggable({
-    id: `${regionId}:${id}`,
-    disabled: !draggable || isEditing,
-    data: { [SF_REGION_KEY]: regionId, nodeId: id },
-  });
-  const droppableHook = useDroppable({
-    id: `${regionId}:row-${id}`,
-    data: { [SF_REGION_KEY]: regionId, rowIndex },
-  });
-
-  const setRef = (el: HTMLDivElement | null) => {
-    draggableHook.setNodeRef(el);
-    droppableHook.setNodeRef(el);
-  };
-
-  // dnd-kit's PointerSensor activator is `listeners.onPointerDown`; the row's
-  // own handler must CALL it rather than sit alongside it in JSX — a later
-  // `onPointerDown` prop would silently replace the spread listener and drags
-  // would never start.
-  const dndPointerDown = draggableHook.listeners?.onPointerDown as
-    | ((e: ReactPointerEvent<HTMLDivElement>) => void)
-    | undefined;
-  // A finger starts a drag through the touch sensor's own activator (after a
-  // rest, so a swipe over the rows still scrolls the tree).
-  const dndTouchStart = draggableHook.listeners?.onTouchStart as
-    | ((e: ReactTouchEvent<HTMLDivElement>) => void)
-    | undefined;
+  // The drag layer (ExplorerDnd) binds this row's draggable and droppable to
+  // the element reported here.
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => dragNodes.attach(id, el),
+    [dragNodes, id],
+  );
+  const canDrag = draggable && !isEditing;
 
   const rowStyle: CSSProperties = {
     top: `${top}px`,
@@ -1680,7 +1635,7 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
       data-row-id={id}
       data-selected={isSelected}
       data-focused={isFocused}
-      data-draggable={(draggable && !isEditing) || undefined}
+      data-draggable={canDrag || undefined}
       data-dragging={isDragging || undefined}
       data-drop-into={dropInto || undefined}
       data-drop-before={dropBefore || undefined}
@@ -1688,10 +1643,14 @@ function ExplorerRow<M>(props: ExplorerRowProps<M>) {
       className={styles.row}
       style={rowStyle}
       onPointerDown={(e) => {
-        if (draggable && !isEditing) dndPointerDown?.(e);
+        // dnd-kit's pointer sensor starts from `listeners.onPointerDown`; the
+        // row's own handler calls it before its selection logic.
+        if (canDrag) dragNodes.dispatch(id, "onPointerDown", e);
         onRowPointerDown(e, row);
       }}
-      onTouchStart={draggable && !isEditing ? dndTouchStart : undefined}
+      // A finger starts a drag through the touch sensor's own activator (after
+      // a rest, so a swipe over the rows still scrolls the tree).
+      onTouchStart={canDrag ? (e) => dragNodes.dispatch(id, "onTouchStart", e) : undefined}
       onDoubleClick={() => onRowDoubleClick(row)}
       onContextMenu={(e) => onRowContextMenu(e, row)}
     >
@@ -1799,40 +1758,6 @@ function TreeCellContent<M>({
       )}
     </>
   );
-}
-
-// --- Viewport droppable -----------------------------------------------------
-
-/** Registers the scroll viewport itself as a droppable (attached to the
- *  already-rendered node via `viewportRef`), so append-to-root fires only for
- *  drops inside the tree but below the rows. Rendered inside the viewport so
- *  the hook sits under the owning DndContext in own-context mode.
- *
- *  Disabled unless one of THIS tree's rows is being dragged: the viewport rect
- *  spans the whole tree, so under closestCenter (foreign drags, whose collision
- *  detection this widget does not own) its center would outrank a row's center
- *  for drops near the tree's vertical middle and steal row-targeted drops. */
-function ViewportDroppable({
-  regionId,
-  viewportRef,
-  disabled,
-}: {
-  regionId: string;
-  viewportRef: RefObject<HTMLDivElement | null>;
-  disabled: boolean;
-}) {
-  const { setNodeRef } = useDroppable({
-    id: `${regionId}:viewport`,
-    disabled,
-    data: { [SF_REGION_KEY]: regionId, viewport: true },
-  });
-  // Attach once per mount: setNodeRef is identity-stable, and re-attaching per
-  // render would re-fire dnd-kit's node-change handler (a rect recompute).
-  useLayoutEffect(() => {
-    setNodeRef(viewportRef.current);
-    return () => setNodeRef(null);
-  }, [setNodeRef, viewportRef]);
-  return null;
 }
 
 // --- Drag overlay ----------------------------------------------------------

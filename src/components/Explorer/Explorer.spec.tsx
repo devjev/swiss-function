@@ -4,6 +4,40 @@ import { DEFAULT_UNIT_PX as U } from "../../lib/useCssPx";
 import { Explorer } from "./Explorer";
 import { ColumnShrinkHarness, ExplorerHarness } from "./Explorer.harness";
 
+/** Hold the requests for a lazily loaded chunk until `release` is called, to
+ *  see the component while its module loads. */
+async function holdChunk(page: import("@playwright/test").Page, chunk: RegExp) {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = () => {};
+  const asked = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route(chunk, async (route) => {
+    requested();
+    await released;
+    await route.continue();
+  });
+  return { asked, release };
+}
+
+const ROW_LAYER = /\/ExplorerDnd-[\w-]+\.js$/;
+const HEADER_LAYER = /\/ColumnReorder-[\w-]+\.js$/;
+
+/** dnd-kit arrives after mount (issue #93): the reorder layer makes the
+ *  header labels draggable. */
+async function headersReady(c: Locator) {
+  await expect(c.locator('[class*="headerDraggable"]').first()).toBeAttached();
+}
+
+async function centreOf(el: Locator) {
+  const box = await el.boundingBox();
+  if (!box) throw new Error("element is not laid out");
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
 test("renders headers and root rows; folders show chevron, files don't", async ({ mount }) => {
   const c = await mount(<ExplorerHarness />);
   await expect(c.getByText("Name")).toBeVisible();
@@ -162,6 +196,8 @@ test("dragging over a folder's middle shows the drop-into indicator and commits 
   const c = await mount(<ExplorerHarness editable />);
   const source = c.locator('[data-row-id="README.md"]');
   const target = c.locator('[data-row-id="src/components"]');
+  // dnd-kit arrives after mount (issue #93); the row drags once it is in.
+  await expect(source).toHaveAttribute("data-draggable", "true");
   const src = (await source.boundingBox())!;
   const tgt = (await target.boundingBox())!;
   await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
@@ -183,6 +219,7 @@ test("dragging over a row's top quarter shows the drop-before indicator on that 
   const c = await mount(<ExplorerHarness editable />);
   const source = c.locator('[data-row-id="package.json"]');
   const target = c.locator('[data-row-id="README.md"]');
+  await expect(source).toHaveAttribute("data-draggable", "true");
   const src = (await source.boundingBox())!;
   const tgt = (await target.boundingBox())!;
   await page.mouse.move(src.x + src.width / 2, src.y + src.height / 2);
@@ -194,6 +231,77 @@ test("dragging over a row's top quarter shows the drop-before indicator on that 
   await expect(c.locator("[data-drop-into]")).toHaveCount(0);
   await page.mouse.up();
   await expect(c.getByTestId("last-op")).toHaveText("move:package.json:root:README.md");
+});
+
+test("editable: the rows render while the drag layer loads, keep their elements when it arrives, and drag after", async ({
+  mount,
+  page,
+}) => {
+  const chunk = await holdChunk(page, ROW_LAYER);
+  const c = await mount(<ExplorerHarness editable />);
+  await chunk.asked;
+  // While dnd-kit loads: every row, none draggable yet.
+  const source = c.locator('[data-row-id="README.md"]');
+  const target = c.locator('[data-row-id="src/components"]');
+  await expect(source).toBeVisible();
+  await expect(target).toBeVisible();
+  await expect(c.locator("[data-draggable]")).toHaveCount(0);
+  await source.evaluate((el) => el.setAttribute("data-probe", ""));
+
+  chunk.release();
+  await expect(source).toHaveAttribute("data-draggable", "true");
+  // The same element: the layer wraps nothing, so no row remounted.
+  await expect(source).toHaveAttribute("data-probe", "");
+
+  const src = await centreOf(source);
+  const tgt = await centreOf(target);
+  await page.mouse.move(src.x, src.y);
+  await page.mouse.down();
+  await page.mouse.move(src.x + 10, src.y, { steps: 2 });
+  await page.mouse.move(tgt.x, tgt.y, { steps: 8 });
+  await expect(target).toHaveAttribute("data-drop-into", "true");
+  await page.mouse.up();
+  await expect(c.getByTestId("last-op")).toHaveText("move:README.md:src/components:end");
+});
+
+test("reorderableColumns: the headers render while the reorder layer loads and reorder after", async ({
+  mount,
+  page,
+}) => {
+  const chunk = await holdChunk(page, HEADER_LAYER);
+  const c = await mount(<ExplorerHarness grid />);
+  await chunk.asked;
+  const labels = c.locator('[class*="headerLabel"]');
+  await expect(labels).toHaveText(["Name", "Size", "Kind"]);
+  await expect(c.locator('[class*="headerDraggable"]')).toHaveCount(0);
+
+  chunk.release();
+  await headersReady(c);
+  // The tree column stays put; the other two drag.
+  await expect(c.locator('[class*="headerDraggable"]')).toHaveText(["Size", "Kind"]);
+  const size = await centreOf(labels.nth(1));
+  const kind = await c.getByText("Kind", { exact: true }).boundingBox();
+  if (!kind) throw new Error("missing header box");
+  await page.mouse.move(size.x, size.y);
+  await page.mouse.down();
+  await page.mouse.move(size.x + 12, size.y, { steps: 4 });
+  await page.mouse.move(kind.x + kind.width * 0.8, size.y, { steps: 10 });
+  await page.mouse.up();
+  await expect(labels).toHaveText(["Name", "Kind", "Size"]);
+});
+
+test("a tree with no drag feature never loads a drag layer", async ({ mount, page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    const url = request.url();
+    if (ROW_LAYER.test(url) || HEADER_LAYER.test(url)) requests.push(url);
+  });
+  const c = await mount(<ExplorerHarness />);
+  await expect(c.locator('[data-row-id="README.md"]')).toBeVisible();
+  // Give a stray import time to show up.
+  await page.waitForTimeout(200);
+  expect(requests).toEqual([]);
+  await expect(c.locator("[data-draggable]")).toHaveCount(0);
 });
 
 // --- Data-grid features (sort / filter / resize / empty) -------------------
@@ -451,6 +559,7 @@ test("a tree that fits gives its header nothing to scroll", async ({ mount }) =>
 test("a reorderable header that fits has nothing to scroll either", async ({ mount }) => {
   // Drag-to-reorder mounts dnd-kit's own elements after the last header cell.
   const c = await mount(<ExplorerHarness grid />);
+  await headersReady(c);
   const range = await c
     .locator('[class*="headerScroll"]')
     .evaluate((el) => el.scrollWidth - el.clientWidth);
@@ -734,6 +843,7 @@ test.describe("with a finger", () => {
     page,
   }) => {
     const c = await mount(<ExplorerHarness editable />);
+    await expect(c.locator('[data-row-id="README.md"]')).toHaveAttribute("data-draggable", "true");
     const touch = await finger(page);
     const from = await centre(c.locator('[data-row-id="README.md"]'));
     const to = await centre(c.locator('[data-row-id="src"]'));

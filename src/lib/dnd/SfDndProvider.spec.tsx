@@ -4,6 +4,7 @@ import {
   ExternalDropHarness,
   ProbeHarness,
   ReorderHarness,
+  SharedWidgetsHarness,
   TwoTableHarness,
 } from "./SfDndProvider.harness";
 
@@ -129,4 +130,107 @@ test("a host element dropped on a row fires onExternalDrop, without reordering",
   await expect(c.getByTestId("drop")).toHaveText("host-item@0");
   // A foreign drop must not reorder the widget's own rows.
   await expect(c.getByTestId("order")).toHaveText("First|Second");
+});
+
+// --- DataTable, Explorer and WindowArray load dnd-kit lazily (issue #93) ------
+
+test.describe("the widgets with a lazy drag layer, inside a provider", () => {
+  /** Each widget joins the shared context once its drag layer has loaded. */
+  async function ready(page: import("@playwright/test").Page) {
+    await expect(page.locator('[data-row-id="readme"]')).toHaveAttribute("data-draggable", "true");
+    await expect(
+      page.getByTestId("table").locator('[class*="headerDraggable"]').first(),
+    ).toBeAttached();
+    await expect(page.locator("header[data-movable]").first()).toBeAttached();
+  }
+  const box = async (locator: import("@playwright/test").Locator) => {
+    const b = await locator.boundingBox();
+    if (!b) throw new Error("not laid out");
+    return b;
+  };
+
+  test("a host element dropped on a row, a header or a window reaches that widget's onExternalDrop", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(<SharedWidgetsHarness />);
+    await ready(page);
+    const chip = center(await box(c.getByTestId("chip")));
+
+    await dragMouse(page, chip, center(await box(page.locator('[data-row-id="readme"]'))));
+    await expect(c.getByTestId("tree-drop")).toHaveText("host-item@readme");
+
+    await dragMouse(
+      page,
+      chip,
+      center(
+        await box(page.getByTestId("table").getByRole("columnheader").filter({ hasText: "Size" })),
+      ),
+    );
+    await expect(c.getByTestId("table-drop")).toHaveText("host-item@size");
+
+    await dragMouse(page, chip, center(await box(page.locator('[data-window-id="w2"]'))));
+    await expect(c.getByTestId("window-drop")).toHaveText(
+      `host-item@${JSON.stringify({ columnId: "c2", row: 0 })}`,
+    );
+    // None of the widgets moved anything of its own.
+    await expect(c.getByTestId("tree-move")).toHaveText("none");
+    await expect(c.getByTestId("table-order")).toHaveText("name|size");
+    await expect(c.getByTestId("window-move")).toHaveText("none");
+  });
+
+  test("each widget's own drag works in the shared context", async ({ mount, page }) => {
+    const c = await mount(<SharedWidgetsHarness />);
+    await ready(page);
+
+    // A row into a folder (its vertical middle).
+    await dragMouse(
+      page,
+      center(await box(page.locator('[data-row-id="readme"]'))),
+      center(await box(page.locator('[data-row-id="docs"]'))),
+    );
+    await expect(c.getByTestId("tree-move")).toHaveText("readme->docs");
+
+    // A header past its neighbour.
+    const name = await box(
+      page.getByTestId("table").getByRole("columnheader").filter({ hasText: "Name" }),
+    );
+    const size = await box(
+      page.getByTestId("table").getByRole("columnheader").filter({ hasText: "Size" }),
+    );
+    await dragMouse(page, center(name), {
+      x: size.x + size.width * 0.8,
+      y: size.y + size.height / 2,
+    });
+    await expect(c.getByTestId("table-order")).toHaveText("size|name");
+
+    // A window onto the lower half of another.
+    const two = await box(page.locator('[data-window-id="w2"]'));
+    await dragMouse(page, center(await box(page.getByRole("button", { name: "One" }))), {
+      x: two.x + two.width / 2,
+      y: two.y + two.height * 0.8,
+    });
+    await expect(c.getByTestId("window-move")).toHaveText(
+      `w1->${JSON.stringify({ type: "cell", columnId: "c2", index: 1 })}`,
+    );
+  });
+
+  test("an Explorer row dragged onto a DataTable header reaches the table, and the tree keeps it", async ({
+    mount,
+    page,
+  }) => {
+    const c = await mount(<SharedWidgetsHarness />);
+    await ready(page);
+    await dragMouse(
+      page,
+      center(await box(page.locator('[data-row-id="readme"]'))),
+      center(
+        await box(page.getByTestId("table").getByRole("columnheader").filter({ hasText: "Size" })),
+      ),
+    );
+    await expect(c.getByTestId("table-drop")).toHaveText(/:readme@size$/);
+    await expect(c.getByTestId("tree-move")).toHaveText("none");
+    // The tree's drag state was reset: no row is left lifted.
+    await expect(page.getByTestId("tree").locator("[data-dragging]")).toHaveCount(0);
+  });
 });

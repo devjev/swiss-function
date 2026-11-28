@@ -10,6 +10,10 @@
 // registers a `region` describing its behaviour, and the provider routes each
 // drag to the right region by the `sfRegionId` stamped on the dragged/target
 // item's `data` (see `SF_REGION_KEY`).
+//
+// This module imports dnd-kit for its types only, so a widget can read the
+// registry and stamp its items without loading dnd-kit (issue #93). Keep it so:
+// `src/lib/dnd/staticImports.test.ts` fails on a value import.
 
 import type {
   CollisionDetection,
@@ -19,7 +23,6 @@ import type {
   DragOverEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
-import { closestCenter } from "@dnd-kit/core";
 import { createContext, type ReactNode, useContext, useEffect, useRef } from "react";
 
 /** The key under a draggable/droppable item's `data` that names its region.
@@ -119,9 +122,11 @@ export function useSfDnd(): SfDndRegistry | null {
 }
 
 /** Register a widget's region with the shared provider for its lifetime. Handlers
- *  close over live props/state, so this registers a stable forwarder that reads
- *  the latest `region` through a ref: one register/unregister per mount, no churn
- *  as the widget re-renders. No-op when `registry` is `null`.
+ *  close over live props/state, so this registers a stable record whose fields
+ *  read the latest `region` through a ref: one register/unregister per mount, no
+ *  churn as the widget re-renders. A field the region leaves out reads as
+ *  `undefined`, so the provider applies its own default (closest-centre
+ *  collisions). No-op when `registry` is `null`.
  *
  *  `region.id` must be stable across renders (derive it from `useId()`). */
 export function useSfDndRegion(registry: SfDndRegistry | null, region: SfDndRegion): void {
@@ -133,14 +138,30 @@ export function useSfDndRegion(registry: SfDndRegistry | null, region: SfDndRegi
     const id = ref.current.id;
     const stable: SfDndRegion = {
       id,
-      collisionDetection: (args) => (ref.current.collisionDetection ?? closestCenter)(args),
-      onDragStart: (e) => ref.current.onDragStart?.(e),
-      onDragMove: (e) => ref.current.onDragMove?.(e),
-      onDragOver: (e) => ref.current.onDragOver?.(e),
-      onDragEnd: (e) => ref.current.onDragEnd?.(e),
-      onDragCancel: (e) => ref.current.onDragCancel?.(e),
-      onExternalDrop: (e) => ref.current.onExternalDrop?.(e),
-      renderOverlay: (activeId) => ref.current.renderOverlay?.(activeId),
+      get collisionDetection() {
+        return ref.current.collisionDetection;
+      },
+      get onDragStart() {
+        return ref.current.onDragStart;
+      },
+      get onDragMove() {
+        return ref.current.onDragMove;
+      },
+      get onDragOver() {
+        return ref.current.onDragOver;
+      },
+      get onDragEnd() {
+        return ref.current.onDragEnd;
+      },
+      get onDragCancel() {
+        return ref.current.onDragCancel;
+      },
+      get onExternalDrop() {
+        return ref.current.onExternalDrop;
+      },
+      get renderOverlay() {
+        return ref.current.renderOverlay;
+      },
     };
     registry.register(stable);
     return () => registry.unregister(id);

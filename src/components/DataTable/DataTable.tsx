@@ -1,13 +1,4 @@
-import {
-  type Active,
-  DndContext,
-  type DragEndEvent,
-  DragOverlay,
-  type DragStartEvent,
-  type Over,
-  rectIntersection,
-} from "@dnd-kit/core";
-import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
+import type { Active, DragEndEvent, DragStartEvent, Over } from "@dnd-kit/core";
 import {
   type ColumnFiltersState,
   flexRender,
@@ -45,6 +36,7 @@ import {
   measureHeaderNeed,
   raiseForGroups,
 } from "../../lib/columns/headerFloor";
+import { loadColumnReorder } from "../../lib/columns/loadColumnReorder";
 import {
   COLUMN_MAX_PX,
   describeColumnWidth,
@@ -52,14 +44,12 @@ import {
   KEY_RESIZE_STEP_PAGE_PX,
   KEY_RESIZE_STEP_PX,
 } from "../../lib/columns/resizeBoundary";
-import { type HeaderDnd, SortableHeaderCell } from "../../lib/columns/SortableHeaderCell";
 import { useColumnOrder } from "../../lib/columns/useColumnOrder";
 import { useColumnWidths } from "../../lib/columns/useColumnWidths";
 import { useHeaderNeeds } from "../../lib/columns/useHeaderNeeds";
 import { useWidthReadout, WidthReadout } from "../../lib/columns/WidthReadout";
 import { cx } from "../../lib/cx";
-import { useSfDnd, useSfDndRegion } from "../../lib/dnd";
-import { useSfSensors } from "../../lib/dnd/sensors";
+import { arrayMove, DragNodes } from "../../lib/dnd/nodes";
 import type { EffectName } from "../../lib/effects";
 import { useDitheredFill } from "../../lib/effects";
 import { ColumnFilter, type FilterOption } from "../../lib/filter/ColumnFilter";
@@ -69,6 +59,7 @@ import type { ControlSurface } from "../../lib/surface";
 import { surfaceClass } from "../../lib/surface";
 import { TreeChevron } from "../../lib/TreeChevron";
 import { DEFAULT_TABLE_ROW_PX, useCssPx, useRemeasureOnSizeChange } from "../../lib/useCssPx";
+import { useLazyModule } from "../../lib/useLazyModule";
 import { usePointerDrag } from "../../lib/usePointerDrag";
 import { computeMergeMap, type MergeMap } from "./cellSpans";
 import {
@@ -860,7 +851,6 @@ const DataTableRow = memo(DataTableRowInner) as typeof DataTableRowInner;
 /** The headers' right-click menu. Lazy, so Base UI's context-menu only reaches
  *  the bundle of a table that opts into `headerMenu` (see HeaderMenu.tsx). */
 const HeaderMenu = lazy(() => import("./HeaderMenu"));
-
 /** Sentinel for "no fit has run yet", distinct from any `data` array a
  *  consumer could pass, so the first fit is never mistaken for a repeat. */
 const NO_FIT_YET = Symbol("no-fit-yet");
@@ -2703,15 +2693,15 @@ export function DataTable<T>(props: DataTableProps<T>) {
   );
 
   // --- Column drag-to-reorder (reorderableColumns) ---
-  const shared = useSfDnd();
+  // dnd-kit arrives with the first reorderable table (issue #93): until the
+  // layer has loaded, the headers render without their drag wiring. The
+  // layer binds to the header elements reported to `headerNodes`.
+  const reorder = useLazyModule(loadColumnReorder, reorderableColumns);
+  const [headerNodes] = useState(() => new DragNodes());
   const regionId = useId();
   // Parents from the EFFECTIVE tree, so a collapsed group's placeholder leaf has
   // a parent entry and reorders as one unit under the same-parent guard below.
   const leafParents = useMemo(() => leafParentMap(effectiveColumns), [effectiveColumns]);
-  // A threshold before a press becomes a drag, so a plain click still sorts
-  // and the resize handle still resizes; a finger must rest first (it may be
-  // scrolling the table sideways).
-  const reorderSensors = useSfSensors();
   const [draggingColId, setDraggingColId] = useState<string | null>(null);
   const draggingLeaf = draggingColId
     ? visibleLeaves.find((l) => l.id === draggingColId)
@@ -2766,36 +2756,29 @@ export function DataTable<T>(props: DataTableProps<T>) {
     [columnIdOf, leafParents, orderedLeafIds, setColumnOrder, columns, columnOrder],
   );
 
+  const onColumnDragCancel = useCallback(() => setDraggingColId(null), []);
+  const onColumnExternalDrop = ({ active, over }: DragEndEvent) => {
+    // Unwrap the namespaced dnd id so consumers get the real column id.
+    onExternalDrop?.({ active, overColumnId: over ? columnIdOf(over) : null });
+  };
+
   // The header list is stable during a drag, so the shared provider (which
   // renders the overlay from its own render pass, ahead of this one) can read
   // the dragged column through a ref rather than render-cycle state.
   const visibleLeavesRef = useRef(visibleLeaves);
   visibleLeavesRef.current = visibleLeaves;
-  useSfDndRegion(reorderableColumns ? shared : null, {
-    id: regionId,
-    // dnd-kit's default collision is rectIntersection; keep it under the shared
-    // context so column reordering feels identical.
-    collisionDetection: rectIntersection,
-    onDragStart: onColumnDragStart,
-    onDragEnd: onColumnDragEnd,
-    onDragCancel: () => setDraggingColId(null),
-    onExternalDrop: ({ active, over }) => {
-      // Unwrap the namespaced dnd id so consumers get the real column id.
-      onExternalDrop?.({ active, overColumnId: over ? columnIdOf(over) : null });
-    },
-    renderOverlay: (activeId) => {
-      // The provider hands back the namespaced dnd id; strip our prefix.
-      const prefix = `${regionId}:`;
-      const columnId = activeId.startsWith(prefix) ? activeId.slice(prefix.length) : activeId;
-      const leaf = visibleLeavesRef.current.find((l) => l.id === columnId);
-      if (!leaf) return null;
-      return (
-        <div className={styles.headerDragOverlay}>
-          {typeof leaf.header === "string" ? leaf.header : leaf.id}
-        </div>
-      );
-    },
-  });
+  const renderColumnOverlay = (activeId: string): ReactNode => {
+    // The provider hands back the namespaced dnd id; strip our prefix.
+    const prefix = `${regionId}:`;
+    const columnId = activeId.startsWith(prefix) ? activeId.slice(prefix.length) : activeId;
+    const leaf = visibleLeavesRef.current.find((l) => l.id === columnId);
+    if (!leaf) return null;
+    return (
+      <div className={styles.headerDragOverlay}>
+        {typeof leaf.header === "string" ? leaf.header : leaf.id}
+      </div>
+    );
+  };
 
   // The single dither backdrop (see the `.content` / `.fill` layer notes above).
   // A `position: absolute; inset: 0` child of `.content`, painted behind the
@@ -2820,8 +2803,6 @@ export function DataTable<T>(props: DataTableProps<T>) {
       </div>
     ) : null;
 
-  /** Render one header cell. `dnd` (from `SortableHeaderCell`) makes it a draggable
-   *  sortable item; omitted for group/placeholder/non-reorderable headers. */
   /** Where a header cell sits in the header grid: its row (0-based) and how
    *  many rows it spans. A cell spans more than one row when TanStack put
    *  placeholder headers above it (an ungrouped leaf, a collapsed group, a
@@ -2830,11 +2811,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
    *  resize handle in one box (issue #101). */
   type HeaderPlacement = { row: number; rowSpan: number };
 
-  const renderHeaderCell = (
-    header: Header<T, unknown>,
-    place: HeaderPlacement,
-    dnd?: HeaderDnd,
-  ): ReactNode => {
+  /** Render one header cell. With `reorderableColumns`, a leaf header is a
+   *  sortable item of the reorder layer once it has loaded: the cell reports
+   *  its element to `headerNodes` and calls the layer's activators. */
+  const renderHeaderCell = (header: Header<T, unknown>, place: HeaderPlacement): ReactNode => {
     const span = header.colSpan;
     // Freeze a header cell only when its whole leaf span sits inside the frozen
     // region (a group straddling the boundary scrolls — documented).
@@ -2889,11 +2869,18 @@ export function DataTable<T>(props: DataTableProps<T>) {
       selection.range != null &&
       leafStart >= selection.range.start.col &&
       leafStart <= selection.range.end.col;
+    // A reorderable leaf: its sortable id names it in the reorder layer, and
+    // it drags once the layer is in.
+    const dragKey = reorderableColumns && isLeafHeader ? sortableId(header.column.id) : null;
+    const draggable = dragKey != null && reorder != null;
+    const forwardToDrag = (eventName: string) => (event: unknown) => {
+      if (dragKey != null) headerNodes.dispatch(dragKey, eventName, event);
+    };
     return (
       <div
         key={header.id}
         ref={(el) => {
-          dnd?.ref(el);
+          if (dragKey != null) headerNodes.attach(dragKey, el);
           if (isLeafHeader) registerHeaderCell(header.column.id, el);
           else if (isGroupHeader) registerGroupCell(header.column.id, el);
         }}
@@ -2902,8 +2889,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
           styles.headerCell,
           surfaceClass[headerSurface],
           isGroupHeader && styles.headerCellGroup,
-          dnd?.listeners && styles.headerDraggable,
-          dnd?.dragging && styles.headerDragging,
+          draggable && styles.headerDraggable,
+          draggable && draggingColId === header.column.id && styles.headerDragging,
         )}
         style={
           {
@@ -2915,7 +2902,8 @@ export function DataTable<T>(props: DataTableProps<T>) {
             ...(isFrozen ? { insetInlineStart: frozenLefts[leafStart] } : {}),
             ...(headerColor != null ? { "--sf-header-color": headerColor } : {}),
             ...(lines > 1 ? { "--sf-header-lines": lines } : {}),
-            ...dnd?.style,
+            // No `transform` or `transition` here: while a header is dragged,
+            // the reorder layer writes dnd-kit's to the element.
           } as CSSProperties
         }
         data-align={isGroupHeader ? "center" : headerAlign}
@@ -2939,7 +2927,12 @@ export function DataTable<T>(props: DataTableProps<T>) {
         onContextMenu={
           headerMenu ? () => setMenuColumnId(isLeafHeader ? header.column.id : null) : undefined
         }
-        {...(dnd?.listeners ?? {})}
+        // dnd-kit's pointer, mouse and touch sensors start from these. The
+        // keyboard sensor's activator stays off: Enter and Space on a header
+        // belong to sorting (and to the controls inside it).
+        onPointerDown={draggable ? forwardToDrag("onPointerDown") : undefined}
+        onMouseDown={draggable ? forwardToDrag("onMouseDown") : undefined}
+        onTouchStart={draggable ? forwardToDrag("onTouchStart") : undefined}
       >
         {!header.isPlaceholder && (
           <>
@@ -3232,20 +3225,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                       const place = header.isPlaceholder
                         ? { row: hgIndex, rowSpan: 1 }
                         : placementOf(header, hgIndex);
-                      const isLeaf = header.subHeaders.length === 0 && !header.isPlaceholder;
-                      return reorderableColumns && isLeaf ? (
-                        <SortableHeaderCell
-                          key={header.id}
-                          // Namespaced in own-context mode too: one code path, and
-                          // ids stay collision-free if a provider appears later.
-                          id={sortableId(header.column.id)}
-                          regionId={shared ? regionId : undefined}
-                          data={{ columnId: header.column.id }}
-                          render={(dnd) => renderHeaderCell(header, place, dnd)}
-                        />
-                      ) : (
-                        renderHeaderCell(header, place)
-                      );
+                      return renderHeaderCell(header, place);
                     })}
                   </div>
                 ))}
@@ -3292,33 +3272,38 @@ export function DataTable<T>(props: DataTableProps<T>) {
             ) : (
               headerBlock
             );
-            if (!reorderableColumns) return headerRows;
-            const sortable = (
-              <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>
-                {headerRows}
-              </SortableContext>
-            );
-            // Under a shared provider the DndContext + DragOverlay are the
-            // provider's; here render only the SortableContext.
-            if (shared) return sortable;
+            // The reorder layer follows the header block and wraps none of it,
+            // so neither the block (measured and observed above) nor a cell
+            // remounts when it arrives.
             return (
-              <DndContext
-                sensors={reorderSensors}
-                onDragStart={onColumnDragStart}
-                onDragEnd={onColumnDragEnd}
-                onDragCancel={() => setDraggingColId(null)}
-              >
-                {sortable}
-                <DragOverlay dropAnimation={null}>
-                  {draggingLeaf ? (
-                    <div className={styles.headerDragOverlay}>
-                      {typeof draggingLeaf.header === "string"
-                        ? draggingLeaf.header
-                        : draggingLeaf.id}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+              <>
+                {headerRows}
+                {reorder ? (
+                  <reorder.ColumnReorder
+                    regionId={regionId}
+                    items={sortableIds}
+                    headers={headerGroups
+                      .flatMap((hg) => hg.headers)
+                      .filter((h) => h.subHeaders.length === 0 && !h.isPlaceholder)
+                      .map((h) => ({ id: sortableId(h.column.id), columnId: h.column.id }))}
+                    nodes={headerNodes}
+                    onDragStart={onColumnDragStart}
+                    onDragEnd={onColumnDragEnd}
+                    onDragCancel={onColumnDragCancel}
+                    onExternalDrop={onColumnExternalDrop}
+                    renderOverlay={renderColumnOverlay}
+                    overlay={
+                      draggingLeaf ? (
+                        <div className={styles.headerDragOverlay}>
+                          {typeof draggingLeaf.header === "string"
+                            ? draggingLeaf.header
+                            : draggingLeaf.id}
+                        </div>
+                      ) : null
+                    }
+                  />
+                ) : null}
+              </>
             );
           })()}
 

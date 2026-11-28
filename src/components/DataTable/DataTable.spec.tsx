@@ -31,6 +31,31 @@ const DATA = [
   { name: "Carol", age: 40, active: true },
 ];
 
+/** dnd-kit arrives after mount (issue #93): wait for the reorder layer, which
+ *  makes the leaf headers draggable. */
+async function reorderReady(c: Locator) {
+  await expect(c.locator('[class*="headerDraggable"]').first()).toBeAttached();
+}
+
+/** Hold the requests for a lazily loaded chunk until `release` is called, to
+ *  see the component while its module loads. */
+async function holdChunk(page: import("@playwright/test").Page, chunk: RegExp) {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let requested = () => {};
+  const asked = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route(chunk, async (route) => {
+    requested();
+    await released;
+    await route.continue();
+  });
+  return { asked, release };
+}
+
 test("renders header + body cells from data", async ({ mount }) => {
   const component = await mount(<DataTableHarness data={DATA} cols={COLUMNS} />);
   await expect(component.getByRole("columnheader", { name: "name" })).toBeVisible();
@@ -446,6 +471,7 @@ test("groups: a collapsed group drags as one unit and expands at its new positio
   const c = await mount(<GroupsHarness defaultCollapsed reorderableColumns />);
   const headers = c.getByRole("columnheader");
   await expect(headers.first()).toHaveText(/Name/);
+  await reorderReady(c);
 
   const addrBox = await c.getByRole("columnheader", { name: /Address/ }).boundingBox();
   const nameBox = await c.getByRole("columnheader", { name: /Name/ }).boundingBox();
@@ -672,6 +698,7 @@ test("reorderableColumns: dragging a header past its neighbour reorders the colu
   );
   const headers = c.getByRole("columnheader");
   await expect(headers.first()).toHaveText(/name/);
+  await reorderReady(c);
 
   const nameBox = await c.getByRole("columnheader", { name: "name" }).boundingBox();
   const ageBox = await c.getByRole("columnheader", { name: "age" }).boundingBox();
@@ -689,6 +716,85 @@ test("reorderableColumns: dragging a header past its neighbour reorders the colu
 
   // "age" is now the first column.
   await expect(headers.first()).toHaveText(/age/);
+});
+
+/** Drag "name" onto the right side of "age" (the reorder test's gesture). */
+async function dragNamePastAge(page: import("@playwright/test").Page, c: Locator) {
+  const nameBox = await c.getByRole("columnheader", { name: "name" }).boundingBox();
+  const ageBox = await c.getByRole("columnheader", { name: "age" }).boundingBox();
+  if (!nameBox || !ageBox) throw new Error("missing header boxes");
+  await page.mouse.move(nameBox.x + nameBox.width / 2, nameBox.y + nameBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(nameBox.x + nameBox.width / 2 + 12, nameBox.y + nameBox.height / 2, {
+    steps: 4,
+  });
+  await page.mouse.move(ageBox.x + ageBox.width * 0.8, ageBox.y + ageBox.height / 2, { steps: 10 });
+  await page.mouse.up();
+}
+
+const REORDER_LAYER = /\/ColumnReorder-[\w-]+\.js$/;
+
+test("reorderableColumns: the headers render while the reorder layer loads, keep their elements when it arrives, and reorder after", async ({
+  mount,
+  page,
+}) => {
+  const chunk = await holdChunk(page, REORDER_LAYER);
+  const c = await mount(
+    <DataTableHarness
+      data={DATA}
+      cols={COLUMNS}
+      reorderableColumns
+      resizableColumns
+      containerWidth={600}
+    />,
+  );
+  await chunk.asked;
+  // While dnd-kit loads: the whole header and body, nothing to drag yet.
+  const headers = c.getByRole("columnheader");
+  await expect(headers).toHaveText([/name/, /age/, /active/]);
+  await expect(c.getByRole("gridcell").first()).toHaveText("Alice");
+  await expect(c.locator('[class*="headerDraggable"]')).toHaveCount(0);
+  // A drag before the layer is in moves nothing.
+  await dragNamePastAge(page, c);
+  await expect(headers.first()).toHaveText(/name/);
+  // A focused resize handle, to see that the header does not remount.
+  const handle = c.getByRole("separator", { name: "Resize name column" });
+  await handle.focus();
+  await c
+    .getByRole("columnheader", { name: "name" })
+    .evaluate((el) => el.setAttribute("data-probe", ""));
+
+  chunk.release();
+  await reorderReady(c);
+  await expect(c.locator('[class*="headerDraggable"]')).toHaveCount(3);
+  await expect(c.getByRole("columnheader", { name: "name" })).toHaveAttribute("data-probe", "");
+  await expect(handle).toBeFocused();
+
+  await dragNamePastAge(page, c);
+  await expect(headers.first()).toHaveText(/age/);
+});
+
+test("reorderableColumns turned on after mount loads the reorder layer then, and reorders", async ({
+  mount,
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (REORDER_LAYER.test(request.url())) requests.push(request.url());
+  });
+  const c = await mount(<DataTableHarness data={DATA} cols={COLUMNS} containerWidth={600} />);
+  await expect(c.getByRole("columnheader").first()).toHaveText(/name/);
+  // Give a stray import time to show up: a table without the feature loads none.
+  await page.waitForTimeout(200);
+  expect(requests).toEqual([]);
+
+  await c.update(
+    <DataTableHarness data={DATA} cols={COLUMNS} reorderableColumns containerWidth={600} />,
+  );
+  await reorderReady(c);
+  expect(requests).toHaveLength(1);
+  await dragNamePastAge(page, c);
+  await expect(c.getByRole("columnheader").first()).toHaveText(/age/);
 });
 
 test("columnFill: last column gets a handle and a dither filler renders", async ({ mount }) => {
@@ -2980,6 +3086,7 @@ test.describe("with a finger", () => {
         reorderableColumns
       />,
     );
+    await reorderReady(component);
     const heading = component.getByRole("columnheader", { name: "A" });
     expect(await heading.evaluate((el) => getComputedStyle(el).touchAction)).toBe("auto");
   });

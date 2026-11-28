@@ -606,8 +606,9 @@ grip (`TableInput`, `ContextEditor`) or a component-owned chord
 (`WindowArray` Shift+Arrows, `AgentComposer` Alt+Arrows, `Outliner`
 Alt+Shift+Arrows). Header cells (`DataTable`/`Explorer` column
 reorder) are pointer-drag only: Enter/Space on a header belongs to
-sorting, so headers spread dnd-kit's `listeners` but never its
-`attributes` (announcing an inoperable keyboard pickup is worse than none).
+sorting, so headers take dnd-kit's pointer, mouse and touch activators but
+not its keyboard one, and never its `attributes` (announcing an inoperable
+keyboard pickup is worse than none).
 
 Every widget takes its sensors from `useSfSensors()` (exported from
 `lib/dnd`, and the provider's default): a mouse drags after 4px, a finger
@@ -615,11 +616,27 @@ after resting 250ms or at once on a handle (see Conventions → Touch). A host
 that passes its own `sensors` to the provider should build on it, or its
 touch drags will fight page scrolling.
 
-Bundle note: `TableInput`, `ContextEditor`, `AgentComposer` and `Outliner`
-load dnd-kit lazily (only when their drag feature is on); `DataTable`,
-`Explorer` and `WindowArray` still import it statically, so their entries
-carry dnd-kit in the consumer bundle even with drag off. Unifying on the
-lazy pattern is issue #93.
+Bundle note: every widget with drag loads dnd-kit lazily, only when a drag
+feature is on (issue #93), so a consumer that turns none on never downloads
+it: `DataTable` with `reorderableColumns`; `Explorer` with `editable` or
+`reorderableColumns`, or under a provider; `WindowArray` with
+`onWindowMove`, or under a provider; `TableInput` and `Outliner` with
+`reorderable`; an `AgentComposer` with `onChange`; a `ContextEditor` that is
+not `readOnly`. Until the drag code has loaded (the first moments after
+mount) the widget renders the same and a drag does not start yet.<!-- guide:skip -->
+
+For contributors: in `DataTable`, `Explorer` and `WindowArray` the drag code
+is a layer beside the widget's elements that wraps none of them (as in
+`Outliner`), so nothing remounts when it arrives. The widget renders every
+element, reports each one to a `DragNodes` registry (`lib/dnd/nodes`) from
+its ref and calls the activators it finds there from its own handlers; the
+layer, loaded with `useLazyModule` (`lib/useLazyModule`), calls dnd-kit's
+hooks in components that render nothing and binds them to those elements.
+`useLazyModule` has no Suspense boundary: React holds a Suspense reveal back
+for up to 300ms. A widget's own module imports `lib/dnd/context` and
+`lib/dnd/nodes`, which carry no dnd-kit, never `lib/dnd` or
+`lib/dnd/sensors`; `src/lib/dnd/staticImports.test.ts` fails on a drag
+widget whose entry reaches `@dnd-kit/*` statically.<!-- /guide:skip -->
 
 ### Sharp corners by default
 
